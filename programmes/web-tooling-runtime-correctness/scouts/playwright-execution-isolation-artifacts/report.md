@@ -1,9 +1,9 @@
-# Playwright cleanup recovery, outcome accounting, and artifacts
+# Playwright cleanup recovery, shutdown ownership, outcome accounting, and artifacts
 
 - Assignment: #26
 - Programme: #15, `web-tooling-runtime-correctness`
 - Target hub: #10, Playwright
-- Central review candidates: #141 and #142
+- Central review candidates: #141, #142, and #149
 - Worker: `chatgpt:gpt-5.6-thinking`
 - State: `ready-for-synthesis`
 - Original target revision: `microsoft/playwright@0b2088e58e398106445c39fd3e5ec4cb85ef8bbb`
@@ -14,21 +14,17 @@
 
 ## In simple words
 
-Playwright is a robot with a cleanup checklist.
+Three reviewable questions survived the scout.
 
-When the shared cleanup timer is already empty, the robot can erase a fixture cleanup from the checklist without running it. Later cleanup cannot try again because the fixture is no longer registered.
+First, Playwright is a robot with a cleanup checklist. When the shared cleanup timer is already empty, it can erase a fixture cleanup without running it. The current recovery candidate keeps only never-started chores, gives related chores one bounded turn before `afterAll` enters, and writes a private receipt describing what happened.
 
-The reviewed recovery design does three things:
+Second, a test marked with `test.fail()` can absorb an unrelated cleanup exception because both use the public `failed` status. The run can then be counted as expected without retrying.
 
-1. keep only fixture finalizers that never started;
-2. give related fixtures one bounded recovery turn before `afterAll` enters;
-3. write a private receipt describing what completed and what did not.
+Third, Python async shutdown is like locking a shop. If the first caller starts shutdown and gets cancelled, a later caller can see an “already started” guard and return even though connection cleanup did not finish.
 
-This is bounded recovery. It is not a promise that every stalled user callback will finish.
+These are different ownership boundaries and should not be combined into one patch.
 
-A separate result-model issue also emerged. A test marked with `test.fail()` can absorb an unrelated fixture cleanup exception because both use the public `failed` status. The run may then be counted as expected without retrying. That question is deliberately separated into candidate #142.
-
-## What reviewers are being asked to decide
+## Review decisions
 
 ### Candidate #141 — bounded fixture recovery
 
@@ -36,64 +32,62 @@ Review whether Playwright should retain never-started shared-slot fixture finali
 
 ### Candidate #142 — unexpected cleanup failure after `test.fail()`
 
-Review how a cleanup, hook, fixture, or runner failure that is independent of an expected body failure should reach worker replacement, retry selection, and final outcome without casually changing the public status model.
+Review how an independent cleanup, hook, fixture, or runner failure should reach worker replacement, retry selection, and final outcome without casually changing the public status model.
 
-These are different owning boundaries and should not be one patch.
+### Candidate #149 — Python async stop cancellation
+
+Review how asynchronous shutdown should remain joinable or resumable after caller cancellation while preserving one authoritative cleanup operation, idempotency, cancellation, and original errors.
 
 ## Evidence vocabulary
 
-- **Executed target reproduction** — exact Playwright Test runner tests executed in the owned fork with retained workflow runs.
+- **Executed target reproduction** — the exact target test ran in an owned fork with retained workflow evidence.
 - **Source-confirmed** — pinned implementation and repository history directly support the mechanism.
-- **Prepared target test** — a focused test exists in an owned fork but does not yet have a retained execution result.
-- **Probe-reproduced model** — a controlled library-level or synthetic probe demonstrates part of the mechanism but is not the exact target runner path.
-- **Candidate contract** — a desired invariant proposed for review; current code is not assumed to promise it.
+- **Prepared target test** — a focused test exists but has no retained execution result.
+- **Probe-reproduced model** — a controlled model demonstrates part of the mechanism without executing the exact target path.
+- **Candidate contract** — a desired invariant is proposed; current code is not assumed to promise it.
 
 The report does not upgrade prepared tests or source analysis into executed defects.
 
-## Execution and ownership map
+## Ownership map
 
-| Owner | Responsibility | Lifetime | Relevant completion boundary |
+| Owner | Responsibility | Lifetime | Completion boundary |
 | --- | --- | --- | --- |
-| Runner and dispatcher | scheduling, retries, final outcome, reporter dispatch | whole invocation or phase | worker result and `testEnd` |
+| Runner and dispatcher | scheduling, retries, final outcome, reporter dispatch | invocation or phase | worker result and `testEnd` |
 | `WorkerMain` | hooks, fixture runner, active test, worker shutdown | worker process | After Hooks, `afterAll`, Worker Cleanup |
 | Fixture runner | fixture graph, instances, setup and teardown order | test or worker scope | shared slot or custom fixture slot |
 | Browser/context fixtures | browser process, contexts, pages, video source | worker or attempt | fixture teardown and context close |
-| Artifact recorders | screenshot, trace, video, error context | attempt | context closure, trace packaging, attachment dispatch |
-| Reporters | result events and durable reports | whole invocation | `onEnd` and `onExit` |
+| Artifact recorders | screenshot, trace, video, error context | attempt | context closure, packaging, attachment dispatch |
+| Reporters | result events and durable reports | invocation | `onEnd` and `onExit` |
+| Python async context manager | driver connection start and stop ownership | context-manager lifetime | transport stop plus connection cleanup |
 
-The strongest defect sits at the boundary between the fixture registry, shared teardown timing, `afterAll`, and reporter completion.
+## Candidate #141 — fixture cleanup recovery
 
-## Strongest confirmed mechanism
+### Confirmed mechanism
 
 A test-scoped fixture without its own timeout uses the runnable's shared After Hooks slot.
 
-When that slot is already exhausted before the fixture teardown body begins, the current fixture teardown path skips the body. Its cleanup path still removes dependency usage and deletes the fixture from `instanceForId`.
-
-The later cleanup pass therefore cannot find the fixture and cannot give its finalizer another bounded opportunity.
+When that slot is already exhausted before teardown begins, the fixture body is skipped. Cleanup still removes dependency usage and deletes the fixture from `instanceForId`. The later cleanup pass cannot find the fixture and cannot give its finalizer another bounded opportunity.
 
 Potential consequences include omitted custom finalizers, BrowserContext closure, local service shutdown, artifact finalization, and attachments that never reach the result.
 
-## Causal experiment stack
-
-The campaign did not jump directly from source reading to a preferred scheduler. Each design had a control that could reject it.
+### Causal experiment stack
 
 | Step | Experiment | Result | Decision |
 | --- | --- | --- | --- |
 | 1 | Retain never-started fixtures | Later finalizer becomes reachable | Retention is necessary |
-| 2 | One shared fallback slot | First slow deferred callback consumes the slot; later receipt is absent before `testEnd` | One shared slot is insufficient |
+| 2 | One shared fallback slot | First slow callback consumes it; later receipt is absent before `testEnd` | One shared slot rejected |
 | 3 | Equal per-fixture shares | Independent finalizers progress | Useful fairness property |
-| 4 | Dependency safety control | Child callback times out but keeps running while parent resource closes | Equal per-fixture shares rejected |
-| 5 | Connected dependency-group shares | Child and parent share one slot; parent does not begin while child remains active | Dependency-group scheduler retained |
-| 6 | Retry only in later Worker Cleanup | `afterAll` reuses the failed test's retained fixture | Late placement rejected |
-| 7 | Spend the same cleanup slot before `afterAll` | Fresh `afterAll` fixture restored; campaign remains green | Current lead placement |
-| 8 | Internal receipt convention | Four states, stable identity, and source location retained | Reporting refinement accepted in fork |
-| 9 | Expected body failure plus cleanup exception | No retry; run counted as expected | Separate outcome-accounting candidate opened |
+| 4 | Dependency safety control | Timed-out child keeps running while parent closes | Equal shares rejected |
+| 5 | Connected dependency-group shares | Parent does not begin while child remains active | Scheduler retained |
+| 6 | Retry only in later Worker Cleanup | `afterAll` reuses the retained fixture | Late placement rejected |
+| 7 | Spend the same slot before `afterAll` | Fresh hook fixture restored | Current lead placement |
+| 8 | Internal receipt convention | Four states, stable identity, and source location retained | Reporting refinement retained |
 
-## Dependency-group scheduler
+### Dependency-group scheduler
 
-The scheduler builds connected components using fixture dependency and usage relationships. Fixtures in one component share one recovery slot, preserving teardown order. Independent components receive bounded shares weighted by fixture count. Unused reservation returns to the remaining pool.
+Connected fixtures share one recovery slot, preserving teardown order. Independent groups receive bounded shares weighted by fixture count. Unused reservation returns to the remaining pool.
 
-The scheduler passed eight exact runner tests with Node 22 and one worker:
+Eight exact runner tests passed with Node 22 and one worker:
 
 | Platform | Result |
 | --- | --- |
@@ -101,11 +95,11 @@ The scheduler passed eight exact runner tests with Node 22 and one worker:
 | macOS 26.4 arm64 | 8 passed in 14.8s |
 | Windows Server 2025 | 8 passed in 19.8s |
 
-This validates the scheduler cases across the repository's three required platform families. It does not yet validate the final combined pre-`afterAll` ordering and internal-receipt stack on all three platforms.
+This validates the scheduler cases across the three platform families. The final combined pre-`afterAll` ordering and internal-receipt stack still needs a macOS/Windows decision.
 
-## Rejected late recovery placement
+### Rejected late placement
 
-Owned probe PR `teamleaderleo/playwright#22` and execution PR `#23` tested whether retrying retained test fixtures only in later Worker Cleanup preserves hook isolation.
+Owned probe PR `teamleaderleo/playwright#22` and execution PR `#23` tested retry only in later Worker Cleanup.
 
 Workflow run `30485904509`, job `90691366536`, observed:
 
@@ -119,73 +113,70 @@ resource-teardown-1
 
 `afterAll` received the failed test's still-live fixture. A fresh second fixture was never created.
 
-Repository history already required a new fixture instance for `afterAll` after an `afterEach` timeout. The negative control therefore rejected late Worker Cleanup as the primary recovery point.
+### Corrected pre-`afterAll` placement
 
-## Corrected pre-`afterAll` recovery
+Owned source PR `teamleaderleo/playwright#24` spends one existing full-cleanup slot before `afterAll` when cleanup debt exists, then reuses the same slot during later Worker Cleanup. It does not add another deadline.
 
-Owned source PR `teamleaderleo/playwright#24` moves the test-fixture recovery pass before `afterAll` fixture resolution.
-
-It creates one bounded full-cleanup slot using the existing project timeout, spends the test-fixture portion before `afterAll` when cleanup debt exists, and reuses the same slot during later Worker Cleanup. It does not add another cleanup deadline.
-
-Execution PR `teamleaderleo/playwright#25`, workflow run `30486881047`, job `90694673635`, produced:
+Execution PR `teamleaderleo/playwright#25`, workflow run `30486881047`, job `90694673635`:
 
 ```text
 11 passed (22.9s)
 ```
 
-The repository's existing regression `should run fixture teardown with custom timeout after afterEach timeout` also passed separately:
+The repository's existing fresh-`afterAll` fixture regression passed separately:
 
 ```text
 1 passed (4.5s)
 ```
 
-The source diff is limited to `workerMain.ts`: 17 additions and 5 deletions. The change moves recovery; it does not alter the dependency-group algorithm.
+The source diff is limited to `workerMain.ts`: 17 additions and 5 deletions. It moves recovery without changing the dependency-group algorithm.
 
-## Cleanup receipt
+### Internal cleanup receipt
 
-Deferred recovery can end in more states than pass or fail. The tested internal receipt records:
+The tested receipt records:
 
 - `completed`
 - `failed-after-start`
 - `timed-out-after-start`
 - `not-started-budget-exhausted`
 
-Owned source PR `teamleaderleo/playwright#26` aligns the receipt with existing repository conventions:
+Owned source PR `teamleaderleo/playwright#26` uses:
 
-- attachment name `_fixture-cleanup`, following the internal underscore convention;
+- attachment `_fixture-cleanup`;
 - phase `deferred-test-fixture-recovery`;
-- opaque fixture registration id;
+- opaque registration id;
 - human fixture name;
 - source location;
 - recovery budget fields;
-- one of the four cleanup states.
+- one cleanup state.
 
-Execution PR `teamleaderleo/playwright#27`, workflow run `30487474207`, job `90696663923`, passed the complete eleven-test stack in 22.8 seconds on Ubuntu 24.04, Node 22, and one worker.
+Execution PR `teamleaderleo/playwright#27`, workflow run `30487474207`, job `90696663923`, passed eleven tests in 22.8 seconds on Ubuntu 24.04, Node 22, and one worker.
 
-The receipt is emitted before `testEnd`. Output or callbacks that occur only after result dispatch cannot repair the already-delivered result.
+The receipt arrives before `testEnd`. Late process output cannot repair an already-delivered result.
 
-## Current lead invariant
+### Current lead invariant
 
 > When a shared-slot test fixture finalizer has not started because the normal slot is exhausted, retain only that fixture instance, recover retained fixtures by connected dependency group within one existing cleanup budget before `afterAll`, reuse the remaining budget for worker cleanup, and emit an internal receipt before `testEnd`.
 
-The promise level is intentionally narrow:
+The promise is narrow:
 
-- provide a bounded recovery opportunity;
-- preserve dependency order;
-- prevent failed-test fixtures from crossing into `afterAll`;
-- make incomplete cleanup explicit;
-- do not wait indefinitely;
-- do not grant every fixture a complete extra timeout.
+- bounded recovery opportunity;
+- dependency order preserved;
+- no failed-test fixture crossing into `afterAll`;
+- incomplete cleanup made explicit;
+- no indefinite wait;
+- no full extra timeout for every fixture.
 
-Cleanup that must have an independent allowance should continue to use an explicit fixture timeout.
+Critical cleanup that needs an independent allowance should continue to use an explicit fixture timeout.
 
-## Expected-failure outcome accounting
+## Candidate #142 — expected-failure outcome accounting
 
-Owned probe PR `teamleaderleo/playwright#28` tests a separate case:
+Owned probe PR `teamleaderleo/playwright#28` combines:
 
-- the body is marked with `test.fail()` and fails as expected;
-- fixture teardown throws `cleanup exploded`;
-- retries are set to one.
+- a body marked with `test.fail()`;
+- an expected body failure;
+- a fixture teardown that throws `cleanup exploded`;
+- one configured retry.
 
 Execution PR `teamleaderleo/playwright#29`, workflow run `30487755057`, job `90697590797`, printed:
 
@@ -196,45 +187,101 @@ cleanup-0-worker-0
 
 Only attempt zero ran. No fresh worker appeared. The nested exit code was zero.
 
-The dispatcher selects failures by comparing result `status` with `expectedStatus`; final test outcome uses the same public comparison. A worker-stop flag alone can protect later tests but cannot make this result retryable or unexpected.
+The dispatcher and final outcome compare public `status` with `expectedStatus`. A worker-stop flag can protect future tests but cannot make this result retryable or unexpected.
 
-Candidate #142 therefore asks for a separate internal unexpected-cleanup dimension that can reach:
+Candidate #142 asks for a separate internal unexpected-cleanup dimension that reaches:
 
 - worker replacement;
 - retry selection;
 - retained errors;
 - final outcome.
 
-No implementation has been selected. Blindly rewriting public status strings is explicitly out of scope.
+No implementation is selected. Rewriting public status strings solely to force retry is out of scope.
+
+## Candidate #149 — Python async stop cancellation
+
+### Confirmed mechanism
+
+`PlaywrightContextManager.__aexit__` sets `_exit_was_called` before awaiting asynchronous transport shutdown.
+
+The owned test blocks `wait_until_stopped()`, cancels the first `playwright.stop()`, lets transport shutdown finish, then retries `stop()` and requires connection cleanup to set `_closed_error`.
+
+Execution PR `teamleaderleo/playwright-python#2`, workflow run `30492906544`, assembled the repository driver and ran the test on Ubuntu 24.04:
+
+| Python | Job | Result |
+| --- | --- | --- |
+| 3.10 | `90714870057` | intended assertion failure |
+| 3.14 | `90714870025` | intended assertion failure |
+
+Both versions observed:
+
+```text
+await playwright.stop()
+assert manager._connection._closed_error is not None
+E assert None is not None
+```
+
+The second stop returned through the already-set exit guard even though connection cleanup remained incomplete.
+
+Durable detail is in `python-async-stop-cancellation-run-2026-07-30.md`.
+
+### Proposed invariant
+
+Async Playwright shutdown must remain joinable and retryable after caller cancellation.
+
+A later caller should await the one authoritative shutdown operation or safely resume incomplete cleanup. It must not return merely because an earlier cancelled caller set an entry guard.
+
+### Design constraints
+
+- preserve caller cancellation;
+- avoid duplicate concurrent transport shutdown;
+- do not mark shutdown complete before connection cleanup;
+- keep repeated successful stop idempotent;
+- preserve the original shutdown error for later callers;
+- cover direct stop and async context-manager exit.
+
+### Required regression matrix
+
+- two concurrent stop callers;
+- cancellation before transport stop;
+- cancellation after transport stop but before connection cleanup;
+- transport failure;
+- connection cleanup failure;
+- repeated successful stop;
+- Linux, macOS, and Windows;
+- oldest and newest supported Python versions.
+
+No repair has been implemented or selected.
 
 ## Repository precedent and intentions
 
 The history review found these constraints:
 
 - timeout bounds are deliberate;
-- custom-timeout fixtures own independent slots and should continue after another slot expires;
+- custom-timeout fixtures own independent slots;
 - attempted teardown must not be repeated merely because it failed;
 - test fixtures should be gone before `afterAll` resolves its own fixtures;
 - worker fixtures remain after `afterAll`;
-- test-runner changes require focused hermetic tests;
-- tests should work on Linux, macOS, and Windows;
+- runner changes need focused hermetic tests on Linux, macOS, and Windows;
 - prospective changes should remain small, issue-led, and reviewed before upstream work.
 
 Durable detail is in `fixture-teardown-repository-intent-review-2026-07-30.md`.
 
 ## Anti-patterns rejected
 
-- extending teardown without a hard bound;
+- unbounded teardown extension;
 - multiplying project timeout by fixture count;
-- giving dependent fixtures independent timeout races;
+- independent timeout races across dependencies;
 - retrying callbacks that already began and failed;
 - retaining every fixture rather than only never-started finalizers;
 - retrying retained test fixtures only after `afterAll`;
-- treating process-exit stdout as successful reporter evidence;
-- emitting internal scheduling data as an ordinary visible attachment;
-- identifying receipt entries only by fixture name;
-- changing public status strings solely to force retries;
-- combining scheduler, diagnostics, receipt schema, and outcome accounting in one patch.
+- process-exit stdout as reporter evidence;
+- ordinary visible attachments for internal scheduling data;
+- fixture name as the only receipt identity;
+- public status mutation solely to force retries;
+- a one-way shutdown guard that cannot distinguish started from completed;
+- duplicate concurrent shutdown operations;
+- combining scheduler, receipt, outcome accounting, and Python shutdown changes.
 
 ## Other retained findings
 
@@ -246,56 +293,39 @@ The video flow can record a derived filename before screencast startup succeeds.
 
 Owned fork tests exist in `teamleaderleo/playwright-mcp#1` and `teamleaderleo/playwright-cli#1`. They still need exact execution before promotion.
 
-### Python async stop retriability
-
-**Evidence class:** source-confirmed mechanism plus prepared target test.
-
-`PlaywrightContextManager.__aexit__` marks exit before awaiting asynchronous transport shutdown. If the first `playwright.stop()` is cancelled, a retry can return immediately while connection cleanup remains incomplete.
-
-Owned fork test `teamleaderleo/playwright-python#1` blocks transport shutdown, cancels the first stop, releases transport completion, retries stop, and requires final cleanup. It has not yet produced a retained target execution result.
-
 ### Crash-resilient blob reporting
 
 **Evidence class:** source-confirmed candidate.
 
-Blob report events are accumulated in memory and the durable ZIP is created during `onEnd`. A hard exit before or during `onEnd` can leave no replayable blob even when attempt artifacts already exist.
+Blob report events are accumulated in memory and the durable ZIP is created during `onEnd`. A hard exit before or during `onEnd` can leave no replayable blob even when attempt artifacts exist.
 
-A journal prototype exists in the owned fork, but the next useful evidence is a deterministic phase-interruption matrix, not another implementation variant.
+A journal prototype exists, but the next useful evidence is a deterministic phase-interruption matrix rather than another implementation variant.
 
 ### Worker heartbeat hard kill
 
 **Evidence class:** bounded open probe with counterevidence.
 
-The worker force-kill path and browser process groups use different ownership boundaries. A library-level SIGKILL probe found no surviving observed Playwright driver or Chromium processes. The exact Playwright Test heartbeat-loss path remains worth one bounded process-tree probe, but no defect is claimed.
+A library-level SIGKILL probe found no surviving observed Playwright driver or Chromium processes. The exact Playwright Test heartbeat-loss path remains worth one bounded process-tree probe, but no defect is claimed.
 
-## Review packet
+## Review packets
 
-### Review candidate #141
+### #141
 
-Check:
+Verify skip-and-delete, no-budget starvation, equal-share dependency races, connected-component safety, `afterAll` ordering, same-budget correction, receipt timing, and final cross-platform need.
 
-1. skip-and-delete source mechanism;
-2. no-budget starvation control;
-3. equal-share dependency race;
-4. connected-component safety;
-5. late-placement `afterAll` failure;
-6. same-budget pre-`afterAll` correction;
-7. internal receipt naming, identity, and timing;
-8. final cross-platform execution need.
+Disposition: **accept**, **revise**, **execute**, **hold**, or **reject/stop**.
 
-Return one disposition: **accept**, **revise**, **execute**, **hold**, or **reject/stop**.
+### #142
 
-### Review candidate #142
+Verify body and cleanup failures are independent, only attempt zero runs despite one retry, and trace the smallest internal signal through reporter, serial-suite, max-failure, retry, and final-outcome paths.
 
-Check:
+Disposition: **accept as separate candidate**, **revise**, or **hold for result-model design**.
 
-1. expected body failure is distinct from cleanup exception;
-2. only attempt zero runs despite one retry;
-3. current result model's status comparison;
-4. adjacent unhandled-error and hook-error precedent;
-5. reporter, serial-suite, max-failure, and retry consequences of a new internal signal.
+### #149
 
-Return one disposition: **accept as separate candidate**, **revise**, or **hold for result-model design**.
+Verify the two-version cancellation reproduction, compare shared shutdown task, explicit state machine, and reset-on-cancellation designs, and require the concurrency/error/platform matrix before implementation promotion.
+
+Disposition: **accept**, **revise**, or **hold for shutdown-state design**.
 
 ## Durable evidence index
 
@@ -310,17 +340,20 @@ Return one disposition: **accept as separate candidate**, **revise**, or **hold 
 - `fixture-teardown-recovery-diagnostics-state-matrix-2026-07-30.md`
 - `fixture-teardown-repository-intent-review-2026-07-30.md`
 - `fixture-teardown-repository-alignment-run-2026-07-30.md`
+- `python-async-stop-cancellation-run-2026-07-30.md`
 - `follow-up-2026-07-30.md`
 - retained probes under `probe/`
 
 ## Handoff
 
 - Parent scout: #26
-- Central recovery candidate: #141
-- Central outcome-accounting candidate: #142
+- Fixture recovery: #141
+- Outcome accounting: #142
+- Python shutdown ownership: #149
 - Fieldwork review PR: #49
-- Primary owned source PRs: `teamleaderleo/playwright#24` and `#26`
-- Primary negative outcome probe: `teamleaderleo/playwright#28`
+- Primary fixture source PRs: `teamleaderleo/playwright#24` and `#26`
+- Expected-failure probe: `teamleaderleo/playwright#28`
+- Python stop probe: `teamleaderleo/playwright-python#1`
 - Upstream contact: unauthorized
 
 No upstream contact occurred.
