@@ -1,5 +1,5 @@
 name: Campaign proposal
-description: Propose a bounded investigation
+description: Propose a bounded code-first investigation
 title: "[Campaign] "
 labels:
   - "type:campaign"
@@ -8,7 +8,21 @@ body:
   - type: markdown
     attributes:
       value: |
-        External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. External shorthand is prohibited. This campaign does not authorize upstream contact.
+        Add the correct `target:<slug>` label after creation. External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. External shorthand is prohibited. This campaign does not authorize upstream contact.
+  - type: input
+    id: target
+    attributes:
+      label: Target label and hub
+      placeholder: target:vercel-ai — Fieldwork target hub issue 2
+    validations:
+      required: true
+  - type: textarea
+    id: simple
+    attributes:
+      label: In simple words
+      description: What is the system, where does it sit, what are we testing, why could it be useful, and what happens next?
+    validations:
+      required: true
   - type: textarea
     id: question
     attributes:
@@ -17,16 +31,33 @@ body:
     validations:
       required: true
   - type: textarea
+    id: thesis
+    attributes:
+      label: Change thesis
+      description: State current behaviour, consequence, candidate improvement, evidence needed, and evidence boundary.
+    validations:
+      required: true
+  - type: textarea
     id: value
     attributes:
       label: Intrinsic value
-      description: Why would this result matter without visibility or contribution credit?
+      description: Why would this result or owned-project improvement be useful without visibility or contribution credit?
     validations:
       required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Initial code map
+      description: Known entrypoints, state ownership, side effects, failure paths, contracts, and tests.
   - type: textarea
     id: evidence
     attributes:
       label: Evidence already available
+  - type: textarea
+    id: testbed
+    attributes:
+      label: Candidate owned testbed
+      description: Name a public repository or neutral private identifier only when realistic use adds evidence.
   - type: textarea
     id: scope
     attributes:
@@ -47,4 +78,6 @@ body:
         - label: This proposal does not authorize upstream contact.
           required: true
         - label: The campaign will follow current target contribution and AI policies.
+          required: true
+        - label: Documentation, lint, wording, and style work are not the campaign's primary purpose.
           required: true
