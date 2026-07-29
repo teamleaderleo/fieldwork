@@ -28,7 +28,7 @@ Applications may need to consume and classify stream parts themselves, rely on t
 
 ### External overlap
 
-Upstream PR `vercel/ai#15867` already adds `onError`, `onChunk`, and `onAbort` to agent settings and per-call parameters, merges constructor and call callbacks, preserves the default error handler, and includes runtime tests, type tests, API documentation, and a changeset.
+The [upstream ToolLoopAgent stream-callback candidate](https://redirect.github.com/vercel/ai/pull/15867) already adds `onError`, `onChunk`, and `onAbort` to agent settings and per-call parameters, merges constructor and call callbacks, preserves the default error handler, and includes runtime tests, type tests, API documentation, and a changeset.
 
 ### Disposition
 
@@ -142,5 +142,5 @@ Promote only a specific disagreement reproduced at the pinned revision.
 2. Validate the sticky resumable-state repair in `teamleaderleo/ai#3`, then test run-scoped Stop identity under campaign #95.
 3. Build campaign #94's truncated-stream matrix before selecting a public representation or candidate fix.
 4. Keep ordinary provider errors as a regression baseline, not a new fix branch.
-5. Stop duplicate ToolLoopAgent callback work while `vercel/ai#15867` covers the same API surface.
+5. Stop duplicate ToolLoopAgent callback work while the [upstream ToolLoopAgent stream-callback candidate](https://redirect.github.com/vercel/ai/pull/15867) covers the same API surface.
 6. Stop generic claims that all stream cancellation should abort all underlying work.
