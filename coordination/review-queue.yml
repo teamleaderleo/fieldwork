@@ -1,5 +1,6 @@
 version: 1
 snapshot_date: "2026-07-30"
+snapshot_source_main: "dd75315202f5e66c90961cddd6d914766d7db576"
 canonical_live_state: github_issues
 human_view: REVIEW_QUEUE.md
 policy:
@@ -22,11 +23,12 @@ entries:
     state: ready_for_independent_review
     primary_issue: 65
     primary_pr: 82
+    evidence_commit: "fbbea68332ecd57e7abad538453ad07d541387b1"
     evidence_paths:
       - campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/report.md
       - campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/era-scope-amendment.md
     owned_fork_prs:
-      - teamleaderleo/typescript-sdk#1
+      - "teamleaderleo/typescript-sdk#1"
     required_actions:
       - verify_bidirectional_public_path_reproduction
       - verify_scope_and_impact_wording
@@ -44,6 +46,7 @@ entries:
     state: ready_for_independent_review
     primary_issue: 89
     primary_pr: 97
+    evidence_commit: "a1ad034eb3500f20d5815ea3d34a1244d0029a59"
     evidence_paths:
       - programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/report.md
       - programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-object-spread-accessors/README.md
@@ -64,14 +67,15 @@ entries:
     target: codex
     state: needs_human_decision
     primary_issue: 83
+    evidence_commit: "dd75315202f5e66c90961cddd6d914766d7db576"
     evidence_paths:
       - campaigns/0003-compaction-mutation-identity/question.md
       - campaigns/0003-compaction-mutation-identity/source-map.md
       - campaigns/0003-compaction-mutation-identity/decision.md
     owned_fork_prs:
-      - teamleaderleo/codex#2
-      - teamleaderleo/codex#3
-      - teamleaderleo/codex#4
+      - "teamleaderleo/codex#2"
+      - "teamleaderleo/codex#3"
+      - "teamleaderleo/codex#4"
     required_actions:
       - keep_raw_history_validator_separate
       - compare_receipt_prs_3_and_4
@@ -92,6 +96,7 @@ entries:
     state: ready_for_independent_review
     primary_issue: 25
     primary_pr: 48
+    evidence_commit: "201dc6c59f2a2108c39ebd3ecd2273c547a4c198"
     evidence_paths:
       - programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/report.md
       - programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-2026-07-29.md
@@ -116,13 +121,14 @@ entries:
       - 76
       - 94
       - 95
+    evidence_commit: "1d20c755072207d8c21441b505c1ec6fc3324fe4"
     evidence_paths:
       - programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/report.md
       - programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/follow-up-terminal-outcomes.md
       - programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/surrounding-lifecycle-candidates.md
     owned_fork_prs:
-      - teamleaderleo/ai#1
-      - teamleaderleo/ai#3
+      - "teamleaderleo/ai#1"
+      - "teamleaderleo/ai#3"
     required_actions:
       - execute_node_and_edge_abort_matrix
       - execute_resumable_stop_race_matrix
@@ -140,12 +146,13 @@ entries:
     state: active_batch
     primary_issue: 88
     primary_pr: 92
+    evidence_commit: "f03ceaa97a9051a99a56b35567c81d0bde66443f"
     evidence_paths:
       - batches/B20260730-001-workers-sdk-lifecycle-followup/DISPATCH.md
       - batches/B20260730-001-workers-sdk-lifecycle-followup/STATUS.md
       - batches/B20260730-001-workers-sdk-lifecycle-followup/manifest.json
     owned_fork_prs:
-      - teamleaderleo/workers-sdk#1
+      - "teamleaderleo/workers-sdk#1"
     required_actions:
       - execute_A001_current_failure
       - complete_A002_and_A003
@@ -164,15 +171,16 @@ entries:
     state: source_review_ready_target_tests_unexecuted
     primary_issue: 22
     primary_pr: 45
+    evidence_commit: "9515e6a091f1c654f5ccdd6d60656b469f7b5889"
     evidence_paths:
       - programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/review-packet-2026-07-30.md
       - programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/report.md
       - programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/exploration-log-2026-07-30.md
     owned_fork_prs:
-      - teamleaderleo/gemini-cli#1
-      - teamleaderleo/gemini-cli#2
-      - teamleaderleo/gemini-cli#3
-      - teamleaderleo/gemini-cli#4
+      - "teamleaderleo/gemini-cli#1"
+      - "teamleaderleo/gemini-cli#2"
+      - "teamleaderleo/gemini-cli#3"
+      - "teamleaderleo/gemini-cli#4"
     required_actions:
       - independently_recheck_source_defects
       - execute_waiting_state_and_call_affinity_tests
@@ -193,6 +201,7 @@ entries:
     primary_pr: 63
     related_prs:
       - 75
+    evidence_commit: "174bd677d0c67c2e371e884665eb3971e822e0ab"
     evidence_paths:
       - programmes/agent-cli-execution/scouts/harness-control-surfaces/report.md
       - programmes/agent-cli-execution/scouts/harness-control-surfaces/artifacts/contract-cases.json
