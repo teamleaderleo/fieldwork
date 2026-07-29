@@ -1,0 +1,88 @@
+version: 1
+retrieved_at: 2026-07-29
+
+# This public registry contains only public owned repositories.
+# It is an orientation index, not an assignment queue or permission boundary.
+# Create testbed labels only when a real controlled trial begins.
+
+testbeds:
+  - id: stensibly
+    repository: teamleaderleo/stensibly
+    state: candidate
+    possible_roles: [agents, mcp, oauth, coordination, hosted-services]
+
+  - id: elatura
+    repository: teamleaderleo/elatura
+    state: candidate
+    possible_roles: [browser-extension, web-platform, publishing, security-controls]
+
+  - id: scrapbook
+    repository: teamleaderleo/scrapbook
+    state: candidate
+    possible_roles: [web-application, ui, content, deployment]
+
+  - id: proofwake
+    repository: teamleaderleo/proofwake
+    state: candidate
+    possible_roles: [evidence, verification, developer-tooling]
+
+  - id: renderprove
+    repository: teamleaderleo/renderprove
+    state: candidate
+    possible_roles: [rendering, visual-verification, browser-tooling]
+
+  - id: smolrunner
+    repository: teamleaderleo/smolrunner
+    state: candidate
+    possible_roles: [task-execution, cli, process-lifecycle]
+
+  - id: starsector-preflight
+    repository: teamleaderleo/starsector-preflight
+    state: candidate
+    possible_roles: [validation, cli, filesystem, packaging]
+
+  - id: bsc-compare
+    repository: teamleaderleo/bsc-compare
+    state: candidate
+    possible_roles: [comparison, data-processing, web-application]
+
+  - id: fin-agent
+    repository: teamleaderleo/fin-agent
+    state: candidate
+    possible_roles: [agents, tool-calling, structured-data]
+
+  - id: simple-email-filter
+    repository: teamleaderleo/simple-email-filter
+    state: candidate
+    possible_roles: [rules, parsing, automation, integration]
+
+  - id: api-for-bizarre-pose-estimator
+    repository: teamleaderleo/api-for-bizarre-pose-estimator
+    state: candidate
+    possible_roles: [api, media, inference, request-lifecycle]
+
+  - id: reddit-narrative-detection
+    repository: teamleaderleo/reddit-narrative-detection
+    state: candidate
+    possible_roles: [data-pipeline, analysis, model-integration]
+
+  - id: narrative-duckdb
+    repository: teamleaderleo/narrative-duckdb
+    state: candidate
+    possible_roles: [database, analytics, query-integration]
+
+  - id: gh-tidy-branches
+    repository: teamleaderleo/gh-tidy-branches
+    state: candidate
+    possible_roles: [github, cli, destructive-operation-safety]
+
+  - id: terminal-kit
+    repository: teamleaderleo/terminal-kit
+    state: candidate
+    possible_roles: [terminal, cli, process-io]
+
+notes:
+  - Other public or private owned repositories may be selected when they fit a concrete question better.
+  - Private testbeds remain unnamed publicly by default.
+  - Upstream forks and mirrors are not owned-product testbeds merely because they appear under the account.
+  - A trial should improve our understanding or one of our projects even if no upstream contribution follows.
