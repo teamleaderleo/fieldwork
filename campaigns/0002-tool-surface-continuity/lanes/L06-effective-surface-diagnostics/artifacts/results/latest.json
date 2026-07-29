@@ -1,0 +1,82 @@
+{
+  "divergence_count": 7,
+  "expectation_mismatches": [],
+  "healthy_count": 1,
+  "input_digest": "f84ea46f66af51fb",
+  "receipt_count": 8,
+  "results": [
+    {
+      "classification": "divergence",
+      "expected_match": true,
+      "first_divergent_layer": "host_reconciliation",
+      "receipt_id": "l01-cold-resume-saved-host-wins",
+      "recovery": "require an explicit preserve/replace/clear/reject host policy before continuation",
+      "typed_reason": "saved_host_state_wins",
+      "unavailable_views": ["logical_request", "wire_request", "global_catalogue", "binding", "router", "model_exposure", "discovery", "executable", "server_completion", "result_persistence", "client_delivery", "display", "fallback_authority"]
+    },
+    {
+      "classification": "divergence",
+      "expected_match": true,
+      "first_divergent_layer": "wire_request",
+      "receipt_id": "l02-clean-prewarm-lite",
+      "recovery": "discard incompatible incremental reuse and send a full first generated request",
+      "typed_reason": "wire_manifest_omitted",
+      "unavailable_views": ["saved_host", "current_host", "effective_host", "global_catalogue", "binding", "router", "model_exposure", "discovery", "executable", "server_completion", "result_persistence", "client_delivery", "display", "fallback_authority"]
+    },
+    {
+      "classification": "divergence",
+      "expected_match": true,
+      "first_divergent_layer": "result_persistence",
+      "receipt_id": "l03-late-result-after-compaction",
+      "recovery": "pause mutation continuation and reconcile the prior operation before retry",
+      "typed_reason": "result_identity_ambiguous",
+      "unavailable_views": ["saved_host", "current_host", "effective_host", "logical_request", "wire_request", "global_catalogue", "binding", "router", "model_exposure", "discovery", "display", "fallback_authority"]
+    },
+    {
+      "classification": "divergence",
+      "expected_match": true,
+      "first_divergent_layer": "binding",
+      "receipt_id": "l04-stub-real-ordinary-refresh",
+      "recovery": "relist or reconnect, validate remote identity and catalogue digest, then capture a new binding",
+      "typed_reason": "stale_binding",
+      "unavailable_views": ["saved_host", "current_host", "effective_host", "logical_request", "wire_request", "discovery", "result_persistence", "client_delivery", "display", "fallback_authority"]
+    },
+    {
+      "classification": "divergence",
+      "expected_match": true,
+      "first_divergent_layer": "discovery",
+      "receipt_id": "l05-deferred-runtime-without-loader",
+      "recovery": "direct-expose the family or reject the request with a typed planner error",
+      "typed_reason": "deferred_without_loader",
+      "unavailable_views": ["saved_host", "current_host", "effective_host", "logical_request", "wire_request", "server_completion", "result_persistence", "client_delivery", "display", "fallback_authority"]
+    },
+    {
+      "classification": "divergence",
+      "expected_match": true,
+      "first_divergent_layer": "executable",
+      "receipt_id": "l07-required-tool-absent-fallback-changes-authority",
+      "recovery": "stop the intended action and compare any fallback authority before rerouting",
+      "typed_reason": "required_capability_absent",
+      "unavailable_views": ["saved_host", "current_host", "effective_host", "logical_request", "wire_request", "global_catalogue", "binding", "router", "model_exposure", "discovery", "server_completion", "result_persistence", "client_delivery", "display"]
+    },
+    {
+      "classification": "no_observed_divergence",
+      "expected_match": true,
+      "first_divergent_layer": null,
+      "receipt_id": "l08-healthy-coexistence-after-context-summary",
+      "recovery": null,
+      "typed_reason": null,
+      "unavailable_views": ["saved_host", "current_host", "effective_host", "logical_request", "wire_request", "binding", "router", "model_exposure", "display"]
+    },
+    {
+      "classification": "divergence",
+      "expected_match": true,
+      "first_divergent_layer": "display",
+      "receipt_id": "campaign-display-zero-execution-present-control",
+      "recovery": "treat display as stale and refresh its projection without changing execution",
+      "typed_reason": "display_underreports_execution",
+      "unavailable_views": ["saved_host", "current_host", "effective_host", "logical_request", "wire_request", "global_catalogue", "discovery", "fallback_authority"]
+    }
+  ],
+  "schema_version": 1
+}

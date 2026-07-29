@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fieldwork.local/schemas/effective-surface-receipt-v1.json",
+  "title": "Effective tool-surface receipt",
+  "type": "object",
+  "required": ["schema_version", "receipt_id", "transition", "request_kind", "operation_kind", "views"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "receipt_id": {"type": "string", "minLength": 1},
+    "source_lane": {"type": "string"},
+    "transition": {"type": "string"},
+    "request_kind": {"type": "string"},
+    "operation_kind": {"enum": ["read", "mutation", "mixed"]},
+    "prior_receipt_digest": {"type": ["string", "null"]},
+    "views": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/view"}
+    },
+    "expected": {
+      "type": "object",
+      "properties": {
+        "first_divergent_layer": {"type": ["string", "null"]},
+        "typed_reason": {"type": ["string", "null"]}
+      }
+    }
+  },
+  "$defs": {
+    "view": {
+      "type": "object",
+      "required": ["state"],
+      "properties": {
+        "state": {"enum": ["present", "absent", "unavailable"]},
+        "count": {"type": "integer", "minimum": 0},
+        "digest": {"type": "string"},
+        "identity_digest": {"type": "string"},
+        "provenance": {"type": "string"},
+        "required": {"type": "boolean"},
+        "executable": {"type": "boolean"},
+        "previous_response": {"type": "boolean"},
+        "deferred_family_count": {"type": "integer", "minimum": 0},
+        "identity_state": {"enum": ["complete", "missing", "duplicated", "reordered", "orphaned"]},
+        "decision": {"enum": ["allow_equivalent", "require_explicit_approval", "fail_closed"]},
+        "delta_count": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
