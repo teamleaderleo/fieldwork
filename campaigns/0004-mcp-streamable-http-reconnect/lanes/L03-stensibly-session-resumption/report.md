@@ -8,291 +8,266 @@ Programme: #13
 Primary target hub: #7  
 Parent scout: #20  
 Owned testbed: `teamleaderleo/stensibly`  
-Worker: ChatGPT GPT-5.6 Thinking acting under the Stensibly callsign `Kestrel`  
+Worker: ChatGPT GPT-5.6 Thinking under Stensibly callsign `Kestrel`  
 Upstream contact authorized: `false`
 
 ## In simple words
 
-This lane separates four outcomes that are easy to confuse after an MCP response stream breaks:
+This lane separates four different outcomes after an MCP response stream breaks:
 
-1. **lost result** — the server completed work, but the client never receives the result;
-2. **duplicate delivery** — the same stored result reaches the client more than once;
-3. **duplicate handler execution** — the application tool handler runs again;
-4. **duplicate durable effect** — the application creates or changes durable state twice.
+1. **lost result** — work committed, result never reaches the caller;
+2. **duplicate delivery** — the same stored result arrives more than once;
+3. **duplicate handler execution** — a new application request runs the tool again;
+4. **duplicate durable effect** — durable state is created or changed twice.
 
-Stensibly currently has two different protection layers:
+Stensibly's hosted MCP endpoint is currently stateless JSON-response mode. It does not use MCP sessions, an event store, or `Last-Event-ID` replay. Its existing recovery controls are durable operation receipts and exact idempotency fingerprints.
 
-- its hosted MCP endpoint is stateless JSON-response mode, so it does not use MCP sessions, event-store replay, or `Last-Event-ID` resumption;
-- its mutation layer uses exact idempotency fingerprints and operation receipts, so an ambiguous result can be reconciled and an exact retry returns the original durable object.
+A test-only stateful fixture exposed a dependency-version boundary:
 
-A test-only stateful server using Stensibly's exact installed SDK version exposed a known SDK defect. Stensibly is locked to `@modelcontextprotocol/sdk@1.29.0`. In that release, a request-scoped SSE stream closed with `closeSSEStream()` loses the terminal response instead of storing it for replay. The client sends a `Last-Event-ID` GET, but the event store contains only the priming event. The original call times out.
+- Stensibly's lock resolves `@modelcontextprotocol/sdk@1.29.0`.
+- On 1.29.0, `closeSSEStream()` after the real Stensibly mutation commits stores only the priming event. The terminal result is lost, the replay GET has nothing to return, and the original call times out.
+- A new exact retry enters the handler again but returns the same item and leaves one item plus one `item.created` event.
+- `@modelcontextprotocol/sdk@1.30.0` contains the v1.x store-first backport. With the same real Stensibly store, it stores two request-stream events, performs one replay GET, returns the original result with one handler execution, and still deduplicates a later explicit application retry.
 
-Stensibly's application idempotency still prevents a duplicate durable effect: a new exact retry runs the handler again but returns the same item and leaves one `item.created` event. A changed request under the same key is rejected.
-
-This exact server-side replay defect is already tracked upstream as TypeScript SDK issue #2151 and fixed on the current v2 line by PR #2342. No duplicate upstream report is warranted.
+The 1.29 defect is already tracked upstream as issue #2151. The v2 repair landed in #2342; the v1.x backport was incorporated through #2547 and released in 1.30.0. No duplicate upstream issue is needed.
 
 ## Verdict
 
-**Confirmed dependency-version exposure with an application-level recovery control.**
+**Confirmed dependency exposure with a verified fixed upgrade.**
 
-- Current hosted Stensibly endpoint: not exposed to this stateful replay mechanism because it is stateless and POST-only.
-- Test-only stateful path using Stensibly's pinned SDK 1.29.0: terminal result loss reproduced.
-- Duplicate transport delivery: not demonstrated.
-- Automatic replay without re-execution: unavailable on pinned 1.29.0 for this path.
-- Explicit application retry: handler runs again.
-- Duplicate durable effect: prevented by Stensibly's exact idempotency contract.
-- Current v2 SDK line: upstream fix exists.
+| Boundary | Result |
+| --- | --- |
+| Hosted Stensibly today | Not using stateful MCP replay |
+| SDK 1.29 stateful test | Terminal result lost; caller times out |
+| SDK 1.29 exact application retry | Handler runs again; durable effect remains one |
+| SDK 1.30 stateful test | Result stored and replayed; handler remains at one |
+| SDK 1.30 later exact retry | Handler total becomes two; durable effect remains one |
+| Duplicate result delivery | Not demonstrated |
+| Duplicate durable execution | Not demonstrated |
 
 Operational decision:
 
-> Do not enable sessionful request-scoped SSE replay in Stensibly while using SDK 1.29.0. Upgrade to a release containing the store-first fix, or carry a reviewed backport, before treating `closeSSEStream()` plus event-store replay as a recovery guarantee.
+> Do not enable stateful request-scoped SSE replay while pinned to SDK 1.29.0. Upgrade to at least the verified 1.30.0 release or migrate to an appropriate v2 release, retain the replay fixture, and keep receipts/idempotency as a separate application guarantee.
 
-## Pins and write boundary
+## Pins and artifacts
 
-- Stensibly main revision reviewed: `teamleaderleo/stensibly@20241e668fb493b7f389df8b9df7f229bcadff68`
-- Stensibly test branch: `keel/mcp-ambiguous-retry-idempotency`
-- Stensibly test head under Kestrel continuation: `teamleaderleo/stensibly@308788ac592d56372c2b3a46e02c443c43cf4753`
+- Stensibly main reviewed: `teamleaderleo/stensibly@20241e668fb493b7f389df8b9df7f229bcadff68`
+- Stensibly branch: `keel/mcp-ambiguous-retry-idempotency`
+- Final probe head reviewed: `teamleaderleo/stensibly@6d3023eb6b9575806ef56117e729006a6c307694`
 - Stensibly PR: #565
-- Installed MCP SDK: `@modelcontextprotocol/sdk@1.29.0`
-- SDK 1.29.0 release commit inspected: `modelcontextprotocol/typescript-sdk@e12cbd7078db388152f6e839abdbe09ba01f3f32`
-- Current v2 source pin used by Campaign #65: `modelcontextprotocol/typescript-sdk@cc4b41617ce3601b1290d67216ea0b194a3cd9ac`
-- Existing upstream issue: `modelcontextprotocol/typescript-sdk#2151`
-- Existing upstream fix: `modelcontextprotocol/typescript-sdk#2342`
+- Pinned affected package: `@modelcontextprotocol/sdk@1.29.0`
+- Verified fixed package: `@modelcontextprotocol/sdk@1.30.0`
+- SDK 1.29 source commit: `modelcontextprotocol/typescript-sdk@e12cbd7078db388152f6e839abdbe09ba01f3f32`
+- SDK 1.30 release merge: `modelcontextprotocol/typescript-sdk@2d889f2b329e46680ec9bdd565de4616c497825a`
+- Existing issue: `modelcontextprotocol/typescript-sdk#2151`
+- v2 fix: `modelcontextprotocol/typescript-sdk#2342`
+- v1.x backport containing the repair: `modelcontextprotocol/typescript-sdk#2547`
+- Stensibly full CI run: `30482498842`
+- SDK 1.30 upgrade probe run: `30483192362`
+- Fieldwork PR: #104
 - Retrieval date: 2026-07-30
 
-The public SDK repository remained read-only. No issue, pull request, comment, reaction, branch, or message was created upstream.
+The public SDK repository remained read-only. No upstream issue, pull request, comment, reaction, branch, or message was created.
 
 ## Hosted Stensibly boundary
 
-`src/mcp-http.ts` constructs the production-facing hosted handler with:
+`src/mcp-http.ts` configures the production-facing endpoint with:
 
 - `sessionIdGenerator: undefined`;
 - `enableJsonResponse: true`;
 - POST handling only;
-- a fresh server and transport per request;
+- a fresh server/transport per request;
 - no event store.
 
-Consequences:
+Therefore an abandoned response can create an ambiguous result, but current hosted recovery comes from application evidence rather than transport replay:
 
-- an abandoned response body can create an ambiguous result;
-- there is no MCP session or transport replay to recover that result;
-- application receipts and idempotency are the recovery mechanism;
-- the request-scoped replay defect characterized below is not currently active in the hosted endpoint.
+- `get_operation_receipt` identifies the committed event and item;
+- an exact idempotent retry returns the original item;
+- a changed request under the same key conflicts.
 
-## Existing Stensibly application controls
+This stateful replay defect is not active in the hosted endpoint today.
 
-### Ambiguous result and receipt
+## Real Stensibly fixtures
 
-The existing PR #565 fixture sends `create_item` through the real hosted MCP handler, allows the mutation to commit, and abandons the successful response body.
+### Hosted ambiguity fixture
 
-After recreating the app:
+`test/mcp-ambiguous-retry-idempotency.test.ts`:
 
-- `get_operation_receipt` finds the committed item and event;
-- the receipt advises against repeating the operation;
-- the result ambiguity is resolved from durable evidence rather than from transport state.
+1. sends `create_item` through the real hosted MCP handler;
+2. allows the mutation to commit;
+3. abandons the successful response body;
+4. recreates the app;
+5. reconciles through `get_operation_receipt`;
+6. retries the exact mutation;
+7. tries a changed mutation under the same key.
 
-### Exact retry
+Observed:
 
-When the same durable request and idempotency key are submitted again:
+- first handler execution commits one item/event;
+- exact retry enters the handler again and returns the original item;
+- changed request enters and returns a conflict;
+- durable count remains one item and one creation event.
 
-- the `create_item` handler enters again;
-- `StensiblyStore.createItem()` recognizes the exact operation fingerprint;
-- it returns the original item;
-- one item exists;
-- one `item.created` event exists.
+### Stateful 1.29 characterization
 
-When the payload changes under the same key:
+`test/mcp-stateful-session-replay.test.ts` uses the installed public SDK classes plus Stensibly's real SQLite store:
 
-- the handler enters;
-- the store rejects the operation as a conflicting reuse;
-- no second item or creation event appears.
+1. creates a sessionful server with an event store;
+2. commits a real `createItem` mutation;
+3. calls `closeSSEStream()` before returning the tool result;
+4. captures the priming token;
+5. observes the client GET with `Last-Event-ID`;
+6. inspects stored request events and server errors;
+7. waits for caller timeout;
+8. submits an exact new retry and conflict control.
 
-This proves that duplicate handler execution and duplicate durable effect are separate properties.
+Observed on 1.29.0:
 
-## Stateful replay fixture
+- handler count at loss: one;
+- durable item/event count: one/one;
+- request-stream event store: priming event only;
+- server error: `No connection established for request ID`;
+- replay GET: issued with the priming cursor;
+- original caller: times out;
+- exact retry: second handler entry, same item, still one durable effect;
+- changed retry: conflict, still one durable effect.
 
-The added test uses real public package classes from Stensibly's installed dependency:
+### Exact 1.30 upgrade probe
 
-- `Client`;
-- `StreamableHTTPClientTransport`;
-- `McpServer`;
-- `WebStandardStreamableHTTPServerTransport`;
-- the SDK `EventStore` contract;
-- Stensibly's real in-memory SQLite `StensiblyStore`.
+`probes/mcp-stateful-replay-v130/` installs exactly `@modelcontextprotocol/sdk@1.30.0` and reuses Stensibly's real store.
 
-Fixture sequence:
+Run `30483192362` recorded:
 
-1. Initialize a sessionful 2025-era Streamable HTTP client/server pair.
-2. Send `create_item` with an exact idempotency key.
-3. Commit the real Stensibly item and event.
-4. Call `closeSSEStream()` before returning the tool result.
-5. Capture the priming event ID.
-6. Let the client issue its built-in `Last-Event-ID` replay GET.
-7. Inspect event-store contents, server error, caller result, handler count, and durable state.
-8. After caller timeout, issue a new exact application retry.
-9. Issue a changed request using the same key as a conflict control.
+- transport replay handler calls: `1`;
+- request-stream event count: `2` (priming plus terminal result);
+- replay GET cursor: `event-3`;
+- observed tokens: `event-3`, then replayed result token `event-4`;
+- result item equals the committed item;
+- durable item count: `1`;
+- durable creation-event count: `1`;
+- explicit exact retry total handler calls: `2`;
+- exact retry returns the same item;
+- durable counts remain one/one.
 
-No hosted database, credentials, deployment, or irreversible external mutation is used.
+## Source mechanism
 
-## Exact SDK 1.29 mechanism
+### SDK 1.29
 
-At the inspected 1.29.0 release source, the request-scoped server `send()` path:
+The request-scoped `send()` path stores the event only while a live stream controller exists. `closeSSEStream()` removes that live registration, so the terminal response skips persistence and later triggers `No connection established`.
 
-1. resolves the request's stream ID;
-2. reads the current live stream mapping;
-3. stores the response in the event store only inside a branch requiring a live controller and encoder;
-4. after `closeSSEStream()`, the live stream mapping is gone;
-5. the terminal response is therefore not stored;
-6. when all request responses are ready, the missing stream causes `No connection established for request ID` to be thrown.
+The standalone SSE path already stores before checking the live stream. The defect is an asymmetry in request-scoped response handling.
 
-The standalone GET SSE path already used store-first semantics, so this was an asymmetry rather than a deliberate absence of replay support.
+### SDK 1.30
 
-## Upstream duplicate and repair analysis
+PR #2547's second commit made the event store the source of truth for v1.x request streams:
 
-### Issue #2151
+- persist the response even when the stream is disconnected;
+- re-read stream registration after the storage await;
+- avoid double delivery when replay races an in-flight write;
+- release request correlations once the result is safely replayable;
+- throw only when the response cannot be made replayable.
 
-The existing issue describes the exact path:
+Release 1.30.0 was cut from a base containing that merge. The exact package probe confirms the repair in published execution.
 
-- `closeSSEStream()` removes the active controller;
-- the terminal result is not persisted;
-- a later `Last-Event-ID` GET cannot replay it;
-- `send()` throws because the live stream is missing.
+### Current v2
 
-This is a direct duplicate of the dependency behavior observed in the Stensibly fixture.
+PR #2342 implements the corresponding store-first behavior in the split v2 server package with dedicated disconnected-store and replay regression tests.
 
-### PR #2342
-
-The merged v2 fix changes request-scoped serving to:
-
-- store events whenever the request remains in flight and an event store exists, independent of a live controller;
-- re-read stream state after the storage await;
-- skip only immediate delivery when disconnected;
-- return cleanly after storing a terminal response for replay;
-- replay and close a retired request stream correctly;
-- include dedicated regression tests for disconnected storage and terminal response replay.
-
-The fix is scoped to the legacy sessionful 2025 transport supported inside the v2 packages. It does not imply that protocol revision 2026-07-28 reintroduced session or `Last-Event-ID` semantics.
-
-### Version conclusion
-
-Stensibly's exact lock entry resolves `@modelcontextprotocol/sdk@1.29.0`, which predates the merged v2 store-first repair. No v1.x backport of #2342 was found during this lane. Later v1.x keep-alive work explicitly refers to #2151 as a separate pre-existing replay defect.
-
-## Outcome matrix
-
-| Scenario | Handler executions | Durable items/events | Result outcome |
-| --- | ---: | --- | --- |
-| Hosted uninterrupted request | 1 | one item / one creation event | result delivered |
-| Hosted body abandoned after commit | 1 | one item / one creation event | result ambiguous; receipt reconciles |
-| Hosted exact retry after ambiguity | 2 total | still one item / one creation event | original item returned |
-| Hosted changed request under same key | +1 handler entry | still one item / one creation event | conflict returned |
-| Stateful SDK 1.29 `closeSSEStream()` | 1 | one item / one creation event | terminal MCP result not stored; caller times out |
-| Stateful SDK 1.29 replay GET | still 1 | unchanged | priming cursor resumes, but no terminal result exists to replay |
-| Current v2 store-first implementation | 1 in upstream regression | application-dependent | stored terminal result replays without handler rerun |
+Protocol revision 2026-07-28 still has no protocol sessions or `Last-Event-ID` resumption. These fixes concern the supported 2025-era compatibility transport.
 
 ## Findings
 
-### F1. Hosted Stensibly does not currently rely on MCP session replay
+### F1. Lost result, handler rerun, and duplicate durable effect are distinct
 
-**Evidence:** source-observed and test-observed.
+A result can be lost after one commit. A later new request can run the handler again. Exact idempotency can still keep durable effect count at one.
 
-The hosted endpoint is intentionally stateless JSON response mode. Its recovery contract is receipt plus idempotency, not session resumption.
+### F2. SDK 1.29 cannot fulfill request-scoped replay after `closeSSEStream()`
 
-### F2. Stensibly protects durable effects after ambiguous result loss
+The client does reconnect. The missing component is server persistence of the terminal result.
 
-**Evidence:** executed Stensibly tests.
+### F3. SDK 1.30 repairs replay without re-execution
 
-An exact retry can execute the handler again while preserving one durable item and one creation event. Payload drift under the same key is rejected.
+The terminal result is stored and delivered by replay. The tool handler remains at one during transport recovery.
 
-### F3. Pinned SDK 1.29 loses request-scoped terminal results after `closeSSEStream()`
+### F4. Transport replay does not replace application idempotency
 
-**Evidence:** exact release source and Stensibly stateful fixture.
+A client may still decide to issue a new request after uncertainty. That new request enters the handler. Stensibly's fingerprint is what prevents a second durable effect.
 
-The server stores the priming event, drops the terminal response, emits `No connection established`, and leaves the caller without a replayable result.
+### F5. Current production exposure is limited
 
-### F4. A replay GET cannot recover data that was never persisted
+The hosted endpoint is stateless, so the 1.29 replay bug is a future-enable/dependency risk rather than a current hosted-session incident.
 
-**Evidence:** fixture-observed.
+### F6. No new upstream report is warranted
 
-The client reaches the server with the original `Last-Event-ID`, proving the reconnect path is active. The event store still contains only the priming event for that stream.
+Issue #2151 matches exactly, and fixed releases now exist on both v1.x and v2 lines.
 
-### F5. Result loss does not imply duplicate application state
+## Negative results
 
-**Evidence:** fixture-observed.
-
-The first call commits once. The exact retry enters the handler again but returns the existing item. Durable effect count remains one.
-
-### F6. The SDK defect is already known and repaired on v2 main
-
-**Evidence:** upstream issue #2151, merged PR #2342, and current v2 tests described in that PR.
-
-The appropriate owned action is dependency policy and upgrade verification, not a duplicate issue.
-
-## Negative and narrowed results
-
-1. No duplicate durable execution was observed.
-2. No duplicate result delivery was observed on Stensibly's pinned 1.29 path; the result was lost instead.
-3. The production hosted endpoint is not using the affected stateful transport mode.
-4. The test does not prove that every newer package release contains the v2 fix under the old `@modelcontextprotocol/sdk` package name.
-5. The test does not justify enabling stateful transport merely because the current v2 source is fixed; Stensibly must migrate and re-run its own fixture first.
-6. No new upstream SDK report is needed because #2151 is exact.
-7. No production data or credential path was exercised.
-
-## Recommended owned follow-up
-
-### Dependency gate
-
-Before enabling stateful SSE replay:
-
-1. choose the supported v2 package migration path;
-2. pin an exact release containing the #2342 behavior;
-3. port this fixture to the migrated package imports;
-4. invert the replay-loss expectations so the terminal result must be stored and delivered;
-5. assert handler count remains one during transport replay;
-6. retain the exact application-retry control and conflict control;
-7. run the full Stensibly typecheck, Bun tests, Convex tests, Worker bundle, and runtime parity suite.
-
-### Product contract
-
-Keep receipts and idempotency even after transport replay is available. Transport replay repairs result delivery; it does not replace application-level protection against a client issuing a new request after uncertainty.
-
-## Decision
-
-- Lane result: `confirmed dependency exposure with existing upstream fix`
-- Hosted Stensibly exposure: no, under current stateless endpoint
-- Stateful 1.29 replay result: lost terminal response
-- Exact retry durable effect: deduplicated
-- New upstream packet: no; duplicate #2151
-- Owned action: dependency upgrade/backport gate before stateful enablement
-- Campaign: synthesize and retain Lane #66/#67 client findings separately
-- Upstream contact: none
+- No duplicate durable item or creation event occurred.
+- No duplicate transport result delivery occurred.
+- No production database, credential, deployment, or irreversible external mutation was used.
+- No evidence supports enabling stateful transport without retaining the application receipt/idempotency controls.
+- No evidence says protocol-native 2026 sessions exist; they do not.
 
 ## Verification
 
-Stensibly branch fixture:
+Stensibly CI run `30482498842` passed:
+
+- typecheck;
+- 953 Bun tests across 193 files, zero failures, 5,408 assertions;
+- 111 Convex tests across 36 files;
+- Cloudflare Worker bundle;
+- runtime parity.
+
+SDK 1.30 probe run `30483192362` passed after installing the exact published package and executing the real Stensibly store replay fixture.
+
+Commands:
 
 ```sh
 bun install
 bun run typecheck
 bun test test/mcp-ambiguous-retry-idempotency.test.ts test/mcp-stateful-session-replay.test.ts
 bun test
+
+cd probes/mcp-stateful-replay-v130
+bun install
+bun run probe
 ```
 
-Final CI status is recorded in the lane handoff and PR after the latest characterization commit completes.
+## Owned recommendation
+
+1. Upgrade Stensibly from SDK 1.29.0 to at least verified 1.30.0 before any stateful replay enablement.
+2. Treat a v2 migration as separate product/dependency work, not as the minimum repair for this exact bug.
+3. After upgrade, invert the 1.29 characterization into a permanent replay-success regression.
+4. Retain the hosted ambiguity, receipt, exact retry, and conflict controls.
+5. Keep sessionful transport disabled until the upgraded fixture is part of the standard suite.
+
+## Decision
+
+- Lane result: `confirmed dependency exposure with verified fixed release`
+- Hosted current exposure: no
+- Stateful 1.29 outcome: lost result
+- Stateful 1.30 outcome: replayed result, one handler execution
+- Exact new retry: second handler execution, one durable effect
+- Upstream packet: none; exact duplicate already fixed
+- Campaign: ready for synthesis
+- Upstream contact: none
 
 ## Handoff
 
-State: provisional pending final characterization CI
+State: `ready-for-synthesis`
 
 Durable artifacts:
 
 - this report;
+- Fieldwork PR #104;
 - Stensibly PR #565;
-- `test/mcp-ambiguous-retry-idempotency.test.ts`;
-- `test/mcp-stateful-session-replay.test.ts`;
-- SDK issue #2151 and merged fix PR #2342 evidence.
+- 1.29 characterization test;
+- exact 1.30 upgrade probe and workflow;
+- CI runs `30482498842` and `30483192362`.
 
-Decision needed after CI:
+Decision needed:
 
-- mark the lane ready for synthesis if the characterization and recovery controls pass;
-- preserve the v2 migration gate;
-- avoid duplicate upstream contact.
+- approve dependency upgrade work separately;
+- preserve Lane #66 and #67 as separate client-side findings;
+- synthesize Campaign #65 without filing a duplicate of #2151.
