@@ -1,150 +1,101 @@
-# Dispatch and Decision Record
+# Final Decision Record
 
 ## In simple words
 
-The campaign has enough evidence for parallel work. Four lanes should start first because they can falsify major explanations with distinct controls. Three more lanes can run alongside them when capacity permits. The diagnostic receipt lane should synthesize concrete states after early results arrive. Public upstream contact remains outside this decision.
+All eight research lanes are complete and accepted. The campaign now moves from investigation to bounded implementation. The first implementation protects mutations across compaction. The second adds explicit host and MCP refresh contracts. Request exposure and fallback authority follow as separate work.
 
-Decision date: 2026-07-29
+Decision date: 2026-07-30
 
 Campaign: #31
 
-Decision owner: Lantern
+Decision owner: GPT-5.6 Thinking coordinator takeover
+
+## Accepted evidence
+
+- #61 / L01 lifecycle provenance
+- #58 / L02 transport and prewarm
+- #64 / L03 compaction and result identity
+- #62 / L04 MCP and app catalogue convergence
+- #59 / L05 deferred discovery
+- #81 / L06 effective-surface diagnostics
+- #60 / L07 fallback authority
+- #57 / L08 ChatGPT coexistence field trial
+
+Every accepted lane retains exact revisions, bounded commands or integration receipts, evidence labels, negative findings, and upstream-contact status.
 
 ## Decision
 
-Dispatch up to seven research agents across the ready source, experiment, adversarial, and field-trial lanes. Hold #43 as the designated diagnostic synthesizer unless its worker confines early work to source mapping and schema vocabulary.
+### Close Campaign #31 research after PR #51 is updated and merged
 
-### First wave: four agents
+The campaign question has been answered at interface scope: several independent lifecycle boundaries can reduce or misreport the effective tool surface, and receipt v1 identifies the earliest observable boundary in every retained case.
 
-#### Agent A — #37 transport and prewarm
+### Promote implementation campaign 1 — mutation identity and compaction checkpoint
 
-Owned path: `lanes/L02-responses-transport-prewarm/`
+Current behavior:
 
-Core deliverable:
+- missing output becomes a synthetic prompt result;
+- duplicate and reordered outputs pass through;
+- late output can become orphaned after replacement;
+- compacted replacement loses raw call/result identity.
 
-- trace startup prewarm into the first normal turn;
-- compare HTTP and WebSocket request surfaces for one sanitized compacted history;
-- identify the first deterministic difference in top-level tools, `additional_tools`, discovery, reuse identity, or request metadata;
-- retain a failing test or a negative result proving equivalent public client payloads.
+Required candidate:
 
-Why first: same-history and fresh-thread controls already isolate transport/history interaction more cleanly than any other public report.
+- mutation-aware raw-history validator before local, remote v1, and remote v2 compaction;
+- durable privacy-safe operation receipts carried into checkpoints;
+- late-result reconciliation and duplicate/causal-order rejection;
+- automatic retry contract based on idempotency and reconciliation;
+- receipt-v1 instrumentation for completion, persistence, and delivery.
 
-#### Agent B — #39 MCP and app convergence
+Stop condition: compiled owned-fork tests distinguish complete, missing, duplicate, reordered, and late mutation results and prove the candidate fails closed without replay.
 
-Owned path: `lanes/L04-mcp-app-catalogue-convergence/`
+### Promote implementation campaign 2 — host lifecycle and MCP refresh contract
 
-Core deliverable:
+Current behavior:
 
-- trace desired state through binding publication and router registration;
-- run a harmless stub-to-real catalogue transition;
-- compare global catalogue, current binding, registered router, advertisement, and execution after refresh;
-- rank hot-reload, replacement, and typed failure candidates.
+- saved host declarations can silently win cold reconstruction;
+- ordinary MCP refresh can reuse a client whose remote identity and catalogue changed.
 
-Why first: it distinguishes global health from thread-local binding and can produce a deterministic local fixture.
+Required candidate:
 
-#### Agent C — #40 deferred discovery
+- preserve, replace, clear, and reject host lifecycle policies;
+- saved/current/effective provenance receipt;
+- generic MCP hard refresh or live relist with remote identity and catalogue digest validation;
+- revision increment for every accepted catalogue replacement;
+- old captured steps retain authority while new steps receive the new binding.
 
-Owned path: `lanes/L05-deferred-discovery-invariant/`
+Stop condition: compiled owned-fork tests cover resume/fork host mismatch and stable-endpoint stub-to-real convergence.
 
-Core deliverable:
+### Queue implementation campaign 3 — request exposure invariants
 
-- map every direct/deferred planning path;
-- build a model/profile/config matrix;
-- add a focused invariant test for deferred families without a loader;
-- separate missing discovery from empty search results.
+- send a complete manifest on the first generated Responses Lite request unless inheritance is directly validated;
+- compare logical and wire digests;
+- direct-expose or reject every deferred runtime without an executable loader.
 
-Why first: this is a compact invariant with strong model A/B public evidence and a clear regression seam.
+### Queue implementation campaign 4 — authority-aware fallback
 
-#### Agent D — #44 fallback authority
+- compare credential, account, scope, approval, actor, visibility, logical identity, audit, and recovery;
+- allow equivalent routes;
+- require named approval for changed authority;
+- fail closed for ambiguous or weakened mutation paths.
 
-Owned path: `lanes/L07-adversarial-fallback-authority/`
-
-Core deliverable:
-
-- remove one expected capability class in a synthetic harness;
-- enumerate remaining shell, browser, Computer Use, connector, and subagent alternatives;
-- compare approvals, credentials, resource scope, logical operation identity, and audit receipts;
-- propose fail-closed or explicit reroute criteria.
-
-Why first: even when the original defect remains unresolved, unsafe fallback can compound the consequence and deserves an independent answer.
-
-### Second wave: three agents
-
-#### Agent E — #35 lifecycle provenance
-
-Map persisted, rebuilt, host-supplied, and compatibility-selected capability inputs. Produce a saved-versus-current fixture for resume and fork.
-
-#### Agent F — #38 compaction and result identity
-
-Preserve a benign call/result pair through local and remote compaction. Inject missing, duplicated, reordered, and late results. Separate provider completion, normalized history, and client delivery.
-
-#### Agent G — #46 ChatGPT coexistence trial
-
-Run alternating official GitHub connector and Stensibly developer-MCP checkpoints. Use unique operation identities and read-after-write reconciliation. Stop after the first ambiguous mutation until its outcome is established.
-
-### Synthesis agent — #43 diagnostics
-
-Start after at least two first-wave lanes produce concrete inventory states.
-
-Core deliverable:
-
-- one receipt schema accepted across every retained fixture;
-- exact instrumentation seams;
-- typed absence reasons;
-- privacy review;
-- candidate implementation in an owned repository when justified.
-
-## Immutable assignment rules
-
-Each agent should claim its issue with:
-
-- worker identity;
-- target revision and retrieval date;
-- expected deliverable;
-- owned path and branch;
-- dependencies;
-- intended claim scope;
-- stop condition;
-- upstream contact authorized `false`.
-
-Each agent edits only its lane directory or recorded testbed branch. Shared campaign files remain coordinator-owned.
-
-## Acceptance criteria shared across lanes
-
-A lane handoff must include:
-
-1. an updated `## In simple words` block;
-2. exact source revisions, commands, and environment;
-3. source, control-flow, state-owner, failure-path, and test map where applicable;
-4. at least one runnable probe, regression test, integration trial, or explicit feasibility limit;
-5. strongest finding with evidence label;
-6. competing hypotheses and distinguishing evidence;
-7. negative results;
-8. ranked branch or repair candidates;
-9. dependencies discovered;
-10. widest claim scope supported;
-11. upstream contact status.
-
-## Human decision gates
+## Human gates retained
 
 Human approval remains required for:
 
-- any direct interaction with the public external target;
-- publication of an upstream issue, comment, reaction, or pull request;
-- experiments using paid services, live accounts, production resources, or consequential external mutations;
-- a repair that changes host capability replacement policy without a confirmed host contract;
-- merging experimental degradation or broad fallback authority changes into an owned default branch.
+- any external upstream interaction;
+- paid services, live accounts, production resources, or consequential external mutations;
+- changing owned defaults after experimental validation;
+- publishing a defect claim beyond the widest supported evidence scope.
 
-## Candidate next campaign outside this scope
+## Conditional fieldwork
 
-Scout #24 already owns cross-agent process and terminal semantics. After Campaign 0002 produces a reusable capability case pack, the programme coordinator may decide whether cross-harness capability introspection and restoration deserves:
+Run ChatGPT disconnect/reconnect and application-restart continuation only when the host exposes those actions or the incident recurs. Use benign reads before mutation and unique operation identities with read-after-write reconciliation.
 
-- an extension of #24;
-- a separate Gemini CLI target lane;
-- a cross-agent campaign comparing runtime self-knowledge, refresh controls, and capability receipts.
+## Final stop rule
 
-Creating that work now would duplicate context before the Codex cases are stable.
+New research requires one of:
 
-## Current recommendation
-
-Send four agents first to #37, #39, #40, and #44. Add #35, #38, and #46 when capacity permits. Reserve one strong synthesizer for #43 after early evidence arrives.
+- a focused implementation test that fails;
+- a new typed receipt state;
+- a private host control becoming available;
+- an incident recurrence with a first-failing receipt.
