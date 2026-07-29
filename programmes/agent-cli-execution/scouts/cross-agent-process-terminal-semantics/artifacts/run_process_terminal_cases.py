@@ -77,6 +77,34 @@ def child(case: str) -> int:
     raise ValueError(f"unknown child case: {case}")
 
 
+def terminate_process(
+    proc: subprocess.Popen[bytes],
+    *,
+    process_group: bool,
+    wait_timeout: float = 1.0,
+) -> None:
+    """Best-effort termination used only for harness cleanup paths."""
+    if proc.poll() is not None:
+        return
+    try:
+        if process_group:
+            os.killpg(proc.pid, signal.SIGKILL)
+        else:
+            proc.kill()
+    except ProcessLookupError:
+        pass
+    try:
+        proc.wait(timeout=wait_timeout)
+    except subprocess.TimeoutExpired:
+        pass
+
+
+def close_streams(proc: subprocess.Popen[bytes]) -> None:
+    for stream in (proc.stdout, proc.stderr):
+        if stream is not None:
+            stream.close()
+
+
 def read_pipe_process(
     case: str,
     *,
@@ -93,50 +121,53 @@ def read_pipe_process(
         env={**os.environ, "TERM": "xterm-256color"},
     )
     assert proc.stdout is not None and proc.stderr is not None
-    sel = selectors.DefaultSelector()
-    sel.register(proc.stdout, selectors.EVENT_READ, "stdout")
-    sel.register(proc.stderr, selectors.EVENT_READ, "stderr")
     events: list[dict[str, Any]] = []
     stream_bytes = {"stdout": bytearray(), "stderr": bytearray()}
     direct_exit_at: float | None = None
-    while sel.get_map():
-        if direct_exit_at is None and proc.poll() is not None:
+    try:
+        with selectors.DefaultSelector() as sel:
+            sel.register(proc.stdout, selectors.EVENT_READ, "stdout")
+            sel.register(proc.stderr, selectors.EVENT_READ, "stderr")
+            while sel.get_map():
+                if direct_exit_at is None and proc.poll() is not None:
+                    direct_exit_at = time.monotonic() - started
+                if time.monotonic() - started > timeout:
+                    raise TimeoutError(f"pipe case {case} exceeded {timeout}s")
+                ready = sel.select(0.02)
+                if not ready:
+                    continue
+                for key, _ in ready:
+                    chunk = os.read(key.fileobj.fileno(), 8192)
+                    if chunk:
+                        stream = key.data
+                        stream_bytes[stream].extend(chunk)
+                        events.append(
+                            {
+                                "stream": stream,
+                                "at_ms": round((time.monotonic() - started) * 1000, 3),
+                                "bytes_b64": base64.b64encode(chunk).decode(),
+                                "text_lossy": chunk.decode("utf-8", "replace"),
+                            }
+                        )
+                    else:
+                        sel.unregister(key.fileobj)
+        code = proc.wait(timeout=1)
+        if direct_exit_at is None:
             direct_exit_at = time.monotonic() - started
-        if time.monotonic() - started > timeout:
-            proc.kill()
-            raise TimeoutError(f"pipe case {case} exceeded {timeout}s")
-        ready = sel.select(0.02)
-        if not ready:
-            continue
-        for key, _ in ready:
-            chunk = os.read(key.fileobj.fileno(), 8192)
-            if chunk:
-                stream = key.data
-                stream_bytes[stream].extend(chunk)
-                events.append(
-                    {
-                        "stream": stream,
-                        "at_ms": round((time.monotonic() - started) * 1000, 3),
-                        "bytes_b64": base64.b64encode(chunk).decode(),
-                        "text_lossy": chunk.decode("utf-8", "replace"),
-                    }
-                )
-            else:
-                sel.unregister(key.fileobj)
-    code = proc.wait(timeout=1)
-    if direct_exit_at is None:
-        direct_exit_at = time.monotonic() - started
-    return {
-        "pid": proc.pid,
-        "exit_code": code,
-        "direct_exit_ms": round(direct_exit_at * 1000, 3),
-        "output_eof_ms": round((time.monotonic() - started) * 1000, 3),
-        "events": events,
-        "stdout_b64": base64.b64encode(stream_bytes["stdout"]).decode(),
-        "stderr_b64": base64.b64encode(stream_bytes["stderr"]).decode(),
-        "stdout_lossy": bytes(stream_bytes["stdout"]).decode("utf-8", "replace"),
-        "stderr_lossy": bytes(stream_bytes["stderr"]).decode("utf-8", "replace"),
-    }
+        return {
+            "pid": proc.pid,
+            "exit_code": code,
+            "direct_exit_ms": round(direct_exit_at * 1000, 3),
+            "output_eof_ms": round((time.monotonic() - started) * 1000, 3),
+            "events": events,
+            "stdout_b64": base64.b64encode(stream_bytes["stdout"]).decode(),
+            "stderr_b64": base64.b64encode(stream_bytes["stderr"]).decode(),
+            "stdout_lossy": bytes(stream_bytes["stdout"]).decode("utf-8", "replace"),
+            "stderr_lossy": bytes(stream_bytes["stderr"]).decode("utf-8", "replace"),
+        }
+    finally:
+        terminate_process(proc, process_group=start_new_session)
+        close_streams(proc)
 
 
 def read_pty_process(
@@ -149,62 +180,70 @@ def read_pty_process(
     import select
 
     master, slave = pty.openpty()
+    proc: subprocess.Popen[bytes] | None = None
     winsize = struct.pack("HHHH", rows, cols, 0, 0)
     fcntl.ioctl(slave, termios.TIOCSWINSZ, winsize)
     started = time.monotonic()
-    proc = subprocess.Popen(
-        [sys.executable, SCRIPT, "--child", case],
-        stdin=slave,
-        stdout=slave,
-        stderr=slave,
-        start_new_session=True,
-        close_fds=True,
-        env={**os.environ, "TERM": "xterm-256color"},
-    )
-    os.close(slave)
     raw = bytearray()
     events: list[dict[str, Any]] = []
     direct_exit_at: float | None = None
-    while True:
-        if direct_exit_at is None and proc.poll() is not None:
+    try:
+        proc = subprocess.Popen(
+            [sys.executable, SCRIPT, "--child", case],
+            stdin=slave,
+            stdout=slave,
+            stderr=slave,
+            start_new_session=True,
+            close_fds=True,
+            env={**os.environ, "TERM": "xterm-256color"},
+        )
+        os.close(slave)
+        slave = -1
+        while True:
+            if direct_exit_at is None and proc.poll() is not None:
+                direct_exit_at = time.monotonic() - started
+            if time.monotonic() - started > timeout:
+                raise TimeoutError(f"pty case {case} exceeded {timeout}s")
+            try:
+                ready, _, _ = select.select([master], [], [], 0.02)
+                if not ready:
+                    continue
+                chunk = os.read(master, 8192)
+                if not chunk:
+                    break
+                raw.extend(chunk)
+                events.append(
+                    {
+                        "stream": "pty",
+                        "at_ms": round((time.monotonic() - started) * 1000, 3),
+                        "bytes_b64": base64.b64encode(chunk).decode(),
+                        "text_lossy": chunk.decode("utf-8", "replace"),
+                    }
+                )
+            except OSError as exc:
+                if exc.errno == errno.EIO:
+                    break
+                raise
+        code = proc.wait(timeout=1)
+        if direct_exit_at is None:
             direct_exit_at = time.monotonic() - started
-        if time.monotonic() - started > timeout:
-            os.killpg(proc.pid, signal.SIGKILL)
-            raise TimeoutError(f"pty case {case} exceeded {timeout}s")
-        try:
-            ready, _, _ = select.select([master], [], [], 0.02)
-            if not ready:
-                continue
-            chunk = os.read(master, 8192)
-            if not chunk:
-                break
-            raw.extend(chunk)
-            events.append(
-                {
-                    "stream": "pty",
-                    "at_ms": round((time.monotonic() - started) * 1000, 3),
-                    "bytes_b64": base64.b64encode(chunk).decode(),
-                    "text_lossy": chunk.decode("utf-8", "replace"),
-                }
-            )
-        except OSError as exc:
-            if exc.errno == errno.EIO:
-                break
-            raise
-    code = proc.wait(timeout=1)
-    if direct_exit_at is None:
-        direct_exit_at = time.monotonic() - started
-    os.close(master)
-    return {
-        "pid": proc.pid,
-        "exit_code": code,
-        "direct_exit_ms": round(direct_exit_at * 1000, 3),
-        "output_eof_ms": round((time.monotonic() - started) * 1000, 3),
-        "events": events,
-        "pty_b64": base64.b64encode(raw).decode(),
-        "pty_lossy": bytes(raw).decode("utf-8", "replace"),
-        "configured_winsize": [cols, rows],
-    }
+        return {
+            "pid": proc.pid,
+            "exit_code": code,
+            "direct_exit_ms": round(direct_exit_at * 1000, 3),
+            "output_eof_ms": round((time.monotonic() - started) * 1000, 3),
+            "events": events,
+            "pty_b64": base64.b64encode(raw).decode(),
+            "pty_lossy": bytes(raw).decode("utf-8", "replace"),
+            "configured_winsize": [cols, rows],
+        }
+    finally:
+        if proc is not None:
+            terminate_process(proc, process_group=True)
+            close_streams(proc)
+        if slave >= 0:
+            os.close(slave)
+        os.close(master)
 
 
 def inherited_pipe_case(
@@ -227,51 +266,89 @@ def inherited_pipe_case(
         start_new_session=True,
     )
     assert proc.stdout is not None and proc.stderr is not None
-    sel = selectors.DefaultSelector()
-    sel.register(proc.stdout, selectors.EVENT_READ, "stdout")
-    sel.register(proc.stderr, selectors.EVENT_READ, "stderr")
     events: list[dict[str, Any]] = []
     direct_exit_at: float | None = None
-    while sel.get_map():
-        if direct_exit_at is None and proc.poll() is not None:
+    try:
+        with selectors.DefaultSelector() as sel:
+            sel.register(proc.stdout, selectors.EVENT_READ, "stdout")
+            sel.register(proc.stderr, selectors.EVENT_READ, "stderr")
+            while sel.get_map():
+                if direct_exit_at is None and proc.poll() is not None:
+                    direct_exit_at = time.monotonic() - started
+                if time.monotonic() - started > timeout:
+                    raise TimeoutError("inherited pipe case exceeded timeout")
+                for key, _ in sel.select(0.01):
+                    chunk = os.read(key.fileobj.fileno(), 8192)
+                    if chunk:
+                        events.append(
+                            {
+                                "stream": key.data,
+                                "at_ms": round((time.monotonic() - started) * 1000, 3),
+                                "bytes_b64": base64.b64encode(chunk).decode(),
+                                "text_lossy": chunk.decode("utf-8", "replace"),
+                            }
+                        )
+                    else:
+                        sel.unregister(key.fileobj)
+        code = proc.wait(timeout=1)
+        if direct_exit_at is None:
             direct_exit_at = time.monotonic() - started
-        if time.monotonic() - started > timeout:
-            os.killpg(proc.pid, signal.SIGKILL)
-            raise TimeoutError("inherited pipe case exceeded timeout")
-        for key, _ in sel.select(0.01):
-            chunk = os.read(key.fileobj.fileno(), 8192)
-            if chunk:
-                events.append(
-                    {
-                        "stream": key.data,
-                        "at_ms": round((time.monotonic() - started) * 1000, 3),
-                        "bytes_b64": base64.b64encode(chunk).decode(),
-                        "text_lossy": chunk.decode("utf-8", "replace"),
-                    }
-                )
-            else:
-                sel.unregister(key.fileobj)
-    code = proc.wait(timeout=1)
-    if direct_exit_at is None:
-        direct_exit_at = time.monotonic() - started
-    return {
-        "pid": proc.pid,
-        "exit_code": code,
-        "direct_exit_ms": round(direct_exit_at * 1000, 3),
-        "output_eof_ms": round((time.monotonic() - started) * 1000, 3),
-        "hold_seconds": hold_seconds,
-        "events": events,
-        "output_lossy": "".join(event["text_lossy"] for event in events),
-    }
+        return {
+            "pid": proc.pid,
+            "exit_code": code,
+            "direct_exit_ms": round(direct_exit_at * 1000, 3),
+            "output_eof_ms": round((time.monotonic() - started) * 1000, 3),
+            "hold_seconds": hold_seconds,
+            "events": events,
+            "output_lossy": "".join(event["text_lossy"] for event in events),
+        }
+    finally:
+        terminate_process(proc, process_group=True)
+        close_streams(proc)
 
 
 def proc_state(pid: int) -> str | None:
     try:
         text = Path(f"/proc/{pid}/stat").read_text()
-    except FileNotFoundError:
+        tail = text.rsplit(") ", 1)[1]
+        return tail.split()[0]
+    except (OSError, IndexError):
         return None
-    tail = text.rsplit(") ", 1)[1]
-    return tail.split()[0]
+
+
+def read_pid_lines(
+    stream: Any,
+    *,
+    required: set[str],
+    timeout: float,
+) -> tuple[dict[str, int], str]:
+    """Read newline-delimited KEY=PID records without blocking past timeout."""
+    pids: dict[str, int] = {}
+    raw = bytearray()
+    pending = bytearray()
+    deadline = time.monotonic() + timeout
+    with selectors.DefaultSelector() as sel:
+        sel.register(stream, selectors.EVENT_READ)
+        while time.monotonic() < deadline and not required.issubset(pids):
+            ready = sel.select(max(0.0, deadline - time.monotonic()))
+            if not ready:
+                break
+            chunk = os.read(stream.fileno(), 8192)
+            if not chunk:
+                break
+            raw.extend(chunk)
+            pending.extend(chunk)
+            while b"\n" in pending:
+                line, _, pending = pending.partition(b"\n")
+                text = line.decode("utf-8", "replace").strip()
+                if "=" not in text:
+                    continue
+                key, value = text.split("=", 1)
+                try:
+                    pids[key] = int(value)
+                except ValueError:
+                    continue
+    return pids, raw.decode("utf-8", "replace")
 
 
 def cancel_tree_case() -> dict[str, Any]:
@@ -295,37 +372,42 @@ while :; do sleep 1; done
         start_new_session=True,
     )
     assert proc.stdout is not None and proc.stderr is not None
-    pids: dict[str, int] = {}
-    deadline = time.monotonic() + 1
-    while time.monotonic() < deadline:
-        line = proc.stdout.readline().decode().strip()
-        if line and "=" in line:
-            key, value = line.split("=", 1)
-            pids[key] = int(value)
-        if "PARENT-PID" in pids and "SPAWNED-DESCENDANT-PID" in pids:
-            break
-    sent_at = time.monotonic()
-    os.killpg(proc.pid, signal.SIGTERM)
-    escalated = False
+    required = {"PARENT-PID", "SPAWNED-DESCENDANT-PID"}
     try:
-        code = proc.wait(timeout=0.1)
-    except subprocess.TimeoutExpired:
-        escalated = True
-        os.killpg(proc.pid, signal.SIGKILL)
-        code = proc.wait(timeout=1)
-    stderr = proc.stderr.read().decode("utf-8", "replace")
-    time.sleep(0.05)
-    descendant = pids.get("SPAWNED-DESCENDANT-PID") or pids.get("DESCENDANT-PID")
-    return {
-        "pids": pids,
-        "signal": "SIGTERM",
-        "grace_ms": 100,
-        "escalated_to_sigkill": escalated,
-        "exit_code": code,
-        "settled_ms": round((time.monotonic() - sent_at) * 1000, 3),
-        "stderr": stderr,
-        "descendant_proc_state": proc_state(descendant) if descendant else "missing",
-    }
+        pids, _startup_stdout = read_pid_lines(
+            proc.stdout,
+            required=required,
+            timeout=1.0,
+        )
+        if not required.issubset(pids):
+            missing = ", ".join(sorted(required - pids.keys()))
+            raise RuntimeError(f"process tree did not report required PIDs: {missing}")
+
+        sent_at = time.monotonic()
+        os.killpg(proc.pid, signal.SIGTERM)
+        escalated = False
+        try:
+            code = proc.wait(timeout=0.1)
+        except subprocess.TimeoutExpired:
+            escalated = True
+            os.killpg(proc.pid, signal.SIGKILL)
+            code = proc.wait(timeout=1)
+        stderr = proc.stderr.read().decode("utf-8", "replace")
+        time.sleep(0.05)
+        descendant = pids.get("SPAWNED-DESCENDANT-PID") or pids.get("DESCENDANT-PID")
+        return {
+            "pids": pids,
+            "signal": "SIGTERM",
+            "grace_ms": 100,
+            "escalated_to_sigkill": escalated,
+            "exit_code": code,
+            "settled_ms": round((time.monotonic() - sent_at) * 1000, 3),
+            "stderr": stderr,
+            "descendant_proc_state": proc_state(descendant) if descendant else "missing",
+        }
+    finally:
+        terminate_process(proc, process_group=True)
+        close_streams(proc)
 
 
 def run_all() -> dict[str, Any]:
