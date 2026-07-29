@@ -1,27 +1,35 @@
 ## In simple words
 
-A tool may be hidden from the first model request only when that same request gives the model a working way to load it. The pinned Codex source couples this rule correctly for built-in configured MCP tools, curated app tools, and native multi-agent V1 tools. The final planner still accepts deferred dynamic or extension tools when `tool_search` is unavailable, and it silently drops any deferred runtime whose `search_info()` cannot be built. Those tools stay registered for dispatch while the model receives neither the tool nor a loader.
+A tool may be deferred only when the effective model request contains a working route that can load it. The public Codex planner couples this rule correctly for built-in configured MCP tools, curated app tools, and native multi-agent V1 tools. Dynamic host tools and extension contributors can still remain `Deferred` while `tool_search` is unavailable, and a deferred runtime whose `search_info()` is absent stays registered while becoming undiscoverable.
 
-The lane adds a request-state matrix and an executable invariant probe. The probe accepts direct tools, searchable deferred tools, genuinely absent families, and a discovery call that successfully returns zero matches. It rejects four states: deferred dynamic tools without search, deferred extension tools without search, deferred tools missing searchable metadata, and `tool_suggest` presented as the only route to an already registered deferred tool.
+Cross-lane evidence adds two separate lookalikes. L02 (#37 / PR #58) shows a loader can exist in the logical planner and still be omitted from an incremental Responses Lite wire request unless previous-response inheritance preserves it. L04 (#39 / PR #62) shows an executable loader can search a stale thread binding. These failures need different receipts and different repairs.
+
+The lane now retains the original 12 request-state cases plus four cross-lane cases covering verified inherited delivery, unverified wire omission, stale catalogue, and stale saved provenance.
 
 ## Scope and claim
 
 - Fieldwork issue: #40
 - Campaign: #31
 - Lane: `campaigns/0002-tool-surface-continuity/lanes/L05-deferred-discovery-invariant/`
-- Claim supported: request-level exposure and executable discovery invariants across native, MCP, app, dynamic, and extension families
-- Boundary: model behaviour after a valid tool has been delivered remains outside this lane
+- Claim supported: planner-to-wire exposure and executable-discovery invariants across native, MCP, app, dynamic, and extension families
+- Adjacent boundaries recorded: catalogue convergence from L04 and saved/current provenance from L01
+- Boundary: model behaviour after valid tool delivery remains outside this lane
 - Upstream interaction: read-only
 
 ## Evidence pins
 
-| Source | Revision | Retrieved | Label |
+| Source | Revision or record | Retrieved | Label |
 |---|---|---|---|
-| Fieldwork campaign synthesis base | `aa72bd513f6664dc67517dabd9b03b4f051d8460` | 2026-07-30 | repository fact |
+| Fieldwork campaign base | `aa72bd513f6664dc67517dabd9b03b4f051d8460` | 2026-07-30 | repository fact |
 | OpenAI Codex public source | `3725f02cf38d856bc82bb46dd68ab61bb96ec6fc` | 2026-07-30 | primary source |
 | Campaign comparison fork | `2b7b93081361b77f8ddaceaf362a09765b4153bf` | campaign-provided | repository fact |
-| Codex issue #33608 | issue state retrieved 2026-07-30 | 2026-07-30 | reported observation |
-| Codex issue #33609 | issue state retrieved 2026-07-30 | 2026-07-30 | reported observation |
+| Codex reports | #33608 and #33609 | 2026-07-30 | reported observation |
+| Lifecycle provenance | #35 / PR #61 | 2026-07-30 | cross-lane evidence |
+| Transport and prewarm | #37 / PR #58 | 2026-07-30 | cross-lane evidence |
+| Compaction identity | #38 / PR #64 | 2026-07-30 | cross-lane boundary |
+| Catalogue convergence | #39 / PR #62 | 2026-07-30 | cross-lane evidence |
+| Fallback authority | #44 / PR #60 | 2026-07-30 | cross-lane boundary |
+| Coexistence trial | #46 / PR #57 | 2026-07-30 | integration negative result |
 
 Primary source links:
 
@@ -30,117 +38,140 @@ Primary source links:
 - [`dynamic.rs`](https://redirect.github.com/openai/codex/blob/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc/codex-rs/core/src/tools/handlers/dynamic.rs)
 - [`tool_search.rs`](https://redirect.github.com/openai/codex/blob/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc/codex-rs/core/src/tools/handlers/tool_search.rs)
 - [`tool_executor.rs`](https://redirect.github.com/openai/codex/blob/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc/codex-rs/tools/src/tool_executor.rs)
-- [`model_info.rs`](https://redirect.github.com/openai/codex/blob/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc/codex-rs/models-manager/src/model_info.rs)
 - [`models.json`](https://redirect.github.com/openai/codex/blob/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc/codex-rs/models-manager/models.json)
 - [Observed report #33608](https://redirect.github.com/openai/codex/issues/33608)
 - [Observed report #33609](https://redirect.github.com/openai/codex/issues/33609)
 
 ## Mechanism map
 
-`search_tool_enabled` is the conjunction of model metadata (`supports_search_tool`) and provider support for namespace tools. Built-in multi-agent V1 tools use that value to choose `Deferred` or `Direct`. Configured MCP and curated app tools receive the same value and choose `Deferred` or `Direct` together.
+`search_tool_enabled` combines model metadata (`supports_search_tool`) and provider namespace-tool capability. Native multi-agent V1, configured MCP, and curated app tools use that value to choose `Deferred` or `Direct`.
 
-The final planner then scans every registered `Deferred` runtime, calls `search_info()`, and creates `tool_search` only when search is enabled and at least one search entry exists. Direct tools become model-visible; deferred tools remain registered and initially invisible.
+The final planner scans registered `Deferred` runtimes, calls `search_info()`, and creates `tool_search` only when search is enabled and at least one entry exists. Direct tools become model-visible; deferred tools remain registered and initially invisible.
 
-Two independent paths can bypass the built-in coupling:
+Three planner hazards remain:
 
-1. Dynamic host tools read their own `defer_loading` field and select `Deferred` without consulting request search capability.
-2. Extension contributors can return `ToolExposure::Deferred` directly.
+1. Dynamic host tools read `defer_loading` and select `Deferred` independently.
+2. Extension contributors can select `ToolExposure::Deferred` directly.
+3. A deferred runtime returning `None` from `search_info()` is omitted from the search index.
 
-A third failure appears when a deferred runtime returns `None` from `search_info()`. The planner filters it out. Another searchable family may still create `tool_search`, yet the omitted family can never appear in search results.
-
-## Model, profile, and configuration findings
-
-All eight bundled model entries at the public pin advertise `supports_search_tool: true`: `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.2`, and `codex-auto-review`.
-
-Missing model metadata deserializes `supports_search_tool` as false. Unknown model slugs use fallback metadata with the field set to false. Default configured providers and Amazon Bedrock advertise namespace-tool support at this pin. A custom provider can lower that capability.
-
-`code_mode.direct_only_tool_namespaces` converts a direct or deferred namespace to `DirectModelOnly`, which satisfies the callable-route requirement. `code_mode.excluded_tool_namespaces` changes nested code-mode exposure and does not repair an unavailable request loader.
-
-The legacy `tool_search` and `tool_search_always_defer_mcp_tools` feature flags are removed compatibility flags at this pin. Effective search eligibility comes from model and provider capabilities. `tool_suggest` remains separately gated by Apps, Plugins, and ToolSuggest features and serves plugin recommendation/install flows.
+A fourth hazard appears after planning. A logical request can contain `tool_search` while an incremental wire request omits it and relies on earlier response state. That route is valid only when inheritance is verified for the same effective tool manifest.
 
 ## Strongest supported finding
 
-The public source contains a generic request-planning invariant gap even though its built-in MCP/app constructor is defensive. Any dynamic or extension runtime may remain `Deferred` while `search_tool_enabled` is false. Any deferred runtime may also be excluded from discovery when `search_info()` returns `None`. In both cases the runtime is registered for dispatch and omitted from the initial model-visible request, with no executable route that can expose it.
+The public source contains a generic planner invariant gap. Dynamic and extension runtimes may remain `Deferred` while request search is disabled. Any deferred runtime may also be excluded when `search_info()` returns `None`. In both cases the runtime remains registered and invisible to the model.
 
-The existing `mcp_and_tool_search_follow_direct_and_deferred_tool_exposure` test demonstrates the first state: it injects a deferred runtime, disables model search capability, confirms `tool_search` is absent, and leaves the deferred runtime uncorrected. The test therefore records the gap without asserting the desired invariant.
+The existing `mcp_and_tool_search_follow_direct_and_deferred_tool_exposure` test injects a deferred runtime under a search-disabled model and confirms only that `tool_search` is absent. It leaves the unreachable runtime uncorrected.
 
-## Observed reports and source relation
+Cross-lane evidence strengthens the boundary: planner correctness must be checked against the effective wire request or a verified inherited response manifest. A logical-only loader is insufficient.
 
-Issues #33608 and #33609 report Codex 0.144.5 sessions where `gpt-5.6-sol` had configured MCP functions marked deferred while the request lacked `tool_search`; comparison models received the native loader. These reports are evidence of the same request-level failure class.
+## Is this one issue?
 
-The pinned public catalogue now advertises search support for `gpt-5.6-sol`, so this lane cannot identify the exact private or remote profile mutation that produced those sessions. The source-level invariant remains useful because it prevents any model catalogue, provider capability, dynamic tool, or extension contributor from recreating an unloadable deferred state.
+There is one clear generic defect class: `present + deferred + no executable delivery route`. Direct exposure or typed planner rejection can repair it.
+
+Several similar symptoms have different owners:
+
+- loader absent in the logical planner: L05;
+- loader present logically but omitted on the wire: L02;
+- loader executable against a stale binding or search index: L04;
+- loader valid for saved dynamic tools whose host generation is stale: L01;
+- tool result identity lost after execution or compaction: L03;
+- a shell, protocol, connector, browser, or subagent workaround changes authority: L07.
+
+The public `gpt-5.6-sol` reports prove the symptom class. They do not identify which planner, private profile, host transform, or transport path caused those exact sessions.
 
 ## Invariant
 
-For each family in the finished request/router pair:
+For each family in the finished planner/router and effective delivery pair:
 
 ```text
 present + Direct/DirectModelOnly
     => accept
 
 present + Deferred
+    => require searchable metadata for this family
     => require an advertised, registered, executable loader
     => require loader semantics that expose existing deferred tools
-    => require this family to contribute searchable metadata
+    => require direct wire delivery or verified previous-response inheritance
 
 absent
     => accept
 ```
 
-`tool_search` executed with `tools=[]` satisfies route availability. The model had a callable loader and the loader produced a valid zero-match result. Absence means the request never advertised an executable loader.
+`tool_search` executed with `tools=[]` satisfies route availability. A stale catalogue can still produce a valid zero-result call, so freshness receives a separate warning and diagnostic owner.
 
-## Retained result
+## Retained results
 
-Command:
+Original request-state pack:
 
 ```sh
 python3 run_invariant.py fixtures/deferred-surfaces.json --output results/latest.json
 ```
 
-Result:
-
 ```text
-12 cases
-8 accepted
-4 rejected
-0 expectation mismatches
-exit 0
+12 cases; 8 accepted; 4 rejected; 0 mismatches; exit 0
 ```
 
-The four rejected cases are the intended negative fixtures:
+Cross-lane follow-up pack:
 
-- `dynamic-deferred-search-disabled`
-- `extension-deferred-search-disabled`
-- `deferred-missing-search-metadata`
-- `deferred-tool-suggest-only`
+```sh
+python3 run_invariant.py fixtures/cross-lane-surfaces.json --output results/cross-lane.json
+```
 
-## Repair proposal
+```text
+4 cases; 3 accepted; 1 rejected; 2 warnings; 0 mismatches; exit 0
+```
 
-Normalize each unloadable deferred runtime to `Direct` at the final planner boundary. Run the normalization after all tool contributors and direct-model-only overrides, and before building `tool_search` and code-mode entrypoints.
+Aggregate coverage is 16 cases: 11 accepted and 5 intended rejections.
 
-A runtime stays deferred only when request search is enabled and its own searchable metadata exists. This preserves prompt savings for valid families and exposes only the tools that would otherwise become unreachable.
+The added rejection is `mcp-deferred-logical-loader-wire-omitted`. The added warning codes are `stale_discovery_catalogue` and `stale_saved_provenance`.
 
-A typed planner error is the stricter alternative. It requires broader signature changes through request planning, retry, and compaction paths. The compatibility-first direct-exposure repair fits the present API and the expected behaviour in issue #33608.
+## Repair direction
+
+Normalize planner-unloadable deferred runtimes to `Direct` after all contributors and direct-model-only overrides, before `tool_search` and code-mode entrypoints are built.
+
+Add a transport assertion for incremental requests: the effective request must carry the loader directly or include a verified inheritance receipt binding `previous_response_id` to the same tool-manifest digest.
+
+Catalogue freshness and saved/current generation mismatches need typed diagnostics and their owning repair paths. Direct exposure cannot refresh a stale binding or replace sticky host declarations.
+
+A typed planner error remains the stricter alternative.
+
+## Ranked continuation
+
+Highest information gain:
+
+1. Pair logical-planner, wire-delivery, and inherited-manifest digests for the first generated Responses Lite turn.
+2. Pair current binding/catalogue digest with the `tool_search` index digest and search result generation.
+3. Add saved/current dynamic-tool generation and selected-root provenance to the diagnostic receipt.
+4. Integrate fallback authority deltas before automatic shell or protocol workarounds.
+
+Lower information gain:
+
+- sustained same-conversation calls and a context-summary boundary alone; L08 completed both without divergence;
+- planner-only configured-MCP tests without transport or catalogue controls;
+- model-behaviour studies after valid tool delivery.
 
 ## Negative results
 
-- The built-in configured MCP and curated app constructor already falls back to direct exposure when search is unavailable.
-- Native multi-agent V1 already follows the same coupling.
-- Bundled model metadata at the pin does not reproduce a search-disabled `gpt-5.6-sol`.
-- Provider defaults and Bedrock retain namespace-tool support.
+- Built-in configured MCP and curated app construction already falls back to direct exposure when search is unavailable.
+- Native multi-agent V1 follows the same coupling.
+- Bundled model metadata does not reproduce a search-disabled `gpt-5.6-sol`.
 - `tool_suggest` cannot load an existing deferred runtime.
-- An empty discovery result does not imply an absent discovery tool.
+- An empty discovery result does not imply an absent loader.
+- The L08 sustained coexistence and context-summary trial produced no capability loss.
 
 ## Uncertainty
 
-The exact runtime model profile, catalogue override, or host transform behind the 0.144.5 reports is unavailable in the public source. The synthetic probe validates the request-state invariant and repair policy; it does not compile or run the proposed Rust test against upstream. Transport serialization belongs to lane L03, and catalogue freshness/convergence belongs to lane L04.
+The exact private model profile, catalogue override, host transform, inherited response state, or server-side handling behind the 0.144.5 reports remains unavailable. The probes validate the request and delivery contract model; they do not compile or run proposed Rust changes against upstream.
+
+Transport serialization is owned by L02. Catalogue convergence is owned by L04. Lifecycle provenance is owned by L01. Result identity is owned by L03. Diagnostics synthesis is owned by L06.
 
 ## Durable artifacts
 
-- `report.md` — findings, evidence labels, scope, and uncertainty
+- `report.md` — findings, cross-lane synthesis, scope, and uncertainty
 - `matrix.md` — family/model/provider/configuration matrix
-- `fixtures/deferred-surfaces.json` — direct, deferred, absent, and zero-result fixtures
+- `cross-lane-followup.md` — ranked exploration and diagnostic handoff
+- `fixtures/deferred-surfaces.json` and `results/latest.json` — original request-state pack
+- `fixtures/cross-lane-surfaces.json` and `results/cross-lane.json` — delivery and adjacent-state pack
 - `run_invariant.py` — executable invariant checker
-- `results/latest.json` — retained run result
-- `repair-proposal.md` — planner repair and upstream test proposal
+- `repair-proposal.md` — planner repair and source-test proposal
 - `commands.md` — revisions, reads, commands, and execution record
