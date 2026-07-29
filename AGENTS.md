@@ -5,10 +5,39 @@ These instructions apply to every AI system and automated worker operating in th
 ## Entry protocol
 
 - Start with `START_HERE.md`.
-- Read `CHARTER.md`, `METHOD.md`, `REFERENCE_POLICY.md`, `EXPERIMENTS.md`, `INTEGRATION_CONTEXT.md`, `COORDINATION.md`, and `BATCHES.md` before modifying research material.
-- Search open Fieldwork issues, active batches, existing experiments, contexts, and campaign folders before creating work.
+- Read `CHARTER.md`, `CODE_FIRST.md`, `PLAIN_LANGUAGE.md`, `METHOD.md`, `REFERENCE_POLICY.md`, `TARGET_HUBS.md`, `EXPERIMENTS.md`, `TESTBEDS.md`, `INTEGRATION_CONTEXT.md`, `COORDINATION.md`, and `BATCHES.md` before modifying research material.
+- Search target hubs, open Fieldwork issues, active batches, existing experiments, contexts, testbeds, and campaign folders before creating work.
 - Treat GitHub issues as live coordination and repository files as durable evidence.
 - Work only from an explicit assignment, claimed lane, requested synthesis, user-directed triage task, or bounded fork-free experiment.
+
+## Target and testbed indexing
+
+- Every issue about a recurring repository, project, protocol, or system must carry the appropriate `target:<slug>` label.
+- Link the work to the stable target hub recorded in `targets/hubs.yml` when one exists.
+- Create a target hub only when recurring work justifies one; do not turn every registry entry into an issue.
+- When an owned repository is used to exercise another target, also apply `testbed:<slug>` and follow `TESTBEDS.md`.
+- If the owned repository itself is under investigation, use it as the target rather than the testbed.
+- Target and testbed registries are discovery surfaces, not automatic work queues.
+
+## Plain-language check
+
+- Begin every durable target hub, finding, campaign, lane report, retained experiment, integration trial, context dossier, and synthesis with `## In simple words`.
+- State what the system is, where it sits, what is wrong or uncertain, why the result could be useful, and the current answer or next step.
+- Keep the block short enough to reveal whether the underlying model is actually understood.
+- Update it when the conclusion changes.
+- Do not use a simplified explanation to omit a caveat that changes the meaning.
+
+## Code-first investigation
+
+- Read the actual implementation, tests, call sites, configuration, generated boundaries, and failure paths before proposing a change.
+- Map entrypoints, control and data flow, state ownership, side effects, cleanup, public contracts, invariants, and test blind spots.
+- Use recent issues and pull requests for context, not as a substitute for source understanding or as a menu of work.
+- Before promoting work, state a change thesis: current behaviour, consequence, proposed improvement, evidence, and boundary.
+- Prefer correctness, security, data integrity, lifecycle, recovery, performance, compatibility, interoperability, and demonstrated ergonomics work.
+- A refactor must simplify or protect a consequential path, make an invariant testable, enable a demonstrated fix, or produce a measurable benefit.
+- Do not actively hunt documentation edits, spelling, style-only cleanup, generic lint rules, speculative abstractions, or unmeasured micro-optimizations.
+- Documentation may accompany substantive work or resolve confusion that blocks correct use.
+- A deep investigation may correctly end with no proposed change. Record the negative result.
 
 ## External-reference rule
 
@@ -31,18 +60,30 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 - Default to synthetic inputs and no network access.
 - One experiment has one owner; parallel variants use separate directories.
 - Retain a human-readable result when another worker, report, or decision may rely on it.
-- Promote the experiment to a finding, batch probe, campaign lane, regression fixture, or integration-context dossier when it stops being disposable.
+- Promote the experiment to a finding, batch probe, campaign lane, regression fixture, integration trial, or integration-context dossier when it stops being disposable.
 - A playground never authorizes upstream contact.
+
+## Owned-repository integration trials
+
+- Use an owned repository when realistic application lifecycle, cross-component behaviour, or API ergonomics cannot be judged from a toy test alone.
+- Choose a testbed that naturally exercises the target; do not manufacture unrelated integrations.
+- Work on a dedicated branch with one owner and record exact target and testbed revisions.
+- Compare baseline and candidate behaviour, including correctness, ergonomics, failure recovery, and measured performance where relevant.
+- Keep trials reversible and off production systems.
+- Do not publish private repository names or content by default; use neutral identifiers and redacted evidence.
+- A useful trial may become a real feature in the owned repository even when no upstream work follows.
+- A testbed result does not prove ecosystem demand or an upstream contract.
+- Use `templates/integration-trial.md`.
 
 ## Integration context and citations
 
 - Name the widest claim supported by the evidence: `mechanism`, `interface`, `integration`, `operational`, or `ecosystem`.
-- Do not describe a toy example as proof of real adoption, production impact, or ecosystem need.
+- Do not describe a toy example or one owned testbed as proof of general adoption, production impact, or ecosystem need.
 - When claiming wider usefulness, failure consequence, downstream dependence, or upstream importance, create or link an integration-context dossier under `contexts/`.
 - Label consequential statements as `Normative`, `Documented`, `Observed`, `Inferred`, `Illustrative`, or `Unknown`.
 - Prefer primary sources and record title, stable URL, version or revision, retrieval date, exact supported claim, section or path, and limitations.
 - Distinguish actual callers and deployments from plausible examples.
-- State what the small model preserves and what it omits.
+- State what the small model or testbed preserves and what it omits.
 - A broader context may be researched in separate mechanism, usage, contract, operations, and adversarial lanes when the work warrants parallelization.
 
 ## Default behaviour
@@ -59,9 +100,9 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 ## Batch and parallel work
 
 - Read the batch manifest or parent issue before beginning.
-- Use the exact assignment ID, deliverable, owned path, dependencies, source revision, claim scope, and stop condition.
-- One lane or probe has one owner and one owned output path.
-- Do not edit another worker's result, campaign status, batch manifest, synthesis, or closeout.
+- Use the exact assignment ID, target label, deliverable, owned path, dependencies, source revision, claim scope, and stop condition.
+- One lane, probe, experiment, or integration trial has one owner and one owned output path or branch.
+- Do not edit another worker's result, testbed branch, campaign status, batch manifest, synthesis, or closeout.
 - For one-shot probes, write only the assigned result file or post a complete handoff marked `needs:materialization`.
 - For coordinated lanes, claim the lane before substantial work.
 - When evidence affects another assignment, report the dependency in both relevant Fieldwork records.
@@ -73,7 +114,8 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 2. **Issue handoff** — use when repository writes are unavailable. Include the complete result and apply `needs:materialization`.
 3. **Coordinator materialization** — a coordinator may combine several issue-only handoffs into one repository change.
 4. **Playground experiment** — use for bounded local tests that require no shared coordination or upstream modification.
-5. **Context dossier** — use when isolated evidence needs sourced integration, operational, or ecosystem interpretation.
+5. **Integration trial** — use an owned repository for realistic lifecycle, integration, or ergonomics evidence.
+6. **Context dossier** — use when isolated evidence needs sourced integration, operational, or ecosystem interpretation.
 
 Never have multiple workers push shared files directly to `main`.
 
@@ -87,7 +129,7 @@ Never have multiple workers push shared files directly to `main`.
 
 ## External interactions
 
-A target map, batch, campaign, lane, playground, context dossier, repository note, or Fieldwork issue does not authorize upstream contact. Direct upstream interaction requires a specific user instruction and must be recorded in the campaign closeout or upstream packet.
+A target hub, target map, batch, campaign, lane, playground, testbed trial, context dossier, repository note, or Fieldwork issue does not authorize upstream contact. Direct upstream interaction requires a specific user instruction and must be recorded in the campaign closeout or upstream packet.
 
 ## Safety
 
