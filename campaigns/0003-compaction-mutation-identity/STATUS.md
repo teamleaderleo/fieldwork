@@ -68,6 +68,7 @@ Direct model call items are recorded before their tool future is created and pol
 - unsupported calls retain conservative mutation evidence and receive a model-visible failure result;
 - incompatible payloads retain the selected runtime effect and close as certain pre-handler failure;
 - one atomic terminal guard prevents pre-dispatch closure and cancellation from recording two terminal observations;
+- cancellation that wins before the parallel or serial execution gate is admitted is provably pre-handler and must retain that certainty;
 - malformed calls rejected before registry dispatch remain a separate coverage case;
 - the owner still uses raw call ID, so this slice does not claim source-qualified nested Code Mode identity.
 
@@ -79,15 +80,16 @@ Current MCP handling can return that error as a normal `McpToolOutput`. Generic 
 
 Required typed distinction before compaction, retry, fallback, refresh, or reconnect consumes receipts:
 
-- remote request definitively completed;
+- handler execution definitively did not start, including cancellation before execution-gate admission;
+- remote execution definitively completed or failed;
 - remote cancellation or request-stream closure definitively settled with adequate transport semantics;
-- local wait ended while remote execution remains uncertain.
+- local wait ended while remote execution may still be running.
 
-The uncertain state must remain `Ambiguous` or an explicit `MayStillRun` equivalent even when the user-visible timeout output was persisted. Campaign #133 owns cancellation mechanics and should expose this terminal-authority signal without requiring #83 to parse error strings.
+The durable vocabulary must preserve an equivalent of `not_started`, `settled_completed_or_failed`, `confirmed_cancelled`, and `may_still_run`, preferably as an execution-certainty dimension separate from the user-visible result. `MayStillRun` must remain unreconciled even when a timeout output was persisted. Cancellation notification delivery alone is not confirmed cancellation. Campaign #133 owns protocol-specific cancellation mechanics and should expose this terminal-authority signal without requiring #83 to parse error strings.
 
 ## Revised implementation sequence
 
-1. Add typed post-dispatch execution certainty, consuming Campaign #133's legacy, native-timeout, cancellation-delivery, late-result, and modern request-stream evidence.
+1. Add typed execution certainty that preserves pre-handler non-execution and consumes Campaign #133's legacy, native-timeout, cancellation-delivery, late-result, and modern request-stream evidence.
 2. Add a controlled production-path append test for direct result persistence, including durable success, append failure after in-memory insertion, and ephemeral-session semantics.
 3. Emit versioned receipt lineage into rollout state, restore it on resume and fork, and carry the minimal required evidence in compacted checkpoints.
 4. Define safe retirement for reconciled receipts after durable checkpoint ownership. Unresolved, ambiguous, or may-still-run mutations must never be silently evicted.
@@ -137,7 +139,7 @@ The second check matters because tool futures, remote terminal authority, or per
 
 ## Remaining work
 
-1. Add typed settled-versus-uncertain post-dispatch terminal authority, especially for MCP timeout and cancellation.
+1. Add typed execution certainty for not-started, settled, confirmed-cancelled, and may-still-run outcomes, especially across MCP timeout and cancellation.
 2. Add real append-boundary fault injection for direct result persistence.
 3. Add versioned rollout receipt updates, checkpoint carry-forward, and resume/fork restoration.
 4. Add safe retirement without silent loss of ambiguous mutation evidence.
@@ -148,4 +150,4 @@ The second check matters because tool futures, remote terminal authority, or per
 
 ## Stop rule
 
-Do not claim a repair until compiled owned-fork tests cover complete, missing, duplicate, reordered, orphan, late, persistence-failure, local-timeout, cancellation-unconfirmed, coverage-loss, retirement, resume, and fork cases across local, remote v1, remote v2, continuation, retry, and fallback. No upstream interaction is authorized.
+Do not claim a repair until compiled owned-fork tests cover complete, missing, duplicate, reordered, orphan, late, persistence-failure, cancellation-before-execution, local-timeout, cancellation-unconfirmed, coverage-loss, retirement, resume, and fork cases across local, remote v1, remote v2, continuation, retry, and fallback. No upstream interaction is authorized.
