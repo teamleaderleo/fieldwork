@@ -6,8 +6,10 @@ Before working:
 
 1. read `START_HERE.md`;
 2. read `AGENTS.md`;
-3. read the assigned batch, campaign, lane, issue, or playground experiment;
-4. use `EXPERIMENTS.md` for bounded fork-free local tests;
-5. obey `REFERENCE_POLICY.md` before writing any external GitHub reference.
+3. read the assigned batch, campaign, lane, experiment, context, or issue;
+4. obey `REFERENCE_POLICY.md` before writing any external GitHub reference;
+5. obey `INTEGRATION_CONTEXT.md` before claiming broader use, operational consequence, or ecosystem impact.
 
-A small one-worker test may live under `playgrounds/` without an issue or upstream fork. No Fieldwork task or playground authorizes upstream contact unless the user explicitly authorizes that exact interaction.
+A bounded one-worker playground experiment needs no upstream fork or Fieldwork issue. Wider claims require evidence labels, primary sources, explicit limitations, and an integration-context dossier.
+
+No Fieldwork task authorizes upstream contact unless the user explicitly authorizes that exact interaction.
