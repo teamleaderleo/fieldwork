@@ -1,0 +1,41 @@
+name: Synthesis
+description: Combine accepted lane or batch results
+title: "[Synthesis] "
+labels:
+  - "type:synthesis"
+  - "state:ready"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. External shorthand is prohibited. This synthesis record does not authorize upstream contact.
+  - type: input
+    id: parent
+    attributes:
+      label: Parent batch or campaign
+    validations:
+      required: true
+  - type: textarea
+    id: inputs
+    attributes:
+      label: Accepted inputs
+      description: List lane, probe, finding, or artifact identifiers.
+    validations:
+      required: true
+  - type: textarea
+    id: contradictions
+    attributes:
+      label: Known contradictions or missing evidence
+  - type: textarea
+    id: deliverable
+    attributes:
+      label: Synthesis deliverable
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Boundaries
+      options:
+        - label: Synthesis will distinguish established findings from hypotheses.
+          required: true
