@@ -199,6 +199,17 @@ Capture scheduler calls and HTTP GET count over a bounded interval with a real l
 - Do not propose a reconnect-state implementation before maintainers define the desired terminal state after response-channel loss.
 - Do not contact upstream until a human explicitly authorizes the issue packet.
 
+## Campaign dispatch
+
+Created in Fieldwork:
+
+- Campaign #65 — validate MCP TypeScript v2 reconnect isolation and recovery.
+- Lane #66 — prove concurrent reconnect state stays per stream.
+- Lane #67 — define reconnect budget and terminal response-channel state.
+- Lane #68 — test session resumption and duplicate execution in Stensibly.
+
+All four issues are `state:ready`, remain inside Fieldwork, and preserve `Upstream contact authorized: false`.
+
 ## Recommendation
 
-Open one Fieldwork campaign for concurrent reconnect ownership, retry-budget semantics, and the owned session-resumption trial. Keep Draft A as the first upstream candidate. Route Draft B through #2098 unless the real-server probe proves a separate consequence.
+Run Lane #66 first because it has the smallest distinguishing fixture and the clearest source ownership mismatch. Keep Draft A as the first held upstream candidate. Run Lane #67 second and route overlapping evidence through #2098. Begin Lane #68 only after the transport fixture can separate SDK replay behavior from application idempotency behavior.
