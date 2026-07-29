@@ -1,0 +1,104 @@
+{
+  "cases": [
+    {
+      "default_retry": {
+        "after": {
+          "checksum": 499500,
+          "exists": true,
+          "maximum": 999,
+          "minimum": 0,
+          "readable": true,
+          "row_count": 1000,
+          "size_bytes": 68900
+        },
+        "succeeded": true
+      },
+      "first_nonzero_seconds": 0.11402402999999595,
+      "first_visible_seconds": 0.11402402999999595,
+      "format": "csv",
+      "kill_completed_seconds": 0.12472441400001344,
+      "killed": true,
+      "observed_size_at_trigger_bytes": 1152163,
+      "poll_seconds": 0.002,
+      "residue": {
+        "checksum": 134209536,
+        "exists": true,
+        "maximum": 16383,
+        "minimum": 0,
+        "readable": true,
+        "row_count": 16384,
+        "size_bytes": 1152163
+      },
+      "returncode": -9,
+      "rows_requested": 100000000,
+      "running_at_trigger": true,
+      "samples": 59,
+      "stderr": "",
+      "stdout": "",
+      "threshold_at_seconds": 0.12242551600002116,
+      "threshold_bytes": 1048576
+    },
+    {
+      "default_retry": {
+        "after": {
+          "checksum": 499500,
+          "exists": true,
+          "maximum": 999,
+          "minimum": 0,
+          "readable": true,
+          "row_count": 1000,
+          "size_bytes": 21410
+        },
+        "succeeded": true
+      },
+      "first_nonzero_seconds": 0.2150895639999817,
+      "first_visible_seconds": 0.11464596099997948,
+      "format": "parquet",
+      "kill_completed_seconds": 0.21808011599998167,
+      "killed": true,
+      "observed_size_at_trigger_bytes": 1048576,
+      "poll_seconds": 0.002,
+      "residue": {
+        "error": "Invalid Input Error: No magic bytes found at end of file '/tmp/fieldwork-duckdb-issue55-threshold-lpptukya/threshold-crash.parquet'\n\nLINE 1: SELECT count(*), sum(i), min(i), max(i) FROM read_parquet('/tmp/fieldwork-duckdb-issue55-threshold-lpptukya...\n                                                     ^",
+        "error_type": "InvalidInputException",
+        "exists": true,
+        "readable": false,
+        "size_bytes": 2097152
+      },
+      "returncode": -9,
+      "rows_requested": 100000000,
+      "running_at_trigger": true,
+      "samples": 104,
+      "stderr": "",
+      "stdout": "",
+      "threshold_at_seconds": 0.2150895639999817,
+      "threshold_bytes": 1048576
+    }
+  ],
+  "checks": [
+    {"name": "csv.threshold_reached", "passed": true},
+    {"name": "csv.running_at_trigger", "passed": true},
+    {"name": "csv.killed", "passed": true},
+    {"name": "csv.bounded_overshoot", "passed": true},
+    {"name": "csv.final_path_remains", "passed": true},
+    {"name": "csv.partial_readable", "passed": true},
+    {"name": "csv.retry_succeeds", "passed": true},
+    {"name": "csv.retry_count", "passed": true},
+    {"name": "csv.retry_checksum", "passed": true},
+    {"name": "parquet.threshold_reached", "passed": true},
+    {"name": "parquet.running_at_trigger", "passed": true},
+    {"name": "parquet.killed", "passed": true},
+    {"name": "parquet.bounded_overshoot", "passed": true},
+    {"name": "parquet.final_path_remains", "passed": true},
+    {"name": "parquet.incomplete_rejected", "passed": true},
+    {"name": "parquet.retry_succeeds", "passed": true},
+    {"name": "parquet.retry_count", "passed": true},
+    {"name": "parquet.retry_checksum", "passed": true}
+  ],
+  "duckdb_version": "1.5.5",
+  "failed": 0,
+  "passed": 18,
+  "platform": "Linux-6.17.0-1020-azure-x86_64-with-glibc2.39",
+  "probe": "fieldwork-issue55-exact-crash-threshold",
+  "python_version": "3.13.14"
+}
