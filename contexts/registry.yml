@@ -1,19 +1,6 @@
 schema_version: 1
 
 patterns:
-  - id: retry-idempotency
-    state: worked-example
-    dossier: contexts/patterns/retry-idempotency.md
-    experiments:
-      - playgrounds/examples/retry-idempotency/
-    case_packs:
-      - playgrounds/cases/retry-idempotency.json
-    context_lenses:
-      - mechanism
-      - contract
-      - operations
-      - observability
-
   - id: stream-lifecycle
     state: candidate
     question: How do partial delivery, reconnection, duplication, ordering, and terminal state interact in streamed workflows?
@@ -23,13 +10,13 @@ patterns:
 
   - id: cancellation-timeout
     state: candidate
-    question: Which component owns cancellation, cleanup, final state, and retry after a timeout?
+    question: Which component owns cancellation, timeout, cleanup, and final state?
     possible_case_packs:
       - playgrounds/cases/event-sequences.json
 
   - id: trace-correlation
     state: candidate
-    question: Does one logical operation remain attributable across services, retries, background work, and partial failure?
+    question: Does one logical operation remain attributable across services, asynchronous work, partial failure, and handoffs?
     primary_source_leads:
       - https://www.w3.org/TR/trace-context/
       - https://opentelemetry.io/docs/specs/semconv/http/
@@ -44,7 +31,7 @@ patterns:
 
   - id: job-recovery
     state: candidate
-    question: What state must survive interruption so a job can resume, replay, or reconcile without losing or duplicating work?
+    question: What state must survive interruption so a job can resume or reconcile correctly?
 
   - id: filesystem-boundaries
     state: candidate
@@ -55,5 +42,6 @@ patterns:
 notes:
   - A registry entry is not an assignment or endorsement.
   - Promote a candidate only when a concrete investigation needs its wider context.
+  - Context patterns must not become default hypotheses for unrelated research.
   - Document actual target usage separately from illustrative architecture.
   - Source leads are starting points; workers must verify current versions and record retrieval dates.
