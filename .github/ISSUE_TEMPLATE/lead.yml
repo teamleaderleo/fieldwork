@@ -1,0 +1,43 @@
+name: Lead
+description: Propose a possibility for triage
+title: "[Lead] "
+labels:
+  - "type:lead"
+  - "state:triage"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. External shorthand is prohibited. This record does not authorize upstream contact.
+  - type: textarea
+    id: possibility
+    attributes:
+      label: Possible investigation
+      description: What might be worth understanding?
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Intrinsic value
+      description: Why could the result matter independently of visibility or contribution credit?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Initial evidence
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Suggested boundary
+      description: Define a small first check and a reason to stop.
+    validations:
+      required: true
+  - type: checkboxes
+    id: contact
+    attributes:
+      label: External interaction
+      options:
+        - label: This lead does not authorize upstream contact.
+          required: true
