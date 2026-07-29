@@ -1,0 +1,47 @@
+name: Batch
+description: Propose controlled high-volume research dispatch
+title: "[Batch] "
+labels:
+  - "type:batch"
+  - "state:triage"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        External GitHub interaction links must use `redirect.github.com`. External shorthand is prohibited. This batch does not authorize upstream contact.
+  - type: textarea
+    id: purpose
+    attributes:
+      label: Batch purpose
+      description: State one bounded reason to fan out work.
+    validations:
+      required: true
+  - type: textarea
+    id: dimensions
+    attributes:
+      label: Targets, questions, and methods
+      description: List candidate dimensions. The coordinator must prune duplicates before dispatch.
+    validations:
+      required: true
+  - type: input
+    id: concurrency
+    attributes:
+      label: Maximum useful concurrency
+      placeholder: "8"
+    validations:
+      required: true
+  - type: textarea
+    id: exclusions
+    attributes:
+      label: Exclusions and stop conditions
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Boundaries
+      options:
+        - label: The batch will use unique assignment IDs and owned output paths.
+          required: true
+        - label: The batch does not authorize upstream contact.
+          required: true
