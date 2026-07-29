@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "campaign_issue": 71,
   "retrieval_date": "2026-07-30",
   "worker": "chatgpt:gpt-5.6-thinking",
@@ -9,13 +9,14 @@
     "repository": "teamleaderleo/t3code",
     "base_revision": "85a89868703530e03c5e79797c7b952c684bd222",
     "branch": "fieldwork/opencode-completion-reconciliation",
-    "prepared_test_head": "aa58cc6dd6749dc4365a3ec9f41d9eaa28520672",
+    "prepared_test_head": "e1108bcfaef5deacad9642ed6dcee05b889b368e",
     "prepared_test_paths": [
       "apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts",
       "apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts",
-      "apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts"
+      "apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts",
+      "apps/server/src/provider/Layers/ProviderSessionReaper.race.test.ts"
     ],
-    "intended_command": "vp test run apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts"
+    "intended_command": "vp test run apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts apps/server/src/provider/Layers/ProviderSessionReaper.race.test.ts"
   },
   "execution_status": "not-run",
   "execution_limit": "The current environment cannot clone or install the target repository, and no branch-push workflow run was available for the prepared commits.",
@@ -28,7 +29,7 @@
     "The OpenCode adapter currently accepts an explicit interrupt turn id without checking it against the adapter-local active turn.",
     "The OpenCode adapter currently maps any idle event to completed when an active turn id exists, even when no turn-specific provider evidence accompanies the idle event.",
     "OpenCode readThread and rollbackThread currently call session.messages without a limit, cursor, timeout, or abort budget.",
-    "ProviderSessionReaper checks projected activeTurnId before stopSession, leaving a check-then-stop window in which a new turn can begin.",
+    "ProviderSessionReaper reads a projected activeTurnId and later calls stopSession using only the thread id, leaving a check-then-stop window.",
     "ProviderService and the OpenCode adapter use unbounded runtime-event queues, so stalled consumers remain a separate pressure and ordering risk."
   ],
   "historical_precedent": [
@@ -283,15 +284,17 @@
     },
     {
       "id": "reaper-check-stop-race",
-      "status": "planned",
+      "status": "prepared",
+      "target_test": "ProviderSessionReaper.race.test.ts",
       "setup": {
         "reaper_snapshot": "no active turn",
-        "concurrent_action": "new turn begins before stopSession commits"
+        "concurrent_action": "ProviderService starts and persists a new turn before the stale snapshot is released"
       },
       "invariants": [
         "the newly active provider session is not stopped",
-        "reaping is guarded by an expected version, last-seen value, or atomic idle check",
-        "a skipped stale reaper action is observable"
+        "the running adapter turn remains active",
+        "the persisted binding remains running with the new activeTurnId",
+        "the fix may use a second check, expected version, last-seen compare, generation token, or atomic stop-if-idle"
       ]
     },
     {
@@ -309,7 +312,7 @@
       "invariants": [
         "an accepted prompt whose UI acknowledgement was lost is not duplicated by retry",
         "command or provider message identity makes resend idempotent",
-        "the user receives a truthful accepted/running/unknown result"
+        "the user receives a truthful accepted, running, or unknown result"
       ]
     },
     {
@@ -350,7 +353,7 @@
       "status": "planned",
       "invariants": [
         "slow or absent consumers do not grow adapter and ProviderService queues without bound",
-        "terminal lifecycle events are not dropped before high-volume content",
+        "terminal lifecycle events are not dropped behind high-volume content",
         "pressure policy is observable"
       ]
     },
@@ -360,7 +363,7 @@
       "invariants": [
         "required status and bounded-message APIs are verified or fail clearly",
         "unsupported external server does not fall back to generic ready or an empty session",
-        "capability/version mismatch is user-visible"
+        "capability or version mismatch is user-visible"
       ]
     }
   ],
@@ -384,6 +387,11 @@
       "id": "exact-turn-bounded-status-and-message-reconciliation",
       "state": "preferred-pending-target-tests",
       "summary": "Persist exact T3 turn and ordered OpenCode user-message affinity, subscribe before snapshot, query status, inspect only bounded time-limited matching history, and emit one exact terminal result."
+    },
+    {
+      "id": "reaper-atomic-idle-stop",
+      "state": "preferred-contract-pending-test",
+      "summary": "A stale reaper snapshot must not stop a session whose binding or adapter turn changed before stop commits; implementation location remains open."
     },
     {
       "id": "public-start-session-schema-expansion",
