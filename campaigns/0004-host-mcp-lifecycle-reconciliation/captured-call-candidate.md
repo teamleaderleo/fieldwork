@@ -54,11 +54,11 @@ Unknown absence should fail closed. A missing captured call must not automatical
 
 ### Ready request binding
 
-A ready server already inserts prepared calls into the request binding. Those calls regain the captured-client rule introduced by openai/codex#34588.
+A ready server already inserts prepared calls into the request binding. Those calls regain the rule from the [captured catalogue authority change](https://redirect.github.com/openai/codex/pull/34588).
 
 ### Cached optional server
 
-A cached optional server can advertise tools before a client is ready and therefore has no captured prepared call. The live wait from openai/codex#35590 remains available as an explicit compatibility exception.
+A cached optional server can advertise tools before a client is ready and therefore has no captured prepared call. The live wait from the [cached-startup late-binding change](https://redirect.github.com/openai/codex/pull/35590) remains available as an explicit compatibility exception.
 
 ### Removed tool
 
