@@ -16,11 +16,11 @@ Owned implementation: `teamleaderleo/zustand#1`
 
 Owned branch: `fieldwork/persist-rehydrate-error-settlement`
 
-Owned head: `047425c2d909eefaf712046b4b4021062f6e8cff`
+Owned head: `66adffc63c8a4dd6aaee2b5c5761fb71ff35b351`
 
-Fork candidate workflow: `30499684939`
+Fork candidate workflow: pending for committed-source head
 
-Fieldwork candidate workflow: `30499703171`
+Fieldwork candidate workflow: pending for Fieldwork head `52ec0427924f0da9a09c8f4c4d283ba40611edd4`
 
 Upstream contact authorized: `false`
 
@@ -68,11 +68,11 @@ A source-equivalent Node 22.16.0 execution confirmed the same split state for al
 
 The released-package Node 22, 24, and 26 workflow remains queued at the latest recorded check, so that matrix is not yet claimed.
 
-## Owned candidate contract
+## Owned implementation
 
 Draft PR: `teamleaderleo/zustand#1`
 
-The candidate distinguishes explicit calls from automatic initialization:
+The implementation distinguishes explicit calls from automatic initialization:
 
 ```ts
 const hydrate = (throwOnError = false) => {
@@ -105,9 +105,9 @@ Zustand's synchronous `toThenable` adapter models a captured error with an objec
 
 Returning `Promise.reject(error)` from the explicit failure path converts both synchronous and asynchronous failures into a real rejected Promise without changing successful synchronous hydration.
 
-## Owned regression suite
+## Regression suite
 
-The candidate-only source file `.fieldwork/persistRehydrateError.vitest.ts` covers:
+The committed test `tests/persistRehydrateError.test.ts` covers:
 
 - asynchronous storage failure rejects with the original error;
 - synchronous JSON parsing failure rejects with `SyntaxError`;
@@ -118,19 +118,15 @@ The candidate-only source file `.fieldwork/persistRehydrateError.vitest.ts` cove
 - a failed superseded attempt resolves quietly after the current attempt succeeds;
 - state, hydration flags, start listeners, finish listeners, and callback arguments remain consistent.
 
-The candidate regression is intentionally kept outside Vitest's default `tests` directory while the source change is stored as a patch. Dedicated workflows apply the source hunk, copy the candidate test into `tests`, and then run it. This prevents normal repository CI from testing an unapplied patch and failing by construction.
+The implementation is committed directly in `src/middleware/persist.ts`. Temporary patch and staged-test files have been removed, so both Zustand's ordinary CI and the focused matrix test the actual source change.
 
-The dedicated matrix also runs the existing `persistAsync.test.tsx` and `persistSync.test.tsx` suites after applying the patch.
+The focused matrix also runs the existing `persistAsync.test.tsx` and `persistSync.test.tsx` suites and lints the changed source and regression on Node 22, 24, and 26.
 
-## Source application state
+## Source-equivalent candidate execution
 
-The exact source hunk is stored in `.fieldwork/persist-rehydrate-error-settlement.patch`. The connected editor supports complete-file replacement only, so the clean-checkout workflows apply the reviewed hunk with `git apply --check` rather than mechanically rewriting the entire source file.
+A Node `v22.16.0` execution independently exercised the patched control flow. All four failure stages rejected correctly, automatic failure remained contained, retry recovery succeeded, and a superseded failure remained suppressed.
 
-## Candidate validation
-
-Fork workflow `30499684939` and Fieldwork workflow `30499703171` both pin owned head `047425c2d909eefaf712046b4b4021062f6e8cff`, apply the patch, stage the candidate-only regression, install from the lockfile, run the new and existing persist suites on Node 22, 24, and 26, and lint the candidate test.
-
-The jobs were queued at the latest recorded check. No candidate execution result is claimed yet.
+This is a limited control-flow receipt, not a clean-checkout or package-install result.
 
 ## Compatibility assessment
 
@@ -145,11 +141,11 @@ The main review questions are:
 
 ## Adjacent question retained separately
 
-Explicitly supplied `undefined` values in persist options can overwrite defaults through object spreading. That behavior is not used as evidence for this finding and should be characterized independently.
+Explicitly supplied `undefined` values in persist options can overwrite defaults through object spreading. That behavior is tracked independently in Fieldwork lane #170 and owned fork PR #2.
 
 ## Current decision
 
-Treat this as a confirmed source defect candidate with an owned implementation experiment. Keep the fork PR draft until the exact clean-checkout matrix is green and compatibility review is complete.
+Treat this as a confirmed source defect candidate with a directly committed owned implementation. Keep the fork PR draft until ordinary and focused CI are green and compatibility review is complete.
 
 ## Contact boundary
 
