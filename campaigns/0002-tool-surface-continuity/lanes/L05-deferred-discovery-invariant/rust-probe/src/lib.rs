@@ -39,11 +39,7 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub const fn new(
-        name: &'static str,
-        exposure: Exposure,
-        searchable_metadata: bool,
-    ) -> Self {
+    pub const fn new(name: &'static str, exposure: Exposure, searchable_metadata: bool) -> Self {
         Self {
             name,
             exposure,
@@ -118,7 +114,9 @@ pub fn evaluate(runtimes: &[Runtime], surface: &Surface) -> Evaluation {
         .any(|runtime| runtime.exposure != Exposure::Hidden);
 
     if has_model_visible_runtime && !delivery_is_verified(surface) {
-        errors.push("effective tool manifest is not directly delivered or verifiably inherited".into());
+        errors.push(
+            "effective tool manifest is not directly delivered or verifiably inherited".into(),
+        );
     }
 
     for runtime in runtimes {
@@ -157,10 +155,7 @@ pub fn evaluate(runtimes: &[Runtime], surface: &Surface) -> Evaluation {
     }
 }
 
-pub fn normalize_unloadable_deferred(
-    runtimes: &[Runtime],
-    surface: &Surface,
-) -> Vec<Runtime> {
+pub fn normalize_unloadable_deferred(runtimes: &[Runtime], surface: &Surface) -> Vec<Runtime> {
     let logical_route_available = logical_discovery_route_available(surface);
     runtimes
         .iter()
@@ -210,8 +205,7 @@ fn logical_discovery_route_available(surface: &Surface) -> bool {
 
     match surface.mode {
         ToolMode::Direct => {
-            surface.top_level_tool_search_advertised
-                && surface.top_level_tool_search_registered
+            surface.top_level_tool_search_advertised && surface.top_level_tool_search_registered
         }
         ToolMode::CodeMode => {
             surface.code_mode_exec_advertised && surface.code_mode_all_tools_available
