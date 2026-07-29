@@ -6,13 +6,13 @@ on:
       - campaign/71-t3-opencode-completion-reconciliation
     paths:
       - .github/workflows/t3-opencode-lifecycle.yml
-      - campaigns/t3-opencode-completion-reconciliation/**
+      - campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt
   pull_request:
     branches:
       - main
     paths:
       - .github/workflows/t3-opencode-lifecycle.yml
-      - campaigns/t3-opencode-completion-reconciliation/**
+      - campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt
   workflow_dispatch:
 
 permissions:
@@ -40,18 +40,33 @@ jobs:
           - name: Reaper race
             test: apps/server/src/provider/Layers/ProviderSessionReaper.race.test.ts
     steps:
-      - name: Checkout owned T3 campaign branch
+      - name: Checkout Fieldwork control files
+        uses: actions/checkout@v6
+        with:
+          path: fieldwork
+
+      - name: Resolve pinned T3 head
+        id: target
+        run: echo "ref=$(tr -d '\n' < fieldwork/campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout owned T3 campaign head
         uses: actions/checkout@v6
         with:
           repository: teamleaderleo/t3code
-          ref: fieldwork/opencode-completion-reconciliation
+          ref: ${{ steps.target.outputs.ref }}
+          path: t3code
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@v1
         with:
-          node-version-file: package.json
-          cache: true
-          run-install: true
+          node-version-file: t3code/package.json
+          cache: false
+          run-install: false
+
+      - name: Install target dependencies
+        working-directory: t3code
+        run: vp install
 
       - name: Run focused test
+        working-directory: t3code
         run: vp test run ${{ matrix.test }}
