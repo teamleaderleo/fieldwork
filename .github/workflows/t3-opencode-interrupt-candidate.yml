@@ -1,0 +1,90 @@
+name: T3 OpenCode interrupt settlement candidate
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t3-opencode-interrupt-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - name: Checkout Fieldwork head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+
+      - name: Check candidate inputs
+        id: filter
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(.github/workflows/t3-opencode-interrupt-candidate.yml|campaigns/t3-opencode-completion-reconciliation/candidates/0002-opencode-interrupt-settlement.patch)$'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  candidate-check:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Interrupt settlement candidate
+            command: vp test run apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
+          - name: Existing OpenCode adapter suite
+            command: vp test run apps/server/src/provider/Layers/OpenCodeAdapter.test.ts
+          - name: Server typecheck
+            command: vp run --filter t3 typecheck
+    steps:
+      - name: Checkout Fieldwork candidate
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+
+      - name: Checkout owned T3 campaign branch
+        uses: actions/checkout@v6
+        with:
+          repository: teamleaderleo/t3code
+          ref: fieldwork/opencode-completion-reconciliation
+          path: t3code
+
+      - name: Apply candidate patch
+        working-directory: t3code
+        run: |
+          git apply --check ../fieldwork/campaigns/t3-opencode-completion-reconciliation/candidates/0002-opencode-interrupt-settlement.patch
+          git apply ../fieldwork/campaigns/t3-opencode-completion-reconciliation/candidates/0002-opencode-interrupt-settlement.patch
+          git diff --check
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: t3code/package.json
+          cache: false
+          run-install: false
+
+      - name: Install target dependencies
+        working-directory: t3code
+        run: vp install
+
+      - name: Run candidate check
+        working-directory: t3code
+        run: ${{ matrix.command }}
