@@ -21,7 +21,7 @@ Candidate 3 has no fix branch. Bundled development uses a distinct HMR engine an
 
 ## Precedent correction
 
-Vite PR `vitejs/vite#22188` merged watcher-listener catches and tests requiring rejected `watchChange` hooks to reach the configured logger. Candidate 1 is a follow-up transactional gap: the listener logs only after the file-event handler has exited, so invalidation and HMR are still skipped.
+[Vite PR 22188 — handle errors in the watchChange hook](https://redirect.github.com/vitejs/vite/pull/22188) merged watcher-listener catches and tests requiring rejected `watchChange` hooks to reach the configured logger. Candidate 1 is a follow-up transactional gap: the listener logs only after the file-event handler has exited, so invalidation and HMR are still skipped.
 
 The portable issue draft on research PR #1 now states this relationship directly.
 
@@ -34,11 +34,11 @@ The original candidate-2 test looked modules up by a temporary absolute path. Th
 - macOS canonicalizes `/var` through `/private/var`;
 - Windows uses different path identity rules.
 
-The corrected research and fix tests use `EnvironmentModuleGraph.getModuleByUrl()` and match transformed source IDs by normalized suffix. Ubuntu observations remain valid; corrected cross-platform CI is rerunning.
+The corrected research and fix tests use `EnvironmentModuleGraph.getModuleByUrl()` and match transformed source IDs by normalized suffix. Both corrected branches now pass the full Vite CI matrix.
 
 ### Bundled browser formatting
 
-The candidate-3 browser fixture passed its focused classic/bundled comparison but failed the repository formatting check on one multiline callback. The current head contains the formatter's exact single-line form. An unrelated Node 26 build-suite failure remains separate from the focused browser evidence.
+The candidate-3 browser fixture passed its focused classic/bundled comparison but failed the repository formatting check on one multiline callback. The current head contains the formatter's exact single-line form. Its focused browser workflow passes; the corrected broad CI rerun remains active.
 
 ## Fix review notes
 
@@ -53,11 +53,13 @@ The new regression proves the `change` path:
 - `hotUpdate` remains reachable;
 - the next transform reads the new value.
 
-`add` and `unlink` share the same helper and retain the existing error-logging controls from #22188, but separate stale-state correctness tests would strengthen an upstream submission.
+`add` and `unlink` share the same helper and retain the existing error-logging controls from PR 22188, but separate stale-state correctness tests would strengthen an upstream submission.
 
 ### PR #5 — final post import analysis
 
 An initial implementation wrapped and reformatted the 500-line handler, creating a review-hostile diff. It was replaced with a shallow metadata wrapper around the unchanged handler. The current diff is two files, 86 additions and one deletion.
+
+The final head passes the full Vite CI matrix and Zizmor. Compatibility review remains necessary before promotion.
 
 Open compatibility questions:
 
