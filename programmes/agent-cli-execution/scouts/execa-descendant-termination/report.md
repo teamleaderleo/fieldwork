@@ -1,6 +1,6 @@
 # Execa descendant termination and signal safety
 
-State: `candidate-implemented`
+State: `validated-candidate`
 
 Fieldwork lane: #106
 
@@ -18,6 +18,8 @@ Owned implementation: `teamleaderleo/execa#1`
 
 Owned head: `dc73ffcd1765666f77fb39775af73abec08c5bb5`
 
+Cross-platform workflow: `30491600304`
+
 Upstream contact authorized: `false`
 
 ## In simple words
@@ -26,15 +28,7 @@ Execa is a Node.js library for launching and controlling other programs. Execa 1
 
 Node treats signal `0` specially: it checks whether a process exists and must not terminate it. Execa explicitly accepts `subprocess.kill(0)`. The Windows descendant adapter routes signals through forced `taskkill /T /F`, so signal `0` can become process-tree termination instead of a liveness check.
 
-The owned candidate now handles signal `0` before selecting any platform-specific descendant adapter. Non-zero signals keep the existing tree-termination behavior.
-
-## Why this is worth checking
-
-- `killDescendants` is new in Execa 10.0.0.
-- The public API retains the `ChildProcess.kill(signal)` shape and accepts integer signal `0`.
-- Supervisors use signal `0` for liveness checks before cleanup, reconciliation, or ownership transfer.
-- A destructive liveness check can stop valid work while the caller believes it only inspected state.
-- Smolrunner and Starsector Preflight are plausible future contexts, but neither is an active testbed for this lane.
+The owned correction handles signal `0` before selecting any platform-specific descendant adapter. Non-zero signals keep the existing tree-termination behavior.
 
 ## Source map
 
@@ -70,7 +64,7 @@ execFile(taskkillFile, ['/pid', `${subprocess.pid}`, '/T', '/F'], callback)
 
 Merged upstream PR #1258 improved `taskkill` discovery and fallback behavior. It intentionally kept `taskkill /T /F` as the primary Windows tree-termination path and forwarded the requested signal only when `taskkill` was unavailable or failed.
 
-That change provides the closest implementation precedent and confirms the intended ownership boundary: the Windows adapter owns descendant termination. It did not separate non-terminating signal `0` from actual termination signals.
+That change confirms the intended ownership boundary: the Windows adapter owns descendant termination. It did not separate non-terminating signal `0` from actual termination signals.
 
 Searches for `killDescendants`, `signal 0`, `kill(0)`, and `taskkill` found no matching current issue or pull request for this exact case.
 
@@ -104,49 +98,44 @@ Current changes:
 
 ## Validation receipt
 
-Local runtime: Node `22.16.0`, Linux x86-64.
+### Local source execution
 
-### Exact Windows adapter execution
+Node `22.16.0`, Linux x86-64:
 
-The current candidate source was imported after setting `process.platform` to `win32` and replacing Node's `execFile` binding with a recorder.
+- exact Windows adapter branch: signal `0` called native `subprocess.kill(0)`, launched no `taskkill`, and a later `SIGTERM` produced the expected `/T /F` command;
+- real Unix process group: signal `0` preserved a live parent and grandchild, then a later non-zero signal terminated the group.
 
-Observed:
+Both passed.
 
-- `kill(0)` returned `true`;
-- native `subprocess.kill(0)` received the call;
-- zero `taskkill` calls occurred for signal `0`;
-- a later `SIGTERM` produced `taskkill.exe /pid <pid> /T /F`.
+### Real Windows and Ubuntu execution
 
-Result: pass.
+Fieldwork workflow `30491600304` checked out the exact owned Execa branch and ran:
 
-This executes the exact Windows adapter branch, but it is not an actual Windows-kernel or `taskkill.exe` run.
+```text
+npx ava test/terminate/kill-descendants.js test/terminate/kill-descendants-signal-zero.js
+```
 
-### Real Unix process-tree execution
+Matrix result:
 
-A detached Node child spawned a live grandchild. The candidate source then performed signal `0` followed by `SIGTERM`.
+- Node 22 on Ubuntu: pass;
+- Node 24 on Ubuntu: pass;
+- Node 26 on Ubuntu: pass;
+- Node 22 on Windows: pass;
+- Node 24 on Windows: pass;
+- Node 26 on Windows: pass.
 
-Observed:
+The Windows jobs used the real Windows runner and real `taskkill.exe` path. They prove that signal `0` preserves the live process tree, does not trigger delayed force-kill escalation, and that a later ordinary kill still closes the tree.
 
-- signal `0` returned `true`;
-- parent and grandchild remained alive after the check;
-- the later non-zero signal terminated the process group;
-- no descendant remained running after cleanup.
+Fieldwork integrity and external-reference policy passed on the workflow-bearing head.
 
-Result: pass.
+## Acceptance result
 
-### Fork CI boundary
-
-The repository's existing CI matrix covers Node 22, 24, and 26 on Ubuntu, macOS, and Windows. GitHub Actions are disabled on the newly created fork, and no workflow run exists for the candidate head. An actual Windows OS receipt remains pending and is not implied by the adapter test.
-
-## Acceptance requirements
-
-- no `taskkill` process is started for signal `0`;
-- the direct child and descendants remain alive;
-- the boolean return matches Node's native liveness-check behavior;
-- no force-kill timer later terminates the tree;
-- Execa does not classify the operation as canceled, timed out, or forcefully terminated;
-- ordinary descendant termination remains unchanged;
-- the focused tests pass on an actual Windows runner.
+- no `taskkill` process is started for signal `0`: pass;
+- direct child and descendant remain alive: pass;
+- boolean return follows Node's native liveness check: pass;
+- no delayed force-kill terminates the tree: pass;
+- ordinary descendant termination remains unchanged: pass;
+- focused tests pass on actual Windows runners: pass.
 
 ## Adjacent questions retained but not folded into this finding
 
@@ -159,9 +148,9 @@ The repository's existing CI matrix covers Node 22, 24, and 26 on Ubuntu, macOS,
 
 ## Current decision
 
-Retain the candidate as a credible narrow fix. Do not mark the defect target-confirmed or the repair complete until an actual Windows job executes the live regression.
+The defect and narrow repair are cross-platform validated. No additional source or test work is needed for the current scope.
 
-No additional design work is needed before that run. The next action is execution, not expansion.
+The owned PR remains draft because it is a Fieldwork research branch, not an authorized upstream submission. The issue-first packet remains held.
 
 ## Contact boundary
 
