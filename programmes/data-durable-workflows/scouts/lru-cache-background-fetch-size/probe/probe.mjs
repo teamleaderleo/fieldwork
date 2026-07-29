@@ -121,10 +121,23 @@ assert.equal(byLabel.nan.afterSettlement.calculatedSize.nan, true)
 assert.equal(byLabel.infinity.constructorError, undefined)
 assert.equal(byLabel.infinity.afterFirstFetch.cacheSize, 0)
 assert.equal(byLabel.infinity.afterSecondFetch.fetchCalls, 2)
+assert.deepEqual(
+  byLabel.infinity.outcomes.map(outcome => outcome.value),
+  ['A1', 'A2'],
+)
 
 assert.equal(byLabel['numeric-string'].constructorError, undefined)
 assert.equal(byLabel['numeric-string'].afterFirstFetch.calculatedSize.type, 'string')
 assert.equal(byLabel['numeric-string'].afterFirstFetch.calculatedSize.string, '02')
+assert.ok(byLabel['numeric-string'].afterSettlement.cacheSize < 0)
+assert.deepEqual(
+  byLabel['numeric-string'].outcomes.map(outcome => outcome.status),
+  ['rejected', 'rejected'],
+)
+assert.deepEqual(
+  byLabel['numeric-string'].outcomes.map(outcome => outcome.message),
+  ['Invalid array length', 'Invalid array length'],
+)
 
 console.log(JSON.stringify({
   package: 'lru-cache',
