@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
+import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 
 const reconnectionOptions = {
   initialReconnectionDelay: 1,
@@ -249,12 +249,179 @@ async function usefulResumeCompletes() {
   }
 }
 
+function createLegacyClientServer(mode) {
+  let cancelledCount = 0;
+  let resumedGetCount = 0;
+  let toolRequestId;
+  const lastEventIds = [];
+
+  const server = createServer((req, res) => {
+    if (req.method === 'GET') {
+      const lastEventId = req.headers['last-event-id'];
+      if (lastEventId === undefined) {
+        res.writeHead(405).end();
+        return;
+      }
+      resumedGetCount += 1;
+      lastEventIds.push(lastEventId);
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      if (mode === 'late-response') {
+        res.end(
+          `id: late-final\ndata: ${JSON.stringify({
+            jsonrpc: '2.0',
+            id: toolRequestId,
+            result: { content: [{ type: 'text', text: 'late' }] },
+          })}\n\n`,
+        );
+      } else {
+        res.end(`retry: 1\nid: call-${resumedGetCount}\ndata:\n\n`);
+      }
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.writeHead(405).end();
+      return;
+    }
+
+    let body = '';
+    req.on('data', (chunk) => {
+      body += String(chunk);
+    });
+    req.on('end', () => {
+      const message = JSON.parse(body);
+      if (message.method === 'initialize') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: message.id,
+            result: {
+              protocolVersion: '2025-11-25',
+              capabilities: { tools: {} },
+              serverInfo: { name: 'release-timeout-probe', version: '1.0.0' },
+            },
+          }),
+        );
+        return;
+      }
+      if (message.method === 'notifications/initialized') {
+        res.writeHead(202).end();
+        return;
+      }
+      if (message.method === 'notifications/cancelled') {
+        cancelledCount += 1;
+        res.writeHead(202).end();
+        return;
+      }
+      if (message.method === 'tools/call') {
+        toolRequestId = message.id;
+        res.writeHead(200, { 'content-type': 'text/event-stream' });
+        res.end('retry: 1\nid: call-0\ndata:\n\n');
+        return;
+      }
+      res.writeHead(400).end();
+    });
+  });
+
+  return {
+    server,
+    get cancelledCount() {
+      return cancelledCount;
+    },
+    get resumedGetCount() {
+      return resumedGetCount;
+    },
+    get lastEventIds() {
+      return lastEventIds;
+    },
+  };
+}
+
+async function reconnectContinuesAfterTimeout() {
+  const fixture = createLegacyClientServer('keep-priming');
+  const url = await listen(fixture.server);
+  const transport = new StreamableHTTPClientTransport(url, { reconnectionOptions });
+  const client = new Client({ name: 'release-timeout-client', version: '1.0.0' });
+
+  try {
+    await client.connect(transport);
+    const request = client.request(
+      { method: 'tools/call', params: { name: 'slow', arguments: {} } },
+      { timeout: 60 },
+    );
+
+    await assert.rejects(request, /Request timed out/);
+    await waitFor(() => fixture.cancelledCount === 1, 'legacy cancellation notification');
+    const countAtRejection = fixture.resumedGetCount;
+    await waitFor(() => fixture.resumedGetCount > countAtRejection, 'resumed GET after caller timeout');
+
+    assert(fixture.resumedGetCount > countAtRejection);
+    return {
+      cancelledCount: fixture.cancelledCount,
+      getCountAtRejection: countAtRejection,
+      getCountAfterRejection: fixture.resumedGetCount,
+      lastEventIds: fixture.lastEventIds,
+    };
+  } finally {
+    await client.close();
+    await closeServer(fixture.server);
+  }
+}
+
+async function lateResponseAfterTimeout() {
+  const fixture = createLegacyClientServer('late-response');
+  const url = await listen(fixture.server);
+  const scheduled = [];
+  const transport = new StreamableHTTPClientTransport(url, {
+    reconnectionOptions,
+    reconnectionScheduler(reconnect, delay, attempt) {
+      scheduled.push({ reconnect, delay, attempt });
+      return () => {};
+    },
+  });
+  const client = new Client({ name: 'release-late-response-client', version: '1.0.0' });
+  const errors = [];
+  client.onerror = (error) => errors.push(error.message);
+
+  try {
+    await client.connect(transport);
+    const request = client.request(
+      { method: 'tools/call', params: { name: 'slow', arguments: {} } },
+      { timeout: 40 },
+    );
+
+    await waitFor(() => scheduled.length >= 1, 'initial reconnect schedule');
+    await assert.rejects(request, /Request timed out/);
+    await waitFor(() => fixture.cancelledCount === 1, 'legacy cancellation notification');
+
+    scheduled.shift().reconnect();
+    await waitFor(() => fixture.resumedGetCount === 1, 'late response GET');
+    await waitFor(
+      () => errors.some((message) => message.includes('Received a response for an unknown message ID')),
+      'unknown message id diagnostic',
+    );
+
+    return {
+      cancelledCount: fixture.cancelledCount,
+      resumedGetCount: fixture.resumedGetCount,
+      lastEventIds: fixture.lastEventIds,
+      errors,
+    };
+  } finally {
+    await client.close();
+    await closeServer(fixture.server);
+  }
+}
+
 const output = {
   package: '@modelcontextprotocol/client@2.0.0',
   node: process.version,
   successfulReopenDropCycles: await successfulReopenDropCycles(),
   failedOpenExhaustion: await failedOpenExhaustion(),
   usefulResumeCompletes: await usefulResumeCompletes(),
+  reconnectContinuesAfterTimeout: await reconnectContinuesAfterTimeout(),
+  lateResponseAfterTimeout: await lateResponseAfterTimeout(),
 };
 
 console.log(JSON.stringify(output, null, 2));
