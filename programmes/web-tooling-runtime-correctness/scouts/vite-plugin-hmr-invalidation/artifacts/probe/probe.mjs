@@ -14,9 +14,18 @@ const results = {
   cases: [],
 }
 
-await runCase('watchChange rejection preserves stale transform cache', probeWatchChangeFailure)
-await runCase('post-order transform escapes dev import analysis', probePostTransformOrdering)
-await runCase('bundled dev omits plugin hot-update hooks', probeBundledDevHotUpdate)
+await runCase(
+  'watchChange rejection preserves stale transform cache',
+  probeWatchChangeFailure,
+)
+await runCase(
+  'post-order transform escapes dev import analysis',
+  probePostTransformOrdering,
+)
+await runCase(
+  'bundled dev omits plugin hot-update hooks',
+  probeBundledDevHotUpdate,
+)
 
 process.stdout.write(`${JSON.stringify(results, null, 2)}\n`)
 
@@ -24,7 +33,12 @@ async function runCase(name, fn) {
   const started = Date.now()
   try {
     const detail = await fn()
-    results.cases.push({ name, status: 'reproduced', durationMs: Date.now() - started, detail })
+    results.cases.push({
+      name,
+      status: 'reproduced',
+      durationMs: Date.now() - started,
+      detail,
+    })
   } catch (error) {
     results.cases.push({
       name,
@@ -55,7 +69,8 @@ async function runWatchChangeScenario(rejectWatchChange) {
     const virtualId = '\0virtual:fieldwork-state'
     await writeProject(root, {
       'index.html': '<script type="module" src="/src/main.js"></script>',
-      'src/main.js': "import { value } from 'virtual:fieldwork-state'; console.log(value); if (import.meta.hot) import.meta.hot.accept('virtual:fieldwork-state', () => {});",
+      'src/main.js':
+        "import { value } from 'virtual:fieldwork-state'; console.log(value); if (import.meta.hot) import.meta.hot.accept('virtual:fieldwork-state', () => {});",
       'state.txt': 'alpha\n',
     })
 
@@ -95,8 +110,8 @@ async function runWatchChangeScenario(rejectWatchChange) {
 
     try {
       await server.transformRequest('/src/main.js')
-      const virtualUrl = '/@id/__x00__virtual:fieldwork-state'
-      const first = await server.transformRequest(virtualUrl)
+      const directRequestId = 'virtual:fieldwork-state'
+      const first = await server.transformRequest(directRequestId)
       assert.match(first?.code || '', /alpha/)
 
       const environment = server.environments.client
@@ -110,17 +125,33 @@ async function runWatchChangeScenario(rejectWatchChange) {
 
       let didLogError = false
       if (rejectWatchChange) {
-        didLogError = await withTimeout(loggedError, 2_000, 'watchChange error was not logged')
+        didLogError = await withTimeout(
+          loggedError,
+          2_000,
+          'watchChange error was not logged',
+        )
       } else {
-        await waitUntil(() => mod.transformResult === null, 2_000, 'module was not invalidated')
+        await waitUntil(
+          () => mod.transformResult === null,
+          2_000,
+          'module was not invalidated',
+        )
       }
 
       const invalidatedAfterEvent = mod.transformResult === null
-      if (rejectWatchChange) assert.equal(mod.transformResult, previousTransform)
+      if (rejectWatchChange) {
+        assert.equal(mod.transformResult, previousTransform)
+      }
 
-      const refreshed = await server.transformRequest(virtualUrl)
-      const refreshedValue = /beta/.test(refreshed?.code || '') ? 'beta' : 'alpha'
-      return { loggedError: didLogError, invalidatedAfterEvent, refreshedValue }
+      const refreshed = await server.transformRequest(directRequestId)
+      const refreshedValue = /beta/.test(refreshed?.code || '')
+        ? 'beta'
+        : 'alpha'
+      return {
+        loggedError: didLogError,
+        invalidatedAfterEvent,
+        refreshedValue,
+      }
     } finally {
       await server.close()
     }
@@ -198,7 +229,9 @@ async function runTransformOrderingScenario(order) {
       hookOrder: order || 'normal',
       graphContainsInjectedDependency,
       devOutputContainsInjectedImport: devCode.includes('./dep.js'),
-      buildOutputContainsDependencySentinel: buildCode.includes('FIELDWORK_DEP_SENTINEL'),
+      buildOutputContainsDependencySentinel: buildCode.includes(
+        'FIELDWORK_DEP_SENTINEL',
+      ),
     }
   })
 }
@@ -257,7 +290,11 @@ async function runHotUpdateDeliveryScenario(bundledDev) {
 
     try {
       server.watcher.emit('change', watchedFile)
-      await withTimeout(watchChangeSeen, 2_000, 'watchChange hook was not delivered')
+      await withTimeout(
+        watchChangeSeen,
+        2_000,
+        'watchChange hook was not delivered',
+      )
       await new Promise((resolve) => setTimeout(resolve, 50))
       return { bundledDev, watchChangeCalls, hotUpdateCalls }
     } finally {
