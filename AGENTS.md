@@ -5,7 +5,7 @@ These instructions apply to every AI system and automated worker operating in th
 ## Entry protocol
 
 - Start with `START_HERE.md`.
-- Read `CHARTER.md`, `CODE_FIRST.md`, `PLAIN_LANGUAGE.md`, `METHOD.md`, `REFERENCE_POLICY.md`, `PROGRAMMES.md`, `TARGET_HUBS.md`, `EXPERIMENTS.md`, `TESTBEDS.md`, `INTEGRATION_CONTEXT.md`, `COORDINATION.md`, and `BATCHES.md` before modifying research material.
+- Read `CHARTER.md`, `CODE_FIRST.md`, `PLAIN_LANGUAGE.md`, `METHOD.md`, `REFERENCE_POLICY.md`, `PROGRAMMES.md`, `TARGET_HUBS.md`, `EXPERIMENTS.md`, `TESTBEDS.md`, `INTEGRATION_CONTEXT.md`, `COORDINATION.md`, `REVIEW.md`, and `BATCHES.md` before modifying research material.
 - Search programme hubs, target hubs, open Fieldwork issues, active batches, existing experiments, contexts, testbeds, and campaign folders before creating work.
 - Treat GitHub issues as live coordination and repository files as durable evidence.
 - Work only from an explicit assignment, claimed scout or lane, requested synthesis, user-directed triage task, or bounded fork-free experiment.
@@ -103,6 +103,18 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 - State what the small model or testbed preserves and what it omits.
 - A context pattern is optional supporting material, never an automatic hypothesis for a target.
 - A broader context may be researched in separate mechanism, usage, contract, operations, and adversarial lanes when the work warrants parallelization.
+
+## Review and evidence workflow
+
+- Read `REVIEW.md` before reviewing, promoting, or placing a candidate on the review queue.
+- Self-review every result before handoff: verify the intended assertion ran, separate harness failures from product evidence, and rewrite the theory when the observed mechanism differs from the original premise.
+- Preserve exact evidence classes. Never upgrade source analysis, a model, or a prepared test into executed target evidence without a retained target run.
+- Keep execution-only CI changes separate from product changes when practical, and record the exact head, workflow run, job, environment, command, and assertion.
+- Split findings that have different owners, result models, compatibility risks, or implementation boundaries.
+- Put the strongest executed, decision-ready candidates at the front of the review queue. Refresh or remove stale cards when later evidence changes their state.
+- Independent review uses one explicit disposition and must state evidence checked, strongest supported conclusion, missing proof, next action, next owner, and upstream-contact status.
+- A worker may self-review their own work as preparation, but must not describe that as independent acceptance.
+- After a material result or review, synchronize the live issue, durable report, pull-request front page, execution receipt, and review card.
 
 ## Default behaviour
 
