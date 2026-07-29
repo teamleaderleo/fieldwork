@@ -1,10 +1,18 @@
-# Scout report: durable job retry and recovery
+# Scout report: owned durable-workflow systems
 
 ## In simple words
 
-Stensibly and Smolrunner both preserve durable work, yet they protect different failure boundaries. Stensibly keeps one run identity across bounded retries and can reconcile its own ledger mutations with operation receipts. Smolrunner records exact request, reservation, attempt, cancellation, and terminal evidence and treats an interrupted executor action as uncertain until the host is observed again. Fin Agent runs one request-scoped streaming loop and persists chat messages, so it has no durable job to recover. Two owned-system campaigns are justified: reconcile Stensibly external runner effects before replacement, and connect Smolrunner execution journals and receipts to the personal-worker attempt lifecycle. Generic convergence work, Fin Agent durability work, and dependency/runtime campaigns should stop.
+The three repositories represent different kinds of work.
 
-## Assignment
+- Stensibly is a server-owned responsibility ledger with browser, REST, and MCP clients. It persists work items, authority, events, artifacts, and run state.
+- Smolrunner is a local Rust control plane that observes a machine, plans bounded actions, checkpoints durable state, and performs explicitly authorized host or worker operations.
+- Fin Agent is a request-scoped chat application. It runs planning and read-oriented financial tool calls inside one HTTP request and saves completed conversation messages in the browser.
+
+That broad map narrows the useful retry-and-recovery comparison to Stensibly and Smolrunner. They both preserve durable work, yet they protect different failure boundaries. Stensibly keeps one run identity across bounded retries and can reconcile its own ledger mutations with operation receipts. Smolrunner records exact request, reservation, cancellation, journal, and terminal evidence and treats an interrupted executor action as uncertain until the machine is observed again.
+
+Two owned-system campaigns are justified: reconcile Stensibly external runner effects before replacement, and connect Smolrunner personal-worker attempts, execution journals, and terminal receipts. Fin Agent durability work, generic cross-system retry abstractions, and dependency or runtime campaigns should stop at this revision.
+
+## Assignment and scope correction
 
 - Fieldwork issue: #29
 - Programme: `data-durable-workflows` (#16)
@@ -14,6 +22,8 @@ Stensibly and Smolrunner both preserve durable work, yet they protect different 
 - Retrieval date: 2026-07-29
 - Upstream contact authorized: `false`
 
+The issue was claimed under a retry-and-recovery comparison. A later issue comment withdrew the retry-first premise and requested a broad map of representative owned systems: entrypoints, work representation, control and data flow, state ownership, side effects, persistence, concurrency, cancellation, progress, observability, tests, and user-facing behaviour. This report follows that order. The shared interruption scenario appears only after the wider map identifies suitable systems.
+
 ### Pinned revisions
 
 - Fieldwork: `teamleaderleo/fieldwork@09fe47ac92ec9c0c333b4979011f6321795deff2`
@@ -21,7 +31,322 @@ Stensibly and Smolrunner both preserve durable work, yet they protect different 
 - Smolrunner: `teamleaderleo/smolrunner@722bb90ca0833d5118b7e095688a9daa71f3cbd3`
 - Fin Agent: `teamleaderleo/fin-agent@844ec26d775b24cc7a8cf7b5e06b358be77a7d69`
 
-The owned repositories are the systems under investigation, so this lane does not apply `testbed:*` labels. No stable target hub has yet been established for either owned-system campaign.
+The owned repositories are the systems under investigation, so this lane does not apply `testbed:*` labels. No stable target hub has yet been established for either recommended owned-system campaign.
+
+## Representative system selection
+
+Evidence label: **Observed in pinned repository source, tests, and repository documentation**
+
+The systems were selected because they cover three distinct work models:
+
+1. a shared server ledger and coordination service;
+2. a local machine and execution steward with durable mutation evidence;
+3. a request-scoped agent application with browser history.
+
+This spread exposes which reliability properties belong to durable work itself and which arise only after a product chooses a durable worker boundary.
+
+## Broad owned-system map
+
+### Stensibly
+
+#### Entry points and user-facing behaviour
+
+Stensibly exposes:
+
+- a browser dashboard and item-detail client;
+- REST v1;
+- remote Streamable HTTP MCP;
+- local stdio MCP;
+- local SQLite server and token administration commands.
+
+Hosted clients call a Cloudflare Worker, which authenticates browser sessions or bearer tokens and calls Convex through a private service credential. Local mode serves the browser, REST, and MCP directly over SQLite. Human users see a board projection of the ledger; machine clients read and mutate the same work facts through typed operations.
+
+Relevant paths:
+
+- `README.md`
+- `src/app.ts`
+- `src/mcp.ts`
+- `src/convex-ledger.ts`
+- `src/sqlite-ledger.ts`
+
+#### Work representation
+
+The primary work unit is an item inside a workspace and project. Related records include actors, claims, dependencies, reservations, events, artifacts, and work runs. The item describes responsibility and next action. A run records one executor's lifecycle against the item. External code, files, CI, deployments, and private execution remain owned by their original systems; Stensibly stores references and coordination history.
+
+#### Control and data flow
+
+```text
+human or agent client
+→ browser, REST, or MCP operation
+→ authentication and project scope
+→ ledger mutation or read
+→ Convex or SQLite transaction
+→ item/event/artifact/run projection
+→ browser, API, MCP, or later worker observation
+```
+
+Run control follows a separate state machine:
+
+```text
+create run
+→ acquire lease
+→ start
+→ run / wait / block
+→ heartbeat and checkpoint
+→ succeed / fail / cancel
+→ bounded retry or terminal release
+```
+
+#### State owner
+
+The server-owned ledger is authoritative. Convex owns hosted state. SQLite owns local compatibility state. Clients hold tokens, cursors, and projections; they do not own shared work truth.
+
+#### Side effects
+
+Stensibly directly creates or changes ledger records: items, claims, events, artifacts, dependencies, reservations, and runs. Generic runners may create effects in external systems, linked through fields such as `externalRunId` and artifact references. Those external systems remain authoritative for their own effects.
+
+#### Persistence
+
+Hosted state is durable in Convex. Local state is durable in SQLite. Mutations use transactions, append lifecycle events, and retain idempotency records for covered operations. Run rows retain lifecycle, lease, retry, checkpoint, outcome, continuation, and usage data.
+
+#### Concurrency
+
+Concurrency controls include:
+
+- one live run per item;
+- expected run generation;
+- expected lease generation;
+- lease owner and expiry;
+- idempotency keys for run creation and commands;
+- exact request replay and changed-request conflict;
+- transactional compare-and-update conditions.
+
+These controls prevent stale workers and duplicate callers from silently replacing newer state.
+
+#### Cancellation and progress
+
+Cancellation is a durable terminal run transition. It clears lease and retry state while retaining the outcome. Progress appears through item events, run status, heartbeat time, checkpoint text, continuation reference, and usage counters.
+
+#### Observability
+
+The dashboard, REST, MCP, item events, run rows, operation receipts, and deterministic project briefs expose current work and history. Run observability includes logical run ID, generations, lease owner and expiry, retry attempt and budget, checkpoint, outcome, continuation, usage, and terminal time.
+
+#### Tests
+
+Pinned tests cover:
+
+- exact run creation replay;
+- one live run per item;
+- lease ownership and generation fencing;
+- heartbeat checkpoint replay;
+- bounded retry and exhaustion;
+- cancellation;
+- stale lease reconciliation after database reopen;
+- operation receipt lookup for item, event, and artifact mutations;
+- project-scoped unknown receipt behaviour.
+
+Relevant paths:
+
+- `test/runs.test.ts`
+- `test/operation-receipts.test.ts`
+- `test/idempotency-scope.test.ts`
+
+### Smolrunner
+
+#### Entry points and user-facing behaviour
+
+Smolrunner is a Rust CLI. Current public commands include diagnostics, deterministic planning, host observation and planning, one explicitly confirmed host-preparation phase, and strict personal-worker state, queue, job, and cancellation commands. Human and JSON outputs derive from typed reports.
+
+The product deliberately keeps mutation behind observe, plan, confirmation, and evidence checks. The personal-worker alpha adds a bounded `run-once` model: one invocation performs at most one accepted lifecycle or job action, records the result or continuation, and returns.
+
+Relevant paths:
+
+- `README.md`
+- `src/main.rs`
+- `docs/PERSONAL_WORKER_ALPHA.md`
+
+#### Work representation
+
+Smolrunner represents several related units:
+
+- repository manifests and desired-state plans;
+- host-preparation actions with immutable action IDs, lanes, rollback classes, and preconditions;
+- durable execution journals;
+- personal-worker requests binding request ID, immutable repository source, verification profile, runner profile, resource limits, cache identity, priority, deadline, and cancellation state;
+- reservations, admission generations, durable cache leases, and terminal tombstones.
+
+#### Control and data flow
+
+Host preparation:
+
+```text
+manifest
+→ bounded host observation
+→ deterministic plan
+→ exact confirmation
+→ durable all-pending journal
+→ pre-action checkpoint
+→ typed executor call
+→ post-action checkpoint
+→ fresh observation barrier or terminal report
+```
+
+Personal worker:
+
+```text
+exact request
+→ revision-checked durable submission
+→ queue evaluation
+→ reservation and cache lease
+→ starting / running / draining admission
+→ durable execution evidence
+→ terminal release and tombstone
+→ read model and operator next action
+```
+
+#### State owner
+
+Smolrunner's accepted local documents own host-installation, lease, execution-journal, and personal-worker state. Personal-worker request, queue generation, reservation, cancellation, cache lease, active work, profile intent, terminal identity, and recovery evidence live in the durable store. Current host state remains authoritative for machine facts and must be observed again after uncertainty.
+
+#### Side effects
+
+Current mutation can create or adjust reviewed host resources through typed executors. Planned worker operation can start and stop Lima profiles, manage runner readiness, create workspaces, execute repository-owned verification commands, maintain approved caches, and record terminal results. Host resources and external services retain their own current facts; journals record attempted transitions and evidence.
+
+#### Persistence
+
+Smolrunner uses bounded canonical documents, cooperative writer locks, exact revision and generation expectations, staged successor recovery, synchronized atomic publication, retained terminal tombstones, and durable pre/post executor journal checkpoints.
+
+The execution receipt document contract exists at the pinned revision. Live report mapping, durable receipt publication, exact receipt read-back, and cross-system transport remain future slices.
+
+#### Concurrency
+
+Concurrency controls include:
+
+- one cooperative writer;
+- expected store revision;
+- expected queue generation;
+- reservation ID and generation;
+- bounded active reservations;
+- cache lease compatibility;
+- exact duplicate mutation detection;
+- changed-evidence conflicts;
+- retained terminal identity;
+- no-replace and compare-and-swap publication.
+
+The first personal-worker journey supports one job at a time even though lower-level queue types can represent bounded active reservations.
+
+#### Cancellation and progress
+
+Queued cancellation records an exact cancellation time and replays an identical request as a duplicate. Active cancellation requires exact draining admission evidence. Progress is intentionally bounded: state transitions, one `run-once` action, durable journal snapshots, typed continuation, blocker, failure, or terminal receipt.
+
+#### Observability
+
+Human and JSON reports expose store revision, queue generation, desired and current profile, queue counts, request source identity, admission state, reservation, cache lease, cancellation, terminal reason, acknowledgement, and evidence digest. Execution journals explain uncertain action or rollback state. Future external receipts are designed to expose exact execution identity and a bounded terminal or fresh-observation disposition.
+
+#### Tests
+
+Pinned tests cover:
+
+- durable personal-worker store and writer contracts;
+- queue evaluation and capacity;
+- submit, read, and cancel CLI behaviour;
+- exact duplicate mutation replay;
+- terminal tombstone replay and changed-evidence conflict;
+- lock behaviour and staged successor recovery;
+- durable execution checkpoint semantics through fake executors and stores.
+
+Relevant paths:
+
+- `tests/personal_worker_store_contract.rs`
+- `tests/personal_worker_store_transaction.rs`
+- `tests/personal_worker_terminal_replay.rs`
+- `tests/personal_worker_queue_contract.rs`
+- `src/lima_lifecycle_executor/tests.rs`
+
+### Fin Agent
+
+#### Entry points and user-facing behaviour
+
+Fin Agent is a Next.js chat application. The browser presents chat and transaction analysis views. A client hook sends conversation messages to `/api/chat`; the route runs planning, tool calls, and synthesis; SSE returns reasoning metadata and content. Completed messages are saved to browser local storage.
+
+Relevant paths:
+
+- `README.md`
+- `app/api/chat/route.ts`
+- `hooks/useChat.ts`
+- `services/chat-service.ts`
+
+#### Work representation
+
+The work unit is an in-memory chat request containing a message array. During the request, the backend builds a reasoning trace and planner action. Tool results feed a final synthesis. There is no durable server-side job, attempt, reservation, checkpoint, or terminal receipt.
+
+#### Control and data flow
+
+```text
+browser messages
+→ POST /api/chat
+→ planner model
+→ one selected financial tool
+→ external read-oriented API
+→ synthesis model stream
+→ SSE metadata and content
+→ browser state
+→ delayed localStorage history save
+```
+
+The route performs up to twelve planner steps, although the current flow returns after one tool execution and synthesis.
+
+#### State owner
+
+The browser owns retained chat history. The server request owns transient messages, planner action, tool result, and reasoning trace. External providers own financial data. No durable worker owns an accepted job after the request ends.
+
+#### Side effects
+
+At the pinned revision, financial tools are read-oriented. Application-side persistence consists of browser chat history. Network calls can consume time and provider quota, while the reviewed path does not expose a consequential durable write suitable for duplicate-effect testing.
+
+#### Persistence
+
+The browser debounces message-array saves to local storage. Backend loop state disappears with the request or process. SSE content has no durable cursor or server-side replay record.
+
+#### Concurrency
+
+The client blocks a second submission while `isLoading` is true. The backend handles each HTTP request independently. There is no shared request identity, optimistic version, lease, deduplication record, retry budget, or cross-request serialization.
+
+#### Cancellation and progress
+
+The client has no abort controller in the reviewed path. Loading state can end on `done` or `error`. Progress appears as streamed reasoning metadata and content, with no resumable cursor.
+
+#### Observability
+
+The route emits console logs and returns a reasoning trace and step count to the client. It lacks durable operation correlation, attempt history, cancellation evidence, reconciliation state, and terminal read-back.
+
+#### Tests
+
+Repository search at the pinned revision found no Jest, Vitest, Playwright, Cypress, or comparable application tests. Source inspection therefore carries more uncertainty than the Stensibly and Smolrunner findings.
+
+## Broad comparison
+
+| Property | Stensibly | Smolrunner | Fin Agent |
+|---|---|---|---|
+| Product role | Shared responsibility and run ledger | Local machine and execution steward | Request-scoped financial chat |
+| Main entry points | Browser, REST, MCP, local server/CLI | Rust CLI and strict worker commands | Browser and `/api/chat` |
+| Work unit | Item plus claim, event, artifact, and run | Plan action plus exact worker request and admission | Message array and transient planner action |
+| State owner | Convex or SQLite ledger | Durable local documents plus fresh host observations | Browser history and request memory |
+| Direct side effects | Ledger mutations; external effects referenced | Typed host and execution mutations | External reads and browser history |
+| Persistence | Convex/SQLite transactions and receipts | Atomic files, revisions, journals, tombstones | localStorage only |
+| Concurrency | Versions, leases, generations, idempotency | Writer lock, CAS, generations, reservations, cache leases | Client loading flag |
+| Cancellation | Durable terminal run transition | Durable queued cancellation and active drain evidence | No backend cancellation path |
+| Progress | Events, heartbeat, checkpoint, continuation | Journal snapshots, run-once result, typed continuation | SSE content and reasoning metadata |
+| Observability | Board, API, events, runs, receipts | Human/JSON reports, read models, journals, future receipts | Console logs and client trace |
+| Test depth | Durable run and receipt tests | Extensive state, queue, recovery, and executor tests | No comparable tests found |
+
+## Evidence-led child experiment selection
+
+The broad map produces three conclusions.
+
+1. Stensibly and Smolrunner both accept durable work identities and retain recovery evidence. Their failure boundaries differ enough to justify one shared interruption scenario.
+2. Fin Agent has a request lifecycle rather than a durable worker lifecycle. A durability campaign would redesign the product before testing an observed reliability gap.
+3. The strongest common experiment is commit-before-disconnect followed by cancellation and restart. It exercises identity, retry, checkpoints, recovery, reconciliation, and observability without forcing the systems into one implementation model.
 
 ## Shared interruption and retry scenario
 
@@ -43,7 +368,7 @@ network: disabled
 inputs: synthetic
 ```
 
-The scenario applies the same sequence to each system:
+The scenario applies this sequence:
 
 1. Accept one logical job under an exact request identity.
 2. Begin one attempt.
@@ -71,173 +396,49 @@ Observed model dispositions:
 
 This is a contract model derived from pinned source. It does not execute the owned applications or prove deployed behaviour.
 
-## Code and state maps
+## Focused durable-work findings
 
 ### Stensibly
 
-Evidence label: **Observed in source and tests**
+#### Logical identity and retries
 
-Relevant paths:
+A work item owns at most one live run. The run has a stable `id` and `itemId`; optional `externalRunId` links another executor. Retry requeues the same run instead of creating a fresh logical run. `retryAttempt` counts failed attempts, while run generation and lease generation fence state and ownership. Failure computes a bounded `nextRetryAt`; retry becomes legal only after the delay and while budget remains.
 
-- `src/runs-core.ts`
-- `src/runs.ts`
-- `src/runner-contracts.ts`
-- `src/operation-receipt-contracts.ts`
-- `test/runs.test.ts`
-- `test/operation-receipts.test.ts`
+#### Checkpoints, cancellation, and recovery
 
-#### Logical identity
+Heartbeats and transitions can replace one durable free-form checkpoint. Exact heartbeat replay is idempotent; changed checkpoint content under the same key conflicts. Cancellation is terminal and generation-fenced. Expired active leases reconcile exactly once to `abandoned`, including after SQLite reopen.
 
-A work item owns at most one live run. The run has a stable `id` and `itemId`; optional `externalRunId` links another executor. Retry requeues the same run instead of creating a fresh logical run. `retryAttempt` counts failed attempts, while `leaseGeneration` fences renewed ownership. Run creation and commands accept idempotency keys and reject reuse with different request semantics.
+The checkpoint helps operators and continuations, yet it carries no typed cursor, effect identity, or declared resume contract. `abandoned` proves lost Stensibly lease ownership; it does not prove the external executor left the world unchanged.
 
-This is a strong logical-job identity. Attempt identity exists as the tuple of run ID, retry attempt, run generation, and lease generation. It is distributed across fields instead of exported as one explicit attempt ID.
+#### Reconciliation and observability
 
-#### Retries
+Operation receipts cover item, event, and artifact ledger mutations. A recorded receipt directs the caller to read the item and avoid repetition. An unknown receipt directs exact same-request, same-key replay. This resolves commit-before-response ambiguity for covered local writes.
 
-Failure increments `retryAttempt`, computes a bounded `nextRetryAt`, and releases the lease. The `retry` transition is allowed only after the delay and while the budget remains. It requeues the same run and advances lease generation. Tests cover delayed eligibility, budget exhaustion, exact replay, and replacement after the terminal run releases the item.
-
-The retry scheduler knows whether the runner reported failure. It does not by itself establish whether an external side effect completed before a response or heartbeat disappeared.
-
-#### Checkpoints
-
-Heartbeats and transitions can replace one durable free-form `checkpoint` string. Heartbeat replay is idempotent, and changed checkpoint content under the same key conflicts. The checkpoint is useful for continuation and operator context.
-
-The checkpoint has no typed cursor, effect identity, or declared resume contract. Automatic resumption from the string would therefore be an application assumption.
-
-#### Cancellation
-
-Cancellation is a terminal run transition available from queued, active, blocked, and retryable failed states. Generation fencing prevents stale cancellation from overwriting a newer terminal result. A supervisor can cancel without holding the execution lease, which is appropriate for control-plane authority.
-
-Cancellation records intent and terminal run state. It cannot undo an external effect that already committed.
-
-#### Recovery
-
-Expired active leases reconcile exactly once to `abandoned`, clear the lease, and retain an explicit reason. Reopening the SQLite store preserves this recovery result. Once the run is terminal, the item can receive a replacement run.
-
-`abandoned` is honest about lost runner liveness. Before replacement, an external system may still require read-back through `externalRunId` or another operation handle.
-
-#### Reconciliation
-
-Stensibly operation receipts cover item, event, and artifact ledger mutations. A recorded receipt says `do_not_retry` and directs the caller to read the item. An unknown receipt says to retry the same request with the same key. Receipt tests also enforce project scope and omit mutation payloads.
-
-This closes the commit-before-response ambiguity for covered Stensibly ledger writes. It does not cover every side effect produced by a generic runner.
-
-#### Observability
-
-Runs expose status, run and lease generations, lease owner and expiry, heartbeat time, checkpoint, outcome, continuation reference, retry attempt and budget, next retry time, usage, and lifecycle events. Execution records bind terminal actuals to run and lease generations. Operation receipts expose a bounded reconciliation decision.
-
-The missing observable correlation is one exported identifier connecting a logical work item, every run attempt, an external operation, and its terminal receipt.
+Generic runner effects remain outside that receipt boundary. A replacement run can begin after abandonment even when an external effect's acknowledgement was lost. Run fields and events expose rich local evidence, while one exported correlation chain from logical job through external operation to terminal receipt remains absent.
 
 ### Smolrunner
 
-Evidence label: **Observed in source, tests, and accepted repository decisions**
+#### Logical identity and retries
 
-Relevant paths:
+A personal-worker request binds exact request ID, profiles, immutable source, resources, cache identity, time, and cancellation state. Reservation and admission generations identify accepted capacity. Exact duplicates replay; changed semantics under a reused identity conflict; terminal tombstones prevent recreation.
 
-- `src/personal_worker_queue.rs`
-- `src/personal_worker_store.rs`
-- `src/personal_worker_store_transaction.rs`
-- `src/personal_worker_submit_command.rs`
-- `src/personal_worker_cancel_command.rs`
-- `src/personal_worker_read_model.rs`
-- `tests/personal_worker_terminal_replay.rs`
-- `docs/PERSONAL_WORKER_ALPHA.md`
-- `docs/adr/0014-durable-execution-journal-checkpoints.md`
-- `docs/EXECUTION_RECEIPTS.md`
+The operator loop performs one bounded action per invocation. Verification profiles may authorize a bounded retry, normally none. An interrupted `executing` journal record is uncertain and requires fresh observation before resume, retry, or compensation.
 
-#### Logical identity
+#### Checkpoints, cancellation, and recovery
 
-A personal-worker request binds `ExecutionRequestId`, verification profile, runner profile, immutable repository, commit, tree, resource limits, cache identity, submission time, and cancellation state. Reservation ID and generation identify admitted capacity. Store revision and queue generation fence writers.
+The execution journal publishes all-pending state before the first executor call, `executing` before each action, and terminal action state after return. Rollback follows the same pre-call and post-call checkpoint rule. Checkpoint publication failure stops execution.
 
-Exact duplicate submissions return a duplicate receipt without advancing durable state. Reusing a request ID with changed semantics conflicts. Retained terminal tombstones prevent accidental recreation under the same request identity.
+Queued cancellation records exact evidence. Active cancellation requires a valid draining transition. Every typed personal-worker mutation calls store recovery before loading current state, checks exact revision and generation, and publishes a valid successor. Terminal release removes active work and its cache lease and appends a tombstone; exact terminal replay is a duplicate.
 
-The alpha contract also calls for immutable attempt and receipt identities. The personal-worker store currently carries request, admission, reservation, and terminal evidence; the complete live attempt-to-execution-receipt connection remains a later slice.
+#### Reconciliation and observability
 
-#### Retries
+Recovery re-observes ownership and preconditions, then chooses resume, retry, compensation, or termination. The journal explains uncertainty without claiming current host truth. Typed read models expose request, admission, reservation, cache lease, cancellation, terminal reason, and evidence digest.
 
-The operator loop is deliberately `run-once`: one accepted action, fresh observation, one durable result or continuation. It does not hide an unbounded polling or retry loop. Verification profiles may permit bounded lower-concurrency retry, normally none.
-
-At the executor layer, an interrupted `executing` action is explicitly uncertain. The accepted journal protocol requires fresh observation of ownership and preconditions before resume, retry, or compensation. This is the stronger rule for side-effecting retries.
-
-#### Checkpoints
-
-The durable execution journal publishes:
-
-1. an all-pending snapshot before the first executor call;
-2. `executing` before each action;
-3. completed or failed immediately after return;
-4. `rollback_in_progress` before inverse or compensation;
-5. terminal rollback outcome after return.
-
-A checkpoint publication failure stops execution. A surviving `executing` record means the action may or may not have changed the host.
-
-The personal-worker store separately advances one canonical snapshot through exact revision and queue generation. Staged successor recovery runs before a new mutation.
-
-#### Cancellation
-
-Queued cancellation records one exact cancellation time and replays an identical request as a duplicate. Active cancellation requires exact `draining` admission evidence and validates transition order. Cancellation therefore coordinates admission and cleanup instead of treating a boolean as proof that execution ended.
-
-The current strict CLI sends no draining evidence, so it covers queued cancellation. Active cancellation belongs to the broker/run-once path that can supply exact admission evidence.
-
-#### Recovery
-
-Every typed store mutation calls `recover()` before reading the current snapshot. Stale revisions and generations fail closed. Terminal release atomically removes active work and cache lease and appends a bounded terminal tombstone. Exact terminal replay is a duplicate; conflicting terminal evidence fails closed.
-
-The execution journal keeps uncertain pre-action or rollback state and requires re-observation. This gives Smolrunner the clearest recovery rule in the comparison.
-
-#### Reconciliation
-
-Reconciliation is evidence-driven: observe current ownership and preconditions, then resume, retry, compensate, or terminate. A journal is explanatory evidence and never proof that the host still matches it.
-
-The external execution receipt contract binds an exact execution ID and source digest and can report completion, failure, or `fresh_observation_required`. At the pinned revision, documentation states that live report mapping, receipt persistence, read-back, transport, and scheduling are still absent.
-
-#### Observability
-
-Typed read models expose store revision, queue generation, counts, request source identity, admission state, reservation generation, cache lease, terminal reason, drain acknowledgement, and evidence digest. Public mutation receipts identify applied versus duplicate transitions and their old/new revisions.
-
-The execution receipt is designed for cross-system correlation, yet it is still a document contract. Until live mapping and durable publication land, operators must combine personal-worker state and execution journal evidence manually.
+The execution receipt document can represent completion, failure, or `fresh_observation_required`. At the pinned revision, live report mapping, receipt persistence, exact read-back, and connection to the personal-worker attempt remain incomplete.
 
 ### Fin Agent
 
-Evidence label: **Observed in source**
-
-Relevant paths:
-
-- `app/api/chat/route.ts`
-- `hooks/useChat.ts`
-- `services/chat-service.ts`
-- `README.md`
-
-The backend runs a planner/tool loop entirely inside one HTTP request, keeps conversation history and reasoning trace in memory, then streams the synthesis over SSE. The frontend persists messages to browser local storage after they arrive.
-
-The current application has:
-
-- no durable logical job ID;
-- no explicit attempt identity;
-- no server-side checkpoint;
-- no retry budget or replay record;
-- no cancellation token passed to the backend;
-- no reconnect cursor;
-- no recovery worker;
-- no reconciliation API;
-- console logs and a client-visible reasoning trace as its main observability.
-
-A disconnected request can leave the user without a final response, while the server invocation and external reads may already have occurred. The integrated financial tools are read-oriented in this revision, so the shared duplicate-side-effect scenario lacks a consequential durable effect. Fin Agent is therefore unsuitable for this scout beyond a negative boundary result.
-
-## Cross-system comparison
-
-| Property | Stensibly | Smolrunner | Fin Agent |
-|---|---|---|---|
-| Logical job identity | Work item plus stable run ID | Exact execution request plus immutable source | HTTP request and message array only |
-| Attempt identity | Retry attempt plus run/lease generations | Reservation and admission generations; planned exact attempt identity | None |
-| Duplicate replay | Run commands and ledger operation receipts | Typed mutations and terminal tombstones | None |
-| Changed-input conflict | Yes | Yes | None |
-| Retry policy | Bounded delayed retry on reported failure | Explicit bounded profile policy; uncertain effects require observation | None |
-| Checkpoint | Durable free-form run checkpoint | Durable pre/post executor journal snapshots | In-memory loop state |
-| Cancellation | Durable terminal transition | Durable queued cancellation; active drain evidence | UI loading state only |
-| Crash recovery | Lease expiry becomes abandoned | Staged snapshot recovery plus uncertain journal state | Fresh request starts over |
-| Reconciliation | Operation receipt for covered local mutations | Fresh host observation before retry/compensation | None |
-| Observability | Events, generations, retry fields, checkpoint, outcome, receipt | Typed status, revisions, admission, tombstone, journal, planned receipt | Console logs and reasoning metadata |
+Fin Agent provides no durable logical job, attempt ID, server checkpoint, retry budget, cancellation token, recovery worker, reconciliation API, or terminal read-back. A disconnected request can lose the final response after external reads have occurred. Its reviewed tool path lacks a durable write whose duplicate would support the shared correctness scenario.
 
 ## Application design findings
 
@@ -277,25 +478,25 @@ A reusable envelope should eventually expose:
 - `terminal_receipt_id`;
 - final disposition and reconciliation state.
 
-The current comparison reveals translation work, not a demonstrated failure caused by missing common field names.
+The current comparison reveals translation work without a demonstrated cross-system correlation failure.
 
-**Recommendation:** retain as a finding and use it as acceptance criteria inside A1 and A2. Open a separate observability campaign only after a runnable integration loses correlation across a real boundary.
+**Recommendation:** retain as acceptance criteria inside A1 and A2. Open a separate observability campaign after a runnable integration loses correlation across a real boundary.
 
 ### A4. Fin Agent lacks a durable-job product boundary
 
 Adding a queue, durable checkpoints, cancellation, and reconciliation would be a product redesign. Its current read-oriented, request-scoped flow provides no consequential duplicate-effect reproduction.
 
-**Recommendation:** stop. Revisit only after Fin Agent gains long-running asynchronous analysis, write-capable tools, resumable execution, or an explicit operator requirement.
+**Recommendation:** stop. Revisit after Fin Agent gains long-running asynchronous analysis, write-capable tools, resumable execution, or an explicit operator requirement.
 
 ## Dependency or runtime findings
 
-No observed result establishes a defect in SQLite, Convex, Bun, Rust, Unix filesystem primitives, Lima, Next.js, Vercel, the OpenAI SDK, or the browser SSE APIs.
+No observed result establishes a defect in SQLite, Convex, Bun, Rust, Unix filesystem primitives, Lima, Next.js, Vercel, the OpenAI SDK, or browser SSE APIs.
 
 - Stensibly gaps sit in application-level external operation ownership and reconciliation.
-- Smolrunner gaps sit in its own adapter and publication slices; its accepted design already treats filesystem and process uncertainty conservatively.
-- Fin Agent gaps come from its request-scoped application design.
+- Smolrunner gaps sit in its own adapter and publication slices.
+- Fin Agent gaps come from its request-scoped product design.
 
-**Recommendation:** open no dependency or runtime campaign from this scout. A lower-level campaign requires direct fault injection that violates a documented dependency/runtime contract.
+**Recommendation:** open no dependency or runtime campaign from this scout. A lower-level campaign requires direct fault injection that violates a documented dependency or runtime contract.
 
 ## Ranked branch decisions
 
@@ -314,20 +515,22 @@ No observed result establishes a defect in SQLite, Convex, Bun, Rust, Unix files
 5. **Stop — generic cross-owned retry framework or shared retry library.**
    The systems own different boundaries; convergence would hide useful differences.
 
-6. **Stop — dependency/runtime attribution.**
+6. **Stop — dependency or runtime attribution.**
    No reproduction crosses an owned application boundary into a violated lower-level contract.
 
 ## Negative results and uncertainty
 
-- The first hypothesis that all three named repositories offered comparable durable job paths was false; Fin Agent is request-scoped.
+- The initial hypothesis that all three named repositories offered comparable durable job paths was false; Fin Agent is request-scoped.
+- The broad map found more shared value in explicit identity and reconciliation rules than in a common retry implementation.
 - Stensibly local operation receipts close a narrower ambiguity than generic runner execution. This scout did not implement or execute an external runner adapter.
 - Smolrunner documents strong execution-journal recovery, while the personal-worker alpha remains incomplete. This scout did not run Linux or Lima fault injection.
 - The synthetic model establishes decision differences, not deployed production consequences.
+- Fin Agent has thinner test evidence than the other two repositories.
 - No private data, credentials, paid calls, production systems, or upstream interactions were used.
 
 ## Handoff
 
-- Strongest supported finding: durable retry safety depends on preserving logical identity and retaining enough evidence to distinguish recorded result, exact replay, and uncertain execution. Stensibly and Smolrunner each implement a strong subset at different boundaries.
+- Strongest supported finding: the broad system map separates a server ledger, a local machine steward, and a request-scoped chat application. Durable retry comparison applies to the first two. Safety depends on preserving logical identity and retaining enough evidence to distinguish recorded result, exact replay, and uncertain execution.
 - Durable artifacts:
   - `programmes/data-durable-workflows/scouts/durable-job-retry-recovery/report.md`
   - `programmes/data-durable-workflows/scouts/durable-job-retry-recovery/artifacts/retry_recovery_scenario.py`
