@@ -1,0 +1,74 @@
+diff --git a/src/index.ts b/src/index.ts
+index 3cc1ab8..candidate 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -1446,6 +1446,13 @@ export class LRUCache<K extends {}, V extends {}, FC = unknown> {
+       perf,
+     } = options
+ 
++    if (
++      backgroundFetchSize !== 0 &&
++      !isPosInt(backgroundFetchSize)
++    ) {
++      throw new TypeError(
++        'backgroundFetchSize must be a nonnegative integer',
++      )
++    }
+     this.backgroundFetchSize = backgroundFetchSize
+ 
+     if (perf !== undefined) {
+diff --git a/test/background-fetch-size.ts b/test/background-fetch-size.ts
+index existing..candidate 100644
+--- a/test/background-fetch-size.ts
++++ b/test/background-fetch-size.ts
+@@ -1,6 +1,42 @@
+ import t from 'tap'
+ import { LRUCache } from '../dist/esm/node/index.js'
+ 
++t.test('backgroundFetchSize validates runtime values', t => {
++  for (const backgroundFetchSize of [0, 1, 5]) {
++    t.doesNotThrow(() =>
++      new LRUCache({
++        maxSize: 10,
++        sizeCalculation: () => 5,
++        backgroundFetchSize,
++      }),
++    )
++  }
++
++  for (const backgroundFetchSize of [
++    -1,
++    1.5,
++    NaN,
++    Infinity,
++    -Infinity,
++  ]) {
++    t.throws(
++      () =>
++        new LRUCache({
++          maxSize: 10,
++          sizeCalculation: () => 5,
++          backgroundFetchSize,
++        }),
++      new TypeError(
++        'backgroundFetchSize must be a nonnegative integer',
++      ),
++    )
++  }
++
++  t.throws(
++    () =>
++      new LRUCache({
++        maxSize: 10,
++        sizeCalculation: () => 5,
++        // @ts-expect-error runtime JavaScript can supply this
++        backgroundFetchSize: '2',
++      }),
++    new TypeError('backgroundFetchSize must be a nonnegative integer'),
++  )
++  t.end()
++})
++
+ const clock = t.clock
+ clock.advance(1)
+ clock.enter()
