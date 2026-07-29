@@ -7,6 +7,12 @@ on:
     paths:
       - campaigns/0002-tool-surface-continuity/lanes/L01-lifecycle-provenance/artifacts/rmcp-relist-ordering/**
       - .github/workflows/fieldwork-rmcp-relist-ordering.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - campaigns/0002-tool-surface-continuity/lanes/L01-lifecycle-provenance/artifacts/rmcp-relist-ordering/**
+      - .github/workflows/fieldwork-rmcp-relist-ordering.yml
   workflow_dispatch:
 
 permissions:
