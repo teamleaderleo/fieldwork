@@ -1,0 +1,12 @@
+test_all_fixture_expectations (test_classify_receipts.ReceiptClassifierTests.test_all_fixture_expectations) ... ok
+test_catalogue_divergence_precedes_router_and_execution (test_classify_receipts.ReceiptClassifierTests.test_catalogue_divergence_precedes_router_and_execution) ... ok
+test_privacy_allowlist (test_classify_receipts.ReceiptClassifierTests.test_privacy_allowlist) ... ok
+test_privacy_rejects_arguments (test_classify_receipts.ReceiptClassifierTests.test_privacy_rejects_arguments) ... ok
+test_request_divergence_precedes_later_unavailable_layers (test_classify_receipts.ReceiptClassifierTests.test_request_divergence_precedes_later_unavailable_layers) ... ok
+test_run_writes_zero_mismatch_summary (test_classify_receipts.ReceiptClassifierTests.test_run_writes_zero_mismatch_summary) ... ok
+test_unavailable_views_do_not_create_false_divergence (test_classify_receipts.ReceiptClassifierTests.test_unavailable_views_do_not_create_false_divergence) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.003s
+
+OK
