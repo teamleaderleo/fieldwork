@@ -2,7 +2,21 @@ diff --git a/apps/server/src/provider/Layers/OpenCodeAdapter.ts b/apps/server/sr
 index 73c23b7..0000000 100644
 --- a/apps/server/src/provider/Layers/OpenCodeAdapter.ts
 +++ b/apps/server/src/provider/Layers/OpenCodeAdapter.ts
-@@ -68,6 +68,8 @@ function mapPermissionToRequestType(
+@@ -59,7 +59,12 @@ function toToolLifecycleItemType(toolName: string): ToolLifecycleItemType {
+ 
+ function mapPermissionToRequestType(
+   permission: string,
+-): "command_execution_approval" | "file_read_approval" | "file_change_approval" | "unknown" {
++):
++  | "command_execution_approval"
++  | "file_read_approval"
++  | "file_change_approval"
++  | "dynamic_tool_call"
++  | "unknown" {
+   switch (permission) {
+     case "bash":
+       return "command_execution_approval";
+@@ -68,6 +73,8 @@ function mapPermissionToRequestType(
        return "file_read_approval";
      case "edit":
        return "file_change_approval";
@@ -11,7 +25,7 @@ index 73c23b7..0000000 100644
      default:
        return "unknown";
    }
-@@ -374,6 +376,48 @@ export function makeOpenCodeAdapter(
+@@ -374,6 +381,48 @@ export function makeOpenCodeAdapter(
        event: ProviderRuntimeEvent,
      ) => Queue.offer(runtimeEvents, event).pipe(Effect.asVoid);
 +
@@ -55,7 +69,7 @@ index 73c23b7..0000000 100644
      const writeNativeEvent = (
        threadId: ThreadId,
        event: {
-@@ -1079,6 +1123,7 @@ export function makeOpenCodeAdapter(
+@@ -1079,6 +1128,7 @@ export function makeOpenCodeAdapter(
            const message = sessionErrorMessage(event.properties.error);
            const activeTurnId = context.activeTurnId;
            context.activeTurnId = undefined;
@@ -63,7 +77,7 @@ index 73c23b7..0000000 100644
            yield* updateProviderSession(
              context,
              {
-@@ -1544,11 +1589,13 @@ export function makeOpenCodeAdapter(
+@@ -1544,11 +1594,13 @@ export function makeOpenCodeAdapter(
        function* (threadId, turnId) {
          const context = yield* ensureSessionContext(sessions, threadId);
 +        const interruptedTurnId = turnId ?? context.activeTurnId;
