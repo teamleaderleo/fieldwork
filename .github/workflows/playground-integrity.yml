@@ -6,6 +6,8 @@ on:
       - "EXPERIMENTS.md"
       - "playgrounds/**"
       - "scripts/run_playground_cases.py"
+      - "scripts/validate_experiments.py"
+      - "scripts/new_experiment.py"
       - "templates/experiment.*"
       - ".github/workflows/playground-integrity.yml"
   push:
@@ -15,6 +17,8 @@ on:
       - "EXPERIMENTS.md"
       - "playgrounds/**"
       - "scripts/run_playground_cases.py"
+      - "scripts/validate_experiments.py"
+      - "scripts/new_experiment.py"
       - "templates/experiment.*"
       - ".github/workflows/playground-integrity.yml"
 
@@ -27,6 +31,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Validate retained experiments
+        run: python3 scripts/validate_experiments.py
       - name: Validate canonical case packs
         run: python3 scripts/run_playground_cases.py --validate
       - name: Run identity smoke pack
