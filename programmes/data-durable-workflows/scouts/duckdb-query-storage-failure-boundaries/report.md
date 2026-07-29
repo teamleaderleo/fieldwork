@@ -348,7 +348,7 @@ Promote candidates **1** and **2**. Candidate **3** has sufficient observed cost
 - **Base:** `c9418ffa81f85e320d1367c91ccefd9faf4e0721`
 - **Branch:** `fieldwork/duckdb/issue-28-boundary-probe`
 - **Successful head:** `558765d3703e0a1fa9374b30562af398693301a2`
-- **Draft PR:** `teamleaderleo/narrative-duckdb#1`
+- **Draft PR:** https://redirect.github.com/teamleaderleo/narrative-duckdb/pull/1
 - **Workflow run:** `30468216997`
 - **Artifact:** `fieldwork-duckdb-issue-28-results`, ID `8730475009`
 - **Artifact digest:** `sha256:3368164ed21226ab5945c16c9f341c3d4bfdf1abf3501a9676e199e578d6c45b`
@@ -361,7 +361,7 @@ The testbed result supports integration claims only for this declared runner and
 
 - `artifacts/issue28_probe.py` — executable deterministic runner
 - `artifacts/results/duckdb-1.5.5-ubuntu-24.04.json` — authoritative successful output
-- Narrative DuckDB draft PR #1 — owned testbed execution record
+- Narrative DuckDB draft PR 1 — owned testbed execution record
 - GitHub Actions artifact digest listed above — immutable run-output identity for the successful trial
 
 ## Evidence labels
