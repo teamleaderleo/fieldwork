@@ -22,10 +22,14 @@ These instructions apply to every AI system and automated worker operating in th
 
 ## Scout lanes
 
-- A scout maps the lay of the land without assuming a specific bug or patch already exists.
+- A scout maps the lay of the land without assuming a specific bug, mechanism, patch, or failure class already exists.
+- A programme thesis defines broad responsibility; it is not a checklist of expected findings.
 - Pin the target revision at claim time and use the exact programme, target hub, question, owned path, and stop condition from the issue.
 - Read implementation, tests, call sites, configuration, generated boundaries, recent changes, and relevant issue context.
-- Produce at least one runnable probe, adversarial case, realistic testbed scenario, or explicit reason none is feasible.
+- Map architecture, public contracts, control and data flow, state ownership, side effects, tests, and actual or representative use before selecting a narrow hypothesis.
+- A worked example, context pattern, canonical case pack, previous campaign, or familiar bug class must not become the default lens for unrelated research.
+- Reusable fixtures are tools for testing a discovered question, not a method for choosing the question.
+- Produce at least one runnable probe, adversarial case, realistic testbed scenario, or explicit reason none is feasible after the map identifies a useful property.
 - Return ranked branch candidates with consequence, likely owning boundary, evidence needed, and a recommendation to stop, retain a finding, open a campaign, or run another scout.
 - A code tour or repository summary alone is not a completed scout.
 - Do not create child campaigns without a concrete current behavior or missing capability, consequence, likely code boundary, falsifiable evidence path, and bounded next question.
@@ -45,6 +49,7 @@ These instructions apply to every AI system and automated worker operating in th
 - Use recent issues and pull requests for context, not as a substitute for source understanding or as a menu of work.
 - Before promoting work, state a change thesis: current behaviour, consequence, proposed improvement, evidence, and boundary.
 - Prefer correctness, security, data integrity, lifecycle, recovery, performance, compatibility, interoperability, and demonstrated ergonomics work.
+- This preference order is a value filter, not a preset research checklist.
 - A refactor must simplify or protect a consequential path, make an invariant testable, enable a demonstrated fix, or produce a measurable benefit.
 - Do not actively hunt documentation edits, spelling, style-only cleanup, generic lint rules, speculative abstractions, or unmeasured micro-optimizations.
 - Documentation may accompany substantive work or resolve confusion that blocks correct use.
@@ -67,7 +72,8 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 - Small one-worker experiments may be created under `playgrounds/` without an upstream fork or Fieldwork issue.
 - Use a stable `EXP-YYYYMMDD-short-name` directory and `templates/experiment.json`.
 - State one bounded question, exact command, environment, source revisions, claim scope, stop condition, and upstream-contact authorization.
-- Reuse `playgrounds/cases/` where those inputs can distinguish the hypotheses.
+- Reuse `playgrounds/cases/` only when those inputs can distinguish hypotheses already grounded in the assignment.
+- Do not select research topics merely because a case pack or example exists.
 - Default to synthetic inputs and no network access.
 - One experiment has one owner; parallel variants use separate directories.
 - Retain a human-readable result when another worker, report, or decision may rely on it.
@@ -95,6 +101,7 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 - Prefer primary sources and record title, stable URL, version or revision, retrieval date, exact supported claim, section or path, and limitations.
 - Distinguish actual callers and deployments from plausible examples.
 - State what the small model or testbed preserves and what it omits.
+- A context pattern is optional supporting material, never an automatic hypothesis for a target.
 - A broader context may be researched in separate mechanism, usage, contract, operations, and adversarial lanes when the work warrants parallelization.
 
 ## Default behaviour
