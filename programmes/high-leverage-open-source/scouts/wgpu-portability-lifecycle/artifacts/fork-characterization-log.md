@@ -15,10 +15,10 @@ Upstream contact authorized: false
 - fork branch: `fieldwork/surface-config-rejection-state`
 - fork draft PR: `teamleaderleo/wgpu#1`
 - fork test head: `38c9498bdae8f0ddfdc6a04c6d763ce889f3f5ad`
-- `get_configuration` introduction: `gfx-rs/wgpu#8664`, merge `90db08157ccd5a5a25564219f294d023d4253d5a`
-- unified acquisition result: `gfx-rs/wgpu#9257`, merge `e4dae053c05c849fc56e923d0cbf23c3730c33e6`
-- nonfatal surface errors: `gfx-rs/wgpu#6253`, merge `ebdd958d4b0d9fc3f8c7324ad2db4cd7eb8041d5`
-- HDR/browser rejection containment: `gfx-rs/wgpu#9658`, merge `3fb225a9c6240bd7e9db3d202410db6d894368ec`
+- `get_configuration` introduction: [wgpu pull request 8664](https://redirect.github.com/gfx-rs/wgpu/pull/8664), merge `90db08157ccd5a5a25564219f294d023d4253d5a`
+- unified acquisition result: [wgpu pull request 9257](https://redirect.github.com/gfx-rs/wgpu/pull/9257), merge `e4dae053c05c849fc56e923d0cbf23c3730c33e6`
+- nonfatal surface errors: [wgpu pull request 6253](https://redirect.github.com/gfx-rs/wgpu/pull/6253), merge `ebdd958d4b0d9fc3f8c7324ad2db4cd7eb8041d5`
+- HDR/browser rejection containment: [wgpu pull request 9658](https://redirect.github.com/gfx-rs/wgpu/pull/9658), merge `3fb225a9c6240bd7e9db3d202410db6d894368ec`
 
 The owned fork's `trunk` exactly matched the source revision already pinned by this lane when the branch was created.
 
@@ -145,9 +145,9 @@ The exact filter should be copied from `--list`, not guessed.
 
 ### `get_configuration` was introduced as a cache accessor
 
-`gfx-rs/wgpu#8664` added `Surface::get_configuration()` in December 2025 to better match WebGPU. The change simply returned `self.config.lock().clone()` and listed testing as `None`.
+[wgpu pull request 8664](https://redirect.github.com/gfx-rs/wgpu/pull/8664) added `Surface::get_configuration()` in December 2025 to better match WebGPU. The change simply returned `self.config.lock().clone()` and listed testing as `None`.
 
-That PR did not establish semantics for:
+That pull request did not establish semantics for:
 
 - requested versus accepted configuration;
 - failed nonfatal configuration;
@@ -156,7 +156,7 @@ That PR did not establish semantics for:
 
 ### `Lost` was designed as a recreation signal
 
-`gfx-rs/wgpu#9257` replaced the former `Result<SurfaceTexture, SurfaceError>` API with `CurrentSurfaceTexture` in March 2026 because surface errors were easy to ignore and recovery guidance was unclear.
+[wgpu pull request 9257](https://redirect.github.com/gfx-rs/wgpu/pull/9257) replaced the former `Result<SurfaceTexture, SurfaceError>` API with `CurrentSurfaceTexture` in March 2026 because surface errors were easy to ignore and recovery guidance was unclear.
 
 The merged docs define `Lost` as requiring surface recreation, or device/resource recreation when the device itself is lost. Review discussion explicitly states that `Lost` recovery is by creating rather than reconfiguring.
 
@@ -164,7 +164,7 @@ The browser rejected-configuration sentinel added later therefore reuses a statu
 
 ### Nonfatal surface errors anticipated fallout
 
-Issue `gfx-rs/wgpu#3586` and PR `gfx-rs/wgpu#6253` deliberately moved configuration and acquisition errors away from unconditional fatal handling.
+[wgpu issue 3586](https://redirect.github.com/gfx-rs/wgpu/issues/3586) and [wgpu pull request 6253](https://redirect.github.com/gfx-rs/wgpu/pull/6253) deliberately moved configuration and acquisition errors away from unconditional fatal handling.
 
 Maintainer discussion already identified unresolved distinctions among:
 
@@ -230,7 +230,7 @@ Proceed in this order:
 5. decide whether documentation/example alignment alone can resolve the user-facing consequence;
 6. otherwise prototype a private dispatch disposition;
 7. convert characterization assertions into desired regression assertions only after semantics are chosen;
-8. request explicit upstream-contact authorization before opening anything against `gfx-rs/wgpu`.
+8. request explicit upstream-contact authorization before opening anything against the upstream wgpu repository.
 
 ## Adjacent wgpu work worth examining
 
