@@ -35,6 +35,7 @@ jobs:
           rm .github/workflows/fieldwork-rmcp-relist-ordering.yml
           git config user.name "fieldwork-ci"
           git config user.email "fieldwork-ci@users.noreply.github.com"
-          git add "$fixture/Cargo.lock" "$fixture/latest.log" .github/workflows/fieldwork-rmcp-relist-ordering.yml
+          git add "$fixture/Cargo.lock" .github/workflows/fieldwork-rmcp-relist-ordering.yml
+          git add -f "$fixture/latest.log"
           git commit -m "test(rmcp): retain relist ordering evidence"
           git push origin HEAD:lane/35-cross-lane-amendment
