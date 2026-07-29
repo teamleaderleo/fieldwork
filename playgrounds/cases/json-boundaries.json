@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "name": "json-boundaries",
+  "description": "Common JSON values and nesting boundaries for exploratory adapters.",
+  "timeout_seconds": 5,
+  "cases": [
+    {"id": "null", "tags": ["null"], "stdin_json": null},
+    {"id": "false", "tags": ["boolean"], "stdin_json": false},
+    {"id": "true", "tags": ["boolean"], "stdin_json": true},
+    {"id": "zero", "tags": ["number", "zero"], "stdin_json": 0},
+    {"id": "negative", "tags": ["number"], "stdin_json": -1},
+    {"id": "fraction", "tags": ["number", "fraction"], "stdin_json": 0.125},
+    {"id": "empty-string", "tags": ["string", "empty"], "stdin_json": ""},
+    {"id": "empty-array", "tags": ["array", "empty"], "stdin_json": []},
+    {"id": "empty-object", "tags": ["object", "empty"], "stdin_json": {}},
+    {
+      "id": "nested-mixed",
+      "tags": ["nested", "mixed"],
+      "stdin_json": {
+        "items": [null, false, 0, "", {"nested": [1, 2, 3]}],
+        "meta": {"present": true}
+      }
+    },
+    {
+      "id": "duplicate-looking-keys",
+      "tags": ["object", "unicode"],
+      "stdin_json": {"e": 1, "é": 2, "é": 3}
+    },
+    {
+      "id": "moderately-deep",
+      "tags": ["nested", "depth"],
+      "stdin_json": {"a": {"b": {"c": {"d": {"e": {"value": "end"}}}}}}
+    }
+  ]
+}
