@@ -21,6 +21,8 @@ Fieldwork investigates external systems seriously before asking their maintainer
 - [`BATCHES.md`](BATCHES.md) — controlled temporary fan-out for many repositories, questions, and methods.
 - [`WORKBOARD.md`](WORKBOARD.md) — issue types, labels, states, and useful queue views.
 - [`COORDINATION.md`](COORDINATION.md) — programme scouts, campaign lanes, ownership, handoffs, synthesis, and completion signals.
+- [`DELIVERY.md`](DELIVERY.md) — finish-line lanes for final gates, bounded polish, landing-ready work, and execution-carrier cleanup.
+- [Delivery Desk issue #160](https://github.com/teamleaderleo/fieldwork/issues/160) — canonical live index of work closest to landing or closeout.
 - [Open Fieldwork issues](https://github.com/teamleaderleo/fieldwork/issues) — canonical live queue.
 
 ## Operating principle
@@ -72,9 +74,13 @@ Hubs are indexes, not giant task lists. Related issues are discovered through th
 
 **GitHub issues are live coordination.** They hold assignments, claims, state changes, blockers, decisions, and completion signals.
 
+**The review queue prioritizes judgment.** It tells an eligible reviewer which evidence, uncertainty, and decision deserve attention.
+
+**The Delivery Desk prioritizes finishing.** It lists selected implementations, exact remaining gates, bounded polish, landing-ready work, and carrier cleanup without replacing canonical issues or PRs.
+
 **Repository research files are durable evidence.** They hold exact revisions, reproductions, reports, synthesis, and closeout records.
 
-Do not use one surface as a poor substitute for another. A scout is not complete after a code tour, a disposable test should not require campaign bureaucracy, a durable finding should not exist only in an issue comment, a testbed should not be presented as proof of ecosystem demand, and a toy reproduction should not be presented as proof of production impact.
+Do not use one surface as a poor substitute for another. A scout is not complete after a code tour, a disposable test should not require campaign bureaucracy, a durable finding should not exist only in an issue comment, a testbed should not be presented as proof of ecosystem demand, a toy reproduction should not be presented as proof of production impact, and a green workflow should not be presented as a landing decision.
 
 ## What Fieldwork prioritizes
 
@@ -117,6 +123,7 @@ Any public repository may be observed quietly when a user or coordinator assigns
 - [`OPERATIONS.md`](OPERATIONS.md) — intake, triage, states, and stopping rules.
 - [`REFERENCE_POLICY.md`](REFERENCE_POLICY.md) — quiet external references and intentional contact.
 - [`LABELS.md`](LABELS.md) — type, state, programme, target, testbed, coordination, and policy labels.
+- [`DELIVERY.md`](DELIVERY.md) — finish-line protocol and Delivery Desk movement rules.
 - [`programmes/`](programmes/) — active portfolio and future scout reports.
 - [`targets/`](targets/) — target registry, hubs, and deeper ecosystem maps.
 - [`testbeds/`](testbeds/) — public owned-repository testbed candidates.
