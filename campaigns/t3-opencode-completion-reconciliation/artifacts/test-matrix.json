@@ -25,6 +25,7 @@
     "OpenCode promptAsync accepts a caller-supplied messageID and assistant messages retain that user message in parentID.",
     "T3 exact turn completion is guarded against settling a different newer active turn.",
     "OpenCode abort waits for runner cancellation and its idle callback before returning.",
+    "A scope-owned local OpenCode process cannot preserve live execution across a T3 process restart, even when durable conversation history is re-adopted.",
     "Generic session.state.changed ready clears whichever turn is currently active."
   ],
   "cases": [
@@ -48,6 +49,21 @@
         "turn.completed completed without success evidence",
         "no lifecycle settlement"
       ]
+    },
+    {
+      "id": "local-server-restart-without-terminal-history",
+      "status": "planned",
+      "setup": {
+        "server_ownership": "scope-owned-local-child",
+        "t3_process_restarted": true,
+        "conversation_reopened": true,
+        "provider_status": "idle",
+        "matching_terminal_assistant_history": false
+      },
+      "required_result": {
+        "state": "interrupted",
+        "reason": "live execution continuity was lost with the old local provider process"
+      }
     },
     {
       "id": "recovery-idle-with-success-history",
