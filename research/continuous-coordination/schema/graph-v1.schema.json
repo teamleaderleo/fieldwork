@@ -1,0 +1,163 @@
+{
+  "$defs": {
+    "edge": {
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "causal",
+            "competes",
+            "consumes-evidence",
+            "history",
+            "produces",
+            "related",
+            "requires",
+            "requires-authority",
+            "requires-decision",
+            "requires-review",
+            "supersedes"
+          ]
+        },
+        "to": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "node": {
+      "additionalProperties": false,
+      "properties": {
+        "authority": {
+          "additionalProperties": false,
+          "properties": {
+            "upstream_contact": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "evaluator_revision": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "exclusive_output": {
+          "default": false,
+          "type": "boolean"
+        },
+        "generation": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "input_fingerprint": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "authority-gate",
+            "evidence",
+            "execution-receipt",
+            "human-decision",
+            "queue-entry",
+            "technical-review"
+          ]
+        },
+        "output_key": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "policy_revision": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "semantic_fingerprint": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "semantic_state": {
+          "enum": [
+            "authority-mismatch",
+            "blocked",
+            "current",
+            "execution-gated",
+            "incomplete-input-set",
+            "missing-receipt",
+            "policy-drift",
+            "ready",
+            "stale-input"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "generation",
+        "kind",
+        "semantic_state",
+        "input_fingerprint",
+        "semantic_fingerprint",
+        "evaluator_revision",
+        "policy_revision",
+        "authority"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://fieldwork.invalid/schema/coordination-graph-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "edges": {
+      "items": {
+        "$ref": "#/$defs/edge"
+      },
+      "maxItems": 5000,
+      "type": "array"
+    },
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/node"
+      },
+      "maxItems": 1000,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "fieldwork.coordination/v1"
+    }
+  },
+  "required": [
+    "schema_version",
+    "nodes",
+    "edges"
+  ],
+  "title": "Fieldwork static coordination graph v1",
+  "type": "object"
+}
