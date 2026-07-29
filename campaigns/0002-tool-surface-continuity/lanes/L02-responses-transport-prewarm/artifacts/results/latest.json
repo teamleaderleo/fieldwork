@@ -1,0 +1,194 @@
+{
+  "cases": [
+    {
+      "benign_exec_if_inheritance_holds": "TOOL_OK",
+      "case": "http_same_history_lite",
+      "direct_wire_tool_digest": "3444399af101141c",
+      "direct_wire_tool_names": [
+        "exec",
+        "file_edit"
+      ],
+      "effective_tool_names_if_inheritance_holds": [
+        "exec",
+        "file_edit"
+      ],
+      "logical_tool_digest": "3444399af101141c",
+      "logical_tool_names": [
+        "exec",
+        "file_edit"
+      ],
+      "previous_response_id": null,
+      "wire_input_types": [
+        "additional_tools",
+        "message",
+        "compacted",
+        "message"
+      ]
+    },
+    {
+      "benign_exec_if_inheritance_holds": "TOOL_OK",
+      "case": "fresh_thread_websocket_lite",
+      "direct_wire_tool_digest": "3444399af101141c",
+      "direct_wire_tool_names": [
+        "exec",
+        "file_edit"
+      ],
+      "effective_tool_names_if_inheritance_holds": [
+        "exec",
+        "file_edit"
+      ],
+      "logical_tool_digest": "3444399af101141c",
+      "logical_tool_names": [
+        "exec",
+        "file_edit"
+      ],
+      "previous_response_id": null,
+      "wire_input_types": [
+        "additional_tools",
+        "message",
+        "compacted",
+        "message"
+      ]
+    },
+    {
+      "benign_exec_if_inheritance_holds": "TOOL_OK",
+      "case": "clean_prewarm_websocket_lite",
+      "direct_wire_tool_digest": "4f53cda18c2baa0c",
+      "direct_wire_tool_names": [],
+      "effective_tool_names_if_inheritance_holds": [
+        "exec",
+        "file_edit"
+      ],
+      "logical_tool_digest": "3444399af101141c",
+      "logical_tool_names": [
+        "exec",
+        "file_edit"
+      ],
+      "previous_response_id": "warm-lite",
+      "wire_input_types": [
+        "compacted",
+        "message"
+      ]
+    },
+    {
+      "benign_exec_if_inheritance_holds": "TOOL_OK",
+      "case": "changed_tools_websocket_lite",
+      "direct_wire_tool_digest": "14dff2650fb28d3b",
+      "direct_wire_tool_names": [
+        "exec",
+        "file_edit",
+        "view_image"
+      ],
+      "effective_tool_names_if_inheritance_holds": [
+        "exec",
+        "file_edit",
+        "view_image"
+      ],
+      "logical_tool_digest": "14dff2650fb28d3b",
+      "logical_tool_names": [
+        "exec",
+        "file_edit",
+        "view_image"
+      ],
+      "previous_response_id": null,
+      "wire_input_types": [
+        "additional_tools",
+        "message",
+        "compacted",
+        "message"
+      ]
+    },
+    {
+      "benign_exec_if_inheritance_holds": "TOOL_OK",
+      "case": "reconnect_websocket_lite",
+      "direct_wire_tool_digest": "3444399af101141c",
+      "direct_wire_tool_names": [
+        "exec",
+        "file_edit"
+      ],
+      "effective_tool_names_if_inheritance_holds": [
+        "exec",
+        "file_edit"
+      ],
+      "logical_tool_digest": "3444399af101141c",
+      "logical_tool_names": [
+        "exec",
+        "file_edit"
+      ],
+      "previous_response_id": null,
+      "wire_input_types": [
+        "additional_tools",
+        "message",
+        "compacted",
+        "message"
+      ]
+    },
+    {
+      "benign_exec_if_inheritance_holds": "TOOL_OK",
+      "case": "restart_websocket_lite",
+      "direct_wire_tool_digest": "3444399af101141c",
+      "direct_wire_tool_names": [
+        "exec",
+        "file_edit"
+      ],
+      "effective_tool_names_if_inheritance_holds": [
+        "exec",
+        "file_edit"
+      ],
+      "logical_tool_digest": "3444399af101141c",
+      "logical_tool_names": [
+        "exec",
+        "file_edit"
+      ],
+      "previous_response_id": null,
+      "wire_input_types": [
+        "additional_tools",
+        "message",
+        "compacted",
+        "message"
+      ]
+    },
+    {
+      "benign_exec_if_inheritance_holds": "TOOL_OK",
+      "case": "clean_prewarm_websocket_non_lite",
+      "direct_wire_tool_digest": "3444399af101141c",
+      "direct_wire_tool_names": [
+        "exec",
+        "file_edit"
+      ],
+      "effective_tool_names_if_inheritance_holds": [
+        "exec",
+        "file_edit"
+      ],
+      "logical_tool_digest": "3444399af101141c",
+      "logical_tool_names": [
+        "exec",
+        "file_edit"
+      ],
+      "previous_response_id": "warm-non-lite",
+      "wire_input_types": [
+        "compacted",
+        "message"
+      ]
+    }
+  ],
+  "claim_scope": "interface model of pinned public client source",
+  "earliest_deterministic_wire_divergence": {
+    "case": "clean_prewarm_websocket_lite",
+    "observation": "The first real turn carries previous_response_id and omits the already-sent AdditionalTools prefix. HTTP and fresh/reconnected WebSocket requests transmit AdditionalTools directly.",
+    "point": "incremental WebSocket request preparation"
+  },
+  "fixture_version": 1,
+  "negative_findings": [
+    "A changed Responses Lite tool manifest rejects incremental reuse and sends the full input.",
+    "Non-Lite WebSocket incremental requests repeat top-level tools.",
+    "Reconnect and restart controls send full requests without previous_response_id.",
+    "Top-level tools_count=0 alone cannot diagnose a missing Responses Lite tool surface."
+  ],
+  "source_properties": {
+    "reconnect_clears_reuse_state": true,
+    "responses_lite_tools_are_input_items": true,
+    "reuse_ignores_client_metadata": true,
+    "shared_logical_request_builder": true
+  }
+}
