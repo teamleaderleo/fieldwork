@@ -39,12 +39,12 @@ Receipt v1 classifies eight normalized cases:
 
 First-divergence layers: host reconciliation, wire request, binding, discovery, executable path, result persistence, and display.
 
-## Promotion order
+## Promoted implementation campaigns
 
-1. P0 mutation identity and compaction checkpoint.
-2. P0 host lifecycle and MCP catalogue refresh contract.
-3. P1 request exposure and discovery invariants.
-4. P1 authority-aware fallback receipt and gate.
+1. #83 — P0 mutation identity and compaction checkpoint.
+2. #84 — P0 host lifecycle and MCP catalogue refresh contract.
+3. #85 — P1 request exposure and discovery invariants.
+4. #86 — P1 authority-aware fallback receipt and gate.
 5. Conditional ChatGPT reconnect/restart field trial when the host exposes those controls or the incident recurs.
 
 ## Stop rules
