@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "lane": "L08-chatgpt-coexistence-field-trial",
+  "fieldworkIssue": 46,
+  "campaignIssue": 31,
+  "retrievedAt": "2026-07-29T16:58:04.539Z",
+  "worker": {
+    "callsign": "Aster",
+    "actorId": "agent:gpt-5.6-thinking-fw46",
+    "model": "GPT-5.6 Thinking"
+  },
+  "environment": {
+    "product": "ChatGPT",
+    "productBuild": "unknown-host-field-unavailable",
+    "profile": "unknown-host-field-unavailable",
+    "transport": "unknown-host-field-unavailable",
+    "officialConnector": "GitHub",
+    "developerMcp": "Stensibly",
+    "fieldworkBaseCommit": "aa72bd513f6664dc67517dabd9b03b4f051d8460",
+    "stensiblyRevision": "20241e668fb493b7f389df8b9df7f229bcadff68",
+    "stensiblyEffectiveSurfaceContractPin": "7690ca0022048443fae9ec9d9eb3fd17ac1c58b6"
+  },
+  "privacy": {
+    "retained": [
+      "owned repository identifiers",
+      "operation and idempotency identities",
+      "item, event, artifact, comment, generation, and version identities",
+      "class counts and workspace fingerprints",
+      "typed lifecycle states"
+    ],
+    "excluded": [
+      "credentials",
+      "provider payloads",
+      "private prompts",
+      "account identities",
+      "opaque host policy data",
+      "secret values"
+    ]
+  },
+  "catalogue": {
+    "initialFunctionCounts": {
+      "officialGitHubConnector": 89,
+      "stensiblyDeveloperMcp": 25
+    },
+    "exactModelAdvertisementInventory": "unavailable",
+    "exactRouterRegistrationInventory": "unavailable"
+  },
+  "workspaceFingerprints": {
+    "initialAllProjects": "sha256:9091d5ebc7a6045c0f5b2d7162b073bf40a853377cca34ea5c00af1b6e5419fe",
+    "finalOauthDogfood": "sha256:f694997636579d76fcda780a59668c07ee55690d73dbb930193d44c319003571"
+  },
+  "runs": [
+    {
+      "runIdentity": "fw46-chatgpt-20260730T0054+0800-a",
+      "transition": "sustained-same-conversation",
+      "itemId": "item_js795cyshevj1e2nnkr7dp8hks8be4pb",
+      "operations": [
+        {
+          "kind": "stensibly.create_item",
+          "identity": "fw46-a-create-20260730T0054+0800",
+          "result": "typed-success",
+          "reconciliation": "get_item confirmed ready version 1"
+        },
+        {
+          "kind": "stensibly.claim_work",
+          "identity": "fw46-a-claim-20260730T0055+0800",
+          "result": "typed-success",
+          "reconciliation": "get_item confirmed active claim generation 1 version 2"
+        },
+        {
+          "kind": "stensibly.record_event",
+          "identity": "fw46-a-event-20260730T0056+0800",
+          "result": "typed-success",
+          "resultIdentity": "evt_jn73gyfy1202ky5839wz8fmsa58bf6d1",
+          "reconciliation": "get_item confirmed event and version 3"
+        },
+        {
+          "kind": "stensibly.attach_artifact",
+          "identity": "fw46-a-artifact-20260730T0057+0800",
+          "result": "typed-success",
+          "resultIdentity": "art_jd7cjkw6p6v6eym6xq690x79c18bephg",
+          "reconciliation": "list_artifacts confirmed owned Fieldwork issue reference"
+        },
+        {
+          "kind": "stensibly.complete_work",
+          "identity": "fw46-a-complete-20260730T0058+0800",
+          "result": "typed-success",
+          "reconciliation": "get_item confirmed done version 6 claim generation 2"
+        }
+      ],
+      "githubInterleaving": "repository and issue reads remained executable between Stensibly segments",
+      "firstDivergence": null
+    },
+    {
+      "runIdentity": "fw46-chatgpt-20260730T0059+0800-b",
+      "transition": "host-context-summary-boundary",
+      "itemId": "item_js7accmdtt789d9s6rydsezypd8bfr4e",
+      "operations": [
+        {
+          "kind": "stensibly.create_item",
+          "identity": "fw46-b-create-20260730T0059+0800",
+          "result": "typed-success",
+          "reconciliation": "get_item confirmed ready version 1 after the context boundary"
+        },
+        {
+          "kind": "stensibly.claim_work",
+          "identity": "fw46-b-claim-20260730T0100+0800",
+          "result": "typed-success",
+          "reconciliation": "get_item confirmed active claim generation 1 version 2"
+        },
+        {
+          "kind": "stensibly.record_event",
+          "identity": "fw46-b-event-20260730T0101+0800",
+          "result": "typed-success",
+          "resultIdentity": "evt_jn73e4d9y8z98jcm5185sqsn718bf75q",
+          "reconciliation": "get_item confirmed post-context event and version 3"
+        },
+        {
+          "kind": "github.issue_comment",
+          "identity": "fw46-b-github-comment-20260730T0102+0800",
+          "result": "typed-success",
+          "resultIdentity": "5120954375",
+          "reconciliation": "fetch_issue_comments returned the exact comment body"
+        },
+        {
+          "kind": "stensibly.attach_artifact",
+          "identity": "fw46-b-artifact-20260730T0103+0800",
+          "result": "typed-success",
+          "resultIdentity": "art_jd7dc5mf8kaend3mgjb5c5nr058bfk3m",
+          "reconciliation": "list_artifacts confirmed the GitHub comment receipt"
+        },
+        {
+          "kind": "stensibly.complete_work",
+          "identity": "fw46-b-complete-20260730T0104+0800",
+          "result": "typed-success",
+          "reconciliation": "get_item confirmed done version 5 claim generation 2"
+        }
+      ],
+      "githubInterleaving": "repository reads, issue-comment reads, and one issue-comment write remained executable after the context boundary",
+      "firstDivergence": null
+    }
+  ],
+  "controls": [
+    {
+      "name": "catalogue-refresh-and-rediscovery",
+      "status": "passed",
+      "evidence": "GitHub and Stensibly resources were rediscovered, followed by successful GitHub issue read and Stensibly workspace survey"
+    },
+    {
+      "name": "safe-long-context-or-compaction-boundary",
+      "status": "passed",
+      "evidence": "a host context-summary boundary occurred during lifecycle B; both surfaces executed reads and writes afterward"
+    },
+    {
+      "name": "fresh-conversation",
+      "status": "corroborated-prior-run-only",
+      "evidence": [
+        "item_js7fqx6zkm5a30zjxhsdjyzpvn8bfyx5",
+        "item_js7fm47hgdh39mgfq7yaa4dfrh8bffqc",
+        "item_js7drd7jabgr27cjwdehfw0dds8be4qs"
+      ]
+    },
+    {
+      "name": "disconnect-reconnect",
+      "status": "unexercised-current-toolset",
+      "evidence": "the available connector control plane exposes no reconnect operation"
+    },
+    {
+      "name": "application-restart",
+      "status": "unexercised-current-toolset",
+      "evidence": "the current conversation cannot restart its host application"
+    },
+    {
+      "name": "stensibly-first-party-github-provider",
+      "status": "unexercised",
+      "evidence": "the trial used the official ChatGPT GitHub connector"
+    }
+  ],
+  "result": {
+    "classification": "observed-negative-result",
+    "firstDivergence": null,
+    "summary": "Two reversible lifecycles completed with visible typed results and read-after-write confirmation. Coexistence survived sustained use, a host context-summary boundary, and catalogue rediscovery.",
+    "claimScope": "integration"
+  }
+}
