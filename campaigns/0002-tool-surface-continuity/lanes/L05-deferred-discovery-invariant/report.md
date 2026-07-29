@@ -31,13 +31,13 @@ Top-level `tools: null`, missing nested `tool_search` in Code Mode, or an empty 
 | Initial Fieldwork campaign base | `aa72bd513f6664dc67517dabd9b03b4f051d8460` | 2026-07-30 | repository fact |
 | Original public Codex pin | `3725f02cf38d856bc82bb46dd68ab61bb96ec6fc` | 2026-07-30 | primary source |
 | Meta-review public Codex pin | `a05bcda3dbd68729caa2f11027b7f43974fda298` | 2026-07-30 | primary source |
-| Intended MCP deferral | `openai/codex#29486` | reviewed 2026-07-30 | merged design |
-| Responses Lite framing | `openai/codex#27946` | reviewed 2026-07-30 | merged design |
-| Code Mode deferred runtime path | `openai/codex#23605`, `#31745` | reviewed 2026-07-30 | merged design |
-| Fresh-turn A/B | `openai/codex#33679` | reviewed 2026-07-30 | targeted report |
-| Resume/WebSocket A/B | `openai/codex#35751` | reviewed 2026-07-30 | targeted report |
-| Supporting reports | `#31894`, `#32086`, `#33609`, `#19425` | reviewed 2026-07-30 | reported observations |
-| Ranked-search degradation | `#32101` | reviewed 2026-07-30 | narrower related issue |
+| Intended MCP deferral | [Codex PR #29486](https://redirect.github.com/openai/codex/pull/29486) | reviewed 2026-07-30 | merged design |
+| Responses Lite framing | [Codex PR #27946](https://redirect.github.com/openai/codex/pull/27946) | reviewed 2026-07-30 | merged design |
+| Code Mode deferred runtime path | [Codex PR #23605](https://redirect.github.com/openai/codex/pull/23605), [Codex PR #31745](https://redirect.github.com/openai/codex/pull/31745) | reviewed 2026-07-30 | merged design |
+| Fresh-turn A/B | [Codex issue #33679](https://redirect.github.com/openai/codex/issues/33679) | reviewed 2026-07-30 | targeted report |
+| Resume/WebSocket A/B | [Codex issue #35751](https://redirect.github.com/openai/codex/issues/35751) | reviewed 2026-07-30 | targeted report |
+| Supporting reports | [#31894](https://redirect.github.com/openai/codex/issues/31894), [#32086](https://redirect.github.com/openai/codex/issues/32086), [#33609](https://redirect.github.com/openai/codex/issues/33609), [#19425](https://redirect.github.com/openai/codex/issues/19425) | reviewed 2026-07-30 | reported observations |
+| Ranked-search degradation | [Codex issue #32101](https://redirect.github.com/openai/codex/issues/32101) | reviewed 2026-07-30 | narrower related issue |
 
 Primary source areas:
 
@@ -62,7 +62,7 @@ Responses Lite intentionally moves client tool declarations and developer instru
 
 ### Code Mode
 
-Current Code Mode conversion intentionally skips `ToolSpec::ToolSearch`. Deferred nested tools are expected to remain callable through `ALL_TOOLS` and the global `tools` object. Therefore, `openai/codex#32101` supports a ranked-discovery degradation, not total unreachability by itself.
+Current Code Mode conversion intentionally skips `ToolSpec::ToolSearch`. Deferred nested tools are expected to remain callable through `ALL_TOOLS` and the global `tools` object. Therefore, [Codex issue #32101](https://redirect.github.com/openai/codex/issues/32101) supports a ranked-discovery degradation, not total unreachability by itself.
 
 ### WebSocket reuse
 
@@ -106,11 +106,11 @@ route exists + search returns [] + stale generation
 
 ### Fresh Responses Lite path
 
-`openai/codex#33679` changes only `use_responses_lite` while holding the model slug, prompt, MCP server, authentication, sandbox, and working directory constant. The MCP call fails with Lite and succeeds without Lite. GPT-5.4 is a working control. A separate Xcode MCP reproduction reports all 47 tools discovered internally, no MCP call under Sol, and a successful call under GPT-5.4.
+[Codex issue #33679](https://redirect.github.com/openai/codex/issues/33679) changes only `use_responses_lite` while holding the model slug, prompt, MCP server, authentication, sandbox, and working directory constant. The MCP call fails with Lite and succeeds without Lite. GPT-5.4 is a working control. A separate Xcode MCP reproduction reports all 47 tools discovered internally, no MCP call under Sol, and a successful call under GPT-5.4.
 
 ### Resumed compacted WebSocket path
 
-`openai/codex#35751` replays the same stored compacted history. The WebSocket path loses execution tools, the HTTP path succeeds, and a fresh WebSocket thread succeeds. That isolates the resume/prewarm/incremental boundary much more narrowly than a generic MCP or permission failure.
+[Codex issue #35751](https://redirect.github.com/openai/codex/issues/35751) replays the same stored compacted history. The WebSocket path loses execution tools, the HTTP path succeeds, and a fresh WebSocket thread succeeds. That isolates the resume/prewarm/incremental boundary much more narrowly than a generic MCP or permission failure.
 
 ## Source-supported generic planner gap
 
