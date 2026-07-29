@@ -1,0 +1,24 @@
+name: Fieldwork Biome safe-fix 89
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-biome-safe-fix-89.yml"
+      - "programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Reproduce released safe-fix behavior
+        shell: bash
+        run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-object-spread-accessors/reproduce.sh
