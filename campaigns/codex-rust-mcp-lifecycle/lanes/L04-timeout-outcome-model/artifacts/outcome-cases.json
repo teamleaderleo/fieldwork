@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "lane": "L04-timeout-outcome-model",
+  "fieldwork_issue": 162,
+  "owned_codex_pr": 28,
+  "owned_codex_base": "f7265553ea1510304f3091833dcbce65ef21f10c",
+  "public_schema_changed": false,
+  "cases": [
+    {
+      "id": "invalid-local-arguments",
+      "dispatch": "not_started",
+      "internal_state": "NotDispatched",
+      "remote_result_received": false,
+      "effect_certainty": "not_executed_by_this_call_path",
+      "automatic_retry_authorized": false,
+      "note": "A newly sampled corrected call may be considered; this item itself is not replayed."
+    },
+    {
+      "id": "unavailable-or-policy-blocked",
+      "dispatch": "not_started",
+      "internal_state": "NotDispatched",
+      "remote_result_received": false,
+      "effect_certainty": "not_executed_by_this_call_path",
+      "automatic_retry_authorized": false,
+      "note": "Availability or policy change requires a new sampled step and authority check."
+    },
+    {
+      "id": "approval-declined-before-execution",
+      "dispatch": "not_started",
+      "internal_state": "NotDispatched",
+      "remote_result_received": false,
+      "effect_certainty": "not_executed_by_this_call_path",
+      "automatic_retry_authorized": false,
+      "note": "The existing call identity remains declined or cancelled."
+    },
+    {
+      "id": "remote-success-result",
+      "dispatch": "started",
+      "internal_state": "RemoteResultReceived",
+      "remote_result_received": true,
+      "effect_certainty": "remote_response_received",
+      "automatic_retry_authorized": false,
+      "note": "Receipt of a result settles the request response path; retry policy is separate."
+    },
+    {
+      "id": "remote-application-error-result",
+      "dispatch": "started",
+      "internal_state": "RemoteResultReceived",
+      "remote_result_received": true,
+      "effect_certainty": "remote_response_received",
+      "automatic_retry_authorized": false,
+      "note": "The MCP isError field is application-level and does not mean the request was not executed."
+    },
+    {
+      "id": "local-tools-call-timeout",
+      "dispatch": "possibly_started",
+      "internal_state": "LocalTimeoutOutcomeUnknown",
+      "remote_result_received": false,
+      "effect_certainty": "may_still_run_or_may_have_committed",
+      "automatic_retry_authorized": false,
+      "note": "Classified from the typed ClientOperationError cause, never from display text."
+    },
+    {
+      "id": "other-local-or-transport-failure",
+      "dispatch": "unknown",
+      "internal_state": "LocalFailureUnclassified",
+      "remote_result_received": false,
+      "effect_certainty": "unknown",
+      "automatic_retry_authorized": false,
+      "note": "A later slice may refine failures using transport-specific evidence."
+    },
+    {
+      "id": "cancellation-delivered-no-terminal-receipt",
+      "dispatch": "started",
+      "internal_state": "future_extension_required",
+      "remote_result_received": false,
+      "effect_certainty": "unknown_for_potential_mutation",
+      "automatic_retry_authorized": false,
+      "note": "Cancellation delivery is not proof that a mutation did not commit."
+    }
+  ]
+}
