@@ -54,6 +54,8 @@ Reviewers must preserve the evidence category used by the underlying work:
 
 Do not silently upgrade source analysis into execution evidence, a model into a target result, or a prepared test into a failing test.
 
+Research-file citations below are pinned to exact Fieldwork commits. Live pull-request and issue links are included separately for discussion state and later amendments.
+
 ---
 
 ## Priority 0 — human decisions and queue control
@@ -62,7 +64,7 @@ Do not silently upgrade source analysis into execution evidence, a model into a 
 
 **State:** Ready for independent technical review and an upstream-contact decision.  
 **Primary record:** [Fieldwork PR #82](https://github.com/teamleaderleo/fieldwork/pull/82)  
-**Evidence:** [lane report](campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/report.md), [era-scope amendment](campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/era-scope-amendment.md), owned-fork draft `teamleaderleo/typescript-sdk#1`.
+**Evidence:** [lane report](https://github.com/teamleaderleo/fieldwork/blob/fbbea68332ecd57e7abad538453ad07d541387b1/campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/report.md), [era-scope amendment](https://github.com/teamleaderleo/fieldwork/blob/fbbea68332ecd57e7abad538453ad07d541387b1/campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/era-scope-amendment.md), [owned-fork draft](https://github.com/teamleaderleo/typescript-sdk/pull/1), and [final fork workflow run](https://github.com/teamleaderleo/typescript-sdk/actions/runs/30476941445).
 
 **Human summary:** Two concurrent Streamable HTTP request streams can receive different SSE `retry` values, but the transport stores retry timing in shared state. When one stream later reconnects after its own GET failure, it can use the other stream's retry value. The case reproduced in both directions on Node 20, 22, and 24.
 
@@ -82,7 +84,7 @@ Do not silently upgrade source analysis into execution evidence, a model into a 
 
 **State:** Ready for independent technical review; promotion decision follows.  
 **Primary record:** [Fieldwork PR #97](https://github.com/teamleaderleo/fieldwork/pull/97)  
-**Evidence:** [lane report](programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/report.md), [reproduction guide](programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-object-spread-accessors/README.md), [fixture](programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-object-spread-accessors/input.mjs).
+**Evidence:** [lane report](https://github.com/teamleaderleo/fieldwork/blob/a1ad034eb3500f20d5815ea3d34a1244d0029a59/programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/report.md), [reproduction guide](https://github.com/teamleaderleo/fieldwork/blob/a1ad034eb3500f20d5815ea3d34a1244d0029a59/programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-object-spread-accessors/README.md), [fixture](https://github.com/teamleaderleo/fieldwork/blob/a1ad034eb3500f20d5815ea3d34a1244d0029a59/programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-object-spread-accessors/input.mjs), and [released-package workflow run](https://github.com/teamleaderleo/fieldwork/actions/runs/30479636589).
 
 **Human summary:** Biome 2.5.6 labels the transformation safe, but flattening accessor-bearing object literals from `Object.assign` into object spread changes setter invocation, getter timing, and property descriptors. The released package applied the fix and the retained Node 22 workflow demonstrated the semantic difference.
 
@@ -102,7 +104,7 @@ Do not silently upgrade source analysis into execution evidence, a model into a 
 
 **State:** Human coordination decision required before additional implementation wiring.  
 **Primary record:** [Campaign #83](https://github.com/teamleaderleo/fieldwork/issues/83)  
-**Evidence:** [campaign question](campaigns/0003-compaction-mutation-identity/question.md), [source map](campaigns/0003-compaction-mutation-identity/source-map.md), [decision](campaigns/0003-compaction-mutation-identity/decision.md), owned-fork PRs `teamleaderleo/codex#2`, `teamleaderleo/codex#3`, and `teamleaderleo/codex#4`.
+**Evidence:** [campaign question](https://github.com/teamleaderleo/fieldwork/blob/dd75315202f5e66c90961cddd6d914766d7db576/campaigns/0003-compaction-mutation-identity/question.md), [source map](https://github.com/teamleaderleo/fieldwork/blob/dd75315202f5e66c90961cddd6d914766d7db576/campaigns/0003-compaction-mutation-identity/source-map.md), [decision](https://github.com/teamleaderleo/fieldwork/blob/dd75315202f5e66c90961cddd6d914766d7db576/campaigns/0003-compaction-mutation-identity/decision.md), [raw-history validator PR](https://github.com/teamleaderleo/codex/pull/2), [receipt contract PR](https://github.com/teamleaderleo/codex/pull/3), and [alternate receipt-primitives PR](https://github.com/teamleaderleo/codex/pull/4).
 
 **Human summary:** The campaign correctly separates raw call/result validation from a privacy-safe operation-effect and terminal-receipt contract. However, Codex PRs #3 and #4 now overlap on the receipt primitive. Continuing both would multiply review work and risk semantic drift.
 
@@ -127,7 +129,7 @@ Do not silently upgrade source analysis into execution evidence, a model into a 
 
 **State:** Ready for independent review; treat each candidate separately.  
 **Primary record:** [Fieldwork PR #48](https://github.com/teamleaderleo/fieldwork/pull/48)  
-**Evidence:** [scout report](programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/report.md), [watch-change execution update](programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-2026-07-29.md), [post-transform update](programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-post-transform-2026-07-29.md), [bundled-development update](programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-bundled-dev-2026-07-30.md).
+**Evidence:** [scout report](https://github.com/teamleaderleo/fieldwork/blob/201dc6c59f2a2108c39ebd3ecd2273c547a4c198/programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/report.md), [watch-change execution update](https://github.com/teamleaderleo/fieldwork/blob/201dc6c59f2a2108c39ebd3ecd2273c547a4c198/programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-2026-07-29.md), [post-transform update](https://github.com/teamleaderleo/fieldwork/blob/201dc6c59f2a2108c39ebd3ecd2273c547a4c198/programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-post-transform-2026-07-29.md), and [bundled-development update](https://github.com/teamleaderleo/fieldwork/blob/201dc6c59f2a2108c39ebd3ecd2273c547a4c198/programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-bundled-dev-2026-07-30.md). Target reproductions are in [Vite PR #1](https://github.com/teamleaderleo/vite/pull/1), [#2](https://github.com/teamleaderleo/vite/pull/2), and [#3](https://github.com/teamleaderleo/vite/pull/3).
 
 **Human summary:** Three distinct findings are bundled in the scout. A rejected `watchChange` hook can stop Vite-owned invalidation; a post-ordered transform can introduce imports after dev import analysis; and experimental bundled development can observe a file change while skipping the plugin's `hotUpdate` path. The first two are stable-mode correctness candidates. The third is an experimental compatibility question.
 
@@ -145,7 +147,7 @@ Do not silently upgrade source analysis into execution evidence, a model into a 
 
 **State:** Design review is possible; target-native execution remains the gate.  
 **Primary record:** [Scout PR #34](https://github.com/teamleaderleo/fieldwork/pull/34), campaigns [#76](https://github.com/teamleaderleo/fieldwork/issues/76), [#94](https://github.com/teamleaderleo/fieldwork/issues/94), and [#95](https://github.com/teamleaderleo/fieldwork/issues/95).  
-**Evidence:** [scout report](programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/report.md), [terminal-outcome follow-up](programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/follow-up-terminal-outcomes.md), [surrounding candidates](programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/surrounding-lifecycle-candidates.md), owned-fork candidates `teamleaderleo/ai#1` and `teamleaderleo/ai#3`.
+**Evidence:** [scout report](https://github.com/teamleaderleo/fieldwork/blob/1d20c755072207d8c21441b505c1ec6fc3324fe4/programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/report.md), [terminal-outcome follow-up](https://github.com/teamleaderleo/fieldwork/blob/1d20c755072207d8c21441b505c1ec6fc3324fe4/programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/follow-up-terminal-outcomes.md), [surrounding candidates](https://github.com/teamleaderleo/fieldwork/blob/1d20c755072207d8c21441b505c1ec6fc3324fe4/programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/surrounding-lifecycle-candidates.md), [explicit-abort candidate](https://github.com/teamleaderleo/ai/pull/1), and [resumable-Stop candidate](https://github.com/teamleaderleo/ai/pull/3).
 
 **Human summary:** Explicit operation abort, silent provider truncation, and application-owned resumable Stop are separate terminal-state problems. The split is sound. The explicit-abort and stale-Stop candidates are written but not executed in the retained environment; truncated-stream classification still needs a compatibility matrix before choosing an API representation.
 
@@ -163,7 +165,7 @@ Do not silently upgrade source analysis into execution evidence, a model into a 
 
 **State:** Batch structure is ready; evidence work is underway.  
 **Primary records:** [Batch #88](https://github.com/teamleaderleo/fieldwork/issues/88), [coordination PR #92](https://github.com/teamleaderleo/fieldwork/pull/92).  
-**Evidence:** [dispatch](batches/B20260730-001-workers-sdk-lifecycle-followup/DISPATCH.md), [status](batches/B20260730-001-workers-sdk-lifecycle-followup/STATUS.md), [manifest](batches/B20260730-001-workers-sdk-lifecycle-followup/manifest.json), owned-fork A001 draft `teamleaderleo/workers-sdk#1`.
+**Evidence:** [dispatch](https://github.com/teamleaderleo/fieldwork/blob/f03ceaa97a9051a99a56b35567c81d0bde66443f/batches/B20260730-001-workers-sdk-lifecycle-followup/DISPATCH.md), [status](https://github.com/teamleaderleo/fieldwork/blob/f03ceaa97a9051a99a56b35567c81d0bde66443f/batches/B20260730-001-workers-sdk-lifecycle-followup/STATUS.md), [manifest](https://github.com/teamleaderleo/fieldwork/blob/f03ceaa97a9051a99a56b35567c81d0bde66443f/batches/B20260730-001-workers-sdk-lifecycle-followup/manifest.json), and [A001 owned-fork draft](https://github.com/teamleaderleo/workers-sdk/pull/1).
 
 **Human summary:** Four bounded assignments cover teardown ownership, configuration selection, partial deployment state, and independent review. A001 now contains a real Miniflare failure-injection regression for an early disposal rejection that can skip `Runtime.dispose()` and therefore skip the `workerd` kill path.
 
@@ -181,7 +183,7 @@ Do not silently upgrade source analysis into execution evidence, a model into a 
 
 **State:** Ready for source and presentation review; target tests remain unexecuted.  
 **Primary record:** [Fieldwork PR #45](https://github.com/teamleaderleo/fieldwork/pull/45)  
-**Evidence:** [review packet](programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/review-packet-2026-07-30.md), [report](programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/report.md), [exploration log](programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/exploration-log-2026-07-30.md), owned-fork drafts `teamleaderleo/gemini-cli#1` through `#4`.
+**Evidence:** [review packet](https://github.com/teamleaderleo/fieldwork/blob/9515e6a091f1c654f5ccdd6d60656b469f7b5889/programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/review-packet-2026-07-30.md), [report](https://github.com/teamleaderleo/fieldwork/blob/9515e6a091f1c654f5ccdd6d60656b469f7b5889/programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/report.md), [exploration log](https://github.com/teamleaderleo/fieldwork/blob/9515e6a091f1c654f5ccdd6d60656b469f7b5889/programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/exploration-log-2026-07-30.md), and owned-fork drafts [#1](https://github.com/teamleaderleo/gemini-cli/pull/1), [#2](https://github.com/teamleaderleo/gemini-cli/pull/2), [#3](https://github.com/teamleaderleo/gemini-cli/pull/3), and [#4](https://github.com/teamleaderleo/gemini-cli/pull/4).
 
 **Human summary:** The packet contains three narrow source-confirmed defects, one proposed asynchronous termination-ownership contract, and broader recovery questions. The evidence wording is now disciplined, but the four fork tests still need target-native execution receipts.
 
@@ -199,7 +201,7 @@ Do not silently upgrade source analysis into execution evidence, a model into a 
 
 **State:** Source-supported campaign with a prepared but unexecuted target test.  
 **Primary records:** [Scout PR #63](https://github.com/teamleaderleo/fieldwork/pull/63), [Campaign #71](https://github.com/teamleaderleo/fieldwork/issues/71), [campaign PR #75](https://github.com/teamleaderleo/fieldwork/pull/75).  
-**Evidence:** [control-surface report](programmes/agent-cli-execution/scouts/harness-control-surfaces/report.md), [contract cases](programmes/agent-cli-execution/scouts/harness-control-surfaces/artifacts/contract-cases.json).
+**Evidence:** [control-surface report](https://github.com/teamleaderleo/fieldwork/blob/174bd677d0c67c2e371e884665eb3971e822e0ab/programmes/agent-cli-execution/scouts/harness-control-surfaces/report.md), [contract cases](https://github.com/teamleaderleo/fieldwork/blob/174bd677d0c67c2e371e884665eb3971e822e0ab/programmes/agent-cli-execution/scouts/harness-control-surfaces/artifacts/contract-cases.json), and the prepared target test described in PR #75.
 
 **Human summary:** T3 restores the OpenCode session identity after restart but not the previous active T3 turn identity. Provider idle can therefore lack the correlation needed to close stale persisted running state. A simple idle-to-ready fallback might fix the stale state but could also let a delayed old-session event close a newer turn.
 
@@ -219,10 +221,10 @@ Do not silently upgrade source analysis into execution evidence, a model into a 
 
 These remain valuable, but they should not displace the reviews above unless new evidence creates a security, data-loss, or urgent compatibility concern:
 
-- **Playwright fixture teardown:** [PR #49](https://github.com/teamleaderleo/fieldwork/pull/49) and owned-fork PRs #10/#11. Consolidate the dependency-group intervention and exact-run evidence before opening more scheduler variants.
+- **Playwright fixture teardown:** [PR #49](https://github.com/teamleaderleo/fieldwork/pull/49) and owned-fork PRs [#10](https://github.com/teamleaderleo/playwright/pull/10)/[#11](https://github.com/teamleaderleo/playwright/pull/11). Consolidate the dependency-group intervention and exact-run evidence before opening more scheduler variants.
 - **DuckDB remote publication:** [Campaign #96](https://github.com/teamleaderleo/fieldwork/issues/96). Continue the MinIO-backed object-store matrix; no human decision is needed until reproducible publication-state evidence exists.
 - **Supabase auth refresh settlement:** [Campaign #78](https://github.com/teamleaderleo/fieldwork/issues/78) and [PR #91](https://github.com/teamleaderleo/fieldwork/pull/91). Complete the real-code two-variant matrix before selecting a settlement contract.
-- **OpenTelemetry NodeSDK lifecycle:** [PR #32](https://github.com/teamleaderleo/fieldwork/pull/32) and owned-fork PRs #2/#3. Execute package tests before choosing between the instance guard and broader startup transaction work.
+- **OpenTelemetry NodeSDK lifecycle:** [PR #32](https://github.com/teamleaderleo/fieldwork/pull/32) and owned-fork PRs [#2](https://github.com/teamleaderleo/opentelemetry-js/pull/2)/[#3](https://github.com/teamleaderleo/opentelemetry-js/pull/3). Execute package tests before choosing between the instance guard and broader startup transaction work.
 
 ## Queue policy
 
