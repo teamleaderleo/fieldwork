@@ -10,6 +10,8 @@ Upstream contact authorized: `false`
 
 Upstream contact performed: `false`
 
+`complete` in this batch means the bounded research result is complete. It does not mean the package tests ran or that source integration is ready.
+
 ## In simple words
 
 The batch produced three distinct Workers SDK candidates:
@@ -18,7 +20,7 @@ The batch produced three distinct Workers SDK candidates:
 2. Wrangler and Vite can choose different configuration files from the same project layout.
 3. Wrangler can activate new Worker code and then fail later without clearly reporting the activation path, activated version, and failed phase.
 
-All three now have fork branches and package-level test designs. A001 and A003 also have bounded repair prototypes. None of the package suites executed in the available environment, so implementation promotion remains gated on a full workspace run.
+All three now have fork branches and prepared package-level test designs. A001 and A003 also have bounded repair prototypes. None of the package suites executed in the available environment, so implementation promotion remains gated on a full workspace run.
 
 ## A001 — Teardown lifecycle ownership
 
@@ -53,12 +55,14 @@ Confidence: **high source confidence, high precedent confidence, medium executio
 
 Workers SDK PR: `teamleaderleo/workers-sdk#2`
 
-The package matrix demonstrates four independent policy dimensions:
+The source trace distinguishes four independent policy dimensions, and the prepared package matrix is designed to verify them:
 
 - format precedence;
 - upward versus root-only search;
 - deploy-config redirect enablement;
 - explicit-path convergence.
+
+The predecessor dependency-free discovery and redirect probes executed successfully. The cross-package matrix is committed and source-reviewed but remains unexecuted.
 
 The precedent review compares TypeScript, Prettier, ESLint, Vite, Biome, Cargo, and recent Workers SDK redirect work. It shows that no single discovery anchor is universally correct:
 
@@ -83,7 +87,7 @@ Next gate:
 
 ## A003 — Post-activation deployment state
 
-Disposition: **accept state-reporting direction; hold automatic rollback**
+Disposition: **accept guarded state-reporting direction; hold automatic rollback and source integration for execution**
 
 Confidence: **high source confidence, high model confidence, medium execution confidence**
 
@@ -95,7 +99,9 @@ The source order confirms that code activation precedes some later container and
 - container rollout failure follows a legacy script upload;
 - trigger failure can follow either a versions deployment or a legacy upload.
 
-The corrected executable model now reports activation method, failed phase, activated version when available, and possible partial application while rethrowing the exact original error.
+The corrected executable model reports activation method, failed phase, activated version when available, and possible partial application while rethrowing the exact original error.
+
+A review found that the original helper could let a throwing diagnostic callback replace the deployment error. The fork now treats receipt reporting as best-effort and contains a prepared regression requiring the exact original error object to survive a reporting failure. That correction is source-reviewed but the package test remains unexecuted.
 
 The current output order is especially weak on trigger failure: `Uploaded` appears before triggers, while `Current Version ID` appears only after triggers succeed.
 
@@ -103,7 +109,7 @@ The receipt is needed because an exit code describes whole-command completion, n
 
 Next gate:
 
-- run helper tests;
+- run the helper tests, including the reporting-failure regression;
 - add mocked legacy-upload/container failure;
 - add mocked versions-deployment/trigger failure;
 - add mocked legacy-upload/trigger failure;
@@ -119,6 +125,7 @@ A standalone A004 lane was withdrawn at user direction. Review coverage was reta
 - coordinator reviewed A001;
 - A001 reviewed the predecessor A002 matrix;
 - coordinator built and reviewed A002 and A003;
+- later review corrected A002's evidence wording and exposed A003's reporting-failure edge case;
 - prior public discussion and broader tool precedent were reconciled in the lane results;
 - unexecuted package tests remain explicit blockers rather than being counted as review completion.
 
