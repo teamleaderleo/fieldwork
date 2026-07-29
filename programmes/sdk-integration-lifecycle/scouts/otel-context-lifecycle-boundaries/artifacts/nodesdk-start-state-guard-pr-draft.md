@@ -1,91 +1,127 @@
-# Potential PR draft: guard NodeSDK against repeated start
+# Fix PR draft and fork trial: guard NodeSDK start attempts
+
+## Status
+
+- Draft implemented in user-owned fork: https://redirect.github.com/teamleaderleo/opentelemetry-js/pull/2
+- Branch: `fieldwork/nodesdk-start-state-guard`
+- Base: `7b06368b7362a30ca69c178f43bd94dfbb36f85d`
+- Source commit: `91fd86e3e727522dc3dfd62a134657fdfa921436`
+- Test commit: `14b524ff0c0d8e39321c31be218b0c9ee0ca0b78`
+- Upstream issue or PR opened: `false`
 
 ## Title
 
-`fix(sdk-node): make NodeSDK start idempotent`
+`fix(sdk-node): guard repeated start attempts`
 
 ## Summary
 
-Prevent one `NodeSDK` instance from running its initialization sequence more than once.
+Prevent one `NodeSDK` object from running its initialization sequence more than once.
 
-Today, a repeated `start()` call can leave the SDK object and the global APIs owning different providers:
+Today, a repeated `start()` can leave the SDK object and process-global APIs owning different providers:
 
-- tracing and logs keep the first global provider while the SDK stores a newly constructed provider;
-- metrics can throw while rebinding the configured reader, after earlier startup work has already begun;
-- instrumentation, context, propagation, and resource setup are attempted again.
+- tracing and logs keep provider A global while the SDK stores provider B;
+- metrics can throw while rebinding configured readers after preceding startup side effects;
+- instrumentation, context, propagation, and resource setup are attempted again;
+- a start after shutdown constructs private providers while globals remain attached to the first shutdown providers.
 
-This change adds an instance start-state guard before any registration side effects. Later calls emit a diagnostic warning and return without rebuilding providers or repeating registration.
+The fork trial adds a one-attempt guard before any registration side effect. Later calls emit a diagnostic warning and return.
 
-## Proposed behavior
-
-- The first `start()` behaves as before.
-- Later `start()` calls on the same instance are safe no-ops.
-- The SDK continues to own the providers established by the first call.
-- `shutdown()` therefore targets the providers used by the global APIs.
-- Starting a different SDK instance after shutdown remains outside this narrow change.
-
-## Proposed source change
+## Implemented source change
 
 ```diff
 diff --git a/experimental/packages/opentelemetry-sdk-node/src/sdk.ts b/experimental/packages/opentelemetry-sdk-node/src/sdk.ts
 @@
    private _disabled?: boolean;
-+  private _started = false;
++  private _startAttempted = false;
 @@
    public start(): void {
      if (this._disabled) {
        return;
      }
 +
-+    if (this._started) {
-+      diag.warn('NodeSDK.start() called more than once. Ignoring.');
++    if (this._startAttempted) {
++      diag.warn('NodeSDK.start() may only be called once.');
 +      return;
 +    }
-+    this._started = true;
++    this._startAttempted = true;
  
      registerInstrumentations({
 ```
 
-The flag is set before registration begins. If initialization throws after partial side effects, the same object cannot repeat the sequence and compound the mixed state. The failure-recovery contract should be documented explicitly if maintainers prefer a different policy.
+The property is named `_startAttempted`, not `_started`, because it is set before initialization can succeed or fail.
 
-## Tests
+## Behavior
 
-Add focused SDK-node tests covering:
+- The first start attempt behaves as before.
+- Reentrant calls are blocked before registration repeats.
+- Later direct calls are warning no-ops.
+- A call after shutdown is a warning no-op.
+- A second call after the first attempt throws is a warning no-op.
+- Recovery after partial startup failure requires a new object and explicit process cleanup; the partially mutated object is not treated as safely retryable.
 
-1. trace-only repeated start retains one provider and one shutdown owner;
-2. log-only repeated start retains one provider and one shutdown owner;
-3. metric-only repeated start does not attempt to bind the reader again;
-4. instrumentation registration is invoked once;
-5. context and propagation setup occur once;
-6. a diagnostic warning is emitted on the repeated call;
-7. `shutdown()` after a repeated call shuts down the first provider exactly once.
+## Why set the guard before side effects
+
+Setting the flag after successful startup would leave two holes:
+
+1. A context manager or instrumentation callback could call `start()` reentrantly while the first call is still running.
+2. A first call could register instrumentation or context and then throw during provider construction. Retrying the same object would compound partial state.
+
+The one-attempt guard closes both.
+
+## Why warning plus no-op instead of throw
+
+Repeated startup is unsupported or ambiguous behavior, but changing it to a synchronous exception could break applications that currently initialize twice accidentally.
+
+A warning plus no-op:
+
+- prevents ownership corruption;
+- preserves normal one-start behavior;
+- avoids introducing a new crash path;
+- still provides diagnostics.
+
+A future major version could choose a thrown lifecycle error if maintainers want stricter behavior.
+
+## Tests implemented
+
+File:
+
+`experimental/packages/opentelemetry-sdk-node/test/start-state-guard.test.ts`
+
+Cases:
+
+1. repeated start retains the first private tracer provider and performs one global registration;
+2. start after shutdown does not create another provider;
+3. reentrant start from context-manager enablement is blocked before provider registration repeats;
+4. a second call after a startup exception does not repeat the failing side effect.
 
 ## Compatibility
 
-This changes only unsupported or ambiguous repeated initialization. Normal one-start process-lifetime usage is unchanged.
+This changes only repeated initialization on one object. Normal process-lifetime usage is unchanged.
 
-A warning plus no-op is less disruptive than introducing a new synchronous exception from `start()`. If the desired contract is fail-fast, the same guard can throw before side effects instead.
+The change does not claim to support restart. The guard intentionally remains set after shutdown because shutdown does not currently unregister globals or dispose instrumentation installation.
 
 ## Validation
 
 ```bash
 npm ci
 npm run compile
-npm test --workspace=@opentelemetry/sdk-node
+npm test --workspace=@opentelemetry/sdk-node -- --grep "NodeSDK start-state guard"
 ```
 
-Characterization branch: `fieldwork/nodesdk-shutdown-lifecycle-characterization`
-
-Draft characterization PR: https://redirect.github.com/teamleaderleo/opentelemetry-js/pull/1
+Source and type-shape review is complete. The work container cannot install repository dependencies, and no GitHub Actions run is visible for the fork commit, so the package suite is not claimed as passing.
 
 ## Out of scope
 
-- unregistering globals during `shutdown()`;
-- unpatching all instrumentations during provider shutdown;
-- supporting start → shutdown → start with the same instance;
-- replacing a global SDK installed by another `NodeSDK` instance;
-- changing provider-level shutdown semantics.
+- replacing or rejecting a different `NodeSDK` object;
+- repeated calls to the newer `startNodeSDK()` function;
+- unregistering globals during shutdown;
+- disabling instrumentations during provider shutdown;
+- metric-reader constructor rollback;
+- trace-provider shutdown state and idempotence;
+- full start → shutdown → start support.
+
+These are covered in `nodesdk-lifecycle-decision-record.md` and `nodesdk-followup-lifecycle-findings.md`.
 
 ## Contact boundary
 
-This is a Fieldwork draft only. No upstream issue or PR has been opened.
+The implementation exists only in the user-owned fork. No upstream issue, pull request, comment, review, reaction, or direct backlink was created.
