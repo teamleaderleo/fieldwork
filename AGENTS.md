@@ -5,10 +5,10 @@ These instructions apply to every AI system and automated worker operating in th
 ## Entry protocol
 
 - Start with `START_HERE.md`.
-- Read `CHARTER.md`, `CODE_FIRST.md`, `PLAIN_LANGUAGE.md`, `METHOD.md`, `REFERENCE_POLICY.md`, `PROGRAMMES.md`, `TARGET_HUBS.md`, `EXPERIMENTS.md`, `TESTBEDS.md`, `INTEGRATION_CONTEXT.md`, `COORDINATION.md`, and `BATCHES.md` before modifying research material.
-- Search programme hubs, target hubs, open Fieldwork issues, active batches, existing experiments, contexts, testbeds, and campaign folders before creating work.
+- Read `CHARTER.md`, `CODE_FIRST.md`, `PLAIN_LANGUAGE.md`, `METHOD.md`, `REFERENCE_POLICY.md`, `PROGRAMMES.md`, `TARGET_HUBS.md`, `EXPERIMENTS.md`, `TESTBEDS.md`, `INTEGRATION_CONTEXT.md`, `COORDINATION.md`, `REVIEWING.md`, and `BATCHES.md` before modifying research material.
+- Search programme hubs, target hubs, open Fieldwork issues, active pull requests, active batches, existing experiments, contexts, testbeds, campaign folders, and owned-fork branches before creating work.
 - Treat GitHub issues as live coordination and repository files as durable evidence.
-- Work only from an explicit assignment, claimed scout or lane, requested synthesis, user-directed triage task, or bounded fork-free experiment.
+- Work only from an explicit assignment, claimed scout or lane, requested synthesis, user-directed triage task, bounded review task, or bounded fork-free experiment.
 
 ## Programme, target, and testbed indexing
 
@@ -36,7 +36,7 @@ These instructions apply to every AI system and automated worker operating in th
 
 ## Plain-language check
 
-- Begin every durable programme hub, target hub, scout report, finding, campaign, lane report, retained experiment, integration trial, context dossier, and synthesis with `## In simple words`.
+- Begin every durable programme hub, target hub, scout report, finding, campaign, lane report, retained experiment, integration trial, context dossier, synthesis, and review packet with `## In simple words`.
 - State what the system is, where it sits, what is wrong or uncertain, why the result could be useful, and the current answer or next step.
 - Keep the block short enough to reveal whether the underlying model is actually understood.
 - Update it when the conclusion changes.
@@ -104,6 +104,20 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 - A context pattern is optional supporting material, never an automatic hypothesis for a target.
 - A broader context may be researched in separate mechanism, usage, contract, operations, and adversarial lanes when the work warrants parallelization.
 
+## Review, evidence, and promotion
+
+- Read and apply `REVIEWING.md` before reviewing, promoting, marking ready, accepting, or merging work.
+- Classify every review item as owned product delivery, upstream-fork research, execution carrier, evidence/documentation, or blocked/security-sensitive work.
+- Name the canonical branch and exact head. Do not treat a temporary workflow branch or execution pull request as the merge candidate.
+- Preserve the narrowest accurate evidence class: source-read, model-executed, target-test-prepared, target-executed, integration-executed, or full-gate.
+- Never describe a prepared test as executed, a focused run as a full gate, one platform as cross-platform, or green CI as proof of an untested security or authority property.
+- Review the complete current diff. Any head movement expires a disposition unless semantic identity is proved within the reviewed fence.
+- Builders may record self-review, but consequential implementation, security, authority, and upstream packets should receive independent final review.
+- Keep pull-request descriptions current. Remove stale dependency, branch, current-main, supersession, and running-check language after state changes.
+- Issue-body `State:` text and live `state:*` labels must agree before promotion.
+- Close or clearly retire execution carriers after evidence reaches the canonical branch.
+- Use explicit `ACCEPT`, `REPAIR`, `HOLD`, `EXECUTE`, or `REJECT` dispositions and name the exact next transition.
+
 ## Default behaviour
 
 - Treat external observation as quiet research.
@@ -134,6 +148,7 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 4. **Playground experiment** — use for bounded local tests that require no shared coordination or upstream modification.
 5. **Integration trial** — use an owned repository for realistic lifecycle, integration, or ergonomics evidence.
 6. **Context dossier** — use when isolated evidence needs sourced integration, operational, or ecosystem interpretation.
+7. **Execution carrier** — temporary evidence-producing branch or pull request; it must identify and return evidence to a canonical source branch, then close.
 
 Never have multiple workers push shared files directly to `main`.
 
