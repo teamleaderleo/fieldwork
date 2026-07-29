@@ -1,0 +1,44 @@
+{
+  "cancellation": {
+    "after_retry": {
+      "close_calls": 1,
+      "response_is_closed": true,
+      "stream_cleaned": false
+    },
+    "before_retry": {
+      "close_calls": 1,
+      "response_is_closed": true,
+      "stream_cleaned": false
+    }
+  },
+  "concurrent": {
+    "after_first_completed": {
+      "close_calls": 1,
+      "first_done": true,
+      "response_is_closed": true,
+      "stream_cleaned": true
+    },
+    "when_second_returned": {
+      "close_calls": 1,
+      "first_done": false,
+      "response_is_closed": true,
+      "stream_cleaned": false
+    }
+  },
+  "failure": {
+    "after_retry": {
+      "close_calls": 1,
+      "response_is_closed": true,
+      "stream_cleaned": false
+    },
+    "before_retry": {
+      "close_calls": 1,
+      "first_error": "RuntimeError: synthetic close failure",
+      "response_is_closed": true,
+      "close_calls": 1,
+      "stream_cleaned": false
+    }
+  },
+  "httpx": "0.28.1",
+  "python": "3.13.5"
+}
