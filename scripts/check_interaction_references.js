@@ -37,13 +37,17 @@ module.exports = async ({ github, context, core }) => {
     subject = `${payload.pull_request?.title || ''}\n${payload.pull_request?.body || ''}`;
   } else if (context.eventName === 'issue_comment') {
     subject = commentBody;
+  } else if (context.eventName === 'pull_request_review') {
+    subject = payload.review?.body || '';
+  } else if (context.eventName === 'pull_request_review_comment') {
+    subject = commentBody;
   } else {
     return;
   }
 
   const currentRepository = `${context.repo.owner}/${context.repo.repo}`.toLowerCase();
   const failures = scan(subject, currentRepository);
-  const issueNumber = context.issue.number;
+  const issueNumber = payload.issue?.number || payload.pull_request?.number || context.issue.number;
 
   const comments = await github.paginate(github.rest.issues.listComments, {
     owner: context.repo.owner,
