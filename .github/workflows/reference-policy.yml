@@ -15,5 +15,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Test tracked-file reference scanner
+        run: python3 scripts/test_external_references.py
+      - name: Test interaction reference scanner
+        run: node scripts/test_interaction_references.js
       - name: Check external references
         run: python3 scripts/check_external_references.py
