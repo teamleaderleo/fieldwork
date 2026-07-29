@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "name": "path-boundaries",
+  "description": "Portable path strings for parsers, normalizers, archives, manifests, and filesystem-facing tools.",
+  "timeout_seconds": 5,
+  "cases": [
+    {"id": "empty", "tags": ["empty"], "stdin_json": {"path": ""}},
+    {"id": "dot", "tags": ["relative"], "stdin_json": {"path": "."}},
+    {"id": "parent", "tags": ["relative", "traversal"], "stdin_json": {"path": ".."}},
+    {"id": "nested-relative", "tags": ["relative"], "stdin_json": {"path": "alpha/beta/file.txt"}},
+    {"id": "dot-segments", "tags": ["normalization"], "stdin_json": {"path": "alpha/./beta/../file.txt"}},
+    {"id": "leading-slash", "tags": ["absolute", "posix"], "stdin_json": {"path": "/tmp/example"}},
+    {"id": "windows-drive", "tags": ["absolute", "windows"], "stdin_json": {"path": "C:\\Temp\\example.txt"}},
+    {"id": "unc", "tags": ["absolute", "windows", "network"], "stdin_json": {"path": "\\\\server\\share\\file.txt"}},
+    {"id": "mixed-separators", "tags": ["normalization", "cross-platform"], "stdin_json": {"path": "alpha\\beta/gamma"}},
+    {"id": "spaces", "tags": ["whitespace"], "stdin_json": {"path": "folder with spaces/file name.txt"}},
+    {"id": "unicode", "tags": ["unicode"], "stdin_json": {"path": "café/東京/👩🏽‍💻.txt"}},
+    {"id": "normalization-pair", "tags": ["unicode", "normalization"], "stdin_json": {"paths": ["café.txt", "café.txt"]}},
+    {"id": "leading-dash", "tags": ["cli"], "stdin_json": {"path": "-dangerous-name"}},
+    {"id": "trailing-dot-space", "tags": ["windows", "normalization"], "stdin_json": {"path": "folder/name. "}},
+    {"id": "reserved-looking", "tags": ["windows", "reserved"], "stdin_json": {"paths": ["CON", "NUL", "AUX.txt"]}},
+    {"id": "case-pair", "tags": ["case-sensitivity"], "stdin_json": {"paths": ["Readme.md", "README.md"]}}
+  ]
+}
