@@ -54,11 +54,11 @@
       "owner": "external-agent-A001",
       "target": "teamleaderleo/workers-sdk",
       "source_revision": "161443215fba3ac77407ba30f6996aa9963a0276",
-      "result_revision": "0b23afd1f2a87cd7a53dd04af7c584b6c7bdc0fc",
+      "result_revision": "eb2574f8cf7f73f244fed9733ca1902ab1e3fe7a",
       "fork_pr": "teamleaderleo/workers-sdk#1",
       "fieldwork_pr": "teamleaderleo/fieldwork#98",
       "question": "Can an early rejection or unresolved cleanup operation prevent Runtime.dispose() from terminating workerd, especially under parallel Vitest execution?",
-      "method": "source trace, failure injection, and package-level regression testing",
+      "method": "source trace, failure injection, package-level regression testing, adversarial test review, and adjacent lifecycle exploration",
       "claim_scope": "mechanism",
       "claim_to_support_or_falsify": "Miniflare cleanup ordering contains a sufficient path for a hidden live workerd child after an otherwise passing Vitest run.",
       "preferred_primary_sources": [
@@ -82,7 +82,7 @@
       ],
       "state": "complete",
       "stop_condition": "Stop when the lifecycle claim is reproduced, falsified, or blocked by a specific unavailable test dependency; do not generalize every teardown hang to this cause.",
-      "review_disposition": "Mechanism accepted; split child-ownership tests from primary-error aggregation before implementation promotion.",
+      "review_disposition": "Mechanism accepted; kill assertions now bind to the workerd child; split child ownership from primary-error aggregation before implementation promotion.",
       "upstream_contact_authorized": false
     },
     {
@@ -91,10 +91,10 @@
       "owner": "coordinator",
       "target": "teamleaderleo/workers-sdk",
       "source_revision": "0497e9e30e191f2b7e337b01e32855c4cb6cf5fe",
-      "result_revision": "ce770e4ead8d07be499d7c0efc8a34f11d29dddc",
+      "result_revision": "82ffab5d51abf7b5311891f31c6aa77f42bec41f",
       "fork_pr": "teamleaderleo/workers-sdk#2",
       "question": "Under which layouts and invocation modes do Wrangler, wrangler dev, Vite, and redirected deployment configuration select different files?",
-      "method": "source trace, prepared behaviour matrix, compatibility analysis, and prior-art review",
+      "method": "source trace, tightened prepared behaviour matrix, compatibility analysis, prior-art review, and formal cross-review",
       "claim_scope": "contract",
       "claim_to_support_or_falsify": "Configuration selection differs across Wrangler and Vite in consequential but insufficiently explicit ways involving precedence, search boundaries, explicit paths, and deploy-config redirects.",
       "preferred_primary_sources": [
@@ -118,7 +118,7 @@
       ],
       "state": "complete",
       "stop_condition": "Stop after the source dimensions and compatibility boundary are recorded and the package matrix is prepared; do not silently choose new defaults without execution and migration analysis.",
-      "review_disposition": "Characterization accepted; prefer shared policy disclosure before default alignment.",
+      "review_disposition": "Characterization accepted after direct JSONC/TOML and relative explicit-path controls; prefer shared policy disclosure before default alignment.",
       "upstream_contact_authorized": false
     },
     {
@@ -127,10 +127,10 @@
       "owner": "coordinator",
       "target": "teamleaderleo/workers-sdk",
       "source_revision": "609623ba8552a016f3c67cee7259e38d8431bd91",
-      "result_revision": "63f1b04431b79c9d3da1baf336e1396ae842f77c",
+      "result_revision": "bc0dc5b064f3f4fd684b9ca8afa0b34de8489376",
       "fork_pr": "teamleaderleo/workers-sdk#3",
       "question": "Which deployment mutations can succeed before Wrangler reports a later failure, and what state can be reported safely afterward?",
-      "method": "mutation-order map, executed dependency-free failure and reporting-guard model, prepared package regression tests, and state-reporting design",
+      "method": "mutation-order map, executed dependency-free failure and reporting-guard model, prepared package regression tests, state-reporting design, and formal cross-review",
       "claim_scope": "operations",
       "claim_to_support_or_falsify": "Wrangler can fail after Worker activation or other mutations, while current output does not consistently identify the changed state, failed phase, or safe recovery actions.",
       "preferred_primary_sources": [
@@ -155,7 +155,7 @@
       ],
       "state": "complete",
       "stop_condition": "Stop at accurate guarded state reporting and recovery guidance; do not add automatic rollback unless resource-specific safety is demonstrated.",
-      "review_disposition": "Guarded state-reporting direction accepted; the dependency-free reporting guard executed, original error identity is authoritative, and automatic rollback remains out of scope.",
+      "review_disposition": "Guarded state-reporting direction accepted; reporting is best-effort, original error identity is authoritative, the refreshed model executed from retained identical content, and automatic rollback remains out of scope.",
       "upstream_contact_authorized": false
     },
     {
