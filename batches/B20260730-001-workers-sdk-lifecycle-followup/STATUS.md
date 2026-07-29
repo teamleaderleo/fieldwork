@@ -17,7 +17,7 @@ Coordinator-owned file. Workers must not edit this file directly.
 
 ## Reviewed Workers SDK heads
 
-- A001 and adjacent Vite artifacts: `3d67e4cf38fe270a8d871056536b0e36d9a80893`
+- A001 and adjacent Vite artifacts: `c7dd4411bf474a09f87cd1575594e7aaa8e1cacd`
 - A002: `82ffab5d51abf7b5311891f31c6aa77f42bec41f`
 - A003: `bc0dc5b064f3f4fd684b9ca8afa0b34de8489376`
 
@@ -71,6 +71,7 @@ Source-confirmed and model-executed; separate from the first A001 patch. Before 
 - test programmatic preview close;
 - test successful unregister without disturbing another owner;
 - test cleanup returning `false`, warning, retained ownership, and later retry;
+- test failed dev restart cleanup retaining old tags alongside newly prepared tags;
 - preserve the original preparation or close error;
 - keep the patch separate from Miniflare child-ownership work.
 
@@ -86,7 +87,8 @@ Executed dependency-free models:
 - A002 predecessor discovery and redirect probes;
 - A003 refreshed post-activation receipt and reporting-failure model;
 - Vite early container cleanup ownership;
-- Vite single-slot exit negative control and per-instance cleanup registry.
+- Vite single-slot exit negative control and per-instance cleanup registry;
+- Vite failed-restart cleanup retaining old and new tag ownership.
 
 Prepared but unexecuted:
 
@@ -108,4 +110,4 @@ The existing labels are sufficient for generated filtering; no extra ad hoc cand
 
 ## Synthesis
 
-`synthesis.md` is ready for programme-level review after the adversarial test corrections, A003 reporting fix, Vite cleanup candidate extraction, and centralized visibility updates. The next useful implementation work requires a complete Workers SDK checkout with dependencies or an owned CI route capable of executing the package tests.
+`synthesis.md` is ready for programme-level review after the adversarial test corrections, A003 reporting fix, Vite cleanup candidate extraction, restart-ownership control, and centralized visibility updates. The next useful implementation work requires a complete Workers SDK checkout with dependencies or an owned CI route capable of executing the package tests.
