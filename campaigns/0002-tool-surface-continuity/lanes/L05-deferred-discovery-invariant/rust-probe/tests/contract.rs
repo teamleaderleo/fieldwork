@@ -32,7 +32,10 @@ fn code_mode_missing_all_tools_rejects_deferred_runtime() {
     let result = evaluate(&[deferred_mcp()], &surface);
 
     assert!(!result.accepted);
-    assert!(result.errors.iter().any(|error| error.contains("ALL_TOOLS")));
+    assert!(result
+        .errors
+        .iter()
+        .any(|error| error.contains("ALL_TOOLS")));
     assert_eq!(
         repair_actions(&[deferred_mcp()], &surface),
         vec![RepairAction::PromoteToDirect("mcp__sample__health_check")]
@@ -62,7 +65,11 @@ fn websocket_incremental_reuse_requires_matching_manifest_receipt() {
 
     surface.inherited_manifest_matches = true;
     let verified = evaluate(&runtimes, &surface);
-    assert!(verified.accepted, "unexpected errors: {:?}", verified.errors);
+    assert!(
+        verified.accepted,
+        "unexpected errors: {:?}",
+        verified.errors
+    );
 }
 
 #[test]
