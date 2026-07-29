@@ -6,11 +6,13 @@ State: `ready-for-synthesis`
 
 Coordinator-owned file. Workers must not edit this file directly.
 
+`complete` below means the bounded research result is complete. It does not mean package execution or source integration is complete.
+
 | Assignment | Role | State | Workers SDK branch / PR | Fieldwork result | Review |
 | --- | --- | --- | --- | --- | --- |
 | A001 | Teardown lifecycle ownership | complete | `fieldwork/teardown-lifecycle-hardening` / fork PR #1 | `results/A001.md` via Fieldwork PR #98 | Coordinator review recorded on fork PR #1; execution gate remains |
-| A002 | Configuration selection contract | complete | `fieldwork/config-selection-contract` / fork PR #2 | `results/A002.md` | Cross-tool precedent review added; behavior-preserving shared-policy direction accepted |
-| A003 | Partial deployment state | complete | `fieldwork/deploy-state-reporting` / fork PR #3 | `results/A003.md` | Activation-path matrix corrected; receipt model rerun successfully |
+| A002 | Configuration selection contract | complete | `fieldwork/config-selection-contract` / fork PR #2 | `results/A002.md` | Evidence wording corrected; cross-tool precedent supports behavior-preserving shared-policy disclosure |
+| A003 | Partial deployment state | complete | `fieldwork/deploy-state-reporting` / fork PR #3 | `results/A003.md` | Activation-path matrix corrected; reporting-failure guard and regression prepared; package execution remains |
 | A004 | Independent review and prior art | withdrawn | none | `results/A004.md` | Duties redistributed at user direction |
 
 ## Shared boundaries
@@ -44,9 +46,9 @@ Protocol direction accepted. Before behavior changes:
 
 ### A003
 
-State-reporting direction accepted. Before source integration:
+Guarded state-reporting direction accepted. Before source integration:
 
-- execute deploy-helper tests;
+- execute deploy-helper tests, including the report-throws regression;
 - inject legacy-upload/container failure;
 - inject versions-deployment/trigger failure;
 - inject legacy-upload/trigger failure;
@@ -55,4 +57,4 @@ State-reporting direction accepted. Before source integration:
 
 ## Synthesis
 
-`synthesis.md` is ready for programme-level review. The next useful implementation work requires a complete Workers SDK checkout with dependencies or an owned CI route capable of executing the package tests.
+`synthesis.md` is ready for programme-level review after the evidence-class correction. The next useful implementation work requires a complete Workers SDK checkout with dependencies or an owned CI route capable of executing the package tests.
