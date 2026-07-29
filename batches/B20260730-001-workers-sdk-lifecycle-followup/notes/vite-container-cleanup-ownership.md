@@ -12,7 +12,7 @@ Synthesis PR: #112
 
 Workers SDK branch: `fieldwork/teardown-lifecycle-hardening`
 
-Reviewed Workers SDK head: `3d67e4cf38fe270a8d871056536b0e36d9a80893`
+Reviewed Workers SDK head: `c7dd4411bf474a09f87cd1575594e7aaa8e1cacd`
 
 Upstream contact authorized: `false`
 
@@ -44,6 +44,12 @@ For two dev servers, or two preview servers, the most recently prepared same-mod
 
 Ordinary CLI use commonly creates one server, so real-world incidence is unknown. Programmatic Vite use, tests, orchestrators, and multiple server instances are the primary integration surfaces.
 
+### Failed dev restart cleanup can lose old tags
+
+The dev plugin invokes `cleanupContainers()` during restart but ignores the boolean result. After the next successful preparation, it replaces `containerImageTags` with the new tag set.
+
+When restart cleanup fails, this replacement can discard the only retry record for the old tags. The current patch candidate preserves old tags and unions them with newly prepared tags until cleanup eventually succeeds.
+
 ### Preview close lacks container cleanup
 
 The preview plugin closes Miniflare and the Vite preview server programmatically but currently relies on process exit for container cleanup. A prerendering or programmatic-close flow can therefore leave cleanup deferred until the host process exits.
@@ -59,7 +65,7 @@ The preview plugin closes Miniflare and the Vite preview server programmatically
 - clearing tags after successful cleanup;
 - warning and retaining tags after failed cleanup so close/exit can retry.
 
-### Per-instance exit registry
+### Per-instance exit and restart registry
 
 Executed:
 
@@ -79,6 +85,7 @@ PASS: a per-instance registry cleans every live server owner
 PASS: failed cleanup retains ownership for an exit retry
 PASS: successful close unregisters and avoids duplicate cleanup
 PASS: preparation failure preserves its original error
+PASS: failed restart cleanup retains old tags alongside new tags
 ```
 
 Evidence class: `model-executed` plus `source-read`.
@@ -100,6 +107,7 @@ Workers SDK branch artifacts:
 
 - a per-instance callback registry instead of one module-global slot;
 - tag ownership before asynchronous image preparation;
+- retained old tags unioned with new tags after failed restart cleanup;
 - preparation-failure cleanup with exact primary-error preservation;
 - preview programmatic-close cleanup;
 - warnings and retained retry ownership when cleanup returns `false`;
@@ -116,7 +124,7 @@ The patch is not applied to production source.
 4. Failed cleanup remains registered and succeeds during a later exit retry.
 5. A later preparation failure triggers cleanup and preserves the exact preparation error.
 6. Programmatic preview close cleans containers while the host process continues.
-7. Dev restart cleanup clears old tags while retaining ownership for new tags.
+7. Dev restart cleanup failure retains old tags; later preparation adds new tags; a later retry cleans both.
 8. Cleanup failure produces a useful warning without replacing the primary error.
 
 Intended test area:
