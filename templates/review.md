@@ -8,6 +8,7 @@ State what is being reviewed, what transition is requested, the strongest suppor
 
 - Repository:
 - Pull request or issue:
+- Reviewed issue or decision input generation: issue number plus `updated_at`, body digest, or explicit revision marker
 - Work class: owned product delivery | upstream-fork research | execution carrier | evidence/documentation | blocked/security-sensitive
 - Canonical branch:
 - Exact head SHA:
@@ -22,7 +23,8 @@ State what is being reviewed, what transition is requested, the strongest suppor
 - Commands or workflow runs:
 - Platforms and runtimes:
 - Focused tests:
-- Full repository gates:
+- Named full repository gate or command set:
+- Material paths not exercised by that gate:
 - Checks skipped, not triggered, or still running:
 - Retained artifacts or receipts:
 
@@ -58,4 +60,4 @@ State the remaining technical, operational, compatibility, impact, or policy unc
 
 ## Expiry
 
-This review applies only to the exact head and input set named above. Any head movement, dependency change, policy change, or contradictory evidence expires the disposition unless semantic identity is proved within the reviewed fence.
+This review applies only to the exact head and reviewed input generations named above. Any head movement, issue or decision-input generation change, dependency change, policy change, or contradictory evidence expires the disposition unless semantic identity is proved within the reviewed fence.
