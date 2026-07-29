@@ -1,0 +1,20 @@
+name: Codex Rust MCP timeout probe
+
+on:
+  pull_request:
+    paths:
+      - 'programmes/sdk-integration-lifecycle/scouts/codex-rust-mcp-timeout-lifecycle/**'
+      - '.github/workflows/codex-rust-mcp-timeout-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run rmcp 3.0.0 timeout lifecycle probe
+        run: cargo run --manifest-path programmes/sdk-integration-lifecycle/scouts/codex-rust-mcp-timeout-lifecycle/probe/Cargo.toml
