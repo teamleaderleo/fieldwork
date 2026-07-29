@@ -20,10 +20,10 @@ Eight lanes examined one symptom from different lifecycle boundaries. Seven prod
 
 ## Promoted work
 
-1. mutation identity and compaction checkpoint;
-2. host lifecycle and MCP refresh contract;
-3. request exposure invariants;
-4. authority-aware fallback;
+1. #83 — mutation identity and compaction checkpoint;
+2. #84 — host lifecycle and MCP refresh contract;
+3. #85 — request exposure invariants;
+4. #86 — authority-aware fallback;
 5. conditional ChatGPT reconnect/restart continuation.
 
 ## Coordinator disposition
