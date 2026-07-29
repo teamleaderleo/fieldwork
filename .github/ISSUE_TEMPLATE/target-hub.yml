@@ -1,0 +1,69 @@
+name: Target hub
+description: Create a stable orientation and index issue for an active target
+title: "[Target] "
+labels:
+  - type:target
+  - state:observed
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A target hub is a stable index, not a task backlog. Add the appropriate `target:<slug>` label after creation. External issue and pull-request links must remain quiet under the reference policy.
+  - type: textarea
+    id: simple
+    attributes:
+      label: In simple words
+      description: What is it, where does it sit, why are we here, and what is the current direction?
+      placeholder: |
+        - What is it?
+        - Why are we here?
+        - What are we avoiding?
+        - What is the current direction?
+    validations:
+      required: true
+  - type: input
+    id: root
+    attributes:
+      label: Repository, project, protocol, or system root
+    validations:
+      required: true
+  - type: input
+    id: label
+    attributes:
+      label: Target label
+      placeholder: target:stable-slug
+    validations:
+      required: true
+  - type: input
+    id: map
+    attributes:
+      label: Fieldwork target map
+  - type: textarea
+    id: thesis
+    attributes:
+      label: Change thesis
+      description: What kinds of demonstrated improvements would justify work here?
+    validations:
+      required: true
+  - type: textarea
+    id: surface
+    attributes:
+      label: Important code and integration surfaces
+    validations:
+      required: true
+  - type: textarea
+    id: testbeds
+    attributes:
+      label: Candidate owned testbeds
+      description: Name only public repositories or neutral identifiers unless private disclosure is explicitly approved.
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Boundaries
+      options:
+        - label: This hub does not authorize upstream contact.
+          required: true
+        - label: Related work will carry the same target label.
+          required: true
+        - label: The hub will begin with a plain-language explanation.
+          required: true
