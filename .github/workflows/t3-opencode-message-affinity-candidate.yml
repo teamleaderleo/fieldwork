@@ -1,12 +1,6 @@
 name: T3 OpenCode message affinity candidate
 
 on:
-  push:
-    branches:
-      - campaign/71-t3-opencode-completion-reconciliation
-    paths:
-      - .github/workflows/t3-opencode-message-affinity-candidate.yml
-      - campaigns/t3-opencode-completion-reconciliation/candidates/0001-opencode-prompt-message-affinity.patch
   pull_request:
     branches:
       - main
