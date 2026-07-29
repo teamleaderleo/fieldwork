@@ -1,12 +1,6 @@
 name: T3 OpenCode lifecycle specifications
 
 on:
-  push:
-    branches:
-      - campaign/71-t3-opencode-completion-reconciliation
-    paths:
-      - .github/workflows/t3-opencode-lifecycle.yml
-      - campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt
   pull_request:
     branches:
       - main
