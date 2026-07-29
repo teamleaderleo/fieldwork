@@ -1,13 +1,19 @@
 name: Research lane
 description: Create one independently owned unit of campaign work
 title: "[Lane] "
-labels: []
+labels:
+  - "type:lane"
+  - "state:ready"
 body:
-  - type: input
-    id: campaign
+  - type: markdown
     attributes:
-      label: Parent campaign
-      description: Fieldwork campaign identifier or issue number.
+      value: |
+        External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. External shorthand is prohibited. This lane does not authorize upstream contact.
+  - type: input
+    id: parent
+    attributes:
+      label: Parent batch or campaign
+      description: Fieldwork identifier or same-repository issue number.
     validations:
       required: true
   - type: textarea
@@ -27,17 +33,19 @@ body:
     id: owned_path
     attributes:
       label: Lane-owned path
-      description: Example campaigns/0001-example/lanes/01-source-map/
+      description: Example campaigns/0001-example/lanes/01-source-map/report.md
     validations:
       required: true
   - type: input
     id: revision
     attributes:
-      label: Target source revision
+      label: Target source revision or retrieval boundary
+    validations:
+      required: true
   - type: textarea
     id: dependencies
     attributes:
-      label: Dependencies and affected lanes
+      label: Dependencies and affected assignments
   - type: textarea
     id: stop
     attributes:
@@ -49,6 +57,8 @@ body:
     attributes:
       label: Boundaries
       options:
+        - label: One worker owns this lane and output path until handoff.
+          required: true
         - label: This lane does not authorize upstream contact.
           required: true
         - label: I will use the Fieldwork handoff protocol when the lane stops.
