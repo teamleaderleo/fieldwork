@@ -4,7 +4,7 @@ Use this runbook whenever a person or agent is told to investigate something thr
 
 ## In simple words
 
-Find the programme and target hub, claim one bounded scout or lane, read the code, explain the system simply, reproduce or model the important behaviour, and use an owned application as a controlled testbed when realistic use adds evidence. Report what was established, what remains unknown, and which branches are actually worth opening.
+Find the programme and target hub, claim one bounded scout or lane, read the code, explain the system simply, reproduce or model the important behaviour, and use an owned application as a controlled testbed when realistic use adds evidence. Report what was established, what remains unknown, which branches are actually worth opening, and prepare decision-sized work for independent review.
 
 ## 1. Read the rules
 
@@ -22,8 +22,9 @@ Read, in order:
 10. `TESTBEDS.md` for realistic use in an owned repository
 11. `INTEGRATION_CONTEXT.md` when making claims about wider use or consequence
 12. `COORDINATION.md` for shared or parallel work
-13. `BATCHES.md` when the assignment belongs to a batch
-14. the relevant programme hub, target hub, map, experiment, trial, context, manifest, campaign, lane, and issue
+13. `REVIEW.md` before self-review, independent review, promotion, or queue placement
+14. `BATCHES.md` when the assignment belongs to a batch
+15. the relevant programme hub, target hub, map, experiment, trial, context, manifest, campaign, lane, and issue
 
 Tool-specific instruction files point back to `AGENTS.md`; they do not replace it.
 
@@ -185,7 +186,22 @@ Preferred durable outputs:
 
 Use the templates under `templates/`. Avoid several agents editing one shared report, context dossier, experiment directory, or testbed branch.
 
-## 10. Report completion visibly
+## 10. Self-review and prepare the decision
+
+Before asking another reviewer to inspect the work, follow `REVIEW.md`:
+
+1. prove the intended assertion ran;
+2. separate setup and harness failures from target evidence;
+3. preserve the exact evidence class;
+4. rewrite the candidate when execution disproves the original theory;
+5. retain negative controls and rejected designs;
+6. split different owners or result models into separate candidates;
+7. synchronize the live issue, durable report, PR front page, execution receipt, and queue card;
+8. run integrity and external-reference checks at the final head.
+
+Self-review prepares work. It is not independent acceptance.
+
+## 11. Report completion visibly
 
 A standalone experiment does not require an issue comment. Finish its `README.md` or report, update `experiment.json`, and promote it when other work depends on the result.
 
@@ -215,7 +231,7 @@ Upstream contact authorized: no | yes, with explicit authority
 
 If repository writes are unavailable, place the full handoff in the issue and apply `needs:materialization`.
 
-## 11. Close through acceptance and synthesis
+## 12. Close through acceptance and synthesis
 
 A scout is finished when its revision, code and test map, runnable evidence or explicit feasibility limit, branch candidates, negative results, uncertainty, and recommendation are durable.
 
@@ -226,6 +242,7 @@ An integration trial is finished when its target and testbed revisions, scenario
 Coordinated work is finished only when:
 
 - evidence is durable or explicitly queued for materialization;
+- self-review completed under `REVIEW.md`;
 - the issue carries a handoff;
 - programme, target, and testbed labels are correct;
 - blockers, uncertainty, dependencies, and evidence labels are visible;
