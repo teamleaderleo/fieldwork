@@ -1,47 +1,96 @@
-# Experiment: TITLE
+# Experiment: <short name>
 
-Campaign:
-Experiment ID:
+Experiment ID: `EXP-YYYYMMDD-short-name`
+
+State: `draft | running | complete | negative-result | blocked | promoted`
+
+Related batch, campaign, lane, or finding: none
+
+Owner:
+
 Date:
-Operator:
 
-## Claim under test
+## Question
 
-## Competing outcomes
+State one bounded question whose possible outcomes can be distinguished by this experiment.
 
-## Environment
+## Why this experiment
 
+Explain what decision, hypothesis, or larger investigation this result informs.
+
+## Sources and environment
+
+- system or package:
+- exact revision or version:
+- retrieval date:
 - OS and architecture:
-- Runtime and version:
-- Target revision:
-- Dependencies:
-- Relevant configuration:
+- runtime and version:
+- dependency lock or installation command:
+- relevant configuration:
+- network policy:
 
 ## Inputs
 
-Use synthetic or redacted fixtures where possible.
+List synthetic fixtures and canonical case packs used. Record exclusions and any redaction.
+
+## Command
+
+```text
+<exact command>
+```
+
+## Distinguishing outcomes
+
+| Observation | Interpretation |
+|---|---|
+| | |
 
 ## Procedure
 
-List exact commands and steps.
+List the exact steps. Keep setup, execution, and cleanup distinguishable.
 
-## Expected observations
+## Actual result
 
-## Actual observations
+Describe what happened without overstating the conclusion.
 
 ## Raw evidence
 
-Reference retained logs, traces, fixtures, screenshots, or result files.
+- machine-readable result:
+- retained logs or traces:
+- fixtures:
+- repeated-run information:
 
 ## Interpretation
 
-## Threats to validity
+State which hypothesis the result supports, weakens, or leaves unresolved.
+
+## Uncertainty and threats to validity
+
+Record nondeterminism, environment dependence, missing cases, weak controls, and competing explanations.
 
 ## Reproduction status
 
-- [ ] Reproduced independently
-- [ ] Deterministic in declared environment
+- [ ] Exact command recorded
+- [ ] Source revisions or versions recorded
+- [ ] Deterministic in the declared environment
+- [ ] Repeated run available
+- [ ] Independent reproduction available
 - [ ] Cross-platform result available
 - [ ] Negative result
 
-## Follow-up
+## Disposition
+
+Choose one:
+
+- discard as disposable scratch;
+- retain as a completed experiment;
+- repeat under another environment;
+- promote to a finding;
+- attach to a batch probe;
+- promote to a campaign lane;
+- preserve as a regression fixture.
+
+## Boundaries
+
+- Upstream contact remains unauthorized unless explicitly recorded otherwise.
+- No secrets, production payloads, or proprietary inputs were retained.
