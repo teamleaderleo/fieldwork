@@ -32,14 +32,30 @@ index 73c23b7..0000000 100644
    /**
     * One-shot guard flipped by `stopOpenCodeContext` / `emitUnexpectedExit`.
     * The session lifecycle is owned by `sessionScope`; this Ref exists only
-@@ -1033,6 +1041,7 @@ export function makeOpenCodeAdapter(
+@@ -502,6 +510,13 @@ function sessionErrorMessage(error: unknown): string {
+     : "OpenCode session failed.";
+ }
+ 
++function isOpenCodeMessageAbortedError(error: unknown): boolean {
++  return (
++    error !== null &&
++    typeof error === "object" &&
++    "name" in error &&
++    error.name === "MessageAbortedError"
++  );
++}
++
+ function updateProviderSession(
+   context: OpenCodeSessionContext,
+   patch: Partial<ProviderSession>,
+@@ -1033,6 +1048,7 @@ export function makeOpenCodeAdapter(
          case "session.status": {
            if (event.properties.status.type === "busy") {
 +            context.activeTurnObservedProviderActivity = true;
              yield* updateProviderSession(context, {
                status: "running",
                activeTurnId: turnId,
-@@ -1051,7 +1060,14 @@ export function makeOpenCodeAdapter(
+@@ -1051,7 +1067,14 @@ export function makeOpenCodeAdapter(
              break;
            }
  
@@ -57,7 +73,22 @@ index 73c23b7..0000000 100644
              yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
              yield* emit({
                ...(yield* buildEventBase({
-@@ -1287,6 +1303,8 @@ export function makeOpenCodeAdapter(
+@@ -1072,6 +1095,13 @@ export function makeOpenCodeAdapter(
+         case "session.error": {
+           const message = sessionErrorMessage(event.properties.error);
+           const activeTurnId = context.activeTurnId;
++          const interruptOperation = yield* Ref.get(context.interruptOperation);
++          if (
++            activeTurnId !== undefined &&
++            interruptOperation?.turnId === activeTurnId &&
++            isOpenCodeMessageAbortedError(event.properties.error)
++          ) {
++            break;
++          }
+           context.activeTurnId = undefined;
+           yield* updateProviderSession(
+             context,
+@@ -1287,6 +1317,8 @@ export function makeOpenCodeAdapter(
            activeTurnId: undefined,
            activeAgent: undefined,
            activeVariant: undefined,
@@ -66,7 +97,7 @@ index 73c23b7..0000000 100644
            stopped: yield* Ref.make(false),
            sessionScope: started.sessionScope,
          };
-@@ -1459,6 +1477,9 @@ export function makeOpenCodeAdapter(
+@@ -1459,6 +1491,9 @@ export function makeOpenCodeAdapter(
        const agent = getModelSelectionStringOptionValue(modelSelection, "agent");
        const variant = getModelSelectionStringOptionValue(modelSelection, "variant");
  
@@ -76,7 +107,7 @@ index 73c23b7..0000000 100644
        context.activeTurnId = turnId;
        context.activeAgent = agent ?? (input.interactionMode === "plan" ? "plan" : undefined);
        context.activeVariant = variant;
-@@ -1538,21 +1559,80 @@ export function makeOpenCodeAdapter(
+@@ -1538,21 +1573,80 @@ export function makeOpenCodeAdapter(
  
      const interruptTurn: OpenCodeAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
        function* (threadId, turnId) {
@@ -156,3 +187,19 @@ index 73c23b7..0000000 100644
 +        yield* Deferred.succeed(claim.result, undefined);
        },
      );
+diff --git a/apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts b/apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
+index d663aaa..0000000 100644
+--- a/apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
++++ b/apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
+@@ -356,6 +356,11 @@ it.effect("does not let a delayed duplicate idle from the previous turn close a
+     const terminals: Array<ProviderRuntimeEvent> = [];
+     const watcher = yield* watchTerminalEvents(adapter, threadId, terminals);
+ 
++    harness.events.push({
++      type: "session.status",
++      properties: { sessionID: resumedSessionId, status: { type: "busy" } },
++    });
++    yield* drainFibers;
+     harness.events.push({
+       type: "session.status",
+       properties: { sessionID: resumedSessionId, status: { type: "idle" } },
