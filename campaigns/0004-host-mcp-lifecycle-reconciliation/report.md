@@ -2,15 +2,16 @@
 
 ## In simple words
 
-Codex currently has several refresh boundaries with different meanings.
+Codex has several MCP lifecycle boundaries with different meanings.
 
-- Ordinary reconciliation deliberately reuses an unchanged ready MCP connection.
+- Ordinary reconciliation deliberately reuses an unchanged ready connection.
 - Explicit host MCP config reload is a stronger freshness action and now has a compiled owned-fork candidate that requests fresh connections.
 - A server tool-list-change notification reaches Codex but is only logged.
-- Cached regular MCP tools may be advertised before the replacement server is ready; call dispatch can later resolve the same tool name through a newer live binding.
+- Cached regular MCP tools may be advertised before a replacement server is ready; call dispatch can later resolve the same tool name through a newer live binding.
 - The Rust SDK protects its own cache from late stale relist writes, but its public result does not protect an application's published catalogue.
+- A Codex-style outer timeout can stop the local wait without sending MCP cancellation, leaving the server operation active while refresh or replacement continues.
 
-Campaign #84 must give each boundary a generation, equality decision, publication outcome, and request-authority rule.
+Campaign #84 must give refresh, publication, call authority, and timed-out live work explicit generations, identities, outcomes, and ownership rules.
 
 ## Assignment
 
@@ -22,8 +23,8 @@ Campaign #84 must give each boundary a generation, equality decision, publicatio
 - Owned Codex branch: `fieldwork/31-mcp-config-reload-reconnect`
 - Owned draft Codex PR: `teamleaderleo/codex#5`
 - Owned fork base: `2b7b93081361b77f8ddaceaf362a09765b4153bf`
-- Current public Codex recheck: `85c082ccccf6b5ac4d6c31d14f960057348b78f4`
-- Official Rust SDK pin: `cb50ae7890d8a5daacae1a4ad95f395f06733c07`
+- Public Codex schema-drift pin: `a5082373f18119dc5d3eb993267c97f37880935d`
+- Official Rust SDK relist pin: `cb50ae7890d8a5daacae1a4ad95f395f06733c07`
 - Claim scope: mechanism, interface, and focused compiled behavior
 - Upstream contact authorized: `false`
 
@@ -39,17 +40,30 @@ Ordinary refresh with unchanged connection configuration can reuse the ready cli
 
 ### L06 effective-surface diagnostics
 
-Catalogue, binding, model advertisement, executable path, completion, and client delivery are separate observations. A valid loader can still use stale saved provenance or a stale catalogue.
+Catalogue, binding, model advertisement, executable path, completion, result persistence, client delivery, and display are separate observations.
+
+### Campaign #83 operation receipts
+
+Campaign #83 accepted a bounded session-scoped live receipt owner in owned Codex. It separates operation effect, terminal execution, authoritative result persistence, client delivery, and display. #84 should consume that owner for MCP call lifecycle evidence instead of inventing another receipt system.
+
+### Scout #130 timeout ownership
+
+A focused `rmcp 3.0.0` probe compared Codex-style outer timeout with the SDK's native request timeout.
+
+```text
+external outer timeout: cancellation=false, side effect completed=true
+native SDK timeout:     cancellation=true,  side effect completed=false
+```
+
+Timeout mechanism remains owned by Scout #130/#131. Campaign #84 owns how a timed-out but still-live operation relates to captured binding A and a newer published binding B.
 
 ## Public source map
 
 ### Host-facing config reload
 
-`codex-rs/app-server/src/mcp_refresh.rs` loads the current configuration and calls `CodexThread::refresh_mcp_config` for active threads.
+`codex-rs/app-server/src/mcp_refresh.rs` loads current configuration and calls `CodexThread::refresh_mcp_config` for active threads.
 
-`codex-rs/core/src/codex_thread.rs` exposes that host-facing MCP-only reload.
-
-At the owned-fork base it applied config and marked MCP state dirty without requesting fresh connections.
+`codex-rs/core/src/codex_thread.rs` exposes that host-facing MCP-only reload. At the owned-fork base it applied config and marked MCP state dirty without requesting fresh connections.
 
 ### Ordinary runtime publication
 
@@ -61,7 +75,7 @@ At the owned-fork base it applied config and marked MCP state dirty without requ
 
 ### Explicit reconnect operation
 
-`Op::RefreshMcpServers` already requests reconnect before runtime refresh. This provides a source precedent for treating an explicit freshness action differently from routine reconciliation.
+`Op::RefreshMcpServers` already requests reconnect before runtime refresh. This is the source precedent for treating explicit freshness differently from routine reconciliation.
 
 ### Tool-list-change notification
 
@@ -71,14 +85,14 @@ The RMCP client receives `notifications/tools/list_changed`. The Codex logging h
 
 Current Codex can advertise cached regular-MCP tools while a replacement optional client remains pending.
 
-The sampling step and `McpHandler` retain catalogue A for:
+The sampling step retains catalogue A for:
 
 - model schema and description;
 - search metadata;
 - hook identity;
 - initial request tool registration.
 
-At call time, core dispatch waits for server startup and asks the thread runtime for the latest binding B. B supplies:
+At call time, core dispatch waits for server startup and asks the thread runtime for current binding B. B supplies:
 
 - prepared call;
 - current client and server metadata;
@@ -86,11 +100,15 @@ At call time, core dispatch waits for server startup and asks the thread runtime
 - file-input rewrite metadata;
 - execution and result.
 
-The current path can therefore plan as A and execute as B.
+The path can therefore plan as A and approve or execute as B.
+
+### Tool invocation still carries the captured step
+
+Every `ToolInvocation` already contains its request's `StepContext`. The MCP handler does not need a new transport to recover the sampling-step binding. The smallest repair can use the captured binding first and enter late binding only for cached tools that had no prepared call at sampling time.
 
 ## First owned Codex candidate
 
-The bounded source change calls `reconnect_on_next_refresh()` before applying the host-supplied MCP config:
+The bounded source change calls `reconnect_on_next_refresh()` before applying host-supplied MCP config:
 
 ```rust
 pub async fn refresh_mcp_config(&self, next_config: crate::config::Config) {
@@ -124,45 +142,85 @@ The source and regression are committed in owned Codex PR #5.
 - Full `codex-core` encountered unrelated sandbox-dependent failures.
 - The app-server MCP filter stopped at an existing test initializer missing `ItemCompletedEvent.started_at_ms`.
 
-These are retained as baseline limits rather than candidate failures.
+These are baseline limits rather than candidate failures.
 
 ### Why this is only the first slice
 
-The reconnect request is a boolean. An older publication can consume a reconnect request intended for a newer desired-state generation. `concurrency.md` defines the adversarial sequence and a generation-bound replacement.
+Reconnect intent is a boolean. An older publication can consume a reconnect request intended for a newer desired-state generation. `concurrency.md` defines the adversarial sequence and a generation-bound replacement.
 
-The candidate also does not address notification relist, remote identity, catalogue equality, request authority, cold reconstruction policy, or failed reconnect outcomes.
+The candidate also does not address notification relist, remote identity, catalogue equality, request authority, timed-out live work, cold reconstruction policy, or failed reconnect outcomes.
 
 ## Codex request-authority conflict
 
 The source history contains a policy change that needs an explicit decision.
 
-### PR #34588 — captured catalogue revision
+### Captured catalogue revision
 
-This change introduced request-scoped MCP bindings and stated that a model-step tool call must not reroute to a replacement client or run against a catalogue revision the model did not see.
+The captured-binding change stated that a model-step tool call must not reroute to a replacement client or run against a catalogue revision the model did not see.
 
-### PR #34930 — current runtime at dispatch
+### Current runtime at dispatch
 
-Runtime centralization changed core dispatch to refresh MCP state and obtain the current binding before approval and execution. Its description continued to promise immutable bindings for model steps and tool calls.
+Runtime centralization changed core dispatch to refresh MCP state and obtain current binding before approval and execution, while still describing bindings as immutable for model steps and calls.
 
-### PR #35590 — cached A, live B
+### Cached A, live B
 
-This change intentionally advertises cached catalogue A before server startup, waits for the selected server, and then prepares the call against live B.
+The cached-startup change intentionally advertises cached catalogue A before server startup, waits for the selected server, and then prepares the call against live B.
 
-Its integration test proves:
+Its original integration test proves:
 
 - inference receives process A's cached description;
 - the same tool name executes on process B;
 - a tool absent from B fails closed.
 
-It does not test same-name changes to schema, approval, annotations, visibility, file-input metadata, hook metadata, or behavior.
+It did not test same-name schema or authority changes.
 
-### Approval-relaxation consequence
+## Compiled same-name schema result
+
+A focused public-Codex test changed the existing cache fixture so that:
+
+```text
+catalogue A: echo(message: string)
+→ A is cached and advertised to inference
+→ model emits {"message":"hello"}
+→ replacement B starts with echo(count: integer)
+→ current dispatch invokes B
+```
+
+Observed:
+
+- the request advertised A's required `message` field;
+- the request advertised no `count` field;
+- B received the A-shaped call;
+- B rejected it with `echo schema v2 requires integer count`;
+- Codex returned B's schema error to the model-visible function-call output;
+- Codex did not report an A/B revision mismatch before invocation.
+
+Validation:
+
+- public Codex pin: `a5082373f18119dc5d3eb993267c97f37880935d`;
+- workflow run: `30488803287`;
+- job: `90701186402`;
+- evidence artifact: `8739076993`;
+- artifact digest: `sha256:f759a6b2e0a75bd8b2e2cfb8ef23c42a9d5e4e259473ae121a3b7614089e3148`;
+- one focused integration test passed, zero failed.
+
+The test passed because it asserted current behavior. It is a successful reproduction, not a passing repair.
+
+Classification: `advertisement_execution_revision_mismatch`.
+
+The server's argument rejection is a useful negative control. It is not a general safety guarantee. Another same-name implementation could accept, ignore, or reinterpret A's fields.
+
+Exact patch, log, and result note are retained under:
+
+`campaigns/0004-host-mcp-lifecycle-reconciliation/artifacts/codex-cached-schema-drift/`
+
+## Approval-relaxation consequence
 
 An already-sampled step can capture prompt-required A. Before its tool call dispatches, thread configuration can change to permissive B. Current dispatch can refresh to B and auto-approve under B.
 
 A later policy may tighten an in-flight call. It should not relax the authority under which the call was sampled.
 
-### Candidate authority rule
+## Candidate authority rule
 
 For a prepared call captured by the sampling step:
 
@@ -174,17 +232,15 @@ For a prepared call captured by the sampling step:
 For a cached tool with no captured prepared call:
 
 - wait for live B only as a bounded exception;
-- compare A and B authority fingerprints;
+- compare A and B authority fingerprints before argument rewrite, approval, or execution;
 - execute B only when equality is verified;
-- otherwise fail closed and require a new sampling step.
+- otherwise fail closed with a typed revision-mismatch result and require a new sampling step.
 
-The fingerprint should cover server identity, tool name, schemas, authority-relevant annotations, visibility, file-input metadata, plugin or connector provenance, and approval/execution metadata.
+The fingerprint should cover server identity, tool name, input and relevant output schemas, authority-relevant annotations, visibility, file-input metadata, plugin or connector provenance, hook identity, and approval/execution metadata.
 
 ## Compiled Rust SDK relist result
 
 A focused fixture against the pinned official SDK used two real overlapping `on_tool_list_changed` callback relists over an in-process duplex transport.
-
-Controlled order:
 
 ```text
 R1 captures older generation and waits
@@ -204,9 +260,9 @@ requests=3
 
 One test passed; zero failed.
 
-The SDK cache correctly retained C because its private generation rejected R1's late write. R1 still returned `Ok(B)` to application code, so a naive publisher rolled back from C to B. An application notification-generation ticket retained C.
+The SDK cache retained C because its private generation rejected R1's late write. R1 still returned `Ok(B)` to application code, so a naive publisher rolled back from C to B. An application notification-generation ticket retained C.
 
-The fixture, lockfile, exact log, and validation record are retained on L01 amendment PR #74 under `artifacts/rmcp-relist-ordering/`.
+The fixture, lockfile, exact log, and validation record are retained on L01 amendment PR #74.
 
 ### SDK implication
 
@@ -218,7 +274,30 @@ A generic opt-in SDK helper needs one of:
 - internal notification coalescing with newest-result publication;
 - watch or stream containing only accepted catalogue snapshots.
 
-The helper should not silently replace application approval policy, request bindings, or model advertisements. Codex still owns those decisions.
+The helper should not silently replace application approval policy, request bindings, or model advertisements. Codex owns those decisions.
+
+## Timed-out live calls
+
+The adjacent timeout probe establishes a new transition that #84 must test:
+
+```text
+call begins under binding A
+→ Codex outer timeout ends local wait
+→ no MCP cancellation is sent
+→ server operation remains active
+→ refresh publishes binding B
+→ A operation later completes or fails
+```
+
+Required rules:
+
+- the operation keeps A's identity and authority;
+- B cannot claim the late result;
+- local timeout remains distinct from terminal execution and result persistence;
+- automatic mutation retry or fallback stays blocked while the A outcome is ambiguous;
+- refresh receipts record that an older live operation remains attached to A.
+
+Timeout and cancellation mechanics remain under Scout #130. Durable operation and persistence receipts remain under Campaign #83. Fallback authority remains under #86.
 
 ## Unified refresh ticket
 
@@ -243,6 +322,7 @@ Typed results should include:
 - `failed_retained_old`;
 - `failed_unavailable`;
 - `cancelled`;
+- `timed_out_live_call_retained`;
 - `superseded`;
 - `identity_mismatch`;
 - `catalogue_mismatch`;
@@ -266,13 +346,19 @@ Sample under prompt-required A, apply permissive B before dispatch, then prove t
 
 ### Cached A/live B
 
-Test:
+The same-name changed-input-schema transition is compiled. Remaining cases:
 
-- removed tool;
-- same name, changed schema;
-- same name, changed approval or annotations;
-- same name, changed file-input or provenance metadata;
-- verified equal fingerprint.
+- verified equal fingerprint;
+- changed output schema;
+- changed approval or annotations;
+- changed visibility;
+- changed file-input or provenance metadata;
+- changed hook identity or behavior;
+- typed mismatch before B execution.
+
+### Timed-out live call
+
+Let an A call time out locally without cancellation, publish B, and prove the eventual A terminal or persistence result remains attached to A and blocks ambiguous replay.
 
 ### Failed refresh
 
@@ -288,6 +374,7 @@ For Rust-only owned-fork changes:
 
 - use `cargo fmt --all -- --check` and focused package tests;
 - install `cargo-nextest` before `just test` when required;
+- build helper binaries required by integration tests before invoking filtered test targets;
 - use repository-wide `just fmt` only when the full formatter set, including `uv` and `dotslash`, is installed;
 - classify missing tools as `harness_unavailable`;
 - classify unrelated existing compile failures as `baseline_compile_blocker`.
@@ -296,6 +383,10 @@ For Rust-only owned-fork changes:
 
 The first host-reload source slice is valid and compiled, but it is not the complete repair.
 
-The next Codex implementation step should introduce generation ownership and preserve captured request authority. Notification-driven relist should consume the compiled SDK lesson: cache freshness does not automatically provide application publication freshness.
+The mixed-revision call path is now compiled for same-name input-schema drift. Current Codex calls B and relies on B's parser rather than verifying A/B equality. The next request-authority change should use the captured step binding first and make cached-startup late binding conditional on a verified authority fingerprint.
+
+Notification-driven relist should consume the SDK ordering lesson: cache freshness does not automatically provide application publication freshness.
+
+Timed-out live work must remain attached to its original operation identity and authority while newer MCP state publishes.
 
 Public Codex and the official Rust SDK remained read-only. No upstream contact occurred.
