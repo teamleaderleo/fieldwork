@@ -1,0 +1,20 @@
+[package]
+name = "codex-rust-mcp-timeout-probe"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+anyhow = "1"
+rmcp = { version = "=3.0.0", default-features = false, features = [
+  "client",
+  "server",
+  "transport-async-rw",
+] }
+tokio = { version = "1", features = [
+  "io-util",
+  "macros",
+  "rt-multi-thread",
+  "sync",
+  "time",
+] }
