@@ -61,6 +61,8 @@
         "generation": {
           "oneOf": [
             {
+              "maxLength": 160,
+              "minLength": 1,
               "type": "string"
             },
             {
