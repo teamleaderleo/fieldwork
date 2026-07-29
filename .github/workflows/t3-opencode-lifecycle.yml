@@ -53,6 +53,8 @@ jobs:
             test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
           - name: Interrupt error race
             test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-error.test.ts
+          - name: Delayed interrupt error ordering
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-error-ordering.test.ts
           - name: Pending request cleanup
             test: apps/server/src/provider/Layers/OpenCodeAdapter.pending-request.test.ts
           - name: Reaper race
