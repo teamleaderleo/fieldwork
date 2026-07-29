@@ -3,7 +3,7 @@
 Review date: 2026-07-30  
 Research dossier: PR #77  
 Promoted implementation campaign: #85  
-Owned-Codex implementation draft: [teamleaderleo/codex#18](https://github.com/teamleaderleo/codex/pull/18)
+Owned-Codex implementation draft: [owned Codex PR #18](https://redirect.github.com/teamleaderleo/codex/pull/18)
 
 ## Status
 
@@ -11,7 +11,7 @@ The first owned-Codex slice implements the planner-side compatibility repair: pr
 
 The direction is useful, but the draft is not ready and has not produced a validated source commit.
 
-Focused validation run: [teamleaderleo/codex Actions run 30485058646](https://github.com/teamleaderleo/codex/actions/runs/30485058646)
+Focused validation run: [owned Codex Actions run 30485058646](https://redirect.github.com/teamleaderleo/codex/actions/runs/30485058646)
 
 ```text
 35 planner tests passed
@@ -25,7 +25,7 @@ The workflow stopped before committing the proposed source change.
 
 The shared `ToolExecutor` contract does not default `search_info()` to `None`. It derives search metadata from function and namespace tool specifications:
 
-- [pinned `ToolExecutor::search_info()` implementation](https://github.com/teamleaderleo/codex/blob/d90ae1208acb88d26832dc5837854f622331407e/codex-rs/tools/src/tool_executor.rs#L71-L74)
+- [pinned `ToolExecutor::search_info()` implementation](https://redirect.github.com/teamleaderleo/codex/blob/d90ae1208acb88d26832dc5837854f622331407e/codex-rs/tools/src/tool_executor.rs#L71-L74)
 
 The test runtime named `unsearchable_deferred` supplies a normal function specification and does not override `search_info()`. It therefore remains searchable and stays deferred. The observed visible surface still contained `tool_search`, while the runtime itself was absent from the initial direct list.
 
@@ -67,7 +67,7 @@ Required split:
 3. Validate that every deferred Code Mode runtime appears in `ALL_TOOLS` and remains dispatchable through the global runtime.
 4. Add a regression proving a Code Mode deferred runtime without ranked-search metadata stays deferred and callable.
 
-Detailed review: [comment on owned-Codex PR #18](https://github.com/teamleaderleo/codex/pull/18#issuecomment-5123037938)
+Detailed review: [planner draft review comment](https://redirect.github.com/teamleaderleo/codex/pull/18#issuecomment-5123037938)
 
 ## Correct planner repair
 
@@ -108,7 +108,7 @@ The parallel Campaign #85 work is going in the right general direction: it chose
 
 ### Complementary owned-fork work
 
-- [Fieldwork campaign #84](https://github.com/teamleaderleo/fieldwork/issues/84) and [owned-Codex PR #5](https://github.com/teamleaderleo/codex/pull/5) address stale MCP clients and catalogue lifecycle. That is the right owner when the discovery route exists but searches or executes against an old binding. It should not be folded into planner normalization.
+- [Fieldwork campaign #84](https://github.com/teamleaderleo/fieldwork/issues/84) and [owned Codex MCP reload PR #5](https://redirect.github.com/teamleaderleo/codex/pull/5) address stale MCP clients and catalogue lifecycle. That is the right owner when the discovery route exists but searches or executes against an old binding. It should not be folded into planner normalization.
 - Campaign #83 owns mutation/result identity and compaction safety. It becomes relevant after a tool has executed or when a completed effect could be replayed; it does not repair missing model exposure.
 
 ### Useful upstream observability and discovery work
