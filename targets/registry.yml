@@ -7,26 +7,41 @@ targets:
   - id: vercel-ai
     repository: vercel/ai
     state: mapped
+    label: target:vercel-ai
+    hub_issue: 2
+    map: targets/vercel-ai/map.md
     domains: [agents, model-providers, streaming, tool-calling, generative-ui]
 
   - id: workers-sdk
     repository: cloudflare/workers-sdk
     state: mapped
+    label: target:workers-sdk
+    hub_issue: 3
+    map: targets/workers-sdk/map.md
     domains: [runtimes, deployment, testing, developer-tooling]
 
   - id: opentelemetry-js
     repository: open-telemetry/opentelemetry-js
     state: mapped
+    label: target:opentelemetry-js
+    hub_issue: 4
+    map: targets/opentelemetry-js/map.md
     domains: [observability, tracing, metrics, interoperability]
 
   - id: gemini-cli
     repository: google-gemini/gemini-cli
     state: mapped
+    label: target:gemini-cli
+    hub_issue: 5
+    map: targets/gemini-cli/map.md
     domains: [agents, cli, developer-tooling]
 
   - id: biome
     repository: biomejs/biome
     state: mapped
+    label: target:biome
+    hub_issue: 6
+    map: targets/biome/map.md
     domains: [parser, formatter, linter, language-server]
 
   - id: deno
@@ -95,3 +110,8 @@ targets:
     repository: nodejs/node
     state: inbox
     domains: [runtime, web-platform, compatibility]
+
+notes:
+  - Mapped recurring targets may have stable hubs and labels.
+  - Inbox and watch entries do not receive labels or hub issues until work becomes active.
+  - A target registry entry is never permission to contact upstream.
