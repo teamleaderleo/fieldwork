@@ -23,7 +23,7 @@ The repository tests each side of this boundary separately, including explicit a
 - Upstream repository: `https://github.com/vercel/ai`
 - Pinned revision: `2b872b0db3769decf69945830c66a897c1e37347`
 - Revision source: `main` head retrieved 2026-07-29
-- Fieldwork source baseline at report creation: `teamleaderleo/fieldwork` main after `ae3afd3c1b1cc69d5c3c33b26eba54edef1c67fc`
+- Fieldwork branch base: `85f4213cf13165910f3401f6dc0c9dd031ad2527`
 
 ## Method and evidence limits
 
