@@ -7,6 +7,7 @@ Research programmes connect findings across targets and campaigns. They ask ques
 - [`proof-carrying-contributions/`](proof-carrying-contributions/) — evidence packages that lower reviewer uncertainty.
 - [`agent-generated-contributions/`](agent-generated-contributions/) — where AI assistance helps, fails, or exports cost.
 - [`maintainer-review-cost/`](maintainer-review-cost/) — practical measures of verification burden.
+- [`continuous-coordination/`](continuous-coordination/) — incremental graph evaluation, CI projections, receipts, reconciliation, and authority-aware coordination.
 
 ## Research standard
 
