@@ -1,0 +1,47 @@
+{
+  "probe": "Gemini CLI expanded deterministic lifecycle exploration",
+  "targetRevision": "3499c84f7b8e70c86600e7cd2c67a7c65a667f5e",
+  "generatedAt": "2026-07-30",
+  "cases": {
+    "abortDuringPreparation": {
+      "abortedDuringPreparation": true,
+      "spawnedAfterAbort": true,
+      "consequence": "a repair that only checks before asynchronous sandbox preparation still permits post-abort spawn"
+    },
+    "parallelWaitingBoolean": {
+      "transitions": [
+        true,
+        true,
+        false
+      ],
+      "pendingApprovalsAfterFirstResolution": 1,
+      "reportedWaiting": false,
+      "consequence": "try/finally balances each call but a shared boolean can report idle while another approval remains pending"
+    },
+    "lateExitAfterSyntheticAbort": {
+      "syntheticResult": {
+        "aborted": true,
+        "exitCode": 130,
+        "signal": null
+      },
+      "laterRealExit": {
+        "aborted": false,
+        "exitCode": null,
+        "signal": 15
+      },
+      "laterExitRetained": false,
+      "consequence": "immediate lifecycle settlement prevents later OS exit details from replacing the synthetic cancellation result"
+    },
+    "detachedMcpCompletion": {
+      "localRejectedOnAbort": true,
+      "remoteCompletedLater": true,
+      "consequence": "local promise cancellation does not establish cancellation of remote MCP work"
+    },
+    "unboundedDiscoveredOutput": {
+      "simulatedChunks": 4096,
+      "retainedBytes": 4194304,
+      "configuredExecutionLimitObserved": false,
+      "consequence": "project-discovered execution retains all output in memory until close; a threshold and truncation contract remain undefined"
+    }
+  }
+}
