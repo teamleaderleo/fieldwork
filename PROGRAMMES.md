@@ -2,7 +2,7 @@
 
 ## In simple words
 
-A programme is a long-lived research direction spanning several related repositories or systems. It answers **what family of problems are we responsible for understanding?** Scout lanes answer **where is the interesting work actually hiding?** Campaigns begin only after a scout finds a concrete question worth sustained investigation.
+A programme is a long-lived research direction spanning several related repositories or systems. It answers **what are we responsible for understanding?** Scout lanes answer **where is the interesting work actually hiding?** Campaigns begin only after a scout finds a concrete question worth sustained investigation.
 
 ## Hierarchy
 
@@ -17,7 +17,7 @@ programme: long-lived research direction
 └── programme synthesis: cross-target conclusions and next branches
 ```
 
-A programme is not a giant backlog. It carries a thesis, target set, current scouts, branching criteria, and a compact current direction.
+A programme is not a giant backlog. It carries a broad responsibility, target set, current scouts, branching criteria, and a compact current direction.
 
 ## Labels
 
@@ -33,20 +33,30 @@ Every child scout, finding, campaign, lane, decision, or synthesis carries the p
 
 ## Scout lanes
 
-A scout lane is an ordinary `type:lane` issue whose goal is reconnaissance rather than proving a preselected bug. It must still be bounded.
+A scout lane is an ordinary `type:lane` issue whose goal is reconnaissance rather than proving a preselected bug. It must still be bounded by target, deliverable, owned path, and stop condition.
 
 A scout should produce:
 
 1. an `In simple words` explanation;
 2. exact source revision and code map;
-3. entrypoints, state ownership, side effects, failure paths, and test boundaries;
+3. entrypoints, control and data flow, state ownership, side effects, public contracts, and test boundaries;
 4. recent change and issue context where useful;
-5. at least one runnable probe, adversarial case, or realistic testbed scenario when feasible;
-6. concrete branch candidates ranked by consequence and evidence;
-7. explicit negative results and dead ends;
-8. a recommendation: stop, retain finding, open campaign, or run another scout.
+5. actual or representative usage and integration context;
+6. at least one runnable probe, adversarial case, or realistic testbed scenario when a discovered question warrants it, or an explicit reason none is feasible;
+7. concrete branch candidates ranked by consequence and evidence;
+8. explicit negative results and dead ends;
+9. a recommendation: stop, retain finding, open campaign, or run another scout.
 
 A scout is not complete merely because it read the repository.
+
+## Broad-first rule
+
+- A programme thesis defines scope; it is not a checklist of expected bugs.
+- A scout begins with the target's implementation, tests, call sites, configuration, history, and actual use.
+- A worked example, context pattern, canonical case pack, previous campaign, or familiar bug class must not become the default lens for unrelated research.
+- Do not build a narrow experiment merely because a reusable fixture exists.
+- Select narrow questions only after reconnaissance identifies a consequential property, uncertainty, or blind spot.
+- When an assignment is intentionally narrow, the issue must say so explicitly and explain why the narrower premise already has evidence.
 
 ## Branching rule
 
@@ -68,7 +78,7 @@ Programmes may run many scout lanes concurrently when:
 - every lane has one owner and owned path;
 - target revisions are explicit;
 - shared files are coordinator-owned;
-- each lane has a distinct question or evidence type;
+- each lane has a distinct target, question, or evidence type;
 - synthesis capacity is available;
 - duplicate reconnaissance is stopped quickly.
 
@@ -84,7 +94,7 @@ The coordinator owns:
 - acceptance or revision of handoffs;
 - promotion into findings and campaigns;
 - cross-target synthesis;
-- stopping low-value branches.
+- stopping low-value or prematurely narrow branches.
 
 Workers own only their assigned lane or experiment outputs.
 
