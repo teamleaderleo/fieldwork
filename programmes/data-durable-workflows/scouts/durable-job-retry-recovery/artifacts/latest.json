@@ -1,0 +1,95 @@
+{
+  "profiles": [
+    {
+      "attempt_identity": true,
+      "cancellation_is_durable": true,
+      "changed_input_conflict": true,
+      "durable_checkpoint_before_effect": false,
+      "durable_terminal_receipt": true,
+      "effect_receipt_scope": "local_ledger",
+      "exact_duplicate_replay": true,
+      "fresh_observation_before_retry": false,
+      "logical_job_identity": true,
+      "name": "stensibly",
+      "suitable_for_durable_job_comparison": true
+    },
+    {
+      "attempt_identity": true,
+      "cancellation_is_durable": true,
+      "changed_input_conflict": true,
+      "durable_checkpoint_before_effect": true,
+      "durable_terminal_receipt": true,
+      "effect_receipt_scope": "execution_journal",
+      "exact_duplicate_replay": true,
+      "fresh_observation_before_retry": true,
+      "logical_job_identity": true,
+      "name": "smolrunner",
+      "suitable_for_durable_job_comparison": true
+    },
+    {
+      "attempt_identity": false,
+      "cancellation_is_durable": false,
+      "changed_input_conflict": false,
+      "durable_checkpoint_before_effect": false,
+      "durable_terminal_receipt": false,
+      "effect_receipt_scope": "none",
+      "exact_duplicate_replay": false,
+      "fresh_observation_before_retry": false,
+      "logical_job_identity": false,
+      "name": "fin-agent",
+      "suitable_for_durable_job_comparison": false
+    }
+  ],
+  "results": [
+    {
+      "cancellation_result": "terminal run cancellation is durable; committed local mutation remains recorded",
+      "disposition": "replay_recorded_result",
+      "duplicate_effect_permitted_by_model": false,
+      "evidence_boundary": "safe for Stensibly ledger mutations; generic external runner effects remain separate",
+      "recovery_action": "read the operation receipt and item; do not repeat the local mutation",
+      "system": "stensibly"
+    },
+    {
+      "cancellation_result": "terminal cancellation prevents further run transitions",
+      "disposition": "retry_same_request_same_key",
+      "duplicate_effect_permitted_by_model": false,
+      "evidence_boundary": "operation receipt covers item/event/artifact mutations, not every external runner effect",
+      "recovery_action": "retry the exact same local request and key; external effects require a target adapter",
+      "system": "stensibly"
+    },
+    {
+      "cancellation_result": "active cancellation requires exact draining evidence",
+      "disposition": "fresh_observation_required",
+      "duplicate_effect_permitted_by_model": false,
+      "evidence_boundary": "journal protocol is strong; live receipt mapping and personal-worker linkage remain incomplete",
+      "recovery_action": "re-observe ownership and preconditions, then resume, retry, compensate, or terminate",
+      "system": "smolrunner"
+    },
+    {
+      "cancellation_result": "request-local UI state only",
+      "disposition": "out_of_scope",
+      "duplicate_effect_permitted_by_model": false,
+      "evidence_boundary": "request/stream lifecycle; no durable worker state",
+      "recovery_action": "stop durable-job comparison until a durable product requirement exists",
+      "system": "fin-agent"
+    }
+  ],
+  "scenario": {
+    "id": "commit-response-lost-cancel-restart",
+    "invariants": [
+      "a retry preserves logical identity",
+      "changed intent cannot reuse the same identity",
+      "cancellation does not erase a committed effect",
+      "unknown execution requires reconciliation before repetition",
+      "terminal evidence is replayable"
+    ],
+    "steps": [
+      "accept one logical job under an exact request identity",
+      "begin one attempt",
+      "commit an effect",
+      "lose the response and process before terminal acknowledgement",
+      "record cancellation",
+      "restart and decide whether retry is safe"
+    ]
+  }
+}
