@@ -1,0 +1,296 @@
+{
+  "all_expectations_passed": true,
+  "authority_guarded_counts": {
+    "allow_equivalent": 5,
+    "fail_closed": 3,
+    "require_explicit_approval": 5
+  },
+  "availability_first_silent_reroutes": 13,
+  "case_count": 13,
+  "cases": [
+    {
+      "authority_guarded": {
+        "authority_deltas": [],
+        "decision": "allow_equivalent"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "R1-shell-local-read-equivalent",
+      "description": "A scoped file-read tool disappears; shell reads the same synthetic file under the same sandbox and receipt contract.",
+      "expected_guarded_decision": "allow_equivalent",
+      "expected_path": "file_read_tool",
+      "fallback_path": "shell",
+      "operation": "read",
+      "passed": true
+    },
+    {
+      "authority_guarded": {
+        "authority_deltas": [
+          "approval_contract_changed",
+          "audit_evidence_weakened",
+          "credential_binding_changed",
+          "logical_operation_id_changed",
+          "operation_identity_weakened",
+          "permissions_broadened",
+          "provider_semantics_changed",
+          "recovery_semantics_weakened",
+          "resource_scope_broadened",
+          "user_visibility_changed"
+        ],
+        "decision": "require_explicit_approval"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "R2-shell-http-ambient-credential",
+      "description": "A connector read disappears; shell issues HTTP with an ambient token and broader account scope.",
+      "expected_guarded_decision": "require_explicit_approval",
+      "expected_path": "scoped_connector",
+      "fallback_path": "shell_http",
+      "operation": "read",
+      "passed": true
+    },
+    {
+      "authority_guarded": {
+        "authority_deltas": [],
+        "decision": "allow_equivalent"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "R3-protocol-read-same-broker",
+      "description": "A generated MCP wrapper disappears; a protocol call uses the same broker, scoped credential, logical operation id, and receipt.",
+      "expected_guarded_decision": "allow_equivalent",
+      "expected_path": "mcp_generated_tool",
+      "fallback_path": "mcp_protocol_call",
+      "operation": "read",
+      "passed": true
+    },
+    {
+      "authority_guarded": {
+        "authority_deltas": [
+          "approval_contract_changed",
+          "audit_evidence_weakened",
+          "credential_binding_changed",
+          "logical_operation_id_changed",
+          "operation_identity_weakened",
+          "permissions_broadened",
+          "provider_semantics_changed",
+          "recovery_semantics_weakened",
+          "resource_scope_broadened",
+          "user_visibility_changed"
+        ],
+        "decision": "require_explicit_approval"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "R4-computer-use-cookie-read",
+      "description": "A connector read disappears; Computer Use opens a signed-in browser session with ambient cookies and site-wide reach.",
+      "expected_guarded_decision": "require_explicit_approval",
+      "expected_path": "scoped_connector",
+      "fallback_path": "computer_use_browser",
+      "operation": "read",
+      "passed": true
+    },
+    {
+      "authority_guarded": {
+        "authority_deltas": [
+          "approval_contract_changed",
+          "credential_binding_changed",
+          "provider_semantics_changed"
+        ],
+        "decision": "require_explicit_approval"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "R5-substitute-connector-read",
+      "description": "The preferred connector disappears; a second connector can read a mirrored object using another account binding.",
+      "expected_guarded_decision": "require_explicit_approval",
+      "expected_path": "connector_alpha",
+      "fallback_path": "connector_beta",
+      "operation": "read",
+      "passed": true
+    },
+    {
+      "authority_guarded": {
+        "authority_deltas": [],
+        "decision": "allow_equivalent"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "R6-subagent-read-predelegated",
+      "description": "The parent loses a read tool; a child already has the same read-only binding with preapproved delegation and complete lineage.",
+      "expected_guarded_decision": "allow_equivalent",
+      "expected_path": "parent_connector",
+      "fallback_path": "subagent_connector",
+      "operation": "read",
+      "passed": true
+    },
+    {
+      "authority_guarded": {
+        "authority_deltas": [],
+        "decision": "allow_equivalent"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "M1-shell-local-mutation-equivalent",
+      "description": "A file-edit tool disappears; shell updates one disposable file with the same sandbox, operation id, backup, and read-after-write receipt.",
+      "expected_guarded_decision": "allow_equivalent",
+      "expected_path": "file_edit_tool",
+      "fallback_path": "shell",
+      "operation": "mutation",
+      "passed": true
+    },
+    {
+      "authority_guarded": {
+        "authority_deltas": [
+          "approval_contract_changed",
+          "audit_evidence_weakened",
+          "credential_binding_changed",
+          "logical_operation_id_changed",
+          "operation_identity_weakened",
+          "permissions_broadened",
+          "provider_semantics_changed",
+          "recovery_semantics_weakened",
+          "resource_scope_broadened",
+          "user_visibility_changed"
+        ],
+        "decision": "fail_closed"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "M2-shell-http-mutation-ambient",
+      "description": "A connector mutation disappears; shell sends raw HTTP with an ambient account token and no durable idempotency receipt.",
+      "expected_guarded_decision": "fail_closed",
+      "expected_path": "scoped_connector",
+      "fallback_path": "shell_http",
+      "operation": "mutation",
+      "passed": true
+    },
+    {
+      "authority_guarded": {
+        "authority_deltas": [
+          "approval_contract_changed",
+          "audit_evidence_weakened",
+          "credential_binding_changed",
+          "logical_operation_id_changed",
+          "operation_identity_weakened",
+          "permissions_broadened",
+          "provider_semantics_changed",
+          "recovery_semantics_weakened",
+          "resource_scope_broadened",
+          "user_visibility_changed"
+        ],
+        "decision": "fail_closed"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "M3-computer-use-mutation",
+      "description": "A connector mutation disappears; Computer Use clicks a reversible toggle through a signed-in browser without provider operation identity.",
+      "expected_guarded_decision": "fail_closed",
+      "expected_path": "scoped_connector",
+      "fallback_path": "computer_use_browser",
+      "operation": "mutation",
+      "passed": true
+    },
+    {
+      "authority_guarded": {
+        "authority_deltas": [
+          "approval_contract_changed",
+          "credential_binding_changed",
+          "provider_semantics_changed"
+        ],
+        "decision": "require_explicit_approval"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "M4-substitute-connector-mutation",
+      "description": "The preferred connector disappears; a second connector can perform the same reversible synthetic mutation with complete identity and receipts but another credential and approval policy.",
+      "expected_guarded_decision": "require_explicit_approval",
+      "expected_path": "connector_alpha",
+      "fallback_path": "connector_beta",
+      "operation": "mutation",
+      "passed": true
+    },
+    {
+      "authority_guarded": {
+        "authority_deltas": [
+          "actor_or_delegation_changed",
+          "approval_contract_changed",
+          "user_visibility_changed"
+        ],
+        "decision": "require_explicit_approval"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "M5-subagent-mutation-delegated",
+      "description": "The parent loses a mutation tool; a child can use the same connector and identity with complete lineage, while delegation for mutation was never approved.",
+      "expected_guarded_decision": "require_explicit_approval",
+      "expected_path": "parent_connector",
+      "fallback_path": "subagent_connector",
+      "operation": "mutation",
+      "passed": true
+    },
+    {
+      "authority_guarded": {
+        "authority_deltas": [
+          "prior_result_ambiguous"
+        ],
+        "decision": "fail_closed"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "M6-ambiguous-prior-result",
+      "description": "A prior mutation may have completed before its result disappeared; every alternate mutation path is blocked until reconciliation.",
+      "expected_guarded_decision": "fail_closed",
+      "expected_path": "scoped_connector",
+      "fallback_path": "mcp_protocol_call",
+      "operation": "mutation",
+      "passed": true
+    },
+    {
+      "authority_guarded": {
+        "authority_deltas": [],
+        "decision": "allow_equivalent"
+      },
+      "availability_first": {
+        "selected": "fallback",
+        "silent_reroute": true
+      },
+      "case_id": "M7-protocol-mutation-same-broker",
+      "description": "A generated wrapper disappears; the protocol fallback uses the same synthetic broker, scope, approval, logical operation id, idempotency key, receipt, and rollback path.",
+      "expected_guarded_decision": "allow_equivalent",
+      "expected_path": "mcp_generated_tool",
+      "fallback_path": "mcp_protocol_call",
+      "operation": "mutation",
+      "passed": true
+    }
+  ],
+  "external_mutations": false,
+  "failed_cases": [],
+  "fixture_kind": "synthetic_authority_fallback",
+  "network_used": false,
+  "schema_version": 1
+}
