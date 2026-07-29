@@ -1,0 +1,62 @@
+name: Research programme
+description: Establish a long-lived cross-target research direction
+title: "[Programme] "
+labels:
+  - "type:programme"
+  - "state:triage"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Add the correct `programme:<slug>` label after creation. Add every active `target:<slug>` label. External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. This programme does not authorize upstream contact.
+  - type: textarea
+    id: simple
+    attributes:
+      label: In simple words
+      description: What family of systems or problems are we responsible for understanding, and why?
+    validations:
+      required: true
+  - type: textarea
+    id: thesis
+    attributes:
+      label: Programme thesis
+      description: State the recurring technical boundary, consequence, and evidence strategy.
+    validations:
+      required: true
+  - type: textarea
+    id: targets
+    attributes:
+      label: Initial targets and hubs
+      description: List target labels and Fieldwork target hubs. A target may be added or removed after reconnaissance.
+    validations:
+      required: true
+  - type: textarea
+    id: scouts
+    attributes:
+      label: Initial scout lanes
+      description: List bounded reconnaissance questions, deliverables, and expected branch decisions.
+    validations:
+      required: true
+  - type: textarea
+    id: testbeds
+    attributes:
+      label: Candidate owned testbeds
+      description: List public repositories or neutral private identifiers. Add `testbed:*` labels only after a trial begins.
+  - type: textarea
+    id: branching
+    attributes:
+      label: Branching and stopping rules
+      description: What evidence opens a campaign, and what causes a branch to stop?
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Boundaries
+      options:
+        - label: This programme does not authorize upstream contact.
+          required: true
+        - label: Scout lanes must produce runnable evidence or concrete branch candidates, not repository summaries alone.
+          required: true
+        - label: Documentation, lint, wording, and style work are not the programme's primary purpose.
+          required: true
