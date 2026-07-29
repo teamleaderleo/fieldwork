@@ -247,7 +247,7 @@ Privacy rule: retain counts, digests, typed states, and owned references only
 ## Ranked branch candidates
 
 1. **Accept this lane as a healthy negative result.** Feed the receipt vocabulary and boundary into campaign synthesis and diagnostics lane #43.
-2. **Run an interactive disconnect/reconnect continuation.** Use a fresh run identity, benign reads first, then one bounded lifecycle. This is the strongest remaining control for the symptom recorded in [Stensibly sustained-use incident #490](https://github.com/teamleaderleo/stensibly/issues/490).
+2. **Run an interactive disconnect/reconnect continuation.** Use a fresh run identity, benign reads first, then one bounded lifecycle. This is the strongest remaining control for the symptom recorded in [Stensibly sustained-use incident #490](https://redirect.github.com/teamleaderleo/stensibly/issues/490).
 3. **Run an application restart continuation.** Preserve the affected conversation reference and compare the first post-restart catalogue and executable smoke tests.
 4. **Instrument only after a failing control.** Capture catalogue, policy result, executable dispatch, server receipt, and client delivery under one logical operation identity.
 
