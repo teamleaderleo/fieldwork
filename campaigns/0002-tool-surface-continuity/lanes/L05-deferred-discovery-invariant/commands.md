@@ -2,14 +2,15 @@
 
 ## Revisions
 
-- Fieldwork campaign base: `aa72bd513f6664dc67517dabd9b03b4f051d8460` (`campaign/31-tool-surface-continuity`, PR #51 head at retrieval)
+- Fieldwork campaign base: `aa72bd513f6664dc67517dabd9b03b4f051d8460`
+- L05 initial head: `46875fe78f6d73d775fc38cf18e5ae8ddc615adc`
 - Public Codex source: `3725f02cf38d856bc82bb46dd68ab61bb96ec6fc`
-- Campaign-owned comparison fork pin supplied by campaign: `2b7b93081361b77f8ddaceaf362a09765b4153bf`
-- Retrieval date: 2026-07-30
+- Campaign comparison fork: `2b7b93081361b77f8ddaceaf362a09765b4153bf`
+- Cross-lane review date: 2026-07-30
 
-## Source reads
+## Public source reads
 
-All OpenAI/Codex actions were read-only. The investigation used GitHub file and issue reads at the pinned revision for:
+All OpenAI/Codex actions remained read-only.
 
 ```text
 codex-rs/core/src/tools/spec_plan.rs
@@ -29,25 +30,32 @@ codex-rs/features/src/lib.rs
 openai/codex issues #33608 and #33609
 ```
 
-The local container could not resolve `github.com`, so no source checkout or upstream build was performed. GitHub's read connector supplied the pinned source evidence.
+## Cross-lane reads
 
-## Retained invariant run
+```text
+#35 / PR #61 — lifecycle provenance
+#37 / PR #58 — HTTP, WebSocket, and startup prewarm
+#38 / PR #64 — compaction and call/result identity
+#39 / PR #62 — MCP/app catalogue convergence
+#43 — diagnostics gate and receipt scope
+#44 / PR #60 — fallback authority
+#46 / PR #57 — ChatGPT coexistence trial
+#31 / PR #51 — campaign synthesis
+```
+
+## Retained invariant runs
 
 From the lane directory:
 
 ```sh
 python3 run_invariant.py fixtures/deferred-surfaces.json --output results/latest.json
+python3 run_invariant.py fixtures/cross-lane-surfaces.json --output results/cross-lane.json
 ```
 
-Observed exit code:
+Original pack:
 
 ```text
-0
-```
-
-Retained result:
-
-```text
+exit=0
 case_count=12
 accepted=8
 rejected=4
@@ -55,22 +63,40 @@ mismatches=0
 passed=true
 ```
 
-Rejected fixtures:
+Cross-lane pack:
 
 ```text
-dynamic-deferred-search-disabled
-extension-deferred-search-disabled
-deferred-missing-search-metadata
-deferred-tool-suggest-only
+exit=0
+case_count=4
+accepted=3
+rejected=1
+warnings=2
+mismatches=0
+passed=true
 ```
 
-## Reproduction against a future Codex checkout
+Aggregate: 16 cases, 11 accepted, 5 intended rejections.
 
-The proposed source-level test belongs at the finished router/request boundary. After applying the repair proposal in a writable Codex checkout:
+Additional rejected fixture:
+
+```text
+mcp-deferred-logical-loader-wire-omitted
+```
+
+Warning fixtures:
+
+```text
+mcp-deferred-stale-catalogue-zero-results: stale_discovery_catalogue
+dynamic-deferred-stale-saved-generation: stale_saved_provenance
+```
+
+## Proposed future Codex commands
 
 ```sh
 cargo test -p codex-core tools::spec_plan::tests::deferred_tools_require_executable_discovery_or_direct_exposure
 cargo test -p codex-core tools::handlers::tool_search::tests::executed_search_with_zero_results_is_distinct_from_missing_loader
+cargo test -p codex-core responses_websocket::tests::responses_lite_first_generated_turn_delivers_or_verifies_loader_manifest
+cargo test -p codex-core mcp_tool_cache::tests::search_index_generation_matches_current_binding_catalogue
 ```
 
-These commands are proposals. They were not run against upstream because the assigned work kept OpenAI/Codex read-only and the container had no source checkout.
+These are proposals and were not run against upstream.
