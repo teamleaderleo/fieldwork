@@ -1,37 +1,48 @@
 # Coordination
 
-Fieldwork supports multiple campaigns, multiple lanes within a campaign, and multiple workers inside one lane only when ownership remains explicit.
+Fieldwork supports batches, multiple campaigns, multiple lanes within a campaign, and many one-shot probes when ownership remains explicit.
 
 ## Unit hierarchy
 
 ```text
-programme or target
-└── campaign: one bounded parent question
-    ├── lane: independently owned research unit
-    ├── lane: independently owned research unit
-    ├── decision: coordinator or human choice
-    └── synthesis: campaign-level interpretation
+batch: dispatch envelope
+├── campaign: one bounded parent question
+│   ├── lane: coordinated independently owned unit
+│   ├── probe: one-shot bounded check
+│   ├── decision: coordinator or human choice
+│   └── synthesis: campaign-level interpretation
+├── probe: one-shot bounded check
+└── synthesis: batch-level comparison
 ```
 
-A campaign has one parent issue and one durable campaign directory. Each lane has one issue and one lane-owned directory.
+A batch has one parent issue and one durable manifest. A campaign has one parent issue and one durable campaign directory. A coordinated lane has one issue and one lane-owned directory. A tiny probe may exist only in the batch manifest, one owned result file, and a handoff to the batch issue.
 
-## Directory convention
+## Ownership convention
 
 ```text
+batches/<batch-id>-<slug>/
+├── manifest.json        # coordinator only
+├── STATUS.md            # coordinator only
+├── results/
+│   ├── A001.md          # assignment A001 only
+│   └── ...
+├── synthesis.md         # coordinator only
+└── closeout.md          # coordinator only
+
 campaigns/<campaign-id>-<slug>/
-├── STATUS.md
+├── STATUS.md            # coordinator only
 ├── question.md
 ├── lanes/
 │   ├── <lane-id>-<slug>/
-│   │   ├── report.md
+│   │   ├── report.md    # lane owner only
 │   │   └── artifacts/
 │   └── ...
-├── synthesis.md
-├── decision.md
-└── closeout.md
+├── synthesis.md         # coordinator only
+├── decision.md          # coordinator only
+└── closeout.md          # coordinator only
 ```
 
-Only the coordinator edits `STATUS.md`, `synthesis.md`, `decision.md`, and `closeout.md`. Lane workers edit only their lane directories unless a handoff explicitly changes ownership.
+Workers edit only their owned result or lane paths unless a handoff explicitly changes ownership. Never have several workers push shared files directly to `main`.
 
 ## Good lane boundaries
 
@@ -47,30 +58,43 @@ Split work by independently answerable question or evidence type, for example:
 - test strategy;
 - alternative implementation directions.
 
-Do not split work merely by arbitrary file ranges when the workers would need to reconstruct the same context.
+Do not split work by arbitrary file ranges when every worker would need to reconstruct the same context.
+
+## Probe boundary
+
+Use a probe when the work:
+
+- is answerable in one bounded pass;
+- has no shared edits;
+- has one result path;
+- has no unresolved design dependency;
+- can be accepted or rejected by the batch coordinator without separate discussion.
+
+Promote a probe when scope expands, another worker depends on it, it needs a sustained conversation, or its result becomes a substantive campaign.
 
 ## Claim protocol
 
-Before substantial work, the worker records:
+Before substantial coordinated work, the worker records:
 
 - worker identity;
 - state `claimed`;
-- exact lane question;
+- exact assignment question;
 - expected deliverable;
-- owned paths;
+- owned path;
 - dependencies;
-- target source revision;
-- stop condition.
+- target source revision or retrieval boundary;
+- stop condition;
+- upstream-contact authorization, normally `false`.
 
-A claim is a coordination lease, not ownership of the broader campaign. If the worker disappears or the premise changes, the coordinator may release or replace it.
+A claim is a coordination lease, not ownership of the broader campaign or batch. If the worker disappears or the premise changes, the coordinator may release or replace it.
 
 ## Communication protocol
 
-Use the lane issue for short state changes, blockers, questions, and handoff notices. Put evidence and reasoning in repository files.
+Use the relevant Fieldwork issue for short state changes, blockers, questions, and handoff notices. Put evidence and reasoning in repository files.
 
 Do not rely on ephemeral chat history as the only location of a decision or result.
 
-When new evidence changes another lane's premise, post a concise cross-lane note in both relevant Fieldwork issues. Use same-repository references directly; keep external references wrapped.
+When new evidence changes another assignment's premise, post a concise cross-assignment note in both relevant Fieldwork records. Same-repository references may be direct; external references remain wrapped.
 
 ## Handoff protocol
 
@@ -79,34 +103,34 @@ A handoff must state:
 1. what was asked;
 2. what was examined and at which revisions;
 3. the strongest supported finding;
-4. retained artifacts and their paths;
+4. retained artifacts and paths;
 5. failed hypotheses and negative results;
 6. unresolved uncertainty;
 7. blockers or dependencies;
 8. the exact next decision or action;
 9. whether upstream contact remains unauthorized.
 
-Use `templates/handoff.md` and the `FIELDWORK HANDOFF` completion comment from `START_HERE.md`.
+Use `templates/handoff.md` and the `FIELDWORK HANDOFF` block from `START_HERE.md`.
 
 ## Synthesis protocol
 
-The synthesiser reads merged lane reports, reconciles contradictions, identifies shared assumptions, and distinguishes:
+The synthesiser reads accepted result files and lane reports, reconciles contradictions, identifies shared assumptions, and distinguishes:
 
 - established findings;
 - plausible but unconfirmed interpretations;
-- disagreements between lanes;
+- disagreements between assignments;
 - missing evidence;
-- decisions that require human judgement.
+- decisions requiring human judgement.
 
-Synthesis never silently upgrades a hypothesis into a fact. It cites the lane and artifact supporting every consequential conclusion.
+Synthesis never silently upgrades a hypothesis into a fact. It identifies the result and artifact supporting every consequential conclusion.
 
 ## Completion protocol
 
-A lane reaches `ready-for-synthesis` when its report and artifacts are durable. The coordinator then accepts, requests revision, or records a negative result.
+A lane or probe reaches a completed handoff state when its report and artifacts are durable or explicitly queued for materialization. The coordinator accepts, requests revision, promotes, or records a negative result.
 
-A campaign reaches `complete` only after:
+A campaign or batch reaches `complete` only after:
 
-- all active lanes have an outcome;
+- every dispatched active assignment has an outcome;
 - synthesis exists or is explicitly unnecessary;
 - the decision gate is recorded;
 - upstream status is accurate;
@@ -120,10 +144,18 @@ When two workers overlap:
 2. retain both evidence sets;
 3. identify the narrower ownership boundary;
 4. choose one synthesiser for the disputed conclusion;
-5. record the resolution in the parent campaign.
+5. record the resolution in the parent campaign or batch.
 
 Do not resolve conflicts by silently deleting another worker's evidence.
 
+## High-volume write modes
+
+- **Fieldwork PR:** preferred for a substantial lane or coherent result set.
+- **Issue-only handoff:** allowed when repository writes are unavailable; apply `needs:materialization`.
+- **Coordinator bundle:** combines several tiny probe handoffs into one durable change.
+
+Avoid one PR per trivial observation and avoid one giant PR containing unrelated lanes.
+
 ## Future automation boundary
 
-A future coordinator may automate claims, state transitions, reminders, and synthesis queues. The durable contract is deliberately simple: issue identifiers, exact state tokens, owned paths, machine-readable ledgers, and explicit handoff blocks.
+A future coordinator may automate dispatch, claims, state transitions, reminders, and synthesis queues. The durable contract is deliberately simple: stable identifiers, exact state tokens, JSON manifests, owned paths, issue numbers, and explicit handoff blocks.
