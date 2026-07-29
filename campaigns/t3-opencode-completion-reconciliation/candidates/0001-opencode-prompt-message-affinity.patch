@@ -22,7 +22,7 @@ diff --git a/apps/server/src/provider/Layers/OpenCodeAdapter.test.ts b/apps/serv
 index 1385ccb..0000000 100644
 --- a/apps/server/src/provider/Layers/OpenCodeAdapter.test.ts
 +++ b/apps/server/src/provider/Layers/OpenCodeAdapter.test.ts
-@@ -843,7 +843,14 @@ it.layer(OpenCodeAdapterTestLayer)("OpenCodeAdapterLive", (it) => {
+@@ -843,7 +843,15 @@ it.layer(OpenCodeAdapterTestLayer)("OpenCodeAdapterLive", (it) => {
          ),
        });
  
@@ -31,6 +31,7 @@ index 1385ccb..0000000 100644
 +        | ({ readonly messageID?: unknown } & Record<string, unknown>)
 +        | undefined;
 +      NodeAssert.ok(promptCall);
++      // Caller-supplied identity is part of the SDK request contract.
 +      NodeAssert.equal(typeof promptCall.messageID, "string");
 +      NodeAssert.match(promptCall.messageID as string, /^msg_t3_/);
 +      const { messageID: _messageID, ...promptWithoutMessageId } = promptCall;
@@ -38,7 +39,7 @@ index 1385ccb..0000000 100644
          sessionID: "http://127.0.0.1:9999/session",
          model: {
            providerID: "anthropic",
-@@ -887,7 +894,14 @@ it.layer(OpenCodeAdapterTestLayer)("OpenCodeAdapterLive", (it) => {
+@@ -887,7 +895,15 @@ it.layer(OpenCodeAdapterTestLayer)("OpenCodeAdapterLive", (it) => {
          input: "Fix it",
        });
  
@@ -47,6 +48,7 @@ index 1385ccb..0000000 100644
 +        | ({ readonly messageID?: unknown } & Record<string, unknown>)
 +        | undefined;
 +      NodeAssert.ok(promptCall);
++      // Fallback model selection must preserve the same identity contract.
 +      NodeAssert.equal(typeof promptCall.messageID, "string");
 +      NodeAssert.match(promptCall.messageID as string, /^msg_t3_/);
 +      const { messageID: _messageID, ...promptWithoutMessageId } = promptCall;
