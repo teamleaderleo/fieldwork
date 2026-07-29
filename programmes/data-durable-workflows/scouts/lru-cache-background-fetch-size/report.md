@@ -1,6 +1,6 @@
 # lru-cache background fetch size accounting
 
-State: `confirmed-candidate`
+State: `implementing`
 
 Fieldwork lane: #132
 
@@ -12,7 +12,15 @@ Source pin: `isaacs/node-lru-cache@16b3a916662ab449d496b7b4b4f04132565d1d28`
 
 Feature commit: `4708153206daf822a3ad440ce47248b9cfbdb973`
 
-Confirmed workflow: `30491292307`
+Released-package workflow: `30491292307`
+
+Owned implementation: `teamleaderleo/node-lru-cache#1`
+
+Owned branch: `fieldwork/background-fetch-size-validation`
+
+Owned head: `f50193f7d92809eb1941469af3708d4d2406fce1`
+
+Candidate workflow: `30495807465`
 
 Upstream contact authorized: `false`
 
@@ -20,7 +28,7 @@ Upstream contact authorized: `false`
 
 `lru-cache` can assign a temporary size to an entry while an asynchronous cache fill is still running. Version 11.5 added the `backgroundFetchSize` option for that value.
 
-The constructor stores the runtime value directly. The later accounting code expects a non-negative finite integer, but does not validate the option before adding it to `calculatedSize` and using it in eviction and index bookkeeping.
+The constructor stores the runtime value directly. Later accounting expects a nonnegative finite integer, but the option is not validated before it enters calculated-size, eviction, and index bookkeeping.
 
 Released `lru-cache@11.5.2` reproduced several consequences on Node 22, 24, and 26:
 
@@ -56,7 +64,7 @@ The internal `isPosInt()` helper requires a non-zero, finite, positive integer. 
 
 For a background fetch, `#requireSize()` instead returns `this.backgroundFetchSize` directly.
 
-The released behavior for `0` remains coherent and matches the pre-11.5 effective accounting behavior: a pending fetch has zero provisional size but remains cached and coalesced. Because the feature history does not establish that `0` should be rejected, the conservative correction should preserve it while rejecting every non-zero value that is not a positive integer.
+The released behavior for `0` remains coherent and matches the pre-11.5 effective accounting behavior: a pending fetch has zero provisional size but remains cached and coalesced. The conservative correction preserves it while rejecting every other value that is not a positive integer.
 
 ### Accounting consequence
 
@@ -72,7 +80,7 @@ this.#calculatedSize += sizes[index]
 
 That arithmetic assumes numeric, finite, integer input. Runtime coercion can affect calculated size, eviction, free-index handling, and fetch settlement.
 
-## Executed probe
+## Executed released-package probe
 
 The released-package probe pins `lru-cache@11.5.2` and ran on Node 22, 24, and 26.
 
@@ -126,43 +134,58 @@ Observed on Node 22 and 24:
 - both waiting fetches rejected with `Invalid array length`;
 - all entries disappeared.
 
-The exact negative count varied by Node version, which is consistent with corrupted internal index bookkeeping rather than a stable user-facing state.
+The exact negative count varied by Node version, consistent with corrupted internal index bookkeeping rather than a stable user-facing state.
 
-## Prior-art status
+## Prior art
 
 Searches for `backgroundFetchSize` with validation, `NaN`, `Infinity`, and runtime size corruption found no matching current issue or pull request.
 
-Historical issue #264 documents the project's established expectation that invalid required size information should produce a clear runtime error. Existing `sizeCalculation` tests also assert `TypeError` for non-positive or non-numeric calculated sizes. Neither covers provisional background-fetch sizing introduced in 11.5.
+Historical issue #264 records the project's expectation that invalid required size information should produce a clear runtime error. Existing `sizeCalculation` tests also assert `TypeError` for non-positive or non-numeric calculated sizes. Neither covers provisional background-fetch sizing introduced in 11.5.
 
-## Candidate repair
+## Owned candidate
 
-Preserve `0` for compatibility, but require every non-zero value to satisfy the existing positive-integer invariant:
+Draft PR: `teamleaderleo/node-lru-cache#1`
+
+The connected GitHub editor only supports complete file replacement, while `src/index.ts` is roughly 3,200 lines. Replacing that entire file mechanically would create unnecessary review and corruption risk. The branch therefore contains:
+
+- the complete focused test update in `test/background-fetch-size.ts`;
+- an exact source hunk in `.fieldwork/background-fetch-size-validation.patch`;
+- a Fieldwork workflow that applies the hunk to a clean checkout before building and testing.
+
+The candidate guard is:
 
 ```ts
-if (backgroundFetchSize !== 0 && !isPosInt(backgroundFetchSize)) {
+if (
+  typeof backgroundFetchSize !== 'number' ||
+  (backgroundFetchSize !== 0 && !isPosInt(backgroundFetchSize))
+) {
   throw new TypeError(
     'backgroundFetchSize must be a nonnegative integer',
   )
 }
+
 this.backgroundFetchSize = backgroundFetchSize
 ```
 
-This rejects negative, fractional, `NaN`, infinite, string, object, and other non-number runtime values without changing the valid default or the coherent zero-size behavior.
-
-Validation should happen during construction regardless of whether fetch or size tracking is currently active. That matches validation of other supplied option values and prevents configuration-dependent delayed corruption.
+The explicit runtime type check is required before `isPosInt()`. It guarantees that strings, booleans, bigint, symbols, null, arrays, and objects receive the package's stable `TypeError` instead of incidental JavaScript coercion errors.
 
 ## Candidate tests
 
-- constructor accepts `0`, `1`, and another positive integer;
-- constructor rejects `-1`, `1.5`, `NaN`, positive/negative infinity, and runtime strings/objects;
-- valid pending fetches retain coalescing and correct calculated size;
-- zero retains current coalescing behavior;
-- stale-value background fetches continue using the stale entry's existing size;
-- normal entry-size and `sizeCalculation` validation remains unchanged.
+The owned branch covers:
+
+- constructor acceptance for `0`, `1`, and another positive integer;
+- rejection of `-1`, `1.5`, `NaN`, positive/negative infinity;
+- rejection of runtime string, boolean, bigint, symbol, null, object, and array inputs;
+- stable error name and message;
+- zero-size pending fetch coalescing;
+- a custom positive provisional size transitioning to the resolved entry size;
+- the existing stale-value and eviction behavior.
+
+Candidate workflow `30495807465` checks out the exact owned branch, applies the source hunk with `git apply --check`, builds the repository, and runs the focused test on Node 22, 24, and 26. The jobs were queued at the latest recorded check; no candidate execution result is claimed yet.
 
 ## Decision
 
-This is a confirmed released-package defect candidate with a narrow correction. A fork implementation is justified after an owned fork is available. The issue-first packet is retained but no upstream contact is authorized.
+This is a confirmed released-package defect with a narrow owned-fork candidate. The candidate is source-reviewed and ready for execution. Keep the implementation draft until the clean-checkout matrix passes and the source hunk can be committed directly through an approved write path.
 
 ## Contact boundary
 
