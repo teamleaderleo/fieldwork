@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reject accidental direct cross-links to external GitHub work."""
+"""Reject accidental direct cross-links to third-party GitHub work."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import sys
 from urllib.parse import urlparse
 
 MARKER = "fieldwork: intentional-upstream-reference"
+DEFAULT_OWNED_OWNERS = {"teamleaderleo"}
 SCANNED_SUFFIXES = {
     ".md",
     ".mdx",
@@ -71,6 +72,18 @@ def current_repository() -> str | None:
     return path.removesuffix(".git").lower() or None
 
 
+def owned_owners() -> set[str]:
+    configured = os.environ.get("FIELDWORK_OWNED_GITHUB_OWNERS")
+    if configured is None:
+        return set(DEFAULT_OWNED_OWNERS)
+
+    return {
+        owner.strip().lower()
+        for owner in configured.split(",")
+        if owner.strip()
+    }
+
+
 def tracked_files() -> list[Path]:
     try:
         names = run_git("ls-files", "-z").split("\0")
@@ -89,11 +102,21 @@ def has_intentional_marker(lines: list[str], index: int) -> bool:
     return any(MARKER in lines[position] for position in range(start, index + 1))
 
 
-def is_same_repository(owner: str, repo: str, current: str | None) -> bool:
-    return current == f"{owner}/{repo}".lower()
+def is_controlled_repository(
+    owner: str,
+    repo: str,
+    current: str | None,
+    controlled_owners: set[str],
+) -> bool:
+    repository = f"{owner}/{repo}".lower()
+    return repository == current or owner.lower() in controlled_owners
 
 
-def scan_file(path: Path, current: str | None) -> list[str]:
+def scan_file(
+    path: Path,
+    current: str | None,
+    controlled_owners: set[str],
+) -> list[str]:
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except UnicodeDecodeError:
@@ -106,7 +129,10 @@ def scan_file(path: Path, current: str | None) -> list[str]:
         for match in DIRECT_URL.finditer(line):
             owner = match.group("owner")
             repo = match.group("repo")
-            if is_same_repository(owner, repo, current) or intentional:
+            if (
+                is_controlled_repository(owner, repo, current, controlled_owners)
+                or intentional
+            ):
                 continue
 
             original = match.group(0)
@@ -114,18 +140,21 @@ def scan_file(path: Path, current: str | None) -> list[str]:
                 "https://github.com/", "https://redirect.github.com/", 1
             ).replace("http://github.com/", "https://redirect.github.com/", 1)
             errors.append(
-                f"{path}:{index + 1}: direct external GitHub reference: {original}\n"
+                f"{path}:{index + 1}: direct third-party GitHub reference: {original}\n"
                 f"  use {wrapped} or add an intentional-reference marker"
             )
 
         for match in SHORTHAND.finditer(line):
             owner = match.group("owner")
             repo = match.group("repo")
-            if is_same_repository(owner, repo, current) or intentional:
+            if (
+                is_controlled_repository(owner, repo, current, controlled_owners)
+                or intentional
+            ):
                 continue
 
             errors.append(
-                f"{path}:{index + 1}: external shorthand reference: "
+                f"{path}:{index + 1}: third-party shorthand reference: "
                 f"{match.group(0)}\n"
                 "  replace it with a descriptive redirect.github.com link"
             )
@@ -135,10 +164,11 @@ def scan_file(path: Path, current: str | None) -> list[str]:
 
 def main() -> int:
     current = current_repository()
+    controlled_owners = owned_owners()
     failures: list[str] = []
 
     for path in tracked_files():
-        failures.extend(scan_file(path, current))
+        failures.extend(scan_file(path, current, controlled_owners))
 
     if failures:
         print("External reference policy violations:\n", file=sys.stderr)
