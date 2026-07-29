@@ -73,22 +73,47 @@ index 73c23b7..0000000 100644
              yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
              yield* emit({
                ...(yield* buildEventBase({
-@@ -1072,6 +1095,13 @@ export function makeOpenCodeAdapter(
+@@ -1072,8 +1095,39 @@ export function makeOpenCodeAdapter(
          case "session.error": {
            const message = sessionErrorMessage(event.properties.error);
            const activeTurnId = context.activeTurnId;
 +          const interruptOperation = yield* Ref.get(context.interruptOperation);
-+          if (
-+            activeTurnId !== undefined &&
-+            interruptOperation?.turnId === activeTurnId &&
-+            isOpenCodeMessageAbortedError(event.properties.error)
-+          ) {
++          if (isOpenCodeMessageAbortedError(event.properties.error)) {
++            if (
++              activeTurnId === undefined ||
++              interruptOperation?.turnId === activeTurnId ||
++              !context.activeTurnObservedProviderActivity
++            ) {
++              break;
++            }
++            context.activeTurnId = undefined;
++            context.activeAgent = undefined;
++            context.activeVariant = undefined;
++            context.activeTurnObservedProviderActivity = false;
++            yield* updateProviderSession(
++              context,
++              { status: "ready" },
++              { clearActiveTurnId: true },
++            );
++            yield* emit({
++              ...(yield* buildEventBase({
++                threadId: context.session.threadId,
++                turnId: activeTurnId,
++                raw: event,
++              })),
++              type: "turn.completed",
++              payload: {
++                state: "interrupted",
++              },
++            });
 +            break;
 +          }
            context.activeTurnId = undefined;
++          context.activeTurnObservedProviderActivity = false;
            yield* updateProviderSession(
              context,
-@@ -1287,6 +1317,8 @@ export function makeOpenCodeAdapter(
+             {
+@@ -1287,6 +1341,8 @@ export function makeOpenCodeAdapter(
            activeTurnId: undefined,
            activeAgent: undefined,
            activeVariant: undefined,
@@ -97,7 +122,7 @@ index 73c23b7..0000000 100644
            stopped: yield* Ref.make(false),
            sessionScope: started.sessionScope,
          };
-@@ -1459,6 +1491,9 @@ export function makeOpenCodeAdapter(
+@@ -1459,6 +1515,9 @@ export function makeOpenCodeAdapter(
        const agent = getModelSelectionStringOptionValue(modelSelection, "agent");
        const variant = getModelSelectionStringOptionValue(modelSelection, "variant");
  
@@ -107,7 +132,7 @@ index 73c23b7..0000000 100644
        context.activeTurnId = turnId;
        context.activeAgent = agent ?? (input.interactionMode === "plan" ? "plan" : undefined);
        context.activeVariant = variant;
-@@ -1538,21 +1573,80 @@ export function makeOpenCodeAdapter(
+@@ -1538,21 +1597,80 @@ export function makeOpenCodeAdapter(
  
      const interruptTurn: OpenCodeAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
        function* (threadId, turnId) {
