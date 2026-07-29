@@ -3,13 +3,31 @@
 Context ID:
 Owner:
 Date:
+Target label:
+Target hub:
+Owned testbeds used:
 Related experiments:
 Related batch or campaign:
 Claim scope: mechanism | interface | integration | operational | ecosystem
 
+## In simple words
+
+- What mechanism or boundary is this about?
+- Where does it sit in a larger workflow?
+- Who or what could depend on it?
+- What consequence is documented, observed, inferred, illustrative, or unknown?
+- What decision can currently be made?
+
 ## Context question
 
 What wider claim or use requires evidence beyond the isolated mechanism?
+
+## Change thesis
+
+- current behaviour:
+- consequence:
+- candidate improvement:
+- evidence boundary:
 
 ## System role
 
@@ -53,6 +71,14 @@ For each scenario, state whether it is documented, observed, inferred, or illust
 - User or operator consequence:
 - Smallest model preserving the important property:
 
+## Owned-repository evidence
+
+| Testbed or neutral id | Revision and branch | Scenario | Observation | What it supports | Limitation |
+|---|---|---|---|---|---|
+| | | | | | |
+
+Do not present one owned application as proof of general adoption.
+
 ## Failure propagation
 
 What changes outside the isolated component when the mechanism fails?
@@ -78,9 +104,9 @@ What traces, logs, metrics, audit records, state checks, or user-visible symptom
 
 Use primary sources where available. Wrap external GitHub interaction references under `REFERENCE_POLICY.md`.
 
-## Mapping to tests
+## Mapping to tests and trials
 
-| Wider property | Experiment or case | What it demonstrates | What it does not demonstrate |
+| Wider property | Experiment, case, or testbed trial | What it demonstrates | What it does not demonstrate |
 |---|---|---|---|
 | | | | |
 
@@ -98,6 +124,8 @@ What can be responsibly decided from this context?
 
 ## Promotion status
 
+- [ ] Plain-language block updated
+- [ ] Target hub and label recorded
 - [ ] Mechanism finding only
 - [ ] Integration claim supported
 - [ ] Operational claim supported
