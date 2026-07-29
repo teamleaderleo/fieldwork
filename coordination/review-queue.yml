@@ -1,6 +1,6 @@
-version: 1
+version: 2
 snapshot_date: "2026-07-30"
-snapshot_source_main: "dd75315202f5e66c90961cddd6d914766d7db576"
+snapshot_source_main: "0c1fa8af2dd1f5ab95ba85b6492c67c5f0f0437f"
 canonical_live_state: github_issues
 human_view: REVIEW_QUEUE.md
 policy:
@@ -23,7 +23,7 @@ entries:
     state: ready_for_independent_review
     primary_issue: 65
     primary_pr: 82
-    evidence_commit: "fbbea68332ecd57e7abad538453ad07d541387b1"
+    evidence_commit: "fbbea68332ecd57e7abad538453ad07d541387b1c"
     evidence_paths:
       - campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/report.md
       - campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/era-scope-amendment.md
@@ -61,13 +61,13 @@ entries:
 
   - id: RQ-003
     priority: P0
-    title: Canonical Codex mutation receipt branch
-    kind: coordination_decision
+    title: Codex direct-result persistence and compaction gates
+    kind: implementation_gate
     programme: agent-cli-execution
     target: codex
-    state: needs_human_decision
+    state: canonical_receipt_owner_selected_next_wiring_active
     primary_issue: 83
-    evidence_commit: "dd75315202f5e66c90961cddd6d914766d7db576"
+    evidence_commit: "0c1fa8af2dd1f5ab95ba85b6492c67c5f0f0437f"
     evidence_paths:
       - campaigns/0003-compaction-mutation-identity/question.md
       - campaigns/0003-compaction-mutation-identity/source-map.md
@@ -75,17 +75,18 @@ entries:
     owned_fork_prs:
       - "teamleaderleo/codex#2"
       - "teamleaderleo/codex#3"
-      - "teamleaderleo/codex#4"
+      - "teamleaderleo/codex#12"
+      - "teamleaderleo/codex#19"
     required_actions:
-      - keep_raw_history_validator_separate
-      - compare_receipt_prs_3_and_4
-      - select_one_canonical_receipt_branch
-      - transplant_unique_tests_or_semantics
-      - stop_duplicate_branch
+      - wire_direct_result_persistence_to_canonical_session_owner
+      - propagate_exact_selected_runtime_effect
+      - close_pre_dispatch_failure_paths
+      - invoke_raw_history_validator_before_compaction_and_installation
+      - define_safe_receipt_retirement
     done_when:
-      - canonical_branch_recorded
-      - duplicate_closed_or_archived
-      - next_runtime_owner_named
+      - authoritative_result_persistence_is_recorded
+      - local_remote_v1_and_remote_v2_compaction_gates_are_executed
+      - mutation_replay_fails_closed_under_ambiguous_evidence
 
   - id: RQ-004
     priority: P1
@@ -213,9 +214,68 @@ entries:
     done_when:
       - target_trace_confirms_or_disproves_gap
       - selected_repair_passes_event_affinity_control
+
+  - id: RQ-009
+    priority: P0
+    title: Playwright bounded fixture recovery before afterAll
+    kind: technical_review
+    programme: web-tooling-runtime-correctness
+    target: playwright
+    state: ready_for_independent_review
+    primary_issue: 141
+    primary_pr: 49
+    related_issues:
+      - 26
+      - 142
+    evidence_commit: "8d7ed3a79d40e8b99a170f20fc46663e41d3acfc"
+    evidence_paths:
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-intent-review-2026-07-30.md
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-alignment-run-2026-07-30.md
+    owned_fork_prs:
+      - "teamleaderleo/playwright#24"
+      - "teamleaderleo/playwright#26"
+    required_actions:
+      - verify_skip_and_delete_mechanism
+      - review_no_budget_equal_share_and_dependency_controls
+      - verify_pre_afterall_same_budget_placement
+      - review_internal_receipt_convention
+      - decide_final_cross_platform_combined_execution
+    done_when:
+      - independent_recovery_review_recorded
+      - candidate_scope_accepted_or_revised
+      - final_cross_platform_execution_decision_recorded
+
+  - id: RQ-010
+    priority: P1
+    title: Playwright cleanup failure after expected body failure
+    kind: status_model_review
+    programme: web-tooling-runtime-correctness
+    target: playwright
+    state: ready_for_independent_design_review
+    primary_issue: 142
+    primary_pr: 49
+    related_issues:
+      - 26
+      - 141
+    evidence_commit: "8d7ed3a79d40e8b99a170f20fc46663e41d3acfc"
+    evidence_paths:
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-alignment-run-2026-07-30.md
+    owned_fork_prs:
+      - "teamleaderleo/playwright#28"
+      - "teamleaderleo/playwright#29"
+    required_actions:
+      - verify_expected_body_and_cleanup_failures_are_independent
+      - trace_internal_signal_through_worker_replacement_retry_and_outcome
+      - review_reporter_serial_suite_and_max_failure_effects
+      - keep_status_model_work_separate_from_recovery_scheduler
+    done_when:
+      - independent_status_model_review_recorded
+      - invariant_accepted_or_revised
+      - implementation_owner_and_regression_matrix_named_or_candidate_held
+
 watchlist:
-  - title: Playwright fixture teardown
-    fieldwork_pr: 49
   - title: DuckDB remote publication
     fieldwork_issue: 96
   - title: Supabase auth refresh settlement
