@@ -18,9 +18,4 @@ cat "$work_file"
 printf '\n--- after ---\n'
 node "$work_file" | tee "$after_file"
 
-if cmp -s "$before_file" "$after_file"; then
-  echo "runtime output preserved"
-else
-  echo "runtime output changed"
-  exit 1
-fi
+test "$(cat "$before_file")" != "$(cat "$after_file")"
