@@ -4,6 +4,8 @@ Fieldwork supports small, disposable experiments that do not require an upstream
 
 Use this layer to answer a bounded technical question quickly: test a protocol assumption, reduce a failure, compare behaviours, exercise an API boundary, validate generated code, or build a synthetic reproduction.
 
+Experiments test questions discovered by research. They do not choose the research agenda.
+
 ## When to use a playground
 
 Use `playgrounds/` when all of the following are true:
@@ -65,28 +67,26 @@ See `INTEGRATION_CONTEXT.md` and `templates/integration-context.md`.
 
 ## Canonical cases
 
-Before inventing inputs, check `playgrounds/cases/`. The case packs cover broadly reusable boundaries such as:
+Before inventing inputs, check `playgrounds/cases/`. Case packs cover broadly reusable input and lifecycle boundaries such as:
 
 - empty, null, zero, and missing values;
 - Unicode, combining marks, emoji, newlines, and control characters;
 - malformed, truncated, duplicated, and reordered input;
 - nested and oversized structures;
-- timeout, cancellation, retry, and partial-success paths;
-- concurrent ordering and idempotency;
+- event sequences, cancellation, interruption, and partial success;
+- concurrent ordering and repeated application;
 - filesystem and path edge cases;
-- state recovery after interruption.
+- state restoration and cleanup after interruption.
 
-Not every experiment needs every category. Select cases that can distinguish the current hypotheses.
+Not every experiment needs every category. Select cases only after the assignment has established a question and competing hypotheses.
 
-## Representative integration cases
+## Examples are not hypotheses
 
-Some case packs are paired with wider context dossiers. These examples show how a small model can preserve the important boundary without pretending to reproduce a complete application.
-
-Current worked example:
-
-- `playgrounds/cases/retry-idempotency.json`
-- `playgrounds/examples/retry-idempotency/`
-- `contexts/patterns/retry-idempotency.md`
+- The identity adapter and smoke pack validate the playground harness itself.
+- No example, case pack, context dossier, or previous experiment is the canonical subject of Fieldwork research.
+- Do not import an example's mechanism into an unrelated scout merely because a runner already exists.
+- Reuse a fixture only when it can distinguish hypotheses grounded in the target's code, tests, contracts, or observed use.
+- Create a new small fixture when that better represents the discovered question.
 
 ## Execution rules
 
