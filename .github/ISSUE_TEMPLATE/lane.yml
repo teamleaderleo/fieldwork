@@ -1,5 +1,5 @@
 name: Research lane
-description: Create one independently owned unit of campaign work
+description: Create one independently owned scout or campaign lane
 title: "[Lane] "
 labels:
   - "type:lane"
@@ -8,12 +8,35 @@ body:
   - type: markdown
     attributes:
       value: |
-        External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. External shorthand is prohibited. This lane does not authorize upstream contact.
+        Add the correct `programme:<slug>` and `target:<slug>` labels after creation. Add `testbed:<slug>` only after a real owned-repository trial begins. External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. This lane does not authorize upstream contact.
   - type: input
     id: parent
     attributes:
-      label: Parent batch or campaign
+      label: Parent programme, batch, or campaign
       description: Fieldwork identifier or same-repository issue number.
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Target label and hub
+      placeholder: target:vercel-ai — Fieldwork target hub issue 2
+    validations:
+      required: true
+  - type: dropdown
+    id: lane_kind
+    attributes:
+      label: Lane kind
+      options:
+        - Scout — map the lay of the land and return branch candidates
+        - Campaign lane — answer one known independently bounded question
+    validations:
+      required: true
+  - type: textarea
+    id: simple
+    attributes:
+      label: In simple words
+      description: What is the system, where does this boundary sit, what are we trying to learn, why could it matter, and what happens next?
     validations:
       required: true
   - type: textarea
@@ -27,25 +50,41 @@ body:
     id: deliverable
     attributes:
       label: Exact deliverable
+      description: Scouts must include code and test maps, runnable evidence or a feasibility limit, ranked branch candidates, negative results, and a recommendation.
     validations:
       required: true
   - type: input
     id: owned_path
     attributes:
       label: Lane-owned path
-      description: Example campaigns/0001-example/lanes/01-source-map/report.md
+      description: Example programmes/sdk-integration-lifecycle/scouts/example/report.md or campaigns/0001-example/lanes/01-source-map/report.md
     validations:
       required: true
   - type: input
     id: revision
     attributes:
       label: Target source revision or retrieval boundary
+      description: Use an exact revision, or state that the worker must pin the default-branch head at claim time.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Required evidence
+      description: Name the probe, experiment, adversarial case, integration trial, measurement, or explicit feasibility result expected.
     validations:
       required: true
   - type: textarea
     id: dependencies
     attributes:
       label: Dependencies and affected assignments
+  - type: textarea
+    id: branch
+    attributes:
+      label: Branch decision
+      description: What evidence opens a finding or campaign, and what causes this lane to stop?
+    validations:
+      required: true
   - type: textarea
     id: stop
     attributes:
@@ -62,4 +101,6 @@ body:
         - label: This lane does not authorize upstream contact.
           required: true
         - label: I will use the Fieldwork handoff protocol when the lane stops.
+          required: true
+        - label: A scout is not complete after a repository summary or code tour alone.
           required: true
