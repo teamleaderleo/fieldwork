@@ -8,7 +8,6 @@
       "smolrunner-attempt-journal-receipt-integration"
     ],
     "stops": [
-      "fin-agent-durable-job-recovery",
       "generic-cross-system-retry-framework",
       "dependency-or-runtime-attribution"
     ]
@@ -21,7 +20,7 @@
       "does not prove deployed behaviour",
       "does not attribute a dependency or runtime defect"
     ],
-    "question": "After an interruption, which component owns enough durable evidence to choose read-back, reconciliation, fresh observation, or termination?",
+    "question": "After an interruption, which component owns enough durable evidence to choose read-back, reconciliation, or fresh observation?",
     "selected_after_maps": true
   },
   "profiles": [
@@ -84,23 +83,6 @@
       "receipt_scope": "none",
       "system": "smolrunner",
       "work_model": "local durable plan and executor journal"
-    },
-    {
-      "coordinator_state_owner": "browser-and-request-memory",
-      "correlation_fields": [
-        "message_array",
-        "step_count"
-      ],
-      "durable_cancellation_evidence": false,
-      "durable_logical_identity": false,
-      "durable_pre_effect_checkpoint": false,
-      "durable_terminal_evidence": false,
-      "effect_owner": "external-read-provider",
-      "fresh_observation_rule": false,
-      "name": "fin-agent-chat-request",
-      "receipt_scope": "none",
-      "system": "fin-agent",
-      "work_model": "request-scoped planner, read tool, and SSE response"
     }
   ],
   "results": [
@@ -147,22 +129,6 @@
       "name": "smolrunner-host-execution",
       "next_action": "observe current ownership and preconditions, then resume, retry, compensate, or terminate under the same execution identity",
       "recommendation": "campaign"
-    },
-    {
-      "decisive_evidence": [
-        "request lifecycle"
-      ],
-      "disposition": "no_durable_recovery_contract",
-      "missing_evidence": [
-        "durable job identity",
-        "attempt identity",
-        "checkpoint",
-        "cancellation record",
-        "terminal read-back"
-      ],
-      "name": "fin-agent-chat-request",
-      "next_action": "treat the request as ended; introduce a durable job only after an explicit asynchronous or write-capable product requirement",
-      "recommendation": "stop"
     }
   ]
 }
