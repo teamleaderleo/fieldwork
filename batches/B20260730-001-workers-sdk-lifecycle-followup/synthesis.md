@@ -101,7 +101,7 @@ The source order confirms that code activation precedes some later container and
 
 The corrected executable model reports activation method, failed phase, activated version when available, and possible partial application while rethrowing the exact original error.
 
-A review found that the original helper could let a throwing diagnostic callback replace the deployment error. The fork now treats receipt reporting as best-effort and contains a prepared regression requiring the exact original error object to survive a reporting failure. That correction is source-reviewed but the package test remains unexecuted.
+A review found that the original helper could let a throwing diagnostic callback replace the deployment error. The fork now treats receipt reporting as best-effort. The dependency-free model was updated with a throwing receipt sink and executed successfully, proving that the original operation error remains authoritative. The equivalent package regression is prepared but remains unexecuted.
 
 The current output order is especially weak on trigger failure: `Uploaded` appears before triggers, while `Current Version ID` appears only after triggers succeed.
 
@@ -109,7 +109,7 @@ The receipt is needed because an exit code describes whole-command completion, n
 
 Next gate:
 
-- run the helper tests, including the reporting-failure regression;
+- run the helper package tests, including the reporting-failure regression;
 - add mocked legacy-upload/container failure;
 - add mocked versions-deployment/trigger failure;
 - add mocked legacy-upload/trigger failure;
@@ -126,6 +126,7 @@ A standalone A004 lane was withdrawn at user direction. Review coverage was reta
 - A001 reviewed the predecessor A002 matrix;
 - coordinator built and reviewed A002 and A003;
 - later review corrected A002's evidence wording and exposed A003's reporting-failure edge case;
+- the A003 dependency-free model was strengthened and rerun after that review;
 - prior public discussion and broader tool precedent were reconciled in the lane results;
 - unexecuted package tests remain explicit blockers rather than being counted as review completion.
 
