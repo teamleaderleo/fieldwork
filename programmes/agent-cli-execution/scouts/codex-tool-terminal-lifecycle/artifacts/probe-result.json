@@ -1,0 +1,17 @@
+{
+  "authoritative_chunk_count": 128,
+  "authoritative_sha256": "608709269b9a5ca7196c9bfef318d5c1cc0394f01726f874b89a974dbd482411",
+  "configured_capacity_chunks": 64,
+  "event_transcript_chunk_count": 64,
+  "event_transcript_sha256": "8ebd999aff972a81948201cdad9e7b2832aa1151b40fe34397c9df49afe695ce",
+  "first_authoritative_chunk": "chunk-0000",
+  "first_event_chunk": "chunk-0064",
+  "lagged_chunk_count": 64,
+  "last_event_chunk": "chunk-0127",
+  "missing_chunk_count": 64,
+  "probe": "unified-exec-broadcast-lag-model",
+  "stderr_bytes": 0,
+  "subprocess_exit_code": 0,
+  "terminal_event_emitted_after_subscriber_drain": true,
+  "terminal_event_matches_authoritative_output": false
+}
