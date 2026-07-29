@@ -1,19 +1,19 @@
 # Repair proposal
 
-## Recommended repair
+## Recommended planner repair
 
-Normalize each unloadable `Deferred` runtime to `Direct` at the final tool-plan boundary, after all native, MCP, app, dynamic, and extension contributors have been collected and after direct-model-only namespace overrides have run.
+Normalize each unloadable `Deferred` runtime to `Direct` at the final tool-plan boundary, after all native, MCP, app, dynamic, and extension contributors and direct-model-only overrides.
 
-A runtime is unloadable when either condition holds:
+A runtime is planner-unloadable when:
 
-1. request search is disabled because the model or provider lacks the required capability; or
-2. the runtime returns no `search_info()` and therefore cannot enter the `tool_search` index.
+1. request search is disabled by model or provider capability; or
+2. the runtime returns no `search_info()` and cannot enter the `tool_search` index.
 
-This compatibility-first repair preserves deferral for every searchable family and directly exposes only the family that would otherwise become unreachable.
+This preserves deferral for searchable families and exposes only the runtime that would otherwise become unreachable.
 
 ## Candidate planner change
 
-Insertion point in `build_tool_specs_and_registry`:
+Insertion point:
 
 ```rust
 add_tool_sources(&context, &mut planned_tools);
@@ -43,61 +43,94 @@ fn normalize_unloadable_deferred_tools(
 }
 ```
 
-The exact implementation should avoid recomputing expensive metadata where a contributor makes `search_info()` costly. One option is to collect deferred search entries once, return both indexed identities and the handler, then normalize any deferred identity excluded from that set.
+The implementation should collect deferred metadata once if `search_info()` can be expensive.
 
-## Required invariant test
+## Required planner test
 
-Add a black-box assertion over the finished `ToolRouter`:
+Assert over the finished `ToolRouter`:
 
 ```text
 For every registered runtime:
   Direct / DirectModelOnly -> acceptable
   Hidden -> outside this invariant
   Deferred ->
-    tool_search must be model-visible
-    tool_search must be registered
-    tool_search must be executable
-    this runtime must contribute searchable metadata
+    tool_search is model-visible
+    tool_search is registered and executable
+    this runtime contributes searchable metadata
 ```
 
-The current test `mcp_and_tool_search_follow_direct_and_deferred_tool_exposure` creates a deferred runtime with `supports_search_tool = false` and only asserts that `tool_search` is absent. Replace that expectation with direct exposure, or make router construction return a typed invariant error.
+The current `mcp_and_tool_search_follow_direct_and_deferred_tool_exposure` test leaves an injected deferred runtime unchanged when model search support is false. Replace that outcome with direct exposure or a typed invariant error.
 
-Add family coverage for:
+Cover native V1, dynamic host, configured MCP, curated app MCP, extension deferred, missing metadata, no eligible tools, and direct-model-only override.
 
-- native multi-agent V1;
-- dynamic host tools with `defer_loading=true`;
-- configured MCP;
-- curated app MCP;
-- extension contributor with `Deferred`;
-- deferred contributor returning `None` from `search_info()`;
-- no eligible tools;
-- direct-model-only namespace override.
+## Required transport test
 
-## Zero-result control
+Planner validity must survive serialization:
 
-Keep loader presence separate from search outcome:
+```text
+deferred family + logical loader
+    => loader appears in the generated wire request
+       OR
+       previous_response_id carries a verified identical loader manifest
+```
+
+Add a Responses Lite test for the first generated turn after startup prewarm:
+
+1. build the logical request and record the sanitized loader/tool digest;
+2. serialize the actual incremental request;
+3. verify direct loader delivery or a matching inherited manifest receipt;
+4. force a full request when inheritance cannot be verified;
+5. repeat with reconnect, restart, changed manifest, and non-Lite controls.
+
+A bare `previous_response_id` proves chain identity, not inherited tool availability.
+
+## Zero-result and freshness controls
+
+Keep route existence separate from outcome:
 
 ```text
 missing loader:
-  no advertised and executable tool_search
-  invariant failure when any family remains deferred
+  no effective advertised and executable tool_search
+  reject when any family remains deferred
 
 executed zero:
-  advertised and executable tool_search
+  effective tool_search delivered
   valid invocation
-  successful output with tools=[]
-  invariant satisfied
+  successful tools=[]
+  route invariant passes
 ```
 
-The production handler already returns an empty successful tool list when its search index is empty or a query has no matches. The invariant should inspect request/router availability before execution and should never infer loader absence from `tools=[]`.
+Add a separate freshness check:
+
+```text
+binding_catalogue_digest == deferred_search_index_digest
+search_result_generation == current_binding_generation
+```
+
+A stale but executable loader receives a typed warning or earlier-layer failure. Direct exposure cannot repair stale catalogue state.
+
+## Saved provenance control
+
+For dynamic tools, record saved and current host generations. A valid loader over an old saved generation satisfies L05 while triggering an L01/L06 provenance warning.
+
+Future host APIs should distinguish:
+
+- omitted: preserve saved declarations;
+- empty: clear;
+- list: replace;
+- mismatch policy: preserve, replace, or reject explicitly.
 
 ## Alternative repair
 
-Return `Result<ToolRouter, DeferredDiscoveryInvariantError>` and reject any unloadable deferred runtime. This produces a stronger failure signal, though it expands signatures through request planning and retry paths. The direct-exposure repair is smaller and keeps existing sessions usable.
+Return `Result<ToolRouter, DeferredDiscoveryInvariantError>` and reject planner-unloadable runtimes. This gives a stronger failure signal and expands signatures through request planning, retries, and compaction.
+
+At the transport boundary, reject incremental reuse or send a full request when inherited manifest verification fails.
 
 ## Rejected repairs
 
-- Treat `tool_suggest` as equivalent to `tool_search`: it recommends or installs plugins and does not expose an existing deferred runtime.
-- Add `tool_search` with no metadata for the affected family: the loader would execute yet could never return that family.
-- Test only built-in MCP construction: dynamic and extension contributors can select `Deferred` independently.
-- Assert only that `tool_search` is named in model-visible specs: a registered executable runtime is also required.
+- Treat `tool_suggest` as equivalent to `tool_search`.
+- Add a loader while omitting the affected family from its index.
+- Test only built-in MCP construction.
+- Assert only a logical loader name without registered runtime and wire delivery.
+- Treat every successful zero-result search as proof of current catalogue convergence.
+- Automatically reroute through shell or protocol without authority comparison.
