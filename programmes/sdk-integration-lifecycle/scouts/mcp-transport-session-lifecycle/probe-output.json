@@ -1,0 +1,54 @@
+{
+  "sourceModel": "synthetic transcription of SDK lifecycle seams",
+  "scenarios": {
+    "cancelLateResponse": {
+      "requestId": 0,
+      "progress": [
+        1
+      ],
+      "handlerAborted": true,
+      "clientErrors": [
+        "unknown response id 0"
+      ]
+    },
+    "sessionReconnectBoundary": {
+      "preservedSessionId": "session-2",
+      "oldRequestId": 0,
+      "oldPromiseRevived": false
+    },
+    "sharedRetryDelay": {
+      "streamADelayBeforeStreamB": 50,
+      "streamADelayAfterStreamB": 5000,
+      "coupled": true
+    },
+    "singleCancelHandle": {
+      "scheduled": [
+        {
+          "stream": "A",
+          "attempt": 0,
+          "delay": 1000,
+          "cancelled": false
+        },
+        {
+          "stream": "B",
+          "attempt": 0,
+          "delay": 1000,
+          "cancelled": true
+        }
+      ],
+      "onlyLatestCancelled": true
+    },
+    "retryBudgetReset": {
+      "maxRetries": 2,
+      "reconnectCyclesObserved": 5,
+      "scheduledAttempts": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "terminalReached": false
+    }
+  }
+}
