@@ -1,8 +1,8 @@
 # L01 — lifecycle capability provenance
 
-Issue: [#35](../../../../issues/35)  
-Campaign: [#31](../../../../issues/31)  
-Synthesis PR: [#51](../../../../pull/51)  
+Issue: [#35](https://redirect.github.com/teamleaderleo/fieldwork/issues/35)  
+Campaign: [#31](https://redirect.github.com/teamleaderleo/fieldwork/issues/31)  
+Synthesis PR: [#51](https://redirect.github.com/teamleaderleo/fieldwork/pull/51)  
 Worker branch: `lane/35-lifecycle-provenance`
 
 ## Result in plain language
