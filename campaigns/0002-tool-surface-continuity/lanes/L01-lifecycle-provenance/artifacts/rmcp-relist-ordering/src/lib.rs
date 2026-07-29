@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::Duration;
@@ -7,7 +9,7 @@ use rmcp::model::{
     ServerNotification, Tool, ToolListChangedNotification,
 };
 use rmcp::service::{MaybeSendFuture, NotificationContext, Peer, RequestContext};
-use rmcp::{ClientHandler, RoleClient, RoleServer, ServerHandler, ServiceExt};
+use rmcp::{ClientHandler, RoleClient, RoleServer, ServerHandler};
 use tokio::sync::{Mutex, Notify, RwLock};
 
 const TIMEOUT: Duration = Duration::from_secs(10);
