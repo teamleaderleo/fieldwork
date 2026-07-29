@@ -47,7 +47,36 @@ index 73c23b7..0000000 100644
  function updateProviderSession(
    context: OpenCodeSessionContext,
    patch: Partial<ProviderSession>,
-@@ -1051,7 +1065,11 @@ export function makeOpenCodeAdapter(
+@@ -543,12 +557,24 @@ const stopOpenCodeContext = Effect.fn("stopOpenCodeContext")(function* (
+     return false;
+   }
+ 
+-  // Best-effort remote abort. The scope close below tears down the local
+-  // handles (event-pump fiber, server-exit fiber, event-subscribe fetch),
+-  // but we still want to tell OpenCode that this session is done.
+-  yield* runOpenCodeSdk("session.abort", () =>
+-    context.client.session.abort({ sessionID: context.openCodeSessionId }),
+-  ).pipe(Effect.ignore({ log: true }));
++  const interruptOperation = yield* Ref.get(context.interruptOperation);
++  const interruptCompleted = interruptOperation
++    ? yield* Deferred.await(interruptOperation.result).pipe(
++        Effect.as(true),
++        Effect.catchAll(() => Effect.succeed(false)),
++      )
++    : false;
++
++  if (!interruptCompleted) {
++    // Best-effort remote abort. The scope close below tears down the local
++    // handles (event-pump fiber, server-exit fiber, event-subscribe fetch),
++    // but we still want to tell OpenCode that this session is done.
++    yield* runOpenCodeSdk("session.abort", () =>
++      context.client.session.abort({ sessionID: context.openCodeSessionId }),
++    ).pipe(Effect.ignore({ log: true }));
++  }
+ 
+   // Closing the session scope interrupts every fiber forked into it and
+   // runs each finalizer we registered — the `AbortController.abort()` call,
+@@ -1051,7 +1077,11 @@ export function makeOpenCodeAdapter(
              break;
            }
  
@@ -59,7 +88,7 @@ index 73c23b7..0000000 100644
              context.activeTurnId = undefined;
              yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
              yield* emit({
-@@ -1072,6 +1090,13 @@ export function makeOpenCodeAdapter(
+@@ -1072,6 +1102,13 @@ export function makeOpenCodeAdapter(
          case "session.error": {
            const message = sessionErrorMessage(event.properties.error);
            const activeTurnId = context.activeTurnId;
@@ -74,7 +103,7 @@ index 73c23b7..0000000 100644
            context.activeTurnId = undefined;
            yield* updateProviderSession(
              context,
-@@ -1287,6 +1312,7 @@ export function makeOpenCodeAdapter(
+@@ -1287,6 +1324,7 @@ export function makeOpenCodeAdapter(
            activeTurnId: undefined,
            activeAgent: undefined,
            activeVariant: undefined,
@@ -82,7 +111,7 @@ index 73c23b7..0000000 100644
            stopped: yield* Ref.make(false),
            sessionScope: started.sessionScope,
          };
-@@ -1411,6 +1437,16 @@ export function makeOpenCodeAdapter(
+@@ -1411,6 +1449,16 @@ export function makeOpenCodeAdapter(
  
      const sendTurn: OpenCodeAdapterShape["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
        const context = yield* ensureSessionContext(sessions, input.threadId);
@@ -97,7 +126,7 @@ index 73c23b7..0000000 100644
        // A sendTurn while a turn is active is a steer: OpenCode queues the
        // prompt into the busy session and the work continues as one turn, so
        // the active turn id is reused instead of opening a new turn.
-@@ -1538,21 +1574,97 @@ export function makeOpenCodeAdapter(
+@@ -1538,21 +1586,97 @@ export function makeOpenCodeAdapter(
  
      const interruptTurn: OpenCodeAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
        function* (threadId, turnId) {
