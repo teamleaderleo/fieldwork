@@ -1,0 +1,23 @@
+[
+  {
+    "mode": "reader-cancel",
+    "events": [
+      "tool-start",
+      "tool-complete",
+      "result-delivery-error:TypeError",
+      "source-cancel:consumer-stopped"
+    ],
+    "sourceCancelled": true,
+    "sharedAbortSignalAborted": false
+  },
+  {
+    "mode": "explicit-abort",
+    "events": [
+      "tool-start",
+      "tool-abort:AbortError",
+      "source-cancel:cleanup"
+    ],
+    "sourceCancelled": true,
+    "sharedAbortSignalAborted": true
+  }
+]
