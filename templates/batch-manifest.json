@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "batch_id": "BYYYYMMDD-NNN",
+  "title": "Short batch title",
+  "state": "triage",
+  "coordinator": "github-login-or-agent-id",
+  "created_at": "YYYY-MM-DD",
+  "purpose": "One bounded reason this batch exists.",
+  "exclusions": [
+    "What this batch will not attempt."
+  ],
+  "constraints": {
+    "upstream_contact_authorized": false,
+    "max_parallel": 8,
+    "default_time_boundary": "Produce a bounded finding; stop before speculative implementation."
+  },
+  "dimensions": {
+    "targets": [
+      "owner/repository"
+    ],
+    "questions": [
+      "One concrete question"
+    ],
+    "methods": [
+      "source-map",
+      "reproduction",
+      "policy-review"
+    ]
+  },
+  "assignments": [
+    {
+      "id": "A001",
+      "kind": "probe",
+      "target": "owner/repository",
+      "source_revision": "exact SHA, release, or retrieval boundary",
+      "question": "One answerable question",
+      "method": "One method",
+      "deliverable": "One concrete output",
+      "owned_path": "batches/BYYYYMMDD-NNN-slug/results/A001.md",
+      "dependencies": [],
+      "state": "ready",
+      "stop_condition": "Exact reason to stop or escalate",
+      "upstream_contact_authorized": false
+    }
+  ]
+}
