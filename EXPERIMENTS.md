@@ -49,7 +49,7 @@ Only create the directories the experiment actually needs. Small experiments may
 - upstream-contact authorization, always `false` unless explicitly changed by the user;
 - state: `draft`, `running`, `complete`, `negative-result`, `blocked`, or `promoted`.
 
-Use `templates/experiment.json` and `templates/experiment.md`.
+Use `templates/experiment.json` and `templates/experiment.md`, or run `scripts/new_experiment.py` to scaffold both records and a runnable stub.
 
 ## Canonical cases
 
