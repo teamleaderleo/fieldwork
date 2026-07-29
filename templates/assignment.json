@@ -1,0 +1,15 @@
+{
+  "batch_id": "BYYYYMMDD-NNN",
+  "assignment_id": "A001",
+  "kind": "probe",
+  "target": "owner/repository",
+  "source_revision": "exact SHA, release, or retrieval boundary",
+  "question": "One answerable question",
+  "method": "One method",
+  "deliverable": "One concrete output",
+  "owned_path": "batches/BYYYYMMDD-NNN-slug/results/A001.md",
+  "dependencies": [],
+  "state": "ready",
+  "stop_condition": "Exact stop or escalation condition",
+  "upstream_contact_authorized": false
+}
