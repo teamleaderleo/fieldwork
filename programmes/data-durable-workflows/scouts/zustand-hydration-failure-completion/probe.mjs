@@ -17,16 +17,19 @@ const settle = async thenable => {
 
 const runFailureCase = async ({ name, storage, version, migrate, merge }) => {
   const events = []
+  const optionalOptions = {
+    ...(version === undefined ? {} : { version }),
+    ...(migrate === undefined ? {} : { migrate }),
+    ...(merge === undefined ? {} : { merge }),
+  }
   const store = createStore(
     persist(
       () => ({ count: 0 }),
       {
         name: `fieldwork-${name}`,
         storage,
-        version,
-        migrate,
-        merge,
         skipHydration: true,
+        ...optionalOptions,
         onRehydrateStorage: state => {
           events.push({ event: 'rehydrate-start-callback', count: state.count })
           return (nextState, error) => {
@@ -57,7 +60,14 @@ const runFailureCase = async ({ name, storage, version, migrate, merge }) => {
     events,
   }
 
-  assert.equal(result.settlement.status, 'fulfilled', `${name}: rehydrate currently resolves`)
+  const endEvents = result.events.filter(
+    event => event.event === 'rehydrate-end-callback',
+  )
+  assert.equal(
+    result.settlement.status,
+    'fulfilled',
+    `${name}: rehydrate currently resolves`,
+  )
   assert.equal(result.hasHydrated, false, `${name}: hasHydrated remains false`)
   assert.equal(
     result.events.filter(event => event.event === 'onHydrate').length,
@@ -70,10 +80,11 @@ const runFailureCase = async ({ name, storage, version, migrate, merge }) => {
     `${name}: finish listener does not fire`,
   )
   assert.equal(
-    result.events.filter(event => event.event === 'rehydrate-end-callback').length,
+    endEvents.length,
     1,
     `${name}: onRehydrateStorage receives the failure`,
   )
+  assert.equal(typeof endEvents[0].error, 'string', `${name}: error is observable`)
   assert.equal(result.state.count, 0, `${name}: current state is retained`)
 
   return result
@@ -179,17 +190,30 @@ assert.equal(afterSuccessfulRetry.settlement.status, 'fulfilled')
 assert.equal(afterSuccessfulRetry.hasHydrated, true)
 assert.equal(afterSuccessfulRetry.state.count, 42)
 assert.equal(
-  afterSuccessfulRetry.events.filter(event => event.event === 'onFinishHydration').length,
+  afterSuccessfulRetry.events.filter(
+    event => event.event === 'onFinishHydration',
+  ).length,
   1,
 )
 
-console.log(JSON.stringify({
-  package: 'zustand',
-  version: '5.0.14',
-  node: process.version,
-  failures: [storageRejection, malformedJSON, migrationFailure, mergeFailure],
-  retry: {
-    afterFailedAttempt,
-    afterSuccessfulRetry,
-  },
-}, null, 2))
+console.log(
+  JSON.stringify(
+    {
+      package: 'zustand',
+      version: '5.0.14',
+      node: process.version,
+      failures: [
+        storageRejection,
+        malformedJSON,
+        migrationFailure,
+        mergeFailure,
+      ],
+      retry: {
+        afterFailedAttempt,
+        afterSuccessfulRetry,
+      },
+    },
+    null,
+    2,
+  ),
+)
