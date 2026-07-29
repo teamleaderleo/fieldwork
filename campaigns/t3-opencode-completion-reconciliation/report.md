@@ -11,13 +11,13 @@ The deeper review found that this is not one stale-state bug. It is a cluster of
 - abort response, idle delivery, and a later new turn can race each other;
 - a delayed session-scoped idle event can accidentally close a newer turn because the provider event has no T3 turn identity;
 - history can help classify recovery, but T3's existing unbounded history path has a documented large-thread hang;
-- an inactivity reaper checks for an active turn and then stops the session in a separate step, leaving another check-then-act race.
+- an inactivity reaper can observe no active turn and later stop the session after a new turn has already begun.
 
 The original easy repair, `idle without activeTurnId -> session ready`, remains rejected. It can unlock the wrong turn.
 
 The preferred direction is exact and conservative: preserve the old T3 turn ID plus ordered OpenCode user-message IDs, subscribe before taking a provider snapshot, inspect only bounded and time-limited matching history, and settle the exact turn once. Status alone must not decide success. A stale exact completion is already rejected by T3's lifecycle guard when a newer turn is active.
 
-Three target test files now specify thirteen recovery, steering, interruption, and delayed-event cases. They are committed on the owned T3 fork but have not been run. No production repair is committed.
+Four target test files now specify fourteen recovery, steering, interruption, delayed-event, and reaper cases. They are committed on the owned T3 fork but have not been run. No production repair is committed.
 
 ## Assignment
 
@@ -34,7 +34,7 @@ Pinned sources:
 
 - T3 Code base: `teamleaderleo/t3code@85a89868703530e03c5e79797c7b952c684bd222`
 - OpenCode reference: `teamleaderleo/opencode@7565e03536d19e850f9996c407f9bf5e932b5f7a`
-- Prepared target head: `teamleaderleo/t3code@aa58cc6dd6749dc4365a3ec9f41d9eaa28520672`
+- Prepared target head: `teamleaderleo/t3code@e1108bcfaef5deacad9642ed6dcee05b889b368e`
 - Fieldwork base: `teamleaderleo/fieldwork@ed91a4d1de9d62b3eab50d0b0188917b061746db`
 
 Dependencies:
@@ -236,21 +236,27 @@ Problems found in the first review:
 - neither tested duplicate interruption;
 - neither tested abort-idle one-shot settlement;
 - neither tested delayed old idle against a newer turn;
-- steering had no test requiring caller-generated provider message identity.
+- steering had no test requiring caller-generated provider message identity;
+- no executable case crossed the ProviderSessionReaper and ProviderService boundary.
 
-The fakes were rebuilt so event delivery can be buffered, delayed, or injected during an in-flight abort. Each test has an isolated adapter layer and state.
+The OpenCode fakes were rebuilt so event delivery can be buffered, delayed, or injected during an in-flight abort. Each adapter test has an isolated layer and state.
+
+The reaper test uses the real ProviderService and provider-session persistence with a fake adapter. It pauses the first projection read, starts and persists a new turn through ProviderService, then releases the stale inactive snapshot. The required behavior is only that the adapter session and running binding survive; the implementation may recheck, compare a version or last-seen token, or use an atomic stop-if-idle operation.
+
+The reaper test harness was reviewed after creation. Its optional instance field now avoids explicit undefined under exact optional types, and its manually built layer scope is registered as an outer scoped finalizer so the expected current assertion failure cannot leak fibers or database resources.
 
 ## Prepared target specifications
 
 Owned target head:
 
-`aa58cc6dd6749dc4365a3ec9f41d9eaa28520672`
+`e1108bcfaef5deacad9642ed6dcee05b889b368e`
 
 Prepared files:
 
 - `apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts`
 - `apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts`
 - `apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts`
+- `apps/server/src/provider/Layers/ProviderSessionReaper.race.test.ts`
 
 Intended focused command:
 
@@ -258,12 +264,13 @@ Intended focused command:
 vp test run \
   apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts \
   apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts \
-  apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts
+  apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts \
+  apps/server/src/provider/Layers/ProviderSessionReaper.race.test.ts
 ```
 
 ### Restart and recovery cases
 
-Prepared:
+Six prepared test functions cover:
 
 1. idle plus unrelated completed history settles the exact old turn as interrupted;
 2. matching terminal assistant success settles the exact old turn as completed;
@@ -273,11 +280,11 @@ Prepared:
 6. status snapshot failure fails recovery and never creates an empty session;
 7. bounded history failure fails recovery and never creates an empty session.
 
-The no-evidence case deliberately includes unrelated successful history so a naive latest-message check cannot pass.
+The bounded-history invariant is asserted inside the idle classification tests rather than as a separate test function. The no-evidence case deliberately includes unrelated successful history so a naive latest-message check cannot pass.
 
 ### Interruption and delayed-event cases
 
-Prepared:
+Six prepared test functions cover:
 
 1. successful abort settles exact interrupted even when no later idle is delivered;
 2. stale explicit turn ID is rejected before upstream abort;
@@ -288,18 +295,29 @@ Prepared:
 
 ### Steering affinity case
 
-Prepared:
+One prepared test requires:
 
 - initial prompt plus two steering prompts reuse one T3 turn;
-- each OpenCode request must carry a valid caller-generated `msg...` ID;
-- all three provider message IDs must be distinct.
+- each OpenCode request carries a valid caller-generated `msg...` ID;
+- all three provider message IDs are distinct.
 
 The test intentionally does not choose whether the ordered IDs are stored in an internal runtime payload, a versioned provider cursor, or another server-private structure. That persistence shape remains an implementation decision.
 
+### Reaper check-stop case
+
+One integrated prepared test requires:
+
+1. reaper begins from an inactive projected snapshot;
+2. the snapshot is paused before it returns;
+3. ProviderService starts a new turn and updates the durable binding;
+4. the stale snapshot is released;
+5. the adapter session remains alive and running;
+6. the durable binding remains running with the new active turn.
+
 Evidence status:
 
-- three test files committed: **observed**;
-- thirteen target test cases prepared: **observed**;
+- four test files committed: **observed**;
+- fourteen target test functions prepared: **observed**;
 - source mechanisms: **source-confirmed**;
 - target execution: **not run**;
 - expected current failures: **inferred from source**, not reported as executed failures;
@@ -331,7 +349,7 @@ For every initial or steering `promptAsync` call:
 - define the crash boundary between provider acceptance and persistence;
 - never use a failed unaccepted steer as terminal history evidence.
 
-A pending/accepted marker or idempotent message identity may be needed to close the acceptance-persistence window.
+A pending or accepted marker, or idempotent message identity, may be needed to close the acceptance-persistence window.
 
 ### 3. Subscribe before snapshot reconciliation
 
@@ -392,7 +410,7 @@ A reaper stop needs an expected-idle guard such as:
 - adapter-side stop-if-idle operation;
 - another atomic check at the owning session boundary.
 
-A plain second read can narrow but not eliminate the race.
+A plain second read can narrow but not eliminate the race, but it is an acceptable first implementation if the integrated test and a subsequent adversarial interleaving remain green.
 
 ## Further required cases before production code
 
@@ -405,15 +423,14 @@ Planned but not yet prepared as executable target tests:
 5. prompt accepted but recovery affinity persistence crashes;
 6. failed steer does not become false recovery evidence;
 7. accepted terminal event clears provider-directory recovery state;
-8. reaper idle snapshot races with a newly starting turn;
-9. old adapter-generation event arrives after hot reload;
-10. terminal assistant message and idle arrive in both orders;
-11. session error followed by idle cannot regress failed to completed;
-12. lost UI acknowledgement causes user resend without duplicate provider work;
-13. pending approval or question survives, reconstructs, or explicitly expires;
-14. provider remains busy without progress beyond a liveness budget;
-15. runtime event consumers stall under high-volume content;
-16. external OpenCode server lacks required bounded-history or status capability.
+8. old adapter-generation event arrives after hot reload;
+9. terminal assistant message and idle arrive in both orders;
+10. session error followed by idle cannot regress failed to completed;
+11. lost UI acknowledgement causes user resend without duplicate provider work;
+12. pending approval or question survives, reconstructs, or explicitly expires;
+13. provider remains busy without progress beyond a liveness budget;
+14. runtime event consumers stall under high-volume content;
+15. external OpenCode server lacks required bounded-history or status capability.
 
 The complete case definitions are in `artifacts/test-matrix.json`.
 
@@ -430,6 +447,10 @@ Rejected because idle is not proof of success, failure, abort, or preserved exec
 ### Existing unbounded `readThread` for recovery
 
 Rejected because it has a documented large-thread hang and no timeout or cancellation budget.
+
+### Unconditional reaper stop after an inactive snapshot
+
+Rejected because the snapshot can become stale before stop commits.
 
 ### Public start-session schema expansion
 
@@ -459,9 +480,9 @@ Deferred. OpenCode-specific tests should first establish whether the shared life
 
 Do not apply production code yet.
 
-Run the three focused target test files. Fix any test-harness or type errors before interpreting lifecycle failures. Then implement only enough internal recovery and one-shot settlement state to make the exact-affinity cases pass.
+Run and type-check the four focused target test files. Fix test-harness errors before interpreting lifecycle failures. Then implement only enough internal recovery, one-shot settlement, and stale-reaper guarding to make the exact-affinity cases pass.
 
-Before calling the repair safe, add the history-timeout, acceptance-persistence, terminal-directory-clearing, and reaper check-stop cases. Those four boundaries are where prior fixes and the current source are most likely to regress again.
+Before calling the repair safe, also add executable history-timeout, prompt-acceptance/persistence, and terminal-directory-cleanup coverage. Those three remaining boundaries are where prior fixes and the current source are most likely to regress again.
 
 Keep the campaign claimed until target-native results establish:
 
@@ -469,4 +490,5 @@ Keep the campaign claimed until target-native results establish:
 - bounded outcome classification;
 - one-shot interruption;
 - stale-event safety against a newer turn;
+- reaper safety against a newly active session;
 - durable recovery metadata cleanup.
