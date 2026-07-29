@@ -1,0 +1,92 @@
+{
+  "schema_version": 2,
+  "source_revision": "3725f02cf38d856bc82bb46dd68ab61bb96ec6fc",
+  "case_count": 4,
+  "accepted": [
+    "mcp-deferred-loader-inherited-verified",
+    "mcp-deferred-stale-catalogue-zero-results",
+    "dynamic-deferred-stale-saved-generation"
+  ],
+  "rejected": [
+    "mcp-deferred-logical-loader-wire-omitted"
+  ],
+  "warnings": [
+    {
+      "id": "mcp-deferred-stale-catalogue-zero-results",
+      "codes": [
+        "stale_discovery_catalogue"
+      ]
+    },
+    {
+      "id": "dynamic-deferred-stale-saved-generation",
+      "codes": [
+        "stale_saved_provenance"
+      ]
+    }
+  ],
+  "mismatches": [],
+  "passed": true,
+  "cases": [
+    {
+      "id": "mcp-deferred-loader-inherited-verified",
+      "family": "mcp.configured",
+      "expected": "accept",
+      "actual": "accept",
+      "reasons": [],
+      "expected_warning_codes": [],
+      "warning_codes": [],
+      "discovery_execution": "unexecuted",
+      "discovery_delivery": "inherited_verified",
+      "result_count": null
+    },
+    {
+      "id": "mcp-deferred-logical-loader-wire-omitted",
+      "family": "mcp.configured",
+      "expected": "reject",
+      "actual": "reject",
+      "reasons": [
+        "discovery route is present logically but omitted from the wire without verified inheritance"
+      ],
+      "expected_warning_codes": [],
+      "warning_codes": [],
+      "discovery_execution": "unexecuted",
+      "discovery_delivery": "omitted_unverified",
+      "result_count": null
+    },
+    {
+      "id": "mcp-deferred-stale-catalogue-zero-results",
+      "family": "mcp.thread_binding",
+      "expected": "accept",
+      "actual": "accept",
+      "reasons": [],
+      "expected_warning_codes": [
+        "stale_discovery_catalogue"
+      ],
+      "warning_codes": [
+        "stale_discovery_catalogue"
+      ],
+      "discovery_execution": "executed",
+      "discovery_delivery": "direct",
+      "result_count": 0
+    },
+    {
+      "id": "dynamic-deferred-stale-saved-generation",
+      "family": "native.dynamic_host",
+      "expected": "accept",
+      "actual": "accept",
+      "reasons": [],
+      "expected_warning_codes": [
+        "stale_saved_provenance"
+      ],
+      "warning_codes": [
+        "stale_saved_provenance"
+      ],
+      "discovery_execution": "unexecuted",
+      "discovery_delivery": "direct",
+      "result_count": null
+    }
+  ],
+  "command": "python3 run_invariant.py fixtures/cross-lane-surfaces.json --output results/cross-lane.json",
+  "run_date": "2026-07-30",
+  "environment": "local zero-dependency Python probe; upstream source read-only"
+}

@@ -1,0 +1,27 @@
+name: L05 Rust probe
+
+on:
+  pull_request:
+    paths:
+      - "campaigns/0002-tool-surface-continuity/lanes/L05-deferred-discovery-invariant/rust-probe/**"
+      - ".github/workflows/l05-rust-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: campaigns/0002-tool-surface-continuity/lanes/L05-deferred-discovery-invariant/rust-probe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Run contract tests
+        run: cargo test --all-targets --locked

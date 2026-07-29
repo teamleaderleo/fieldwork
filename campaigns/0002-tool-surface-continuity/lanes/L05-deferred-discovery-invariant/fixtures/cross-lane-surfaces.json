@@ -1,0 +1,93 @@
+{
+  "schema_version": 2,
+  "source_revision": "3725f02cf38d856bc82bb46dd68ab61bb96ec6fc",
+  "cases": [
+    {
+      "id": "mcp-deferred-loader-inherited-verified",
+      "family": "mcp.configured",
+      "presence": "present",
+      "exposure": "deferred",
+      "search_metadata": true,
+      "discovery": {
+        "tool": "tool_search",
+        "advertised": true,
+        "registered": true,
+        "executable": true,
+        "semantics": "load_existing_deferred_tools",
+        "execution": "unexecuted",
+        "result_count": null,
+        "delivery": "inherited_verified"
+      },
+      "expected": "accept",
+      "note": "Incremental transport may omit the loader only when previous-response inheritance is verified for the same manifest."
+    },
+    {
+      "id": "mcp-deferred-logical-loader-wire-omitted",
+      "family": "mcp.configured",
+      "presence": "present",
+      "exposure": "deferred",
+      "search_metadata": true,
+      "discovery": {
+        "tool": "tool_search",
+        "advertised": true,
+        "registered": true,
+        "executable": true,
+        "semantics": "load_existing_deferred_tools",
+        "execution": "unexecuted",
+        "result_count": null,
+        "delivery": "omitted_unverified"
+      },
+      "expected": "reject",
+      "note": "The planner contains tool_search, but the generated wire request omits it without a verified inheritance receipt."
+    },
+    {
+      "id": "mcp-deferred-stale-catalogue-zero-results",
+      "family": "mcp.thread_binding",
+      "presence": "present",
+      "exposure": "deferred",
+      "search_metadata": true,
+      "discovery": {
+        "tool": "tool_search",
+        "advertised": true,
+        "registered": true,
+        "executable": true,
+        "semantics": "load_existing_deferred_tools",
+        "execution": "executed",
+        "result_count": 0,
+        "delivery": "direct",
+        "catalogue_state": "stale"
+      },
+      "expected": "accept",
+      "expected_warning_codes": [
+        "stale_discovery_catalogue"
+      ],
+      "note": "The route invariant passes, while catalogue convergence fails earlier and belongs to L04/L06."
+    },
+    {
+      "id": "dynamic-deferred-stale-saved-generation",
+      "family": "native.dynamic_host",
+      "presence": "present",
+      "exposure": "deferred",
+      "search_metadata": true,
+      "provenance_state": "stale_saved",
+      "discovery": {
+        "tool": "tool_search",
+        "advertised": true,
+        "registered": true,
+        "executable": true,
+        "semantics": "load_existing_deferred_tools",
+        "execution": "unexecuted",
+        "result_count": null,
+        "delivery": "direct"
+      },
+      "expected": "accept",
+      "expected_warning_codes": [
+        "stale_saved_provenance"
+      ],
+      "note": "The loader is valid, while host lifecycle provenance is stale and belongs to L01/L06."
+    }
+  ],
+  "command": "python3 run_invariant.py fixtures/cross-lane-surfaces.json --output results/cross-lane.json",
+  "run_date": "2026-07-30",
+  "environment": "local zero-dependency Python probe; upstream source read-only"
+}
