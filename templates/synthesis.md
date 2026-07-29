@@ -1,6 +1,25 @@
 # Campaign or Batch Synthesis
 
+Target label:
+Target hub:
+Owned testbeds used:
+
+## In simple words
+
+- What system or workflow did we study?
+- What did we actually establish?
+- Why could the result be useful?
+- What remains unknown?
+- What happens next?
+
 ## Parent question
+
+## Change thesis evaluated
+
+- current behaviour:
+- consequence:
+- proposed improvement:
+- evidence boundary:
 
 ## Intended claim scope
 
@@ -20,6 +39,10 @@
 ## Demonstrated mechanism behaviour
 
 Cite the experiment, lane, case, and retained artifact supporting every conclusion.
+
+## Owned-repository integration results
+
+Record testbed, exact revision, baseline, candidate, ergonomics, rollback, and whether the change was retained locally.
 
 ## Documented real use and contracts
 
@@ -53,7 +76,7 @@ Which different integration or state models would change the result?
 
 ## Decision gate
 
-Choose one: continue research, local workaround, publish finding, create or revise context, seek upstream direction, prepare patch, or stop.
+Choose one: continue research, retain owned-project improvement, local workaround, publish finding, create or revise context, seek upstream direction, prepare patch, or stop.
 
 ## Review-cost assessment
 
