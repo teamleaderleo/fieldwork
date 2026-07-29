@@ -206,6 +206,8 @@ If provider status is idle or absent:
 
 If the upstream OpenCode session is confirmed missing while T3 retains an active turn, settle that exact turn as interrupted before creating a fresh session. A transient status/history/auth failure must fail recovery rather than silently mint a new empty session.
 
+A local scope-owned OpenCode server deserves special care. Losing the T3 process also loses the live provider execution. Reopening the durable OpenCode conversation on a new local server can recover history, but an idle status from that new process is not evidence that the pre-restart execution completed. Without matching terminal assistant history, the exact old turn remains interrupted.
+
 ### 6. Settle interruption exactly once
 
 Before calling OpenCode abort:
