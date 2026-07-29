@@ -7,21 +7,27 @@ Worker branch: `lane/35-lifecycle-provenance`
 
 ## Result in plain language
 
-Codex has two capability lifecycles at once.
+Codex has at least three capability lifetimes, plus a transport reuse layer.
 
 Thread-scoped host declarations are sticky. Dynamic tools and host-selected capability roots are saved in thread metadata. Cold resume, fork, process restart, and runtime upgrade recover those saved declarations. The public resume and fork APIs provide no replacement fields for either set.
 
-Runtime-derived capabilities are rebuilt. Native tools, model/profile gates, feature flags, permissions, current environments, extensions, current authentication, current MCP configuration, and current connector discovery are captured from the active runtime for each session or request step.
+Session-scoped runtime snapshots can also be sticky. A thread-owned MCP runtime may reuse a ready client and its startup-captured catalogue when connection identity remains unchanged. Recomputing desired MCP configuration therefore does not guarantee that the executable binding has learned a changed server catalogue.
 
-That split produces a mixed effective surface:
+Request planning is rebuilt from current inputs. Native tools, model/profile gates, feature flags, permissions, current environments, extensions, current authentication, desired MCP configuration, and connector discovery are captured for each session or request step.
+
+Responses transport can add another reuse boundary. A Responses Lite startup-prewarm handoff may send the first generated turn through `previous_response_id` without directly repeating the `additional_tools` input prefix.
+
+These lifetimes produce a mixed candidate surface:
 
 - saved dynamic tools are preserved;
 - saved thread roots are preserved;
 - current ready environment roots are merged after thread roots;
 - thread roots win duplicate root IDs, including location conflicts;
-- native and MCP-derived tools are refreshed from current runtime state;
-- a live reconnect rejoins the existing in-memory session;
-- a cold reconnect creates a new session from saved history plus current runtime inputs.
+- native/core tools are replanned from current request state;
+- desired MCP/app inputs are recomputed, while an unchanged live connection can retain a stale catalogue and binding;
+- a live reconnect rejoins the existing in-memory session and its session-owned snapshots;
+- a cold reconnect creates a new session from saved history plus current runtime inputs;
+- transport reuse can make direct wire advertisement depend on retained prior-response state.
 
 The mismatch fixture demonstrates the unresolved host problem: a saved dynamic tool set `host_old` survives cold resume even when the current host set is `host_new`. The current host cannot express that replacement through `thread/resume` or `thread/fork`.
 
@@ -45,10 +51,11 @@ Any refresh proposal needs an owner and lifetime contract for each input.
 | `selectedCapabilityRoots` supplied by the host | The host selects thread-scoped capability identities. Codex persists the selection. Availability and resolved executor state may change independently. | selection is sticky; readiness is current |
 | roots supplied by current environments | The environment supplies additive ready roots for the captured request step. | request-step snapshot |
 | native/core tool plan | Codex derives the plan from the current model profile, provider capabilities, configuration, features, permissions, session source, and current environments. | rebuilt per request step |
-| MCP/app/connector tools | Codex derives the binding from current auth, current config, current manager state, selected-root readiness, and current discovery. | refreshed current state |
+| MCP/app/connector tools | Codex recomputes desired runtime inputs from current auth, config, manager state, selected-root readiness, and discovery. A matching ready client can retain its startup-captured catalogue; the request-step binding is then built from that client. | desired inputs: request-step; ready client/catalogue: session-scoped until reconnect or rebuild; binding: request-step snapshot |
 | multi-agent version | Saved thread metadata wins; an inherited `Disabled` value wins first; legacy resumed/forked threads without metadata fall back to V1. | compatibility-selected at session creation |
-| live reconnect | The existing in-memory session owns the effective surface. | existing session lifetime |
-| cold reconnect / restart / upgrade | Saved thread declarations combine with current runtime-derived inputs. | new session lifetime |
+| live reconnect | The existing in-memory session owns the candidate surface, including session-owned MCP client and catalogue snapshots. | existing session lifetime |
+| cold reconnect / restart / upgrade | Saved thread declarations combine with a newly created runtime and current planning inputs. | new session lifetime |
+| Responses startup-prewarm state | The transport may reuse a prior response whose input carried the logical tool declarations. | WebSocket client-session / previous-response lifetime |
 
 This contract supports continuity without granting an implicit host refresh. A host-driven replacement needs an explicit request, complete snapshot semantics, and a receipt describing the resulting surface.
 
@@ -106,12 +113,14 @@ Cold resume and fork load current configuration using current config-manager log
 - [cold resume configuration load](https://redirect.github.com/openai/codex/blob/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc/codex-rs/app-server/src/request_processors/thread_processor.rs#L3028-L3217)
 - [fork configuration load](https://redirect.github.com/openai/codex/blob/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc/codex-rs/app-server/src/request_processors/thread_processor.rs#L3978-L4225)
 
-Each request step captures current environments, selected-root readiness, executor discovery, current MCP binding, recommendations, extensions, and then builds the tool router:
+Each request step captures current environments, selected-root readiness, executor discovery, desired MCP inputs, recommendations, extensions, and then obtains a binding and builds the tool router:
 
 - [step capture](https://redirect.github.com/openai/codex/blob/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc/codex-rs/core/src/session/mod.rs#L3027-L3103)
 - [current MCP and connector inputs](https://redirect.github.com/openai/codex/blob/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc/codex-rs/core/src/session/turn.rs#L1464-L1580)
 - [tool planning context](https://redirect.github.com/openai/codex/blob/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc/codex-rs/core/src/tools/spec_plan.rs#L144-L213)
 - [native sources selected by current config, model, features, permissions, and environments](https://redirect.github.com/openai/codex/blob/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc/codex-rs/core/src/tools/spec_plan.rs#L609-L775)
+
+Cross-lane evidence from L04 shows that the desired MCP projection and the executable catalogue have different lifetimes. Ordinary refresh can reuse a matching ready client and preserve its startup tool vector. Fresh thread creation, explicit reconnect, full restart, or a connection-identity change creates a fresh client and converges the measured catalogue, binding, router, model declaration, and execution layers.
 
 ### Current environment state and root merge
 
@@ -153,23 +162,27 @@ A running `thread/resume` request rejoins the loaded session. Capability replace
 | model/provider profile | model/profile planning | current model manager and provider capabilities |
 | native/core tools | current configuration + model/profile planning | rebuilt per request step |
 | permission-gated tools | current configuration | current permission profile and feature gates |
-| MCP/app tools | current host state + current configuration | current auth, manager state, connectors, selected-root readiness |
-| dynamic tool handler/specs | saved thread metadata or current host start input | then inserted into the current router |
+| MCP/app desired state | current host state + current configuration | current auth, manager state, connectors, selected-root readiness; recomputed for the request step |
+| MCP ready client/catalogue | another source: live in-memory session | can preserve startup-captured server identity and tool vector across ordinary refresh when connection identity matches |
+| dynamic tool handler/specs | saved thread metadata or current host start input | then inserted into the current router; visibility still depends on direct/deferred planning and discovery availability |
 | multi-agent surface | compatibility logic | saved metadata and legacy fallback |
 | running session surface | another source: live in-memory session | existing session wins |
 | current runtime binary behavior | another source: current revision | affects all rebuilt planning after restart or upgrade |
+| Responses previous-response state | another source: transport session | can carry the logical tool prefix across a prewarm-to-turn incremental handoff |
 
 ## Transition table
 
-| Lifecycle transition | Saved inputs | Current inputs | Winner / composition | Observed outcome |
+| Lifecycle transition | Saved/session inputs | Current inputs | Winner / composition | Observed outcome |
 |---|---|---|---|---|
-| thread start | none | host dynamic tools, host roots, config, model/profile, environments, MCP/auth | current host thread declarations; current runtime plan | build |
-| live reconnect to running thread | persisted history remains secondary | existing in-memory session | live session wins; differing overrides are ignored | preserve |
-| cold resume | dynamic tools, thread roots, compatibility metadata | current config, current model/provider, permissions, environments, auth, MCP/discovery | saved host declarations + current runtime plan | preserve dynamic tools; merge roots; refresh runtime-derived tools |
-| fork | copied dynamic tools, roots, compatibility metadata | current fork config and current runtime state | copied host declarations + current runtime plan | preserve dynamic tools; merge roots; refresh runtime-derived tools |
-| process restart | same as cold resume | new process runtime state | same as cold resume | mixed preserve/refresh |
-| runtime upgrade | same as cold resume | new binary, config, catalog, provider and discovery state | saved declarations interpreted by current code; compatibility fallbacks may apply | mixed preserve/refresh; no capability-generation check |
-| selected executor disconnect/reconnect | saved selected-root identity | current environment readiness and MCP discovery | saved selection remains; current availability controls exposure | degrade while unavailable, recover after reattach |
+| thread start | none | host dynamic tools, host roots, config, model/profile, environments, MCP/auth | current host thread declarations; current request plan; new session runtime | build |
+| live reconnect to running thread | existing in-memory session, including MCP ready clients and catalogue snapshots | listener/client attachment state | live session wins; differing overrides are ignored | preserve the loaded candidate surface |
+| ordinary in-session MCP refresh | existing ready client and startup-captured catalogue | desired config, auth, environments, roots, connector inputs | matching connection identity permits client reuse | desired state can refresh while catalogue, binding, router, and model declaration remain stale |
+| cold resume | dynamic tools, thread roots, compatibility metadata | current config, current model/provider, permissions, environments, auth, MCP/discovery | saved host declarations + new session runtime + current request plan | preserve dynamic tools; merge roots; fresh runtime can converge current MCP catalogue |
+| fork | copied dynamic tools, roots, compatibility metadata | current fork config and current runtime state | copied host declarations + new thread runtime + current request plan | preserve dynamic tools; merge roots; fresh runtime can converge current MCP catalogue |
+| process restart | same saved declarations as cold resume | new process runtime state | same composition as cold resume | mixed preserve/refresh; fresh MCP runtime |
+| runtime upgrade | same saved declarations as cold resume | new binary, config, catalogue, provider and discovery state | saved declarations interpreted by current code; compatibility fallbacks may apply | mixed preserve/refresh; no capability-generation check |
+| selected executor disconnect/reconnect | saved selected-root identity | current environment readiness and executor/MCP discovery | saved selection remains; current availability controls exposure | degrade while unavailable, recover after reattach |
+| Responses Lite startup prewarm → first generated turn | prior response state carries the logical input prefix | freshly built logical request and turn metadata | reuse predicate accepts unchanged logical tools; incremental wire request may omit direct `additional_tools` | wire advertisement depends on retained prior-response state |
 
 ## Mismatch fixture
 
@@ -212,7 +225,7 @@ Local execution completed with exit code `0` and all assertions passing.
 2. **Live-session control:** separates listener reconnect from cold reconstruction.
 3. **Same-ID root conflict:** tests precedence, warning-only handling, and stale-location retention.
 4. **Distinct-ID environment root:** proves current environment state can merge additively.
-5. **Fixed native/MCP set:** isolates thread-scoped host provenance from current runtime planning.
+5. **Fixed native/MCP set:** isolates thread-scoped host provenance from current planning; the fixture does not test session-owned MCP catalogue freshness.
 6. **Pinned compatibility version:** avoids attributing unrelated multi-agent changes to host capability refresh.
 7. **Upstream integration control:** the selected-capability-stack test exercises a real persisted root with unavailable and reattached executor state.
 
@@ -229,6 +242,9 @@ Local execution completed with exit code `0` and all assertions passing.
 | restart follows cold-resume composition | direct code-path inference | high |
 | upgrade follows cold-resume composition under the new binary | code-path inference | medium-high |
 | a changed current host dynamic set silently remains stale on cold resume | source-derived executable fixture | high for precedence, medium for end-to-end UX |
+| desired MCP inputs can refresh while a reused ready client retains a stale catalogue | observed L04 source trace and controlled fixture | high within L04 boundary |
+| a preserved dynamic tool can remain model-invisible when deferred discovery is unavailable | observed L05 source trace and invariant fixture | high within L05 boundary |
+| Responses Lite prewarm reuse can omit direct tool declarations from the first generated wire request | observed L02 source trace and protocol fixture | high for client wire behavior; server consequence unknown |
 | owned revision retains the same decisive precedence | observed owned code | high |
 
 Owned comparison references:
@@ -243,8 +259,57 @@ Owned comparison references:
 - The existing selected-capability integration test covers saved selection plus current readiness. It does not create a changed host thread-selection set.
 - A direct upstream end-to-end dynamic-tool mismatch test was not found at the pinned public revision.
 - The lane fixture models the observed branches and asserts their consequences. It does not execute the full Codex binary.
-- Transport replay details remain assigned to lane L03 / issue #37.
-- MCP/app convergence details remain assigned to lane L05 / issue #39.
+- Transport and startup-prewarm reuse details remain assigned to lane L02 / issue #37.
+- Compaction and result-identity details remain assigned to lane L03 / issue #38.
+- MCP/app catalogue convergence details remain assigned to lane L04 / issue #39.
+- Deferred exposure and discovery details remain assigned to lane L05 / issue #40.
+- Effective-surface receipt design remains pending in lane L06 / issue #43.
+- Fallback authority remains assigned to lane L07 / issue #44.
+- ChatGPT connector/developer-MCP coexistence remains an integration-scope lane L08 / issue #46.
+
+## Cross-lane review
+
+The other campaign lanes refine the lifecycle map without overturning the saved-metadata precedence.
+
+Reviewed campaign records:
+
+| Lane | Durable record | Cross-lane effect |
+|---|---|---|
+| L02 | PR #58 / issue #37 | adds transport previous-response lifetime |
+| L03 | PR #64 / issue #38 | separates capability provenance from compacted call/result identity |
+| L04 | PR #62 / issue #39 | distinguishes desired MCP state from a reused live catalogue |
+| L05 | PR #59 / issue #40 | separates preservation from model visibility and discovery |
+| L06 | issue #43, still open | should synthesize the complete receipt |
+| L07 | PR #60 / issue #44 | constrains fallback after loss |
+| L08 | PR #57 / issue #46 | healthy ChatGPT integration control with restart/reconnect still untested |
+
+### L02 — Responses transport and startup prewarm
+
+L02 establishes a transport-scoped reuse layer after logical request construction. HTTP and WebSocket build the same logical request, while a clean Responses Lite prewarm handoff can send the first generated turn through `previous_response_id` without directly repeating the `additional_tools` prefix. This means L01 should describe current planning separately from direct wire advertisement.
+
+### L03 — compaction and tool-result identity
+
+L03 concerns call/result identity rather than capability declaration provenance. Compaction makes its replacement history authoritative for resume and fork and can remove raw call/result pairs. This does not refresh saved `SessionMeta.dynamic_tools` or selected roots, but it adds a separate persisted history boundary that diagnostics must report.
+
+### L04 — MCP/app catalogue convergence
+
+L04 corrects the broadest sentence in the first L01 draft. Current auth, config, roots, and connector inputs can be recomputed while a matching ready MCP client retains its startup-captured catalogue. Ordinary refresh can therefore remain stale. Fresh thread creation, explicit reconnect, restart, and connection-identity change converge the controlled fixture.
+
+### L05 — deferred discovery invariant
+
+L05 shows that preservation and executability are separate claims. A saved dynamic tool can survive resume and enter the router as a deferred runtime while remaining invisible and unloadable when `tool_search` is unavailable or searchable metadata is missing. L01's fixture establishes provenance and precedence; it does not establish model visibility for every preserved tool.
+
+### L07 — fallback authority
+
+L07 begins after a capability is missing or unusable and asks whether rerouting preserves authority. Its findings do not alter provenance. They strengthen the requirement for typed degradation and fallback receipts before any substitute route executes.
+
+### L08 — ChatGPT coexistence field trial
+
+L08 is a healthy integration-scope negative result. GitHub connector and developer-MCP calls remained executable through sustained use, a context-summary boundary, and rediscovery. The trial could not exercise disconnect/reconnect or application restart and could not inspect raw model advertisements or router inventories, so it neither confirms nor contradicts Codex cold-reconstruction behavior.
+
+### L06 — effective-surface diagnostics
+
+L06 remains open. Its receipt should distinguish at least these lifetimes: saved thread declarations, session-owned client/catalogue snapshots, request-step planning, transport previous-response state, router/model advertisement, execution, and result delivery.
 
 ## Candidate repair semantics
 
@@ -294,4 +359,6 @@ A new runtime should compare persisted capability schema and generation before i
 
 Keep `preserveSaved` as the compatibility default. Add explicit host replacement and mismatch-rejection modes before any automatic refresh. Dynamic tools should use replace semantics. Selected roots can preserve identity while refreshing readiness, with typed conflict and degradation receipts.
 
-The current code provides continuity, yet the host has no public way to assert that its thread-scoped capability set changed. That missing handshake is the repair target.
+Treat host-declaration replacement, MCP catalogue reconnection, deferred-discovery repair, and Responses prewarm reuse as separate controls. They have different owners and lifetimes. A single generic “refresh tools” operation would conceal which state changed.
+
+The current code provides continuity, yet the host has no public way to assert that its thread-scoped capability set changed. That missing handshake remains the L01 repair target.
