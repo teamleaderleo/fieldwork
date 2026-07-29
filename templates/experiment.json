@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "id": "EXP-YYYYMMDD-short-name",
+  "question": "State one bounded question.",
+  "owner": "worker-id",
+  "created_at": "YYYY-MM-DD",
+  "state": "draft",
+  "sources": [
+    {
+      "name": "system-or-package",
+      "revision": "exact-version-or-commit",
+      "retrieved_at": "YYYY-MM-DD"
+    }
+  ],
+  "command": "python3 run.py",
+  "environment": {
+    "runtime": "",
+    "platform": "",
+    "dependencies": []
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "",
+      "interpretation": ""
+    }
+  ],
+  "stop_condition": "Stop after the bounded question is answered or cannot be tested safely.",
+  "network_policy": "disabled",
+  "upstream_contact_authorized": false,
+  "result_paths": [],
+  "promoted_to": null
+}
