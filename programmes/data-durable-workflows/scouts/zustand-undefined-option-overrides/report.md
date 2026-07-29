@@ -1,6 +1,6 @@
 # Zustand persist undefined option overrides
 
-State: `probe-prepared`
+State: `source-confirmed`
 
 Fieldwork lane: #170
 
@@ -13,6 +13,10 @@ Owned characterization: `teamleaderleo/zustand#2`
 Owned branch: `fieldwork/persist-undefined-option-overrides`
 
 Owned head: `79ed669019eed3733361cb3a338860dc9b8353c2`
+
+Fork workflow: `30500083370`
+
+Fieldwork workflow: `30500148562`
 
 Upstream contact authorized: `false`
 
@@ -34,52 +38,84 @@ Object spread copies properties whose value is explicitly `undefined`. Runtime c
 
 `persist.setOptions()` repeats the spread behavior. Its storage handling is additionally split: `options.storage` can become `undefined`, but the private `storage` reference changes only when `newOptions.storage` is truthy.
 
-## Source consequences
+## Source-equivalent execution
 
-### `merge: undefined`
+A Node `v22.16.0` execution transcribed the pinned vanilla store, JSON storage adapter, synchronous thenable, persist option merge, `setItem`, hydration, and `setOptions()` paths.
 
-Hydration reaches `options.merge(...)`, throws a `TypeError`, retains current state, leaves `hasHydrated()` false, and reports the failure only through the optional post-rehydration callback under the released contract.
+The execution confirmed every prepared case. The detailed receipt is in `source-equivalent-execution.md`.
 
-### `partialize: undefined`
+## Confirmed consequences
 
-The wrapped `setState` applies the state mutation first and then calls `setItem()`. `setItem()` calls `options.partialize(...)`, so the state changes before a `TypeError` prevents persistence.
+### Constructor `merge: undefined`
 
-### `storage: undefined` through `setOptions`
+- explicit hydration fulfilled under the released error-settlement contract;
+- state remained `{ count: 0 }`;
+- `hasHydrated()` remained false;
+- the post-rehydration callback received `TypeError: options.merge is not a function`.
 
-`getOptions().storage` reports `undefined`, but the private storage reference remains unchanged because the update is guarded by a truthiness check. Later reads and writes continue using storage that the public options object says is absent.
+### Constructor `partialize: undefined`
 
-### `version: undefined`
+- `setState({ count: 1 })` changed in-memory state;
+- persistence then threw a `TypeError`;
+- storage `setItem` was not called.
 
-Later writes pass `{ version: undefined }` to JSON storage. `JSON.stringify` omits the field, silently changing the persistence format from the default version `0`.
+### `setOptions({ merge: undefined })`
 
-## Characterization cases
+- `getOptions().merge` became `undefined`;
+- the next hydration failed with the same merge `TypeError`.
 
-The owned branch prepares assertions for:
+### `setOptions({ partialize: undefined })`
 
-- constructor `merge: undefined`;
-- constructor `partialize: undefined`;
-- `setOptions({ merge: undefined })`;
-- `setOptions({ partialize: undefined })`;
-- `setOptions({ storage: undefined })` with later reads and writes;
-- `setOptions({ version: undefined })` with serialized output;
-- `setOptions({ onRehydrateStorage: undefined })` as an intentional-clear control.
+- `getOptions().partialize` became `undefined`;
+- the next `setState` changed in-memory state and then threw before persistence.
 
-The control matters: a blanket rule that ignores every `undefined` update would stop callers from removing optional callbacks. Any repair must distinguish defaulted/invariant fields from intentionally clearable fields.
+### `setOptions({ storage: undefined })`
+
+- `getOptions().storage` reported `undefined`;
+- the existing private storage still received a write and a later read;
+- the later hydration from that storage applied `{ count: 3 }`.
+
+### `setOptions({ version: undefined })`
+
+- the next JSON write serialized as `{"state":{"count":1}}`;
+- the default version `0` was silently omitted.
+
+### Optional callback control
+
+- `setOptions({ onRehydrateStorage: undefined })` intentionally removed the callback;
+- later hydration succeeded without invoking it.
+
+## Characterization matrix
+
+The owned branch stores the characterization outside Vitest's default `tests` directory. Dedicated workflows copy it into `tests`, run it with the existing async and sync persist suites, and lint it on Node 22, 24, and 26.
+
+Fork workflow `30500083370` and Fieldwork workflow `30500148562` were queued at the latest recorded check. No clean-checkout result is claimed yet.
 
 ## Prior-art status
 
-Searches for persist `merge`, `partialize`, `storage`, `setOptions`, and explicit `undefined` found no matching current upstream issue or pull request.
+Searches for persist `merge`, `partialize`, `storage`, `setOptions`, explicit `undefined`, and default replacement found no matching current upstream issue or pull request.
 
-## Validation plan
+## Candidate repair shape
 
-The characterization source is stored outside Vitest's default `tests` directory. A clean-checkout workflow copies it into `tests`, runs it with the existing async and sync persist suites, and lints it on Node 22, 24, and 26.
+A safe repair must be field-aware.
 
-Do not retain a repair before execution. Candidate directions include:
+Defaulted or invariant fields should treat `undefined` as "not supplied":
 
-1. restore defaults only for invariant/defaulted fields when their value is `undefined`;
-2. normalize construction and `setOptions()` through a shared field-aware resolver;
-3. validate and reject explicit `undefined` for required runtime invariants;
-4. preserve explicit removal for callbacks and other intentionally clearable fields.
+- `name` during `setOptions()`;
+- `storage`;
+- `partialize`;
+- `version`;
+- `merge`.
+
+Intentionally clearable fields should retain normal spread semantics:
+
+- `onRehydrateStorage`;
+- `migrate`;
+- other optional callbacks or flags where clearing is meaningful.
+
+One narrow implementation direction is to use destructuring defaults for the invariant fields at construction and during `setOptions()`, then spread the remaining fields normally. This would also keep the public `options.storage` and private storage reference aligned.
+
+Do not retain a patch until the clean-checkout characterization matrix settles.
 
 ## Boundary
 
