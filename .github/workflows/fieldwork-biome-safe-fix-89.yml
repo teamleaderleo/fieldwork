@@ -34,3 +34,6 @@ jobs:
       - name: Explore useFlatMap Array species behavior
         shell: bash
         run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-flat-map-array-species/reproduce.sh
+      - name: Explore useConst direct eval behavior
+        shell: bash
+        run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-const-direct-eval/reproduce.sh
