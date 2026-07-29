@@ -25,7 +25,7 @@ Use the narrowest accurate evidence description. Recommended classes are:
 - `target-test-prepared` — a target-native test exists but has no retained execution receipt;
 - `target-executed` — the target package or repository test ran at an exact head;
 - `integration-executed` — a real owned integration, browser, process, provider, or platform path ran;
-- `full-gate` — the repository's declared complete gate ran at the exact candidate head.
+- `full-gate` — the named repository-declared gate ran at the exact candidate head. The receipt must name that gate or command set and state important integration, platform, provider, authority, recovery, or ecosystem paths it does not exercise. `full-gate` does not imply coverage outside the named gate.
 
 Do not upgrade evidence during synthesis. In particular:
 
@@ -33,6 +33,7 @@ Do not upgrade evidence during synthesis. In particular:
 - a prepared test is not a failing test;
 - one platform run is not a cross-platform result;
 - a focused test is not a full gate;
+- a named full gate is not proof of behavior outside the paths that gate exercises;
 - full CI is not proof of an untested security, authority, or lifecycle property;
 - one owned testbed is not ecosystem impact.
 
@@ -48,10 +49,13 @@ A promotion review should record:
 - validation commands, workflow runs, platforms, and retained results;
 - unresolved failures, skipped jobs, and checks that did not run;
 - dependencies, replacements, and superseded branches;
+- reviewed coordination inputs when they affect the decision, including the issue number and an accepted issue-body generation such as `updated_at`, body digest, or explicit revision marker;
 - whether upstream contact remains unauthorized;
 - reviewer disposition and clearing condition.
 
-Any head movement expires the disposition unless the reviewer explicitly proves the new head is semantically identical within the reviewed fence.
+A code head is not the only possible review input. When the invariant, review ask, state, clearing condition, authority boundary, or promotion request comes from an issue or decision record, the receipt must version that input too.
+
+Any code-head movement or reviewed-input generation change expires the disposition unless the reviewer explicitly proves the new input is semantically identical within the reviewed fence.
 
 ## Review dispositions
 
@@ -98,8 +102,10 @@ Repair or remove wording that says:
 - checks are still running after they completed;
 - a branch is current when it is behind or superseded;
 - a review is valid after the reviewed head changed;
+- a review is valid after its issue invariant, review ask, state, clearing condition, or authority input changed;
 - an execution carrier is the canonical implementation;
-- a full gate passed when only focused or model evidence ran.
+- a full gate passed when only focused or model evidence ran;
+- a named full gate proves integrations or properties it did not exercise.
 
 Issue-body `State:` text and live `state:*` labels must agree. A generated queue or review index must carry a validation timestamp and exact referenced states; otherwise it is a snapshot, not a current queue.
 
@@ -125,7 +131,9 @@ Before moving a pull request out of draft or advancing a Fieldwork issue:
 
 - [ ] work class is explicit;
 - [ ] canonical branch and exact head are named;
+- [ ] reviewed issue or decision inputs are versioned when they affect the disposition;
 - [ ] evidence class is accurate;
+- [ ] every `full-gate` claim names the gate and its material coverage limits;
 - [ ] current-main relation is known;
 - [ ] complete current diff was reviewed;
 - [ ] checks and failures are described truthfully;
