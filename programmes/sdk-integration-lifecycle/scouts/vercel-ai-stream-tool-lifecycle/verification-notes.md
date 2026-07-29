@@ -9,9 +9,11 @@
 - Explicit-abort draft candidate: [`teamleaderleo/ai#1`](https://github.com/teamleaderleo/ai/pull/1)
 - Resumable Stop campaign: #95
 - Sequential stale-state draft mitigation: [`teamleaderleo/ai#3`](https://github.com/teamleaderleo/ai/pull/3)
+- Idle UI response campaign: #150
+- UI keep-alive draft candidate: [`teamleaderleo/ai#4`](https://github.com/teamleaderleo/ai/pull/4)
 - Upstream contact: none
 
-These notes record static review and test construction. The fork has no Actions runs or commit statuses, and the available execution environment could not resolve GitHub for a checkout. The listed tests have not been executed here.
+The local work environment could not resolve GitHub for a checkout. GitHub Actions later became available for owned PRs #1 and #4, so these notes distinguish local non-execution from actual fork CI evidence. PR #3 still has no workflow run.
 
 ## Explicit-abort candidate review
 
@@ -21,23 +23,17 @@ The maintainer-authored implementation staged from the [external candidate](http
 
 GitHub had already computed a conflict-free merge commit for the pull request. The owned branch was fast-forwarded to that computed merge commit, preserving the reviewed file tree while making the pinned base an ancestor.
 
-Current explicit-abort branch head:
+Current explicit-abort branch head after formatting correction:
 
-`cb5eb2582ab22d870b3be4749addd014a90af53a`
+`67251626a5a538c4e46170e502b8d1906510ad6d`
 
-Current comparison against the pin:
-
-- ahead: 7 commits;
-- behind: 0 commits;
-- changed files: 5;
-- changed production file: `packages/ai/src/generate-text/stream-text.ts`;
-- remaining changes: changeset and focused tests.
+The branch remains cleanly based on the pin and changes one production file plus a changeset and focused tests.
 
 This correction matters because a mergeable pull request is not by itself proof that its branch actually descends from the claimed evaluation base.
 
 ### Ordinary regression tests
 
-The candidate now has target-native tests for:
+The candidate has target-native tests for:
 
 - explicit abort after partial output while the provider's next read remains pending;
 - rejection of the five root settlement promises;
@@ -66,6 +62,18 @@ Other public getters derive from those roots.
 2. a provider error arriving immediately after the abort signal can compete with the outward abort result.
 
 These are executable defect records, not completed fixes. A green run while they remain `it.fails` means Vitest reproduced the expected defects. When the implementation is corrected, each case must be converted to an ordinary `it` test.
+
+### First CI evidence
+
+The first owned-fork CI run produced useful partial validation:
+
+- changeset verification passed;
+- TypeScript typecheck passed;
+- package build passed;
+- code-consistency checks passed;
+- the CI workflow failed only because the two new test files did not match the repository formatter.
+
+No implementation or type error was reported in that run. Both files were reformatted without changing their test logic. A fresh CI and changeset run are queued on the current head.
 
 ### Focused commands
 
@@ -117,6 +125,14 @@ The helper documentation explicitly says that it is not a run-scoped compare-and
 
 The same file contains an `it.fails` case representing a delayed Stop for run A that arrives after run B has started. Because the current record identifies only the chat, it cannot reject the old intent. The test remains expected to fail until cancellation carries a run identity.
 
+### Validation status
+
+Current branch head:
+
+`56453af2c2688d158d4291293a11dfe34db260e7`
+
+No owned-fork workflow run is visible for this branch. Its targeted test remains statically reviewed but unexecuted.
+
 ### Focused command
 
 ```bash
@@ -138,9 +154,57 @@ A complete solution requires a run identity and conditional ownership for:
 
 Awaiting file writes fixes local sequential ordering but does not serialize concurrent requests or prevent read-modify-write lost updates.
 
+## Idle UI response candidate review
+
+### Candidate boundary
+
+PR #4 adds optional `keepAliveMs` support to the client response branch of UI message stream helpers. The option is off by default.
+
+The candidate:
+
+- emits one immediate SSE comment;
+- emits periodic comments after idle intervals;
+- resets the timer after canonical UI data;
+- tees canonical SSE before adding comments, so persistence and resumable consumers remain unchanged;
+- emits comments only while the client branch has demand;
+- clears timers on close, error, and cancel;
+- requests source-branch cancellation without waiting for an independent tee consumer;
+- ignores a pending source read that resolves after cancellation;
+- validates before locking or teeing the source or invoking callbacks;
+- forwards the option through Fetch, Node, `streamText`, and agent response helpers.
+
+Current candidate head after the first CI correction:
+
+`88849192b0b235ef79cc6d0fb1aaa9b9a17e98b5`
+
+### First CI evidence
+
+The first CI run established that:
+
+- changeset verification passed;
+- package builds passed;
+- code-consistency checks passed;
+- the AI test shard ran 758 tests with no type errors;
+- 757 tests passed;
+- one new cancellation test failed because it asserted that downstream source cancellation had completed when the deliberately non-blocking client cancellation promise resolved;
+- two new helper tests required repository formatting.
+
+The implementation contract is that client cancellation must not wait for an independent persistence tee, while cancellation still propagates eventually. The test now waits for eventual source cancellation instead of requiring it to be complete synchronously. The two formatter-rejected files were reformatted without changing behavior. Fresh CI and changeset runs are queued on the current head.
+
+### Remaining validation gate
+
+Even a green package suite cannot prove deployment behavior. Promotion still requires:
+
+- one real self-hosted HTTP reproduction showing that the opening comment flushes the status and headers;
+- one reverse-proxy or configurable idle-timeout reproduction showing that periodic comments maintain liveness;
+- supported-client confirmation that SSE comments remain invisible to the UI protocol;
+- repeated open/cancel leak checks;
+- deployment guidance that does not promise one universal interval.
+
 ## Final review disposition
 
-- PR #1 remains a draft candidate. It has clean ancestry and substantially stronger tests, but two lifecycle races are deliberately recorded as expected failures and the suite is unexecuted.
-- PR #3 remains a draft sequential mitigation. It now has a passing narrow regression and an expected-failure test proving that run ownership is still missing.
-- Neither pull request should be described as validated, release-ready, or a complete fix.
-- Reader cancellation remains consumer-scoped and is not changed by either candidate.
+- PR #1 remains a draft candidate. Its first CI run passed typecheck, build, code consistency, and changeset verification; formatting was corrected and a fresh run is queued. The two lifecycle defects remain deliberately recorded as expected failures.
+- PR #3 remains a draft sequential mitigation. It has a narrow regression and an expected-failure ownership test, but no workflow execution.
+- PR #4 remains a draft transport candidate. Its first test shard passed 757 of 758 tests with no type errors; the one assertion mismatch and two format failures were corrected, and a fresh run is queued. Real HTTP/proxy validation remains mandatory.
+- None of the candidates should yet be described as release-ready or complete.
+- Reader cancellation remains consumer-scoped and is not changed by these candidates.
