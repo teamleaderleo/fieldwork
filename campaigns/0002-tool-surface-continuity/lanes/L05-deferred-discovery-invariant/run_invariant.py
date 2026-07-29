@@ -46,7 +46,9 @@ def classify(case: dict[str, Any]) -> tuple[str, list[str], list[str]]:
         if discovery.get("semantics") != LOAD_EXISTING:
             reasons.append("discovery semantics do not load existing deferred tools")
 
-        delivery = discovery.get("delivery")
+        delivery = discovery.get(
+            "delivery", "direct" if discovery.get("advertised", False) else "absent"
+        )
         if delivery not in VALID_DELIVERY:
             if delivery == "omitted_unverified":
                 reasons.append(
@@ -64,8 +66,7 @@ def classify(case: dict[str, Any]) -> tuple[str, list[str], list[str]]:
         if not isinstance(result_count, int) or result_count < 0:
             reasons.append("executed discovery has an invalid result_count")
 
-    catalogue_state = discovery.get("catalogue_state")
-    if catalogue_state == "stale":
+    if discovery.get("catalogue_state") == "stale":
         warning_codes.append("stale_discovery_catalogue")
 
     if case.get("provenance_state") == "stale_saved":
