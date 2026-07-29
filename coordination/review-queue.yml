@@ -1,0 +1,216 @@
+version: 1
+snapshot_date: "2026-07-30"
+canonical_live_state: github_issues
+human_view: REVIEW_QUEUE.md
+policy:
+  max_active_reviews_per_reviewer: 1
+  upstream_contact_default: unauthorized
+  allowed_dispositions:
+    - accept
+    - revise
+    - execute
+    - hold
+    - authorize_contact
+    - reject_or_stop
+entries:
+  - id: RQ-001
+    priority: P0
+    title: MCP concurrent reconnect retry ownership
+    kind: human_decision
+    programme: sdk-integration-lifecycle
+    target: mcp-typescript-sdk
+    state: ready_for_independent_review
+    primary_issue: 65
+    primary_pr: 82
+    evidence_paths:
+      - campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/report.md
+      - campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/era-scope-amendment.md
+    owned_fork_prs:
+      - teamleaderleo/typescript-sdk#1
+    required_actions:
+      - verify_bidirectional_public_path_reproduction
+      - verify_scope_and_impact_wording
+      - decide_upstream_contact
+    done_when:
+      - independent_review_recorded
+      - upstream_contact_decision_recorded
+
+  - id: RQ-002
+    priority: P0
+    title: Biome useObjectSpread accessor semantics
+    kind: technical_review
+    programme: web-tooling-runtime-correctness
+    target: biome
+    state: ready_for_independent_review
+    primary_issue: 89
+    primary_pr: 97
+    evidence_paths:
+      - programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/report.md
+      - programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-object-spread-accessors/README.md
+    required_actions:
+      - verify_released_package_reproduction
+      - verify_safe_fix_classification_and_accessor_guard_gap
+      - recheck_prior_art
+      - decide_promotion
+    done_when:
+      - independent_semantic_review_recorded
+      - promotion_decision_recorded
+
+  - id: RQ-003
+    priority: P0
+    title: Canonical Codex mutation receipt branch
+    kind: coordination_decision
+    programme: agent-cli-execution
+    target: codex
+    state: needs_human_decision
+    primary_issue: 83
+    evidence_paths:
+      - campaigns/0003-compaction-mutation-identity/question.md
+      - campaigns/0003-compaction-mutation-identity/source-map.md
+      - campaigns/0003-compaction-mutation-identity/decision.md
+    owned_fork_prs:
+      - teamleaderleo/codex#2
+      - teamleaderleo/codex#3
+      - teamleaderleo/codex#4
+    required_actions:
+      - keep_raw_history_validator_separate
+      - compare_receipt_prs_3_and_4
+      - select_one_canonical_receipt_branch
+      - transplant_unique_tests_or_semantics
+      - stop_duplicate_branch
+    done_when:
+      - canonical_branch_recorded
+      - duplicate_closed_or_archived
+      - next_runtime_owner_named
+
+  - id: RQ-004
+    priority: P1
+    title: Vite plugin invalidation and post-transform graph correctness
+    kind: technical_review
+    programme: web-tooling-runtime-correctness
+    target: vite
+    state: ready_for_independent_review
+    primary_issue: 25
+    primary_pr: 48
+    evidence_paths:
+      - programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/report.md
+      - programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-2026-07-29.md
+      - programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-post-transform-2026-07-29.md
+      - programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-bundled-dev-2026-07-30.md
+    required_actions:
+      - review_stable_mode_candidates_separately
+      - preserve_experimental_bundled_dev_qualification
+      - decide_candidate_packet_promotion
+    done_when:
+      - disposition_recorded_for_each_candidate
+
+  - id: RQ-005
+    priority: P1
+    title: Vercel AI terminal outcomes and resumable Stop ownership
+    kind: execution_gate
+    programme: sdk-integration-lifecycle
+    target: vercel-ai
+    state: prepared_tests_need_execution
+    primary_pr: 34
+    related_issues:
+      - 76
+      - 94
+      - 95
+    evidence_paths:
+      - programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/report.md
+      - programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/follow-up-terminal-outcomes.md
+      - programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/surrounding-lifecycle-candidates.md
+    owned_fork_prs:
+      - teamleaderleo/ai#1
+      - teamleaderleo/ai#3
+    required_actions:
+      - execute_node_and_edge_abort_matrix
+      - execute_resumable_stop_race_matrix
+      - execute_truncation_classification_matrix
+    done_when:
+      - tested_heads_and_outputs_retained
+      - truncation_representation_decision_recorded
+
+  - id: RQ-006
+    priority: P1
+    title: Workers SDK lifecycle batch
+    kind: batch_review
+    programme: sdk-integration-lifecycle
+    target: workers-sdk
+    state: active_batch
+    primary_issue: 88
+    primary_pr: 92
+    evidence_paths:
+      - batches/B20260730-001-workers-sdk-lifecycle-followup/DISPATCH.md
+      - batches/B20260730-001-workers-sdk-lifecycle-followup/STATUS.md
+      - batches/B20260730-001-workers-sdk-lifecycle-followup/manifest.json
+    owned_fork_prs:
+      - teamleaderleo/workers-sdk#1
+    required_actions:
+      - execute_A001_current_failure
+      - complete_A002_and_A003
+      - preserve_A004_independence
+      - complete_cross_review_loop
+    done_when:
+      - all_assignments_have_bounded_outcomes
+      - batch_synthesis_recorded
+
+  - id: RQ-007
+    priority: P1
+    title: Gemini CLI deterministic lifecycle packet
+    kind: source_review_and_execution_gate
+    programme: agent-cli-execution
+    target: gemini-cli
+    state: source_review_ready_target_tests_unexecuted
+    primary_issue: 22
+    primary_pr: 45
+    evidence_paths:
+      - programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/review-packet-2026-07-30.md
+      - programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/report.md
+      - programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/exploration-log-2026-07-30.md
+    owned_fork_prs:
+      - teamleaderleo/gemini-cli#1
+      - teamleaderleo/gemini-cli#2
+      - teamleaderleo/gemini-cli#3
+      - teamleaderleo/gemini-cli#4
+    required_actions:
+      - independently_recheck_source_defects
+      - execute_waiting_state_and_call_affinity_tests
+      - expand_abort_case_to_real_process_tree
+      - preserve_contract_and_open_question_labels
+    done_when:
+      - source_review_recorded
+      - promoted_defects_have_target_test_receipts
+
+  - id: RQ-008
+    priority: P1
+    title: T3 OpenCode completion reconciliation
+    kind: execution_gate
+    programme: agent-cli-execution
+    target: t3code-opencode
+    state: prepared_test_needs_execution
+    primary_issue: 71
+    primary_pr: 63
+    related_prs:
+      - 75
+    evidence_paths:
+      - programmes/agent-cli-execution/scouts/harness-control-surfaces/report.md
+      - programmes/agent-cli-execution/scouts/harness-control-surfaces/artifacts/contract-cases.json
+    required_actions:
+      - execute_restart_regression
+      - add_delayed_old_idle_after_new_turn_control
+      - compare_fallback_with_durable_turn_identity
+      - test_interrupt_with_and_without_later_idle
+    done_when:
+      - target_trace_confirms_or_disproves_gap
+      - selected_repair_passes_event_affinity_control
+watchlist:
+  - title: Playwright fixture teardown
+    fieldwork_pr: 49
+  - title: DuckDB remote publication
+    fieldwork_issue: 96
+  - title: Supabase auth refresh settlement
+    fieldwork_issue: 78
+    fieldwork_pr: 91
+  - title: OpenTelemetry NodeSDK lifecycle
+    fieldwork_pr: 32
