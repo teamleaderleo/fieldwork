@@ -1,8 +1,25 @@
 const POLICY_COMMENT = '<!-- fieldwork-reference-policy-result -->';
 const INTENTIONAL_MARKER = 'fieldwork: intentional-upstream-reference';
 const VIOLATION_LABEL = 'policy:reference-violation';
+const DEFAULT_OWNED_OWNERS = new Set(['teamleaderleo']);
 
-function scan(text, currentRepository) {
+function configuredOwnedOwners() {
+  const configured = process.env.FIELDWORK_OWNED_GITHUB_OWNERS;
+  if (!configured) return new Set(DEFAULT_OWNED_OWNERS);
+
+  return new Set(
+    configured
+      .split(',')
+      .map((owner) => owner.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+function isControlledRepository(repository, owner, currentRepository, ownedOwners) {
+  return repository === currentRepository || ownedOwners.has(owner.toLowerCase());
+}
+
+function scan(text, currentRepository, ownedOwners = configuredOwnedOwners()) {
   if (!text) return [];
 
   const failures = [];
@@ -19,16 +36,18 @@ function scan(text, currentRepository) {
     if (intentional) continue;
 
     for (const match of line.matchAll(direct)) {
-      const repository = `${match[1]}/${match[2]}`.toLowerCase();
-      if (repository === currentRepository) continue;
-      failures.push(`Line ${index + 1}: direct external GitHub reference: ${match[0]}`);
+      const owner = match[1];
+      const repository = `${owner}/${match[2]}`.toLowerCase();
+      if (isControlledRepository(repository, owner, currentRepository, ownedOwners)) continue;
+      failures.push(`Line ${index + 1}: direct third-party GitHub reference: ${match[0]}`);
     }
 
     for (const match of line.matchAll(shorthand)) {
-      const repository = `${match[2]}/${match[3]}`.toLowerCase();
-      if (repository === currentRepository) continue;
+      const owner = match[2];
+      const repository = `${owner}/${match[3]}`.toLowerCase();
+      if (isControlledRepository(repository, owner, currentRepository, ownedOwners)) continue;
       failures.push(
-        `Line ${index + 1}: external shorthand reference: ${match[2]}/${match[3]}#${match[4]}`,
+        `Line ${index + 1}: third-party shorthand reference: ${match[2]}/${match[3]}#${match[4]}`,
       );
     }
   }
@@ -108,7 +127,7 @@ async function run({ github, context, core }) {
     body = `${POLICY_COMMENT}\nExternal reference policy check now passes for the latest edited interaction.`;
   } else {
     const details = failures.map((failure) => `- ${failure}`).join('\n');
-    body = `${POLICY_COMMENT}\nExternal references are quiet by default. Replace direct external issue, pull-request, discussion, and commit references with \`redirect.github.com\`. Remove external shorthand. Use the intentional-upstream marker only when that exact interaction was explicitly authorized.\n\n${details}`;
+    body = `${POLICY_COMMENT}\nThird-party GitHub references are quiet by default. Direct links and shorthand within \`teamleaderleo/*\` are allowed. Replace direct third-party issue, pull-request, discussion, and commit references with \`redirect.github.com\`. Remove third-party shorthand. Use the intentional-upstream marker only when that exact interaction was explicitly authorized.\n\n${details}`;
     core.setFailed(`Found ${failures.length} external reference policy violation(s).`);
   }
 
@@ -131,3 +150,4 @@ async function run({ github, context, core }) {
 
 module.exports = run;
 module.exports.scan = scan;
+module.exports.configuredOwnedOwners = configuredOwnedOwners;
