@@ -2,7 +2,7 @@ version: 1
 
 programmes:
   - id: sdk-integration-lifecycle
-    issue: pending
+    issue: 13
     state: ready
     thesis: SDK boundaries fail where streaming, retries, cancellation, state, types, and observability meet real applications.
     targets:
@@ -16,15 +16,30 @@ programmes:
       - elatura
       - fin-agent
       - smolrunner
-    initial_scouts:
-      - vercel-ai-stream-tool-lifecycle
-      - workers-local-remote-lifecycle
-      - otel-async-retry-correlation
-      - mcp-transport-session-lifecycle
-      - supabase-client-runtime-contracts
+    scouts:
+      - id: vercel-ai-stream-tool-lifecycle
+        issue: 17
+        target: vercel-ai
+        state: ready
+      - id: workers-local-remote-lifecycle
+        issue: 18
+        target: workers-sdk
+        state: ready
+      - id: otel-async-retry-correlation
+        issue: 19
+        target: opentelemetry-js
+        state: ready
+      - id: mcp-transport-session-lifecycle
+        issue: 20
+        target: mcp-typescript-sdk
+        state: ready
+      - id: supabase-client-runtime-contracts
+        issue: 21
+        target: supabase
+        state: ready
 
   - id: agent-cli-execution
-    issue: pending
+    issue: 14
     state: ready
     thesis: Agent and CLI systems need defensible tool execution, approval, cancellation, session recovery, terminal behavior, and extension boundaries.
     targets:
@@ -34,13 +49,22 @@ programmes:
       - stensibly
       - smolrunner
       - terminal-kit
-    initial_scouts:
-      - gemini-tool-session-recovery
-      - codex-tool-terminal-lifecycle
-      - cross-agent-process-terminal-semantics
+    scouts:
+      - id: gemini-tool-session-recovery
+        issue: 22
+        target: gemini-cli
+        state: ready
+      - id: codex-tool-terminal-lifecycle
+        issue: 23
+        target: codex
+        state: ready
+      - id: cross-agent-process-terminal-semantics
+        issue: 24
+        targets: [gemini-cli, codex]
+        state: ready
 
   - id: web-tooling-runtime-correctness
-    issue: pending
+    issue: 15
     state: ready
     thesis: Build, browser, parser, and runtime tooling should preserve code, state, invalidation, teardown, and compatibility across realistic projects.
     targets:
@@ -53,13 +77,22 @@ programmes:
       - scrapbook
       - renderprove
       - proofwake
-    initial_scouts:
-      - vite-plugin-hmr-invalidation
-      - playwright-retry-teardown-artifacts
-      - biome-transform-and-fix-safety
+    scouts:
+      - id: vite-plugin-hmr-invalidation
+        issue: 25
+        target: vite
+        state: ready
+      - id: playwright-retry-teardown-artifacts
+        issue: 26
+        target: playwright
+        state: ready
+      - id: biome-transform-and-fix-safety
+        issue: 27
+        target: biome
+        state: ready
 
   - id: data-durable-workflows
-    issue: pending
+    issue: 16
     state: ready
     thesis: Data and background-work systems need clear transaction, retry, recovery, identity, migration, and reconciliation behavior.
     targets:
@@ -70,11 +103,19 @@ programmes:
       - bsc-compare
       - fin-agent
       - stensibly
-    initial_scouts:
-      - duckdb-query-storage-failure-boundaries
-      - durable-job-retry-recovery
+      - smolrunner
+    scouts:
+      - id: duckdb-query-storage-failure-boundaries
+        issue: 28
+        target: duckdb
+        state: ready
+      - id: durable-job-retry-recovery
+        issue: 29
+        target: unresolved-until-scout
+        state: ready
 
 notes:
   - Programmes are directions, not automatic permission to contact upstream projects.
   - Scout lanes may be added or stopped after reconnaissance changes the lay of the land.
   - A target may participate in several programmes when the questions are genuinely different.
+  - Testbed labels are created only after a real trial begins and must not be pre-created from likely_testbeds.
