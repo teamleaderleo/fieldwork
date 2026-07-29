@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "batch_id": "B20260730-001",
+  "title": "Workers SDK lifecycle follow-up and independent review",
+  "state": "ready",
+  "coordinator": "teamleaderleo",
+  "created_at": "2026-07-30",
+  "purpose": "Convert the Workers SDK lifecycle scout into four independently owned, reviewable investigations without duplicate edits or unauthorized upstream contact.",
+  "intended_claim_scope": "mechanism-and-integration",
+  "synthesis_context_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/synthesis.md",
+  "exclusions": [
+    "No upstream issues, pull requests, comments, reviews, reactions, or other contact.",
+    "No live production deployment or rollback without separate authorization.",
+    "No broad refactor that is not justified by a failing reproduction or bounded contract decision.",
+    "No worker edits to shared batch status, manifest, or synthesis files."
+  ],
+  "constraints": {
+    "upstream_contact_authorized": false,
+    "max_parallel": 4,
+    "default_time_boundary": "Return a bounded finding, negative result, or explicit blocker; stop before speculative expansion."
+  },
+  "dimensions": {
+    "targets": [
+      "teamleaderleo/workers-sdk",
+      "teamleaderleo/fieldwork",
+      "cloudflare/workers-sdk (quiet reference only)",
+      "cloudflare/workerd (quiet reference only)"
+    ],
+    "questions": [
+      "Can cleanup failure skip workerd termination?",
+      "When do Wrangler and Vite select different configuration?",
+      "What deployment state changes before a later failure?",
+      "Which claims survive independent reproduction and prior-art review?"
+    ],
+    "methods": [
+      "source-map",
+      "failure-injection",
+      "package-regression-test",
+      "compatibility-analysis",
+      "prior-art-review",
+      "independent-reproduction"
+    ],
+    "context_lenses": [
+      "mechanism",
+      "contract",
+      "operations",
+      "adversarial",
+      "synthesis"
+    ]
+  },
+  "assignments": [
+    {
+      "id": "A001",
+      "kind": "lane",
+      "target": "teamleaderleo/workers-sdk",
+      "source_revision": "161443215fba3ac77407ba30f6996aa9963a0276",
+      "question": "Can an early rejection or unresolved cleanup operation prevent Runtime.dispose() from terminating workerd, especially under parallel Vitest execution?",
+      "method": "source trace, failure injection, and package-level regression testing",
+      "claim_scope": "mechanism",
+      "claim_to_support_or_falsify": "Miniflare cleanup ordering contains a sufficient path for a hidden live workerd child after an otherwise passing Vitest run.",
+      "preferred_primary_sources": [
+        "Workers SDK source at exact revisions",
+        "Workers SDK package tests",
+        "workerd process lifecycle source when needed",
+        "public upstream issues and pull requests as quiet references"
+      ],
+      "evidence_labels_allowed": [
+        "Documented",
+        "Observed",
+        "Inferred",
+        "Unknown",
+        "Contradicted"
+      ],
+      "integration_context_path": null,
+      "deliverable": "A focused Fieldwork result and PR with a real failing test or a precise feasibility limit, rejected alternatives, and a bounded repair direction.",
+      "owned_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/results/A001.md",
+      "dependencies": [],
+      "state": "ready",
+      "stop_condition": "Stop when the lifecycle claim is reproduced, falsified, or blocked by a specific unavailable test dependency; do not generalize every teardown hang to this cause.",
+      "upstream_contact_authorized": false
+    },
+    {
+      "id": "A002",
+      "kind": "lane",
+      "target": "teamleaderleo/workers-sdk",
+      "source_revision": "0497e9e30e191f2b7e337b01e32855c4cb6cf5fe",
+      "question": "Under which layouts and invocation modes do Wrangler, wrangler dev, Vite, and redirected deployment configuration select different files?",
+      "method": "behaviour matrix, package-level regression tests, and compatibility analysis",
+      "claim_scope": "contract",
+      "claim_to_support_or_falsify": "Configuration selection differs across Wrangler and Vite in consequential but insufficiently explicit ways involving precedence, search boundaries, explicit paths, and deploy-config redirects.",
+      "preferred_primary_sources": [
+        "Workers SDK source at exact revisions",
+        "Wrangler and Vite-plugin tests",
+        "framework config integration tests",
+        "public upstream issues and pull requests as quiet references"
+      ],
+      "evidence_labels_allowed": [
+        "Documented",
+        "Observed",
+        "Inferred",
+        "Unknown",
+        "Contradicted"
+      ],
+      "integration_context_path": null,
+      "deliverable": "A Fieldwork result and PR with an executable selection matrix, intentional-versus-accidental classification, and the smallest coherent shared-policy API direction.",
+      "owned_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/results/A002.md",
+      "dependencies": [],
+      "state": "ready",
+      "stop_condition": "Stop after the matrix and compatibility boundary are demonstrated; do not silently choose new defaults without migration analysis.",
+      "upstream_contact_authorized": false
+    },
+    {
+      "id": "A003",
+      "kind": "lane",
+      "target": "teamleaderleo/workers-sdk",
+      "source_revision": "609623ba8552a016f3c67cee7259e38d8431bd91",
+      "question": "Which deployment mutations can succeed before Wrangler reports a later failure, and what state can be reported safely afterward?",
+      "method": "mutation-order map, failure injection, and state-reporting design",
+      "claim_scope": "operations",
+      "claim_to_support_or_falsify": "Wrangler can fail after Worker activation or other mutations, while current output does not consistently identify the changed state, failed phase, or safe recovery actions.",
+      "preferred_primary_sources": [
+        "Workers SDK deploy source at exact revisions",
+        "Wrangler deploy and versions tests",
+        "Cloudflare API response handling in source",
+        "public upstream reports as quiet references"
+      ],
+      "evidence_labels_allowed": [
+        "Documented",
+        "Observed",
+        "Inferred",
+        "Illustrative",
+        "Unknown",
+        "Contradicted"
+      ],
+      "integration_context_path": null,
+      "deliverable": "A Fieldwork result and PR with a deployment mutation table, post-activation failure tests or models, and a bounded journal/state-reporting proposal.",
+      "owned_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/results/A003.md",
+      "dependencies": [],
+      "state": "ready",
+      "stop_condition": "Stop at accurate state reporting and recovery guidance; do not add automatic rollback unless resource-specific safety is demonstrated.",
+      "upstream_contact_authorized": false
+    },
+    {
+      "id": "A004",
+      "kind": "lane",
+      "target": "teamleaderleo/fieldwork and teamleaderleo/workers-sdk",
+      "source_revision": "fieldwork PR #41 at e95d5cc36411fc4048728015235594b51afdde17; A001-A003 bases as listed in this manifest",
+      "question": "Which claims and proposed tests from A001-A003 survive independent reproduction, source review, and prior-art analysis?",
+      "method": "independent reproduction, adversarial review, and prior-art audit",
+      "claim_scope": "synthesis",
+      "claim_to_support_or_falsify": "The three candidate campaigns are distinct, reproducible, not already resolved, and bounded enough to justify implementation work.",
+      "preferred_primary_sources": [
+        "A001-A003 final branches and result files",
+        "Workers SDK and workerd source at exact revisions",
+        "upstream issues, pull requests, commits, and changelogs as quiet references"
+      ],
+      "evidence_labels_allowed": [
+        "Documented",
+        "Observed",
+        "Inferred",
+        "Unknown",
+        "Contradicted"
+      ],
+      "integration_context_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/synthesis.md",
+      "deliverable": "An independent Fieldwork result and PR ranking confidence, identifying unsupported claims, verifying tests fail before fixes, and recommending which implementation work should proceed.",
+      "owned_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/results/A004.md",
+      "dependencies": [
+        "A001-A003 final branches are required for final acceptance review; prior-art work may begin immediately."
+      ],
+      "state": "ready",
+      "stop_condition": "Stop after each candidate is classified as validated, weakened, contradicted, duplicate, intentional, or blocked; do not absorb implementation ownership.",
+      "upstream_contact_authorized": false
+    }
+  ]
+}
