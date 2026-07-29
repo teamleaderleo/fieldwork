@@ -8,16 +8,19 @@
 
 - Package: `@opentelemetry/sdk-node`
 - Pinned revision: `7b06368b7362a30ca69c178f43bd94dfbb36f85d`
+- Current upstream `sdk.ts`: same source blob at latest recorded check
 - Runtime: Node.js 20 or newer
 - Upstream contact status: draft only; not submitted
 
 ## What happened?
 
-Calling `start()` more than once on the same `NodeSDK` instance does not have one consistent outcome.
+Calling `start()` more than once on the same `NodeSDK` object does not have one consistent outcome.
 
-For tracing and logs, the second call constructs a new provider and stores it in the `NodeSDK` instance, but global registration keeps the provider from the first call. The SDK object and the global API therefore disagree about which provider is active. A later `shutdown()` operates on the second provider held by the SDK object instead of the first provider still used by the global API.
+For tracing and logs, the second call constructs a new provider and stores it in the NodeSDK object, but global registration keeps the provider from the first call. The SDK object and the global API therefore disagree about which provider is active. A later `shutdown()` operates on the second provider held by the SDK object instead of the first provider still used by the global API.
 
 For metrics, the second call attempts to construct another `MeterProvider` with the same configured `MetricReader`. The reader rejects being attached twice, so the second `start()` throws after earlier startup steps have already run.
+
+A same-object start after shutdown behaves similarly: new private providers are constructed while global APIs remain attached to the first providers, which are already shutdown.
 
 The result is mixed or partially mutated state rather than a deterministic no-op or a failure before side effects.
 
@@ -33,22 +36,25 @@ const sdk = new NodeSDK({
 });
 
 sdk.start();
-const firstProvider = trace.getTracerProvider();
+const firstOwnedProvider = sdk['_tracerProvider'];
 
 sdk.start();
-const sdkOwnedProvider = sdk['_tracerProvider'];
+const secondOwnedProvider = sdk['_tracerProvider'];
 
-assert.notStrictEqual(sdkOwnedProvider, firstProvider);
-assert.strictEqual(trace.getTracerProvider(), firstProvider);
+assert.notStrictEqual(secondOwnedProvider, firstOwnedProvider);
+assert.strictEqual(
+  (trace.getTracerProvider() as ProxyTracerProvider).getDelegate(),
+  firstOwnedProvider
+);
 
-await sdk.shutdown();
+await sdk.shutdown(); // shuts secondOwnedProvider
 ```
 
-After the second `start()`, the global trace API still uses the first provider while `NodeSDK.shutdown()` targets the second provider stored in `_tracerProvider`.
+After the second start, the global trace proxy still delegates to the first provider while NodeSDK shutdown targets the second provider stored in `_tracerProvider`.
 
 ### Logs
 
-The same pattern occurs with `_loggerProvider`: the logs API keeps the first global provider while the SDK instance stores the second provider and later shuts down that second provider.
+The same pattern occurs with `_loggerProvider`: the logs API keeps the first global provider while the SDK object stores the second provider and later shuts down that second provider.
 
 ### Metrics
 
@@ -64,16 +70,26 @@ sdk.start();
 sdk.start(); // throws: MetricReader can not be bound to a MeterProvider again.
 ```
 
-Instrumentation registration, context setup, propagation setup, and resource processing are reached before metric provider construction, so the second call is not transactional.
+Instrumentation registration, context setup, propagation setup, and resource processing are reached before metric-provider construction, so the second call is not transactional.
+
+### Start after shutdown
+
+```ts
+sdk.start();
+await sdk.shutdown();
+sdk.start();
+```
+
+The second start creates new private providers. Duplicate global registration keeps the first shutdown providers globally installed, so telemetry does not reach the new providers and shutdown ownership diverges again.
 
 ## Expected result
 
-`NodeSDK.start()` should have one documented state transition. A repeated call should either:
+`NodeSDK.start()` should have one documented state transition. A later call on the same object should either:
 
 1. safely do nothing and retain the original providers; or
 2. throw before performing registration or resource side effects.
 
-A later `shutdown()` should operate on the same providers used by the global APIs.
+A later shutdown should operate on the same providers used by the global APIs.
 
 ## Actual result
 
@@ -81,6 +97,7 @@ A later `shutdown()` should operate on the same providers used by the global API
 - Logs: the global API retains provider A while the SDK object stores provider B.
 - Metrics: the second call throws after preceding startup work has begun.
 - Instrumentation registration and global context or propagation registration are attempted again.
+- Start after shutdown creates private providers that do not become global.
 
 ## Why this matters
 
@@ -90,33 +107,58 @@ This is especially difficult to diagnose in test runners, development reloaders,
 
 ## Narrow proposed resolution
 
-Add an instance start-state guard before any startup side effect:
+Add a one-start-attempt guard before any startup side effect:
 
 ```ts
-private _started = false;
+private _startAttempted = false;
 
 public start(): void {
   if (this._disabled) {
     return;
   }
-  if (this._started) {
-    diag.warn('NodeSDK.start() called more than once. Ignoring.');
+
+  if (this._startAttempted) {
+    diag.warn('NodeSDK.start() may only be called once.');
     return;
   }
-  this._started = true;
+  this._startAttempted = true;
 
   // existing startup
 }
 ```
 
-Add trace-only, log-only, metric-only, and mixed-signal tests proving that a second call does not create providers, rebind readers, repeat instrumentation registration, or change shutdown ownership.
+The flag is set before registration. This blocks reentrant calls and prevents a second attempt from compounding partial state after the first attempt throws.
 
-Whether a new `NodeSDK` instance may start after another instance shuts down is a separate lifecycle question and does not need to be solved by this narrow change.
+The user-owned fork implements this narrow trial in draft PR:
 
-## Reproduction artifacts
+https://redirect.github.com/teamleaderleo/opentelemetry-js/pull/2
 
-The user-owned fork contains source-pinned characterization tests on branch `fieldwork/nodesdk-shutdown-lifecycle-characterization`.
+## Tests
 
-Draft fork PR: https://redirect.github.com/teamleaderleo/opentelemetry-js/pull/1
+The fix branch adds cases proving:
+
+1. repeated start retains the first provider and performs one global registration;
+2. start after shutdown does not construct another provider;
+3. reentrant start is blocked before registration repeats;
+4. a second call after startup failure does not repeat side effects.
+
+The separate characterization branch retains the original failing behaviors and broader lifecycle cases:
+
+- branch: `fieldwork/nodesdk-shutdown-lifecycle-characterization`
+- draft PR: https://redirect.github.com/teamleaderleo/opentelemetry-js/pull/1
+
+## Separate follow-up issues
+
+The broader investigation found related but distinct problems that should not enlarge the first patch:
+
+- separate NodeSDK objects and `startNodeSDK()` still compete for process globals;
+- `startNodeSDK()` can return `NOOP_SDK` after enabling instrumentation and a context manager;
+- metric-provider construction can strand readers before the constructor throws;
+- trace-provider shutdown is not one-shot for custom processors;
+- custom trace processors can still receive spans after provider shutdown.
+
+These require explicit ownership, construction-transaction, or provider-level fixes.
+
+## Contact boundary
 
 No upstream issue, pull request, comment, review, reaction, or direct backlink has been created.
