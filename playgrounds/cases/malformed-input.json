@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "name": "malformed-input",
+  "description": "Truncated, concatenated, duplicated, and otherwise malformed text inputs for parsers and protocol adapters.",
+  "timeout_seconds": 5,
+  "cases": [
+    {"id": "empty", "tags": ["empty"], "stdin_text": ""},
+    {"id": "whitespace-only", "tags": ["whitespace"], "stdin_text": "  \n\t"},
+    {"id": "truncated-object", "tags": ["json", "truncated"], "stdin_text": "{\"value\":"},
+    {"id": "truncated-array", "tags": ["json", "truncated"], "stdin_text": "[1, 2,"},
+    {"id": "trailing-garbage", "tags": ["json", "trailing"], "stdin_text": "{\"ok\":true}garbage"},
+    {"id": "concatenated-values", "tags": ["json", "framing"], "stdin_text": "{\"a\":1}{\"b\":2}"},
+    {"id": "duplicate-object-keys", "tags": ["json", "duplicate"], "stdin_text": "{\"value\":1,\"value\":2}"},
+    {"id": "invalid-escape", "tags": ["json", "escaping"], "stdin_text": "{\"text\":\"\\q\"}"},
+    {"id": "lone-surrogate-escape", "tags": ["json", "unicode"], "stdin_text": "{\"text\":\"\\ud800\"}"},
+    {"id": "ndjson-partial-final-line", "tags": ["ndjson", "truncated"], "stdin_text": "{\"id\":1}\n{\"id\":"},
+    {"id": "bom-prefixed", "tags": ["encoding", "bom"], "stdin_text": "﻿{\"ok\":true}"},
+    {"id": "nul-inside-text", "tags": ["control"], "stdin_text": "before\u0000after"}
+  ]
+}
