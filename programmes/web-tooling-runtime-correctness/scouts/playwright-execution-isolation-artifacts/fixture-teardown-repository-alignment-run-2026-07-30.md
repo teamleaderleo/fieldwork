@@ -105,13 +105,35 @@ The underscore name follows existing built-in reporter behavior: terminal and HT
 
 The intervention provides bounded recovery opportunities and explicit incomplete-cleanup reporting. It does not guarantee that stalled user callbacks complete.
 
-## Remaining outcome-accounting question
+## Expected-failure outcome gap
 
-A test marked with `test.fail()` may still absorb a separate fixture cleanup exception because public outcome calculation compares `status` with `expectedStatus`.
+| Field | Value |
+|---|---|
+| Probe PR | `teamleaderleo/playwright#28` |
+| Execution PR | `#29` |
+| Workflow run | `30487755057` |
+| Job | `90697590797` |
+| Result | expected failure |
 
-Retained probe:
+Scenario:
 
-- `teamleaderleo/playwright#28`
-- execution PR `#29`
+- test body is marked with `test.fail()` and fails as expected;
+- fixture teardown then throws `cleanup exploded`;
+- retries are configured to 1.
 
-The required invariant is that cleanup failure remains unexpected, triggers retry in a fresh worker, and causes the final run to fail even when the body failure was expected.
+Observed:
+
+```text
+cleanup-0-worker-0
+1 passed
+```
+
+Only attempt 0 ran. The nested exit code was 0. No fresh worker or retry occurred. The outer invariant expected exit code 1 and received 0.
+
+Conclusion:
+
+A fixture cleanup exception can be absorbed by an expected body failure under the current public status model.
+
+A worker-stop flag alone cannot solve this. Dispatcher retry selection and final test outcome also compare result status with expected status. A final design needs an internal unexpected-cleanup dimension that reaches both retry accounting and final outcome without casually adding a new public test status.
+
+This is retained as a negative invariant only. No broad outcome-model implementation was attempted during this review pass.
