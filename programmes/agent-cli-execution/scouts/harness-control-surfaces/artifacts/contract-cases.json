@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "retrieval_date": "2026-07-30",
   "worker": "chatgpt:gpt-5.6-thinking",
   "claim_scope": ["mechanism", "interface"],
@@ -15,6 +15,7 @@
     {
       "id": "idle-clears-persisted-active-turn",
       "targets": ["opencode", "t3code"],
+      "source_observation": "T3 OpenCodeAdapter converts session.status idle to turn.completed only when its in-memory context.activeTurnId is defined.",
       "setup": {
         "thread_binding": "ready",
         "provider_session": "active",
@@ -22,12 +23,13 @@
       },
       "stimulus": [
         "T3 sends a turn",
-        "OpenCode reports running",
+        "OpenCode reports busy",
         "one or more assistant/tool events occur",
-        "OpenCode reports turn completion or session idle"
+        "OpenCode reports idle"
       ],
       "required_trace_points": [
-        "OpenCode provider event",
+        "OpenCode session.status event",
+        "OpenCodeAdapter activeTurnId before handling",
         "T3 adapter-normalized event",
         "ProviderRuntimeIngestion lifecycle decision",
         "thread.session.set dispatch",
@@ -41,30 +43,56 @@
         "restart does not restore the completed turn to running"
       ],
       "distinguishing_outcomes": {
-        "adapter_loss": "Provider completion exists but no canonical T3 event is emitted.",
+        "provider_event_missing": "No OpenCode idle event is observed.",
+        "adapter_identity_missing": "Idle is observed while adapter activeTurnId is undefined, so no canonical completion is emitted.",
         "guard_rejection": "Canonical completion exists but lifecycle correlation rejects it.",
         "projection_regression": "Completion is applied and a later update restores stale running state.",
         "pass": "Provider, canonical, persisted, and client states converge on ready/idle."
       }
     },
     {
-      "id": "restart-reconciles-stale-running",
-      "targets": ["opencode", "t3code"],
+      "id": "resume-restores-active-turn-identity-or-reconciles",
+      "targets": ["t3code", "opencode"],
+      "source_observation": "The OpenCode resume cursor restores the upstream session id, while a new OpenCodeSessionContext initializes activeTurnId as undefined.",
       "setup": {
         "persisted_t3_status": "running",
         "persisted_active_turn": "turn-stale",
-        "provider_truth": "idle-or-no-active-turn"
+        "resume_cursor": "valid-opencode-session-id",
+        "provider_truth": "busy-then-idle-or-already-idle"
       },
-      "stimulus": ["restart T3 server", "load or recover the thread"],
+      "stimulus": [
+        "restart T3 server",
+        "re-adopt the OpenCode session",
+        "deliver provider idle status"
+      ],
       "invariants": [
-        "provider truth is consulted before indefinitely disabling input",
-        "stale activeTurnId is cleared or the thread is marked explicitly degraded",
-        "the user receives a recoverable state rather than permanent working"
+        "the old turn identity is restored or explicitly reconciled",
+        "provider idle can clear stale activeTurnId",
+        "the thread becomes ready or explicitly degraded",
+        "input is not disabled indefinitely"
+      ],
+      "current_source_risk": "With activeTurnId undefined, the adapter's idle branch emits no turn.completed event for the old persisted turn."
+    },
+    {
+      "id": "repeated-steering-completes-one-active-turn",
+      "targets": ["opencode", "t3code"],
+      "source_observation": "OpenCodeAdapter reuses the current turn id for steering prompts and expects the next idle status to complete that shared turn.",
+      "stimulus": [
+        "send initial prompt",
+        "send first steering prompt while busy",
+        "send second steering prompt while busy",
+        "allow provider to finish"
+      ],
+      "invariants": [
+        "all steering prompts remain correlated with the active turn or a documented replacement turn",
+        "the final idle event produces exactly one applicable lifecycle completion",
+        "T3 clears activeTurnId and enables further input"
       ]
     },
     {
-      "id": "interrupt-does-not-resurrect",
-      "targets": ["t3code"],
+      "id": "interrupt-does-not-resurrect-and-settles",
+      "targets": ["t3code", "opencode"],
+      "source_observation": "ProviderService permits recovery before interrupt. OpenCodeAdapter calls session.abort and emits turn.aborted without directly clearing activeTurnId or setting ready.",
       "setup": {
         "adapter_has_session": false,
         "persisted_resume_cursor": "present",
@@ -73,14 +101,36 @@
       "stimulus": ["call ProviderService.interruptTurn for the old turn"],
       "observations": [
         "whether adapter.startSession is called",
-        "whether adapter.interruptTurn is called",
-        "whether new provider events or side effects occur",
-        "how the controller reports the result"
+        "whether OpenCode session.abort is called",
+        "whether turn.aborted is emitted",
+        "whether a later idle status arrives",
+        "final adapter and orchestration state"
       ],
       "invariants": [
         "interruption does not resume work unless the provider contract explicitly requires it",
         "any required recovery is visible and bound to the exact old turn",
-        "no new active turn is created"
+        "the active turn is explicitly settled even when no later idle event arrives",
+        "no new unrelated active turn is created"
+      ]
+    },
+    {
+      "id": "pending-request-recovery-affinity",
+      "targets": ["t3code", "opencode"],
+      "source_observation": "OpenCodeAdapter keeps pending permission and question requests only in in-memory maps; resume restores the session id but does not reconstruct those maps.",
+      "setup": {
+        "request": "pending-before-controller-restart",
+        "provider_instance": "instance-a",
+        "session": "recoverable"
+      },
+      "stimulus": [
+        "restart or replace provider instance",
+        "submit an approval or user-input response using the old request id"
+      ],
+      "invariants": [
+        "the request is either reconstructed with exact affinity or explicitly expired",
+        "request, provider instance, session, and turn identities all match",
+        "a response cannot create a new unrelated turn",
+        "the user receives a clear recoverable result rather than an unexplained unknown-request failure"
       ]
     },
     {
@@ -135,25 +185,6 @@
         "pending subscriber state has a documented bound, timeout, or forced detachment",
         "one inactive client cannot grow memory without limit",
         "active clients continue receiving output"
-      ]
-    },
-    {
-      "id": "approval-recovery-affinity",
-      "targets": ["t3code", "opencode"],
-      "setup": {
-        "request": "pending-before-controller-restart",
-        "provider_instance": "instance-a",
-        "session": "recoverable"
-      },
-      "stimulus": [
-        "restart or replace provider instance",
-        "submit an approval or user-input response using the old request id"
-      ],
-      "invariants": [
-        "the request is still pending",
-        "request, provider instance, session, and turn identities all match",
-        "expired or completed requests are rejected",
-        "a response cannot create a new unrelated turn"
       ]
     },
     {
