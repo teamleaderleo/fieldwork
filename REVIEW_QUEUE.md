@@ -2,34 +2,35 @@
 
 Snapshot date: **2026-07-30**
 
-GitHub issues remain the canonical live state. This file is a deliberately small review index: it tells a human or independent agent what deserves attention first, what claim is actually being made, which evidence to inspect, and what decision closes the review.
+GitHub issues remain the canonical live state. This page is a compact review index: it tells a reviewer what claim is being made, which evidence to inspect, which uncertainty must survive review, and which decision closes the card.
 
 ## In simple words
 
-Fieldwork has enough active research. The immediate constraint is review capacity.
+Fieldwork has enough active research. The scarce resource is independent review.
 
-The top of the queue is:
+The current front of the queue is:
 
-1. **MCP reconnect ownership** — independently verify the strongest executed defect and decide whether upstream contact should be authorized.
-2. **Biome safe-fix semantics** — verify the released-package reproduction and decide whether the finding should be promoted.
-3. **Codex mutation receipts** — select one canonical receipt implementation before overlapping branches continue.
-4. **Vite HMR and graph findings** — review two stable-mode findings separately from the experimental bundled-development case.
-5. **Execution-gated candidates** — run the prepared Vercel AI, Workers SDK, Gemini CLI, and T3/OpenCode tests before treating their fixes as validated.
+1. **Playwright bounded fixture recovery** — review the executed dependency-safe recovery design and decide the final combined cross-platform gate.
+2. **MCP reconnect ownership** — independently verify the strongest executed defect and decide whether upstream contact should be authorized.
+3. **Biome safe-fix semantics** — verify the released-package reproduction and decide whether the finding should be promoted.
+4. **Codex mutation evidence** — continue from the selected canonical receipt owner into result persistence and compaction gates.
+5. **Vite HMR and graph findings** — review the stable-mode candidates separately from the experimental bundled-development case.
+6. **Execution-gated work** — run the prepared Vercel AI, Workers SDK, Gemini CLI, T3/OpenCode, and Playwright outcome-model tests before promoting implementation claims.
 
-A reviewer does not need to read the whole portfolio. Start with one queue card, follow its evidence links, and return one explicit disposition.
+A reviewer does not need to read the whole portfolio. Take one card, follow its evidence, and return one explicit disposition.
 
 ## Reviewer dispositions
 
 Use one of these outcomes:
 
-- **Accept** — the evidence and wording support the stated conclusion.
-- **Revise** — the underlying work is useful, but the claim, scope, test, or presentation needs correction.
-- **Execute** — the design is reviewable, but target-native or package-level evidence is still required.
-- **Hold** — the item is valid but not worth advancing now.
-- **Authorize contact** — the evidence is sufficient to permit the specifically described upstream interaction.
-- **Reject or stop** — the premise is disproven, duplicated, superseded, or not consequential enough.
+- **Accept** — the evidence and wording support the conclusion.
+- **Revise** — the work is useful, but the claim, scope, test, or presentation needs correction.
+- **Execute** — the design is reviewable, but target-native evidence is still required.
+- **Hold** — the item is valid but should not advance now.
+- **Authorize contact** — the evidence supports the specifically described upstream interaction.
+- **Reject or stop** — the premise is disproven, superseded, duplicated, or not consequential enough.
 
-A review should record:
+Record:
 
 ```text
 Disposition:
@@ -43,194 +44,184 @@ Upstream contact authorized: yes/no/not requested
 
 ## Evidence rules
 
-Reviewers must preserve the evidence category used by the underlying work:
+Preserve the evidence class used by the underlying work:
 
 - **Executed target or public-path reproduction** — the relevant implementation or released package ran under retained conditions.
-- **Source-confirmed** — code at a pinned revision directly supports the mechanism.
-- **Probe-reproduced model** — a controlled model demonstrates the mechanism but does not execute the target.
+- **Source-confirmed** — pinned code directly supports the mechanism.
+- **Probe-reproduced model** — a controlled model demonstrates the mechanism without executing the exact target path.
 - **Prepared target test** — the test exists in an owned fork but has no retained execution receipt.
-- **Candidate contract** — the work proposes a desired invariant; current code is not assumed to promise it.
-- **Reported alignment** — public reports agree with the mechanism, but are not independent reproduction evidence.
+- **Candidate contract** — a desired invariant is proposed; current code is not assumed to promise it.
+- **Reported alignment** — public reports agree with the mechanism but are not independent reproduction evidence.
 
 Do not silently upgrade source analysis into execution evidence, a model into a target result, or a prepared test into a failing test.
 
-Research-file citations below are pinned to exact Fieldwork commits. Live pull-request and issue links are included separately for discussion state and later amendments.
+Research links below are pinned where useful. Live issues and pull requests remain the source for current state.
 
 ---
 
-## Priority 0 — human decisions and queue control
+## Priority 0 — human decisions and strongest executed candidates
+
+### RQ-009 — Playwright bounded fixture recovery before `afterAll`
+
+**State:** Ready for independent technical review.  
+**Primary issue:** [#141](https://github.com/teamleaderleo/fieldwork/issues/141)  
+**Primary record:** [PR #49](https://github.com/teamleaderleo/fieldwork/pull/49)  
+**Evidence:** [canonical report](https://github.com/teamleaderleo/fieldwork/blob/8d7ed3a79d40e8b99a170f20fc46663e41d3acfc/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md), [repository-intent review](https://github.com/teamleaderleo/fieldwork/blob/8d7ed3a79d40e8b99a170f20fc46663e41d3acfc/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-intent-review-2026-07-30.md), [alignment runs](https://github.com/teamleaderleo/fieldwork/blob/8d7ed3a79d40e8b99a170f20fc46663e41d3acfc/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-alignment-run-2026-07-30.md), and owned source PRs [#24](https://github.com/teamleaderleo/playwright/pull/24)/[#26](https://github.com/teamleaderleo/playwright/pull/26).
+
+**Human summary:** A test fixture can lose its cleanup callback when the shared After Hooks slot is exhausted because Playwright skips the body and deletes the fixture record. The campaign rejected one shared fallback slot, equal per-fixture timeout races, and retry placement after `afterAll`. The current design retains only never-started finalizers, budgets by connected dependency group, spends one existing bounded cleanup slot before `afterAll`, reuses the remainder later, and emits an internal receipt before `testEnd`.
+
+**Executed evidence:**
+
+- dependency-group scheduler: eight tests passed on Ubuntu, macOS, and Windows;
+- rejected late placement: `afterAll` reused the failed test's still-live fixture;
+- corrected placement: eleven tests passed in 22.9 seconds and the repository's existing fresh-`afterAll` fixture regression passed in 4.5 seconds;
+- internal receipt refinement: eleven tests passed in 22.8 seconds.
+
+**Review ask:**
+
+1. Verify the skip-and-delete mechanism.
+2. Inspect the no-budget, equal-share, dependency-safety, and `afterAll` negative controls.
+3. Confirm the corrected source change reuses one budget instead of extending cleanup time.
+4. Review `_fixture-cleanup`, its four-state vocabulary, opaque registration id, and pre-`testEnd` timing.
+5. Decide **accept**, **revise**, **execute final combined macOS/Windows stack**, or **hold**.
+6. Keep expected-failure outcome accounting in RQ-010.
+
+**Uncertainty to preserve:** The scheduler itself has three-platform evidence. The final combined pre-`afterAll` ordering and internal-receipt stack currently has retained Ubuntu evidence. Production frequency and impact magnitude were not measured.
+
+**Done when:** One independent review records a disposition and the final combined cross-platform execution decision.
 
 ### RQ-001 — MCP concurrent reconnect retry ownership
 
 **State:** Ready for independent technical review and an upstream-contact decision.  
-**Primary record:** [Fieldwork PR #82](https://github.com/teamleaderleo/fieldwork/pull/82)  
-**Evidence:** [lane report](https://github.com/teamleaderleo/fieldwork/blob/fbbea68332ecd57e7abad538453ad07d541387b1/campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/report.md), [era-scope amendment](https://github.com/teamleaderleo/fieldwork/blob/fbbea68332ecd57e7abad538453ad07d541387b1/campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/era-scope-amendment.md), [owned-fork draft](https://github.com/teamleaderleo/typescript-sdk/pull/1), and [final fork workflow run](https://github.com/teamleaderleo/typescript-sdk/actions/runs/30476941445).
+**Primary record:** [PR #82](https://github.com/teamleaderleo/fieldwork/pull/82)  
+**Evidence:** [lane report](https://github.com/teamleaderleo/fieldwork/blob/fbbea68332ecd57e7abad538453ad07d541387b1/campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/report.md), [era amendment](https://github.com/teamleaderleo/fieldwork/blob/fbbea68332ecd57e7abad538453ad07d541387b1/campaigns/0004-mcp-streamable-http-reconnect/lanes/L01-concurrent-reconnect-ownership/era-scope-amendment.md), and [owned fork PR](https://github.com/teamleaderleo/typescript-sdk/pull/1).
 
-**Human summary:** Two concurrent Streamable HTTP request streams can receive different SSE `retry` values, but the transport stores retry timing in shared state. When one stream later reconnects after its own GET failure, it can use the other stream's retry value. The case reproduced in both directions on Node 20, 22, and 24.
+**Human summary:** Two concurrent Streamable HTTP request streams can receive different SSE `retry` values, but the transport stores retry timing in shared state. A reconnect can therefore use the other stream's later value. The case reproduced in both directions on Node 20, 22, and 24.
 
-**Review ask:**
+**Review ask:** Confirm stream-specific POST/SSE state, directional controls, scope wording, and the held upstream issue. Choose **authorize contact**, **revise**, or **hold**.
 
-1. Confirm the fixture uses two real POST/SSE streams with distinct retry values and stream-specific `Last-Event-ID` values.
-2. Confirm the failed reconnect for stream A is scheduled using stream B's later value in both directional controls.
-3. Confirm the packet does not claim measured production frequency or impact magnitude.
-4. Review the held upstream issue wording for a narrow shared-state ownership claim.
-5. Choose **authorize contact**, **revise**, or **hold**.
+**Uncertainty to preserve:** Production impact magnitude and server diversity were not measured.
 
-**Uncertainty to preserve:** Production impact magnitude and server diversity were not measured. The separate retry-budget investigation did not promote successful reopen/reset behaviour as a defect.
-
-**Done when:** One independent review is recorded and the coordinator explicitly authorizes or declines the prepared upstream issue.
+**Done when:** An independent review and explicit upstream-contact decision are recorded.
 
 ### RQ-002 — Biome `useObjectSpread` accessor semantics
 
 **State:** Ready for independent technical review; promotion decision follows.  
-**Primary record:** [Fieldwork PR #97](https://github.com/teamleaderleo/fieldwork/pull/97)  
-**Evidence:** [lane report](https://github.com/teamleaderleo/fieldwork/blob/a1ad034eb3500f20d5815ea3d34a1244d0029a59/programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/report.md), [reproduction guide](https://github.com/teamleaderleo/fieldwork/blob/a1ad034eb3500f20d5815ea3d34a1244d0029a59/programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-object-spread-accessors/README.md), [fixture](https://github.com/teamleaderleo/fieldwork/blob/a1ad034eb3500f20d5815ea3d34a1244d0029a59/programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-object-spread-accessors/input.mjs), and [released-package workflow run](https://github.com/teamleaderleo/fieldwork/actions/runs/30479636589).
+**Primary record:** [PR #97](https://github.com/teamleaderleo/fieldwork/pull/97)  
+**Evidence:** [report](https://github.com/teamleaderleo/fieldwork/blob/a1ad034eb3500f20d5815ea3d34a1244d0029a59/programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/report.md), [reproduction guide](https://github.com/teamleaderleo/fieldwork/blob/a1ad034eb3500f20d5815ea3d34a1244d0029a59/programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-object-spread-accessors/README.md), and [released-package run](https://github.com/teamleaderleo/fieldwork/actions/runs/30479636589).
 
-**Human summary:** Biome 2.5.6 labels the transformation safe, but flattening accessor-bearing object literals from `Object.assign` into object spread changes setter invocation, getter timing, and property descriptors. The released package applied the fix and the retained Node 22 workflow demonstrated the semantic difference.
+**Human summary:** Biome 2.5.6 labels the transformation safe, but flattening accessor-bearing object literals from `Object.assign` into object spread changes setter invocation, getter timing, and property descriptors. The released package applied the fix and the retained Node 22 run demonstrated the semantic difference.
 
-**Review ask:**
+**Review ask:** Verify the runtime descriptors, safe-fix classification, missing accessor guard, ordinary data-property controls, and current prior art. Choose **accept for promotion**, **revise**, or **hold**.
 
-1. Re-run or inspect the released-package reproduction and compare the before/after runtime object descriptors.
-2. Verify the rule's safe-fix classification and the implementation's lack of an accessor guard.
-3. Confirm ordinary data-property cases remain valid and that declining accessor-bearing cases is a narrow plausible correction.
-4. Recheck current prior art before promotion.
-5. Choose **accept for promotion**, **revise**, or **hold**. Upstream contact remains a separate decision.
+**Uncertainty to preserve:** The reproduction proves a semantic change, not how common the pattern is.
 
-**Uncertainty to preserve:** The reproduction proves a semantic change, not the frequency of accessor-bearing `Object.assign` patterns in real projects.
+**Done when:** An independent reviewer records the semantic disposition and promotion decision.
 
-**Done when:** An independent reviewer confirms or rejects the semantic claim and records whether an upstream packet should be prepared.
+### RQ-003 — Codex direct-result persistence and compaction gates
 
-### RQ-003 — Canonical Codex mutation-receipt branch
-
-**State:** Human coordination decision required before additional implementation wiring.  
+**State:** Canonical receipt owner selected; next wiring slice is active.  
 **Primary record:** [Campaign #83](https://github.com/teamleaderleo/fieldwork/issues/83)  
-**Evidence:** [campaign question](https://github.com/teamleaderleo/fieldwork/blob/dd75315202f5e66c90961cddd6d914766d7db576/campaigns/0003-compaction-mutation-identity/question.md), [source map](https://github.com/teamleaderleo/fieldwork/blob/dd75315202f5e66c90961cddd6d914766d7db576/campaigns/0003-compaction-mutation-identity/source-map.md), [decision](https://github.com/teamleaderleo/fieldwork/blob/dd75315202f5e66c90961cddd6d914766d7db576/campaigns/0003-compaction-mutation-identity/decision.md), [raw-history validator PR](https://github.com/teamleaderleo/codex/pull/2), [receipt contract PR](https://github.com/teamleaderleo/codex/pull/3), and [alternate receipt-primitives PR](https://github.com/teamleaderleo/codex/pull/4).
+**Evidence:** [question](https://github.com/teamleaderleo/fieldwork/blob/0c1fa8af2dd1f5ab95ba85b6492c67c5f0f0437f/campaigns/0003-compaction-mutation-identity/question.md), [source map](https://github.com/teamleaderleo/fieldwork/blob/0c1fa8af2dd1f5ab95ba85b6492c67c5f0f0437f/campaigns/0003-compaction-mutation-identity/source-map.md), and [decision](https://github.com/teamleaderleo/fieldwork/blob/0c1fa8af2dd1f5ab95ba85b6492c67c5f0f0437f/campaigns/0003-compaction-mutation-identity/decision.md).
 
-**Human summary:** The campaign correctly separates raw call/result validation from a privacy-safe operation-effect and terminal-receipt contract. However, Codex PRs #3 and #4 now overlap on the receipt primitive. Continuing both would multiply review work and risk semantic drift.
+**Human summary:** The earlier branch-selection decision is complete. The accepted foundation now includes raw-history identity validation, a privacy-safe receipt vocabulary, exact effect delegation, and one bounded session-owned receipt lifecycle. The open work is authoritative result persistence, pre-dispatch closure, compaction gates, durable checkpoint carriage, and replay suppression.
 
 **Review ask:**
 
-1. Keep Codex PR #2 separate as the raw-history validator.
-2. Compare PRs #3 and #4 for receipt states, duplicate handling, readiness rules, API placement, tests, and privacy boundaries.
-3. Select one canonical receipt branch.
-4. Move any uniquely stronger tests or semantics from the other branch.
-5. Close or archive the duplicate before dispatch, persistence, or compaction wiring continues.
-6. Record the baseline CI limitation separately from branch-owned failures.
+1. Keep raw identity, terminal state, result persistence, client delivery, and display separate.
+2. Verify direct result persistence is recorded only after authoritative append.
+3. Require raw-history and receipt gates before compaction request construction and replacement installation.
+4. Define safe receipt retirement before relying on the 1,024-entry bound.
+5. Execute local, remote v1, and remote v2 ambiguity cases before claiming replay prevention.
 
-**Uncertainty to preserve:** Neither receipt branch yet proves end-to-end ownership through dispatch, durable result persistence, all compaction paths, or retry suppression.
-
-**Done when:** One canonical receipt branch exists, the duplicate is stopped, and the next wiring slice names exactly one runtime owner.
+**Done when:** Authoritative persistence and all compaction gates have retained tests, and ambiguous mutation evidence fails closed without replay.
 
 ---
 
-## Priority 1 — independent technical review
+## Priority 1 — independent review and execution gates
 
 ### RQ-004 — Vite plugin invalidation and post-transform graph correctness
 
 **State:** Ready for independent review; treat each candidate separately.  
-**Primary record:** [Fieldwork PR #48](https://github.com/teamleaderleo/fieldwork/pull/48)  
-**Evidence:** [scout report](https://github.com/teamleaderleo/fieldwork/blob/201dc6c59f2a2108c39ebd3ecd2273c547a4c198/programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/report.md), [watch-change execution update](https://github.com/teamleaderleo/fieldwork/blob/201dc6c59f2a2108c39ebd3ecd2273c547a4c198/programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-2026-07-29.md), [post-transform update](https://github.com/teamleaderleo/fieldwork/blob/201dc6c59f2a2108c39ebd3ecd2273c547a4c198/programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-post-transform-2026-07-29.md), and [bundled-development update](https://github.com/teamleaderleo/fieldwork/blob/201dc6c59f2a2108c39ebd3ecd2273c547a4c198/programmes/web-tooling-runtime-correctness/scouts/vite-plugin-hmr-invalidation/execution-update-bundled-dev-2026-07-30.md). Target reproductions are in [Vite PR #1](https://github.com/teamleaderleo/vite/pull/1), [#2](https://github.com/teamleaderleo/vite/pull/2), and [#3](https://github.com/teamleaderleo/vite/pull/3).
+**Primary record:** [PR #48](https://github.com/teamleaderleo/fieldwork/pull/48)
 
-**Human summary:** Three distinct findings are bundled in the scout. A rejected `watchChange` hook can stop Vite-owned invalidation; a post-ordered transform can introduce imports after dev import analysis; and experimental bundled development can observe a file change while skipping the plugin's `hotUpdate` path. The first two are stable-mode correctness candidates. The third is an experimental compatibility question.
+**Human summary:** A rejected `watchChange` hook can stop Vite-owned invalidation; a post-ordered transform can introduce imports after dev import analysis; and experimental bundled development can observe a file change while skipping the plugin's `hotUpdate` path. The first two are stable-mode candidates. The third remains experimental.
 
-**Review ask:**
+**Review ask:** Review stable-mode cases independently, preserve the experimental qualifier, check browser/runtime consequences, and decide which candidate deserves its own packet.
 
-1. Review the `watchChange` error-isolation case and post-transform graph case as independent stable-mode candidates.
-2. Confirm the browser/runtime consequences and the retained cross-version or cross-platform evidence.
-3. Keep bundled-development wording explicitly qualified as experimental.
-4. Check whether warning-only remedies would leave stale state or graph divergence in place.
-5. Recommend which candidate, if any, deserves a separate upstream packet.
+**Done when:** Each candidate has a separate disposition.
 
-**Done when:** Each candidate has its own disposition and the experimental case is not used to overstate stable Vite behaviour.
+### RQ-010 — Playwright cleanup failure after expected body failure
+
+**State:** Ready for independent result-model review; no implementation selected.  
+**Primary issue:** [#142](https://github.com/teamleaderleo/fieldwork/issues/142)  
+**Primary record:** [PR #49](https://github.com/teamleaderleo/fieldwork/pull/49)  
+**Evidence:** [canonical report](https://github.com/teamleaderleo/fieldwork/blob/8d7ed3a79d40e8b99a170f20fc46663e41d3acfc/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md), owned probe [#28](https://github.com/teamleaderleo/playwright/pull/28), and execution PR [#29](https://github.com/teamleaderleo/playwright/pull/29).
+
+**Human summary:** A test marked with `test.fail()` failed as expected, then its fixture cleanup threw. With one retry configured, only attempt zero ran, no fresh worker appeared, and the nested run reported `1 passed`. Public `status` versus `expectedStatus` accounting absorbed the unrelated cleanup exception.
+
+**Review ask:** Verify the failure independence, trace the smallest internal signal through worker replacement, retry selection, and final outcome, and inspect reporter, serial-suite, and max-failure effects. Keep this separate from RQ-009.
+
+**Uncertainty to preserve:** The negative result is executed. The correct internal representation is still an open design question.
+
+**Done when:** The invariant is accepted or corrected and an implementation owner plus regression matrix is named, or the candidate is explicitly held.
 
 ### RQ-005 — Vercel AI terminal outcomes and resumable Stop ownership
 
 **State:** Design review is possible; target-native execution remains the gate.  
-**Primary record:** [Scout PR #34](https://github.com/teamleaderleo/fieldwork/pull/34), campaigns [#76](https://github.com/teamleaderleo/fieldwork/issues/76), [#94](https://github.com/teamleaderleo/fieldwork/issues/94), and [#95](https://github.com/teamleaderleo/fieldwork/issues/95).  
-**Evidence:** [scout report](https://github.com/teamleaderleo/fieldwork/blob/1d20c755072207d8c21441b505c1ec6fc3324fe4/programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/report.md), [terminal-outcome follow-up](https://github.com/teamleaderleo/fieldwork/blob/1d20c755072207d8c21441b505c1ec6fc3324fe4/programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/follow-up-terminal-outcomes.md), [surrounding candidates](https://github.com/teamleaderleo/fieldwork/blob/1d20c755072207d8c21441b505c1ec6fc3324fe4/programmes/sdk-integration-lifecycle/scouts/vercel-ai-stream-tool-lifecycle/surrounding-lifecycle-candidates.md), [explicit-abort candidate](https://github.com/teamleaderleo/ai/pull/1), and [resumable-Stop candidate](https://github.com/teamleaderleo/ai/pull/3).
+**Primary records:** [PR #34](https://github.com/teamleaderleo/fieldwork/pull/34), campaigns [#76](https://github.com/teamleaderleo/fieldwork/issues/76), [#94](https://github.com/teamleaderleo/fieldwork/issues/94), and [#95](https://github.com/teamleaderleo/fieldwork/issues/95).
 
-**Human summary:** Explicit operation abort, silent provider truncation, and application-owned resumable Stop are separate terminal-state problems. The split is sound. The explicit-abort and stale-Stop candidates are written but not executed in the retained environment; truncated-stream classification still needs a compatibility matrix before choosing an API representation.
+**Human summary:** Explicit operation abort, silent provider truncation, and application-owned resumable Stop are separate terminal-state problems. The split is sound, but the fork candidates need retained Node and Edge execution and the truncation representation still needs a compatibility matrix.
 
-**Review ask:**
+**Review ask:** Execute the abort and stale-Stop race matrices, run truncation classification cases, and reject any patch that collapses the three questions.
 
-1. Verify that ordinary consumer cancellation remains distinct from operation abort.
-2. Run the explicit-abort candidate against Node and Edge suites, including pre-abort and abort/error race controls.
-3. Run the resumable Stop cases for Stop A then run B, delayed Stop A, duplicate Stop, and reconnect without Stop.
-4. Execute the truncation matrix before selecting `incomplete`, typed error, metadata, or another public representation.
-5. Reject any attempt to collapse all three questions into one patch.
-
-**Done when:** Exact tested heads and retained outputs exist for the candidates, and the truncation campaign has a bounded compatibility decision.
+**Done when:** Exact tested heads and a bounded truncation representation decision exist.
 
 ### RQ-006 — Workers SDK lifecycle batch
 
-**State:** Batch structure is ready; evidence work is underway.  
-**Primary records:** [Batch #88](https://github.com/teamleaderleo/fieldwork/issues/88), [coordination PR #92](https://github.com/teamleaderleo/fieldwork/pull/92).  
-**Evidence:** [dispatch](https://github.com/teamleaderleo/fieldwork/blob/f03ceaa97a9051a99a56b35567c81d0bde66443f/batches/B20260730-001-workers-sdk-lifecycle-followup/DISPATCH.md), [status](https://github.com/teamleaderleo/fieldwork/blob/f03ceaa97a9051a99a56b35567c81d0bde66443f/batches/B20260730-001-workers-sdk-lifecycle-followup/STATUS.md), [manifest](https://github.com/teamleaderleo/fieldwork/blob/f03ceaa97a9051a99a56b35567c81d0bde66443f/batches/B20260730-001-workers-sdk-lifecycle-followup/manifest.json), and [A001 owned-fork draft](https://github.com/teamleaderleo/workers-sdk/pull/1).
+**State:** Active batch; consult live issue #88 and synthesis records before acting.  
+**Primary records:** [Batch #88](https://github.com/teamleaderleo/fieldwork/issues/88), [coordination PR #92](https://github.com/teamleaderleo/fieldwork/pull/92).
 
-**Human summary:** Four bounded assignments cover teardown ownership, configuration selection, partial deployment state, and independent review. A001 now contains a real Miniflare failure-injection regression for an early disposal rejection that can skip `Runtime.dispose()` and therefore skip the `workerd` kill path.
+**Human summary:** The batch covers teardown ownership, configuration selection, partial deployment state, and independent review. Live records have advanced beyond the original dated card, so reviewers should use the batch issue and synthesis PR as canonical.
 
-**Review ask:**
+**Review ask:** Preserve assignment evidence classes, require the cross-review loop, and do not infer live Cloudflare consequences solely from source models.
 
-1. Execute A001 and retain the expected current failure before considering a repair.
-2. Dispatch or complete A002 and A003 without sharing result paths.
-3. Keep A004 independent from the implementation owners.
-4. Require the declared cross-review loop before synthesis.
-5. Do not infer live Cloudflare deployment consequences solely from source models.
-
-**Done when:** A001–A004 each return a bounded result or negative result and the batch synthesis identifies which campaign, if any, should advance.
+**Done when:** Every assignment has a bounded outcome and batch synthesis records which candidates advance.
 
 ### RQ-007 — Gemini CLI deterministic lifecycle packet
 
-**State:** Ready for source and presentation review; target tests remain unexecuted.  
-**Primary record:** [Fieldwork PR #45](https://github.com/teamleaderleo/fieldwork/pull/45)  
-**Evidence:** [review packet](https://github.com/teamleaderleo/fieldwork/blob/9515e6a091f1c654f5ccdd6d60656b469f7b5889/programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/review-packet-2026-07-30.md), [report](https://github.com/teamleaderleo/fieldwork/blob/9515e6a091f1c654f5ccdd6d60656b469f7b5889/programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/report.md), [exploration log](https://github.com/teamleaderleo/fieldwork/blob/9515e6a091f1c654f5ccdd6d60656b469f7b5889/programmes/agent-cli-execution/scouts/gemini-tool-session-recovery/exploration-log-2026-07-30.md), and owned-fork drafts [#1](https://github.com/teamleaderleo/gemini-cli/pull/1), [#2](https://github.com/teamleaderleo/gemini-cli/pull/2), [#3](https://github.com/teamleaderleo/gemini-cli/pull/3), and [#4](https://github.com/teamleaderleo/gemini-cli/pull/4).
+**State:** Source review ready; target tests remain the promotion gate.  
+**Primary record:** [PR #45](https://github.com/teamleaderleo/fieldwork/pull/45)
 
-**Human summary:** The packet contains three narrow source-confirmed defects, one proposed asynchronous termination-ownership contract, and broader recovery questions. The evidence wording is now disciplined, but the four fork tests still need target-native execution receipts.
+**Human summary:** The packet contains narrow source-confirmed defects, a proposed asynchronous termination-ownership contract, and broader recovery questions. The evidence wording is disciplined, but fork tests need target-native receipts.
 
-**Review ask:**
+**Review ask:** Recheck the source defects, execute waiting-state and call-affinity tests, expand abort to a real process-tree case, and keep proposed contracts labeled as proposals.
 
-1. Recheck the three narrow source defects against the pinned revision.
-2. Execute the waiting-state and call-affinity tests first.
-3. Expand the discovered-tool abort case from helper wiring to a real parent/descendant ownership test.
-4. Review lifecycle termination as a proposed contract, not a current API guarantee.
-5. Preserve the open status of MCP remote cancellation and durable session receipts.
-
-**Done when:** The source review is accepted or corrected and each promoted defect has an exact target-test receipt.
+**Done when:** Source review is recorded and every promoted defect has an exact target-test receipt.
 
 ### RQ-008 — T3/OpenCode completion reconciliation
 
-**State:** Source-supported campaign with a prepared but unexecuted target test.  
-**Primary records:** [Scout PR #63](https://github.com/teamleaderleo/fieldwork/pull/63), [Campaign #71](https://github.com/teamleaderleo/fieldwork/issues/71), [campaign PR #75](https://github.com/teamleaderleo/fieldwork/pull/75).  
-**Evidence:** [control-surface report](https://github.com/teamleaderleo/fieldwork/blob/174bd677d0c67c2e371e884665eb3971e822e0ab/programmes/agent-cli-execution/scouts/harness-control-surfaces/report.md), [contract cases](https://github.com/teamleaderleo/fieldwork/blob/174bd677d0c67c2e371e884665eb3971e822e0ab/programmes/agent-cli-execution/scouts/harness-control-surfaces/artifacts/contract-cases.json), and the prepared target test described in PR #75.
+**State:** Source-supported campaign with a prepared target test.  
+**Primary records:** [PR #63](https://github.com/teamleaderleo/fieldwork/pull/63), [Campaign #71](https://github.com/teamleaderleo/fieldwork/issues/71), and [PR #75](https://github.com/teamleaderleo/fieldwork/pull/75).
 
-**Human summary:** T3 restores the OpenCode session identity after restart but not the previous active T3 turn identity. Provider idle can therefore lack the correlation needed to close stale persisted running state. A simple idle-to-ready fallback might fix the stale state but could also let a delayed old-session event close a newer turn.
+**Human summary:** T3 restores the OpenCode session identity after restart but not the previous active T3 turn identity. A simple idle-to-ready fallback might repair stale state but could let a delayed old-session event close a newer turn.
 
-**Review ask:**
+**Review ask:** Execute the restart regression, add the delayed-old-idle control, compare thread-scoped reconciliation with durable turn identity, and test interruption with and without later idle.
 
-1. Execute the prepared restart regression.
-2. Add the adapter-replacement control where an old idle event arrives after a newer turn begins.
-3. Compare a narrow thread-scoped reconciliation with durable turn identity.
-4. Test interruption both with and without a later provider idle event.
-5. Do not apply the fallback until exact event affinity is demonstrated.
-
-**Done when:** The target trace confirms or disproves the restart identity gap and one repair survives the delayed-old-event control.
+**Done when:** A target trace confirms or disproves the gap and the selected repair survives event-affinity controls.
 
 ---
 
 ## Monitored work — not ahead of the queue
 
-These remain valuable, but they should not displace the reviews above unless new evidence creates a security, data-loss, or urgent compatibility concern:
-
-- **Playwright fixture teardown:** [PR #49](https://github.com/teamleaderleo/fieldwork/pull/49) and owned-fork PRs [#10](https://github.com/teamleaderleo/playwright/pull/10)/[#11](https://github.com/teamleaderleo/playwright/pull/11). Consolidate the dependency-group intervention and exact-run evidence before opening more scheduler variants.
-- **DuckDB remote publication:** [Campaign #96](https://github.com/teamleaderleo/fieldwork/issues/96). Continue the MinIO-backed object-store matrix; no human decision is needed until reproducible publication-state evidence exists.
-- **Supabase auth refresh settlement:** [Campaign #78](https://github.com/teamleaderleo/fieldwork/issues/78) and [PR #91](https://github.com/teamleaderleo/fieldwork/pull/91). Complete the real-code two-variant matrix before selecting a settlement contract.
-- **OpenTelemetry NodeSDK lifecycle:** [PR #32](https://github.com/teamleaderleo/fieldwork/pull/32) and owned-fork PRs [#2](https://github.com/teamleaderleo/opentelemetry-js/pull/2)/[#3](https://github.com/teamleaderleo/opentelemetry-js/pull/3). Execute package tests before choosing between the instance guard and broader startup transaction work.
+- **DuckDB remote publication:** [Campaign #96](https://github.com/teamleaderleo/fieldwork/issues/96). Continue the object-store matrix until reproducible publication-state evidence exists.
+- **Supabase auth refresh settlement:** [Campaign #78](https://github.com/teamleaderleo/fieldwork/issues/78), [PR #91](https://github.com/teamleaderleo/fieldwork/pull/91). Complete the real-code two-variant matrix before selecting a settlement contract.
+- **OpenTelemetry NodeSDK lifecycle:** [PR #32](https://github.com/teamleaderleo/fieldwork/pull/32). Execute package tests before choosing between the instance guard and broader startup transaction work.
 
 ## Queue policy
 
-- No new campaign moves ahead of RQ-001 through RQ-004 without an explicit coordinator decision or materially higher-risk evidence.
-- A reviewer should own one queue card at a time.
+- A reviewer should own one card at a time.
 - Every completed review must leave a durable disposition on the relevant issue or pull request.
-- Implementation work must not outrun its evidence gate.
-- Upstream contact remains unauthorized unless the queue card explicitly reaches **Authorize contact** and the user or coordinator approves that exact interaction.
+- Implementation must not outrun its evidence gate.
+- Upstream contact remains unauthorized unless a card reaches **Authorize contact** and the user or coordinator approves that exact interaction.
 - When live issue state conflicts with this snapshot, the live issue wins and this queue should be amended.
