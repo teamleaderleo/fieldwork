@@ -15,7 +15,7 @@ Session-scoped runtime snapshots can also be sticky. A thread-owned MCP runtime 
 
 Request planning is rebuilt from current inputs. Native tools, model/profile gates, feature flags, permissions, current environments, extensions, current authentication, desired MCP configuration, and connector discovery are captured for each session or request step.
 
-Responses transport can add another reuse boundary. A Responses Lite startup-prewarm handoff may send the first generated turn through `previous_response_id` without directly repeating the `additional_tools` input prefix.
+Responses transport can add another reuse boundary. A Responses Lite startup-prewarm handoff may send the first generated turn through `previous_response_id` without directly repeating the `additional_tools` input prefix. A logical discovery loader therefore counts as delivered only when it appears on the generated wire request or the same manifest is verified as inherited from the previous response.
 
 These lifetimes produce a mixed candidate surface:
 
@@ -27,7 +27,8 @@ These lifetimes produce a mixed candidate surface:
 - desired MCP/app inputs are recomputed, while an unchanged live connection can retain a stale catalogue and binding;
 - a live reconnect rejoins the existing in-memory session and its session-owned snapshots;
 - a cold reconnect creates a new session from saved history plus current runtime inputs;
-- transport reuse can make direct wire advertisement depend on retained prior-response state.
+- transport reuse can make direct wire advertisement depend on retained prior-response state;
+- a preserved dynamic tool can have a valid loader while still belonging to a stale saved host generation.
 
 The mismatch fixture demonstrates the unresolved host problem: a saved dynamic tool set `host_old` survives cold resume even when the current host set is `host_new`. The current host cannot express that replacement through `thread/resume` or `thread/fork`.
 
@@ -35,9 +36,11 @@ The mismatch fixture demonstrates the unresolved host problem: a saved dynamic t
 
 | Source | Revision | Role |
 |---|---|---|
-| Public Codex | `openai/codex@3725f02cf38d856bc82bb46dd68ab61bb96ec6fc` | primary public source and test evidence |
+| Public Codex campaign pin | `openai/codex@3725f02cf38d856bc82bb46dd68ab61bb96ec6fc` | primary public source and retained campaign evidence |
+| Public Codex current-head recheck | `openai/codex@7579a2b41353470efaef93c08b4a21068a366b7f` | seven-commit delta recheck after campaign closeout |
 | Owned Codex | `teamleaderleo/codex@2b7b93081361b77f8ddaceaf362a09765b4153bf` | owned comparison |
-| Retrieval boundary | `2026-07-29` | campaign pin |
+| Official Rust MCP SDK | `modelcontextprotocol/rust-sdk@cb50ae7890d8a5daacae1a4ad95f395f06733c07` | `rmcp` 3.0.0 release line plus current post-release fix |
+| Retrieval boundary | `2026-07-30` | campaign closeout and dependency recheck |
 
 Public upstream remained read-only. No upstream contact was made.
 
@@ -55,7 +58,7 @@ Any refresh proposal needs an owner and lifetime contract for each input.
 | multi-agent version | Saved thread metadata wins; an inherited `Disabled` value wins first; legacy resumed/forked threads without metadata fall back to V1. | compatibility-selected at session creation |
 | live reconnect | The existing in-memory session owns the candidate surface, including session-owned MCP client and catalogue snapshots. | existing session lifetime |
 | cold reconnect / restart / upgrade | Saved thread declarations combine with a newly created runtime and current planning inputs. | new session lifetime |
-| Responses startup-prewarm state | The transport may reuse a prior response whose input carried the logical tool declarations. | WebSocket client-session / previous-response lifetime |
+| Responses startup-prewarm state | The transport may reuse a prior response whose input carried the logical tool declarations. Omitted declarations require a receipt proving that the same manifest was inherited. | WebSocket client-session / previous-response lifetime |
 
 This contract supports continuity without granting an implicit host refresh. A host-driven replacement needs an explicit request, complete snapshot semantics, and a receipt describing the resulting surface.
 
@@ -244,6 +247,8 @@ Local execution completed with exit code `0` and all assertions passing.
 | a changed current host dynamic set silently remains stale on cold resume | source-derived executable fixture | high for precedence, medium for end-to-end UX |
 | desired MCP inputs can refresh while a reused ready client retains a stale catalogue | observed L04 source trace and controlled fixture | high within L04 boundary |
 | a preserved dynamic tool can remain model-invisible when deferred discovery is unavailable | observed L05 source trace and invariant fixture | high within L05 boundary |
+| a logical discovery loader is insufficient unless delivered directly or through verified previous-response inheritance | observed L05 follow-up cross-lane fixture | high for the modeled client boundary |
+| stale saved provenance can pass the discovery-route invariant while still requiring a lifecycle warning | observed L05 follow-up cross-lane fixture | high for classification |
 | Responses Lite prewarm reuse can omit direct tool declarations from the first generated wire request | observed L02 source trace and protocol fixture | high for client wire behavior; server consequence unknown |
 | owned revision retains the same decisive precedence | observed owned code | high |
 
@@ -263,7 +268,7 @@ Owned comparison references:
 - Compaction and result-identity details remain assigned to lane L03 / issue #38.
 - MCP/app catalogue convergence details remain assigned to lane L04 / issue #39.
 - Deferred exposure and discovery details remain assigned to lane L05 / issue #40.
-- Effective-surface receipt design remains pending in lane L06 / issue #43.
+- Effective-surface receipt v1 was accepted through L06 / issue #43 / merged PR #81. It classifies the earliest observed divergence and performs no repair.
 - Fallback authority remains assigned to lane L07 / issue #44.
 - ChatGPT connector/developer-MCP coexistence remains an integration-scope lane L08 / issue #46.
 
@@ -278,8 +283,8 @@ Reviewed campaign records:
 | L02 | PR #58 / issue #37 | adds transport previous-response lifetime |
 | L03 | PR #64 / issue #38 | separates capability provenance from compacted call/result identity |
 | L04 | PR #62 / issue #39 | distinguishes desired MCP state from a reused live catalogue |
-| L05 | PR #59 / issue #40 | separates preservation from model visibility and discovery |
-| L06 | issue #43, still open | should synthesize the complete receipt |
+| L05 | PR #59 and follow-up PR #77 / issue #40 | separates preservation from model visibility, wire delivery, and provenance freshness |
+| L06 | merged PR #81 / issue #43 | accepts receipt v1 and separates the earliest observed divergence from recovery policy |
 | L07 | PR #60 / issue #44 | constrains fallback after loss |
 | L08 | PR #57 / issue #46 | healthy ChatGPT integration control with restart/reconnect still untested |
 
@@ -297,7 +302,9 @@ L04 corrects the broadest sentence in the first L01 draft. Current auth, config,
 
 ### L05 — deferred discovery invariant
 
-L05 shows that preservation and executability are separate claims. A saved dynamic tool can survive resume and enter the router as a deferred runtime while remaining invisible and unloadable when `tool_search` is unavailable or searchable metadata is missing. L01's fixture establishes provenance and precedence; it does not establish model visibility for every preserved tool.
+L05 shows that preservation and executability are separate claims. A saved dynamic tool can survive resume and enter the router as a deferred runtime while remaining invisible and unloadable when `tool_search` is unavailable or searchable metadata is missing.
+
+The L05 follow-up in PR #77 extends that rule through delivery. A logical loader is effective only when it is present on the generated wire request or the same manifest is verified as inherited through `previous_response_id`. It also classifies stale catalogue and stale saved provenance as typed warnings rather than discovery-route failures. In particular, L01's `host_old` condition can have a valid loader and still be wrong for the current host generation. L01 therefore owns replacement and generation semantics; L05 owns loader reachability.
 
 ### L07 — fallback authority
 
@@ -309,7 +316,38 @@ L08 is a healthy integration-scope negative result. GitHub connector and develop
 
 ### L06 — effective-surface diagnostics
 
-L06 remains open. Its receipt should distinguish at least these lifetimes: saved thread declarations, session-owned client/catalogue snapshots, request-step planning, transport previous-response state, router/model advertisement, execution, and result delivery.
+L06 was accepted through merged PR #81. Receipt v1 classifies eight normalized campaign cases: seven distinct first divergences, one healthy control, zero expectation mismatches, and seven focused tests passed. Its ordered observations cover saved/current/effective host state, logical and wire manifests, catalogue and binding, router/model exposure, discovery, required execution, completion, result persistence, client delivery, display, and fallback authority.
+
+The accepted receipt keeps recovery advisory. It distinguishes a valid loader with stale saved provenance from a missing loader, and a stale catalogue from a wire omission. That preserves the ownership split established by L01, L02, L04, and L05.
+
+## Post-closeout Codex and Rust SDK recheck
+
+The current public Codex head `7579a2b41353470efaef93c08b4a21068a366b7f` remains consistent with the campaign result:
+
+- `thread/start` accepts `dynamicTools` and `selectedCapabilityRoots`, while `thread/resume` and `thread/fork` still provide no equivalent replacement or clear fields;
+- Codex pins `rmcp = 3.0.0`;
+- MCP client reuse still compares configured transport, environment, credentials, authentication, and protocol-related inputs, but not the remote server identity or current tool-catalogue digest;
+- `ManagedClient` still retains server information and the startup-listed tool vector;
+- a server `notifications/tools/list_changed` event invalidates the Rust SDK's own cached `tools/list` response before callback routing, but the SDK default callback is a no-op and Codex's callback currently logs the event without relisting or replacing its separate startup-listed `ManagedClient.tools` vector;
+- the newest additional Codex commit changes environment-native MCP file-upload path handling, not lifecycle or catalogue publication.
+
+The Rust SDK 3.0 line adds modern discovery and lifecycle negotiation, subscription support, response caching, and more accurate OAuth discovery errors. Its response cache has a private generation counter: invalidation advances the generation and suppresses stale in-flight response writes. That protects the SDK cache, but it does not order Codex's application-level catalogue publication. The stale-catalogue repair therefore belongs in Codex integration code, while an SDK follow-up could offer a reusable opt-in relist coordinator with notification coalescing, generation ordering, and reconnect signals.
+
+The current Rust SDK head is one fix beyond the 3.0.0 release: it stamps server information on graceful subscription results. Release PR #1081 proposes 3.0.1 for that fix. This does not alter the catalogue-reuse finding.
+
+### Existing Codex Apps publication pattern
+
+Current Codex already contains most of the safe publication model for Codex Apps:
+
+- `hard_refresh_codex_apps_tools_cache` serializes relist and publication;
+- fetch tickets accept only the newest catalogue fetch;
+- each accepted publication increments one exact `tool_catalog_revision`;
+- `McpBinding` freezes the advertised tools and captured clients for one request;
+- `PreparedMcpCall` checks its captured revision before irreversible preparation;
+- a call which already holds the old revision may finish while publication waits;
+- an old prepared call that has not begun irreversible preparation is rejected after the revision changes.
+
+Generic MCP should generalize this existing policy rather than inventing another publication model. The request-authority rule is therefore narrower than “old bindings always remain executable”: already-started work may finish under captured authority, stale not-yet-started calls fail closed, and new steps use the accepted new revision.
 
 ## Candidate repair semantics
 
@@ -321,6 +359,7 @@ Resume and fork should accept one of:
 
 - `preserveSaved` — current behavior and compatibility default;
 - `replaceFromHost` — host supplies a complete current snapshot;
+- `clear` — host explicitly removes the saved host declarations for the reconstructed thread;
 - `rejectOnMismatch` — compare saved and current generations before creating the session.
 
 Implicit refresh would blur thread ownership and can remove tools that the saved conversation expects.
@@ -357,8 +396,10 @@ A new runtime should compare persisted capability schema and generation before i
 
 ## Recommendation
 
-Keep `preserveSaved` as the compatibility default. Add explicit host replacement and mismatch-rejection modes before any automatic refresh. Dynamic tools should use replace semantics. Selected roots can preserve identity while refreshing readiness, with typed conflict and degradation receipts.
+Keep `preserveSaved` as the compatibility default. Add explicit replace, clear, and mismatch-rejection modes before any automatic refresh. Selected roots can preserve identity while refreshing readiness, with typed conflict and degradation receipts.
 
-Treat host-declaration replacement, MCP catalogue reconnection, deferred-discovery repair, and Responses prewarm reuse as separate controls. They have different owners and lifetimes. A single generic “refresh tools” operation would conceal which state changed.
+Treat host-declaration reconciliation, MCP relist or reconnection, deferred-discovery repair, and Responses prewarm reuse as separate controls. They have different owners and lifetimes. A single generic “refresh tools” operation would conceal which state changed. Require direct loader delivery or verified inheritance, and report stale saved provenance separately from loader absence.
 
-The current code provides continuity, yet the host has no public way to assert that its thread-scoped capability set changed. That missing handshake remains the L01 repair target.
+The current-head and Rust SDK recheck strengthens the next implementation split. Codex needs the host lifecycle handshake and should generalize its existing Codex Apps publication/revision policy to generic MCP. The Rust SDK already surfaces tool-list-change notifications, invalidates its own cache, and exposes lifecycle events; optional helper APIs may make ordered relisting easier, but the SDK should not silently replace a client's published catalogue or request binding. Campaign #84 is now claimed through owned Codex draft PR #5; its first slice tests reconnecting at the host config-reload boundary while preserving ordinary per-turn reuse.
+
+The current code provides continuity, yet the host has no public way to assert that its thread-scoped capability set changed. That missing handshake remains the L01 repair target and feeds implementation campaign #84.
