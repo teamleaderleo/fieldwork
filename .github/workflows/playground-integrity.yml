@@ -1,0 +1,37 @@
+name: Playground integrity
+
+on:
+  pull_request:
+    paths:
+      - "EXPERIMENTS.md"
+      - "playgrounds/**"
+      - "scripts/run_playground_cases.py"
+      - "templates/experiment.*"
+      - ".github/workflows/playground-integrity.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "EXPERIMENTS.md"
+      - "playgrounds/**"
+      - "scripts/run_playground_cases.py"
+      - "templates/experiment.*"
+      - ".github/workflows/playground-integrity.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Validate canonical case packs
+        run: python3 scripts/run_playground_cases.py --validate
+      - name: Run identity smoke pack
+        run: |
+          python3 scripts/run_playground_cases.py \
+            --pack playgrounds/cases/identity-smoke.json \
+            --adapter "python3 playgrounds/examples/identity-adapter/run.py" \
+            --output /tmp/fieldwork-playground-smoke.json
