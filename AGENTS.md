@@ -16,7 +16,7 @@ Before creating or editing any Fieldwork issue, pull request, comment, review, M
 
 - never write a direct external GitHub issue, pull-request, discussion, or commit URL;
 - use the equivalent `redirect.github.com` URL;
-- never use external shorthand such as `owner/repository#123`;
+- never use external owner/repository number shorthand;
 - use the intentional-upstream marker only when the user explicitly authorized that exact external interaction;
 - remember that creating a Fieldwork record never authorizes upstream contact.
 
