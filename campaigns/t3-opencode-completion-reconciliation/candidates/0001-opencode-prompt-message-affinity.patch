@@ -1,0 +1,20 @@
+diff --git a/apps/server/src/provider/Layers/OpenCodeAdapter.ts b/apps/server/src/provider/Layers/OpenCodeAdapter.ts
+index 73c23b7..0000000 100644
+--- a/apps/server/src/provider/Layers/OpenCodeAdapter.ts
++++ b/apps/server/src/provider/Layers/OpenCodeAdapter.ts
+@@ -1457,6 +1457,7 @@ export function makeOpenCodeAdapter(
+ 
+       const agent = getModelSelectionStringOptionValue(modelSelection, "agent");
+       const variant = getModelSelectionStringOptionValue(modelSelection, "variant");
++      const providerMessageId = `msg_t3_${yield* randomUUIDv4}`;
+ 
+       context.activeTurnId = turnId;
+       context.activeAgent = agent ?? (input.interactionMode === "plan" ? "plan" : undefined);
+@@ -1484,6 +1485,7 @@ export function makeOpenCodeAdapter(
+       yield* runOpenCodeSdk("session.promptAsync", () =>
+         context.client.session.promptAsync({
+           sessionID: context.openCodeSessionId,
++          messageID: providerMessageId,
+           model: parsedModel,
+           ...(context.activeAgent ? { agent: context.activeAgent } : {}),
+           ...(context.activeVariant ? { variant: context.activeVariant } : {}),
