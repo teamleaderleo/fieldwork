@@ -16,13 +16,16 @@ Use these documents for synthesis in this order:
 6. `report.md` — architecture map, lifecycle traces, focused test map, and original probe record;
 7. `artifacts/synthetic-cancellation-probe.output.json` — recorded primitive-level probe output.
 
-## Final conclusions
+## Four-campaign synthesis packet
+
+1. **#76 — explicit-abort terminal settlement.** Owned draft [`teamleaderleo/ai#1`](https://github.com/teamleaderleo/ai/pull/1) descends cleanly from the pin and includes pending-read, pre-abort, active-tool, root/derived-result, and multi-consumer coverage. Callback-stall and abort/error races remain expected failures, and no Node/Edge run has executed here.
+2. **#94 — truncated-stream classification.** Preserve useful partial output while distinguishing a provider close without a terminal protocol event from ordinary completion. Existing external UI outcome work is compatibility precedent, not a substitute for the incomplete-close matrix.
+3. **#95 — resumable Stop ownership.** Owned draft [`teamleaderleo/ai#3`](https://github.com/teamleaderleo/ai/pull/3) proves the ordered stale-state reset and records delayed Stop as an expected failure. A complete design still needs run identity and conditional state ownership.
+4. **#150 — idle UI response liveness.** Owned draft [`teamleaderleo/ai#4`](https://github.com/teamleaderleo/ai/pull/4) adds opt-in client-branch SSE comments, propagation through Fetch/Node/`streamText`/agent helpers, bounded buffering, timer and cancellation guards, documentation, and focused tests. Real HTTP/proxy execution remains open.
+
+## Additional conclusions
 
 - Reader cancellation is consumer-scoped and is not an operation abort by itself.
-- Explicit abort while a provider read remains pending is the active core candidate under campaign #76. Owned PR [`teamleaderleo/ai#1`](https://github.com/teamleaderleo/ai/pull/1) descends cleanly from the pin and includes broader regression coverage, but remains a draft with two expected-failure race tests and no executed Node/Edge evidence.
-- Provider close after partial output needs a truthful truncated/incomplete classification under campaign #94. Existing external UI outcome work is useful compatibility precedent but does not remove the need to test missing terminal protocol state.
-- Resumable Stop state must not leak across runs. Campaign #95 owns that work; owned PR [`teamleaderleo/ai#3`](https://github.com/teamleaderleo/ai/pull/3) has a normal narrow state-reset test and an expected-failure delayed-Stop test, so it remains a draft sequential mitigation rather than a run-scoped fix.
-- Idle UI responses need optional transport liveness for self-hosted reverse-proxy deployments. Campaign #150 and owned draft [`teamleaderleo/ai#4`](https://github.com/teamleaderleo/ai/pull/4) add client-branch-only SSE comments, public-helper propagation, timer/cancellation guards, documentation, and focused tests. Real HTTP/proxy validation remains open.
 - Ordinary provider stream errors already reject the root result promises at the pinned revision.
 - Current streaming translation already uses an explicit single-owner live-stream contract and does not reproduce the older promise-only deadlock.
 - Duplicate `ToolLoopAgent` callback, UI outcome, and large-output tee-retention implementation work stopped where active external candidates already provide stronger coverage.
