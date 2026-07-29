@@ -29,7 +29,7 @@ Every accepted lane retains exact revisions, bounded commands or integration rec
 
 The campaign question has been answered at interface scope: several independent lifecycle boundaries can reduce or misreport the effective tool surface, and receipt v1 identifies the earliest observable boundary in every retained case.
 
-### Promote implementation campaign 1 — mutation identity and compaction checkpoint
+### #83 — P0 mutation identity and compaction checkpoint
 
 Current behavior:
 
@@ -48,7 +48,7 @@ Required candidate:
 
 Stop condition: compiled owned-fork tests distinguish complete, missing, duplicate, reordered, and late mutation results and prove the candidate fails closed without replay.
 
-### Promote implementation campaign 2 — host lifecycle and MCP refresh contract
+### #84 — P0 host lifecycle and MCP refresh contract
 
 Current behavior:
 
@@ -65,13 +65,13 @@ Required candidate:
 
 Stop condition: compiled owned-fork tests cover resume/fork host mismatch and stable-endpoint stub-to-real convergence.
 
-### Queue implementation campaign 3 — request exposure invariants
+### #85 — P1 request exposure invariants
 
 - send a complete manifest on the first generated Responses Lite request unless inheritance is directly validated;
 - compare logical and wire digests;
 - direct-expose or reject every deferred runtime without an executable loader.
 
-### Queue implementation campaign 4 — authority-aware fallback
+### #86 — P1 authority-aware fallback
 
 - compare credential, account, scope, approval, actor, visibility, logical identity, audit, and recovery;
 - allow equivalent routes;
