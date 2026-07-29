@@ -2,7 +2,9 @@
 
 This directory holds reusable integration-context dossiers and patterns.
 
-A context is not a target map and not an experiment. It explains how a tested mechanism participates in a larger workflow, which actors and boundaries are involved, what failures propagate outward, and which claims are documented versus inferred.
+A context is not a target map and not an experiment. It explains how a tested mechanism participates in a larger workflow, which actors and boundaries are involved, what consequences propagate outward, and which claims are documented versus inferred.
+
+A context is selected after a target investigation identifies a mechanism needing wider interpretation. It is not a menu of default hypotheses.
 
 ## Layout
 
@@ -11,26 +13,24 @@ contexts/
 ├── README.md
 ├── registry.yml
 ├── patterns/
-│   ├── retry-idempotency.md
-│   └── ...
+│   └── <cross-project-pattern>.md
 └── systems/
     └── <specific-system-or-workflow>.md
 ```
 
-`registry.yml` holds cheap pattern leads and the relationship between worked contexts, experiments, and canonical case packs. A candidate entry is not an assignment.
+`registry.yml` holds cheap pattern leads and relationships to retained experiments or case packs when those relationships actually exist. A candidate entry is not an assignment.
 
-Use `patterns/` for cross-project situations such as retries, streaming, cancellation, correlation, caching, migration, and recovery.
+Use `patterns/` for cross-project situations that have emerged from concrete research and may be reusable across targets.
 
 Use `systems/` only when Fieldwork has enough evidence to describe a particular application or integration without guessing.
 
-## Worked example
+## No canonical pattern
 
-`patterns/retry-idempotency.md` is paired with:
-
-- `playgrounds/examples/retry-idempotency/`
-- `playgrounds/cases/retry-idempotency.json`
-
-The experiment validates a small state-and-retry model. The dossier cites standards and official guidance, explains representative workflows, and lists the production boundaries the model does not cover.
+- No context pattern is Fieldwork's default lens.
+- Do not apply a pattern to a target merely because the pattern is familiar or already documented.
+- Promote or create a pattern only when a concrete investigation needs wider interpretation.
+- When the target's architecture differs from an existing pattern, preserve the difference instead of forcing a fit.
+- Retained patterns may provide vocabulary, source leads, or experimental techniques, but they do not choose the research question.
 
 ## Rules
 
