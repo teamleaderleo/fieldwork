@@ -14,13 +14,14 @@ Upstream contact performed: `false`
 
 ## In simple words
 
-The batch produced three distinct Workers SDK candidates:
+The batch produced three core Workers SDK candidates and one extracted Vite follow-up:
 
 1. Miniflare can delay or skip terminating `workerd` when earlier cleanup fails or never settles.
 2. Wrangler and Vite can choose different configuration files from the same project layout.
 3. Wrangler can activate new Worker code and then fail later without clearly reporting the activation path, activated version, and failed phase.
+4. Vite dev/preview container cleanup can lose ownership because tags are registered late and one same-mode plugin instance can replace another instance's process-exit callback.
 
-All three have fork branches and prepared package-level tests. A001 and A003 also have bounded repair prototypes. None of the package suites executed in the available environment, so implementation promotion remains gated on a full workspace run.
+The three core lanes have fork branches and prepared package-level tests. A001 and A003 have bounded repair prototypes. The Vite cleanup finding now has canonical candidate issue #165, a durable Fieldwork note, executed dependency-free models, and an unapplied patch candidate. None of the target package/plugin suites executed in the available environment, so implementation promotion remains gated on a full workspace run.
 
 ## A001 — Teardown lifecycle ownership
 
@@ -30,11 +31,11 @@ Confidence: **high source confidence, medium execution confidence**
 
 Workers SDK PR: `teamleaderleo/workers-sdk#1`
 
-Reviewed head: `eb2574f8cf7f73f244fed9733ca1902ab1e3fe7a`
+Reviewed head: `3d67e4cf38fe270a8d871056536b0e36d9a80893`
 
 The real-runtime tests target the ownership invariant: browser or proxy cleanup must not prevent the synchronous `SIGKILL` request inside `Runtime.dispose()`.
 
-Adversarial review strengthened the proof. The kill spy now inspects each call's `this` context and counts only `SIGKILL` calls made on a child whose executable basename starts with `workerd`; an unrelated child kill can no longer satisfy the assertion.
+Adversarial review strengthened the proof. The kill spy inspects each call's `this` context and counts only `SIGKILL` calls made on a child whose executable basename starts with `workerd`; an unrelated child kill cannot satisfy the assertion.
 
 Coordinator and follow-up review accepted:
 
@@ -62,7 +63,7 @@ Workers SDK PR: `teamleaderleo/workers-sdk#2`
 
 Reviewed head: `82ffab5d51abf7b5311891f31c6aa77f42bec41f`
 
-The source trace distinguishes four policy dimensions, and the prepared matrix now contains five groups covering six layouts:
+The source trace distinguishes four policy dimensions, and the prepared matrix contains five groups covering six layouts:
 
 - format precedence;
 - upward versus root-only search;
@@ -137,28 +138,80 @@ Next gate:
 
 Automatic rollback remains out of scope because triggers may partially apply, containers may be retryable, activation paths differ, and rollback is another fallible deployment.
 
-## Adjacent exploration — Vite container cleanup ownership
+## Candidate #165 — Vite container cleanup ownership
 
-Disposition: **source-confirmed adjacent ownership gap; hold production changes for plugin tests**
+Disposition: **accept as a source-confirmed, model-executed candidate; hold production changes for mocked plugin tests**
 
-The Vite dev and preview plugins install their current-session container tag sets and exit cleanup callbacks only after `prepareContainerImagesForDev()` fully resolves. Image preparation is sequential, and a later image build, pull, duplicate-tag cleanup, port validation, or egress-image pull can fail after earlier image work completed.
+Confidence: **high source confidence, high control-flow model confidence, low integration-execution confidence**
+
+Canonical candidate: #165
+
+Durable note: `notes/vite-container-cleanup-ownership.md`
+
+Workers SDK artifact head: `3d67e4cf38fe270a8d871056536b0e36d9a80893`
+
+### Late registration
+
+The Vite dev and preview plugins install their current-session container tag sets only after `prepareContainerImagesForDev()` fully resolves. Image preparation is sequential, and a later image build, pull, duplicate-tag cleanup, port validation, or egress-image pull can fail after earlier image work completed.
 
 This proves a cleanup-ownership registration gap. It does not prove that a running container exists on every preparation failure path.
 
-A dependency-free model was executed and passed these desired properties:
+### Single-slot process-exit ownership
 
-- cleanup ownership exists before asynchronous preparation;
-- preparation failure triggers cleanup while preserving the original preparation error;
-- successful cleanup clears the tag set and becomes idempotent;
-- failed cleanup warns and retains the tag set for a later close/exit retry.
+Both `dev.ts` and `preview.ts` keep one module-global process-exit callback slot. Each completed same-mode plugin instance replaces the previous callback.
 
-The A001 branch now contains:
+The exported `cloudflare()` function creates a fresh `PluginContext` and plugin array on every call. Multiple same-mode plugin instances are therefore representable in one Node.js process. The latest registration can make an earlier server's force-exit cleanup callback unreachable.
 
-- `container-build-cleanup.mjs` — executed model;
-- `container-build-cleanup.patch` — bounded dev/preview candidate;
-- updated adjacent lifecycle analysis.
+Ordinary CLI use commonly has one server, so incidence is unknown. Programmatic Vite use, tests, orchestrators, and multiple server instances are the key integration surfaces.
 
-The patch remains an artifact rather than a production edit. It needs mocked plugin tests for partial preparation failure, programmatic preview close, cleanup failure, and retry ownership.
+### Executed models
+
+The early-registration model passed:
+
+- ownership before asynchronous preparation;
+- preparation-failure cleanup with exact primary-error preservation;
+- clearing tags only after successful cleanup;
+- warning and retained ownership after failed cleanup.
+
+The per-instance registry model was executed with:
+
+```sh
+node /tmp/vite-exit-cleanup-registry.mjs
+```
+
+The executed content was identical to the committed artifact. It passed:
+
+```text
+PASS: a single exit slot loses earlier cleanup ownership
+PASS: a per-instance registry cleans every live server owner
+PASS: failed cleanup retains ownership for an exit retry
+PASS: successful close unregisters and avoids duplicate cleanup
+PASS: preparation failure preserves its original error
+```
+
+### Draft repair
+
+`vite-exit-cleanup-registry.patch` supersedes the narrower Vite cleanup patches for implementation review. It combines:
+
+- a per-instance callback registry;
+- ownership registration before image preparation;
+- preparation-failure cleanup with exact primary-error preservation;
+- programmatic preview-close cleanup;
+- warnings and retained retry ownership when cleanup returns `false`;
+- unregistering only after successful final cleanup;
+- registration retained across dev restarts.
+
+The patch remains unapplied.
+
+Next gate:
+
+- create two dev instances and prove both exit callbacks run;
+- create two preview instances and prove both exit callbacks run;
+- close one owner successfully without disturbing another;
+- fail cleanup on close and succeed on exit retry;
+- reject later preparation after earlier work and preserve the original error;
+- clean preview containers on programmatic close while the host process continues;
+- preserve dev restart ownership for future tags.
 
 ## Cross-review result
 
@@ -170,21 +223,40 @@ A standalone A004 lane was withdrawn at user direction. Review coverage was reta
 - A003's activation-path matrix was corrected;
 - A003's reporting-failure flaw was found, fixed, modeled, and formally reviewed;
 - A001's kill assertion was narrowed to the actual workerd child;
+- the adjacent Vite cleanup finding was extracted into candidate #165 rather than mixed into the Miniflare patch;
 - prior public discussion and broader tool precedent were reconciled in the lane results;
 - unexecuted package tests remain explicit blockers rather than being counted as review completion.
+
+## Centralized visibility
+
+- #88 is the canonical batch review/disposition hub.
+- #165 is the canonical Vite cleanup candidate.
+- #112 carries the synthesis and durable note.
+- #87 owns generated coordination and stale-state validation.
+- PR #105 remains a dated projection and should not override live issue state.
+
+Candidate #165 uses the existing filterable convention:
+
+- `state:ready`
+- `type:lane`
+- `parallel-safe`
+- `target:workers-sdk`
+- `programme:sdk-integration-lifecycle`
+
+No new ad hoc candidate label is necessary.
 
 ## Recommended order
 
 1. Execute A001's first three package regressions and validate the minimal runtime-first patch.
 2. Execute A003 helper and corrected mocked deploy-flow tests; refine the output contract.
 3. Execute A002's cross-selector matrix and implement behavior-preserving policy disclosure.
-4. Return to A001 error aggregation and named cleanup deadlines as a separate change.
-5. Add mocked Vite container-preparation/close cleanup tests before applying the adjacent patch.
+4. Execute candidate #165's mocked multi-instance and partial-preparation plugin tests.
+5. Return to A001 error aggregation and named cleanup deadlines as a separate change.
 6. Consider compatibility migrations only after execution evidence and ambiguous-layout review.
-7. Add accepted candidates to the human review queue with exact execution evidence.
+7. Add accepted candidates to the generated human review queue with exact execution evidence.
 
 ## Batch boundary
 
-No live Cloudflare deployment, route update, container rollout, retry, or rollback was performed.
+No live Cloudflare deployment, route update, container rollout, retry, rollback, or Docker/container reproduction was performed.
 
 No issue, pull request, comment, review, reaction, branch, or message was created in public upstream repositories.
