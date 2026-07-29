@@ -26,7 +26,7 @@ The workflow:
 8. runs the tests through the repository's auth-js Jest configuration;
 9. restores the checkout.
 
-## Result
+## Focused result
 
 | Variant | Test suites | Tests | Result | Clean exit |
 | --- | ---: | ---: | --- | --- |
@@ -69,16 +69,21 @@ The final distinction strengthens the recommendation against early shared settle
 
 ## Repository-wide checks
 
-At the time of this record:
+Owned-fork experiment head: `f589f01234bf057c6d872ac44a1255fe31b433cf`
 
-- focused Fieldwork auth refresh settlement workflow: **success**;
-- draft-merge blocker: expected failure because the PR remains draft;
-- SDK Compliance: still running;
-- ordinary pull-request CI: still queued;
-- Fieldwork PR #91 integrity check: **success**;
-- Fieldwork PR #91 external-reference-policy check: **success**.
+| Check | Result |
+| --- | --- |
+| Fieldwork auth refresh settlement workflow | pass |
+| SDK Compliance | pass |
+| Ordinary pull-request CI | pass |
+| Draft-merge blocker | expected failure because the PR remains draft |
 
-The candidate branches remain experiments. A production patch should wait for repository-wide checks and should be rebased against any landed form of upstream PR #2568 or #2573.
+The ordinary pull-request workflow completed successfully across its repository matrix. Completed jobs included package builds, common checks, public API drift checks, package-export validation, ESM and CJS loading, Hermes compatibility, cross-platform unit and type checks, and package suites for auth-js, postgrest-js, storage-js, functions-js, realtime-js, and the Supabase client.
+
+Fieldwork PR #91 also passes:
+
+- Fieldwork integrity;
+- external-reference policy.
 
 ## Evidence limits
 
@@ -88,14 +93,14 @@ The focused tests use the real pinned auth client and repository Jest setup, but
 - a hosted Supabase project;
 - a full Next.js or other server framework request;
 - real browser BroadcastChannel delivery;
-- React Native, Deno, or worker-specific runtimes;
-- Docker-backed full auth integration tests.
+- React Native, Deno, or worker-specific runtime behavior for the settlement cases;
+- Docker-backed full Auth integration tests using the candidate source patch.
 
-The source audit covers the live-service and SSR contracts separately. A production branch still needs a bounded real SSR cookie trial and a browser/cross-tab trial before any upstream packet is considered.
+Repository CI establishes package compatibility for the experiment branch. It does not replace a bounded live SSR cookie trial or a real browser/React Native notification trial.
 
 ## Validation conclusion
 
-Both implementation mechanisms work as designed in the real auth-js code at the pinned revision.
+Both implementation mechanisms work as designed in the real auth-js code at the pinned revision, and the experiment branch passes the complete repository pull-request and SDK compliance workflows.
 
 The notification-scoped result remains preferred because it:
 
