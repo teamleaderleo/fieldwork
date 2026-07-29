@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "campaign_issue": 71,
   "retrieval_date": "2026-07-30",
   "worker": "chatgpt:gpt-5.6-thinking",
@@ -9,24 +9,53 @@
     "repository": "teamleaderleo/t3code",
     "base_revision": "85a89868703530e03c5e79797c7b952c684bd222",
     "branch": "fieldwork/opencode-completion-reconciliation",
-    "prepared_test_head": "6910916928ae487b99c6204b01c84fee90207300",
+    "prepared_test_head": "aa58cc6dd6749dc4365a3ec9f41d9eaa28520672",
     "prepared_test_paths": [
       "apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts",
-      "apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts"
+      "apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts",
+      "apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts"
     ],
-    "intended_command": "vp test run apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts"
+    "intended_command": "vp test run apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts"
   },
   "execution_status": "not-run",
   "execution_limit": "The current environment cannot clone or install the target repository, and no branch-push workflow run was available for the prepared commits.",
   "source_facts": [
-    "ProviderService persists activeTurnId in ProviderSessionDirectory runtimePayload when a turn starts.",
-    "Recovery currently reads persisted cwd/model/resume cursor but not activeTurnId.",
-    "OpenCode session.status is an authoritative activity snapshot, but idle does not encode terminal outcome.",
-    "OpenCode promptAsync accepts a caller-supplied messageID and assistant messages retain that user message in parentID.",
-    "T3 exact turn completion is guarded against settling a different newer active turn.",
-    "OpenCode abort waits for runner cancellation and its idle callback before returning.",
-    "A scope-owned local OpenCode process cannot preserve live execution across a T3 process restart, even when durable conversation history is re-adopted.",
-    "Generic session.state.changed ready clears whichever turn is currently active."
+    "ProviderService persists activeTurnId in ProviderSessionDirectory runtimePayload when a turn starts, but recovery currently reads cwd/model/resume cursor rather than the active turn.",
+    "OpenCode session.status is activity evidence only; idle does not encode terminal outcome and a missing status-map entry is also treated as idle.",
+    "OpenCode promptAsync accepts a caller-supplied messageID and assistant messages retain the corresponding user message in parentID.",
+    "T3 exact turn completion is guarded against settling a different newer active turn, while generic session.state.changed ready clears the session-wide active turn.",
+    "OpenCode abort waits for runner cancellation and its idle callback before returning, so abort response and idle SSE delivery can race.",
+    "The OpenCode adapter currently accepts an explicit interrupt turn id without checking it against the adapter-local active turn.",
+    "The OpenCode adapter currently maps any idle event to completed when an active turn id exists, even when no turn-specific provider evidence accompanies the idle event.",
+    "OpenCode readThread and rollbackThread currently call session.messages without a limit, cursor, timeout, or abort budget.",
+    "ProviderSessionReaper checks projected activeTurnId before stopSession, leaving a check-then-stop window in which a new turn can begin.",
+    "ProviderService and the OpenCode adapter use unbounded runtime-event queues, so stalled consumers remain a separate pressure and ordering risk."
+  ],
+  "historical_precedent": [
+    {
+      "reference": "https://redirect.github.com/pingdotgg/t3code/issues/2173",
+      "lesson": "Mid-turn steering has produced a permanently working thread whose disabled input survives restart."
+    },
+    {
+      "reference": "https://redirect.github.com/pingdotgg/t3code/issues/2886",
+      "lesson": "Repeated mid-run comments have left T3 working after the underlying OpenCode session ended."
+    },
+    {
+      "reference": "https://redirect.github.com/pingdotgg/t3code/issues/3604",
+      "lesson": "Losing durable provider-session identity silently split one visible T3 thread across multiple OpenCode sessions."
+    },
+    {
+      "reference": "https://redirect.github.com/pingdotgg/t3code/pull/3617",
+      "lesson": "The first resume repair required follow-up review fixes so transient/auth failures did not create empty sessions and resumed sessions reapplied current permissions."
+    },
+    {
+      "reference": "https://redirect.github.com/pingdotgg/t3code/issues/3601",
+      "lesson": "Unbounded session.messages hydration can hang large threads indefinitely; recovery history inspection must be bounded and time-limited."
+    },
+    {
+      "reference": "https://redirect.github.com/pingdotgg/t3code/issues/2579",
+      "lesson": "OpenCode child-process and SSE disconnections have historically lacked automatic reconnection and clear user-visible failure states."
+    }
   ],
   "cases": [
     {
@@ -37,7 +66,8 @@
         "persisted_turn_id": "turn-persisted-before-restart",
         "provider_message_ids": ["msg_t3_persisted_before_restart"],
         "provider_status": "idle",
-        "matching_terminal_assistant_history": false
+        "matching_terminal_assistant_history": false,
+        "unrelated_completed_history": true
       },
       "required_result": {
         "canonical_event": "turn.completed",
@@ -46,92 +76,199 @@
       },
       "forbidden_results": [
         "generic session.state.changed ready",
-        "turn.completed completed without success evidence",
+        "turn.completed completed from unrelated history",
         "no lifecycle settlement"
       ]
     },
     {
-      "id": "local-server-restart-without-terminal-history",
-      "status": "planned",
-      "setup": {
-        "server_ownership": "scope-owned-local-child",
-        "t3_process_restarted": true,
-        "conversation_reopened": true,
-        "provider_status": "idle",
-        "matching_terminal_assistant_history": false
-      },
-      "required_result": {
-        "state": "interrupted",
-        "reason": "live execution continuity was lost with the old local provider process"
-      }
-    },
-    {
       "id": "recovery-idle-with-success-history",
-      "status": "planned",
-      "setup": {
-        "provider_status": "idle",
-        "assistant_parent_id": "one of the persisted provider user-message ids",
-        "assistant_completed": true,
-        "assistant_error": null
-      },
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.restart.test.ts",
       "required_result": {
         "canonical_event": "turn.completed",
         "state": "completed",
+        "assistant_parent_id_matches_persisted_provider_message": true,
         "exact_turn_affinity": true
       }
     },
     {
       "id": "recovery-idle-with-failed-history",
-      "status": "planned",
-      "setup": {
-        "provider_status": "idle",
-        "assistant_parent_id": "one of the persisted provider user-message ids",
-        "assistant_error": "non-abort terminal error"
-      },
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.restart.test.ts",
       "required_result": {
         "canonical_event": "turn.completed",
         "state": "failed",
+        "assistant_parent_id_matches_persisted_provider_message": true,
         "exact_turn_affinity": true
       }
     },
     {
       "id": "recovery-busy-restores-exact-turn",
-      "status": "planned",
-      "setup": {
-        "provider_status": "busy",
-        "persisted_active_turn": "turn-old"
-      },
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.restart.test.ts",
       "invariants": [
-        "adapter local activeTurnId is restored to turn-old",
+        "adapter local activeTurnId is restored to the persisted turn",
         "session remains running",
-        "a later terminal status settles turn-old exactly once"
+        "idle later settles the restored turn exactly once"
       ]
     },
     {
-      "id": "repeated-steering-retains-provider-message-affinity",
+      "id": "recovery-history-is-bounded",
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.restart.test.ts",
+      "invariants": [
+        "idle recovery never calls session.messages without a positive finite limit",
+        "only history for the resumed OpenCode session is queried",
+        "unrelated terminal history does not classify the recovered turn"
+      ]
+    },
+    {
+      "id": "recovery-status-failure-does-not-start-fresh",
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.restart.test.ts",
+      "invariants": [
+        "transport, auth, or server failure from session.status fails recovery",
+        "session.create is not called",
+        "the persisted turn is not falsely completed"
+      ]
+    },
+    {
+      "id": "recovery-history-failure-does-not-start-fresh",
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.restart.test.ts",
+      "invariants": [
+        "bounded history failure fails recovery",
+        "session.create is not called",
+        "the persisted turn is not falsely completed"
+      ]
+    },
+    {
+      "id": "recovery-history-time-budget",
       "status": "planned",
+      "invariants": [
+        "a stalled history request is cancelled or timed out within a documented recovery budget",
+        "timeout is surfaced rather than converted to idle, interrupted, or a fresh session",
+        "the UI cannot remain indefinitely in a pulling or starting state"
+      ]
+    },
+    {
+      "id": "recovery-history-page-boundary",
+      "status": "planned",
+      "setup": {
+        "matching_provider_message": "just outside the newest page",
+        "history_size": "large"
+      },
+      "invariants": [
+        "pagination remains bounded",
+        "recovery does not classify success from an unrelated newer message",
+        "exhausting the recovery scan budget produces an explicit conservative result"
+      ]
+    },
+    {
+      "id": "local-server-restart-without-terminal-history",
+      "status": "planned",
+      "required_result": {
+        "state": "interrupted",
+        "reason": "live execution continuity was lost with the old scope-owned provider process"
+      }
+    },
+    {
+      "id": "missing-upstream-session-settles-old-turn",
+      "status": "planned",
+      "invariants": [
+        "confirmed 404 settles the exact old turn as interrupted before fresh creation",
+        "fresh session does not inherit old turn affinity",
+        "non-404 failures never take this path"
+      ]
+    },
+    {
+      "id": "steering-assigns-provider-message-affinity",
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.steering-affinity.test.ts",
       "stimulus": [
-        "send initial prompt with generated OpenCode message id",
-        "send first steering prompt while busy with another message id",
-        "send second steering prompt while busy with another message id"
+        "initial prompt",
+        "first steering prompt while active",
+        "second steering prompt while active"
       ],
       "invariants": [
-        "one T3 turn owns an ordered list of all provider user-message ids",
-        "recovery can inspect the final matching assistant outcome",
-        "completion converges once"
+        "one T3 turn id is reused",
+        "every prompt carries a valid caller-generated OpenCode msg id",
+        "provider message ids are distinct and ordered"
       ]
     },
     {
-      "id": "stale-exact-completion-cannot-clear-new-turn",
-      "status": "source-confirmed-existing-guard",
+      "id": "steer-acceptance-and-persistence-order",
+      "status": "planned",
+      "invariants": [
+        "provider message affinity is persisted only after prompt acceptance or with an explicit pending state",
+        "a failed steer does not become false terminal evidence on recovery",
+        "a crash between prompt acceptance and persistence has an explicit reconciliation path"
+      ]
+    },
+    {
+      "id": "interrupt-without-status-event-settles",
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.interrupt.test.ts",
+      "required_result": {
+        "canonical_event": "turn.completed",
+        "state": "interrupted",
+        "exact_turn_affinity": true
+      }
+    },
+    {
+      "id": "interrupt-idle-race-settles-once",
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.interrupt.test.ts",
+      "invariants": [
+        "abort intent is recorded before awaiting the provider",
+        "idle and abort response share one terminal claim",
+        "ordinary completed never wins for the interrupted turn"
+      ]
+    },
+    {
+      "id": "interrupt-stale-turn-id-rejected",
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.interrupt.test.ts",
+      "invariants": [
+        "OpenCode abort is not called",
+        "the current turn remains active",
+        "the caller receives an affinity failure"
+      ]
+    },
+    {
+      "id": "concurrent-duplicate-interrupts-coalesce",
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.interrupt.test.ts",
+      "invariants": [
+        "one upstream abort occurs",
+        "one exact interrupted terminal event occurs",
+        "duplicate callers cannot emit duplicate terminal state"
+      ]
+    },
+    {
+      "id": "abort-failure-preserves-active-turn",
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.interrupt.test.ts",
+      "invariants": [
+        "no false terminal result is emitted",
+        "active turn remains running",
+        "interruption intent is cleared or marked retryable"
+      ]
+    },
+    {
+      "id": "delayed-old-idle-cannot-close-new-turn",
+      "status": "prepared",
+      "target_test": "OpenCodeAdapter.interrupt.test.ts",
       "setup": {
-        "projected_active_turn": "turn-new",
-        "delayed_completion_turn": "turn-old"
+        "first_turn": "completed",
+        "second_turn": "started",
+        "delayed_event": "duplicate session-scoped idle from the first provider run",
+        "second_turn_provider_evidence": false
       },
       "invariants": [
-        "turn-new remains active",
-        "turn-old completion is ignored for lifecycle state",
-        "the stale event remains observable"
+        "second turn remains active",
+        "session-scoped idle is not treated as sufficient exact-turn evidence",
+        "the delayed event remains observable for diagnosis"
       ]
     },
     {
@@ -145,88 +282,85 @@
       ]
     },
     {
-      "id": "interrupt-without-status-event-settles",
-      "status": "prepared",
-      "target_test": "OpenCodeAdapter.interrupt.test.ts",
-      "setup": {
-        "active_turn": "exact adapter turn",
-        "opencode_abort": "success",
-        "post_abort_sse_status_event": "withheld"
-      },
-      "required_result": {
-        "canonical_event": "turn.completed",
-        "state": "interrupted",
-        "exact_turn_affinity": true
-      }
-    },
-    {
-      "id": "interrupt-idle-race-settles-once",
+      "id": "reaper-check-stop-race",
       "status": "planned",
       "setup": {
-        "abort": "in progress",
-        "idle_event": "published before abort response"
+        "reaper_snapshot": "no active turn",
+        "concurrent_action": "new turn begins before stopSession commits"
       },
       "invariants": [
-        "one terminal event wins through a race-safe active-turn claim",
-        "terminal state is interrupted",
-        "ordinary completed is not emitted for the interrupted turn"
+        "the newly active provider session is not stopped",
+        "reaping is guarded by an expected version, last-seen value, or atomic idle check",
+        "a skipped stale reaper action is observable"
       ]
     },
     {
-      "id": "interrupt-stale-turn-id-rejected",
+      "id": "hot-reload-old-generation-event",
       "status": "planned",
-      "setup": {
-        "requested_turn": "turn-old",
-        "adapter_active_turn": "turn-new"
-      },
       "invariants": [
-        "OpenCode abort is not called",
-        "turn-new remains active",
-        "caller receives an affinity error"
+        "an event already taken from a replaced adapter cannot mutate the new generation",
+        "provider instance id reuse is not treated as generation identity",
+        "old-generation events remain diagnosable"
       ]
     },
     {
-      "id": "missing-upstream-session-settles-old-turn",
+      "id": "lost-ui-event-user-resend",
       "status": "planned",
-      "setup": {
-        "persisted_active_turn": "turn-old",
-        "resume_session_get": "confirmed 404"
-      },
       "invariants": [
-        "turn-old is settled as interrupted before fresh session creation",
-        "fresh session does not inherit old turn affinity",
-        "context loss is explicit"
-      ]
-    },
-    {
-      "id": "transient-recovery-failure-does-not-start-fresh",
-      "status": "planned",
-      "setup": {
-        "status_or_history_query": "transport, auth, or server failure"
-      },
-      "invariants": [
-        "recovery fails explicitly",
-        "no empty OpenCode session is minted",
-        "persisted turn is not falsely completed"
+        "an accepted prompt whose UI acknowledgement was lost is not duplicated by retry",
+        "command or provider message identity makes resend idempotent",
+        "the user receives a truthful accepted/running/unknown result"
       ]
     },
     {
       "id": "pending-request-recovery-remains-separate",
       "status": "planned",
-      "source_observation": "OpenCode pending permission and question maps remain in memory and are not reconstructed from message affinity.",
       "invariants": [
-        "request is reconstructed with exact affinity or explicitly expired",
-        "stale response cannot target a new request",
+        "permission or question request is reconstructed with exact affinity or explicitly expired",
+        "stale responses cannot target a new request",
         "turn recovery does not claim to solve request recovery"
+      ]
+    },
+    {
+      "id": "provider-busy-liveness-budget",
+      "status": "planned",
+      "invariants": [
+        "busy without events or progress cannot remain running forever",
+        "retry status has a bounded or user-visible policy",
+        "liveness degradation is not mislabeled completed"
+      ]
+    },
+    {
+      "id": "event-order-final-message-and-idle",
+      "status": "planned",
+      "variants": [
+        "terminal assistant update before idle",
+        "idle before terminal assistant update",
+        "duplicate idle",
+        "session.error followed by idle"
+      ],
+      "invariants": [
+        "one terminal classification wins",
+        "failed cannot regress to completed",
+        "late content remains attachable without reopening the turn"
+      ]
+    },
+    {
+      "id": "runtime-event-backpressure",
+      "status": "planned",
+      "invariants": [
+        "slow or absent consumers do not grow adapter and ProviderService queues without bound",
+        "terminal lifecycle events are not dropped before high-volume content",
+        "pressure policy is observable"
       ]
     },
     {
       "id": "external-server-capability-check",
       "status": "planned",
       "invariants": [
-        "required status and message APIs are verified or fail clearly",
-        "unsupported external server does not fall back to generic ready",
-        "no silent context reset"
+        "required status and bounded-message APIs are verified or fail clearly",
+        "unsupported external server does not fall back to generic ready or an empty session",
+        "capability/version mismatch is user-visible"
       ]
     }
   ],
@@ -237,9 +371,19 @@
       "reason": "Generic ready clears the current turn without exact provider-session or turn affinity."
     },
     {
-      "id": "exact-turn-status-and-message-reconciliation",
+      "id": "status-only-terminal-classification",
+      "state": "rejected",
+      "reason": "Idle is activity state, not proof of completed, failed, aborted, or lost execution."
+    },
+    {
+      "id": "unbounded-history-reconciliation",
+      "state": "rejected",
+      "reason": "The existing full-history path has a documented large-thread hang and no timeout."
+    },
+    {
+      "id": "exact-turn-bounded-status-and-message-reconciliation",
       "state": "preferred-pending-target-tests",
-      "summary": "Persist exact T3 turn and OpenCode user-message affinity, subscribe before querying provider status, classify idle outcome from matching history, and emit exact turn completion."
+      "summary": "Persist exact T3 turn and ordered OpenCode user-message affinity, subscribe before snapshot, query status, inspect only bounded time-limited matching history, and emit one exact terminal result."
     },
     {
       "id": "public-start-session-schema-expansion",
@@ -247,9 +391,9 @@
       "reason": "Recovery affinity is server-internal and should not expand the public websocket contract."
     },
     {
-      "id": "new-unknown-terminal-state",
+      "id": "cross-provider-lifecycle-redesign",
       "state": "deferred",
-      "reason": "A new cross-surface state is broader than the current campaign; interrupted is the conservative existing state when no terminal history exists."
+      "reason": "The first repair should stay OpenCode-specific until target-native evidence shows the shared contract is insufficient."
     }
   ]
 }
