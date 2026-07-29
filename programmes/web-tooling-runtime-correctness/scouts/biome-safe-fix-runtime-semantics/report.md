@@ -2,11 +2,16 @@
 
 ## In simple words
 
-This lane audits Biome JavaScript and TypeScript transformations labelled safe and checks whether they preserve realistic executable behaviour.
+This lane audits Biome JavaScript and TypeScript transformations labelled safe and checks whether they preserve executable behaviour.
 
-The first retained finding is `style/useObjectSpread`. Biome 2.5.6 marks its fix safe and converts `Object.assign()` calls whose first argument is an object literal into one flattened object literal. JavaScript does not treat those forms as equivalent when getters or setters are present, and the released binary changes execution timing, setter invocation, and property descriptors.
+Two high-confidence findings now survive self-review:
 
-**Current conclusion:** this is a high-confidence Biome defect candidate. The rule is not recommended and must be enabled explicitly, which limits default exposure. Once enabled, however, its safe fix may be applied automatically by `--write` or editor fix-all actions without review. That conflicts with Biome's documented safe-fix contract.
+1. **`style/useObjectSpread`** is opt-in, but its safe fix flattens accessor-bearing `Object.assign()` calls and can suppress setters, delay or repeat getters, and change property descriptors.
+2. **`style/useArrayLiterals`** is recommended and its safe fix rewrites `Array(...args)` to `[...args]`. When the runtime argument list contains one number, this changes a sparse array of that length into a dense one-element array containing the number.
+
+Both findings reproduce with released `@biomejs/biome@2.5.6` under ordinary `lint --write`. Both have narrow applicability corrections already demonstrated by the corresponding ESLint rules.
+
+**Current conclusion:** retain both as promotion-ready defect candidates after independent review. `useObjectSpread` has narrower exposure because the rule is not recommended. `useArrayLiterals` has broader exposure because it is recommended, although the failing form still requires a spread argument whose runtime expansion is exactly one numeric value.
 
 ## Identity
 
@@ -17,68 +22,80 @@ The first retained finding is `style/useObjectSpread`. Biome 2.5.6 marks its fix
 - Target hub: #6, Biome
 - Worker: `chatgpt:gpt-5.6-thinking`
 - Initial pass date: 2026-07-30
-- Follow-up synthesis date: 2026-07-30
+- Review and expansion date: 2026-07-30
 - Target release: `@biomejs/biome@2.5.6`
 - Matching source revision: `biomejs/biome@d890b39c3ef21040bded453d9af91e1b301a0d67`
-- Validation run: `30479636589`, job `90670032732`
+- Latest combined validation run: `30487711008`, job `90697449948`
 - Upstream contact authorized: `no`
 - Upstream interaction performed: `none`
+
+## Review method
+
+The findings were challenged rather than accepted from the first minimized output.
+
+For each retained case, this pass checked:
+
+- the released package, not only a hand-written before/after model;
+- current and release-matching Biome source;
+- ECMAScript runtime semantics;
+- the source rule Biome identifies as the same rule;
+- implementation and safe-classification history;
+- current open and closed issue and pull-request searches;
+- realistic failure modes and limiting conditions;
+- the narrowest plausible applicability correction.
+
+The review also looked for reasons the behaviour might be intentional. No reviewed source or discussion was found that intentionally accepts either retained semantic change as part of a safe fix.
+
+---
 
 ## Finding 1: safe `useObjectSpread` flattens accessors
 
 ### State
 
-`promote to focused finding after independent review`
+`promote after independent review`
 
 ### Confidence
 
-High. Source inspection, ECMAScript semantics, the corresponding ESLint safety guard, native Node comparison, and the released Biome 2.5.6 binary all agree.
+High. Source inspection, ECMAScript semantics, ESLint's explicit guard, native Node comparison, and the released Biome binary agree.
 
 ### Source boundary
 
 `crates/biome_js_analyze/src/lint/style/use_object_spread.rs` declares `FixKind::Safe` and identifies ESLint `prefer-object-spread` as the same source rule.
 
-The rule's applicability check verifies that:
+The applicability check verifies that:
 
 - the callee is the global `Object.assign`;
 - the first argument is an object expression;
 - later call arguments are not spread arguments.
 
-It does not inspect object-expression members for getters, setters, or other property-definition semantics.
+It does not inspect object-expression members for getters, setters, or other special property-definition semantics.
 
-The action then iterates every argument and directly appends the members of each object-expression argument into the replacement object literal. Non-object expressions become object spreads. There is no accessor guard.
+The action then appends the members of every object-expression argument directly into one replacement object literal. Non-object expressions become object spreads.
 
 Source references:
 
 - https://redirect.github.com/biomejs/biome/blob/d890b39c3ef21040bded453d9af91e1b301a0d67/crates/biome_js_analyze/src/lint/style/use_object_spread.rs
 - https://redirect.github.com/biomejs/biome/pull/6129
 
-### Why this is consequential
+### Why the forms are not equivalent
 
-`Object.assign(target, source)` and object-literal construction use different abstract operations.
+For each enumerable source property, `Object.assign(target, source)` reads with `Get` and writes to the target with `Set`.
 
-For each enumerable source property, `Object.assign`:
+Object-literal property definitions instead create properties while the new object is constructed. A getter or setter copied syntactically into the replacement remains an accessor definition.
 
-1. reads the source property with `Get`;
-2. writes it to the target with `Set`.
+Observable differences include:
 
-Object-literal data properties and spread properties instead define own data properties on the newly constructed object. Getter and setter definitions remain accessor definitions when copied syntactically into the new literal.
-
-That distinction is observable:
-
-- a setter on the first object literal is invoked by `Object.assign`, but is overwritten without invocation in the flattened literal;
-- a getter on a later object literal is invoked by `Object.assign`, producing a data property, but remains a getter in the flattened literal;
+- a setter on the first object literal is invoked by `Object.assign`, but overwritten without invocation in the flattened literal;
+- a getter on a later object literal is invoked during `Object.assign` and copied as a data value, but remains a getter after flattening;
 - descriptor kind changes between accessor and data property;
-- side-effect timing changes from construction time to later property access.
+- side effects and exceptions move from construction time to later property access.
 
 Specification references:
 
-- `Object.assign`: https://tc39.es/ecma262/multipage/fundamental-objects.html#sec-object.assign
-- object initializers and property-definition evaluation: https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-object-initializer
+- https://tc39.es/ecma262/multipage/fundamental-objects.html#sec-object.assign
+- https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-object-initializer
 
 ### Released-binary reproduction
-
-The owned fixture ran on Ubuntu 24.04 with Node 22.23.1 and `@biomejs/biome@2.5.6`.
 
 Before the fix:
 
@@ -86,10 +103,9 @@ Before the fix:
 {"targetSetter":{"calls":2,"propertyKind":"accessor","value":null},"sourceGetter":{"readsBeforeValue":1,"readsAfterValue":1,"propertyKind":"data","value":7}}
 ```
 
-Biome reported:
+Biome 2.5.6 reported:
 
 ```text
-Version: 2.5.6
 Checked 1 file in 2ms. Fixed 1 file.
 ```
 
@@ -99,180 +115,379 @@ After the safe fix:
 {"targetSetter":{"calls":0,"propertyKind":"data","value":2},"sourceGetter":{"readsBeforeValue":0,"readsAfterValue":1,"propertyKind":"accessor","value":7}}
 ```
 
-The run succeeded because the script requires before and after output to differ. The rewritten source visibly flattened both accessor-bearing object literals.
+Latest retained output is in workflow run `30487711008`, job `90697449948`.
+
+### Concrete destructive scenarios
+
+These are consequences of the demonstrated mechanism, not claims about measured prevalence.
+
+#### Validation or normalization setter is bypassed
+
+```js
+const config = Object.assign(
+  {
+    set timeout(value) {
+      if (!Number.isFinite(value) || value < 0) throw new RangeError("timeout");
+      this._timeout = Math.floor(value);
+    },
+  },
+  userOptions,
+);
+```
+
+The original invokes validation. Flattening can replace the setter with an unchecked `timeout` data property, allowing invalid configuration to pass silently.
+
+#### Reactive or invalidation setter is skipped
+
+A setter can mark a cache dirty, notify observers, update a registry, or synchronize a second field. Flattening can produce the final visible value while omitting the required side effect, leaving derived state stale.
+
+#### Snapshot getter becomes a live getter
+
+```js
+const request = Object.assign({}, {
+  get nonce() {
+    return issueNonce();
+  },
+});
+```
+
+The original reads once and stores a snapshot. The flattened result retains the getter, so repeated reads may issue multiple nonces, tokens, timestamps, sequence numbers, or destructive queue reads.
+
+#### Failure timing moves
+
+A getter that throws during construction provides an early, local failure. After flattening, the same exception may occur much later when an unrelated consumer reads the property, complicating rollback and error attribution.
+
+#### Descriptor-sensitive code changes
+
+Reflection, mocking, serializers, dependency injection, and object-hardening code may distinguish data and accessor descriptors with `Object.getOwnPropertyDescriptor`. The released reproduction changes that descriptor category.
 
 ### Severity and exposure
 
 This is not a default-on ecosystem-wide break:
 
 - `useObjectSpread` is not recommended;
-- users must explicitly enable the rule or its group;
-- the affected forms require accessor-bearing object literals.
+- users must enable it explicitly;
+- the retained cases require accessor-bearing object literals.
 
-It is still a meaningful safety defect:
+It remains a meaningful safety defect because ordinary safe fix-all can suppress execution and change object shape. The appropriate wording is **narrow exposure, direct runtime impact, high-confidence missing applicability guard**.
 
-- Biome documents safe fixes as guaranteed not to change code semantics;
-- safe fixes can be applied without explicit review from the CLI or on save;
-- this fix can suppress setter calls, delay getter calls, and change property descriptors.
+### Ecosystem comparison
 
-The appropriate characterization is **narrow blast radius, concrete runtime impact, high-confidence safety misclassification or missing applicability guard**.
-
-## Ecosystem comparison
-
-Biome identifies this rule as the same as ESLint `prefer-object-spread`.
-
-ESLint's implementation explicitly declines the transformation when a multi-argument `Object.assign` call contains an object-expression getter or setter. Its test suite classifies the exact target-setter and source-accessor forms as valid/non-fixable.
+ESLint's `prefer-object-spread` implementation explicitly declines multi-argument calls when any object-expression argument contains a getter or setter. Its test suite includes the same target-setter and source-accessor shapes as non-fixable cases.
 
 References:
 
-- ESLint implementation: https://redirect.github.com/eslint/eslint/blob/main/lib/rules/prefer-object-spread.js
-- ESLint regression cases: https://redirect.github.com/eslint/eslint/blob/main/tests/lib/rules/prefer-object-spread.js
+- https://redirect.github.com/eslint/eslint/blob/main/lib/rules/prefer-object-spread.js
+- https://redirect.github.com/eslint/eslint/blob/main/tests/lib/rules/prefer-object-spread.js
 
-Biome's current valid suite contains only basic call-shape exclusions and does not contain ESLint's accessor cases:
+Biome's valid suite omits those accessor cases:
 
 - https://redirect.github.com/biomejs/biome/blob/d890b39c3ef21040bded453d9af91e1b301a0d67/crates/biome_js_analyze/tests/specs/style/useObjectSpread/valid.js
 
-## Why this likely happened
+### Why this likely happened
 
-The available project history supports an implementation omission more strongly than an intentional semantic tradeoff.
+The history supports an incomplete port more strongly than an intentional tradeoff:
 
 1. Biome issue #4319 requested implementation of ESLint `prefer-object-spread`.
-2. PR #6129 implemented a fresh Rust transformation and marked its fix safe.
-3. During review, a maintainer explicitly observed that ESLint had substantially more tests and requested that more be added.
-4. The author replied that more ESLint tests had been added, but the final Biome suite still omitted ESLint's getter/setter block.
-5. The implementation flattens syntax nodes directly, which is simple and correct for ordinary data-property literals but skips the semantic exception that ESLint encodes separately.
-6. A later bulk promotion moved the rule from nursery to stable `style`; that PR's stated test plan was that CI should remain green and did not re-audit this rule's safe-fix semantics.
+2. PR #6129 implemented a fresh Rust transformation and marked it safe.
+3. Review explicitly requested more ESLint tests.
+4. More tests were added, but ESLint's accessor block was still omitted.
+5. The direct syntax-flattening implementation is correct for ordinary data properties but skips the semantic exception encoded separately by ESLint.
+6. A later bulk promotion moved the rule from nursery to stable `style` without a rule-specific semantic re-audit.
 
-History references:
+### Plausible correction
 
-- implementation request: https://redirect.github.com/biomejs/biome/issues/4319
-- implementation PR and review: https://redirect.github.com/biomejs/biome/pull/6129
-- bulk promotion PR: https://redirect.github.com/biomejs/biome/pull/7137
+- When the call has more than one argument, decline the safe fix if any object-expression argument contains a getter or setter.
+- Retain ordinary data-property cases.
+- Add ESLint's accessor cases to Biome's valid/non-fixable regression suite.
+- The diagnostic may remain even when the safe action is withheld.
 
-### Alternative explanations considered
-
-**"The rule is opt-in, so semantic changes are accepted."**
-
-Opt-in status can justify offering an opinionated diagnostic. It does not justify classifying a runtime-changing rewrite as safe. Biome distinguishes rule enablement from fix safety and allows unsafe fixes to remain available for manual review.
-
-**"Object spread is generally preferred, so the rewrite is close enough."**
-
-The style preference is reasonable, and ordinary data-property cases are usually equivalent. The finding concerns the automatic applicability boundary, not the existence of the rule.
-
-**"Safe is only a loose recommendation."**
-
-Biome's current linter documentation states that safe fixes are guaranteed not to change semantics and can be applied without explicit review. Unsafe fixes are the category intended for transformations that may change semantics.
-
-**"The different behaviour is too artificial."**
-
-Getters and setters are standard object-literal features. The reproduction needs no proxy, framework, bundler, global mutation, or deliberately order-sensitive module graph.
-
-No reviewed source or discussion was found that intentionally accepts accessor changes for this rule.
-
-## Plausible correction
-
-The narrowest established correction is:
-
-- when the call has more than one argument, decline the fix if any object-expression argument contains a getter or setter;
-- retain the existing transformation for ordinary data-property object literals;
-- add the corresponding ESLint valid/non-fixable cases to Biome's regression suite.
-
-This mirrors ESLint's guard and directly fixes the demonstrated accessor cases.
-
-The diagnostic could remain, but the automatic fix should not be offered as safe where the transformation is not semantics-preserving.
-
-## Adjacent hardening question: special `__proto__`
-
-A separate native-Node check confirms another difference in the same flattening strategy:
+### Adjacent hardening question: special `__proto__`
 
 ```js
 const proto = { inherited: 42 };
 Object.assign({}, { __proto__: proto });
 ```
 
-The source object literal changes its own prototype but has no enumerable own `__proto__` property, so `Object.assign` leaves the target's prototype unchanged. Flattening produces:
+The source object literal changes its own prototype but has no enumerable own `__proto__` property, so the `Object.assign` target keeps its normal prototype. Flattening to `({ __proto__: proto })` gives the result object the custom prototype.
+
+That can change inherited lookup and prototype identity, and in security-sensitive code can undermine assumptions that a result is a plain object. ESLint's accessor guard does not cover this form, so it remains a separate hardening question rather than part of the minimal accessor packet.
+
+---
+
+## Finding 2: safe `useArrayLiterals` changes dynamic constructor arity
+
+### State
+
+`promote after independent review`
+
+### Confidence
+
+High. The rule's own documented target, source implementation, ECMAScript `Array` constructor semantics, ESLint's fix boundary, and released Biome output all agree.
+
+### Source boundary
+
+`crates/biome_js_analyze/src/lint/style/use_array_literals.rs` declares the rule recommended and its fix safe.
+
+The rule deliberately reports:
 
 ```js
-({ __proto__: proto });
+Array(...args);
 ```
 
-which gives the result object the custom prototype. This changes inherited lookup and the object's prototype identity.
+Its action converts each call argument directly into an array-literal element, producing:
 
-ESLint's current accessor guard does not appear to cover this form. Therefore, matching ESLint is a strong minimal fix for the proven accessor bug, but it should not be treated as a complete proof that all flattenable object expressions commute with `Object.assign`.
+```js
+[...args];
+```
 
-Keep this as a hardening question during review rather than expanding the minimal accessor report unless released-Biome evidence is added to the retained reproduction.
+The applicability check exempts a known single non-spread argument such as `Array(3)`, but it cannot know how many values a spread argument will produce at runtime.
+
+Source reference:
+
+- https://redirect.github.com/biomejs/biome/blob/d890b39c3ef21040bded453d9af91e1b301a0d67/crates/biome_js_analyze/src/lint/style/use_array_literals.rs
+
+### Why the forms are not equivalent
+
+The `Array` constructor has special one-number behaviour:
+
+```js
+Array(3)
+```
+
+creates a sparse array with `length === 3` and no own index properties.
+
+An array literal does not have that constructor overload:
+
+```js
+[3]
+```
+
+creates a dense one-element array whose first element is `3`.
+
+Therefore, when `args` evaluates to `[3]`:
+
+```js
+Array(...args)
+```
+
+and:
+
+```js
+[...args]
+```
+
+have different length, keys, membership, iteration, and downstream callback behaviour.
+
+### Released-binary reproduction
+
+Before the fix:
+
+```json
+{"length":3,"keys":[],"hasIndexZero":false,"first":null}
+```
+
+Biome 2.5.6 reported:
+
+```text
+Checked 1 file in 2ms. Fixed 1 file.
+```
+
+The rewritten source was:
+
+```js
+const result = [...args];
+```
+
+After the safe fix:
+
+```json
+{"length":1,"keys":["0"],"hasIndexZero":true,"first":3}
+```
+
+The reproduction passed in workflow run `30487711008`, job `90697449948` on Node 22.23.1.
+
+### Concrete destructive scenarios
+
+#### Capacity or length forwarding helper breaks
+
+```js
+function makeArray(...args) {
+  return Array(...args);
+}
+
+const slots = makeArray(1_000_000);
+```
+
+The original returns an array with length one million. The safe fix returns `[1_000_000]`, whose length is one.
+
+Code using the result as a slot table, bitmap companion, indexed work queue, or pre-sized logical container now has the wrong cardinality.
+
+#### Generic factory changes its one-argument mode
+
+A wrapper may intentionally preserve the dual API of `Array`: one numeric argument means length, while multiple arguments mean elements. Rewriting the forwarding call removes that runtime distinction.
+
+#### Sparse-array callback behaviour changes
+
+Array methods such as `map`, `forEach`, and `filter` skip holes. A dense `[3]` invokes callbacks once with value `3`; a sparse `Array(3)` invokes none of those callbacks for the three holes.
+
+#### Key enumeration and serialization change
+
+`Object.keys(Array(3))` is empty, while `Object.keys([3])` contains `"0"`. Code that distinguishes allocated slots from absent slots will see different data. JSON and iteration behaviour also differ.
+
+### Severity and exposure
+
+This rule is recommended, so the exposure is broader than the accessor finding. The failing condition is still specific:
+
+- the constructor call contains spread syntax;
+- after expansion, the total runtime argument count is exactly one;
+- the sole value is numeric.
+
+The impact can nevertheless be large because the numeric value directly controls the original array length. The appropriate wording is **recommended safe fix, narrow trigger, potentially large cardinality change**.
+
+### Ecosystem comparison
+
+Biome identifies ESLint `no-array-constructor` as the same source rule.
+
+ESLint reports spread-bearing forms but deliberately withholds automatic fixing when dynamic spread arity may produce the special one-number case. It offers a reviewable suggestion instead. Its tests show `Array(...args)` and `new Array(...args)` with no automatic output.
+
+References:
+
+- https://redirect.github.com/eslint/eslint/blob/main/lib/rules/no-array-constructor.js
+- https://redirect.github.com/eslint/eslint/blob/main/tests/lib/rules/no-array-constructor.js
+
+ESLint still auto-fixes a form such as `Array(5, 6, ...args)` because two statically present arguments guarantee that the constructor cannot enter its one-number length mode.
+
+### Why this likely happened
+
+The history is unusually clear:
+
+1. PR #4416 expanded `useArrayLiterals`, added the fix, and explicitly included `Array(...args)` as an invalid case.
+2. That change described the fix as unsafe.
+3. PR #6063 later upgraded a batch of unsafe fixes to safe, including `useArrayLiterals`.
+4. The PR checklist described reviewing safe fixes in terms of trivia handling, and the test plan was snapshot updates.
+5. No semantic guard was added for runtime spread arity.
+6. The upgrade therefore changed classification without narrowing the already-dynamic transformation.
+
+History references:
+
+- https://redirect.github.com/biomejs/biome/pull/4416
+- https://redirect.github.com/biomejs/biome/pull/6063
+
+### Plausible correction
+
+Mirror the established ESLint boundary:
+
+- keep the diagnostic;
+- do not offer an automatic safe fix when fewer than two non-spread arguments are statically present and spread arguments can make the runtime arity ambiguous;
+- retain safe fixing for zero arguments and for calls guaranteed to have at least two arguments;
+- optionally retain the ambiguous rewrite only as an unsafe or explicit suggestion.
+
+Add regression cases covering:
+
+- `Array(...args)` with `args = [3]`;
+- `new Array(...args)` with `args = [3]`;
+- `Array(5, ...args)` where `args` may be empty;
+- safe control `Array(5, 6, ...args)`.
+
+---
+
+## Explored candidate: `useFlatMap`
+
+`complexity/useFlatMap` is recommended, marked safe, and rewrites `.map(callback).flat()` to `.flatMap(callback)` based only on member names and argument counts.
+
+Two semantic concerns exist:
+
+1. A custom receiver may implement `map` and return an object with `flat`, while its `flatMap` method is absent or behaves differently.
+2. Even built-in Array subclassing can differ through `Symbol.species`: `map().flat()` performs species creation twice, while `flatMap()` performs it once.
+
+A native Node probe using only Array subclasses produced different result constructors (`Third` for `map().flat()`, `Second` for `flatMap()`).
+
+This is not promoted yet because:
+
+- the upstream Unicorn source rule also accepts a broad receiver heuristic, although it skips some known non-array receivers;
+- the practical prevalence and intended safety convention need more review;
+- no released-Biome fixture is retained in Fieldwork yet.
+
+Current disposition: **keep as a scoped follow-up, not a finding**.
+
+## Other reviewed work and coordination notes
+
+### Fieldwork review queue PR #105
+
+The review queue correctly identifies the Biome work as needing independent semantic review, but its pinned report revision predates this expansion. Its Biome card should be revised to:
+
+- cite the latest report head;
+- split `useObjectSpread` and `useArrayLiterals` into separate review decisions;
+- preserve their different exposure profiles;
+- mention the retained `useFlatMap` candidate only as unpromoted exploration.
+
+### First-pass negatives retained
+
+- `useWhile` only applies when both initializer and update are absent; no runtime divergence was retained.
+- `useNodeAssertStrict` intentionally requests stricter assertion behaviour; the semantic change is the rule's stated policy rather than a hidden applicability error.
+- Re-export ordering remains the accepted organizer-policy caveat from #27.
+- Existing reports for named function `.name`, decorator metadata under `useImportType`, and import-extension rewriting remain excluded from novel-candidate work.
 
 ## Duplicate search
 
-Repeated targeted searches of current open and closed Biome issues and pull requests did not surface an exact report for `useObjectSpread` changing getter/setter semantics. Queries covered:
+Repeated targeted searches of current open and closed Biome issues and pull requests did not surface exact reports for:
 
-- `useObjectSpread` with getter, setter, accessor, and safe-fix terms;
-- `Object.assign` with getter, setter, spread, and runtime-behaviour terms;
-- `prefer-object-spread` parity and fixes.
+- `useObjectSpread` changing getter or setter semantics;
+- `useArrayLiterals` changing `Array(...args)` when spread expansion yields one number.
 
-No exact duplicate surfaced. This remains a targeted search rather than a mathematical guarantee.
+Queries covered rule names, source-rule names, safe-fix terms, accessors, sparse arrays, spread arguments, runtime arity, length, and constructor semantics.
+
+No exact duplicate surfaced. This is a targeted search, not a mathematical guarantee, and should be repeated immediately before any authorized upstream submission.
 
 ## Biome linter issue-template requirements
 
-Biome's current `.github/ISSUE_TEMPLATE/02_lint_bug.yml` states that reports not following the template will be closed. It requires:
+Biome's `.github/ISSUE_TEMPLATE/02_lint_bug.yml` says reports that do not follow the template will be closed. It requires:
 
-1. **Environment information** — output of `biome rage --linter`, reviewed for sensitive data.
-2. **Rule name** — `useObjectSpread`.
-3. **Playground link** — required; alternatively the template recommends `npm create @biomejs/biome-reproduction` when the playground is insufficient.
-4. **Expected result** — a concise statement of the required behaviour.
-5. **Code of Conduct** — confirmation checkbox.
+1. environment output from `biome rage --linter`;
+2. the rule name;
+3. a playground link, or a reproduction repository when the playground is insufficient;
+4. expected result;
+5. Code of Conduct confirmation.
 
-Template reference:
+The eventual reporter should provide separate reports because the rules, mechanisms, exposure, and fixes differ.
 
-- https://redirect.github.com/biomejs/biome/blob/main/.github/ISSUE_TEMPLATE/02_lint_bug.yml
+### Packet for `useObjectSpread`
 
-### Evidence packet for later human synthesis
+- Rule: `useObjectSpread`
+- Minimal target-setter or source-getter case
+- Before and after runtime output and descriptors
+- Safe-fix source classification and unconditional flattening
+- ESLint accessor guard and regression tests
+- Expected result: no safe action for accessor-bearing multi-argument calls
 
-The eventual reporter should supply, in their own words:
+### Packet for `useArrayLiterals`
 
-- exact `biome rage --linter` output from the reporting environment;
-- rule name `useObjectSpread`;
-- the smallest target-setter or source-getter reproduction;
-- the exact before/after output;
-- the fact that ordinary `lint --write` applies the change as a safe fix;
-- the current Biome source lines showing `FixKind::Safe` and unconditional object-expression flattening;
-- ESLint's accessor guard and tests as implementation precedent;
-- expected result: no safe fix should be offered for multi-argument accessor-bearing calls, or the fix should be classified unsafe until its applicability is narrowed.
+- Rule: `useArrayLiterals`
+- `const args = [3]; const result = Array(...args);`
+- Before and after length, keys, membership, and first value
+- Safe/recommended source classification and direct argument-to-element conversion
+- ESLint's suggestion-only treatment of ambiguous spread forms
+- Expected result: no automatic safe fix when runtime spread arity can enter `Array`'s one-number length mode
 
-Do not post or contact upstream from this lane without separate authorization.
-
-## Why this is stronger than the re-export case
-
-- It is a direct single-expression runtime change.
-- It uses ordinary JavaScript accessor behaviour rather than deliberately order-sensitive module architecture.
-- Biome identifies the rule as the same as an ESLint rule that already contains the missing guard.
-- A narrow correction exists without disabling the feature.
-- Biome's documented safe-fix contract directly covers the disputed behaviour.
-
-## First-pass surfaces ruled down
-
-- `useWhile` only applies when both initializer and update are absent and performs a direct `for (; test;)` to `while (test)` replacement; no runtime divergence was retained in this pass.
-- `useNodeAssertStrict` intentionally changes assertion semantics and is an opt-in policy rule; its behaviour is the rule's explicit purpose rather than an omitted implementation guard.
-- Re-export ordering remains the accepted organizer-policy caveat concluded in #27.
-- Known upstream reports for named function `.name`, decorator metadata under `useImportType`, and import-extension rewriting remain excluded from novel-candidate work.
-
-## Next source checks
-
-- independently review the accessor guard and whether the diagnostic should remain without a fix;
-- decide whether to add released-Biome coverage for special `__proto__` before broadening the finding;
-- inspect other ESLint-sourced rules for omitted autofix guards;
-- prioritize property descriptors, coercion, computed-key evaluation, and control-flow transformations;
-- test interactions among multiple safe fixes and repeated `check --write` passes;
-- repeat current upstream issue and pull-request searches immediately before any authorized upstream action.
+Do not contact upstream without separate authorization.
 
 ## Durable evidence
 
 - Report: this file
-- Reproduction: `reproductions/use-object-spread-accessors/`
+- Accessor reproduction: `reproductions/use-object-spread-accessors/`
+- Array-spread reproduction: `reproductions/use-array-literals-spread/`
 - Pull request: #97
-- Actions run: `30479636589`
-- Job: `90670032732`
-- Exact tested branch head: `bf6de4836589b6f8016c1f64b3e5c3449ba75d00`
+- Latest workflow run: `30487711008`
+- Latest reproduction job: `90697449948`
+- Workflow branch head tested: `aacff17809100979c497553d0b3ccc80e549b24a`
+
+## Disposition
+
+- `useObjectSpread` accessors: `promotion-ready after independent review`
+- `useArrayLiterals` spread arity: `promotion-ready after independent review`
+- `useFlatMap` receiver/species semantics: `retain as unpromoted follow-up`
+- Upstream contact: `not authorized`
 
 ## Upstream boundary
 
