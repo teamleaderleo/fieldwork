@@ -4,11 +4,11 @@ References to issues, pull requests, discussions, and commits in repositories we
 
 ## Why
 
-A direct GitHub cross-reference can create backlinks, notifications, and implied involvement. Research should not enter an upstream project's attention merely because we wrote private-to-us notes in public.
+A direct GitHub cross-reference can create backlinks, notifications, and implied involvement. Research should not enter an upstream project's attention merely because Fieldwork recorded a public note.
 
-## Default
+## Mandatory default
 
-Use a backlink-suppressing URL with the same owner, repository, resource kind, and number:
+Use backlink-suppressing URLs:
 
 ```text
 https://redirect.github.com/OWNER/REPOSITORY/issues/NUMBER
@@ -17,13 +17,13 @@ https://redirect.github.com/OWNER/REPOSITORY/discussions/NUMBER
 https://redirect.github.com/OWNER/REPOSITORY/commit/SHA
 ```
 
-Use descriptive link text. Preserve the owner, repository, item number, retrieval date, and source revision where relevant.
+Use descriptive link text. Preserve owner, repository, item number, retrieval date, and source revision where relevant.
 
-Do not use shorthand cross-references combining an external owner, repository, and item number. Do not use closing keywords against external work.
+Do not use external shorthand cross-references. Do not use closing keywords against external work.
 
 ## Intentional upstream contact
 
-A direct link is allowed only when the reference represents deliberate interaction, such as:
+A direct link is allowed only when it records a specifically authorized interaction, such as:
 
 - opening or updating the actual upstream issue or pull request;
 - replying in an existing upstream conversation;
@@ -36,11 +36,13 @@ Place this marker on the direct-link line or immediately above it:
 <!-- fieldwork: intentional-upstream-reference -->
 ```
 
+The marker exempts only the marked line or the immediately following line. It does not authorize an entire document or conversation.
+
 ## States
 
 ### Observed
 
-Quiet investigation. All external issue, pull-request, discussion, and commit references are wrapped.
+Quiet investigation. External issue, PR, discussion, and commit references are wrapped.
 
 ### Candidate
 
@@ -48,21 +50,23 @@ Evidence exists and an upstream packet may be under preparation. References rema
 
 ### Submitted
 
-An intentional upstream interaction exists. Direct references are permitted where they clarify that interaction.
+An intentional upstream interaction exists. Direct references are permitted only where they accurately record that interaction.
+
+## Agent prevention
+
+`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and Copilot instructions all require wrapping before any Fieldwork interaction is created. This is the primary safeguard.
+
+## Enforcement surfaces
+
+1. `scripts/check_external_references.py` scans tracked prose and data files on pushes to `main` and pull requests.
+2. `scripts/check_interaction_references.js` scans new or edited issue bodies, PR bodies, conversation comments, submitted review text, and inline review comments.
+3. The interaction workflow applies `policy:reference-violation` to the parent issue or PR when it detects a violation and removes the label after correction.
+4. Issue forms disable blank issues in the web interface and require acknowledgement of the quiet-reference rule.
+
+The interaction workflow runs after GitHub receives the text. It cannot guarantee that GitHub never processes the original direct reference. Workers must wrap references before posting. Branch protection can make the PR interaction check merge-blocking; it cannot make issue creation transactional.
 
 ## Exceptions
 
-- Links to repository roots, documentation sites, specifications, package registries, and release pages are unaffected.
+- Repository roots, documentation sites, specifications, package registries, and release pages are unaffected.
 - References within a repository we control may be direct.
-- Archived evidence imported from an upstream source should be sanitised or explicitly exempted before commit.
-
-## Enforcement
-
-Two workflows cover different surfaces:
-
-1. `scripts/check_external_references.py` scans tracked prose and data files on pushes to `main` and pull requests.
-2. `scripts/check_interaction_references.js` scans new or edited Fieldwork issue bodies, pull-request bodies, and issue or pull-request comments.
-
-Interaction enforcement cannot prevent an issue or comment from being created. It posts or updates a visible policy result. For pull-request bodies, the workflow can become merge-blocking only after its check is required in branch protection.
-
-A marker is an auditable exception, not a convenient bypass.
+- Archived evidence imported from upstream should be sanitized or explicitly exempted before commit.
