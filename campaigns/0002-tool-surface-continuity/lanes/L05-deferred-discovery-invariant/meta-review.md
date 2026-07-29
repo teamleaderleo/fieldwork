@@ -14,11 +14,11 @@ The targeted question is not whether Codex intentionally hides some tools. It do
 
 ### MCP deferral is intentional
 
-PR `openai/codex#29486` made searched-tool flow the default whenever model and provider capabilities support it. MCP schemas are deliberately omitted from the initial request and loaded later.
+[Codex PR #29486: use tool search for MCP tools by default](https://redirect.github.com/openai/codex/pull/29486) made searched-tool flow the default whenever model and provider capabilities support it. MCP schemas are deliberately omitted from the initial request and loaded later.
 
 ### Responses Lite `additional_tools` is intentional
 
-PR `openai/codex#27946` moved Responses Lite instructions and client tool schemas into developer input items. Top-level `tools: null` is therefore not sufficient evidence of a defect.
+[Codex PR #27946: use input items for Responses Lite tools](https://redirect.github.com/openai/codex/pull/27946) moved Responses Lite instructions and client tool schemas into developer input items. Top-level `tools: null` is therefore not sufficient evidence of a defect.
 
 ### WebSocket incremental reuse is intentional
 
@@ -35,7 +35,7 @@ exec
   -> deferred runtime invocation
 ```
 
-PRs `openai/codex#23605` and `openai/codex#31745` deliberately keep deferred runtime definitions out of the initial `exec` guide while retaining them in the runtime catalogue. Therefore, missing nested `tools.tool_search(...)` is a discovery-quality regression, not proof of complete unreachability.
+[Codex PR #23605: hide deferred tools from the Code Mode prompt](https://redirect.github.com/openai/codex/pull/23605) and [Codex PR #31745: retain shared MCP types for deferred tools](https://redirect.github.com/openai/codex/pull/31745) deliberately keep deferred runtime definitions out of the initial `exec` guide while retaining them in the runtime catalogue. Therefore, missing nested `tools.tool_search(...)` is a discovery-quality regression, not proof of complete unreachability.
 
 ## Correct defect boundary
 
@@ -70,26 +70,26 @@ This is different from intentionally omitting a schema, omitting ranked search i
 
 ## Targeted reports
 
-### Strongest fresh-turn A/B: `openai/codex#33679`
+### Strongest fresh-turn A/B
 
-The report holds the model slug, prompt, MCP server, authentication, sandbox, and working directory constant. Changing only `use_responses_lite` from `true` to `false` restores the MCP call. GPT-5.4 is also a working control. An independent Xcode MCP reproduction reports 47 tools discovered internally, no MCP call under Sol, and a successful call under GPT-5.4.
+[Codex issue #33679: Responses Lite hides custom MCP tools while disabling Lite restores them](https://redirect.github.com/openai/codex/issues/33679) holds the model slug, prompt, MCP server, authentication, sandbox, and working directory constant. Changing only `use_responses_lite` from `true` to `false` restores the MCP call. GPT-5.4 is also a working control. An independent Xcode MCP reproduction reports 47 tools discovered internally, no MCP call under Sol, and a successful call under GPT-5.4.
 
 This is the strongest evidence that the fresh Responses Lite path can produce an unusable effective tool surface.
 
-### Strongest resume/transport A/B: `openai/codex#35751`
+### Strongest resume/transport A/B
 
-The same compacted stored history loses execution tools on the Responses WebSocket path while succeeding over HTTP. A fresh WebSocket thread also succeeds. That isolates resumed compacted history plus WebSocket reuse more narrowly than generic MCP or permission failures.
+[Codex issue #35751: resumed compacted thread loses Code Mode tools on Responses WebSocket](https://redirect.github.com/openai/codex/issues/35751) shows the same compacted stored history losing execution tools on the Responses WebSocket path while succeeding over HTTP. A fresh WebSocket thread also succeeds. That isolates resumed compacted history plus WebSocket reuse more narrowly than generic MCP or permission failures.
 
 ### Supporting direct reports
 
-- `openai/codex#31894`: Sol Responses Lite request contains `exec` inside `additional_tools`, but the generated turn behaves as though no shell/code-mode tool is callable.
-- `openai/codex#32086`: V1 collaboration tools are deferred while the client-executed search entrypoint is not usable in the effective Lite surface.
-- `openai/codex#33609`: MCP discovery succeeds internally, but a fresh Sol session has neither callable MCP tools nor a usable search route.
-- `openai/codex#19425`: custom MCP tools are returned by `tools/list` but absent from the thread/search surface.
+- [Codex issue #31894: Responses Lite does not expose exec/Code Mode tools](https://redirect.github.com/openai/codex/issues/31894): the Sol request contains `exec` inside `additional_tools`, but the generated turn behaves as though no shell/Code Mode tool is callable.
+- [Codex issue #32086: deferred MultiAgent V1 tools become unreachable in Responses Lite](https://redirect.github.com/openai/codex/issues/32086): V1 collaboration tools are deferred while the client-executed search entrypoint is not usable in the effective Lite surface.
+- [Codex issue #33609: Sol hides discovered MCP tools without exposing a usable search route](https://redirect.github.com/openai/codex/issues/33609): MCP discovery succeeds internally, but a fresh Sol session has neither callable MCP tools nor a usable search route.
+- [Codex issue #19425: custom MCP tools are discovered but absent from Desktop threads](https://redirect.github.com/openai/codex/issues/19425): custom MCP tools are returned by `tools/list` but absent from the thread/search surface.
 
-### Related but narrower: `openai/codex#32101`
+### Related but narrower
 
-This issue correctly identifies that Code Mode drops the ranked `tool_search` primitive. Current source and tests confirm that behavior. However, Code Mode is expected to retain deferred tools through `ALL_TOOLS`; the issue supports degraded discovery and fallback behavior, not complete loss by itself.
+[Codex issue #32101: Code Mode omits ranked tool search](https://redirect.github.com/openai/codex/issues/32101) correctly identifies that Code Mode drops the ranked `tool_search` primitive. Current source and tests confirm that behavior. However, Code Mode is expected to retain deferred tools through `ALL_TOOLS`; the issue supports degraded discovery and fallback behavior, not complete loss by itself.
 
 ## Source-level contradiction worth testing
 
