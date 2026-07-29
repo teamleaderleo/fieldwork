@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: t3-opencode-lifecycle-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: t3-opencode-lifecycle-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
 
 jobs:
   changes:
