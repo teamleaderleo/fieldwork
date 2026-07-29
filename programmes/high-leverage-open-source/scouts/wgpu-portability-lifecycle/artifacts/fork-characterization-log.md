@@ -1,6 +1,6 @@
 # wgpu fork characterization log
 
-State: test authored and self-reviewed; not executed
+State: browser characterization authored and repeatedly self-reviewed; not executed
 
 Fieldwork issue: #116
 
@@ -14,78 +14,132 @@ Upstream contact authorized: false
 - owned fork: `teamleaderleo/wgpu`
 - fork branch: `fieldwork/surface-config-rejection-state`
 - fork draft PR: `teamleaderleo/wgpu#1`
-- fork test head: `af7df0b4011d6e54b75575fe87be885ca2dc87ba`
+- fork test head: `38c9498bdae8f0ddfdc6a04c6d763ce889f3f5ad`
 - `get_configuration` introduction: `gfx-rs/wgpu#8664`, merge `90db08157ccd5a5a25564219f294d023d4253d5a`
 - unified acquisition result: `gfx-rs/wgpu#9257`, merge `e4dae053c05c849fc56e923d0cbf23c3730c33e6`
+- nonfatal surface errors: `gfx-rs/wgpu#6253`, merge `ebdd958d4b0d9fc3f8c7324ad2db4cd7eb8041d5`
+- HDR/browser rejection containment: `gfx-rs/wgpu#9658`, merge `3fb225a9c6240bd7e9db3d202410db6d894368ec`
 
 The owned fork's `trunk` exactly matched the source revision already pinned by this lane when the branch was created.
 
 ## What was added
 
-The characterization was folded into the existing wasm-only test module:
+The characterization remains in the existing wasm-only surface-error module:
 
 ```text
 tests/tests/wgpu-gpu/create_surface_error.rs
 ```
 
-No new top-level test module or registration file was retained.
+No new top-level test module or standalone external harness was retained.
 
-The test is registered only when the `webgl` feature is not enabled, because the repository's wasm initializer deliberately removes `BROWSER_WEBGPU` in WebGL test builds.
+The current test now deliberately runs inside the repository's ordinary wasm test binary while constructing a second, explicit browser-WebGPU instance for the characterization.
 
-Both canvases are explicitly sized to 2×2 before surface creation so public configuration dimensions and browser canvas dimensions agree.
+It does not use the shared `initialize_instance` helper for the subject under test because that helper removes `BROWSER_WEBGPU` whenever the runner's `webgl` feature is enabled.
+
+The test asserts that the selected adapter is exactly `Backend::BrowserWebGpu`; a WebGL fallback must fail rather than produce misleading evidence.
 
 ## Characterized scenario
 
-The test performs this sequence using the browser WebGPU backend:
+The test performs this sequence:
 
-1. create a 2×2 canvas and surface;
-2. request a compatible adapter, device, and queue;
-3. obtain and apply the supported default configuration;
-4. acquire and present a baseline frame;
-5. clone the baseline and set `SurfaceColorSpace::ExtendedSrgbLinear`;
-6. prove that color space is absent from the browser surface capabilities;
-7. call `Surface::configure` with the unsupported request;
-8. record that public `get_configuration()` publishes the rejected request;
-9. record that acquisition returns `CurrentSurfaceTexture::Lost`;
-10. create another surface and prove that repeating the same unsupported request remains `Lost`;
-11. apply the supported baseline to the new surface;
-12. acquire and present successfully, proving that the device and browser implementation remain usable.
+1. create an explicit browser-WebGPU instance;
+2. create a 2×2 canvas and retain its raw `GPUCanvasContext`;
+3. create a wgpu surface over that canvas;
+4. request a compatible browser-WebGPU adapter, device, and queue;
+5. assert the adapter backend is `BrowserWebGpu`;
+6. obtain and apply the supported default configuration;
+7. acquire and present a baseline frame;
+8. confirm both public `get_configuration()` and raw `getConfiguration()` report configured state;
+9. clone the baseline and set `SurfaceColorSpace::ExtendedSrgbLinear`;
+10. prove that color space is absent from browser surface capabilities;
+11. call `Surface::configure` with the unsupported request;
+12. record that public `get_configuration()` publishes the rejected request;
+13. record that wgpu acquisition returns `CurrentSurfaceTexture::Lost`;
+14. confirm the raw browser context remains configured;
+15. acquire and destroy a raw browser canvas texture, proving the underlying context remains usable;
+16. apply the supported baseline to the same wgpu surface and present successfully;
+17. create another surface and prove that repeating the unsupported request remains `Lost`;
+18. apply the supported baseline to the recreated surface and present successfully.
 
 The test currently asserts existing behavior. It is a characterization test, not yet the desired regression assertion for an accepted repair.
 
+## Why the raw-context control matters
+
+The selected unsupported color space is rejected inside wgpu's browser mapping before `GPUCanvasContext.configure` is called.
+
+After a valid baseline, the raw browser context therefore remains configured with the baseline. The current wgpu result is still `Lost` because the backend's `configure_failed` flag overrides acquisition.
+
+The predicted state is:
+
+```text
+raw browser configuration = earlier accepted baseline
+raw browser acquisition = usable
+wgpu public cache = rejected request
+wgpu typed acquisition = Lost
+same-surface supported configuration = recovery
+surface recreation + same rejected request = failure again
+```
+
+This distinguishes wrapper-owned failure state from actual browser surface loss.
+
 ## Self-review corrections
 
-The first draft used a separate `surface_configure_rejection.rs` module. That was removed because `create_surface_error.rs` is already the repository's wasm-only home for surface failures and already has the correct registration gate.
+The branch has gone through several correction passes:
 
-The second review added:
+1. Removed a separate `surface_configure_rejection.rs` module and folded the case into the existing surface-error module.
+2. Added explicit 2×2 canvas dimensions.
+3. Added successful baseline and fallback presentations.
+4. Added a capability negative control.
+5. Added a recreated-surface control.
+6. Added raw `GPUCanvasContext.getConfiguration()` and `getCurrentTexture()` controls.
+7. Added same-surface supported recovery, distinct from surface recreation.
+8. Removed an unnecessary canvas clone that could have triggered clippy.
+9. Discovered that compile-time `not(feature = "webgl")` gating would silently exclude the test from `cargo xtask test-wasm`.
+10. Removed that gate and added a local display-handle shim plus an explicit `BROWSER_WEBGPU` instance.
+11. Added an adapter-backend assertion so the test cannot silently run against WebGL.
 
-- explicit `not(feature = "webgl")` registration and compilation gates;
-- explicit canvas dimensions;
-- a successful baseline presentation before rejection;
-- a successful fallback presentation after rejection;
-- a capability negative control proving the chosen color space is unsupported;
-- a recreated-surface control proving that recreation alone cannot correct an invalid configuration.
+## Wasm runner finding
+
+The repository's CI `wasm-test` job executes:
+
+```text
+cargo xtask test-wasm
+```
+
+The runner builds `wgpu-test` for `wasm32-unknown-unknown` with `webgl,exhaust`. The shared test initializer then subtracts `BROWSER_WEBGPU` whenever `webgl` is enabled as a workaround for Cargo feature propagation.
+
+The test macro exports the browser test entry point in that same WebGL-enabled build, and Playwright launches Chromium with `--enable-unsafe-swiftshader`.
+
+The practical result before this branch was:
+
+- browser WebGPU code received wasm clippy/build coverage;
+- the shared runtime initializer selected WebGL;
+- no ordinary repository-native browser-WebGPU runtime test exercised the public Rust backend path.
+
+The current characterization works around the initializer demotion locally rather than introducing a second runner. Actual execution must still prove that headless Chromium supplies a browser-WebGPU adapter in this environment.
 
 ## Execution status
 
 The test has **not** been executed.
 
-After opening fork draft PR #1 at head `af7df0b4011d6e54b75575fe87be885ca2dc87ba`:
+For fork head `38c9498bdae8f0ddfdc6a04c6d763ce889f3f5ad`:
 
-- GitHub reported no pull-request workflow runs for the head;
-- GitHub reported no commit statuses for the head;
-- the available local container could not resolve GitHub to clone the repository;
-- no compile, clippy, wasm-runner, or browser result is claimed.
+- GitHub has not produced pull-request workflow runs or commit statuses;
+- Actions appear unavailable or disabled on the fork;
+- the available local container has no Rust toolchain;
+- the container also cannot resolve GitHub for cloning or dependency installation;
+- no compile, rustfmt, clippy, wasm-runner, Playwright, or browser result is claimed.
 
-The next valid evidence step is an actual repository runner execution, preferably:
+The next valid commands in a runnable checkout are:
 
 ```text
 cargo fmt --check
 cargo clippy --target wasm32-unknown-unknown --tests --features glsl,spirv
-cargo xtask test-wasm -- <exact generated test filter>
+cargo xtask test-wasm --list
+cargo xtask test-wasm -- <exact nextest filter for rejected_browser_configuration_is_published_and_recoverable>
 ```
 
-The exact `test-wasm` filter must be obtained from the repository test listing rather than guessed.
+The exact filter should be copied from `--list`, not guessed.
 
 ## Historical precedent
 
@@ -100,44 +154,68 @@ That PR did not establish semantics for:
 - prior accepted configuration followed by rejection;
 - backend-specific failure containment.
 
-The later HDR work documented requested-versus-resolved values, but the acceptance question remains distinct.
-
 ### `Lost` was designed as a recreation signal
 
 `gfx-rs/wgpu#9257` replaced the former `Result<SurfaceTexture, SurfaceError>` API with `CurrentSurfaceTexture` in March 2026 because surface errors were easy to ignore and recovery guidance was unclear.
 
-The merged docs define `Lost` as requiring surface recreation, or device/resource recreation when the device itself is lost. In review, the author stated that on `Lost` recovery is by creating rather than reconfiguring.
+The merged docs define `Lost` as requiring surface recreation, or device/resource recreation when the device itself is lost. Review discussion explicitly states that `Lost` recovery is by creating rather than reconfiguring.
 
-The same change introduced the shared example behavior that recreates a surface and reapplies the same stored configuration.
+The browser rejected-configuration sentinel added later therefore reuses a status whose recovery contract does not fit the failure.
 
-Therefore mapping a rejected configuration to `Lost` crosses two independently introduced contracts:
+### Nonfatal surface errors anticipated fallout
 
-1. `get_configuration()` presents the wrapper cache as current configuration;
-2. `Lost` tells callers that surface recreation is the corrective action.
+Issue `gfx-rs/wgpu#3586` and PR `gfx-rs/wgpu#6253` deliberately moved configuration and acquisition errors away from unconditional fatal handling.
 
-For an unsupported configuration, neither statement is sufficient:
+Maintainer discussion already identified unresolved distinctions among:
 
-- the cached request was not applied;
-- recreating the surface does not make the request supported.
+- application validation mistakes;
+- driver or end-user conditions;
+- a known operation failure with unknown resulting surface state;
+- failures that applications should handle dynamically;
+- errors appropriate for an error sink versus a typed result.
+
+The current lane is concrete fallout from that earlier, explicit tradeoff.
+
+## Stronger native/core finding
+
+The native core path validates a proposed configuration before removing the existing accepted `Presentation`.
+
+A validation failure can therefore leave the old core presentation active while the outer public wrapper caches the rejected request.
+
+Public `get_current_texture` later builds its exposed `SurfaceTexture` descriptor from the public cache, while core acquisition is based on the older accepted presentation.
+
+This creates a source-supported risk that public texture metadata can describe the rejected request rather than the actual acquired surface texture.
+
+The cases to test include rejected changes to:
+
+- width or height;
+- format;
+- usage;
+- color space;
+- view formats.
+
+This is now the highest-value native control. It is distinct from native HAL configuration failure, where core removes the old presentation before the HAL call and does not restore it after failure.
 
 ## Architecture consequence
 
-The public wrapper cannot fix publication locally because `dispatch::SurfaceInterface::configure` returns `()`.
+The public wrapper cannot acceptance-bind its cache locally because `dispatch::SurfaceInterface::configure` returns `()`.
 
-Any acceptance-bound repair at the dispatch boundary touches:
+Any repair may affect:
 
-- the native core implementation;
-- the browser WebGPU implementation;
-- the custom-backend interface and its implementors.
+- native core dispatch;
+- browser WebGPU dispatch;
+- custom backend implementations;
+- public texture descriptor construction;
+- `get_configuration()` semantics;
+- `CurrentSurfaceTexture` recovery guidance.
 
-This raises the bar above a browser-only boolean patch. The internal result needs to distinguish at least:
+A binary success value is probably insufficient. At minimum, measured states may include:
 
-- configuration applied normally;
-- configuration applied while a validation diagnostic is emitted where permitted;
-- configuration rejected with no usable configured state;
-- fatal/unrecoverable control flow.
-
-A simple success boolean may erase WebGPU's distinction between synchronous rejection and validation-error configuration.
+- applied normally;
+- applied with a validation diagnostic;
+- rejected while preserving a previous accepted configuration;
+- rejected with no accepted configuration remaining;
+- fatal or non-returning control flow.
 
 ## Current decision
 
@@ -145,24 +223,25 @@ Do not begin with a public `Surface::configure -> Result` redesign.
 
 Proceed in this order:
 
-1. execute the characterization on the owned fork;
-2. confirm the exact state after supported configuration followed by rejection;
-3. add a native/core injected-failure control if a portable seam is available;
-4. decide whether a documentation/example-only patch is sufficient;
-5. otherwise prototype a private dispatch acceptance classification;
-6. convert the characterization assertion into the desired regression assertion;
-7. request explicit upstream-contact authorization before opening anything against `gfx-rs/wgpu`.
+1. execute the browser characterization;
+2. add a native/core public-metadata control for validation failure preserving the old presentation;
+3. confirm whether texture metadata diverges after that failure;
+4. add a separate HAL-failure control if an injectable surface seam is practical;
+5. decide whether documentation/example alignment alone can resolve the user-facing consequence;
+6. otherwise prototype a private dispatch disposition;
+7. convert characterization assertions into desired regression assertions only after semantics are chosen;
+8. request explicit upstream-contact authorization before opening anything against `gfx-rs/wgpu`.
 
 ## Adjacent wgpu work worth examining
 
-Without diluting this first packet, the lane should continue source/history reconnaissance around:
-
 - custom backend compatibility when dispatch contracts change;
-- configuration recovery after device loss versus surface-only failure;
-- `Suboptimal` and `Outdated` example correctness;
 - browser `getCurrentTexture` exceptions currently collapsed into `Lost`;
+- error-scope routing for locally detected browser validation failures;
 - capability-probe lifecycle when `OffscreenCanvas` is unavailable;
+- `Suboptimal` and `Outdated` example correctness;
+- accepted state after failed reconfiguration;
 - surface-texture discard/release differences across browser and native backends;
-- tests for accepted state after a failed reconfiguration, not only failure before first configuration.
+- device-loss versus surface-loss recovery;
+- the absence of routine browser-WebGPU runtime coverage in the current wasm harness.
 
-These remain research leads, not claimed defects or separate campaigns.
+These remain research leads, not separate defect claims or upstream proposals.
