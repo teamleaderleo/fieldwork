@@ -4,7 +4,7 @@ programmes:
   - id: sdk-integration-lifecycle
     issue: 13
     state: ready
-    thesis: SDK boundaries fail where streaming, retries, cancellation, state, types, and observability meet real applications.
+    thesis: SDK research begins by mapping public contracts, internal state, service and provider boundaries, tests, and realistic application behaviour before choosing a narrower hypothesis.
     targets:
       - vercel-ai
       - workers-sdk
@@ -20,15 +20,15 @@ programmes:
       - id: vercel-ai-stream-tool-lifecycle
         issue: 17
         target: vercel-ai
-        state: ready
+        state: claimed
       - id: workers-local-remote-lifecycle
         issue: 18
         target: workers-sdk
         state: ready
-      - id: otel-async-retry-correlation
+      - id: otel-context-lifecycle-boundaries
         issue: 19
         target: opentelemetry-js
-        state: ready
+        state: claimed
       - id: mcp-transport-session-lifecycle
         issue: 20
         target: mcp-typescript-sdk
@@ -41,7 +41,7 @@ programmes:
   - id: agent-cli-execution
     issue: 14
     state: ready
-    thesis: Agent and CLI systems need defensible tool execution, approval, cancellation, session recovery, terminal behavior, and extension boundaries.
+    thesis: Agent and CLI research begins with execution architecture, permissions, state, tools, processes, terminal behaviour, tests, and real workflows before selecting specific failure modes.
     targets:
       - gemini-cli
       - codex
@@ -66,7 +66,7 @@ programmes:
   - id: web-tooling-runtime-correctness
     issue: 15
     state: ready
-    thesis: Build, browser, parser, and runtime tooling should preserve code, state, invalidation, teardown, and compatibility across realistic projects.
+    thesis: Web tooling research begins with architecture, source and state transformations, project graphs, execution modes, tests, and realistic projects before selecting specific correctness or performance questions.
     targets:
       - vite
       - playwright
@@ -82,10 +82,10 @@ programmes:
         issue: 25
         target: vite
         state: ready
-      - id: playwright-retry-teardown-artifacts
+      - id: playwright-execution-isolation-artifacts
         issue: 26
         target: playwright
-        state: ready
+        state: claimed
       - id: biome-transform-and-fix-safety
         issue: 27
         target: biome
@@ -94,7 +94,7 @@ programmes:
   - id: data-durable-workflows
     issue: 16
     state: ready
-    thesis: Data and background-work systems need clear transaction, retry, recovery, identity, migration, and reconciliation behavior.
+    thesis: Data-system research begins by mapping query, storage, transaction, state, background-work, resource, recovery, and integration architecture before selecting a narrower hypothesis.
     targets:
       - duckdb
       - supabase
@@ -109,13 +109,14 @@ programmes:
         issue: 28
         target: duckdb
         state: ready
-      - id: durable-job-retry-recovery
+      - id: owned-durable-workflow-architecture
         issue: 29
         target: unresolved-until-scout
-        state: ready
+        state: claimed
 
 notes:
-  - Programmes are directions, not automatic permission to contact upstream projects.
+  - Programmes are broad directions, not default hypotheses or permission to contact upstream projects.
+  - Scouts first map the system and may add narrower experiments only after evidence identifies a useful boundary.
   - Scout lanes may be added or stopped after reconnaissance changes the lay of the land.
   - A target may participate in several programmes when the questions are genuinely different.
   - Testbed labels are created only after a real trial begins and must not be pre-created from likely_testbeds.
