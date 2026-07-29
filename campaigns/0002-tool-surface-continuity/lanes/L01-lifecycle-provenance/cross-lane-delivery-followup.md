@@ -1,7 +1,13 @@
-# L01 follow-up after the L05 delivery review
+# L01 follow-up after delivery, diagnostics, and Rust SDK review
 
 Review date: 2026-07-30  
-Related work: issue #40 and draft PR #77
+Related work: issue #40, draft PR #77, issue #43, merged PR #81, and implementation campaign #84
+
+## Status correction
+
+Campaign #31 is closed through merged PR #51. L06 is complete through merged PR #81.
+
+Any earlier L01 wording that says L06 is still open or that its receipt remains pending is superseded by this note. Receipt v1 classifies eight normalized campaign cases: seven distinct first divergences, one healthy control, zero expectation mismatches, and seven focused tests passed. Recovery remains advisory.
 
 ## What the deeper L05 pass changes
 
@@ -15,7 +21,7 @@ The deeper L05 pass sharpens how that state is classified:
 
 The resulting ownership split is:
 
-- L01: saved/current generation, preserve/clear/replace semantics, and lifecycle mismatch;
+- L01: saved/current generation, preserve/clear/replace/reject semantics, and lifecycle mismatch;
 - L02: direct wire delivery or verified previous-response inheritance;
 - L04: catalogue, binding, and search-index generation convergence;
 - L05: logical loader presence, searchable metadata, and executable load-existing semantics;
@@ -34,16 +40,49 @@ saved declaration preserved
 
 It should not be used as evidence that discovery itself is absent.
 
+## Current Codex recheck
+
+The campaign pin was `openai/codex@3725f02cf38d856bc82bb46dd68ab61bb96ec6fc`. A post-closeout recheck at `openai/codex@a05bcda3dbd68729caa2f11027b7f43974fda298` does not overturn the result:
+
+- `thread/start` accepts `dynamicTools` and `selectedCapabilityRoots`;
+- `thread/resume` and `thread/fork` still provide no equivalent replacement or clear fields;
+- Codex pins `rmcp = 3.0.0`;
+- MCP client reuse still compares configured transport, environment, credentials, authentication, and protocol-related inputs, but not remote server identity or the current tool-catalogue digest;
+- `ManagedClient` still retains server information and its startup-listed tool vector.
+
+The recent Rust MCP dependency upgrade improves discovery identity handling and preserves typed OAuth discovery failures. It does not add host replacement semantics or invalidate a reusable Codex client when the remote identity or catalogue changes behind a stable configured connection.
+
+## Rust MCP SDK boundary
+
+Official SDK recheck: `modelcontextprotocol/rust-sdk@cb50ae7890d8a5daacae1a4ad95f395f06733c07`.
+
+The SDK 3.0 line adds modern discovery and lifecycle negotiation, subscription support, client-side TTL response caching, and more accurate discovery errors. Those capabilities matter, but they do not own Codex's application-level catalogue snapshot or request binding.
+
+For tool-list changes, the SDK routes `notifications/tools/list_changed` to `ClientHandler::on_tool_list_changed`. The default callback is a no-op. Codex overrides it only to log the notification; it does not relist tools, validate a new catalogue digest, increment a catalogue revision, or publish a new binding.
+
+That separates the repair boundary:
+
+- Codex should own relist/reconnect policy, remote identity and catalogue validation, publication revision, and request-scoped binding replacement;
+- the Rust SDK could provide an opt-in relist helper or subscription stream, but it should not silently replace a client's published catalogue or active request binding.
+
+The SDK current head is one fix beyond the 3.0.0 release. Release PR #1081 proposes 3.0.1 for server-information metadata on graceful subscription results. That change does not alter this lifecycle finding.
+
 ## Receipt additions
 
-The campaign diagnostic receipt should include bounded digests or generations for:
+The diagnostic receipt should retain bounded digests or generations for:
 
 - logical advertised loader;
 - direct wire manifest;
 - inherited manifest and verification state;
 - host catalogue, thread binding, and deferred search index;
-- saved and current dynamic-tool generations.
+- saved and current dynamic-tool generations;
+- observed remote server identity and catalogue revision;
+- tool-list-change notification receipt and relist outcome.
 
-These additions preserve the separate repair boundaries. Loader absence, wire omission, stale catalogue, and stale saved provenance require different actions.
+These additions preserve the separate repair boundaries. Loader absence, wire omission, stale catalogue, stale saved provenance, and ignored list-change notification require different actions.
 
-OpenAI/Codex remained read-only. No upstream contact occurred.
+## Implementation handoff
+
+Implementation campaign #84 should cover four explicit host outcomes—preserve, replace, clear, and reject-on-mismatch—and MCP relist or hard refresh with remote identity and catalogue-digest validation. Older captured request bindings should retain their authority; newly captured steps should receive the accepted new revision.
+
+Public Codex and the official Rust SDK remained read-only. No upstream contact occurred.
