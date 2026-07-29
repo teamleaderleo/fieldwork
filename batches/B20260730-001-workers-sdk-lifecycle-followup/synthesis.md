@@ -19,7 +19,7 @@ The batch produced three core Workers SDK candidates and one extracted Vite foll
 1. Miniflare can delay or skip terminating `workerd` when earlier cleanup fails or never settles.
 2. Wrangler and Vite can choose different configuration files from the same project layout.
 3. Wrangler can activate new Worker code and then fail later without clearly reporting the activation path, activated version, and failed phase.
-4. Vite dev/preview container cleanup can lose ownership because tags are registered late and one same-mode plugin instance can replace another instance's process-exit callback.
+4. Vite dev/preview container cleanup can lose ownership because tags are registered late, one same-mode plugin instance can replace another instance's process-exit callback, and failed restart cleanup can be forgotten when new tags replace old tags.
 
 The three core lanes have fork branches and prepared package-level tests. A001 and A003 have bounded repair prototypes. The Vite cleanup finding now has canonical candidate issue #165, a durable Fieldwork note, executed dependency-free models, and an unapplied patch candidate. None of the target package/plugin suites executed in the available environment, so implementation promotion remains gated on a full workspace run.
 
@@ -31,7 +31,7 @@ Confidence: **high source confidence, medium execution confidence**
 
 Workers SDK PR: `teamleaderleo/workers-sdk#1`
 
-Reviewed head: `3d67e4cf38fe270a8d871056536b0e36d9a80893`
+Reviewed head: `c7dd4411bf474a09f87cd1575594e7aaa8e1cacd`
 
 The real-runtime tests target the ownership invariant: browser or proxy cleanup must not prevent the synchronous `SIGKILL` request inside `Runtime.dispose()`.
 
@@ -148,7 +148,7 @@ Canonical candidate: #165
 
 Durable note: `notes/vite-container-cleanup-ownership.md`
 
-Workers SDK artifact head: `3d67e4cf38fe270a8d871056536b0e36d9a80893`
+Workers SDK artifact head: `c7dd4411bf474a09f87cd1575594e7aaa8e1cacd`
 
 ### Late registration
 
@@ -163,6 +163,12 @@ Both `dev.ts` and `preview.ts` keep one module-global process-exit callback slot
 The exported `cloudflare()` function creates a fresh `PluginContext` and plugin array on every call. Multiple same-mode plugin instances are therefore representable in one Node.js process. The latest registration can make an earlier server's force-exit cleanup callback unreachable.
 
 Ordinary CLI use commonly has one server, so incidence is unknown. Programmatic Vite use, tests, orchestrators, and multiple server instances are the key integration surfaces.
+
+### Restart retry ownership
+
+Dev restart cleanup calls `cleanupContainers()` and ignores the boolean result. The next successful preparation assigns a new tag set. If restart cleanup failed, this can discard the only retry record for old tags.
+
+The candidate keeps failed old tags and unions them with new tags until a later cleanup succeeds.
 
 ### Executed models
 
@@ -187,6 +193,7 @@ PASS: a per-instance registry cleans every live server owner
 PASS: failed cleanup retains ownership for an exit retry
 PASS: successful close unregisters and avoids duplicate cleanup
 PASS: preparation failure preserves its original error
+PASS: failed restart cleanup retains old tags alongside new tags
 ```
 
 ### Draft repair
@@ -195,6 +202,7 @@ PASS: preparation failure preserves its original error
 
 - a per-instance callback registry;
 - ownership registration before image preparation;
+- retained old tags unioned with new tags after failed restart cleanup;
 - preparation-failure cleanup with exact primary-error preservation;
 - programmatic preview-close cleanup;
 - warnings and retained retry ownership when cleanup returns `false`;
@@ -210,8 +218,8 @@ Next gate:
 - close one owner successfully without disturbing another;
 - fail cleanup on close and succeed on exit retry;
 - reject later preparation after earlier work and preserve the original error;
-- clean preview containers on programmatic close while the host process continues;
-- preserve dev restart ownership for future tags.
+- fail restart cleanup, prepare new tags, and prove a later retry cleans old and new tags;
+- clean preview containers on programmatic close while the host process continues.
 
 ## Cross-review result
 
@@ -224,6 +232,7 @@ A standalone A004 lane was withdrawn at user direction. Review coverage was reta
 - A003's reporting-failure flaw was found, fixed, modeled, and formally reviewed;
 - A001's kill assertion was narrowed to the actual workerd child;
 - the adjacent Vite cleanup finding was extracted into candidate #165 rather than mixed into the Miniflare patch;
+- the Vite candidate gained explicit multi-instance, partial-preparation, close, retry, and restart-ownership controls;
 - prior public discussion and broader tool precedent were reconciled in the lane results;
 - unexecuted package tests remain explicit blockers rather than being counted as review completion.
 
@@ -250,7 +259,7 @@ No new ad hoc candidate label is necessary.
 1. Execute A001's first three package regressions and validate the minimal runtime-first patch.
 2. Execute A003 helper and corrected mocked deploy-flow tests; refine the output contract.
 3. Execute A002's cross-selector matrix and implement behavior-preserving policy disclosure.
-4. Execute candidate #165's mocked multi-instance and partial-preparation plugin tests.
+4. Execute candidate #165's mocked multi-instance, partial-preparation, close, retry, and restart plugin tests.
 5. Return to A001 error aggregation and named cleanup deadlines as a separate change.
 6. Consider compatibility migrations only after execution evidence and ambiguous-layout review.
 7. Add accepted candidates to the generated human review queue with exact execution evidence.
