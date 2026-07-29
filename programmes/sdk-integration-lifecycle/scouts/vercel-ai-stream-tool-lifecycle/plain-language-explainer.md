@@ -105,6 +105,28 @@ Evidence: [pinned partial-close tests](https://redirect.github.com/vercel/ai/blo
 
 Keeping partial text is useful, but callers need a truthful way to distinguish ordinary completion from protocol truncation. Campaign #94 owns that classification question.
 
+## The silent phone-call problem
+
+An idle UI stream can be healthy while it waits for a tool, a human approval, or a slow provider. The current response helper may send no body byte during that wait.
+
+That is like opening a phone call and saying nothing:
+
+- one intermediary may decide the call never connected because it has not heard the first sound;
+- another may hang up later because the call has been silent for too long.
+
+An SSE comment is a quiet “still here” sound. SSE parsers ignore the comment as application data, but HTTP runtimes and reverse proxies can observe the bytes.
+
+Campaign #150 and owned draft PR [`teamleaderleo/ai#4`](https://github.com/teamleaderleo/ai/pull/4) add opt-in `keepAliveMs` support:
+
+1. send an immediate `: stream-open` comment to the client response;
+2. send a `: keep-alive` comment after each idle interval;
+3. reset the interval after real UI data;
+4. keep comments out of persistence and resumable storage;
+5. avoid unbounded comment buffering under a slow client;
+6. clear timers and detach the client branch on completion or cancellation.
+
+The option is off by default because proxy timeouts vary by deployment. The candidate still needs real HTTP and reverse-proxy validation; unit tests alone cannot prove that every runtime flushes or keeps the connection open in the same way.
+
 ## What happens if this work is skipped
 
 - Stop can appear to work while result promises remain pending forever.
@@ -113,20 +135,24 @@ Keeping partial text is useful, but callers need a truthful way to distinguish o
 - One layer can report abort while another reports provider error or ordinary completion.
 - Persistence can save partial or aborted output as complete.
 - A Stop for an older run can cancel a newer run.
+- A healthy idle response can fail to flush or be closed by a reverse proxy.
 - Users may retry and duplicate model calls or already-committed tool side effects.
 - Logging or telemetry callbacks can accidentally control operational cancellation.
 
 ## Why the tests are shaped this way
 
-The tests use mock provider streams, local tools, temporary file-backed state, and exact event ordering. They avoid provider credentials and network timing, making the races repeatable.
+The tests use mock provider streams, local tools, temporary file-backed state, exact event ordering, fake timers, and canonical SSE byte sequences. They avoid provider credentials and uncontrolled network timing, making the races repeatable.
 
 Ordinary tests protect behavior that should already work. `it.fails` tests are executable records of known defects: a green suite while they remain `it.fails` means the defect was reproduced as expected, not fixed. Promotion requires converting those cases to normal passing tests.
+
+Transport unit tests can prove byte order, timing logic, backpressure bounds, tee isolation, and cleanup. They cannot replace one real self-hosted HTTP first-byte test and one reverse-proxy idle-timeout test for campaign #150.
 
 ## Current status
 
 - campaign #76: explicit-abort settlement and terminal arbitration;
 - campaign #94: truthful classification of truncated provider streams;
 - campaign #95: run-scoped resumable Stop ownership;
-- owned AI SDK PRs #1 and #3 remain drafts;
+- campaign #150: idle UI response first-byte and heartbeat liveness;
+- owned AI SDK PRs #1, #3, and #4 remain drafts;
 - fork tests are written and statically reviewed but have not run in this environment;
 - no upstream contact has been made or authorized.
