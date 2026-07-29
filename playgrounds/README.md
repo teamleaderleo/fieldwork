@@ -4,6 +4,8 @@ This directory is Fieldwork's fork-free experimental workspace.
 
 A playground answers one small question with local code, synthetic fixtures, or public interfaces. It is allowed to be temporary. It is not allowed to be ambiguous about what it tested or to imply a wider production claim it did not establish.
 
+A playground question should come from target research, an explicit assignment, or a clearly stated local hypothesis. Existing examples and case packs do not define what should be researched.
+
 ## Starting an experiment
 
 Scaffold a minimal retained experiment:
@@ -16,14 +18,14 @@ python3 scripts/new_experiment.py parser-boundary \
 
 This creates `playgrounds/EXP-YYYYMMDD-parser-boundary/` with metadata, a report stub, and an intentionally unimplemented runner.
 
-For a wider integration claim, provide a repository-relative dossier:
+For a wider integration claim, provide a repository-relative dossier only after the target investigation has identified the mechanism and the wider claim needing evidence:
 
 ```text
-python3 scripts/new_experiment.py retry-boundary \
-  --question "Can a repeated logical request avoid a duplicate effect?" \
+python3 scripts/new_experiment.py integration-boundary \
+  --question "Does the selected boundary preserve the property identified by the scout?" \
   --owner worker-id \
   --claim-scope integration \
-  --integration-context contexts/patterns/retry-idempotency.md
+  --integration-context contexts/systems/example-system.md
 ```
 
 Then:
@@ -98,11 +100,7 @@ A small test can validate a mechanism while a context dossier answers different 
 - how operators would observe and recover from it;
 - which standards or project contracts apply.
 
-Use `INTEGRATION_CONTEXT.md` and `templates/integration-context.md`. For a complete example, see:
-
-- `playgrounds/examples/retry-idempotency/`
-- `playgrounds/cases/retry-idempotency.json`
-- `contexts/patterns/retry-idempotency.md`
+Use `INTEGRATION_CONTEXT.md` and `templates/integration-context.md` after the target research identifies a real need for wider interpretation. There is no canonical integration example and no default mechanism to search for.
 
 ## Validation
 
@@ -112,7 +110,7 @@ Run before retaining an experiment:
 python3 scripts/validate_experiments.py
 ```
 
-CI validates retained experiment metadata, all canonical case packs, the identity-adapter smoke test, and the retry/idempotency context example.
+CI validates retained experiment metadata, all canonical case packs, and the identity-adapter smoke test.
 
 ## Boundaries
 
@@ -121,6 +119,7 @@ CI validates retained experiment metadata, all canonical case packs, the identit
 - Network access defaults to disabled or unnecessary.
 - Do not commit secrets, production payloads, dependency caches, large binaries, or generated build directories.
 - Do not use the playground directory as an unbounded scratch dump.
+- Do not choose a research question merely because a fixture or example already exists.
 - Mechanism evidence does not establish integration or operational impact without supporting context.
 
 See `EXPERIMENTS.md` and `INTEGRATION_CONTEXT.md` for the full protocols.
