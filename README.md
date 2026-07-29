@@ -11,6 +11,7 @@ Fieldwork investigates external systems seriously before asking their maintainer
 ## Enter here
 
 - [`START_HERE.md`](START_HERE.md) — exact runbook for a person or agent sent to Fieldwork.
+- [`REVIEW_QUEUE.md`](REVIEW_QUEUE.md) — current human review priorities, evidence gates, and decision asks.
 - [`PROGRAMMES.md`](PROGRAMMES.md) — long-lived directions, scout lanes, branching, and concurrency.
 - [`CODE_FIRST.md`](CODE_FIRST.md) — what kinds of changes are worth investigating and how to understand code before proposing them.
 - [`PLAIN_LANGUAGE.md`](PLAIN_LANGUAGE.md) — the short understanding check required near the top of durable work.
