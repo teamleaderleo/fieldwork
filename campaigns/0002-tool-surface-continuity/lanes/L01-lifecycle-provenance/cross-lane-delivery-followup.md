@@ -65,29 +65,29 @@ Current Codex now shares more than cached tool definitions across connection set
 
 The cache key contains the configured server name, stdio command/config fingerprint, environment object identity, and local fallback directory. It does not contain the initialized server identity, executable content digest, or returned tool-catalogue digest. Replacing a server behind the same configured identity can therefore retain the old cache entry until publication, disablement, or expiry.
 
-The request-binding path creates an additional bounded race:
+A later request can advertise cached catalogue A while the replacement optional client is still pending. The captured request binding contains the cached tool declarations but no prepared calls for that pending client.
 
-1. a pending optional regular MCP server has cached tools;
-2. a later connection set skips waiting because cached tools exist or because the shared startup grace was already consumed;
-3. the binding advertises the cached tools but inserts no `PreparedMcpCall` while the replacement client remains pending;
-4. a model call during that interval is rejected as unavailable because dispatch requires a prepared call.
+Dispatch has a separate late-binding path. `handle_mcp_tool_call` refreshes dirty MCP state, asks `current_binding_for_call` to wait for the selected server's startup, and then captures the latest binding. The call therefore does not immediately fail solely because the original request binding lacked a prepared call.
 
-This is not evidence that every cached tool call fails. The client may become ready before the model calls. It is evidence that catalogue advertisement and executable binding can diverge during startup, and the current shared-deadline test checks immediate advertisement without checking dispatch.
-
-The focused falsification case is:
+The actual transition is:
 
 ```text
-publish cache generation A
-→ start replacement server at same configured identity and hold initialization pending
-→ consume the shared optional startup grace
-→ capture a later binding
-→ verify tool A is advertised
-→ verify no prepared call exists while initialization is pending
-→ attempt the advertised call before readiness
-→ release initialization and verify a newly captured binding becomes executable
+model plans against cached catalogue A
+→ selected tool call waits for replacement client startup
+→ dispatch captures live catalogue and binding B
+→ tool removed in B: fail closed as unavailable
+→ same-name tool changed in B: use B's metadata, approval, client, and execution behavior
 ```
 
-The expected diagnostic class before readiness is `advertised_without_executable_binding`, with the cached catalogue generation, client startup state, and prepared-call presence recorded separately.
+This can be safe when A and B have the same accepted catalogue digest. Without a digest check, the model advertisement and execution authority can belong to different catalogue revisions. The current shared-deadline test proves immediate cached advertisement, but it does not compare the advertised revision with the later execution revision.
+
+The focused falsification cases are:
+
+1. cache A advertises a tool that B removes; verify the call waits for startup and then fails closed;
+2. A and B keep the same tool name but change schema or authority metadata; verify which revision governs approval, arguments, and execution;
+3. A and B have the same accepted digest; verify the delayed rebind is accepted without a mismatch warning.
+
+The diagnostic class is `advertisement_execution_revision_mismatch`, with the cached catalogue generation, model-advertised digest, live execution digest, client startup state, and prepared-call revision recorded separately.
 
 ## Rust MCP SDK boundary
 
@@ -125,7 +125,7 @@ Codex Apps already contains most of the required safe publication model:
 - a call which already holds the old revision may finish while publication waits;
 - an old prepared call that has not started irreversible preparation is rejected after the revision changes.
 
-Generic MCP should generalize this existing policy instead of creating another publication model.
+Generic MCP should generalize this existing policy instead of creating another publication model. Cached-startup late binding needs an additional advertised-revision check because execution may deliberately capture a newer binding.
 
 ## Receipt additions
 
@@ -138,12 +138,13 @@ The diagnostic receipt should retain bounded digests or generations for:
 - saved and current dynamic-tool generations;
 - observed remote server identity and catalogue revision;
 - shared regular-tool cache identity, snapshot generation, age, and optional startup deadline;
-- client startup state and prepared-call presence for every advertised MCP tool;
+- model-advertised catalogue digest and live execution-binding digest;
+- client startup state and prepared-call revision at dispatch;
 - tool-list-change notification receipt, SDK cache invalidation, relist generation, and publication outcome;
 - subscription ending state and reconnect decision when subscriptions are used;
-- prepared-call revision and whether irreversible preparation had begun before publication.
+- whether irreversible preparation had begun before publication.
 
-These additions preserve the separate repair boundaries. Loader absence, wire omission, stale catalogue, stale saved provenance, cached advertisement without execution, and ignored or superseded list-change notification require different actions.
+These additions preserve the separate repair boundaries. Loader absence, wire omission, stale catalogue, stale saved provenance, advertisement/execution revision mismatch, and ignored or superseded list-change notification require different actions.
 
 ## CI harness rule
 
@@ -166,7 +167,11 @@ The full authority contract should follow existing Codex Apps behavior:
 - an old prepared call that has not begun irreversible preparation fails closed after publication;
 - newly captured steps receive the accepted new revision.
 
-The generic-MCP follow-up should also test cached advertisement while a replacement optional client is pending, and require either an executable prepared call, an explicitly deferred/non-callable declaration, or omission from the model-facing catalogue.
+The generic-MCP follow-up should also test cached catalogue A followed by execution binding B and require one of:
+
+- verified equal catalogue digests;
+- a typed fail-closed revision mismatch;
+- an explicit policy permitting the late rebind and recording both revisions.
 
 A separate Rust SDK scout is justified only if it tests a generic relist coordinator across concurrent notifications, out-of-order list responses, lagged subscription channels, and reconnect. Codex-specific catalogue publication remains in #84.
 
