@@ -1,29 +1,65 @@
 const POLICY_COMMENT = '<!-- fieldwork-reference-policy-result -->';
 const INTENTIONAL_MARKER = 'fieldwork: intentional-upstream-reference';
+const VIOLATION_LABEL = 'policy:reference-violation';
 
 function scan(text, currentRepository) {
-  if (!text || text.includes(INTENTIONAL_MARKER)) return [];
+  if (!text) return [];
 
   const failures = [];
+  const lines = text.split(/\r?\n/);
   const direct = /https?:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/(issues|pull|discussions|commit)\/([A-Za-z0-9_.-]+)/g;
-  const shorthand = /(^|[^A-Za-z0-9_.-])([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)#([0-9]+)\b/gm;
+  const shorthand = /(^|[^A-Za-z0-9_.-])([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)#([0-9]+)\b/g;
 
-  for (const match of text.matchAll(direct)) {
-    const repository = `${match[1]}/${match[2]}`.toLowerCase();
-    if (repository === currentRepository) continue;
-    failures.push(`Direct external GitHub reference: ${match[0]}`);
-  }
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const intentional =
+      line.includes(INTENTIONAL_MARKER) ||
+      (index > 0 && lines[index - 1].includes(INTENTIONAL_MARKER));
 
-  for (const match of text.matchAll(shorthand)) {
-    const repository = `${match[2]}/${match[3]}`.toLowerCase();
-    if (repository === currentRepository) continue;
-    failures.push(`External shorthand reference: ${match[2]}/${match[3]}#${match[4]}`);
+    if (intentional) continue;
+
+    for (const match of line.matchAll(direct)) {
+      const repository = `${match[1]}/${match[2]}`.toLowerCase();
+      if (repository === currentRepository) continue;
+      failures.push(`Line ${index + 1}: direct external GitHub reference: ${match[0]}`);
+    }
+
+    for (const match of line.matchAll(shorthand)) {
+      const repository = `${match[2]}/${match[3]}`.toLowerCase();
+      if (repository === currentRepository) continue;
+      failures.push(
+        `Line ${index + 1}: external shorthand reference: ${match[2]}/${match[3]}#${match[4]}`,
+      );
+    }
   }
 
   return [...new Set(failures)];
 }
 
-module.exports = async ({ github, context, core }) => {
+async function setViolationLabel({ github, context, issueNumber, violated }) {
+  if (violated) {
+    await github.rest.issues.addLabels({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: issueNumber,
+      labels: [VIOLATION_LABEL],
+    });
+    return;
+  }
+
+  try {
+    await github.rest.issues.removeLabel({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: issueNumber,
+      name: VIOLATION_LABEL,
+    });
+  } catch (error) {
+    if (error.status !== 404) throw error;
+  }
+}
+
+async function run({ github, context, core }) {
   const payload = context.payload;
   const actorType = payload.sender?.type;
   const commentBody = payload.comment?.body || '';
@@ -49,6 +85,13 @@ module.exports = async ({ github, context, core }) => {
   const failures = scan(subject, currentRepository);
   const issueNumber = payload.issue?.number || payload.pull_request?.number || context.issue.number;
 
+  await setViolationLabel({
+    github,
+    context,
+    issueNumber,
+    violated: failures.length > 0,
+  });
+
   const comments = await github.paginate(github.rest.issues.listComments, {
     owner: context.repo.owner,
     repo: context.repo.repo,
@@ -65,7 +108,7 @@ module.exports = async ({ github, context, core }) => {
     body = `${POLICY_COMMENT}\nExternal reference policy check now passes for the latest edited interaction.`;
   } else {
     const details = failures.map((failure) => `- ${failure}`).join('\n');
-    body = `${POLICY_COMMENT}\nExternal references are quiet by default. Replace direct external issue, pull-request, discussion, and commit references with \`redirect.github.com\`, or add the intentional-upstream marker when contact is explicitly authorized.\n\n${details}`;
+    body = `${POLICY_COMMENT}\nExternal references are quiet by default. Replace direct external issue, pull-request, discussion, and commit references with \`redirect.github.com\`. Remove external shorthand. Use the intentional-upstream marker only when that exact interaction was explicitly authorized.\n\n${details}`;
     core.setFailed(`Found ${failures.length} external reference policy violation(s).`);
   }
 
@@ -84,4 +127,7 @@ module.exports = async ({ github, context, core }) => {
       body,
     });
   }
-};
+}
+
+module.exports = run;
+module.exports.scan = scan;
