@@ -9,7 +9,7 @@ use rmcp::model::{
     ServerNotification, Tool, ToolListChangedNotification,
 };
 use rmcp::service::{MaybeSendFuture, NotificationContext, Peer, RequestContext};
-use rmcp::{ClientHandler, RoleClient, RoleServer, ServerHandler};
+use rmcp::{ClientHandler, RoleClient, RoleServer, ServerHandler, ServiceExt};
 use tokio::sync::{Mutex, Notify, RwLock};
 
 const TIMEOUT: Duration = Duration::from_secs(10);
