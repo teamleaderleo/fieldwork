@@ -1,12 +1,19 @@
 name: Research decision
 description: Request a bounded human or coordinator decision
 title: "[Decision] "
-labels: []
+labels:
+  - "type:decision"
+  - "state:ready"
+  - "needs:human-decision"
 body:
-  - type: input
-    id: campaign
+  - type: markdown
     attributes:
-      label: Campaign or lane
+      value: |
+        External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. External shorthand is prohibited. This decision record does not authorize upstream contact.
+  - type: input
+    id: parent
+    attributes:
+      label: Batch, campaign, or lane
     validations:
       required: true
   - type: textarea
