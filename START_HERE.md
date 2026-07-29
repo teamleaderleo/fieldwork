@@ -10,18 +10,20 @@ Read, in order:
 2. `CHARTER.md`
 3. `METHOD.md`
 4. `REFERENCE_POLICY.md`
-5. `COORDINATION.md`
-6. `BATCHES.md` when the assignment belongs to a batch
-7. the relevant target map, manifest, campaign, lane, and issue
+5. `EXPERIMENTS.md` for a fork-free local test
+6. `COORDINATION.md` for shared or parallel work
+7. `BATCHES.md` when the assignment belongs to a batch
+8. the relevant target map, experiment, manifest, campaign, lane, and issue
 
 Tool-specific instruction files point back to `AGENTS.md`; they do not replace it.
 
 ## 2. Identify the assigned unit
 
-Search open Fieldwork issues, active batches, and existing campaign folders before creating a record.
+Search open Fieldwork issues, active batches, existing playgrounds, and campaign folders before creating a record.
 
 Choose the smallest correct unit:
 
+- **Experiment** — bounded one-worker local test requiring no upstream fork or issue.
 - **Batch** — controlled dispatch across many assignments.
 - **Finding** — retained observation with no approved campaign.
 - **Lead** — possible investigation awaiting triage.
@@ -37,6 +39,16 @@ Do not create work merely because an external repository has an available issue.
 
 Never silently begin work another assignment may already own.
 
+For an experiment, record in `experiment.json`:
+
+- worker identity;
+- one bounded question;
+- exact command and environment;
+- source revisions or retrieval boundary;
+- distinguishing outcomes;
+- stop condition;
+- upstream-contact authorization, normally `false`.
+
 For a lane or probe, record:
 
 - worker identity;
@@ -48,11 +60,11 @@ For a lane or probe, record:
 - stop condition;
 - upstream-contact authorization, normally `false`.
 
-A worker may edit only the owned output path. Coordinators own manifests, status, synthesis, decision, and closeout files.
+One worker may edit only the owned experiment or assignment path. Coordinators own manifests, status, synthesis, decision, and closeout files.
 
 ## 4. Protect external projects before writing
 
-Before creating or editing any Fieldwork issue, PR, comment, review, report, or data record:
+Before creating or editing any Fieldwork issue, PR, comment, review, report, experiment note, or data record:
 
 - convert external GitHub issue, PR, discussion, and commit links to `redirect.github.com`;
 - remove external shorthand cross-references;
@@ -74,26 +86,33 @@ Preserve:
 - negative results and uncertainty;
 - safety and data-handling boundaries.
 
+For small local tests, prefer synthetic fixtures and `playgrounds/cases/`. Default to no network access.
+
 ## 6. Put evidence in the correct place
 
 Preferred durable outputs:
 
+- `playgrounds/EXP-YYYYMMDD-short-name/`
 - `campaigns/<campaign>/lanes/<lane>/report.md`
 - `batches/<batch>/results/<assignment>.md`
 - retained artifacts beside the report
 
 Use:
 
+- `templates/experiment.json`
+- `templates/experiment.md`
 - `templates/lane-report.md`
 - `templates/batch-result.md`
 - `templates/handoff.md`
 - `templates/synthesis.md`
 
-Avoid several agents editing one shared report.
+Avoid several agents editing one shared report or experiment directory.
 
 ## 7. Report completion visibly
 
-Post a completion comment on the relevant lane, campaign, or batch issue:
+A standalone experiment does not require an issue comment. Finish its `README.md` or report, update `experiment.json`, and promote it when other work depends on the result.
+
+For coordinated work, post a completion comment on the relevant lane, campaign, or batch issue:
 
 ```text
 FIELDWORK HANDOFF
@@ -113,7 +132,9 @@ If repository writes are unavailable, place the full handoff in the issue and ap
 
 ## 8. Close through acceptance and synthesis
 
-Work is finished only when:
+An experiment is finished when its question, command, result, uncertainty, and disposition are durable.
+
+Coordinated work is finished only when:
 
 - evidence is durable or explicitly queued for materialization;
 - the issue or batch carries a handoff;
