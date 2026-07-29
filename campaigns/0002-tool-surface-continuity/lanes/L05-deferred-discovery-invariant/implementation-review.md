@@ -104,4 +104,37 @@ A planner-only success would fix some unreachable-runtime states and improve dia
 
 The parallel Campaign #85 work is going in the right general direction: it chose a bounded planner slice rather than making every MCP tool direct. The necessary correction is to make that slice mode-aware and then keep transport verification as a distinct follow-up.
 
+## Comparison with adjacent and upstream work
+
+### Complementary owned-fork work
+
+- [Fieldwork campaign #84](https://github.com/teamleaderleo/fieldwork/issues/84) and [owned-Codex PR #5](https://github.com/teamleaderleo/codex/pull/5) address stale MCP clients and catalogue lifecycle. That is the right owner when the discovery route exists but searches or executes against an old binding. It should not be folded into planner normalization.
+- Campaign #83 owns mutation/result identity and compaction safety. It becomes relevant after a tool has executed or when a completed effect could be replayed; it does not repair missing model exposure.
+
+### Useful upstream observability and discovery work
+
+- [OpenAI/Codex PR #35063](https://redirect.github.com/openai/codex/pull/35063) merged deferred namespace world state. It helps the model and diagnostics see which deferred namespaces exist across resume, but it still relies on `tool_search`; it does not prove an executable route or wire delivery.
+- [OpenAI/Codex PR #30104](https://redirect.github.com/openai/codex/pull/30104) proposes a runtime-backed `tool_search` inspector with indexed and matching counts, ranking, source, canonical names, and coalesced output metadata. This is strongly aligned with the observability part of Campaign #85, but it inspects the search index only. It does not compare logical, serialized, inherited, Code Mode runtime, or executable surfaces.
+- [OpenAI/Codex PR #30765](https://redirect.github.com/openai/codex/pull/30765) attempts to enable `tool_search` for synthesized fallback model metadata. It addresses one real missing-loader cause, but its review correctly notes provider compatibility and missing request-level integration coverage. It is not a universal fix.
+
+### Direction assessment
+
+The upstream work is mostly complementary rather than duplicative:
+
+```text
+world state / inspector
+    -> better discovery observability
+
+fallback model metadata
+    -> fixes one planner capability mismatch
+
+Campaign #85 mode-aware planner invariant
+    -> prevents logically unreachable deferred runtimes
+
+Campaign #85 manifest receipt
+    -> detects or repairs wire/inheritance loss
+```
+
+None of the reviewed upstream PRs directly implements the complete cross-layer invariant. The highest-value integration is to reuse runtime-backed inspector data and deferred world-state metadata as receipt inputs while retaining separate logical, wire, inherited, Code Mode catalogue, and executable checkpoints.
+
 No public OpenAI/Codex issue, comment, reaction, pull request, or code write occurred.
