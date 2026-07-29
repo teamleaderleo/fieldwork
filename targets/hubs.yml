@@ -36,6 +36,48 @@ hubs:
     map: targets/biome/map.md
     state: observed
 
+  - target: mcp-typescript-sdk
+    label: target:mcp-typescript-sdk
+    issue: 7
+    repository: modelcontextprotocol/typescript-sdk
+    map: targets/mcp-typescript-sdk/map.md
+    state: observed
+
+  - target: codex
+    label: target:codex
+    issue: 8
+    repository: openai/codex
+    map: targets/codex/map.md
+    state: observed
+
+  - target: vite
+    label: target:vite
+    issue: 9
+    repository: vitejs/vite
+    map: targets/vite/map.md
+    state: observed
+
+  - target: playwright
+    label: target:playwright
+    issue: 10
+    repository: microsoft/playwright
+    map: targets/playwright/map.md
+    state: observed
+
+  - target: duckdb
+    label: target:duckdb
+    issue: 11
+    repository: duckdb/duckdb
+    map: targets/duckdb/map.md
+    state: observed
+
+  - target: supabase
+    label: target:supabase
+    issue: 12
+    repository: supabase/supabase
+    map: targets/supabase/map.md
+    state: observed
+
 notes:
   - A hub is an index and shared orientation issue, not a task backlog.
   - Child work is discovered primarily through the target label.
