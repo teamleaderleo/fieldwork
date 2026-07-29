@@ -220,7 +220,7 @@ index 73c23b7..0000000 100644
 +            }
 +
 +            const error = Option.getOrElse(
-+              Cause.failureOption(exit.cause),
++              Cause.findErrorOption(exit.cause),
 +              () =>
 +                new ProviderAdapterRequestError({
 +                  provider: PROVIDER,
