@@ -1,7 +1,7 @@
 version: 1
 
 # Presence here is not an endorsement, work queue, or claim about current openness.
-# Reassess current policy and activity before activating any target.
+# Reassess current policy and activity before upstream implementation or contact.
 
 targets:
   - id: vercel-ai
@@ -44,6 +44,56 @@ targets:
     map: targets/biome/map.md
     domains: [parser, formatter, linter, language-server]
 
+  - id: mcp-typescript-sdk
+    repository: modelcontextprotocol/typescript-sdk
+    state: mapped
+    label: target:mcp-typescript-sdk
+    hub_issue: 7
+    map: targets/mcp-typescript-sdk/map.md
+    domains: [protocols, agents, tool-calling, interoperability]
+    note: Reassess current contribution policy and release transition before implementation.
+
+  - id: codex
+    repository: openai/codex
+    state: mapped
+    label: target:codex
+    hub_issue: 8
+    map: targets/codex/map.md
+    domains: [agents, cli, developer-tooling]
+    note: Reassess current contribution policy before proposing implementation work.
+
+  - id: vite
+    repository: vitejs/vite
+    state: mapped
+    label: target:vite
+    hub_issue: 9
+    map: targets/vite/map.md
+    domains: [build-tooling, dev-server, plugins]
+
+  - id: playwright
+    repository: microsoft/playwright
+    state: mapped
+    label: target:playwright
+    hub_issue: 10
+    map: targets/playwright/map.md
+    domains: [browser-automation, testing, protocols]
+
+  - id: duckdb
+    repository: duckdb/duckdb
+    state: mapped
+    label: target:duckdb
+    hub_issue: 11
+    map: targets/duckdb/map.md
+    domains: [database, analytics, query-engine]
+
+  - id: supabase
+    repository: supabase/supabase
+    state: mapped
+    label: target:supabase
+    hub_issue: 12
+    map: targets/supabase/map.md
+    domains: [database, auth, edge-functions, developer-platform]
+
   - id: deno
     repository: denoland/deno
     state: inbox
@@ -64,33 +114,6 @@ targets:
     state: inbox
     domains: [python, parser, linter, formatter]
 
-  - id: supabase
-    repository: supabase/supabase
-    state: inbox
-    domains: [database, auth, edge-functions, developer-platform]
-
-  - id: mcp-typescript-sdk
-    repository: modelcontextprotocol/typescript-sdk
-    state: watch
-    domains: [protocols, agents, tool-calling, interoperability]
-    note: Reassess current contribution policy and release transition before activation.
-
-  - id: codex
-    repository: openai/codex
-    state: watch
-    domains: [agents, cli, developer-tooling]
-    note: Reassess current contribution policy before proposing implementation work.
-
-  - id: playwright
-    repository: microsoft/playwright
-    state: inbox
-    domains: [browser-automation, testing, protocols]
-
-  - id: duckdb
-    repository: duckdb/duckdb
-    state: inbox
-    domains: [database, analytics, query-engine]
-
   - id: tauri
     repository: tauri-apps/tauri
     state: inbox
@@ -101,11 +124,6 @@ targets:
     state: inbox
     domains: [wasm, runtime, compiler, security]
 
-  - id: vite
-    repository: vitejs/vite
-    state: inbox
-    domains: [build-tooling, dev-server, plugins]
-
   - id: node
     repository: nodejs/node
     state: inbox
@@ -113,5 +131,5 @@ targets:
 
 notes:
   - Mapped recurring targets may have stable hubs and labels.
-  - Inbox and watch entries do not receive labels or hub issues until work becomes active.
+  - Inbox entries do not receive labels or hub issues until work becomes active.
   - A target registry entry is never permission to contact upstream.
