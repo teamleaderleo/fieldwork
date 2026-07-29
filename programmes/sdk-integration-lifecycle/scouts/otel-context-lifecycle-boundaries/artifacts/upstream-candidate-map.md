@@ -9,8 +9,10 @@ The findings should not be submitted as one mega-issue or one mega-PR. They occu
 ## Current evidence and review state
 
 - target revision: `open-telemetry/opentelemetry-js@7b06368b7362a30ca69c178f43bd94dfbb36f85d`
-- characterization fork head: `548b8a4b801bbc0a9624323585179de44e44e174`
-- prepared characterization cases: 18 across 7 lifecycle boundaries
+- characterization fork head: `85f8a928dc2385cf506445ed9794c453b70803e3`
+- prepared characterization cases: 28
+  - 18 NodeSDK/helper cases;
+  - 10 direct trace, logs, and metrics package cases;
 - `NodeSDK` start-guard fork head: `14b524ff0c0d8e39321c31be218b0c9ee0ca0b78`
 - repaired `startNodeSDK()` cleanup fork head: `482cb975f78572bc65a9b263fb677b7a274e2fff`
 - Fieldwork synthesis PR #32: draft and held for reconciliation with current main
@@ -95,34 +97,48 @@ The helper is synchronous. Cleanup can start asynchronous provider shutdown but 
 
 ### Proposed upstream units
 
-1. An issue in the trace SDK describing the provider-level contract mismatch.
+1. An issue in `@opentelemetry/sdk-trace` describing the provider-level contract mismatch.
 2. A separate trace SDK PR after maintainers agree on behavior.
 
 ### Problem
 
-The JavaScript `TracerProvider` delegates every `shutdown()` call directly to span processors and does not maintain shutdown state. A custom processor can therefore receive repeated shutdown calls. Because the provider remains globally reachable and can still return functional tracers, custom processors can also receive spans after provider shutdown.
+The JavaScript `TracerProvider` has no shutdown state. It delegates every `shutdown()` call again, always returns or creates a real SDK tracer, and lets cached tracers retain their processor path.
+
+Direct prepared package tests demonstrate:
+
+- repeated provider shutdown reaches a custom processor repeatedly;
+- a cached tracer creates recording spans after shutdown;
+- a newly requested tracer creates recording spans after shutdown;
+- both paths reach a custom processor.
+
+### Specification and same-repository precedent
+
+The trace SDK specification directs implementations to return a no-op tracer after shutdown when possible.
+
+JavaScript logs already implements the stronger lifecycle:
+
+- `BindOnceFuture` stores one shutdown operation and result;
+- new logger requests return no-op after shutdown;
+- cached loggers consult shared shutdown state and stop emitting.
+
+JavaScript metrics also sets provider terminal state before reader shutdown and returns no-op meters for new requests.
+
+Detailed record:
+
+`artifacts/javascript-signal-provider-shutdown-comparison.md`
 
 ### Proposed behavior
 
 - provider shutdown is one-shot;
-- repeated calls return the same result or safely no-op;
+- concurrent and later calls share the first result or safely no-op;
 - new tracers after shutdown are no-op;
-- cached tracers must not start recording spans after provider shutdown;
-- tests use a custom processor so behavior is not hidden by built-in processor guards.
+- cached tracers stop creating recording spans after shutdown begins;
+- each registered processor receives shutdown at most once;
+- force flush during and after shutdown has a deterministic contract.
 
-### Cross-language precedent
+### Why separate
 
-Go makes all provider methods no-op after shutdown and uses atomic state plus one-shot processor shutdown:
-
-https://redirect.github.com/open-telemetry/opentelemetry-go/blob/2776cee15126f0841bd65ad205f576b240883a24/sdk/trace/provider.go#L297-L328
-
-Rust records provider shutdown atomically, rejects a repeated shutdown, and returns a no-op tracer after shutdown:
-
-https://redirect.github.com/open-telemetry/opentelemetry-rust/blob/0e78170d712e5046b8ed93b6f99b2b003af15cd7/opentelemetry-sdk/src/trace/provider.rs#L245-L298
-
-Java's aggregate SDK makes shutdown one-shot with an `AtomicBoolean`:
-
-https://redirect.github.com/open-telemetry/opentelemetry-java/blob/6ffe557f36f6d1150556c9e95bfea9fc20e3a49e/sdk/all/src/main/java/io/opentelemetry/sdk/OpenTelemetrySdk.java#L101-L117
+Provider lifecycle state answers whether shutdown and telemetry production can continue. Aggregate fanout answers whether every child is attempted during the one allowed lifecycle operation. They may share implementation infrastructure but should not be conflated automatically.
 
 ## Candidate D — metric reader binding transactionality
 
@@ -143,7 +159,7 @@ https://redirect.github.com/open-telemetry/opentelemetry-java/blob/6ffe557f36f6d
 
 ### Why separate
 
-NodeSDK cannot safely repair an object whose constructor did not return. The defect belongs in the metrics SDK.
+NodeSDK cannot safely repair an object whose constructor did not return. The defect belongs in the metrics SDK. It is also separate from metric shutdown concurrency.
 
 ## Candidate E — process-global registration ownership and disposal design
 
@@ -169,7 +185,7 @@ The current APIs do not expose ownership tokens for globals or per-instrumentati
 
 ### Evidence state
 
-Two target-native characterization cases exist in fork PR #1 at head `548b8a4b801bbc0a9624323585179de44e44e174`, but they have not run in this environment.
+Two target-native characterization cases exist in fork PR #1 at head `85f8a928dc2385cf506445ed9794c453b70803e3`, but they have not run in this environment.
 
 Fieldwork record:
 
@@ -177,14 +193,14 @@ Fieldwork record:
 
 ### Source-predicted behavior
 
-- `shutdown()` before first `start()` resolves successfully because no provider fields exist;
+- `shutdown()` before first `start()` resolves because no provider fields exist;
 - a later `start()` still installs live providers;
 - instrumentation can synchronously reenter `shutdown()` during `start()` before providers exist;
 - that shutdown promise resolves while startup continues and installs providers afterward.
 
 ### Why it is not promoted yet
 
-The narrow start guard does not answer the contract. A real solution may require explicit `starting`, `shutting-down`, and terminal states. Before creating another issue, the characterization should run and the compatibility choice should be framed: terminal early shutdown, deferred shutdown, explicit invalid ordering, or documented unsupported ordering.
+The narrow start guard does not answer the contract. A real solution may require explicit `starting`, `shutting-down`, and terminal states. The characterization should run and the compatibility choice should be framed first: terminal early shutdown, deferred shutdown, explicit invalid ordering, or documented unsupported ordering.
 
 ### Required invariant
 
@@ -194,28 +210,18 @@ After a shutdown promise resolves, the same helper object should not subsequentl
 
 ### Evidence state
 
-Two target-native NodeSDK characterization cases exist in fork PR #1 at head `548b8a4b801bbc0a9624323585179de44e44e174`.
+Prepared direct tests now cover shutdown and force flush at the owning package boundaries:
 
-They cover:
+- `MultiSpanProcessor`: synchronous throw before a promise is returned; later trace processors skipped;
+- `MultiLogRecordProcessor`: rejected promise through async wrapper; later log processors skipped;
+- `MeterProvider`: rejected promise through async wrapper; later readers skipped;
+- NodeSDK: a synchronous trace shutdown failure prevents later signal-provider shutdown calls.
 
-1. a synchronous trace-processor shutdown exception escaping before a promise is returned and preventing later trace processors and signal providers from being called;
-2. synchronous log-processor and metric-reader exceptions becoming rejected promises while still skipping later log processors and metric readers.
-
-The cases have not run in this environment. Direct package-level force-flush and aggregate tests remain absent.
+The tests are in fork PR #1 at head `85f8a928dc2385cf506445ed9794c453b70803e3`. They have not run in this environment.
 
 Fieldwork record:
 
 `artifacts/shutdown-fanout-synchronous-throw.md`
-
-### Source-predicted behavior
-
-Several aggregate lifecycle paths eagerly invoke children inside loops or `.map()` while building `Promise.all` inputs.
-
-- trace can throw synchronously before returning a promise and skip later processors;
-- a synchronous trace-provider exception can prevent NodeSDK from requesting logs and metrics shutdown;
-- logs and metrics return rejected promises through `async` methods, but later processors or readers are still skipped when `.map()` aborts;
-- providers may become terminal or retain rejected one-shot state without ever reaching the skipped children;
-- force-flush paths have related behavior.
 
 ### Why it is not promoted yet
 
@@ -226,23 +232,55 @@ The correct review unit is unresolved. It could be:
 - a NodeSDK aggregate-shutdown correction;
 - or a shared cross-signal fanout helper and error contract.
 
-The desired error policy also needs agreement: fail-fast rejection after attempting all children, or complete error aggregation.
+The desired error policy also needs agreement: fail-fast rejection after attempting every child, or complete error aggregation.
+
+## Retained lead H — metric provider and reader shutdown concurrency
+
+### Evidence state
+
+Prepared tests exist at fork head `85f8a928dc2385cf506445ed9794c453b70803e3`.
+
+Fieldwork record:
+
+`artifacts/metric-shutdown-concurrency.md`
+
+### Source-predicted behavior
+
+- `MeterProvider` sets `_shutdown` before readers finish;
+- a concurrent second provider shutdown resolves successfully while the first remains pending and may later reject;
+- `MetricReader` sets `_shutdown` only after `onShutdown()` resolves;
+- two concurrent reader shutdown calls can therefore invoke `onShutdown()` twice.
+
+### Proposed direction
+
+Use one shared one-shot future for both provider and reader shutdown so all callers receive one result and child cleanup starts once.
+
+### Why it is not promoted yet
+
+The tests must run, and the review boundary must be chosen: one metrics lifecycle issue with provider and reader changes, or two patches under one agreed contract. This must remain separate from reader-constructor transactionality.
+
+## Ambiguity retained — cached metrics objects after shutdown
+
+New `getMeter()` calls return a no-op meter after provider shutdown. Previously returned meters and instruments hold storage directly and do not visibly consult provider shutdown state.
+
+The metrics shutdown specification clearly addresses new meter acquisition but is less explicit about objects obtained before shutdown. Cached-meter recording is therefore retained as a contract question, not claimed as a defect.
 
 ## Negative lead — logger startup ordering
 
-A concern that instrumentations might remain bound to a no-op logger provider was checked and rejected. The logs API uses a proxy logger provider, and first global registration sets its delegate. Existing proxy logger references can retarget. This result remains documented so the same false lead is not reopened.
+A concern that instrumentations might remain bound to a no-op logger provider was checked and rejected. The logs API uses a proxy logger provider, and first global registration sets its delegate. Existing proxy logger references can retarget.
 
 ## Recommended submission order
 
 1. Candidate A: same-object start guard.
 2. Candidate B: repaired failed function-setup cleanup.
-3. Run and decide retained lead F without silently expanding candidate A.
-4. Candidate C: trace provider shutdown contract.
-5. Run and classify retained lead G; decide whether it belongs with candidate C or a cross-signal proposal.
-6. Candidate D: metric reader binding transactionality.
-7. Candidate E: global installation and disposal design.
+3. Run and decide retained lead F without expanding Candidate A silently.
+4. Candidate C: trace-provider shutdown contract.
+5. Run and classify retained lead G; decide whether it belongs with Candidate C or a cross-signal proposal.
+6. Run and classify retained lead H as metrics lifecycle work.
+7. Candidate D: metric-reader binding transactionality.
+8. Candidate E: global installation and disposal design.
 
-Candidates A and B are small implementation candidates but still require target execution. Candidates C and D are lower-level correctness issues. Candidate E is the umbrella design discussion informed by the earlier concrete fixes. Leads F and G are deliberately not counted as promoted proposals yet.
+Candidates A and B are small implementation candidates but still require target execution. Candidates C and D are lower-level correctness issues. Candidate E is the umbrella design discussion. Leads F, G, and H are deliberately not counted as promoted proposals yet.
 
 ## Current Fieldwork review disposition
 
