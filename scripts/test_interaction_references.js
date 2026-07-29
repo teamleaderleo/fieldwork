@@ -19,11 +19,20 @@ assert.equal(
   0,
 );
 assert.equal(scan('teamleaderleo/stensibly#490', current, ownedOwners).length, 0);
-assert.equal(
-  scan('https://github.com/example/project/issues/12', current, ownedOwners).length,
-  1,
+
+const directFailures = scan(
+  'https://github.com/example/project/issues/12',
+  current,
+  ownedOwners,
 );
-assert.equal(scan('example/project#12', current, ownedOwners).length, 1);
+assert.equal(directFailures.length, 1);
+assert.equal(scan(directFailures.join('\n'), current, ownedOwners).length, 0);
+assert.equal(directFailures[0].includes('github.com'), false);
+
+const shorthandFailures = scan('example/project#12', current, ownedOwners);
+assert.equal(shorthandFailures.length, 1);
+assert.equal(scan(shorthandFailures.join('\n'), current, ownedOwners).length, 0);
+assert.equal(shorthandFailures[0].includes('example/project#12'), false);
 
 const marked = [
   '<!-- fieldwork: intentional-upstream-reference -->',
