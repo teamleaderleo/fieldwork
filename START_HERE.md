@@ -6,94 +6,119 @@ Use this runbook whenever a person or agent is told to investigate something thr
 
 Read, in order:
 
-1. `CHARTER.md`
-2. `METHOD.md`
-3. `REFERENCE_POLICY.md`
-4. `COORDINATION.md`
-5. the relevant target map and campaign material
+1. `AGENTS.md`
+2. `CHARTER.md`
+3. `METHOD.md`
+4. `REFERENCE_POLICY.md`
+5. `COORDINATION.md`
+6. `BATCHES.md` when the assignment belongs to a batch
+7. the relevant target map, manifest, campaign, lane, and issue
 
-`AGENTS.md` is binding for automated workers.
+Tool-specific instruction files point back to `AGENTS.md`; they do not replace it.
 
-## 2. Search before creating
+## 2. Identify the assigned unit
 
-Search open Fieldwork issues and existing campaign folders before opening a new record.
+Search open Fieldwork issues, active batches, and existing campaign folders before creating a record.
 
-Choose the smallest correct record:
+Choose the smallest correct unit:
 
-- **Finding** — an observation worth retaining, with no approved campaign yet.
-- **Lead** — a possible investigation awaiting triage.
-- **Campaign** — a bounded parent question with an explicit value and stop conditions.
-- **Lane** — one independently owned part of an active campaign.
-- **Decision** — a question requiring a coordinator or human choice.
+- **Batch** — controlled dispatch across many assignments.
+- **Finding** — retained observation with no approved campaign.
+- **Lead** — possible investigation awaiting triage.
+- **Campaign** — bounded parent question.
+- **Lane** — coordinated independently owned unit.
+- **Probe** — one-shot assignment recorded in a batch manifest.
+- **Decision** — coordinator or human choice.
+- **Synthesis** — combination and closeout work.
 
-Do not create a new campaign because an external repository has an available issue.
+Do not create work merely because an external repository has an available issue.
 
 ## 3. Establish ownership
 
-Never silently begin work that another lane may already own.
+Never silently begin work another assignment may already own.
 
-For an existing lane:
+For a lane or probe, record:
 
-- assign or identify the worker;
-- state the exact deliverable;
-- record dependencies and source revision;
-- identify the lane-owned directory;
-- post a brief claim comment before substantial work.
+- worker identity;
+- exact question;
+- expected deliverable;
+- owned output path;
+- dependencies;
+- target source revision or retrieval boundary;
+- stop condition;
+- upstream-contact authorization, normally `false`.
 
-For parallel work, follow `COORDINATION.md`.
+A worker may edit only the owned output path. Coordinators own manifests, status, synthesis, decision, and closeout files.
 
-## 4. Work quietly
+## 4. Protect external projects before writing
+
+Before creating or editing any Fieldwork issue, PR, comment, review, report, or data record:
+
+- convert external GitHub issue, PR, discussion, and commit links to `redirect.github.com`;
+- remove external shorthand cross-references;
+- use the intentional marker only after explicit authorization for that interaction.
+
+The CI detector runs after GitHub receives interaction text. It is a safety net, not permission to post a direct reference first.
+
+## 5. Work quietly
 
 Fieldwork itself may be updated as part of the assignment. External upstream interaction remains prohibited unless the user explicitly authorizes that exact interaction.
-
-Wrap external GitHub issue, pull-request, discussion, and commit references under `REFERENCE_POLICY.md`.
 
 Preserve:
 
 - exact repository and revision;
+- retrieval date;
 - commands and environment;
 - evidence supporting each factual claim;
 - competing hypotheses;
 - negative results and uncertainty;
 - safety and data-handling boundaries.
 
-## 5. Put evidence in files
+## 6. Put evidence in the correct place
 
-The preferred durable output is a branch or pull request containing a lane report and its retained artifacts.
+Preferred durable outputs:
+
+- `campaigns/<campaign>/lanes/<lane>/report.md`
+- `batches/<batch>/results/<assignment>.md`
+- retained artifacts beside the report
 
 Use:
 
-- `templates/lane-report.md` for findings;
-- `templates/handoff.md` when transferring or completing work;
-- `templates/synthesis.md` when combining lanes.
+- `templates/lane-report.md`
+- `templates/batch-result.md`
+- `templates/handoff.md`
+- `templates/synthesis.md`
 
-Each lane owns its own directory. Avoid multiple agents editing one shared report.
+Avoid several agents editing one shared report.
 
-## 6. Report completion visibly
+## 7. Report completion visibly
 
-After the durable material is ready, post a completion comment on the lane issue using this exact summary shape:
+Post a completion comment on the relevant lane, campaign, or batch issue:
 
 ```text
 FIELDWORK HANDOFF
 State: ready-for-synthesis | blocked | negative-result | complete
-Campaign: <campaign id or issue>
-Lane: <lane id or issue>
+Batch: <batch id or none>
+Campaign: <campaign id or none>
+Assignment: <lane or probe id>
 Durable artifacts: <paths or Fieldwork PR>
 Finding: <one-paragraph result>
 Uncertainty: <remaining uncertainty>
+Dependencies discovered: <none or exact records>
 Decision needed: <none or exact decision>
+Upstream contact authorized: no | yes, with explicit authority
 ```
 
-If repository writes are unavailable, place the full handoff in the issue and mark it `needs-materialization` so a coordinator can move it into durable files.
+If repository writes are unavailable, place the full handoff in the issue and apply `needs:materialization`.
 
-## 7. Close through synthesis
+## 8. Close through acceptance and synthesis
 
-A lane is not finished merely because research stopped. It is finished when:
+Work is finished only when:
 
-- its evidence is durable or explicitly queued for materialization;
-- the issue carries a handoff state;
-- blockers and uncertainty are visible;
-- the parent campaign can discover the result;
-- the lane is merged, rejected, or intentionally retained as a negative result.
+- evidence is durable or explicitly queued for materialization;
+- the issue or batch carries a handoff;
+- blockers, uncertainty, and dependencies are visible;
+- the coordinator can discover the result;
+- the assignment is accepted, revised, promoted, or retained as a negative result.
 
-The campaign coordinator owns synthesis and final closeout.
+The coordinator owns shared state transitions and synthesis.
