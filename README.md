@@ -4,7 +4,7 @@ Public code-first research, experiments, reproductions, owned-repository trials,
 
 ## In simple words
 
-Fieldwork is where we understand software deeply enough to test real behaviour and decide whether anything should change. Programmes organize broad directions, target hubs explain recurring systems, and scout lanes map the lay of the land before concrete findings branch into campaigns.
+Fieldwork is where we understand software deeply enough to test real behaviour and decide whether anything should change. Programmes organize broad directions, target hubs explain recurring systems, and scout lanes map the lay of the land before evidence branches into more specific findings and campaigns.
 
 Fieldwork investigates external systems seriously before asking their maintainers to spend time on us. Forks hold candidate upstream code. Owned repositories may hold controlled integration trials. This repository holds durable reasoning: programme and target maps, reproductions, experiments, trial records, context dossiers, decisions, negative results, handoffs, and upstream packets.
 
@@ -31,12 +31,12 @@ A proposed change should also explain what becomes safer, faster, more correct, 
 
 ## Active research programmes
 
-- [SDK integration and lifecycle](https://github.com/teamleaderleo/fieldwork/issues/13) — streaming, retries, cancellation, state, types, transports, and observability.
+- [SDK behaviour and integration](https://github.com/teamleaderleo/fieldwork/issues/13) — public contracts, internal state, service and provider boundaries, application use, compatibility, safety, and performance.
 - [Agent and CLI execution](https://github.com/teamleaderleo/fieldwork/issues/14) — tools, approval, processes, sessions, terminals, interruption, and recovery.
 - [Web tooling and runtime correctness](https://github.com/teamleaderleo/fieldwork/issues/15) — source preservation, invalidation, teardown, isolation, compatibility, and performance.
-- [Data and durable workflows](https://github.com/teamleaderleo/fieldwork/issues/16) — transactions, retries, identity, storage, interruption, recovery, and reconciliation.
+- [Data systems and durable workflows](https://github.com/teamleaderleo/fieldwork/issues/16) — queries, transactions, storage, state, resource behaviour, recovery, reconciliation, and integration.
 
-The machine-readable portfolio is [`programmes/registry.yml`](programmes/registry.yml). The initial scout wave is already open as `type:lane`, `state:ready`, and `parallel-safe` work.
+The machine-readable portfolio is [`programmes/registry.yml`](programmes/registry.yml). Initial scouts begin with broad code and test reconnaissance. Narrow hypotheses belong in child experiments or campaigns only after evidence justifies them.
 
 ## Target hubs
 
@@ -60,11 +60,11 @@ Hubs are indexes, not giant task lists. Related issues are discovered through th
 
 **Programme hubs organize broad responsibility.** They hold the thesis, target set, scout list, candidate testbeds, branching rule, and current direction.
 
-**Scout lanes map the lay of the land.** They must return code and test maps, runnable evidence or a feasibility limit, ranked branch candidates, negative results, and a recommendation.
+**Scout lanes map the lay of the land.** They must return code and test maps, runnable evidence or a feasibility limit, ranked branch candidates, negative results, and a recommendation. They must not begin with a favourite failure mode unless the assignment explicitly calls for one.
 
 **Target hubs orient recurring work.** They hold the plain-language model, change thesis, code surfaces, discovery searches, and current direction.
 
-**Playgrounds are bounded local experimentation.** They hold small runnable tests that need no upstream fork or Fieldwork issue.
+**Playgrounds are bounded local experimentation.** They hold small runnable tests that need no upstream fork or Fieldwork issue. Canonical cases are neutral reusable inputs, not default research hypotheses.
 
 **Owned testbeds provide realistic use.** They let SDKs, runtimes, and tools run inside actual projects under controlled branches, exact revisions, and rollback rules. Add `testbed:*` only after a real trial starts.
 
@@ -81,11 +81,13 @@ Do not use one surface as a poor substitute for another. A scout is not complete
 In broad order:
 
 1. security, correctness, data integrity, and trust boundaries;
-2. lifecycle, concurrency, cancellation, retry, recovery, and partial failure;
+2. state ownership, lifecycle, concurrency, ordering, cancellation, cleanup, recovery, and partial failure;
 3. performance and resource behaviour;
 4. compatibility, protocols, deployment, and integration;
 5. API and workflow ergonomics demonstrated through actual use;
 6. refactors with a concrete correctness, safety, or maintenance payoff.
+
+This list is a value filter, not a preset checklist. Scouts should first understand the target and let the code, tests, actual usage, and evidence determine which concerns matter.
 
 Documentation, lint, wording, and style work are not default research targets.
 
@@ -107,16 +109,6 @@ Fieldwork supports these work units:
 A scout or experiment may be promoted into a finding, trial, context dossier, campaign, regression fixture, or another bounded scout when other work begins to depend on it.
 
 Any public repository may be observed quietly when a user or coordinator assigns a concrete question. Programme, target, and testbed registries are not automatic permission to work or contact upstream.
-
-## Worked example
-
-The retry/idempotency example shows the intended evidence stack:
-
-- [`playgrounds/examples/retry-idempotency/`](playgrounds/examples/retry-idempotency/) — a tiny deterministic simulator;
-- [`playgrounds/cases/retry-idempotency.json`](playgrounds/cases/retry-idempotency.json) — reusable cases;
-- [`contexts/patterns/retry-idempotency.md`](contexts/patterns/retry-idempotency.md) — standards, real integration patterns, failure propagation, observability, and explicit limitations.
-
-The small model validates one property. The context dossier explains where that property can be useful without pretending the model reproduces a specific production system.
 
 ## Repository map
 
