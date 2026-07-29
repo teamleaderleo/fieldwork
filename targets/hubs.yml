@@ -1,0 +1,42 @@
+version: 1
+
+hubs:
+  - target: vercel-ai
+    label: target:vercel-ai
+    issue: 2
+    repository: vercel/ai
+    map: targets/vercel-ai/map.md
+    state: observed
+
+  - target: workers-sdk
+    label: target:workers-sdk
+    issue: 3
+    repository: cloudflare/workers-sdk
+    map: targets/workers-sdk/map.md
+    state: observed
+
+  - target: opentelemetry-js
+    label: target:opentelemetry-js
+    issue: 4
+    repository: open-telemetry/opentelemetry-js
+    map: targets/opentelemetry-js/map.md
+    state: observed
+
+  - target: gemini-cli
+    label: target:gemini-cli
+    issue: 5
+    repository: google-gemini/gemini-cli
+    map: targets/gemini-cli/map.md
+    state: observed
+
+  - target: biome
+    label: target:biome
+    issue: 6
+    repository: biomejs/biome
+    map: targets/biome/map.md
+    state: observed
+
+notes:
+  - A hub is an index and shared orientation issue, not a task backlog.
+  - Child work is discovered primarily through the target label.
+  - Do not create hubs for inbox targets until recurring work justifies one.
