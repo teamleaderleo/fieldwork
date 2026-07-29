@@ -1,4 +1,4 @@
-version: 2
+version: 3
 snapshot_date: "2026-07-30"
 snapshot_source_main: "0c1fa8af2dd1f5ab95ba85b6492c67c5f0f0437f"
 canonical_live_state: github_issues
@@ -14,6 +14,123 @@ policy:
     - authorize_contact
     - reject_or_stop
 entries:
+  - id: RQ-009
+    priority: P0
+    title: Playwright bounded fixture recovery before afterAll
+    kind: technical_review
+    programme: web-tooling-runtime-correctness
+    target: playwright
+    state: ready_for_independent_review
+    primary_issue: 141
+    primary_pr: 49
+    related_issues:
+      - 26
+      - 142
+      - 149
+      - 153
+    evidence_commit: "dc8cfd359d1246bbad431a7a18e59f44832fcd58"
+    evidence_paths:
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-intent-review-2026-07-30.md
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-alignment-run-2026-07-30.md
+    owned_fork_prs:
+      - "teamleaderleo/playwright#24"
+      - "teamleaderleo/playwright#26"
+    required_actions:
+      - verify_skip_and_delete_mechanism
+      - review_no_budget_equal_share_and_dependency_controls
+      - verify_pre_afterall_same_budget_placement
+      - review_internal_receipt_convention
+      - decide_final_cross_platform_combined_execution
+    done_when:
+      - independent_recovery_review_recorded
+      - candidate_scope_accepted_or_revised
+      - final_cross_platform_execution_decision_recorded
+
+  - id: RQ-011
+    priority: P0
+    title: Playwright Python async shutdown after cancellation
+    kind: shutdown_state_review
+    programme: web-tooling-runtime-correctness
+    target: playwright
+    state: ready_for_independent_design_review
+    primary_issue: 149
+    primary_pr: 49
+    related_issues:
+      - 26
+    evidence_commit: "dc8cfd359d1246bbad431a7a18e59f44832fcd58"
+    evidence_paths:
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/python-async-stop-cancellation-run-2026-07-30.md
+    owned_fork_prs:
+      - "teamleaderleo/playwright-python#1"
+      - "teamleaderleo/playwright-python#2"
+    required_actions:
+      - verify_python_310_and_314_negative_reproduction
+      - compare_shared_task_state_machine_and_resumable_cleanup
+      - add_concurrent_stop_cancellation_error_and_repeat_controls
+      - decide_platform_matrix
+    done_when:
+      - independent_shutdown_review_recorded
+      - shutdown_ownership_model_selected_or_rejected
+      - regression_matrix_named
+
+  - id: RQ-012
+    priority: P0
+    title: Playwright MCP partial video finalization receipts
+    kind: mixed_result_review
+    programme: web-tooling-runtime-correctness
+    target: playwright
+    state: ready_for_independent_design_review
+    primary_issue: 153
+    primary_pr: 49
+    related_issues:
+      - 26
+    evidence_commit: "dc8cfd359d1246bbad431a7a18e59f44832fcd58"
+    evidence_paths:
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/mcp-partial-video-finalization-run-2026-07-30.md
+    owned_fork_prs:
+      - "teamleaderleo/playwright-mcp#1"
+      - "teamleaderleo/playwright-mcp#2"
+    required_actions:
+      - verify_completed_file_assertions_precede_receipt_failure
+      - trace_per_recording_finalization_and_aggregation
+      - compare_all_settled_and_fail_fast_result_contracts
+      - execute_all_success_mixed_failure_retry_cli_and_platform_controls
+    done_when:
+      - independent_mixed_result_review_recorded
+      - per_recording_result_contract_selected_or_candidate_held
+
+  - id: RQ-010
+    priority: P0
+    title: Playwright cleanup failure after expected body failure
+    kind: status_model_review
+    programme: web-tooling-runtime-correctness
+    target: playwright
+    state: ready_for_independent_design_review
+    primary_issue: 142
+    primary_pr: 49
+    related_issues:
+      - 26
+      - 141
+    evidence_commit: "dc8cfd359d1246bbad431a7a18e59f44832fcd58"
+    evidence_paths:
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md
+      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-alignment-run-2026-07-30.md
+    owned_fork_prs:
+      - "teamleaderleo/playwright#28"
+      - "teamleaderleo/playwright#29"
+    required_actions:
+      - verify_expected_body_and_cleanup_failures_are_independent
+      - trace_internal_signal_through_worker_replacement_retry_and_outcome
+      - review_reporter_serial_suite_and_max_failure_effects
+      - keep_status_model_work_separate_from_recovery_scheduler
+    done_when:
+      - independent_status_model_review_recorded
+      - invariant_accepted_or_revised
+      - implementation_owner_and_regression_matrix_named_or_candidate_held
+
   - id: RQ-001
     priority: P0
     title: MCP concurrent reconnect retry ownership
@@ -214,66 +331,6 @@ entries:
     done_when:
       - target_trace_confirms_or_disproves_gap
       - selected_repair_passes_event_affinity_control
-
-  - id: RQ-009
-    priority: P0
-    title: Playwright bounded fixture recovery before afterAll
-    kind: technical_review
-    programme: web-tooling-runtime-correctness
-    target: playwright
-    state: ready_for_independent_review
-    primary_issue: 141
-    primary_pr: 49
-    related_issues:
-      - 26
-      - 142
-    evidence_commit: "8d7ed3a79d40e8b99a170f20fc46663e41d3acfc"
-    evidence_paths:
-      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md
-      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-intent-review-2026-07-30.md
-      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-alignment-run-2026-07-30.md
-    owned_fork_prs:
-      - "teamleaderleo/playwright#24"
-      - "teamleaderleo/playwright#26"
-    required_actions:
-      - verify_skip_and_delete_mechanism
-      - review_no_budget_equal_share_and_dependency_controls
-      - verify_pre_afterall_same_budget_placement
-      - review_internal_receipt_convention
-      - decide_final_cross_platform_combined_execution
-    done_when:
-      - independent_recovery_review_recorded
-      - candidate_scope_accepted_or_revised
-      - final_cross_platform_execution_decision_recorded
-
-  - id: RQ-010
-    priority: P1
-    title: Playwright cleanup failure after expected body failure
-    kind: status_model_review
-    programme: web-tooling-runtime-correctness
-    target: playwright
-    state: ready_for_independent_design_review
-    primary_issue: 142
-    primary_pr: 49
-    related_issues:
-      - 26
-      - 141
-    evidence_commit: "8d7ed3a79d40e8b99a170f20fc46663e41d3acfc"
-    evidence_paths:
-      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md
-      - programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-alignment-run-2026-07-30.md
-    owned_fork_prs:
-      - "teamleaderleo/playwright#28"
-      - "teamleaderleo/playwright#29"
-    required_actions:
-      - verify_expected_body_and_cleanup_failures_are_independent
-      - trace_internal_signal_through_worker_replacement_retry_and_outcome
-      - review_reporter_serial_suite_and_max_failure_effects
-      - keep_status_model_work_separate_from_recovery_scheduler
-    done_when:
-      - independent_status_model_review_recorded
-      - invariant_accepted_or_revised
-      - implementation_owner_and_regression_matrix_named_or_candidate_held
 
 watchlist:
   - title: DuckDB remote publication
