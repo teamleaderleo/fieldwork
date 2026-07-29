@@ -51,6 +51,22 @@ NON_READINESS_EDGE_KINDS = {
 }
 EDGE_KINDS = READINESS_EDGE_KINDS | NON_READINESS_EDGE_KINDS
 INTRINSICALLY_SATISFIED = {"current", "ready"}
+GRAPH_KEYS = {"schema_version", "nodes", "edges"}
+NODE_KEYS = {
+    "id",
+    "generation",
+    "kind",
+    "semantic_state",
+    "input_fingerprint",
+    "semantic_fingerprint",
+    "evaluator_revision",
+    "policy_revision",
+    "authority",
+    "output_key",
+    "exclusive_output",
+}
+EDGE_KEYS = {"from", "to", "kind"}
+AUTHORITY_KEYS = {"upstream_contact"}
 
 
 class GraphError(ValueError):
@@ -69,6 +85,14 @@ def _require_list(value: Any, label: str) -> list[Any]:
     return value
 
 
+def _reject_unknown_keys(
+    value: dict[str, Any], allowed: set[str], label: str
+) -> None:
+    unknown = sorted(set(value) - allowed)
+    if unknown:
+        raise GraphError(f"{label} has unknown field {unknown[0]!r}")
+
+
 def _require_text(value: Any, label: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise GraphError(f"{label} must be a non-empty string")
@@ -78,10 +102,14 @@ def _require_text(value: Any, label: str) -> str:
 
 
 def _canonical_node(raw: Any, index: int) -> dict[str, Any]:
-    node = _require_mapping(raw, f"nodes[{index}]")
-    node_id = _require_text(node.get("id"), f"nodes[{index}].id")
+    label = f"nodes[{index}]"
+    node = _require_mapping(raw, label)
+    _reject_unknown_keys(node, NODE_KEYS, label)
+    node_id = _require_text(node.get("id"), f"{label}.id")
     generation = node.get("generation")
-    if not isinstance(generation, (str, int)) or isinstance(generation, bool):
+    if isinstance(generation, str):
+        generation = _require_text(generation, f"node {node_id!r} generation")
+    elif not isinstance(generation, int) or isinstance(generation, bool):
         raise GraphError(f"node {node_id!r} generation must be a string or integer")
 
     kind = _require_text(node.get("kind"), f"node {node_id!r} kind")
@@ -97,6 +125,7 @@ def _canonical_node(raw: Any, index: int) -> dict[str, Any]:
         )
 
     authority = _require_mapping(node.get("authority"), f"node {node_id!r} authority")
+    _reject_unknown_keys(authority, AUTHORITY_KEYS, f"node {node_id!r} authority")
     upstream_contact = authority.get("upstream_contact", False)
     if not isinstance(upstream_contact, bool):
         raise GraphError(
@@ -139,10 +168,12 @@ def _canonical_node(raw: Any, index: int) -> dict[str, Any]:
 
 
 def _canonical_edge(raw: Any, index: int) -> dict[str, str]:
-    edge = _require_mapping(raw, f"edges[{index}]")
-    source = _require_text(edge.get("from"), f"edges[{index}].from")
-    target = _require_text(edge.get("to"), f"edges[{index}].to")
-    kind = _require_text(edge.get("kind"), f"edges[{index}].kind")
+    label = f"edges[{index}]"
+    edge = _require_mapping(raw, label)
+    _reject_unknown_keys(edge, EDGE_KEYS, label)
+    source = _require_text(edge.get("from"), f"{label}.from")
+    target = _require_text(edge.get("to"), f"{label}.to")
+    kind = _require_text(edge.get("kind"), f"{label}.kind")
     if kind not in EDGE_KINDS:
         raise GraphError(f"edge {source!r}->{target!r} has unknown kind {kind!r}")
     return {"from": source, "to": target, "kind": kind}
@@ -244,6 +275,7 @@ def _validate_exclusive_outputs(
 def normalize_graph(raw: Any) -> dict[str, Any]:
     """Validate and canonicalize one bounded graph document."""
     graph = _require_mapping(raw, "graph")
+    _reject_unknown_keys(graph, GRAPH_KEYS, "graph")
     if graph.get("schema_version") != SCHEMA_VERSION:
         raise GraphError(f"schema_version must be {SCHEMA_VERSION!r}")
 
