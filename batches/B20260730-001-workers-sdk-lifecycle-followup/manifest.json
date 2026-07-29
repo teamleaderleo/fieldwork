@@ -91,10 +91,10 @@
       "owner": "coordinator",
       "target": "teamleaderleo/workers-sdk",
       "source_revision": "0497e9e30e191f2b7e337b01e32855c4cb6cf5fe",
-      "result_revision": "e343f4ffe7e12a42be8e4f7429556eed1b93b584",
+      "result_revision": "ce770e4ead8d07be499d7c0efc8a34f11d29dddc",
       "fork_pr": "teamleaderleo/workers-sdk#2",
       "question": "Under which layouts and invocation modes do Wrangler, wrangler dev, Vite, and redirected deployment configuration select different files?",
-      "method": "behaviour matrix, package-level regression tests, and compatibility analysis",
+      "method": "source trace, prepared behaviour matrix, compatibility analysis, and prior-art review",
       "claim_scope": "contract",
       "claim_to_support_or_falsify": "Configuration selection differs across Wrangler and Vite in consequential but insufficiently explicit ways involving precedence, search boundaries, explicit paths, and deploy-config redirects.",
       "preferred_primary_sources": [
@@ -111,13 +111,13 @@
         "Contradicted"
       ],
       "integration_context_path": null,
-      "deliverable": "A Fieldwork result and PR with an executable selection matrix, intentional-versus-accidental classification, and the smallest coherent shared-policy API direction.",
+      "deliverable": "A Fieldwork result and PR with a prepared executable selection matrix, intentional-versus-accidental classification, and the smallest coherent shared-policy API direction.",
       "owned_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/results/A002.md",
       "dependencies": [
         "Package execution and compatibility decision remain required before changing defaults."
       ],
       "state": "complete",
-      "stop_condition": "Stop after the matrix and compatibility boundary are demonstrated; do not silently choose new defaults without migration analysis.",
+      "stop_condition": "Stop after the source dimensions and compatibility boundary are recorded and the package matrix is prepared; do not silently choose new defaults without execution and migration analysis.",
       "review_disposition": "Characterization accepted; prefer shared policy disclosure before default alignment.",
       "upstream_contact_authorized": false
     },
@@ -127,10 +127,10 @@
       "owner": "coordinator",
       "target": "teamleaderleo/workers-sdk",
       "source_revision": "609623ba8552a016f3c67cee7259e38d8431bd91",
-      "result_revision": "79117ee8b326544384cf92374c777d7c7d6f2328",
+      "result_revision": "d0fc749398ac8628d2f60a4adb763bfb52d5ff77",
       "fork_pr": "teamleaderleo/workers-sdk#3",
       "question": "Which deployment mutations can succeed before Wrangler reports a later failure, and what state can be reported safely afterward?",
-      "method": "mutation-order map, failure injection, and state-reporting design",
+      "method": "mutation-order map, executed dependency-free failure model, prepared package regression tests, and state-reporting design",
       "claim_scope": "operations",
       "claim_to_support_or_falsify": "Wrangler can fail after Worker activation or other mutations, while current output does not consistently identify the changed state, failed phase, or safe recovery actions.",
       "preferred_primary_sources": [
@@ -154,8 +154,8 @@
         "Package execution and output-contract review remain required before applying the integration patch."
       ],
       "state": "complete",
-      "stop_condition": "Stop at accurate state reporting and recovery guidance; do not add automatic rollback unless resource-specific safety is demonstrated.",
-      "review_disposition": "State-reporting direction accepted; automatic rollback remains out of scope.",
+      "stop_condition": "Stop at accurate guarded state reporting and recovery guidance; do not add automatic rollback unless resource-specific safety is demonstrated.",
+      "review_disposition": "Guarded state-reporting direction accepted; reporting is best-effort, original error identity is authoritative, and automatic rollback remains out of scope.",
       "upstream_contact_authorized": false
     },
     {
