@@ -6,6 +6,10 @@ This file decomposes the Fieldwork findings into reviewable upstream candidates.
 
 The findings should not be submitted as one mega-issue or one mega-PR. They occur at different abstraction layers, have different compatibility risks, and require different maintainers to evaluate them.
 
+## Promoted candidates
+
+The promoted list remains five units. Additional findings below are retained as leads until their characterization runs and their preferred review boundaries are clearer.
+
 ## Candidate A — NodeSDK one-start-attempt guard
 
 ### Status
@@ -29,7 +33,7 @@ Set a `_startAttempted` guard before the first startup side effect. Later calls 
 
 ### Why separate
 
-This prevents a proven ownership split without claiming process-level restart, global disposal, or multi-instance coordination.
+This prevents a proven ownership split without claiming process-level restart, global disposal, multi-instance coordination, shutdown-before-start policy, or a complete start/shutdown state machine.
 
 ## Candidate B — `startNodeSDK()` failed-creation cleanup
 
@@ -124,20 +128,82 @@ A design issue, not an immediate implementation PR.
 - How can a helper remove a global only if it still owns that exact registration?
 - How can instrumentation cleanup avoid disabling instrumentation enabled by another owner?
 - What lifecycle is supported in hot reloaders, notebooks, test runners, and plugin hosts?
+- What should happen when shutdown is requested before or during startup?
 
 ### Why no immediate PR
 
 The current APIs do not expose ownership tokens for globals or per-instrumentation enablement ownership. Blind cleanup can remove another component's provider or disable instrumentation that NodeSDK did not enable.
 
+## Retained lead F — start/shutdown interleaving
+
+### Evidence state
+
+Characterization source exists in fork PR #1, but it has not run in this environment.
+
+Fieldwork record:
+
+`artifacts/nodesdk-shutdown-start-interleaving.md`
+
+### Source-predicted behavior
+
+- `shutdown()` before first `start()` resolves successfully because no provider fields exist;
+- a later `start()` still installs live providers;
+- instrumentation can synchronously reenter `shutdown()` during `start()` before providers exist;
+- that shutdown promise resolves while startup continues and installs providers afterward.
+
+### Why it is not promoted yet
+
+The narrow start guard does not answer the contract. A real solution may require explicit `starting`, `shutting-down`, and terminal states. Before creating another issue, the characterization should run and the compatibility choice should be framed: terminal early shutdown, deferred shutdown, explicit invalid ordering, or documented unsupported ordering.
+
+### Required invariant
+
+After a shutdown promise resolves, the same helper object should not subsequently install newly running providers.
+
+## Retained lead G — lifecycle fanout after synchronous child exceptions
+
+### Evidence state
+
+A NodeSDK characterization test exists, and a source comparison covers trace, logs, metrics, and NodeSDK. The test has not run in this environment, and direct logs/metrics aggregate tests are not yet present.
+
+Fieldwork record:
+
+`artifacts/shutdown-fanout-synchronous-throw.md`
+
+### Source-predicted behavior
+
+Several aggregate lifecycle paths eagerly invoke children inside loops or `.map()` while building `Promise.all` inputs.
+
+- trace can throw synchronously before returning a promise and skip later processors;
+- a synchronous trace-provider exception can prevent NodeSDK from requesting logs and metrics shutdown;
+- logs and metrics return rejected promises through `async` methods, but later processors or collectors are still skipped when `.map()` aborts;
+- force-flush paths have related behavior.
+
+### Why it is not promoted yet
+
+The correct review unit is unresolved. It could be:
+
+- a trace-only `MultiSpanProcessor` correction;
+- parallel per-signal fixes;
+- a NodeSDK aggregate-shutdown correction;
+- or a shared cross-signal fanout helper and error contract.
+
+The desired error policy also needs agreement: fail-fast rejection after attempting all children, or complete error aggregation.
+
+## Negative lead — logger startup ordering
+
+A concern that instrumentations might remain bound to a no-op logger provider was checked and rejected. The logs API uses a proxy logger provider, and first global registration sets its delegate. Existing proxy logger references can retarget. This result remains documented so the same false lead is not reopened.
+
 ## Recommended submission order
 
 1. Candidate A: same-object start guard.
 2. Candidate B: failed function-start cleanup.
-3. Candidate C: trace provider shutdown contract.
-4. Candidate D: metric reader binding transactionality.
-5. Candidate E: global installation and disposal design.
+3. Run and decide retained lead F without silently expanding candidate A.
+4. Candidate C: trace provider shutdown contract.
+5. Run and classify retained lead G; decide whether it belongs with candidate C or a cross-signal proposal.
+6. Candidate D: metric reader binding transactionality.
+7. Candidate E: global installation and disposal design.
 
-Candidates A and B are small, evidenced fixes. Candidates C and D are lower-level correctness issues. Candidate E is the umbrella design discussion informed by the earlier concrete fixes.
+Candidates A and B are small, evidenced fixes. Candidates C and D are lower-level correctness issues. Candidate E is the umbrella design discussion informed by the earlier concrete fixes. Leads F and G are deliberately not counted as promoted proposals yet.
 
 ## What should link to Fieldwork
 
