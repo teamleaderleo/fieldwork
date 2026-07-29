@@ -1,0 +1,43 @@
+name: Fieldwork lru-cache owned fix
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/fieldwork-lru-cache-owned-fix.yml'
+      - 'programmes/data-durable-workflows/scouts/lru-cache-background-fetch-size/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  focused-test:
+    name: Node.js ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - 22
+          - 24
+          - 26
+    steps:
+      - name: Check out owned fork candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/node-lru-cache
+          ref: fieldwork/background-fetch-size-validation
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Apply candidate source patch
+        run: git apply --check .fieldwork/background-fetch-size-validation.patch && git apply .fieldwork/background-fetch-size-validation.patch
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run focused regression
+        run: npm test -- test/background-fetch-size.ts
