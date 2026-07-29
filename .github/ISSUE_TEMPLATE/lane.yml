@@ -1,0 +1,55 @@
+name: Research lane
+description: Create one independently owned unit of campaign work
+title: "[Lane] "
+labels: []
+body:
+  - type: input
+    id: campaign
+    attributes:
+      label: Parent campaign
+      description: Fieldwork campaign identifier or issue number.
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Lane question
+      description: State one independently answerable question.
+    validations:
+      required: true
+  - type: textarea
+    id: deliverable
+    attributes:
+      label: Exact deliverable
+    validations:
+      required: true
+  - type: input
+    id: owned_path
+    attributes:
+      label: Lane-owned path
+      description: Example campaigns/0001-example/lanes/01-source-map/
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Target source revision
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and affected lanes
+  - type: textarea
+    id: stop
+    attributes:
+      label: Stop condition
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Boundaries
+      options:
+        - label: This lane does not authorize upstream contact.
+          required: true
+        - label: I will use the Fieldwork handoff protocol when the lane stops.
+          required: true

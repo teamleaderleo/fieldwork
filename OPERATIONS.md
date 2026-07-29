@@ -1,5 +1,18 @@
 # Operations
 
+## Live and durable records
+
+GitHub issues are the live queue. Campaign and lane files are the durable evidence record. Follow `WORKBOARD.md` and `COORDINATION.md` for parallel work and handoffs.
+
+## Work hierarchy
+
+- A **finding** preserves an observation.
+- A **lead** awaits triage.
+- A **campaign** owns one bounded parent question.
+- A **lane** owns one independent research unit inside a campaign.
+- A **decision** requests human or coordinator judgement.
+- A **synthesis** reconciles lane results.
+
 ## Intake
 
 A lead can enter Fieldwork when it comes from:
@@ -25,6 +38,19 @@ Score a lead informally across five dimensions:
 
 Prefer leads with strong intrinsic value and evidence access. Visibility is a secondary multiplier.
 
+## Activation
+
+A campaign becomes active only when it has:
+
+- one falsifiable question;
+- intrinsic value;
+- explicit scope and non-goals;
+- a coordinator;
+- stop conditions;
+- a parent issue and durable directory.
+
+Parallel lanes are created only after the parent campaign identifies distinct deliverables.
+
 ## Time boundaries
 
 Before maintainer direction, cap speculative implementation. Spend enough time to produce a credible reproduction and proposal, then pause when acceptance depends on upstream design choices.
@@ -34,8 +60,14 @@ Do not maintain more active upstream submissions than can be answered promptly a
 ## Campaign states
 
 - `observed`
+- `triage`
+- `ready`
+- `claimed`
 - `reproducing`
 - `investigating`
+- `blocked`
+- `ready-for-synthesis`
+- `synthesising`
 - `candidate`
 - `seeking-direction`
 - `implementing`
@@ -45,6 +77,7 @@ Do not maintain more active upstream submissions than can be answered promptly a
 - `withdrawn`
 - `negative-result`
 - `dormant`
+- `complete`
 
 ## Stop conditions
 
@@ -76,6 +109,8 @@ Review active campaigns for:
 - stale assumptions caused by upstream changes;
 - excessive scope;
 - candidates ready for a decision;
+- lanes ready for synthesis;
+- abandoned claims;
 - leads that should be closed rather than carried indefinitely.
 
 ## Metrics

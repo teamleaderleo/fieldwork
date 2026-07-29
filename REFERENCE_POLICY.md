@@ -58,4 +58,11 @@ An intentional upstream interaction exists. Direct references are permitted wher
 
 ## Enforcement
 
-`scripts/check_external_references.py` scans tracked prose and data files. The reference-policy workflow runs it for pushes and pull requests. A marker is an auditable exception, not a convenient bypass.
+Two workflows cover different surfaces:
+
+1. `scripts/check_external_references.py` scans tracked prose and data files on pushes to `main` and pull requests.
+2. `scripts/check_interaction_references.js` scans new or edited Fieldwork issue bodies, pull-request bodies, and issue or pull-request comments.
+
+Interaction enforcement cannot prevent an issue or comment from being created. It posts or updates a visible policy result. For pull-request bodies, the workflow can become merge-blocking only after its check is required in branch protection.
+
+A marker is an auditable exception, not a convenient bypass.

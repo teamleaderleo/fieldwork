@@ -1,0 +1,36 @@
+name: Research decision
+description: Request a bounded human or coordinator decision
+title: "[Decision] "
+labels: []
+body:
+  - type: input
+    id: campaign
+    attributes:
+      label: Campaign or lane
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision required
+      description: State the exact choice that must be made.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence available
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options and consequences
+    validations:
+      required: true
+  - type: textarea
+    id: default
+    attributes:
+      label: Safe default if unanswered
+    validations:
+      required: true

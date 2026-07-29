@@ -1,28 +1,34 @@
 # Campaigns
 
-A campaign is a bounded investigation with one primary question and an explicit closeout.
+A campaign is one bounded parent investigation. Parallel work lives in lane directories and lane issues.
 
-## Naming
-
-Use a stable numeric identifier and short descriptive slug:
+## Required files
 
 ```text
-campaigns/0002-stream-reconnect-state/
+campaigns/<campaign-id>-<slug>/
+├── STATUS.md
+├── question.md
+├── lanes/
+│   └── <lane-id>-<slug>/
+│       ├── report.md
+│       └── artifacts/
+├── synthesis.md
+├── decision.md
+└── closeout.md
 ```
 
-## Minimum contents
+Create files as they become necessary; empty placeholders are optional.
 
-- `question.md` — question, motivation, scope, and stop conditions;
-- `investigation.md` — source map, reproduction, hypotheses, and findings;
-- `decision.md` — chosen outcome and rationale;
-- `upstream.md` — only when upstream contact is being prepared or has occurred;
-- `reproduction/` or `experiments/` — when retained artifacts are useful.
+## Ownership
 
-## Rules
+- Coordinator: `STATUS.md`, synthesis, decision, and closeout.
+- Lane owner: that lane's report and artifacts.
+- Human decision-maker: explicit approval for upstream contact and consequential scope changes.
 
-- One campaign, one primary question.
-- External references stay quiet until submission is deliberate.
-- Exact source revisions are required for source-dependent claims.
-- A campaign can close without an upstream artifact.
-- Every conclusion states remaining uncertainty.
-- Record dead ends that could save future work.
+## Identifiers
+
+Campaign identifiers are stable and zero-padded. Lane identifiers are stable within the campaign. Issue numbers may be recorded, but directory identities do not change when issues move or are recreated.
+
+## Durable status
+
+`STATUS.md` is a bounded snapshot, not a replacement for the issue queue. It records the campaign state, coordinator, parent issue, active lane identifiers, target revisions, and next decision.

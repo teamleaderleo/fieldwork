@@ -1,0 +1,97 @@
+version: 1
+
+# Presence here is not an endorsement, work queue, or claim about current openness.
+# Reassess current policy and activity before activating any target.
+
+targets:
+  - id: vercel-ai
+    repository: vercel/ai
+    state: mapped
+    domains: [agents, model-providers, streaming, tool-calling, generative-ui]
+
+  - id: workers-sdk
+    repository: cloudflare/workers-sdk
+    state: mapped
+    domains: [runtimes, deployment, testing, developer-tooling]
+
+  - id: opentelemetry-js
+    repository: open-telemetry/opentelemetry-js
+    state: mapped
+    domains: [observability, tracing, metrics, interoperability]
+
+  - id: gemini-cli
+    repository: google-gemini/gemini-cli
+    state: mapped
+    domains: [agents, cli, developer-tooling]
+
+  - id: biome
+    repository: biomejs/biome
+    state: mapped
+    domains: [parser, formatter, linter, language-server]
+
+  - id: deno
+    repository: denoland/deno
+    state: inbox
+    domains: [runtime, web-platform, node-compatibility]
+
+  - id: bun
+    repository: oven-sh/bun
+    state: inbox
+    domains: [runtime, bundler, package-manager, node-compatibility]
+
+  - id: uv
+    repository: astral-sh/uv
+    state: inbox
+    domains: [python, package-manager, performance]
+
+  - id: ruff
+    repository: astral-sh/ruff
+    state: inbox
+    domains: [python, parser, linter, formatter]
+
+  - id: supabase
+    repository: supabase/supabase
+    state: inbox
+    domains: [database, auth, edge-functions, developer-platform]
+
+  - id: mcp-typescript-sdk
+    repository: modelcontextprotocol/typescript-sdk
+    state: watch
+    domains: [protocols, agents, tool-calling, interoperability]
+    note: Reassess current contribution policy and release transition before activation.
+
+  - id: codex
+    repository: openai/codex
+    state: watch
+    domains: [agents, cli, developer-tooling]
+    note: Reassess current contribution policy before proposing implementation work.
+
+  - id: playwright
+    repository: microsoft/playwright
+    state: inbox
+    domains: [browser-automation, testing, protocols]
+
+  - id: duckdb
+    repository: duckdb/duckdb
+    state: inbox
+    domains: [database, analytics, query-engine]
+
+  - id: tauri
+    repository: tauri-apps/tauri
+    state: inbox
+    domains: [desktop, rust, webview, packaging]
+
+  - id: wasmtime
+    repository: bytecodealliance/wasmtime
+    state: inbox
+    domains: [wasm, runtime, compiler, security]
+
+  - id: vite
+    repository: vitejs/vite
+    state: inbox
+    domains: [build-tooling, dev-server, plugins]
+
+  - id: node
+    repository: nodejs/node
+    state: inbox
+    domains: [runtime, web-platform, compatibility]

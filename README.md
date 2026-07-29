@@ -2,31 +2,37 @@
 
 Public research, experiments, reproductions, and upstream engineering campaigns.
 
-Fieldwork exists to investigate external systems seriously before asking their maintainers to spend time on us. Forks hold candidate code. This repository holds the durable reasoning: questions, source maps, reproductions, experiments, decisions, negative results, and upstream packets.
+Fieldwork exists to investigate external systems seriously before asking their maintainers to spend time on us. Forks hold candidate code. This repository holds the durable reasoning: questions, source maps, reproductions, experiments, decisions, negative results, handoffs, and upstream packets.
 
-## What this is for
+## Enter here
 
-- investigate problems encountered while building our own projects;
-- map important external systems without immediately contacting upstream;
-- turn uncertain observations into reproducible findings;
-- prepare contributions that reduce, rather than export, verification work;
-- study rigorous human-accountable AI-assisted engineering;
-- retain useful research even when no patch is submitted or accepted.
+- [`START_HERE.md`](START_HERE.md) — exact runbook for a person or agent sent to Fieldwork.
+- [`WORKBOARD.md`](WORKBOARD.md) — how to find work, distinguish records, and see what is ready.
+- [`COORDINATION.md`](COORDINATION.md) — parallel lanes, ownership, handoffs, synthesis, and completion signals.
+- [Open Fieldwork issues](https://github.com/teamleaderleo/fieldwork/issues) — canonical live queue.
 
 ## Operating principle
 
 > Every upstream submission should reduce the maintainer's uncertainty more than it increases their review burden.
 
+## Two surfaces
+
+**GitHub issues are live coordination.** They hold claims, assignments, state changes, blockers, decisions, and completion signals.
+
+**Repository files are durable evidence.** They hold source maps, exact revisions, reproductions, experiments, reports, synthesis, and closeout records.
+
+Do not use one surface as a poor substitute for the other. A long-lived finding should not exist only in an issue comment, and a status file should not become a manually maintained imitation of the issue queue.
+
 ## Repository map
 
 - [`CHARTER.md`](CHARTER.md) — purpose, boundaries, and standards.
-- [`METHOD.md`](METHOD.md) — the campaign lifecycle.
-- [`OPERATIONS.md`](OPERATIONS.md) — day-to-day intake, triage, and stopping rules.
+- [`METHOD.md`](METHOD.md) — campaign lifecycle and evidence method.
+- [`OPERATIONS.md`](OPERATIONS.md) — intake, triage, states, and stopping rules.
 - [`REFERENCE_POLICY.md`](REFERENCE_POLICY.md) — quiet external references and intentional contact.
-- [`targets/`](targets/) — maps of ecosystems worth understanding.
+- [`targets/`](targets/) — target registry and deeper ecosystem maps.
 - [`research/`](research/) — cross-project research programmes.
-- [`campaigns/`](campaigns/) — bounded investigations with explicit outcomes.
-- [`templates/`](templates/) — reusable investigation and upstream documents.
+- [`campaigns/`](campaigns/) — bounded investigations and parallel lane reports.
+- [`templates/`](templates/) — investigation, lane, handoff, synthesis, and upstream documents.
 - [`ledger/`](ledger/) — machine-readable findings and contribution history.
 
 ## Reference states
@@ -35,9 +41,9 @@ Fieldwork exists to investigate external systems seriously before asking their m
 2. **Candidate** — evidence exists, but upstream contact has not been earned.
 3. **Submitted** — deliberate upstream interaction exists and direct references may be used.
 
-## Current target set
+## Target set
 
-The initial maps cover Vercel AI SDK, Cloudflare Workers SDK, OpenTelemetry JavaScript, Gemini CLI, and Biome. These are research targets, not quotas or obligations. Work starts when a problem intersects something we actually care about.
+The target registry contains mapped, watch, and unassessed candidates. A target's presence is not a quota, endorsement, or commitment. Work starts when a question intersects something we actually value.
 
 ## First research programme
 

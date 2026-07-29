@@ -1,38 +1,30 @@
 # Targets
 
-Target maps make important external systems legible before any campaign commits to them.
+Targets are external ecosystems worth understanding. The registry is intentionally broader than the set of active campaigns.
 
-A target is not a promise to contribute. It is a maintained answer to:
+## Lifecycle
 
-- What is this system responsible for?
-- Which parts overlap our actual work?
-- How is it governed and reviewed?
-- What evidence can we produce locally?
-- What kinds of contributions appear viable?
-- What would make us stop?
+- `inbox` — plausible target, not assessed.
+- `mapped` — basic project, policy, ownership, and contribution map exists.
+- `active` — one or more current campaigns depend on the target.
+- `watch` — potentially relevant, but policy, congestion, or direction should be reassessed before work.
+- `paused` — no current value or capacity.
+- `retired` — intentionally removed from consideration.
 
-## Initial maps
+## Activation rule
 
-- [Vercel AI SDK](vercel-ai/map.md)
-- [Cloudflare Workers SDK](workers-sdk/map.md)
-- [OpenTelemetry JavaScript](opentelemetry-js/map.md)
-- [Gemini CLI](gemini-cli/map.md)
-- [Biome](biome/map.md)
+A registry entry does not authorize research or contribution work. Activate a target only when a concrete question intersects something we care about.
 
-## Secondary watchlist
+Before activation, record:
 
-These remain high-visibility systems worth mapping only when a real question intersects them:
+- canonical repository and governance owner;
+- contribution and AI-assistance policy;
+- issue and review process;
+- release cadence and supported branches;
+- relevant subsystems;
+- known review bottlenecks;
+- local projects that create a genuine reason to investigate it.
 
-- Deno
-- Bun
-- uv and Ruff
-- Supabase
-- Model Context Protocol SDKs and specification
-- React and Next.js
-- OpenAI Codex
+## Directory rule
 
-High visibility does not compensate for inaccessible review, unclear governance, or work we do not care about.
-
-## Map maintenance
-
-Verify contribution policies, active branches, release channels, and maintainer guidance at the start of every campaign. A target map is orientation, not permanent truth.
+Use `targets/<slug>/map.md` for a durable target map. Keep low-cost possibilities only in `registry.yml` until deeper mapping is justified.
