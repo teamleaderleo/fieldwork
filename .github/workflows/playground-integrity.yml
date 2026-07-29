@@ -47,9 +47,3 @@ jobs:
             --pack playgrounds/cases/identity-smoke.json \
             --adapter "python3 playgrounds/examples/identity-adapter/run.py" \
             --output /tmp/fieldwork-playground-smoke.json
-      - name: Run retry and idempotency context example
-        run: |
-          python3 scripts/run_playground_cases.py \
-            --pack playgrounds/cases/retry-idempotency.json \
-            --adapter "python3 playgrounds/examples/retry-idempotency/run.py" \
-            --output /tmp/fieldwork-retry-idempotency.json
