@@ -9,8 +9,8 @@ Coordinator-owned file. Workers must not edit this file directly.
 | Assignment | Role | State | Workers SDK branch / PR | Fieldwork result | Review |
 | --- | --- | --- | --- | --- | --- |
 | A001 | Teardown lifecycle ownership | complete | `fieldwork/teardown-lifecycle-hardening` / fork PR #1 | `results/A001.md` via Fieldwork PR #98 | Coordinator review recorded on fork PR #1; execution gate remains |
-| A002 | Configuration selection contract | complete | `fieldwork/config-selection-contract` / fork PR #2 | `results/A002.md` | Predecessor matrix reviewed by A001; coordinator completed package matrix and synthesis |
-| A003 | Partial deployment state | complete | `fieldwork/deploy-state-reporting` / fork PR #3 | `results/A003.md` | Coordinator source review and executed receipt model |
+| A002 | Configuration selection contract | complete | `fieldwork/config-selection-contract` / fork PR #2 | `results/A002.md` | Cross-tool precedent review added; behavior-preserving shared-policy direction accepted |
+| A003 | Partial deployment state | complete | `fieldwork/deploy-state-reporting` / fork PR #3 | `results/A003.md` | Activation-path matrix corrected; receipt model rerun successfully |
 | A004 | Independent review and prior art | withdrawn | none | `results/A004.md` | Duties redistributed at user direction |
 
 ## Shared boundaries
@@ -34,21 +34,25 @@ Mechanism accepted. Before source integration:
 
 ### A002
 
-Characterization accepted. Before behavior changes:
+Protocol direction accepted. Before behavior changes:
 
 - execute the Vite package matrix;
 - review cross-platform fixture behavior;
-- decide whether to align defaults or expose shared policy and selection reasons while retaining different defaults.
+- centralize current outcomes behind named `wrangler-cli`, `wrangler-dev`, and `vite-root` profiles;
+- add a stable selection trace or `config explain` surface;
+- do not align defaults until ambiguous layouts and migration cost are understood.
 
 ### A003
 
 State-reporting direction accepted. Before source integration:
 
 - execute deploy-helper tests;
-- inject failures into new and legacy deploy paths;
+- inject legacy-upload/container failure;
+- inject versions-deployment/trigger failure;
+- inject legacy-upload/trigger failure;
 - review terminal and machine-readable output contracts;
 - keep automatic rollback out of the first patch.
 
 ## Synthesis
 
-`synthesis.md` is ready for programme-level review. The next useful work requires a complete Workers SDK checkout with dependencies or an owned CI route capable of executing the package tests.
+`synthesis.md` is ready for programme-level review. The next useful implementation work requires a complete Workers SDK checkout with dependencies or an owned CI route capable of executing the package tests.
