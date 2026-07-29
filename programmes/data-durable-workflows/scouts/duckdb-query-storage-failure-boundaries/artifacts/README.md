@@ -11,7 +11,7 @@ These files preserve the successful deterministic run used by the DuckDB boundar
 - Testbed: `teamleaderleo/narrative-duckdb`
 - Testbed base: `c9418ffa81f85e320d1367c91ccefd9faf4e0721`
 - Testbed successful head: `558765d3703e0a1fa9374b30562af398693301a2`
-- Testbed draft PR: `teamleaderleo/narrative-duckdb#1`
+- Testbed draft PR: https://redirect.github.com/teamleaderleo/narrative-duckdb/pull/1
 - Workflow run: `30468216997`
 - Workflow artifact ID: `8730475009`
 - Workflow artifact digest: `sha256:3368164ed21226ab5945c16c9f341c3d4bfdf1abf3501a9676e199e578d6c45b`
