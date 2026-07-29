@@ -1,12 +1,27 @@
 # External Reference Policy
 
-References to issues, pull requests, discussions, and commits in repositories we do not control are **non-invasive by default**.
+References to issues, pull requests, discussions, and commits in third-party repositories we do not control are **non-invasive by default**.
 
-## Why
+## Owned repositories
 
-A direct GitHub cross-reference can create backlinks, notifications, and implied involvement. Research should not enter an upstream project's attention merely because Fieldwork recorded a public note.
+Repositories under `teamleaderleo/*` are first-party coordination surfaces for Fieldwork.
 
-## Mandatory default
+Direct GitHub URLs and normal cross-repository shorthand are allowed for them:
+
+```text
+https://github.com/teamleaderleo/stensibly/issues/490
+teamleaderleo/stensibly#490
+```
+
+Do not rewrite owned-repository references through `redirect.github.com`. Do not require an intentional-upstream marker for them. Fieldwork may link freely among owned issues, pull requests, commits, branches, files, experiments, and testbed records.
+
+The controlled-owner set is implemented by the scanners and can be extended with the comma-separated `FIELDWORK_OWNED_GITHUB_OWNERS` environment variable.
+
+## Why third-party links remain quiet
+
+A direct GitHub cross-reference can create backlinks, notifications, and implied involvement. Research should not enter a third-party upstream project's attention merely because Fieldwork recorded a public note.
+
+## Mandatory default for third-party repositories
 
 Use backlink-suppressing URLs:
 
@@ -19,11 +34,11 @@ https://redirect.github.com/OWNER/REPOSITORY/commit/SHA
 
 Use descriptive link text. Preserve owner, repository, item number, retrieval date, and source revision where relevant.
 
-Do not use external shorthand cross-references. Do not use closing keywords against external work.
+Do not use third-party shorthand cross-references. Do not use closing keywords against third-party work.
 
 ## Intentional upstream contact
 
-A direct link is allowed only when it records a specifically authorized interaction, such as:
+A direct third-party link is allowed only when it records a specifically authorized interaction, such as:
 
 - opening or updating the actual upstream issue or pull request;
 - replying in an existing upstream conversation;
@@ -42,31 +57,31 @@ The marker exempts only the marked line or the immediately following line. It do
 
 ### Observed
 
-Quiet investigation. External issue, PR, discussion, and commit references are wrapped.
+Quiet investigation. Third-party issue, PR, discussion, and commit references are wrapped. Owned-repository references remain direct.
 
 ### Candidate
 
-Evidence exists and an upstream packet may be under preparation. References remain wrapped.
+Evidence exists and an upstream packet may be under preparation. Third-party references remain wrapped. Owned-repository references remain direct.
 
 ### Submitted
 
-An intentional upstream interaction exists. Direct references are permitted only where they accurately record that interaction.
+An intentional upstream interaction exists. Direct third-party references are permitted only where they accurately record that interaction.
 
 ## Agent prevention
 
-`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and Copilot instructions all require wrapping before any Fieldwork interaction is created. This is the primary safeguard.
+`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and Copilot instructions require wrapping only for third-party upstream work. They explicitly permit direct links and shorthand within `teamleaderleo/*`.
 
 ## Enforcement surfaces
 
 1. `scripts/check_external_references.py` scans tracked prose and data files on pushes to `main` and pull requests.
 2. `scripts/check_interaction_references.js` scans new or edited issue bodies, PR bodies, conversation comments, submitted review text, and inline review comments.
-3. The interaction workflow applies `policy:reference-violation` to the parent issue or PR when it detects a violation and removes the label after correction.
-4. Issue forms disable blank issues in the web interface and require acknowledgement of the quiet-reference rule.
+3. Both scanners exempt controlled owners and have regression tests for owned direct links and shorthand.
+4. The interaction workflow applies `policy:reference-violation` to the parent issue or PR when it detects a third-party violation and removes the label after correction.
+5. Issue forms disable blank issues in the web interface and require acknowledgement of the third-party quiet-reference rule.
 
-The interaction workflow runs after GitHub receives the text. It cannot guarantee that GitHub never processes the original direct reference. Workers must wrap references before posting. Branch protection can make the PR interaction check merge-blocking; it cannot make issue creation transactional.
+The interaction workflow runs after GitHub receives the text. It cannot guarantee that GitHub never processes the original third-party reference. Workers must wrap third-party references before posting. Branch protection can make the PR interaction check merge-blocking; it cannot make issue creation transactional.
 
-## Exceptions
+## Other exceptions
 
 - Repository roots, documentation sites, specifications, package registries, and release pages are unaffected.
-- References within a repository we control may be direct.
-- Archived evidence imported from upstream should be sanitized or explicitly exempted before commit.
+- Archived evidence imported from third-party upstream work should be sanitized or explicitly exempted before commit.
