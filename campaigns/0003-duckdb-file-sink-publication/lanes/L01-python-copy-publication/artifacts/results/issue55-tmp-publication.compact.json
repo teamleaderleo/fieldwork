@@ -1,0 +1,59 @@
+{
+  "cases": [
+    {
+      "case":"fresh_tmp_visibility","format":"csv","returncode":0,"marker_exists_after":true,
+      "first_tmp_visible_seconds":0.11399430299999835,"first_tmp_nonzero_seconds":0.11399430299999835,"first_final_visible_seconds":0.3876774219999959,"marker_existed_at_first_final":false,"max_tmp_size_bytes":35720707,
+      "first_final_inspection":{"checksum":124999750000,"exists":true,"maximum":499999,"minimum":0,"readable":true,"row_count":500000,"size_bytes":35888900},
+      "tmp_at_first_final":{"exists":false},"final_after":{"checksum":124999750000,"exists":true,"maximum":499999,"minimum":0,"readable":true,"row_count":500000,"size_bytes":35888900},"tmp_after":{"exists":false}
+    },
+    {
+      "case":"fresh_explicit_crash","format":"csv","killed":true,"returncode":-9,
+      "observation":{"first_final_visible_seconds":null,"first_watched_nonzero_seconds":0.12075317000000041,"first_watched_visible_seconds":0.12075317000000041,"observed_size_bytes":1277952,"process_running":true,"samples":62,"threshold_at_seconds":0.12924702099999763,"threshold_bytes":1048576},
+      "final_after_kill":{"exists":false},"tmp_after_kill":{"checksum":169860096,"exists":true,"maximum":18431,"minimum":0,"readable":true,"row_count":18432,"size_bytes":1297571},
+      "explicit_retry_with_residue":{"succeeded":true,"final":{"checksum":1999000,"exists":true,"maximum":1999,"minimum":0,"readable":true,"row_count":2000,"size_bytes":138900},"tmp":{"exists":false}}
+    },
+    {
+      "case":"existing_default_interrupt","format":"csv","connection_reusable":true,"first_tmp_visible_seconds":0.0023961300000223673,"interrupted_at_seconds":0.004489943999999468,"max_tmp_size_before_interrupt_bytes":285619,"threshold_reached":true,"thread_finished":true,
+      "outcome":{"completed":false,"error":"INTERRUPT Error: Interrupted!","error_type":"InterruptException"},
+      "seed":{"checksum":499500,"exists":true,"maximum":999,"minimum":0,"readable":true,"row_count":1000,"size_bytes":68900},
+      "final_after":{"checksum":499500,"exists":true,"maximum":999,"minimum":0,"readable":true,"row_count":1000,"size_bytes":68900},"tmp_after":{"exists":false}
+    },
+    {
+      "case":"existing_default_crash","format":"csv","killed":true,"returncode":-9,
+      "observation":{"first_final_visible_seconds":0.0000014830000054644188,"first_watched_nonzero_seconds":0.1106046350000156,"first_watched_visible_seconds":0.1106046350000156,"observed_size_bytes":1297571,"process_running":true,"samples":58,"threshold_at_seconds":0.11901068200000964,"threshold_bytes":1048576},
+      "seed":{"checksum":499500,"exists":true,"maximum":999,"minimum":0,"readable":true,"row_count":1000,"size_bytes":68900},
+      "final_after_kill":{"checksum":499500,"exists":true,"maximum":999,"minimum":0,"readable":true,"row_count":1000,"size_bytes":68900},
+      "tmp_after_kill":{"checksum":169860096,"exists":true,"maximum":18431,"minimum":0,"readable":true,"row_count":18432,"size_bytes":1297571},
+      "default_retry_with_tmp_residue":{"succeeded":true,"final":{"checksum":1999000,"exists":true,"maximum":1999,"minimum":0,"readable":true,"row_count":2000,"size_bytes":138900},"tmp":{"exists":false}}
+    },
+    {
+      "case":"fresh_tmp_visibility","format":"parquet","returncode":0,"marker_exists_after":true,
+      "first_tmp_visible_seconds":0.11381574400002137,"first_tmp_nonzero_seconds":0.21514028800001483,"first_final_visible_seconds":0.5124622250000073,"marker_existed_at_first_final":false,"max_tmp_size_bytes":10620166,
+      "first_final_inspection":{"checksum":124999750000,"exists":true,"maximum":499999,"minimum":0,"readable":true,"row_count":500000,"size_bytes":10801032},
+      "tmp_at_first_final":{"exists":false},"final_after":{"checksum":124999750000,"exists":true,"maximum":499999,"minimum":0,"readable":true,"row_count":500000,"size_bytes":10801032},"tmp_after":{"exists":false}
+    },
+    {
+      "case":"fresh_explicit_crash","format":"parquet","killed":true,"returncode":-9,
+      "observation":{"first_final_visible_seconds":null,"first_watched_nonzero_seconds":0.21706177599998,"first_watched_visible_seconds":0.1167299269999944,"observed_size_bytes":2682051,"process_running":true,"samples":105,"threshold_at_seconds":0.21706177599998,"threshold_bytes":1048576},
+      "final_after_kill":{"exists":false},"tmp_after_kill":{"error":"Invalid Input Error: No magic bytes found at end of file","error_type":"InvalidInputException","exists":true,"readable":false,"size_bytes":2682051},
+      "explicit_retry_with_residue":{"succeeded":true,"final":{"checksum":1999000,"exists":true,"maximum":1999,"minimum":0,"readable":true,"row_count":2000,"size_bytes":47823},"tmp":{"exists":false}}
+    },
+    {
+      "case":"existing_default_interrupt","format":"parquet","connection_reusable":true,"first_tmp_visible_seconds":0.0023476989999835496,"interrupted_at_seconds":0.09805585299997688,"max_tmp_size_before_interrupt_bytes":2097152,"threshold_reached":true,"thread_finished":true,
+      "outcome":{"completed":false,"error":"INTERRUPT Error: Interrupted!","error_type":"InterruptException"},
+      "seed":{"checksum":499500,"exists":true,"maximum":999,"minimum":0,"readable":true,"row_count":1000,"size_bytes":21410},
+      "final_after":{"checksum":499500,"exists":true,"maximum":999,"minimum":0,"readable":true,"row_count":1000,"size_bytes":21410},"tmp_after":{"exists":false}
+    },
+    {
+      "case":"existing_default_crash","format":"parquet","killed":true,"returncode":-9,
+      "observation":{"first_final_visible_seconds":0.0000009219999981269211,"first_watched_nonzero_seconds":0.20870831799999223,"first_watched_visible_seconds":0.11067111700000964,"observed_size_bytes":1048576,"process_running":true,"samples":101,"threshold_at_seconds":0.20870831799999223,"threshold_bytes":1048576},
+      "seed":{"checksum":499500,"exists":true,"maximum":999,"minimum":0,"readable":true,"row_count":1000,"size_bytes":21410},
+      "final_after_kill":{"checksum":499500,"exists":true,"maximum":999,"minimum":0,"readable":true,"row_count":1000,"size_bytes":21410},
+      "tmp_after_kill":{"error":"Invalid Input Error: No magic bytes found at end of file","error_type":"InvalidInputException","exists":true,"readable":false,"size_bytes":2097152},
+      "default_retry_with_tmp_residue":{"succeeded":true,"final":{"checksum":1999000,"exists":true,"maximum":1999,"minimum":0,"readable":true,"row_count":2000,"size_bytes":47823},"tmp":{"exists":false}}
+    }
+  ],
+  "checks":{"passed":58,"failed":0},
+  "constants":{"interrupt_threshold_bytes":262144,"long_rows":100000000,"retry_rows":2000,"seed_rows":1000,"success_rows":500000,"threshold_bytes":1048576},
+  "duckdb_version":"1.5.5","platform":"Linux-6.17.0-1020-azure-x86_64-with-glibc2.39","probe":"fieldwork-issue55-tmp-publication-v2","python_version":"3.13.14"
+}
