@@ -2,7 +2,7 @@
 
 This directory is Fieldwork's fork-free experimental workspace.
 
-A playground answers one small question with local code, synthetic fixtures, or public interfaces. It is allowed to be temporary. It is not allowed to be ambiguous about what it tested.
+A playground answers one small question with local code, synthetic fixtures, or public interfaces. It is allowed to be temporary. It is not allowed to be ambiguous about what it tested or to imply a wider production claim it did not establish.
 
 ## Starting an experiment
 
@@ -16,6 +16,16 @@ python3 scripts/new_experiment.py parser-boundary \
 
 This creates `playgrounds/EXP-YYYYMMDD-parser-boundary/` with metadata, a report stub, and an intentionally unimplemented runner.
 
+For a wider integration claim, provide a repository-relative dossier:
+
+```text
+python3 scripts/new_experiment.py retry-boundary \
+  --question "Can a repeated logical request avoid a duplicate effect?" \
+  --owner worker-id \
+  --claim-scope integration \
+  --integration-context contexts/patterns/retry-idempotency.md
+```
+
 Then:
 
 1. refine the distinguishing outcomes;
@@ -23,7 +33,8 @@ Then:
 3. select useful inputs from `playgrounds/cases/`;
 4. implement the smallest runnable adapter or script;
 5. run locally and retain the exact command and result;
-6. mark the outcome `complete`, `negative-result`, `blocked`, or `promoted`.
+6. state what the model preserves and omits;
+7. mark the outcome `complete`, `negative-result`, `blocked`, or `promoted`.
 
 No issue is required for a one-worker experiment. Create or connect a Fieldwork issue when ownership, dependencies, human decisions, parallel lanes, or later synthesis become necessary.
 
@@ -76,6 +87,23 @@ The runner invokes the adapter separately for each case, records exit code, stdo
 
 The adapter protocol is deliberately tiny. Experiments needing richer orchestration may use their own runner while retaining the same metadata and result conventions.
 
+## Connecting a toy model to actual use
+
+A small test can validate a mechanism while a context dossier answers different questions:
+
+- where the mechanism sits in a larger workflow;
+- which real components or users depend on it;
+- which use is documented versus illustrative;
+- how failure propagates;
+- how operators would observe and recover from it;
+- which standards or project contracts apply.
+
+Use `INTEGRATION_CONTEXT.md` and `templates/integration-context.md`. For a complete example, see:
+
+- `playgrounds/examples/retry-idempotency/`
+- `playgrounds/cases/retry-idempotency.json`
+- `contexts/patterns/retry-idempotency.md`
+
 ## Validation
 
 Run before retaining an experiment:
@@ -84,7 +112,7 @@ Run before retaining an experiment:
 python3 scripts/validate_experiments.py
 ```
 
-CI validates retained experiment metadata, all canonical case packs, and the identity-adapter smoke test.
+CI validates retained experiment metadata, all canonical case packs, the identity-adapter smoke test, and the retry/idempotency context example.
 
 ## Boundaries
 
@@ -93,5 +121,6 @@ CI validates retained experiment metadata, all canonical case packs, and the ide
 - Network access defaults to disabled or unnecessary.
 - Do not commit secrets, production payloads, dependency caches, large binaries, or generated build directories.
 - Do not use the playground directory as an unbounded scratch dump.
+- Mechanism evidence does not establish integration or operational impact without supporting context.
 
-See `EXPERIMENTS.md` for the full protocol.
+See `EXPERIMENTS.md` and `INTEGRATION_CONTEXT.md` for the full protocols.
