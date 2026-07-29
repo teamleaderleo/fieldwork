@@ -1,0 +1,83 @@
+diff --git a/apps/server/src/provider/Layers/OpenCodeAdapter.ts b/apps/server/src/provider/Layers/OpenCodeAdapter.ts
+index 73c23b7..0000000 100644
+--- a/apps/server/src/provider/Layers/OpenCodeAdapter.ts
++++ b/apps/server/src/provider/Layers/OpenCodeAdapter.ts
+@@ -68,6 +68,8 @@ function mapPermissionToRequestType(
+       return "file_read_approval";
+     case "edit":
+       return "file_change_approval";
++    case "skill":
++      return "dynamic_tool_call";
+     default:
+       return "unknown";
+   }
+@@ -374,6 +376,48 @@ export function makeOpenCodeAdapter(
+       event: ProviderRuntimeEvent,
+     ) => Queue.offer(runtimeEvents, event).pipe(Effect.asVoid);
++
++    const expirePendingInteractiveRequests = Effect.fn(
++      "expirePendingInteractiveRequests",
++    )(function* (context: OpenCodeSessionContext, turnId: TurnId | undefined) {
++      const permissions = [...context.pendingPermissions.values()];
++      context.pendingPermissions.clear();
++      for (const request of permissions) {
++        yield* emit({
++          ...(yield* buildEventBase({
++            threadId: context.session.threadId,
++            turnId,
++            requestId: request.id,
++          })),
++          type: "request.resolved",
++          payload: {
++            requestType: mapPermissionToRequestType(request.permission),
++            decision: "decline",
++          },
++        });
++      }
++
++      const questions = [...context.pendingQuestions.values()];
++      context.pendingQuestions.clear();
++      for (const request of questions) {
++        yield* emit({
++          ...(yield* buildEventBase({
++            threadId: context.session.threadId,
++            turnId,
++            requestId: request.id,
++          })),
++          type: "user-input.resolved",
++          payload: {
++            answers: {},
++          },
++        });
++      }
++    });
++
+     const writeNativeEvent = (
+       threadId: ThreadId,
+       event: {
+@@ -1079,6 +1123,7 @@ export function makeOpenCodeAdapter(
+           const message = sessionErrorMessage(event.properties.error);
+           const activeTurnId = context.activeTurnId;
+           context.activeTurnId = undefined;
++          yield* expirePendingInteractiveRequests(context, activeTurnId);
+           yield* updateProviderSession(
+             context,
+             {
+@@ -1544,11 +1589,13 @@ export function makeOpenCodeAdapter(
+       function* (threadId, turnId) {
+         const context = yield* ensureSessionContext(sessions, threadId);
++        const interruptedTurnId = turnId ?? context.activeTurnId;
+         yield* runOpenCodeSdk("session.abort", () =>
+           context.client.session.abort({ sessionID: context.openCodeSessionId }),
+         ).pipe(Effect.mapError(toRequestError));
+-        if (turnId ?? context.activeTurnId) {
++        yield* expirePendingInteractiveRequests(context, interruptedTurnId);
++        if (interruptedTurnId) {
+           yield* emit({
+             ...(yield* buildEventBase({
+               threadId,
+-              turnId: turnId ?? context.activeTurnId,
++              turnId: interruptedTurnId,
+             })),
+             type: "turn.aborted",
+             payload: {
