@@ -39,7 +39,9 @@ function scan(text, currentRepository, ownedOwners = configuredOwnedOwners()) {
       const owner = match[1];
       const repository = `${owner}/${match[2]}`.toLowerCase();
       if (isControlledRepository(repository, owner, currentRepository, ownedOwners)) continue;
-      failures.push(`Line ${index + 1}: direct third-party GitHub reference: ${match[0]}`);
+      failures.push(
+        `Line ${index + 1}: direct third-party GitHub reference detected (${owner} / ${match[2]}, ${match[3]} ${match[4]}).`,
+      );
     }
 
     for (const match of line.matchAll(shorthand)) {
@@ -47,7 +49,7 @@ function scan(text, currentRepository, ownedOwners = configuredOwnedOwners()) {
       const repository = `${owner}/${match[3]}`.toLowerCase();
       if (isControlledRepository(repository, owner, currentRepository, ownedOwners)) continue;
       failures.push(
-        `Line ${index + 1}: third-party shorthand reference: ${match[2]}/${match[3]}#${match[4]}`,
+        `Line ${index + 1}: third-party shorthand reference detected (${match[2]} / ${match[3]}, item ${match[4]}).`,
       );
     }
   }
