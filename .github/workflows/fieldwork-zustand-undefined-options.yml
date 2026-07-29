@@ -1,0 +1,48 @@
+name: Fieldwork Zustand undefined options
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/fieldwork-zustand-undefined-options.yml'
+      - 'programmes/data-durable-workflows/scouts/zustand-undefined-option-overrides/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  characterize:
+    name: Node.js ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - 22
+          - 24
+          - 26
+    steps:
+      - name: Check out owned characterization
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/zustand
+          ref: 79ed669019eed3733361cb3a338860dc9b8353c2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Stage characterization test
+        run: cp .fieldwork/persistUndefinedOptions.vitest.ts tests/persistUndefinedOptions.test.ts
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run characterization and existing persist suites
+        run: pnpm vitest run tests/persistUndefinedOptions.test.ts tests/persistAsync.test.tsx tests/persistSync.test.tsx
+
+      - name: Lint characterization
+        run: pnpm eslint .fieldwork/persistUndefinedOptions.vitest.ts
