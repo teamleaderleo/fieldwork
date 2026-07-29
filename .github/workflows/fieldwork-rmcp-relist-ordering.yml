@@ -1,9 +1,9 @@
 name: Fieldwork rmcp relist ordering
 
 on:
-  push:
+  pull_request:
     branches:
-      - lane/35-cross-lane-amendment
+      - main
     paths:
       - campaigns/0002-tool-surface-continuity/lanes/L01-lifecycle-provenance/artifacts/rmcp-relist-ordering/**
       - .github/workflows/fieldwork-rmcp-relist-ordering.yml
