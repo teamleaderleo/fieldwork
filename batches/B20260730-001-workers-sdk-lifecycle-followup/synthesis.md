@@ -16,7 +16,7 @@ The batch produced three distinct Workers SDK candidates:
 
 1. Miniflare can delay or skip terminating `workerd` when earlier cleanup fails or never settles.
 2. Wrangler and Vite can choose different configuration files from the same project layout.
-3. Wrangler can activate new Worker code and then fail later without clearly reporting the activated version and failed phase.
+3. Wrangler can activate new Worker code and then fail later without clearly reporting the activation path, activated version, and failed phase.
 
 All three now have fork branches and package-level test designs. A001 and A003 also have bounded repair prototypes. None of the package suites executed in the available environment, so implementation promotion remains gated on a full workspace run.
 
@@ -47,9 +47,9 @@ Next gate:
 
 ## A002 — Configuration selection contract
 
-Disposition: **accept characterization; decide shared disclosure versus shared defaults before implementation**
+Disposition: **accept behavior-preserving protocol direction; hold default changes for compatibility evidence**
 
-Confidence: **high source confidence, medium execution confidence**
+Confidence: **high source confidence, high precedent confidence, medium execution confidence**
 
 Workers SDK PR: `teamleaderleo/workers-sdk#2`
 
@@ -60,35 +60,57 @@ The package matrix demonstrates four independent policy dimensions:
 - deploy-config redirect enablement;
 - explicit-path convergence.
 
-The strongest practical result is not that one selector is universally wrong. It is that callers cannot inspect one shared policy/result record explaining why a source or generated config was selected.
+The precedent review compares TypeScript, Prettier, ESLint, Vite, Biome, Cargo, and recent Workers SDK redirect work. It shows that no single discovery anchor is universally correct:
+
+- file-oriented tools search from the target file;
+- command tools often search from the working directory;
+- Vite-style project tools anchor to an explicit root;
+- explicit config paths consistently override automatic discovery.
+
+The unusual Workers behavior is format-first ancestor discovery: a farther parent JSON can beat a nearer JSONC or TOML. Existing compatibility prevents changing that silently.
+
+Merged upstream PR `cloudflare/workers-sdk#14897` strengthens the concern about caller drift: `wrangler triggers deploy` had to opt into the generated-config redirect already used by other deployment commands.
+
+The recommended direction is a shared engine with named profiles and a selection trace, not one forced default. The trace should record invocation anchor, boundary, discovery mode, extension order, redirect policy, candidates, source config, effective generated config, and stable selection reason.
 
 Next gate:
 
 - run the Vite package matrix;
 - review fixtures on Windows and POSIX;
-- decide whether compatibility permits any default alignment;
-- otherwise implement shared policy disclosure first.
+- centralize current behavior without changing outcomes;
+- add `config explain` or stable verbose output;
+- warn on ambiguous layouts before considering any major-version default alignment.
 
 ## A003 — Post-activation deployment state
 
 Disposition: **accept state-reporting direction; hold automatic rollback**
 
-Confidence: **high source confidence, medium-high model confidence, medium execution confidence**
+Confidence: **high source confidence, high model confidence, medium execution confidence**
 
 Workers SDK PR: `teamleaderleo/workers-sdk#3`
 
-The source order confirms that code activation precedes container and trigger operations. The executable model confirms a bounded receipt can report phase and version while rethrowing the exact original error.
+The source order confirms that code activation precedes some later container and trigger operations. The deeper review corrected the path matrix:
+
+- container workers are excluded from the versions/deployments path at the pinned revision;
+- container rollout failure follows a legacy script upload;
+- trigger failure can follow either a versions deployment or a legacy upload.
+
+The corrected executable model now reports activation method, failed phase, activated version when available, and possible partial application while rethrowing the exact original error.
 
 The current output order is especially weak on trigger failure: `Uploaded` appears before triggers, while `Current Version ID` appears only after triggers succeed.
+
+The receipt is needed because an exit code describes whole-command completion, not the remote state already changed. This follows established partial-apply practice: Terraform records successful changes even when apply later fails; CloudFormation exposes preserve, retry, update, and rollback as distinct policies; Kubernetes separates desired state from observed status and conditions.
 
 Next gate:
 
 - run helper tests;
-- add mocked deploy-helper failures for new and legacy upload paths;
+- add mocked legacy-upload/container failure;
+- add mocked versions-deployment/trigger failure;
+- add mocked legacy-upload/trigger failure;
 - review terminal and machine-readable output contracts;
 - apply only the reporting integration after those tests pass.
 
-Automatic rollback remains out of scope because triggers may partially apply, containers may be retryable, and rollback is another fallible deployment.
+Automatic rollback remains out of scope because triggers may partially apply, containers may be retryable, activation paths differ, and rollback is another fallible deployment.
 
 ## Cross-review result
 
@@ -97,7 +119,7 @@ A standalone A004 lane was withdrawn at user direction. Review coverage was reta
 - coordinator reviewed A001;
 - A001 reviewed the predecessor A002 matrix;
 - coordinator built and reviewed A002 and A003;
-- prior public discussion was reconciled in the scout and lane results;
+- prior public discussion and broader tool precedent were reconciled in the lane results;
 - unexecuted package tests remain explicit blockers rather than being counted as review completion.
 
 ## Portfolio context
@@ -114,10 +136,11 @@ Fieldwork PR #105 now provides a human review queue and evidence index as the fi
 ## Recommended order
 
 1. Execute A001's first three package regressions and validate the minimal runtime-first patch.
-2. Execute A003 helper and mocked deploy-flow tests; refine the output contract.
-3. Execute A002's cross-selector matrix and make a compatibility decision.
+2. Execute A003 helper and corrected mocked deploy-flow tests; refine the output contract.
+3. Execute A002's cross-selector matrix and implement behavior-preserving policy disclosure.
 4. Return to A001 error aggregation and named cleanup deadlines as a separate change.
-5. Add accepted candidates to the human review queue with exact execution evidence.
+5. Consider compatibility migrations only after execution evidence and ambiguous-layout review.
+6. Add accepted candidates to the human review queue with exact execution evidence.
 
 ## Batch boundary
 
