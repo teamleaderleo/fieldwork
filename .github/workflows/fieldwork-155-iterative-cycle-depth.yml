@@ -113,33 +113,31 @@ jobs:
 
           tests = Path("scripts/test_coordination_compiler.py")
           text = tests.read_text(encoding="utf-8")
-          anchor = dedent('''\
-              def test_affected_descendants_do_not_include_unrelated_branch(self) -> None:
-          ''')
-          addition = dedent('''\
-              def test_maximum_depth_chain_does_not_depend_on_python_recursion(self) -> None:
-                  nodes = [node(f"n-{index:04d}") for index in range(compiler.MAX_NODES)]
-                  edges = [
-                      {
-                          "from": f"n-{index:04d}",
-                          "to": f"n-{index + 1:04d}",
-                          "kind": "requires",
-                      }
-                      for index in range(compiler.MAX_NODES - 1)
-                  ]
-
-                  normalized = compiler.normalize_graph(graph(nodes, edges))
-                  result = compiler.evaluate_graph(normalized, ["n-0000"])
-
-                  self.assertEqual(len(result["topological_order"]), compiler.MAX_NODES)
-                  self.assertEqual(len(result["affected_nodes"]), compiler.MAX_NODES)
-                  self.assertEqual(result["topological_order"][0], "n-0000")
-                  self.assertEqual(
-                      result["topological_order"][-1],
-                      f"n-{compiler.MAX_NODES - 1:04d}",
-                  )
-
-          ''')
+          anchor = "    def test_affected_descendants_do_not_include_unrelated_branch(self) -> None:\n"
+          addition = (
+              "    def test_maximum_depth_chain_does_not_depend_on_python_recursion(self) -> None:\n"
+              "        nodes = [node(f\"n-{index:04d}\") for index in range(compiler.MAX_NODES)]\n"
+              "        edges = [\n"
+              "            {\n"
+              "                \"from\": f\"n-{index:04d}\",\n"
+              "                \"to\": f\"n-{index + 1:04d}\",\n"
+              "                \"kind\": \"requires\",\n"
+              "            }\n"
+              "            for index in range(compiler.MAX_NODES - 1)\n"
+              "        ]\n"
+              "\n"
+              "        normalized = compiler.normalize_graph(graph(nodes, edges))\n"
+              "        result = compiler.evaluate_graph(normalized, [\"n-0000\"])\n"
+              "\n"
+              "        self.assertEqual(len(result[\"topological_order\"]), compiler.MAX_NODES)\n"
+              "        self.assertEqual(len(result[\"affected_nodes\"]), compiler.MAX_NODES)\n"
+              "        self.assertEqual(result[\"topological_order\"][0], \"n-0000\")\n"
+              "        self.assertEqual(\n"
+              "            result[\"topological_order\"][-1],\n"
+              "            f\"n-{compiler.MAX_NODES - 1:04d}\",\n"
+              "        )\n"
+              "\n"
+          )
           if "test_maximum_depth_chain_does_not_depend_on_python_recursion" in text:
               raise SystemExit("maximum-depth regression already exists")
           if text.count(anchor) != 1:
