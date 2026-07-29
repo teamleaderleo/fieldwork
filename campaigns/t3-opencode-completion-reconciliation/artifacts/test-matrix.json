@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "campaign_issue": 71,
+  "retrieval_date": "2026-07-30",
+  "worker": "chatgpt:gpt-5.6-thinking",
+  "claim_scope": ["mechanism", "interface"],
+  "upstream_contact_authorized": false,
+  "target": {
+    "repository": "teamleaderleo/t3code",
+    "base_revision": "85a89868703530e03c5e79797c7b952c684bd222",
+    "branch": "fieldwork/opencode-completion-reconciliation",
+    "prepared_test_commit": "97a745ff8cc67076c7909ec9de418e3660acf723",
+    "prepared_test_path": "apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts",
+    "intended_command": "vp test run apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts"
+  },
+  "execution_status": "not-run",
+  "execution_limit": "The current environment cannot clone or install the target repository, and no branch-push workflow run was available for the prepared commit.",
+  "cases": [
+    {
+      "id": "resume-idle-emits-ready",
+      "status": "prepared",
+      "source_observation": "OpenCodeAdapter handles session.status idle only when context.activeTurnId is defined.",
+      "setup": {
+        "resume_cursor": {
+          "schemaVersion": 1,
+          "sessionId": "ses_persisted"
+        },
+        "new_adapter_active_turn": null,
+        "provider_status": "idle"
+      },
+      "expected_current_result": "No canonical session.state.changed event; the prepared collector reaches its failure bound.",
+      "required_result_after_repair": {
+        "canonical_event": "session.state.changed",
+        "state": "ready"
+      }
+    },
+    {
+      "id": "active-turn-idle-completes-exact-turn",
+      "status": "planned",
+      "invariants": [
+        "idle with an active turn emits turn.completed for that turn",
+        "exactly one lifecycle completion applies",
+        "activeTurnId becomes null"
+      ]
+    },
+    {
+      "id": "repeated-steering-converges",
+      "status": "planned",
+      "stimulus": [
+        "initial prompt",
+        "first steering prompt while busy",
+        "second steering prompt while busy",
+        "provider idle"
+      ],
+      "invariants": [
+        "steering remains correlated with one active turn or an explicit replacement",
+        "final provider idle clears T3 running state",
+        "subsequent input is accepted"
+      ]
+    },
+    {
+      "id": "old-session-idle-cannot-clear-new-turn",
+      "status": "planned",
+      "setup": {
+        "old_adapter": "closing or replaced",
+        "new_adapter": "same provider instance id with a new OpenCode session",
+        "new_turn": "running"
+      },
+      "stimulus": "deliver delayed idle from the old OpenCode session",
+      "invariants": [
+        "the new turn remains running",
+        "provider session or adapter generation affinity rejects the stale idle",
+        "the stale event is observable"
+      ]
+    },
+    {
+      "id": "interrupt-without-idle-settles",
+      "status": "planned",
+      "source_observation": "interruptTurn emits turn.aborted but does not directly clear adapter active state or emit ready/completed.",
+      "invariants": [
+        "cancellation acknowledgement is distinct from settlement",
+        "the turn reaches an explicit terminal or degraded state even if no idle follows",
+        "no dormant session is resurrected without an explicit provider requirement"
+      ]
+    },
+    {
+      "id": "pending-request-resume-affinity",
+      "status": "planned",
+      "source_observation": "OpenCode pending permission and question maps are in memory and are not restored by the session cursor.",
+      "invariants": [
+        "a pending request is reconstructed with exact provider/session/turn/request affinity or explicitly expired",
+        "a stale response cannot target a new request",
+        "the user receives a clear recoverable outcome"
+      ]
+    }
+  ],
+  "repair_candidates": [
+    {
+      "id": "thread-scoped-idle-ready",
+      "state": "needs-replacement-ordering-proof",
+      "summary": "Emit session.state.changed ready on idle when no active turn id exists; retain turn.completed when it does."
+    },
+    {
+      "id": "durable-active-turn-identity",
+      "state": "needs-cursor-and-idle-replay-design",
+      "summary": "Persist and restore the T3 active turn id so resumed idle can emit turn-specific completion."
+    }
+  ]
+}
