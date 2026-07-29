@@ -27,10 +27,10 @@ The campaign also asks which diagnostic receipt can identify that layer during t
 ## Source boundary
 
 - Public source: [Codex revision `3725f02cf38d856bc82bb46dd68ab61bb96ec6fc`](https://redirect.github.com/openai/codex/commit/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc), retrieved 2026-07-29.
-- Owned comparison fork: `teamleaderleo/codex@2b7b93081361b77f8ddaceaf362a09765b4153bf`.
-- Owned effective-surface contract: `teamleaderleo/stensibly@7690ca0022048443fae9ec9d9eb3fd17ac1c58b6`.
-- Canonical owned research programme: `teamleaderleo/stensibly#544`.
-- Active owned coexistence incident: `teamleaderleo/stensibly#490`.
+- Owned comparison fork: [Codex fork revision `2b7b93081361b77f8ddaceaf362a09765b4153bf`](https://redirect.github.com/teamleaderleo/codex/commit/2b7b93081361b77f8ddaceaf362a09765b4153bf).
+- Owned effective-surface contract: [Stensibly revision `7690ca0022048443fae9ec9d9eb3fd17ac1c58b6`](https://redirect.github.com/teamleaderleo/stensibly/commit/7690ca0022048443fae9ec9d9eb3fd17ac1c58b6).
+- Canonical owned research programme: [Stensibly issue 544](https://redirect.github.com/teamleaderleo/stensibly/issues/544).
+- Active owned coexistence incident: [Stensibly issue 490](https://redirect.github.com/teamleaderleo/stensibly/issues/490).
 
 The public source is read-only. Publication, comments, reactions, pull requests, and other interaction with the external target require a separate human decision.
 
