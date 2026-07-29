@@ -1,0 +1,71 @@
+name: T3 OpenCode message affinity candidate
+
+on:
+  push:
+    branches:
+      - campaign/71-t3-opencode-completion-reconciliation
+    paths:
+      - .github/workflows/t3-opencode-message-affinity-candidate.yml
+      - campaigns/t3-opencode-completion-reconciliation/candidates/0001-opencode-prompt-message-affinity.patch
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/t3-opencode-message-affinity-candidate.yml
+      - campaigns/t3-opencode-completion-reconciliation/candidates/0001-opencode-prompt-message-affinity.patch
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t3-opencode-message-affinity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  candidate-test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Steering affinity candidate
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts
+          - name: Existing OpenCode adapter suite
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.test.ts
+    steps:
+      - name: Checkout Fieldwork candidate
+        uses: actions/checkout@v6
+        with:
+          path: fieldwork
+
+      - name: Checkout owned T3 campaign branch
+        uses: actions/checkout@v6
+        with:
+          repository: teamleaderleo/t3code
+          ref: fieldwork/opencode-completion-reconciliation
+          path: t3code
+
+      - name: Apply candidate patch
+        working-directory: t3code
+        run: |
+          git apply --check ../fieldwork/campaigns/t3-opencode-completion-reconciliation/candidates/0001-opencode-prompt-message-affinity.patch
+          git apply ../fieldwork/campaigns/t3-opencode-completion-reconciliation/candidates/0001-opencode-prompt-message-affinity.patch
+          git diff --check
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: t3code/package.json
+          cache: false
+          run-install: false
+
+      - name: Install target dependencies
+        working-directory: t3code
+        run: vp install
+
+      - name: Run candidate test
+        working-directory: t3code
+        run: vp test run ${{ matrix.test }}
