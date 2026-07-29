@@ -1,0 +1,57 @@
+name: T3 OpenCode lifecycle specifications
+
+on:
+  push:
+    branches:
+      - campaign/71-t3-opencode-completion-reconciliation
+    paths:
+      - .github/workflows/t3-opencode-lifecycle.yml
+      - campaigns/t3-opencode-completion-reconciliation/**
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/t3-opencode-lifecycle.yml
+      - campaigns/t3-opencode-completion-reconciliation/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t3-opencode-lifecycle-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  focused-test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Restart reconciliation
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts
+          - name: Interrupt settlement
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
+          - name: Steering affinity
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts
+          - name: Reaper race
+            test: apps/server/src/provider/Layers/ProviderSessionReaper.race.test.ts
+    steps:
+      - name: Checkout owned T3 campaign branch
+        uses: actions/checkout@v6
+        with:
+          repository: teamleaderleo/t3code
+          ref: fieldwork/opencode-completion-reconciliation
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: true
+
+      - name: Run focused test
+        run: vp test run ${{ matrix.test }}
