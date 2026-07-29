@@ -37,6 +37,38 @@ Do not upgrade evidence during synthesis. In particular:
 - full CI is not proof of an untested security, authority, or lifecycle property;
 - one owned testbed is not ecosystem impact.
 
+## Self-review before handoff
+
+Self-review prepares work for independent judgment; it does not replace independent acceptance.
+
+Before asking another reviewer to inspect a result:
+
+1. Re-read the strongest claim and identify the exact artifact, source path, or execution receipt supporting it.
+2. Confirm the intended assertion ran. A setup, installation, timeout, fixture, or unrelated precondition failure is a harness result, not product evidence.
+3. Inspect the exact failure rather than relying on a red job summary.
+4. Rewrite the candidate when execution disproves the original theory or reveals a different mechanism.
+5. Preserve negative controls and rejected designs that distinguish the retained direction from easier but unsafe alternatives.
+6. Split findings that have different owners, result models, compatibility risks, or implementation boundaries.
+7. State missing platform coverage, unmeasured frequency, inferred consequence, and every material uncertainty.
+8. Synchronize the live issue, durable report, pull-request front page, execution receipt, and queue or Delivery Desk entry.
+9. Run Fieldwork integrity and external-reference checks on the final Fieldwork head.
+10. Confirm that upstream contact remains unauthorized unless the user approved that exact interaction.
+
+## Execution workflow
+
+When prepared work needs retained target evidence:
+
+1. Keep the product test or candidate source on one canonical owned-fork branch.
+2. Use a separate execution-only branch or pull request for temporary CI configuration when practical.
+3. Follow the target repository's own installation, build, test, lint, and platform sequence.
+4. Run the smallest discriminating test first, then add compatibility or platform coverage only after the premise survives.
+5. Record the exact source head, workflow run, job, environment, command, assertion, and result.
+6. Classify setup failures and incorrect premises as harness findings rather than target defects.
+7. When the result changes the theory, update the test, issue, report, pull-request description, and queue card before promotion.
+8. Transfer the retained receipt to the canonical source record and remove or close temporary execution machinery.
+
+An execution carrier is never a merge or upstream candidate merely because it produced a useful result.
+
 ## Exact-head review receipt
 
 A promotion review should record:
@@ -132,6 +164,7 @@ Before moving a pull request out of draft or advancing a Fieldwork issue:
 - [ ] work class is explicit;
 - [ ] canonical branch and exact head are named;
 - [ ] reviewed issue or decision inputs are versioned when they affect the disposition;
+- [ ] self-review confirmed the intended assertion ran and classified harness failures separately;
 - [ ] evidence class is accurate;
 - [ ] every `full-gate` claim names the gate and its material coverage limits;
 - [ ] current-main relation is known;
