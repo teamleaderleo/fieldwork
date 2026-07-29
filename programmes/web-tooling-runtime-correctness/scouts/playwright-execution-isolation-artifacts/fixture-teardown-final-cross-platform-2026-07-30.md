@@ -4,13 +4,15 @@ Date: 2026-07-30
 
 Fieldwork candidate: #141
 
-Canonical source PRs: `teamleaderleo/playwright#24` plus receipt refinement `#26`
+Executed source PRs: `teamleaderleo/playwright#24` plus receipt refinement `#26`
 
-Canonical source branch: `fieldwork/fixture-teardown-internal-receipt`
+Executed source branch: `fieldwork/fixture-teardown-internal-receipt`
 
-Canonical source head: `dfdb02284c26a179f8266a2dfe10b4787035d024`
+Executed source head: `dfdb02284c26a179f8266a2dfe10b4787035d024`
 
-Reviewed Fieldwork issue generation: #141 updated `2026-07-29T23:12:47Z`
+Current repair experiment: `teamleaderleo/playwright#34`
+
+Reviewed Fieldwork issue generation: #141 updated `2026-07-29T23:27:12Z`
 
 Upstream contact authorized: `false`
 
@@ -18,15 +20,15 @@ No upstream contact occurred.
 
 ## In simple words
 
-The final Playwright cleanup candidate has now run on Linux, macOS, and Windows.
+The Playwright fixture-recovery behavior passed the same focused stack on Linux, macOS, and Windows.
 
-All three platforms passed the same eleven tests against the same source head. The stack combines bounded dependency-group fixture recovery before `afterAll` with the internal `_fixture-cleanup` receipt.
+Complete-diff self-review then found that the executed branch also contains a temporary public status rewrite from the separate expected-failure result-accounting question.
 
-This completes the named cross-platform execution gate. It does not provide the independent exact-head acceptance required for delivery.
+The cross-platform receipt remains valid for the behavior at the executed head. The head is not a clean #141 landing candidate until lifecycle worker safety is separated from #142 retry and final-outcome semantics.
 
 ## Exact source identity
 
-The canonical source head is `dfdb02284c26a179f8266a2dfe10b4787035d024`.
+The executed source head is `dfdb02284c26a179f8266a2dfe10b4787035d024`.
 
 The Ubuntu execution carrier PR #27 used that exact head as its base. The later macOS/Windows carrier PR #31 also used that exact head as its base. Both carriers changed only workflow configuration.
 
@@ -66,7 +68,7 @@ npm run ttest --
   --workers=1
 ```
 
-## What the eleven tests cover
+## What the eleven tests establish
 
 - retention of shared-slot test fixture finalizers that never began;
 - bounded allocation among independent dependency groups;
@@ -85,7 +87,7 @@ npm run ttest --
 
 ## Complete-diff self-review
 
-The final source stack uses one existing full-cleanup slot. The test-fixture recovery phase spends part of that slot before `afterAll`, and later Worker Cleanup reuses the remainder. The candidate does not add one timeout per fixture or a second project-timeout allowance.
+The recovery scheduler uses one existing full-cleanup slot. The test-fixture recovery phase spends part of that slot before `afterAll`, and later Worker Cleanup reuses the remainder. The candidate does not add one timeout per fixture or a second project-timeout allowance.
 
 Only never-started finalizers are retained. A callback that began and then failed or timed out is not started again.
 
@@ -93,23 +95,49 @@ Connected fixtures share one recovery slot. If a child callback times out and co
 
 The `timeout: 0` case does not create a hidden zero-budget recovery defect. `calculateMaxTimeout()` treats either zero input as no timeout, so the After Hooks slot cannot become exhausted and create deferred cleanup debt in that configuration.
 
-The receipt is attached during deferred recovery before `afterAll` and before `testEnd`. The existing source continues to preserve the first cleanup error while recording all deferred fixture states reached by the bounded pass.
+The receipt is attached during deferred recovery before `afterAll` and before `testEnd`. The source preserves the first cleanup error while recording all deferred fixture states reached by the bounded pass.
 
-One non-functional repair remains before a landing branch is cut: the comment above the first deferral branch still says later Worker Cleanup will retry the fixture. The final design retries before `afterAll`; the comment should be updated after the exact-head disposition or on the accepted repair head.
+## Complete-diff blocker
 
-The expected-failure result-accounting question remains separate under #142. Passing this matrix does not resolve retry or final outcome when an expected body failure coexists with an independent cleanup error.
+The executed head still contains this temporary result-accounting workaround:
+
+```ts
+if (!testInfo._isFailure())
+  testInfo.status = 'timedOut';
+```
+
+The associated test requires an expected body failure with cleanup debt to retry in a fresh worker.
+
+That behavior belongs to #142. It changes public result status to force retry and final unexpectedness, while #141 is intended to own fixture recovery, dependency safety, receipt timing, and worker safety only.
+
+The executed head is therefore not a clean landing candidate despite the valid focused platform receipt.
+
+## Repair experiment
+
+PR `teamleaderleo/playwright#34`, workflow run `30499508638`, tests this separation:
+
+- remove the public status rewrite;
+- add an internal incomplete-fixture-cleanup flag only when deferred recovery ends `failed-after-start`, `timed-out-after-start`, or `not-started-budget-exhausted`;
+- use that flag only to stop the worker and protect later tests;
+- expected body failure plus recovered cleanup remains expected and runs once;
+- expected body failure plus incomplete cleanup does not retry the current test, but later tests run in a fresh worker;
+- update the stale comment that still says retry occurs only in later Worker Cleanup;
+- retain the rest of the focused cleanup stack.
+
+The run is queued. No repair result is claimed yet.
 
 ## Disposition
 
-Evidence class: **target-executed, cross-platform focused gate**
+Evidence class for executed head: **target-executed, cross-platform focused gate**
 
-Self-review disposition: **execution gate complete; independent exact-head disposition still required**
+Corrected self-review disposition: **REPAIR**
 
 Clearing condition for Delivery Desk D1:
 
-1. transfer this receipt to canonical PRs #24 and #26 — complete;
-2. close execution carrier PR #31 — complete;
-3. obtain an eligible complete-diff review of canonical exact head `dfdb02284c26a179f8266a2dfe10b4787035d024` and issue generation `2026-07-29T23:12:47Z`;
-4. apply any accepted non-semantic wording repair on a named head and state whether the prior focused execution remains semantically applicable.
+1. PR #34 reaches its intended controls;
+2. the repair is applied to a named source head;
+3. the focused receipt is rerun or explicitly carried forward through documented semantic identity, with the two new separation controls executed;
+4. an eligible exact-head disposition is recorded for the repaired head and current issue generation;
+5. the repair carrier is closed after transfer.
 
 This is not a full repository gate and not an upstream submission decision.
