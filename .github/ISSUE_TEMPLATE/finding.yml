@@ -1,7 +1,7 @@
 name: Finding
-about: Record an observation that may become a campaign
-labels:
-  - finding
+description: Record an observation that may become a campaign
+title: "[Finding] "
+labels: []
 body:
   - type: textarea
     id: observation
