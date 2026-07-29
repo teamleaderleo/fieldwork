@@ -11,11 +11,13 @@ Fieldwork has enough active research. The scarce resource is independent review.
 The current front of the queue is:
 
 1. **Playwright bounded fixture recovery** — review the executed dependency-safe recovery design and decide the final combined cross-platform gate.
-2. **MCP reconnect ownership** — independently verify the strongest executed defect and decide whether upstream contact should be authorized.
-3. **Biome safe-fix semantics** — verify the released-package reproduction and decide whether the finding should be promoted.
-4. **Codex mutation evidence** — continue from the selected canonical receipt owner into result persistence and compaction gates.
-5. **Vite HMR and graph findings** — review the stable-mode candidates separately from the experimental bundled-development case.
-6. **Execution-gated work** — run the prepared Vercel AI, Workers SDK, Gemini CLI, T3/OpenCode, and Playwright outcome-model tests before promoting implementation claims.
+2. **Playwright Python shutdown ownership** — select a joinable shutdown model after the two-version cancellation reproduction.
+3. **Playwright MCP partial video receipts** — define mixed per-recording outcomes after one completed file was omitted from an all-error response.
+4. **Playwright expected-failure accounting** — decide how an independent cleanup failure reaches retry and final outcome without inventing a public status.
+5. **MCP reconnect ownership** — independently verify the strongest executed defect and decide whether upstream contact should be authorized.
+6. **Biome safe-fix semantics** — verify the released-package reproduction and decide whether the finding should be promoted.
+7. **Codex mutation evidence** — continue from the selected canonical receipt owner into result persistence and compaction gates.
+8. **Vite HMR and graph findings** — review the stable-mode candidates separately from the experimental bundled-development case.
 
 A reviewer does not need to read the whole portfolio. Take one card, follow its evidence, and return one explicit disposition.
 
@@ -66,7 +68,7 @@ Research links below are pinned where useful. Live issues and pull requests rema
 **State:** Ready for independent technical review.  
 **Primary issue:** [#141](https://github.com/teamleaderleo/fieldwork/issues/141)  
 **Primary record:** [PR #49](https://github.com/teamleaderleo/fieldwork/pull/49)  
-**Evidence:** [canonical report](https://github.com/teamleaderleo/fieldwork/blob/8d7ed3a79d40e8b99a170f20fc46663e41d3acfc/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md), [repository-intent review](https://github.com/teamleaderleo/fieldwork/blob/8d7ed3a79d40e8b99a170f20fc46663e41d3acfc/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-intent-review-2026-07-30.md), [alignment runs](https://github.com/teamleaderleo/fieldwork/blob/8d7ed3a79d40e8b99a170f20fc46663e41d3acfc/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-alignment-run-2026-07-30.md), and owned source PRs [#24](https://github.com/teamleaderleo/playwright/pull/24)/[#26](https://github.com/teamleaderleo/playwright/pull/26).
+**Evidence:** [canonical report](https://github.com/teamleaderleo/fieldwork/blob/dc8cfd359d1246bbad431a7a18e59f44832fcd58/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md), [repository-intent review](https://github.com/teamleaderleo/fieldwork/blob/dc8cfd359d1246bbad431a7a18e59f44832fcd58/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-intent-review-2026-07-30.md), [alignment runs](https://github.com/teamleaderleo/fieldwork/blob/dc8cfd359d1246bbad431a7a18e59f44832fcd58/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/fixture-teardown-repository-alignment-run-2026-07-30.md), and owned source PRs [#24](https://github.com/teamleaderleo/playwright/pull/24)/[#26](https://github.com/teamleaderleo/playwright/pull/26).
 
 **Human summary:** A test fixture can lose its cleanup callback when the shared After Hooks slot is exhausted because Playwright skips the body and deletes the fixture record. The campaign rejected one shared fallback slot, equal per-fixture timeout races, and retry placement after `afterAll`. The current design retains only never-started finalizers, budgets by connected dependency group, spends one existing bounded cleanup slot before `afterAll`, reuses the remainder later, and emits an internal receipt before `testEnd`.
 
@@ -89,6 +91,53 @@ Research links below are pinned where useful. Live issues and pull requests rema
 **Uncertainty to preserve:** The scheduler itself has three-platform evidence. The final combined pre-`afterAll` ordering and internal-receipt stack currently has retained Ubuntu evidence. Production frequency and impact magnitude were not measured.
 
 **Done when:** One independent review records a disposition and the final combined cross-platform execution decision.
+
+### RQ-011 — Playwright Python async shutdown after cancellation
+
+**State:** Ready for independent shutdown-state review.  
+**Primary issue:** [#149](https://github.com/teamleaderleo/fieldwork/issues/149)  
+**Primary record:** [PR #49](https://github.com/teamleaderleo/fieldwork/pull/49)  
+**Evidence:** [canonical report](https://github.com/teamleaderleo/fieldwork/blob/dc8cfd359d1246bbad431a7a18e59f44832fcd58/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md), [two-version execution note](https://github.com/teamleaderleo/fieldwork/blob/dc8cfd359d1246bbad431a7a18e59f44832fcd58/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/python-async-stop-cancellation-run-2026-07-30.md), owned test PR [#1](https://github.com/teamleaderleo/playwright-python/pull/1), and execution PR [#2](https://github.com/teamleaderleo/playwright-python/pull/2).
+
+**Human summary:** The async context manager marks exit as started before awaiting shutdown. When the first `playwright.stop()` is cancelled while transport shutdown is blocked, that guard remains set. After transport shutdown completes, a second `stop()` returns through the guard while connection cleanup remains incomplete.
+
+**Executed evidence:** Python 3.10 and 3.14 both installed the repository, assembled the standard driver, and failed at the intended assertion that `_closed_error` should be set after the retry. No browser was launched.
+
+**Review ask:** Compare a shared shutdown task, an explicit state machine, and resumable cleanup. Require two concurrent callers, cancellation before and after transport stop, transport failure, repeated successful stop, and platform controls. Decide **accept**, **revise**, **execute broader matrix**, or **hold for shutdown-state design**.
+
+**Uncertainty to preserve:** The defect is retained on Linux at the supported Python-version boundaries. Windows and macOS were not executed. No browser-process consequence is claimed.
+
+**Done when:** One independent review selects or rejects a shutdown ownership model and names the regression matrix.
+
+### RQ-012 — Playwright MCP partial video finalization receipts
+
+**State:** Ready for independent mixed-result review.  
+**Primary issue:** [#153](https://github.com/teamleaderleo/fieldwork/issues/153)  
+**Primary record:** [PR #49](https://github.com/teamleaderleo/fieldwork/pull/49)  
+**Evidence:** [canonical report](https://github.com/teamleaderleo/fieldwork/blob/dc8cfd359d1246bbad431a7a18e59f44832fcd58/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md), [final execution note](https://github.com/teamleaderleo/fieldwork/blob/dc8cfd359d1246bbad431a7a18e59f44832fcd58/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/mcp-partial-video-finalization-run-2026-07-30.md), owned test PR [#1](https://github.com/teamleaderleo/playwright-mcp/pull/1), and execution PR [#2](https://github.com/teamleaderleo/playwright-mcp/pull/2).
+
+**Human summary:** One page recording finalized as a non-empty `video.webm`. Finalizing a second recording failed while copying to `video-1.webm`. The stop response returned only the second error and omitted the completed recording's path, collapsing mixed success into an all-error receipt.
+
+**Review ask:** Verify that the completed-file assertions ran before the receipt failure, trace per-page finalization and aggregation, compare all-settled outcomes with fail-fast handling, and require all-success, mixed-success, multiple-failure, repeated-stop, CLI, and platform controls. Decide **accept**, **revise**, **execute broader matrix**, or **hold for video-result schema design**.
+
+**Uncertainty to preserve:** The result is retained on Ubuntu, Node 20, and Chrome. The related CLI path and other platforms remain unexecuted. The successful file was not deleted; the confirmed problem is the incomplete tool receipt.
+
+**Done when:** One independent review records the per-recording result contract or explicitly holds the candidate.
+
+### RQ-010 — Playwright cleanup failure after expected body failure
+
+**State:** Ready for independent result-model review; no implementation selected.  
+**Primary issue:** [#142](https://github.com/teamleaderleo/fieldwork/issues/142)  
+**Primary record:** [PR #49](https://github.com/teamleaderleo/fieldwork/pull/49)  
+**Evidence:** [canonical report](https://github.com/teamleaderleo/fieldwork/blob/dc8cfd359d1246bbad431a7a18e59f44832fcd58/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md), owned probe [#28](https://github.com/teamleaderleo/playwright/pull/28), and execution PR [#29](https://github.com/teamleaderleo/playwright/pull/29).
+
+**Human summary:** A test marked with `test.fail()` failed as expected, then its fixture cleanup threw. With one retry configured, only attempt zero ran, no fresh worker appeared, and the nested run reported `1 passed`. Public `status` versus `expectedStatus` accounting absorbed the unrelated cleanup exception.
+
+**Review ask:** Verify the failure independence, trace the smallest internal signal through worker replacement, retry selection, and final outcome, and inspect reporter, serial-suite, and max-failure effects. Keep this separate from RQ-009.
+
+**Uncertainty to preserve:** The negative result is executed. The correct internal representation is still an open design question.
+
+**Done when:** The invariant is accepted or corrected and an implementation owner plus regression matrix is named, or the candidate is explicitly held.
 
 ### RQ-001 — MCP concurrent reconnect retry ownership
 
@@ -150,21 +199,6 @@ Research links below are pinned where useful. Live issues and pull requests rema
 **Review ask:** Review stable-mode cases independently, preserve the experimental qualifier, check browser/runtime consequences, and decide which candidate deserves its own packet.
 
 **Done when:** Each candidate has a separate disposition.
-
-### RQ-010 — Playwright cleanup failure after expected body failure
-
-**State:** Ready for independent result-model review; no implementation selected.  
-**Primary issue:** [#142](https://github.com/teamleaderleo/fieldwork/issues/142)  
-**Primary record:** [PR #49](https://github.com/teamleaderleo/fieldwork/pull/49)  
-**Evidence:** [canonical report](https://github.com/teamleaderleo/fieldwork/blob/8d7ed3a79d40e8b99a170f20fc46663e41d3acfc/programmes/web-tooling-runtime-correctness/scouts/playwright-execution-isolation-artifacts/report.md), owned probe [#28](https://github.com/teamleaderleo/playwright/pull/28), and execution PR [#29](https://github.com/teamleaderleo/playwright/pull/29).
-
-**Human summary:** A test marked with `test.fail()` failed as expected, then its fixture cleanup threw. With one retry configured, only attempt zero ran, no fresh worker appeared, and the nested run reported `1 passed`. Public `status` versus `expectedStatus` accounting absorbed the unrelated cleanup exception.
-
-**Review ask:** Verify the failure independence, trace the smallest internal signal through worker replacement, retry selection, and final outcome, and inspect reporter, serial-suite, and max-failure effects. Keep this separate from RQ-009.
-
-**Uncertainty to preserve:** The negative result is executed. The correct internal representation is still an open design question.
-
-**Done when:** The invariant is accepted or corrected and an implementation owner plus regression matrix is named, or the candidate is explicitly held.
 
 ### RQ-005 — Vercel AI terminal outcomes and resumable Stop ownership
 
