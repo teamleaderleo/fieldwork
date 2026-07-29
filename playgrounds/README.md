@@ -6,18 +6,30 @@ A playground answers one small question with local code, synthetic fixtures, or 
 
 ## Starting an experiment
 
-1. Copy `templates/experiment.json` and `templates/experiment.md` into `playgrounds/EXP-YYYYMMDD-short-name/`.
-2. State one distinguishing question.
-3. Select useful inputs from `playgrounds/cases/`.
-4. Add the smallest runnable adapter or script.
-5. Run locally and retain the exact command and result.
-6. Mark the outcome `complete`, `negative-result`, `blocked`, or `promoted`.
+Scaffold a minimal retained experiment:
 
-No issue is required for a private one-worker experiment. Create or connect a Fieldwork issue when ownership, dependencies, human decisions, parallel lanes, or later synthesis become necessary.
+```text
+python3 scripts/new_experiment.py parser-boundary \
+  --question "Does the parser preserve duplicate event ordering?" \
+  --owner worker-id
+```
+
+This creates `playgrounds/EXP-YYYYMMDD-parser-boundary/` with metadata, a report stub, and an intentionally unimplemented runner.
+
+Then:
+
+1. refine the distinguishing outcomes;
+2. record source revisions and environment;
+3. select useful inputs from `playgrounds/cases/`;
+4. implement the smallest runnable adapter or script;
+5. run locally and retain the exact command and result;
+6. mark the outcome `complete`, `negative-result`, `blocked`, or `promoted`.
+
+No issue is required for a one-worker experiment. Create or connect a Fieldwork issue when ownership, dependencies, human decisions, parallel lanes, or later synthesis become necessary.
 
 ## Ownership
 
-One experiment has one owner. Other workers may read it, but they should not change its question or overwrite its results without a handoff. Parallel variants should use separate experiment directories and may later be synthesized.
+One experiment has one owner. Other workers may read it, but they should not change its question or overwrite its results without a handoff. Parallel variants use separate experiment directories and may later be synthesized.
 
 ## Expected contents
 
@@ -44,9 +56,14 @@ EXP-YYYYMMDD-short-name/
 
 ## Running canonical cases
 
-`python3 scripts/run_playground_cases.py --list` lists the bundled case packs.
+List and validate the bundled packs:
 
-An experiment adapter reads one JSON value from standard input and writes its result to standard output. Run a case pack with:
+```text
+python3 scripts/run_playground_cases.py --list
+python3 scripts/run_playground_cases.py --validate
+```
+
+An experiment adapter reads one JSON value or text fixture from standard input and writes its result to standard output. Run a case pack with:
 
 ```text
 python3 scripts/run_playground_cases.py \
@@ -55,9 +72,19 @@ python3 scripts/run_playground_cases.py \
   --output playgrounds/EXP-YYYYMMDD-short-name/results/latest.json
 ```
 
-The runner invokes the adapter separately for each case, records exit code, stdout, stderr, duration, and timeout state, and optionally checks expectations declared by the case.
+The runner invokes the adapter separately for each case, records exit code, stdout, stderr, duration, and timeout state, and optionally checks declared expectations.
 
-The adapter protocol is deliberately tiny. Experiments needing richer orchestration may use their own runner while retaining the same experiment metadata and result conventions.
+The adapter protocol is deliberately tiny. Experiments needing richer orchestration may use their own runner while retaining the same metadata and result conventions.
+
+## Validation
+
+Run before retaining an experiment:
+
+```text
+python3 scripts/validate_experiments.py
+```
+
+CI validates retained experiment metadata, all canonical case packs, and the identity-adapter smoke test.
 
 ## Boundaries
 
