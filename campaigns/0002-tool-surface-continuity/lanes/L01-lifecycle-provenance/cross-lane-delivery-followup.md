@@ -58,12 +58,19 @@ Official SDK recheck: `modelcontextprotocol/rust-sdk@cb50ae7890d8a5daacae1a4ad95
 
 The SDK 3.0 line adds modern discovery and lifecycle negotiation, subscription support, client-side TTL response caching, and more accurate discovery errors. Those capabilities matter, but they do not own Codex's application-level catalogue snapshot or request binding.
 
-For tool-list changes, the SDK routes `notifications/tools/list_changed` to `ClientHandler::on_tool_list_changed`. The default callback is a no-op. Codex overrides it only to log the notification; it does not relist tools, validate a new catalogue digest, increment a catalogue revision, or publish a new binding.
+For tool-list changes, the SDK performs two bounded actions:
+
+1. it invalidates its own cached `tools/list` response before notification routing;
+2. it delivers `notifications/tools/list_changed` to `ClientHandler::on_tool_list_changed` or an accepted subscription channel.
+
+The default callback is a no-op. The SDK's integration test responds to each notification by explicitly calling `list_tools` again. Codex overrides the callback only to log the notification; it does not relist tools, validate a new catalogue digest, increment a catalogue revision, or publish a new binding. The SDK cache can therefore be current while Codex's separate `ManagedClient.tools` vector remains stale.
+
+The new subscription API also leaves lifecycle policy with the caller. A subscription can end gracefully, abruptly, by cancellation, or because its bounded channel lagged; streams are not resumable after reconnect. A reusable refresh helper would therefore need to coalesce notifications, reject late relist results, expose a generation or fetch ticket, and define reconnect behavior rather than treating one callback as a complete refresh.
 
 That separates the repair boundary:
 
 - Codex should own relist/reconnect policy, remote identity and catalogue validation, publication revision, and request-scoped binding replacement;
-- the Rust SDK could provide an opt-in relist helper or subscription stream, but it should not silently replace a client's published catalogue or active request binding.
+- the Rust SDK could provide an opt-in relist coordinator that combines cache invalidation, notification coalescing, generation ordering, and reconnect signals, but it should not silently replace a client's published catalogue or active request binding.
 
 The SDK current head is one fix beyond the 3.0.0 release. Release PR #1081 proposes 3.0.1 for server-information metadata on graceful subscription results. That change does not alter this lifecycle finding.
 
@@ -77,12 +84,15 @@ The diagnostic receipt should retain bounded digests or generations for:
 - host catalogue, thread binding, and deferred search index;
 - saved and current dynamic-tool generations;
 - observed remote server identity and catalogue revision;
-- tool-list-change notification receipt and relist outcome.
+- tool-list-change notification receipt, SDK cache invalidation, relist generation, and publication outcome;
+- subscription ending state and reconnect decision when subscriptions are used.
 
-These additions preserve the separate repair boundaries. Loader absence, wire omission, stale catalogue, stale saved provenance, and ignored list-change notification require different actions.
+These additions preserve the separate repair boundaries. Loader absence, wire omission, stale catalogue, stale saved provenance, and ignored or superseded list-change notification require different actions.
 
 ## Implementation handoff
 
 Implementation campaign #84 should cover four explicit host outcomes—preserve, replace, clear, and reject-on-mismatch—and MCP relist or hard refresh with remote identity and catalogue-digest validation. Older captured request bindings should retain their authority; newly captured steps should receive the accepted new revision.
+
+A separate Rust SDK scout is justified only if it tests a generic relist coordinator across concurrent notifications, out-of-order list responses, lagged subscription channels, and reconnect. Codex-specific catalogue publication remains in #84.
 
 Public Codex and the official Rust SDK remained read-only. No upstream contact occurred.
