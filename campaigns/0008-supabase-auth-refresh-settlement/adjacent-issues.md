@@ -22,7 +22,7 @@ It does not promote every open issue. Each item is classified by current owner, 
 
 ### 1. Realtime persisted-session authentication in React Native
 
-Public report: [`supabase/supabase-js#1730`](https://redirect.github.com/supabase/supabase-js/issues/1730)
+Public report: [React Native Realtime persisted-session report](https://redirect.github.com/supabase/supabase-js/issues/1730)
 
 Reported behavior:
 
@@ -65,7 +65,7 @@ Keep separate from campaign #78. The settlement patch may prevent auth-dependent
 
 ### 2. `getSession()` performance after lockless coordination
 
-Public report: [`supabase/supabase-js#970`](https://redirect.github.com/supabase/supabase-js/issues/970)
+Public report: [`getSession()` performance report](https://redirect.github.com/supabase/supabase-js/issues/970)
 
 Reported behavior:
 
@@ -97,9 +97,9 @@ The private-storage workaround posted in the issue bypasses supported auth behav
 
 ### 3. Generated zero-argument function types collide with table columns
 
-Public report: [`supabase/postgres-meta#1039`](https://redirect.github.com/supabase/postgres-meta/issues/1039)
+Public report: [zero-argument function type collision report](https://redirect.github.com/supabase/postgres-meta/issues/1039)
 
-Active upstream patch: [`supabase/postgres-meta#1035`](https://redirect.github.com/supabase/postgres-meta/pull/1035)
+Active upstream patch: [zero-argument and computed-field type correction](https://redirect.github.com/supabase/postgres-meta/pull/1035)
 
 Reported mechanism:
 
@@ -127,7 +127,7 @@ This is a stronger candidate for independent review than a new branch.
 
 ### 4. Bigint runtime and generated-type representation
 
-Public report: [`supabase/postgres-meta#1078`](https://redirect.github.com/supabase/postgres-meta/issues/1078)
+Public report: [Bigint runtime and generated-types report](https://redirect.github.com/supabase/postgres-meta/issues/1078)
 
 The issue combines several contracts:
 
@@ -153,14 +153,14 @@ A source-only type change cannot repair a wire response that has already lost pr
 
 ### 5. Reopened session-user warning behavior
 
-Public report: [`supabase/supabase-js#1709`](https://redirect.github.com/supabase/supabase-js/issues/1709)
+Public report: [session-user warning report](https://redirect.github.com/supabase/supabase-js/issues/1709)
 
-Merged prior fix: [`supabase/supabase-js#1817`](https://redirect.github.com/supabase/supabase-js/pull/1817)
+Merged prior fix: [session-user warning proxy correction](https://redirect.github.com/supabase/supabase-js/pull/1817)
 
 History:
 
 - the original warning proxy produced false positives during serialization and internal access;
-- PR #1817 moved the warning boundary from the session object to the user object;
+- the merged correction moved the warning boundary from the session object to the user object;
 - the issue was later reopened and remained active in July 2026.
 
 Assessment:
@@ -180,12 +180,12 @@ This is a trust and diagnostics contract, separate from refresh settlement.
 
 ### 6. Refresh outage and retry lifecycle
 
-Public issue: [`supabase/supabase-js#1680`](https://redirect.github.com/supabase/supabase-js/issues/1680)
+Public issue: [refresh outage and repeated-retry report](https://redirect.github.com/supabase/supabase-js/issues/1680)
 
 Current open work:
 
-- [`supabase/supabase-js#2568`](https://redirect.github.com/supabase/supabase-js/pull/2568) — offline-aware retry and reconnect;
-- [`supabase/supabase-js#2573`](https://redirect.github.com/supabase/supabase-js/pull/2573) — opt-in bounded automatic refresh failures.
+- [offline-aware refresh and reconnect proposal](https://redirect.github.com/supabase/supabase-js/pull/2568);
+- [bounded automatic refresh failures proposal](https://redirect.github.com/supabase/supabase-js/pull/2573).
 
 Assessment:
 
@@ -226,7 +226,7 @@ Keep outside the settlement patch. A separate design should decide whether diagn
 
 ### Storage multipart/upsert report
 
-Public report: [`supabase/storage#1241`](https://redirect.github.com/supabase/storage/issues/1241)
+Public report: [Storage multipart and upsert authorization report](https://redirect.github.com/supabase/storage/issues/1241)
 
 The reporter initially isolated multipart requests and `x-upsert` as apparent backend failures with misleading RLS errors.
 
@@ -246,7 +246,7 @@ A narrower diagnostics question remains: how much policy detail can Storage safe
 
 ### JSONB `NOT NULL` generated type includes `null`
 
-Public report: [`supabase/postgres-meta#1055`](https://redirect.github.com/supabase/postgres-meta/issues/1055)
+Public report: [JSONB nullability type report](https://redirect.github.com/supabase/postgres-meta/issues/1055)
 
 The report expects `NonNullable<Json>` for a `jsonb NOT NULL` column.
 
@@ -269,16 +269,16 @@ The public Supabase wrapper obtains an auth token for PostgREST, Storage, and Fu
 
 This pass found no separate Functions-client settlement owner. A hang in `auth.getSession()` can delay a Functions, Storage, or PostgREST call before its own client sends a request, but that remains propagation of auth lifecycle behavior.
 
-Storage issue #1241 also demonstrates why a successful token-control request does not prove every operation has sufficient policy permissions.
+The Storage authorization report also demonstrates why a successful token-control request does not prove every operation has sufficient policy permissions.
 
 ## Recommended next actions
 
 1. **Run the Realtime persisted-session current-version matrix.** Highest-value adjacent runtime check.
 2. **Rebenchmark `getSession()` on current lockless code.** Determine whether the open issue is resolved, changed, or still reproducible.
-3. **Review postgres-meta PR #1035 independently.** Avoid duplicate generated-types work.
+3. **Review the active zero-argument function type correction independently.** Avoid duplicate generated-types work.
 4. **Split Bigint into wire, parser, and generated-type contracts before claiming one fix.**
-5. **Reproduce issue #1709 on the current release and identify the exact warning access.**
-6. **Keep outage/reconnect PRs as rebase constraints for campaign #78.**
+5. **Reproduce the session-user warning report on the current release and identify the exact warning access.**
+6. **Keep outage and reconnect proposals as rebase constraints for campaign #78.**
 7. **Retain refresh headers as a separate observability design.**
 
 ## Boundary
