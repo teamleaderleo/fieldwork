@@ -41,7 +41,9 @@ Only create the directories the experiment actually needs. Small experiments may
 - one concrete question;
 - owner or worker identity;
 - creation date;
-- source revisions, package versions, and retrieval boundaries;
+- claim scope: `mechanism`, `interface`, `integration`, `operational`, or `ecosystem`;
+- integration-context path when the claim extends beyond the interface level;
+- source titles, stable URLs, versions or revisions, retrieval dates, supported claims, and evidence labels where relevant;
 - exact command used to run the experiment;
 - expected observations or distinguishing outcomes;
 - stop condition;
@@ -50,6 +52,16 @@ Only create the directories the experiment actually needs. Small experiments may
 - state: `draft`, `running`, `complete`, `negative-result`, `blocked`, or `promoted`.
 
 Use `templates/experiment.json` and `templates/experiment.md`, or run `scripts/new_experiment.py` to scaffold both records and a runnable stub.
+
+## Claim scope
+
+An isolated test should normally begin at `mechanism` scope.
+
+Use `interface` when the experiment preserves a declared boundary between components.
+
+Use `integration`, `operational`, or `ecosystem` only when a context dossier under `contexts/` supports the wider claim. The dossier must distinguish normative, documented, observed, inferred, illustrative, and unknown statements.
+
+See `INTEGRATION_CONTEXT.md` and `templates/integration-context.md`.
 
 ## Canonical cases
 
@@ -66,6 +78,16 @@ Before inventing inputs, check `playgrounds/cases/`. The case packs cover broadl
 
 Not every experiment needs every category. Select cases that can distinguish the current hypotheses.
 
+## Representative integration cases
+
+Some case packs are paired with wider context dossiers. These examples show how a small model can preserve the important boundary without pretending to reproduce a complete application.
+
+Current worked example:
+
+- `playgrounds/cases/retry-idempotency.json`
+- `playgrounds/examples/retry-idempotency/`
+- `contexts/patterns/retry-idempotency.md`
+
 ## Execution rules
 
 - Prefer a zero-dependency runner or a pinned lockfile.
@@ -76,6 +98,7 @@ Not every experiment needs every category. Select cases that can distinguish the
 - Retain raw output when interpretation could be disputed.
 - Do not silently overwrite a result used by another report; preserve the prior run or record the changed revision.
 - Generated code remains a candidate until the experiment demonstrates the claimed behaviour.
+- State what the model preserves and what it omits.
 
 ## Results
 
@@ -85,8 +108,9 @@ A useful result states:
 2. the exact environment and revision;
 3. what happened;
 4. which hypothesis the evidence supports or weakens;
-5. uncertainty and untested boundaries;
-6. whether the result should be discarded, retained, repeated, or promoted.
+5. the widest claim scope supported;
+6. uncertainty, omitted boundaries, and competing architectures;
+7. whether the result should be discarded, retained, repeated, contextualized, or promoted.
 
 Use `templates/experiment.md` for the human-readable record. Machine-readable output may live beside it.
 
@@ -95,12 +119,13 @@ Use `templates/experiment.md` for the human-readable record. Machine-readable ou
 Promote a playground when it stops being disposable:
 
 - **to a finding** when it reveals an observation worth retaining;
+- **to a context dossier** when the result needs sourced wider interpretation;
 - **to a probe result** when it belongs to a batch;
 - **to a campaign lane** when it gains dependencies, parallel work, or sustained scope;
 - **to a regression fixture** when it should protect future Fieldwork tooling;
-- **to an upstream packet** only after deliberate review and explicit authorization.
+- **to an upstream packet** only after deliberate review, supported context, and explicit authorization.
 
-Promotion preserves the experiment ID, source revision, commands, and result paths.
+Promotion preserves the experiment ID, source revision, commands, result paths, claim scope, and context relationship.
 
 ## Cleanup
 
