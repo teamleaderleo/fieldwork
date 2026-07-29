@@ -277,19 +277,20 @@ Evidence status:
 ## Required test matrix before production code
 
 1. Idle recovery with no terminal history settles the exact old turn as interrupted.
-2. Idle recovery with matching successful assistant history settles it as completed.
-3. Idle recovery with matching failed assistant history settles it as failed.
-4. Busy recovery restores the exact old turn and a later idle event settles it once.
-5. Repeated steering retains all provider message IDs under one T3 turn and converges once.
-6. Exact old-turn completion arriving after a new turn starts is rejected by the existing lifecycle guard.
-7. Terminal canonical events clear provider-directory active-turn recovery metadata.
-8. OpenCode abort settles interrupted when no idle event is delivered.
-9. OpenCode abort racing with an idle event still emits one interrupted terminal result.
-10. Interrupt with a mismatched stale turn ID does not abort the current turn.
-11. Confirmed missing OpenCode session settles the old turn as interrupted before fresh creation.
-12. Transient status or message-history failure does not silently create a fresh session.
-13. Pending permission/question recovery remains explicitly separate; message affinity does not reconstruct request maps.
-14. External OpenCode servers below the required status/message API capability fail with a clear compatibility error rather than unsafe fallback.
+2. Local-server restart without terminal history settles the exact old turn as interrupted.
+3. Idle recovery with matching successful assistant history settles it as completed.
+4. Idle recovery with matching failed assistant history settles it as failed.
+5. Busy recovery restores the exact old turn and a later idle event settles it once.
+6. Repeated steering retains all provider message IDs under one T3 turn and converges once.
+7. Exact old-turn completion arriving after a new turn starts is rejected by the existing lifecycle guard.
+8. Terminal canonical events clear provider-directory active-turn recovery metadata.
+9. OpenCode abort settles interrupted when no idle event is delivered.
+10. OpenCode abort racing with an idle event still emits one interrupted terminal result.
+11. Interrupt with a mismatched stale turn ID does not abort the current turn.
+12. Confirmed missing OpenCode session settles the old turn as interrupted before fresh creation.
+13. Transient status or message-history failure does not silently create a fresh session.
+14. Pending permission/question recovery remains explicitly separate; message affinity does not reconstruct request maps.
+15. External OpenCode servers below the required status/message API capability fail with a clear compatibility error rather than unsafe fallback.
 
 ## Negative results and limits
 
