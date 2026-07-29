@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdtempSync,
+	mkdirSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -15,27 +21,10 @@ function findUp(fileName, startDirectory) {
 	let directory = path.resolve(startDirectory);
 	while (true) {
 		const candidate = path.join(directory, fileName);
-		try {
-			return path.resolve(candidate, "..", path.basename(candidate));
-		} catch {
-			// Kept for symmetry with a filesystem lookup; existence is checked below.
-		}
-
-		const parent = path.dirname(directory);
-		if (parent === directory) {
-			return undefined;
-		}
-		directory = parent;
-	}
-}
-
-function existingFindUp(fileName, startDirectory, existingPaths) {
-	let directory = path.resolve(startDirectory);
-	while (true) {
-		const candidate = path.join(directory, fileName);
-		if (existingPaths.has(candidate)) {
+		if (existsSync(candidate)) {
 			return candidate;
 		}
+
 		const parent = path.dirname(directory);
 		if (parent === directory) {
 			return undefined;
@@ -44,18 +33,18 @@ function existingFindUp(fileName, startDirectory, existingPaths) {
 	}
 }
 
-function wranglerDiscovery(startDirectory, existingPaths) {
+function wranglerDiscovery(startDirectory) {
 	return (
-		existingFindUp("wrangler.json", startDirectory, existingPaths) ??
-		existingFindUp("wrangler.jsonc", startDirectory, existingPaths) ??
-		existingFindUp("wrangler.toml", startDirectory, existingPaths)
+		findUp("wrangler.json", startDirectory) ??
+		findUp("wrangler.jsonc", startDirectory) ??
+		findUp("wrangler.toml", startDirectory)
 	);
 }
 
-function viteDiscovery(root, existingPaths) {
+function viteDiscovery(root) {
 	for (const extension of ["jsonc", "json", "toml"]) {
 		const candidate = path.join(root, `wrangler.${extension}`);
-		if (existingPaths.has(candidate)) {
+		if (existsSync(candidate)) {
 			return candidate;
 		}
 	}
@@ -68,15 +57,12 @@ function createFile(filePath) {
 }
 
 function runScenario({ name, root, startDirectory = root, files, expected }) {
-	const existingPaths = new Set();
 	for (const relativePath of files) {
-		const filePath = path.join(root, relativePath);
-		createFile(filePath);
-		existingPaths.add(filePath);
+		createFile(path.join(root, relativePath));
 	}
 
-	const wrangler = wranglerDiscovery(startDirectory, existingPaths);
-	const vite = viteDiscovery(startDirectory, existingPaths);
+	const wrangler = wranglerDiscovery(startDirectory);
+	const vite = viteDiscovery(startDirectory);
 	const actual = {
 		wrangler: wrangler ? path.relative(root, wrangler) : undefined,
 		vite: vite ? path.relative(root, vite) : undefined,
