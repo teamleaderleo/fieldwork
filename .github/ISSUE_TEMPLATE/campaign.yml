@@ -1,8 +1,14 @@
 name: Campaign proposal
 description: Propose a bounded investigation
 title: "[Campaign] "
-labels: []
+labels:
+  - "type:campaign"
+  - "state:triage"
 body:
+  - type: markdown
+    attributes:
+      value: |
+        External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. External shorthand is prohibited. This campaign does not authorize upstream contact.
   - type: textarea
     id: question
     attributes:
