@@ -12,7 +12,7 @@ Coordinator-owned file. Workers must not edit this file directly.
 | --- | --- | --- | --- | --- | --- |
 | A001 | Teardown lifecycle ownership | complete | `fieldwork/teardown-lifecycle-hardening` / fork PR #1 | `results/A001.md` via Fieldwork PR #98 | Coordinator review recorded on fork PR #1; execution gate remains |
 | A002 | Configuration selection contract | complete | `fieldwork/config-selection-contract` / fork PR #2 | `results/A002.md` | Evidence wording corrected; cross-tool precedent supports behavior-preserving shared-policy disclosure |
-| A003 | Partial deployment state | complete | `fieldwork/deploy-state-reporting` / fork PR #3 | `results/A003.md` | Activation-path matrix corrected; reporting-failure guard and regression prepared; package execution remains |
+| A003 | Partial deployment state | complete | `fieldwork/deploy-state-reporting` / fork PR #3 | `results/A003.md` | Activation-path matrix corrected; reporting-failure guard executed in the dependency-free model; package execution remains |
 | A004 | Independent review and prior art | withdrawn | none | `results/A004.md` | Duties redistributed at user direction |
 
 ## Shared boundaries
@@ -48,7 +48,7 @@ Protocol direction accepted. Before behavior changes:
 
 Guarded state-reporting direction accepted. Before source integration:
 
-- execute deploy-helper tests, including the report-throws regression;
+- execute deploy-helper package tests, including the report-throws regression;
 - inject legacy-upload/container failure;
 - inject versions-deployment/trigger failure;
 - inject legacy-upload/trigger failure;
@@ -57,4 +57,4 @@ Guarded state-reporting direction accepted. Before source integration:
 
 ## Synthesis
 
-`synthesis.md` is ready for programme-level review after the evidence-class correction. The next useful implementation work requires a complete Workers SDK checkout with dependencies or an owned CI route capable of executing the package tests.
+`synthesis.md` is ready for programme-level review after the evidence-class and reporting-guard corrections. The next useful implementation work requires a complete Workers SDK checkout with dependencies or an owned CI route capable of executing the package tests.
