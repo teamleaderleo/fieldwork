@@ -48,7 +48,7 @@ jobs:
       matrix:
         include:
           - name: Interrupt settlement candidate
-            command: vp test run apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
+            command: vp test run apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-error.test.ts
           - name: Existing OpenCode adapter suite
             command: vp test run apps/server/src/provider/Layers/OpenCodeAdapter.test.ts
           - name: Server typecheck
