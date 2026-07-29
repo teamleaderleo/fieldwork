@@ -11,9 +11,10 @@
 - Sequential stale-state draft mitigation: [`teamleaderleo/ai#3`](https://github.com/teamleaderleo/ai/pull/3)
 - Idle UI response campaign: #150
 - UI keep-alive draft candidate: [`teamleaderleo/ai#4`](https://github.com/teamleaderleo/ai/pull/4)
+- Central review registration: #87 and evaluator dogfood #138
 - Upstream contact: none
 
-The local work environment could not resolve GitHub for a checkout. GitHub Actions later became available for owned PRs #1 and #4, so these notes distinguish local non-execution from actual fork CI evidence. PR #3 still has no workflow run.
+The local work environment could not resolve GitHub for a checkout. GitHub Actions later became available for owned PRs #1 and #4, so these notes distinguish local non-execution, historical CI from older heads, current-head receipts, and unexecuted integration gates. PR #3 still has no workflow run.
 
 ## Explicit-abort candidate review
 
@@ -23,11 +24,11 @@ The maintainer-authored implementation staged from the [external candidate](http
 
 GitHub had already computed a conflict-free merge commit for the pull request. The owned branch was fast-forwarded to that computed merge commit, preserving the reviewed file tree while making the pinned base an ancestor.
 
-Current explicit-abort branch head after formatting correction:
+Current explicit-abort branch head:
 
-`67251626a5a538c4e46170e502b8d1906510ad6d`
+`e685a4c92a5869aec306718ab5a440b7cb4fa5b1`
 
-The branch remains cleanly based on the pin and changes one production file plus a changeset and focused tests.
+The branch remains cleanly based on the pin and contains the intended five-file candidate diff: one production file, the existing target test, two focused Fieldwork tests, and one changeset.
 
 This correction matters because a mergeable pull request is not by itself proof that its branch actually descends from the claimed evaluation base.
 
@@ -63,17 +64,24 @@ Other public getters derive from those roots.
 
 These are executable defect records, not completed fixes. A green run while they remain `it.fails` means Vitest reproduced the expected defects. When the implementation is corrected, each case must be converted to an ordinary `it` test.
 
-### First CI evidence
+### CI evidence
 
-The first owned-fork CI run produced useful partial validation:
+An older owned-fork CI run produced useful partial validation:
 
-- changeset verification passed;
 - TypeScript typecheck passed;
 - package build passed;
 - code-consistency checks passed;
-- the CI workflow failed only because the two new test files did not match the repository formatter.
+- changeset verification passed;
+- the main workflow failed only because the two new test files did not match the repository formatter.
 
-No implementation or type error was reported in that run. Both files were reformatted without changing their test logic. A fresh CI and changeset run are queued on the current head.
+A temporary owned-branch workflow ran the repository formatter and printed its exact diff. The formatter-produced blob contents were applied byte-for-byte and the temporary workflow was deleted, returning the pull request to its intended five files.
+
+Current-head receipts:
+
+- changeset verification run `30495574982`: passed;
+- normal CI run `30495574988`: queued.
+
+No clean current-head main-CI result is claimed yet. Historical success remains bound to the older tested head.
 
 ### Focused commands
 
@@ -131,7 +139,7 @@ Current branch head:
 
 `56453af2c2688d158d4291293a11dfe34db260e7`
 
-No owned-fork workflow run is visible for this branch. Its targeted test remains statically reviewed but unexecuted.
+No owned-fork workflow run is visible for this branch. Its targeted test remains `target-test-prepared`, statically reviewed, and unexecuted.
 
 ### Focused command
 
@@ -173,13 +181,13 @@ The candidate:
 - validates before locking or teeing the source or invoking callbacks;
 - forwards the option through Fetch, Node, `streamText`, and agent response helpers.
 
-Current candidate head after the first CI correction:
+Current candidate head:
 
 `88849192b0b235ef79cc6d0fb1aaa9b9a17e98b5`
 
-### First CI evidence
+### CI evidence
 
-The first CI run established that:
+The first CI run on an older head established that:
 
 - changeset verification passed;
 - package builds passed;
@@ -189,7 +197,14 @@ The first CI run established that:
 - one new cancellation test failed because it asserted that downstream source cancellation had completed when the deliberately non-blocking client cancellation promise resolved;
 - two new helper tests required repository formatting.
 
-The implementation contract is that client cancellation must not wait for an independent persistence tee, while cancellation still propagates eventually. The test now waits for eventual source cancellation instead of requiring it to be complete synchronously. The two formatter-rejected files were reformatted without changing behavior. Fresh CI and changeset runs are queued on the current head.
+The implementation contract is that client cancellation must not wait for an independent persistence tee, while cancellation still propagates eventually. The test now waits for eventual source cancellation instead of requiring it to be complete synchronously. The two formatter-rejected files were corrected on the current head.
+
+Current-head receipts:
+
+- changeset verification run `30494247723`: passed;
+- normal CI run `30494247717`: queued.
+
+No clean current-head package-CI result is claimed yet. The 757/758 receipt remains historical evidence for its tested head.
 
 ### Remaining validation gate
 
@@ -201,10 +216,21 @@ Even a green package suite cannot prove deployment behavior. Promotion still req
 - repeated open/cancel leak checks;
 - deployment guidance that does not promise one universal interval.
 
+## Central review disposition
+
+The packet is registered as four independent review nodes on coordination issue #87 and evaluator dogfood issue #138. The scout and synthesis PR are evidence parents, not one blanket acceptance decision.
+
+- PR #1: requested disposition `REPAIR` or `EXECUTE`; two lifecycle races remain expected failures.
+- Campaign #94: requested contract disposition `ACCEPT`, `HOLD`, or `REJECT`; no implementation branch exists.
+- PR #3: requested disposition `EXECUTE`, then `REPAIR` or `HOLD`; run ownership remains absent.
+- PR #4: requested disposition `EXECUTE` or `REPAIR`; current package CI and real HTTP/proxy gates remain open.
+
+The author's self-review does not count as independent acceptance.
+
 ## Final review disposition
 
-- PR #1 remains a draft candidate. Its first CI run passed typecheck, build, code consistency, and changeset verification; formatting was corrected and a fresh run is queued. The two lifecycle defects remain deliberately recorded as expected failures.
-- PR #3 remains a draft sequential mitigation. It has a narrow regression and an expected-failure ownership test, but no workflow execution.
-- PR #4 remains a draft transport candidate. Its first test shard passed 757 of 758 tests with no type errors; the one assertion mismatch and two format failures were corrected, and a fresh run is queued. Real HTTP/proxy validation remains mandatory.
+- PR #1 remains a draft candidate with exact formatter output applied and current-head changeset verification passed; normal CI is queued.
+- PR #3 remains a draft sequential mitigation with one ordinary regression and one expected-failure ownership test, but no workflow execution.
+- PR #4 remains a draft transport candidate with historical 757/758 evidence, current-head changeset verification passed, and normal CI queued. Real HTTP/proxy validation remains mandatory.
 - None of the candidates should yet be described as release-ready or complete.
 - Reader cancellation remains consumer-scoped and is not changed by these candidates.
