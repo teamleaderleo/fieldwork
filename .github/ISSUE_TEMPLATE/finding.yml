@@ -8,7 +8,21 @@ body:
   - type: markdown
     attributes:
       value: |
-        External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. External shorthand is prohibited. This finding does not authorize upstream contact.
+        Add the correct `target:<slug>` label after creation. External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. External shorthand is prohibited. This finding does not authorize upstream contact.
+  - type: input
+    id: target
+    attributes:
+      label: Target label and hub
+      placeholder: target:vercel-ai — Fieldwork target hub issue 2
+    validations:
+      required: true
+  - type: textarea
+    id: simple
+    attributes:
+      label: In simple words
+      description: What is this, where does it sit, what was observed, why could it be useful, and what happens next?
+    validations:
+      required: true
   - type: textarea
     id: observation
     attributes:
@@ -20,7 +34,7 @@ body:
     id: consequence
     attributes:
       label: Consequence
-      description: Why is this worth understanding?
+      description: What user, operator, dependant, or system property could be affected?
     validations:
       required: true
   - type: textarea
@@ -32,8 +46,8 @@ body:
   - type: textarea
     id: reproduction
     attributes:
-      label: Current reproduction evidence
-      description: Include environment, revisions, commands, and observed output where available.
+      label: Current reproduction or integration evidence
+      description: Include environment, revisions, commands, testbed, and observed output where available.
   - type: textarea
     id: hypotheses
     attributes:
@@ -41,7 +55,9 @@ body:
   - type: checkboxes
     id: quiet
     attributes:
-      label: External-reference check
+      label: Boundaries
       options:
         - label: External interaction references are wrapped and no upstream contact is authorized.
+          required: true
+        - label: This is more than a style, wording, lint, or documentation nit.
           required: true
