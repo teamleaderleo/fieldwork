@@ -54,11 +54,11 @@
       "owner": "external-agent-A001",
       "target": "teamleaderleo/workers-sdk",
       "source_revision": "161443215fba3ac77407ba30f6996aa9963a0276",
-      "result_revision": "eb2574f8cf7f73f244fed9733ca1902ab1e3fe7a",
+      "result_revision": "3d67e4cf38fe270a8d871056536b0e36d9a80893",
       "fork_pr": "teamleaderleo/workers-sdk#1",
       "fieldwork_pr": "teamleaderleo/fieldwork#98",
       "question": "Can an early rejection or unresolved cleanup operation prevent Runtime.dispose() from terminating workerd, especially under parallel Vitest execution?",
-      "method": "source trace, failure injection, package-level regression testing, adversarial test review, and adjacent lifecycle exploration",
+      "method": "source trace, failure injection, package-level regression testing, adversarial test review, and adjacent Vite lifecycle exploration",
       "claim_scope": "mechanism",
       "claim_to_support_or_falsify": "Miniflare cleanup ordering contains a sufficient path for a hidden live workerd child after an otherwise passing Vitest run.",
       "preferred_primary_sources": [
@@ -78,11 +78,12 @@
       "deliverable": "A focused Fieldwork result and PR with a real failing test or a precise feasibility limit, rejected alternatives, and a bounded repair direction.",
       "owned_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/results/A001.md",
       "dependencies": [
-        "Package execution remains required before source integration."
+        "Package execution remains required before source integration.",
+        "Adjacent Vite container cleanup candidate #165 requires separate mocked plugin tests."
       ],
       "state": "complete",
       "stop_condition": "Stop when the lifecycle claim is reproduced, falsified, or blocked by a specific unavailable test dependency; do not generalize every teardown hang to this cause.",
-      "review_disposition": "Mechanism accepted; kill assertions now bind to the workerd child; split child ownership from primary-error aggregation before implementation promotion.",
+      "review_disposition": "Mechanism accepted; kill assertions bind to the workerd child. Adjacent Vite cleanup ownership is retained separately as candidate #165; split child ownership from primary-error aggregation before implementation promotion.",
       "upstream_contact_authorized": false
     },
     {
