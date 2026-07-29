@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "name": "event-sequences",
+  "description": "Ordering, duplication, retry, partial-success, cancellation, and recovery event sequences.",
+  "timeout_seconds": 5,
+  "cases": [
+    {
+      "id": "single-success",
+      "tags": ["baseline"],
+      "stdin_json": {"events": [{"id": "a", "type": "start"}, {"id": "a", "type": "success"}]}
+    },
+    {
+      "id": "duplicate-success",
+      "tags": ["duplicate", "idempotency"],
+      "stdin_json": {"events": [{"id": "a", "type": "start"}, {"id": "a", "type": "success"}, {"id": "a", "type": "success"}]}
+    },
+    {
+      "id": "success-before-start",
+      "tags": ["reordered", "invalid-order"],
+      "stdin_json": {"events": [{"id": "a", "type": "success"}, {"id": "a", "type": "start"}]}
+    },
+    {
+      "id": "retry-after-failure",
+      "tags": ["retry", "recovery"],
+      "stdin_json": {"events": [{"id": "a", "type": "start"}, {"id": "a", "type": "failure"}, {"id": "a", "type": "retry"}, {"id": "a", "type": "success"}]}
+    },
+    {
+      "id": "cancel-before-complete",
+      "tags": ["cancellation"],
+      "stdin_json": {"events": [{"id": "a", "type": "start"}, {"id": "a", "type": "cancel"}, {"id": "a", "type": "success"}]}
+    },
+    {
+      "id": "interleaved-two-items",
+      "tags": ["concurrency", "ordering"],
+      "stdin_json": {"events": [{"id": "a", "type": "start"}, {"id": "b", "type": "start"}, {"id": "b", "type": "success"}, {"id": "a", "type": "success"}]}
+    },
+    {
+      "id": "partial-success-cleanup-failure",
+      "tags": ["partial-success", "cleanup"],
+      "stdin_json": {"events": [{"id": "a", "type": "start"}, {"id": "a", "type": "success"}, {"id": "a", "type": "cleanup-failure"}]}
+    },
+    {
+      "id": "resume-after-interruption",
+      "tags": ["recovery", "resume"],
+      "stdin_json": {"checkpoint": {"completed": ["a"], "pending": ["b"]}, "events": [{"id": "b", "type": "resume"}, {"id": "b", "type": "success"}]}
+    }
+  ]
+}
