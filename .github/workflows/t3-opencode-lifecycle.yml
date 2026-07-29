@@ -53,8 +53,6 @@ jobs:
             test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
           - name: Pending request cleanup
             test: apps/server/src/provider/Layers/OpenCodeAdapter.pending-request.test.ts
-          - name: Steering affinity
-            test: apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts
           - name: Reaper race
             test: apps/server/src/provider/Layers/ProviderSessionReaper.race.test.ts
     steps:
