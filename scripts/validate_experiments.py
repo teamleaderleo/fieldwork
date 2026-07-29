@@ -14,6 +14,9 @@ ROOT = Path("playgrounds")
 ID_PATTERN = re.compile(r"EXP-[0-9]{8}-[a-z0-9]+(?:-[a-z0-9]+)*$")
 STATES = {"draft", "running", "complete", "negative-result", "blocked", "promoted"}
 NETWORK_POLICIES = {"disabled", "loopback-only", "public-read-only", "explicit"}
+CLAIM_SCOPES = {"mechanism", "interface", "integration", "operational", "ecosystem"}
+CONTEXT_REQUIRED = {"integration", "operational", "ecosystem"}
+EVIDENCE_LABELS = {"Normative", "Documented", "Observed", "Inferred", "Illustrative", "Unknown"}
 
 
 class ValidationError(ValueError):
@@ -27,9 +30,11 @@ def require_string(data: dict[str, Any], key: str, location: str) -> str:
     return value
 
 
-def validate_relative_path(value: str, location: str) -> None:
+def validate_relative_path(value: str, location: str, *, allow_outside_experiment: bool = False) -> None:
     path = PurePosixPath(value)
     if path.is_absolute() or ".." in path.parts:
+        raise ValidationError(f"{location}: path must be repository-relative without '..'")
+    if not allow_outside_experiment and path.parts and path.parts[0] in {"contexts", "campaigns", "batches"}:
         raise ValidationError(f"{location}: result path must stay inside the experiment")
 
 
@@ -71,6 +76,31 @@ def validate_experiment(directory: Path) -> None:
     if state not in STATES:
         raise ValidationError(f"{metadata_path}: unsupported state {state!r}")
 
+    claim_scope = data.get("claim_scope", "mechanism")
+    if claim_scope not in CLAIM_SCOPES:
+        raise ValidationError(f"{metadata_path}: unsupported claim_scope {claim_scope!r}")
+
+    integration_context = data.get("integration_context")
+    if integration_context is not None:
+        if not isinstance(integration_context, str) or not integration_context.strip():
+            raise ValidationError(
+                f"{metadata_path}: integration_context must be a non-empty string or null"
+            )
+        validate_relative_path(
+            integration_context,
+            f"{metadata_path}: integration_context",
+            allow_outside_experiment=True,
+        )
+        context_path = Path(integration_context)
+        if not context_path.is_file():
+            raise ValidationError(
+                f"{metadata_path}: integration_context does not exist: {integration_context}"
+            )
+    elif claim_scope in CONTEXT_REQUIRED:
+        raise ValidationError(
+            f"{metadata_path}: claim_scope {claim_scope!r} requires integration_context"
+        )
+
     network_policy = data.get("network_policy")
     if network_policy not in NETWORK_POLICIES:
         raise ValidationError(
@@ -101,6 +131,16 @@ def validate_experiment(directory: Path) -> None:
         except ValueError as exc:
             raise ValidationError(f"{location}: retrieved_at must be YYYY-MM-DD") from exc
 
+        url = source.get("url")
+        if url is not None and (not isinstance(url, str) or not url.strip()):
+            raise ValidationError(f"{location}: url must be a non-empty string when present")
+        claim = source.get("claim")
+        if claim is not None and (not isinstance(claim, str) or not claim.strip()):
+            raise ValidationError(f"{location}: claim must be a non-empty string when present")
+        label = source.get("evidence_label")
+        if label is not None and label not in EVIDENCE_LABELS:
+            raise ValidationError(f"{location}: unsupported evidence_label {label!r}")
+
     outcomes = data.get("distinguishing_outcomes")
     if not isinstance(outcomes, list):
         raise ValidationError(
@@ -115,7 +155,10 @@ def validate_experiment(directory: Path) -> None:
             raise ValidationError(
                 f"{metadata_path}: result_paths[{index}] must be a non-empty string"
             )
-        validate_relative_path(result_path, f"{metadata_path}: result_paths[{index}]")
+        validate_relative_path(
+            result_path,
+            f"{metadata_path}: result_paths[{index}]",
+        )
 
     promoted_to = data.get("promoted_to")
     if promoted_to is not None and not isinstance(promoted_to, str):
@@ -123,9 +166,7 @@ def validate_experiment(directory: Path) -> None:
 
 
 def main() -> int:
-    directories = sorted(
-        path for path in ROOT.glob("EXP-*") if path.is_dir()
-    )
+    directories = sorted(path for path in ROOT.glob("EXP-*") if path.is_dir())
 
     failed = False
     for directory in directories:
