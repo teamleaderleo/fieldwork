@@ -18,3 +18,37 @@ index 73c23b7..0000000 100644
            model: parsedModel,
            ...(context.activeAgent ? { agent: context.activeAgent } : {}),
            ...(context.activeVariant ? { variant: context.activeVariant } : {}),
+diff --git a/apps/server/src/provider/Layers/OpenCodeAdapter.test.ts b/apps/server/src/provider/Layers/OpenCodeAdapter.test.ts
+index 1385ccb..0000000 100644
+--- a/apps/server/src/provider/Layers/OpenCodeAdapter.test.ts
++++ b/apps/server/src/provider/Layers/OpenCodeAdapter.test.ts
+@@ -843,7 +843,13 @@ it.layer(OpenCodeAdapterTestLayer)("OpenCodeAdapterLive", (it) => {
+         ),
+       });
+ 
+-      NodeAssert.deepEqual(runtimeMock.state.promptCalls.at(-1), {
++      const promptCall = runtimeMock.state.promptCalls.at(-1) as
++        | ({ readonly messageID?: unknown } & Record<string, unknown>)
++        | undefined;
++      NodeAssert.equal(typeof promptCall?.messageID, "string");
++      NodeAssert.match(promptCall.messageID as string, /^msg_t3_/);
++      const { messageID: _messageID, ...promptWithoutMessageId } = promptCall;
++      NodeAssert.deepEqual(promptWithoutMessageId, {
+         sessionID: "http://127.0.0.1:9999/session",
+         model: {
+           providerID: "anthropic",
+@@ -887,7 +893,13 @@ it.layer(OpenCodeAdapterTestLayer)("OpenCodeAdapterLive", (it) => {
+         input: "Fix it",
+       });
+ 
+-      NodeAssert.deepEqual(runtimeMock.state.promptCalls.at(-1), {
++      const promptCall = runtimeMock.state.promptCalls.at(-1) as
++        | ({ readonly messageID?: unknown } & Record<string, unknown>)
++        | undefined;
++      NodeAssert.equal(typeof promptCall?.messageID, "string");
++      NodeAssert.match(promptCall.messageID as string, /^msg_t3_/);
++      const { messageID: _messageID, ...promptWithoutMessageId } = promptCall;
++      NodeAssert.deepEqual(promptWithoutMessageId, {
+         sessionID: "http://127.0.0.1:9999/session",
+         model: {
+           providerID: "anthropic",
