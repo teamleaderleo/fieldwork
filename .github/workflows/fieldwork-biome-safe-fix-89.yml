@@ -25,3 +25,6 @@ jobs:
       - name: Reproduce useArrayLiterals spread behavior
         shell: bash
         run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-array-literals-spread/reproduce.sh
+      - name: Probe noUselessStringConcat numeric formatting
+        shell: bash
+        run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/no-useless-string-concat-numbers/reproduce.sh
