@@ -5,7 +5,23 @@
   "target": "owner/repository",
   "source_revision": "exact SHA, release, or retrieval boundary",
   "question": "One answerable question",
-  "method": "One method",
+  "method": "One method or context lens",
+  "claim_scope": "mechanism",
+  "claim_to_support_or_falsify": "Exact claim this assignment addresses",
+  "preferred_primary_sources": [
+    "official documentation",
+    "standard or specification",
+    "source at an exact revision"
+  ],
+  "evidence_labels_allowed": [
+    "Normative",
+    "Documented",
+    "Observed",
+    "Inferred",
+    "Illustrative",
+    "Unknown"
+  ],
+  "integration_context_path": null,
   "deliverable": "One concrete output",
   "owned_path": "batches/BYYYYMMDD-NNN-slug/results/A001.md",
   "dependencies": [],
