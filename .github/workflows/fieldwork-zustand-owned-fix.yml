@@ -26,12 +26,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/zustand
-          ref: be961d4297fd9138a0e856009f6ec2ac1cbe455a
+          ref: fc68d9c87b821a60731cf15158d549b2b25201ef
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: pnpm
 
       - name: Enable pnpm
         run: corepack enable
