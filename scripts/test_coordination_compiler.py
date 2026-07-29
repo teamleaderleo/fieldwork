@@ -157,6 +157,38 @@ class CoordinationCompilerTests(unittest.TestCase):
         ):
             compiler.normalize_graph(invalid)
 
+    def test_unknown_fields_are_rejected_consistently(self) -> None:
+        cases = []
+
+        top_level = graph([node("evidence")], [])
+        top_level["unexpected"] = True
+        cases.append(top_level)
+
+        node_field = graph([node("evidence")], [])
+        node_field["nodes"][0]["unexpected"] = True
+        cases.append(node_field)
+
+        authority_field = graph([node("evidence")], [])
+        authority_field["nodes"][0]["authority"]["unexpected"] = True
+        cases.append(authority_field)
+
+        edge_field = graph(
+            [node("a"), node("b")],
+            [{"from": "a", "to": "b", "kind": "requires", "unexpected": True}],
+        )
+        cases.append(edge_field)
+
+        for value in cases:
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(compiler.GraphError, "unknown field"):
+                    compiler.normalize_graph(value)
+
+    def test_empty_generation_is_rejected(self) -> None:
+        value = graph([node("evidence")], [])
+        value["nodes"][0]["generation"] = ""
+        with self.assertRaisesRegex(compiler.GraphError, "non-empty string"):
+            compiler.normalize_graph(value)
+
 
 if __name__ == "__main__":
     unittest.main()
