@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Evidence-led interruption model for Fieldwork issue #29.
 
-The broad repository maps identify a useful comparison: after an interruption,
+The repository maps identify a useful comparison: after an interruption,
 which system owns enough durable evidence to decide the next action?
 
 This model derives its profiles from pinned source. It does not execute the
@@ -18,10 +18,9 @@ Disposition = Literal[
     "read_or_replay_local_result",
     "reconcile_external_owner_before_replacement",
     "fresh_observation_required",
-    "no_durable_recovery_contract",
 ]
 
-Recommendation = Literal["baseline", "campaign", "stop"]
+Recommendation = Literal["baseline", "campaign"]
 
 
 @dataclass(frozen=True)
@@ -51,25 +50,6 @@ class BoundaryResult:
 
 
 def evaluate(profile: BoundaryProfile) -> BoundaryResult:
-    if not profile.durable_logical_identity:
-        return BoundaryResult(
-            name=profile.name,
-            disposition="no_durable_recovery_contract",
-            recommendation="stop",
-            next_action=(
-                "treat the request as ended; introduce a durable job only after "
-                "an explicit asynchronous or write-capable product requirement"
-            ),
-            decisive_evidence=("request lifecycle",),
-            missing_evidence=(
-                "durable job identity",
-                "attempt identity",
-                "checkpoint",
-                "cancellation record",
-                "terminal read-back",
-            ),
-        )
-
     if (
         profile.coordinator_state_owner == profile.effect_owner
         and profile.receipt_scope == "local"
@@ -201,20 +181,6 @@ def main() -> None:
                 "journal_revision",
             ),
         ),
-        BoundaryProfile(
-            name="fin-agent-chat-request",
-            system="fin-agent",
-            work_model="request-scoped planner, read tool, and SSE response",
-            durable_logical_identity=False,
-            coordinator_state_owner="browser-and-request-memory",
-            effect_owner="external-read-provider",
-            receipt_scope="none",
-            durable_pre_effect_checkpoint=False,
-            durable_terminal_evidence=False,
-            durable_cancellation_evidence=False,
-            fresh_observation_rule=False,
-            correlation_fields=("message_array", "step_count"),
-        ),
     )
 
     results = tuple(evaluate(profile) for profile in profiles)
@@ -226,13 +192,11 @@ def main() -> None:
             "campaign",
         ),
         "smolrunner-host-execution": ("fresh_observation_required", "campaign"),
-        "fin-agent-chat-request": ("no_durable_recovery_contract", "stop"),
     }
     for result in results:
         assert (result.disposition, result.recommendation) == expected[result.name]
 
     assert sum(result.recommendation == "campaign" for result in results) == 2
-    assert sum(result.recommendation == "stop" for result in results) == 1
     assert sum(result.recommendation == "baseline" for result in results) == 1
 
     output = {
@@ -240,8 +204,7 @@ def main() -> None:
             "id": "authority-after-interruption",
             "question": (
                 "After an interruption, which component owns enough durable "
-                "evidence to choose read-back, reconciliation, fresh observation, "
-                "or termination?"
+                "evidence to choose read-back, reconciliation, or fresh observation?"
             ),
             "selected_after_maps": True,
             "input_kind": "synthetic profiles derived from pinned source",
@@ -260,7 +223,6 @@ def main() -> None:
             ],
             "baseline": ["stensibly-local-ledger-receipts"],
             "stops": [
-                "fin-agent-durable-job-recovery",
                 "generic-cross-system-retry-framework",
                 "dependency-or-runtime-attribution",
             ],
