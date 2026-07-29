@@ -12,6 +12,7 @@ import sys
 
 SLUG_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*$")
 ROOT = Path("playgrounds")
+CLAIM_SCOPES = ["mechanism", "interface", "integration", "operational", "ecosystem"]
 
 
 def parse_args() -> argparse.Namespace:
@@ -21,6 +22,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--owner", default="unassigned")
     parser.add_argument("--date", dest="created_at", default=date.today().isoformat())
     parser.add_argument("--command", default="python3 run.py")
+    parser.add_argument(
+        "--claim-scope",
+        choices=CLAIM_SCOPES,
+        default="mechanism",
+        help="widest claim this experiment is intended to support",
+    )
+    parser.add_argument(
+        "--integration-context",
+        help="repository-relative context dossier, for example contexts/patterns/retry-idempotency.md",
+    )
     parser.add_argument(
         "--network-policy",
         choices=["disabled", "loopback-only", "public-read-only", "explicit"],
@@ -41,6 +52,18 @@ def main() -> int:
         print("--date must use YYYY-MM-DD", file=sys.stderr)
         return 2
 
+    if args.integration_context:
+        context_path = Path(args.integration_context)
+        if context_path.is_absolute() or ".." in context_path.parts:
+            print("--integration-context must be a repository-relative path without '..'", file=sys.stderr)
+            return 2
+    elif args.claim_scope in {"integration", "operational", "ecosystem"}:
+        print(
+            f"--claim-scope {args.claim_scope!r} requires --integration-context",
+            file=sys.stderr,
+        )
+        return 2
+
     compact_date = args.created_at.replace("-", "")
     experiment_id = f"EXP-{compact_date}-{args.slug}"
     directory = ROOT / experiment_id
@@ -56,6 +79,8 @@ def main() -> int:
         "owner": args.owner,
         "created_at": args.created_at,
         "state": "draft",
+        "claim_scope": args.claim_scope,
+        "integration_context": args.integration_context,
         "sources": [],
         "command": args.command,
         "environment": {
@@ -75,11 +100,16 @@ def main() -> int:
         encoding="utf-8",
     )
 
+    context_line = args.integration_context or "none"
     readme = f"""# Experiment: {args.slug.replace('-', ' ').title()}
 
 Experiment ID: `{experiment_id}`
 
 State: `draft`
+
+Claim scope: `{args.claim_scope}`
+
+Integration context: `{context_line}`
 
 ## Question
 
@@ -101,6 +131,10 @@ State: `draft`
 
 Not run.
 
+## Wider context
+
+Record only the claim scope supported by the evidence. Use `INTEGRATION_CONTEXT.md` when asserting integration, operational, or ecosystem consequences.
+
 ## Uncertainty
 
 Not assessed.
@@ -113,6 +147,7 @@ Pending.
 
 - Upstream contact is not authorized.
 - Network policy: `{args.network_policy}`.
+- Mechanism evidence does not establish wider use without supporting context.
 """
     (directory / "README.md").write_text(readme, encoding="utf-8")
 
