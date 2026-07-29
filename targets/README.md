@@ -1,6 +1,12 @@
 # Targets
 
-Targets are external ecosystems worth understanding. The registry is intentionally broader than the set of active campaigns.
+Targets are external ecosystems worth understanding. The registry is intentionally broader than active campaigns and intentionally narrower than everything Fieldwork may inspect.
+
+## Open research boundary
+
+Any public repository may be examined quietly when a user, batch, campaign, or coordinator assigns a concrete question. A target does not need to appear in `registry.yml` before reconnaissance.
+
+Create or update a target map when the project becomes recurrent, policy-sensitive, technically complex, or active across several assignments.
 
 ## Lifecycle
 
@@ -13,9 +19,9 @@ Targets are external ecosystems worth understanding. The registry is intentional
 
 ## Activation rule
 
-A registry entry does not authorize research or contribution work. Activate a target only when a concrete question intersects something we care about.
+A registry entry does not authorize contribution work or upstream contact. Activate a target only when a concrete question intersects something we care about.
 
-Before activation, record:
+Before sustained activation, record:
 
 - canonical repository and governance owner;
 - contribution and AI-assistance policy;
