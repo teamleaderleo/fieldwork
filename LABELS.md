@@ -6,6 +6,7 @@ The label set is configured in this repository. Labels are a query surface; issu
 
 Each live work item should have exactly one primary type:
 
+- `type:programme`
 - `type:target`
 - `type:batch`
 - `type:finding`
@@ -16,7 +17,7 @@ Each live work item should have exactly one primary type:
 - `type:synthesis`
 - `type:meta`
 
-A `type:target` issue is a long-lived hub and orientation record. It is not an ordinary task backlog.
+A `type:programme` issue is a long-lived research direction spanning several targets. A `type:target` issue is a long-lived hub and orientation record. Neither is an ordinary task backlog.
 
 ## State labels
 
@@ -41,6 +42,23 @@ Each live work item should have one primary state:
 - `state:complete`
 
 Replace the previous state label during transitions. Do not accumulate state history as labels.
+
+## Programme labels
+
+Every issue belonging to a long-lived research direction should carry:
+
+```text
+programme:<stable-slug>
+```
+
+Examples:
+
+- `programme:sdk-integration-lifecycle`
+- `programme:agent-cli-execution`
+- `programme:web-tooling-runtime-correctness`
+- `programme:data-durable-workflows`
+
+Programme labels group several targets and survive as scout lanes branch into findings and campaigns. Create them only for active programmes recorded in `programmes/registry.yml`.
 
 ## Target labels
 
@@ -78,11 +96,11 @@ target:vercel-ai
 testbed:stensibly
 ```
 
-Create testbed labels only when a real trial begins. If the owned repository itself is the subject, use `target:<slug>` instead.
+Create a testbed label only after a real trial begins and a Fieldwork issue or retained experiment records the target version, testbed revision, scenario, baseline, observed result, limitations, and rollback. Do not pre-create testbed labels from the candidate registry. If the owned repository itself is the subject, use `target:<slug>` instead.
 
 ## Coordination labels
 
-These may accompany a type, state, target, and testbed:
+These may accompany a type, state, programme, target, and testbed:
 
 - `needs:human-decision`
 - `needs:materialization`
@@ -95,6 +113,8 @@ The interaction-reference workflow manages `policy:reference-violation` and remo
 ## Common searches
 
 ```text
+is:open label:"type:programme"
+is:open label:"programme:sdk-integration-lifecycle"
 is:open label:"type:target"
 is:open label:"target:vercel-ai"
 is:open label:"target:vercel-ai" label:"state:ready"
