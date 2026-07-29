@@ -2,7 +2,8 @@
   "version": 1,
   "lane": "L04-timeout-outcome-model",
   "fieldwork_issue": 162,
-  "owned_codex_pr": 28,
+  "owned_codex_pr": 29,
+  "superseded_codex_pr": 28,
   "owned_codex_base": "f7265553ea1510304f3091833dcbce65ef21f10c",
   "public_schema_changed": false,
   "cases": [
