@@ -176,7 +176,7 @@ Primary report: [tool-call output bookkeeping loss followed by restart](https://
 
 ### Cluster J — private ChatGPT coexistence and conversation policy
 
-Owned incident: `teamleaderleo/stensibly#490`.
+Owned incident: [Stensibly issue 490](https://redirect.github.com/teamleaderleo/stensibly/issues/490).
 
 **Observed:** Official connector tools and a developer MCP can coexist and execute earlier in one conversation.
 
