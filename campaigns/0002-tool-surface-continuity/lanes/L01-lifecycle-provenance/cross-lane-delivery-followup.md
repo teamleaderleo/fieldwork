@@ -79,13 +79,28 @@ model plans against cached catalogue A
 → same-name tool changed in B: use B's metadata, approval, client, and execution behavior
 ```
 
+The fixed request router and MCP handler are still built from A. A supplies the model tool schema, description, search metadata, hook identity, and the initial scheduling metadata. B supplies the prepared call, current approval policy, server metadata, argument rewrite metadata, client, and execution result.
+
 This can be safe when A and B have the same accepted catalogue digest. Without a digest check, the model advertisement and execution authority can belong to different catalogue revisions. The current shared-deadline test proves immediate cached advertisement, but it does not compare the advertised revision with the later execution revision.
+
+### Contract history
+
+The source history contains a direct policy conflict:
+
+1. PR #34588, `Bind MCP calls to captured catalog revisions`, states that calls from a model step must not be rerouted to a replacement client or run against a catalogue the model did not see. It introduced `McpBinding` and request-captured prepared calls.
+2. Before runtime centralization, `StepContext` held one exact `McpRuntimeSnapshot`; metadata, approval lookup, argument preparation, and `tools/call` all used that step-owned connection set.
+3. PR #34930, `Centralize thread MCP state in McpRuntime`, changed `handle_mcp_tool_call` to refresh dirty state and resolve approval and execution from the thread's latest binding, even though its description still says model steps and tool calls keep immutable bindings and consistent approval authority.
+4. PR #35590, `Expose cached MCP tools before server startup`, made the late rebind explicit: advertise cached A, wait for the selected server, then prepare the call against live B.
+5. Its integration test asserts that inference receives the first process's cached tool description while the same tool name executes on the second process. It verifies that a tool removed from B fails closed. It does not cover same-name schema, approval, annotation, visibility, hook, or semantic changes.
+
+The optimization is therefore intentional, while its compatibility condition remains implicit. It should be described as a bounded exception to captured-binding authority rather than as ordinary immutable request execution.
 
 The focused falsification cases are:
 
 1. cache A advertises a tool that B removes; verify the call waits for startup and then fails closed;
-2. A and B keep the same tool name but change schema or authority metadata; verify which revision governs approval, arguments, and execution;
-3. A and B have the same accepted digest; verify the delayed rebind is accepted without a mismatch warning.
+2. A and B keep the same tool name but change input schema; verify the model's A-shaped arguments are not silently accepted as B authority without a revision decision;
+3. A and B keep the same name but change approval, destructive/open-world annotations, file-input metadata, visibility, or hook-relevant metadata; verify planning and execution do not mix authority silently;
+4. A and B have the same accepted digest; verify the delayed rebind is accepted without a mismatch warning.
 
 The diagnostic class is `advertisement_execution_revision_mismatch`, with the cached catalogue generation, model-advertised digest, live execution digest, client startup state, and prepared-call revision recorded separately.
 
@@ -103,6 +118,8 @@ For tool-list changes, the SDK performs two bounded actions:
 The default callback is a no-op. The SDK's integration test responds to each notification by explicitly calling `list_tools` again. Codex overrides the callback only to log the notification; it does not relist tools, validate a new catalogue digest, increment a catalogue revision, or publish a new binding. The SDK cache can therefore be current while Codex's separate `ManagedClient.tools` vector remains stale.
 
 The SDK response cache has a private generation counter. Notification invalidation advances the generation, and responses from an older in-flight generation are not written back. This is the correct ordering pattern for cache safety, but the counter is private to the SDK cache and does not order Codex's application catalogue publication.
+
+A further SDK-specific ordering gap is now confirmed. `list_tools` returns the fetched result to its caller even when a newer invalidation causes the SDK cache to reject that result's stale generation. Two spawned notification callbacks can therefore finish out of order: the SDK cache stays on newer C while a naive application callback publishes older B over it. The separate `rust-sdk-relist-ordering-followup.md` records this case and an opt-in accepted-result/watch/ticket contract.
 
 The subscription API also leaves lifecycle policy with the caller. A subscription can end gracefully, abruptly, by cancellation, or because its bounded channel lagged; streams are not resumable after reconnect. A reusable refresh helper would therefore need to coalesce notifications, reject late relist results, expose a generation or fetch ticket, and define reconnect behavior rather than treating one callback as a complete refresh.
 
@@ -153,9 +170,10 @@ Owned-fork validation should be scoped to the changed language and package unles
 - For a Rust-only patch, use `cargo fmt --all -- --check` plus focused `just test -p ...` targets.
 - Before using repository-wide `just fmt`, install every formatter it invokes, including `uv` and `dotslash`, or establish that those formatters are unrelated and use a narrower command.
 - Record a missing runner tool as `harness_unavailable`, not as a source or behavior failure.
+- Record an unrelated pre-existing compile failure as `baseline_compile_blocker`, not as a candidate failure.
 - Install required tools before applying or testing the candidate so the harness contract is explicit.
 
-The first owned Codex PR #5 run applied its patch and then failed in unrelated formatters because `uv` and `dotslash` were absent. The revised workflow uses Rust-only formatting and focused tests.
+The first owned Codex PR #5 run applied its patch and then failed in unrelated formatters because `uv` and `dotslash` were absent. The revised workflow used Rust-only formatting and focused tests. Rust formatting, the host-reload reconnect regression, and the ordinary-reuse control passed. The app-server target stopped at an unrelated existing fixture: `app-server/tests/suite/v2/thread_fork.rs` initializes `ItemCompletedEvent` without the required `started_at_ms` field. The candidate therefore has focused core evidence and an unresolved app-server baseline compile blocker.
 
 ## Implementation handoff
 
