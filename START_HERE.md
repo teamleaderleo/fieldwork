@@ -4,7 +4,7 @@ Use this runbook whenever a person or agent is told to investigate something thr
 
 ## In simple words
 
-Find the target hub, label the work, read the code, explain the system simply, reproduce or model the important behaviour, and use an owned application as a controlled testbed when realistic use adds evidence. Report what was established, what remains unknown, and why a change would be useful.
+Find the programme and target hub, claim one bounded scout or lane, read the code, explain the system simply, reproduce or model the important behaviour, and use an owned application as a controlled testbed when realistic use adds evidence. Report what was established, what remains unknown, and which branches are actually worth opening.
 
 ## 1. Read the rules
 
@@ -16,33 +16,36 @@ Read, in order:
 4. `PLAIN_LANGUAGE.md`
 5. `METHOD.md`
 6. `REFERENCE_POLICY.md`
-7. `TARGET_HUBS.md`
-8. `EXPERIMENTS.md` for a fork-free local test
-9. `TESTBEDS.md` for realistic use in an owned repository
-10. `INTEGRATION_CONTEXT.md` when making claims about wider use or consequence
-11. `COORDINATION.md` for shared or parallel work
-12. `BATCHES.md` when the assignment belongs to a batch
-13. the relevant target hub, target map, experiment, trial, context, manifest, campaign, lane, and issue
+7. `PROGRAMMES.md`
+8. `TARGET_HUBS.md`
+9. `EXPERIMENTS.md` for a fork-free local test
+10. `TESTBEDS.md` for realistic use in an owned repository
+11. `INTEGRATION_CONTEXT.md` when making claims about wider use or consequence
+12. `COORDINATION.md` for shared or parallel work
+13. `BATCHES.md` when the assignment belongs to a batch
+14. the relevant programme hub, target hub, map, experiment, trial, context, manifest, campaign, lane, and issue
 
 Tool-specific instruction files point back to `AGENTS.md`; they do not replace it.
 
-## 2. Identify the target and assigned unit
+## 2. Identify the programme, target, and assigned unit
 
-Search `targets/hubs.yml`, open Fieldwork issues, active batches, existing playgrounds, testbeds, contexts, and campaign folders before creating a record.
+Search `programmes/registry.yml`, `targets/hubs.yml`, open Fieldwork issues, active batches, existing playgrounds, testbeds, contexts, and campaign folders before creating a record.
 
-Apply the correct `target:<slug>` label. Link the stable target hub when one exists. If an owned repository will exercise the target, apply `testbed:<slug>` when the trial begins.
+Apply the correct `programme:<slug>` and `target:<slug>` labels. Link the stable programme and target hubs when they exist. If an owned repository will exercise the target, apply `testbed:<slug>` only when the trial actually begins.
 
 Choose the smallest correct unit:
 
+- **Programme hub** — stable cross-target direction and branching surface.
 - **Target hub** — stable orientation and discovery issue for recurring work.
+- **Scout lane** — bounded reconnaissance that maps a target or boundary and returns branch candidates.
 - **Experiment** — bounded one-worker local test requiring no upstream fork or issue.
 - **Integration trial** — realistic use in an owned repository.
 - **Context dossier** — sourced explanation of how a mechanism participates in a larger workflow.
-- **Batch** — controlled dispatch across many assignments.
+- **Batch** — controlled temporary dispatch across many assignments.
 - **Finding** — retained observation with no approved campaign.
 - **Lead** — possible investigation awaiting triage.
-- **Campaign** — bounded parent question.
-- **Lane** — coordinated independently owned unit.
+- **Campaign** — bounded parent question promoted from evidence.
+- **Lane** — coordinated independently owned campaign unit.
 - **Probe** — one-shot assignment recorded in a batch manifest.
 - **Decision** — coordinator or human choice.
 - **Synthesis** — combination and closeout work.
@@ -60,6 +63,21 @@ For every durable record, begin with `## In simple words` and answer:
 - What is wrong, uncertain, or being tested?
 - Why could anyone care?
 - What is the current answer or next step?
+
+For a scout or lane, record:
+
+- worker identity;
+- programme and target hubs;
+- exact question;
+- expected deliverable;
+- owned output path;
+- dependencies;
+- target source revision or retrieval boundary;
+- intended claim scope;
+- stop condition;
+- upstream-contact authorization, normally `false`.
+
+A scout must return code and test maps, at least one runnable probe or explicit reason none is feasible, ranked branch candidates, and a recommendation to stop, retain a finding, open a campaign, or run another scout.
 
 For an experiment, record in `experiment.json`:
 
@@ -84,20 +102,7 @@ For an integration trial, record:
 - rollback and cleanup;
 - claim scope and limitations.
 
-For a lane or probe, record:
-
-- worker identity;
-- exact question;
-- target label and target hub;
-- expected deliverable;
-- owned output path;
-- dependencies;
-- target source revision or retrieval boundary;
-- intended claim scope;
-- stop condition;
-- upstream-contact authorization, normally `false`.
-
-One worker may edit only the owned experiment, trial branch, or assignment path. Coordinators own manifests, status, synthesis, decision, and closeout files.
+One worker may edit only the owned scout, experiment, trial branch, or assignment path. Coordinators own registries, manifests, status, synthesis, decision, and closeout files.
 
 ## 4. Protect external projects before writing
 
@@ -168,47 +173,39 @@ For substantial context research, separate mechanism, usage, contract, operation
 
 Preferred durable outputs:
 
+- programme hub plus `programmes/<programme>/scouts/<scout>/report.md`
 - target hub issue plus `targets/<target>/map.md`
 - `playgrounds/EXP-YYYYMMDD-short-name/`
-- `templates/integration-trial.md` retained with the relevant campaign, batch, or context
+- `templates/integration-trial.md` retained with the relevant programme, campaign, batch, or context
 - `contexts/patterns/<pattern>.md`
 - `contexts/systems/<system>.md`
 - `campaigns/<campaign>/lanes/<lane>/report.md`
 - `batches/<batch>/results/<assignment>.md`
 - retained artifacts beside the report
 
-Use:
-
-- `templates/experiment.json`
-- `templates/experiment.md`
-- `templates/integration-trial.md`
-- `templates/integration-context.md`
-- `templates/lane-report.md`
-- `templates/batch-result.md`
-- `templates/handoff.md`
-- `templates/synthesis.md`
-
-Avoid several agents editing one shared report, context dossier, experiment directory, or testbed branch.
+Use the templates under `templates/`. Avoid several agents editing one shared report, context dossier, experiment directory, or testbed branch.
 
 ## 10. Report completion visibly
 
 A standalone experiment does not require an issue comment. Finish its `README.md` or report, update `experiment.json`, and promote it when other work depends on the result.
 
-For coordinated work, post a completion comment on the relevant lane, campaign, or batch issue:
+For coordinated work, post a completion comment on the relevant scout, lane, campaign, programme, or batch issue:
 
 ```text
 FIELDWORK HANDOFF
 State: ready-for-synthesis | blocked | negative-result | complete
+Programme: <programme slug and hub>
 Target: <target slug and hub>
 Testbed: <slug, neutral id, or none>
 Batch: <batch id or none>
 Campaign: <campaign id or none>
-Assignment: <lane or probe id>
+Assignment: <scout, lane, or probe id>
 Claim scope supported: mechanism | interface | integration | operational | ecosystem
 Integration context: <path or none>
 Durable artifacts: <paths or Fieldwork PR>
 In simple words: <compact result>
 Finding: <one-paragraph technical result>
+Branch candidates: <ranked candidates or none>
 Evidence labels used: <labels>
 Uncertainty: <remaining uncertainty>
 Dependencies discovered: <none or exact records>
@@ -220,6 +217,8 @@ If repository writes are unavailable, place the full handoff in the issue and ap
 
 ## 11. Close through acceptance and synthesis
 
+A scout is finished when its revision, code and test map, runnable evidence or explicit feasibility limit, branch candidates, negative results, uncertainty, and recommendation are durable.
+
 An experiment is finished when its question, claim scope, command, result, uncertainty, context requirements, and disposition are durable.
 
 An integration trial is finished when its target and testbed revisions, scenario, baseline, candidate, result, limitations, rollback, and disposition are durable.
@@ -227,11 +226,11 @@ An integration trial is finished when its target and testbed revisions, scenario
 Coordinated work is finished only when:
 
 - evidence is durable or explicitly queued for materialization;
-- the issue or batch carries a handoff;
-- target and testbed labels are correct;
+- the issue carries a handoff;
+- programme, target, and testbed labels are correct;
 - blockers, uncertainty, dependencies, and evidence labels are visible;
 - the coordinator can discover the result;
 - broader claims have supporting context or remain explicitly provisional;
 - the assignment is accepted, revised, promoted, or retained as a negative result.
 
-The coordinator owns shared state transitions and synthesis.
+The coordinator owns shared state transitions, branching, and synthesis.
