@@ -12,7 +12,7 @@ Biome 2.5.6 classifies `organizeImports` as a safe assist. Applying `biome check
 ## Run
 
 ```sh
-./reproduce.sh
+sh reproduce.sh
 ```
 
 Expected output:
