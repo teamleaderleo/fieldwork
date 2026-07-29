@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "name": "identity-smoke",
+  "description": "Validates the canonical runner and the example identity adapter.",
+  "timeout_seconds": 3,
+  "cases": [
+    {
+      "id": "null",
+      "tags": ["smoke", "null"],
+      "stdin_json": null,
+      "expect": {"exit_code": 0, "stdout_json": null}
+    },
+    {
+      "id": "object",
+      "tags": ["smoke", "object"],
+      "stdin_json": {"answer": 42, "ok": true},
+      "expect": {"exit_code": 0, "stdout_json": {"answer": 42, "ok": true}}
+    },
+    {
+      "id": "unicode",
+      "tags": ["smoke", "unicode"],
+      "stdin_json": {"text": "naïve café — 東京 — 👩🏽‍💻"},
+      "expect": {"exit_code": 0, "stdout_json": {"text": "naïve café — 東京 — 👩🏽‍💻"}}
+    }
+  ]
+}
