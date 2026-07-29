@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "retrieval_date": "2026-07-30",
+  "worker": "chatgpt:gpt-5.6-thinking",
+  "claim_scope": ["mechanism", "interface"],
+  "upstream_contact_authorized": false,
+  "sources": {
+    "gemini_cli": "teamleaderleo/gemini-cli@3499c84f7b8e70c86600e7cd2c67a7c65a667f5e",
+    "opencode": "teamleaderleo/opencode@7565e03536d19e850f9996c407f9bf5e932b5f7a",
+    "t3code": "teamleaderleo/t3code@85a89868703530e03c5e79797c7b952c684bd222"
+  },
+  "status": "case-specification-not-yet-run",
+  "feasibility_limit": "Target-native execution was unavailable in the scout environment. These cases define required traces and distinguishing outcomes for owned-fork adapters.",
+  "cases": [
+    {
+      "id": "idle-clears-persisted-active-turn",
+      "targets": ["opencode", "t3code"],
+      "setup": {
+        "thread_binding": "ready",
+        "provider_session": "active",
+        "active_turn": null
+      },
+      "stimulus": [
+        "T3 sends a turn",
+        "OpenCode reports running",
+        "one or more assistant/tool events occur",
+        "OpenCode reports turn completion or session idle"
+      ],
+      "required_trace_points": [
+        "OpenCode provider event",
+        "T3 adapter-normalized event",
+        "ProviderRuntimeIngestion lifecycle decision",
+        "thread.session.set dispatch",
+        "persisted session row",
+        "browser push"
+      ],
+      "invariants": [
+        "final T3 status is not running or starting",
+        "final activeTurnId is null",
+        "the browser accepts a subsequent user turn",
+        "restart does not restore the completed turn to running"
+      ],
+      "distinguishing_outcomes": {
+        "adapter_loss": "Provider completion exists but no canonical T3 event is emitted.",
+        "guard_rejection": "Canonical completion exists but lifecycle correlation rejects it.",
+        "projection_regression": "Completion is applied and a later update restores stale running state.",
+        "pass": "Provider, canonical, persisted, and client states converge on ready/idle."
+      }
+    },
+    {
+      "id": "restart-reconciles-stale-running",
+      "targets": ["opencode", "t3code"],
+      "setup": {
+        "persisted_t3_status": "running",
+        "persisted_active_turn": "turn-stale",
+        "provider_truth": "idle-or-no-active-turn"
+      },
+      "stimulus": ["restart T3 server", "load or recover the thread"],
+      "invariants": [
+        "provider truth is consulted before indefinitely disabling input",
+        "stale activeTurnId is cleared or the thread is marked explicitly degraded",
+        "the user receives a recoverable state rather than permanent working"
+      ]
+    },
+    {
+      "id": "interrupt-does-not-resurrect",
+      "targets": ["t3code"],
+      "setup": {
+        "adapter_has_session": false,
+        "persisted_resume_cursor": "present",
+        "persisted_turn": "old-turn"
+      },
+      "stimulus": ["call ProviderService.interruptTurn for the old turn"],
+      "observations": [
+        "whether adapter.startSession is called",
+        "whether adapter.interruptTurn is called",
+        "whether new provider events or side effects occur",
+        "how the controller reports the result"
+      ],
+      "invariants": [
+        "interruption does not resume work unless the provider contract explicitly requires it",
+        "any required recovery is visible and bound to the exact old turn",
+        "no new active turn is created"
+      ]
+    },
+    {
+      "id": "hot-reload-active-provider-instance",
+      "targets": ["t3code"],
+      "setup": {
+        "provider_instance": "active",
+        "turn": "running",
+        "terminal_event": "delayed"
+      },
+      "stimulus": [
+        "change provider-instance settings",
+        "registry closes the old child scope",
+        "registry builds replacement instance"
+      ],
+      "required_trace_points": [
+        "old adapter finalizer",
+        "old event stream termination",
+        "registry change publication",
+        "new subscription activation",
+        "persisted thread status"
+      ],
+      "invariants": [
+        "the old terminal event is retained or an explicit interrupted/degraded event is persisted",
+        "the thread does not remain falsely running",
+        "events from old and new instance identities cannot be conflated"
+      ]
+    },
+    {
+      "id": "pty-replay-discloses-gap",
+      "targets": ["opencode"],
+      "setup": {
+        "pty_output": "greater-than-two-megabyte-retention-limit",
+        "requested_cursor": 0
+      },
+      "stimulus": ["attach after the oldest output has been trimmed"],
+      "invariants": [
+        "attachment reports the earliest retained absolute cursor or an explicit gap flag",
+        "client can distinguish complete replay from a surviving suffix",
+        "replay begins on a valid Unicode boundary"
+      ]
+    },
+    {
+      "id": "inactive-pty-subscriber-is-bounded",
+      "targets": ["opencode"],
+      "setup": {
+        "subscriber": "attached-but-not-activated",
+        "producer": "continuous-output"
+      },
+      "stimulus": ["continue PTY output without activating or detaching subscriber"],
+      "invariants": [
+        "pending subscriber state has a documented bound, timeout, or forced detachment",
+        "one inactive client cannot grow memory without limit",
+        "active clients continue receiving output"
+      ]
+    },
+    {
+      "id": "approval-recovery-affinity",
+      "targets": ["t3code", "opencode"],
+      "setup": {
+        "request": "pending-before-controller-restart",
+        "provider_instance": "instance-a",
+        "session": "recoverable"
+      },
+      "stimulus": [
+        "restart or replace provider instance",
+        "submit an approval or user-input response using the old request id"
+      ],
+      "invariants": [
+        "the request is still pending",
+        "request, provider instance, session, and turn identities all match",
+        "expired or completed requests are rejected",
+        "a response cannot create a new unrelated turn"
+      ]
+    },
+    {
+      "id": "completion-is-monotonic",
+      "targets": ["t3code"],
+      "setup": {
+        "turn": "turn-1",
+        "event_order": ["turn.completed", "delayed-session-running"]
+      },
+      "stimulus": ["ingest both events in the stated order"],
+      "invariants": [
+        "a delayed event cannot restore the completed turn to running",
+        "turn identity and sequence are used when available",
+        "ambiguous stale events are logged or quarantined"
+      ]
+    }
+  ]
+}
