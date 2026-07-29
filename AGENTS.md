@@ -5,23 +5,34 @@ These instructions apply to every AI system and automated worker operating in th
 ## Entry protocol
 
 - Start with `START_HERE.md`.
-- Read `CHARTER.md`, `CODE_FIRST.md`, `PLAIN_LANGUAGE.md`, `METHOD.md`, `REFERENCE_POLICY.md`, `TARGET_HUBS.md`, `EXPERIMENTS.md`, `TESTBEDS.md`, `INTEGRATION_CONTEXT.md`, `COORDINATION.md`, and `BATCHES.md` before modifying research material.
-- Search target hubs, open Fieldwork issues, active batches, existing experiments, contexts, testbeds, and campaign folders before creating work.
+- Read `CHARTER.md`, `CODE_FIRST.md`, `PLAIN_LANGUAGE.md`, `METHOD.md`, `REFERENCE_POLICY.md`, `PROGRAMMES.md`, `TARGET_HUBS.md`, `EXPERIMENTS.md`, `TESTBEDS.md`, `INTEGRATION_CONTEXT.md`, `COORDINATION.md`, and `BATCHES.md` before modifying research material.
+- Search programme hubs, target hubs, open Fieldwork issues, active batches, existing experiments, contexts, testbeds, and campaign folders before creating work.
 - Treat GitHub issues as live coordination and repository files as durable evidence.
-- Work only from an explicit assignment, claimed lane, requested synthesis, user-directed triage task, or bounded fork-free experiment.
+- Work only from an explicit assignment, claimed scout or lane, requested synthesis, user-directed triage task, or bounded fork-free experiment.
 
-## Target and testbed indexing
+## Programme, target, and testbed indexing
 
+- Every long-lived cross-target direction carries `programme:<slug>` and links to the programme hub recorded in `programmes/registry.yml`.
 - Every issue about a recurring repository, project, protocol, or system must carry the appropriate `target:<slug>` label.
 - Link the work to the stable target hub recorded in `targets/hubs.yml` when one exists.
 - Create a target hub only when recurring work justifies one; do not turn every registry entry into an issue.
-- When an owned repository is used to exercise another target, also apply `testbed:<slug>` and follow `TESTBEDS.md`.
+- When an owned repository is used to exercise another target, apply `testbed:<slug>` only after the real trial begins and follow `TESTBEDS.md`.
 - If the owned repository itself is under investigation, use it as the target rather than the testbed.
-- Target and testbed registries are discovery surfaces, not automatic work queues.
+- Programme, target, and testbed registries are discovery surfaces, not automatic permission to work or contact upstream.
+
+## Scout lanes
+
+- A scout maps the lay of the land without assuming a specific bug or patch already exists.
+- Pin the target revision at claim time and use the exact programme, target hub, question, owned path, and stop condition from the issue.
+- Read implementation, tests, call sites, configuration, generated boundaries, recent changes, and relevant issue context.
+- Produce at least one runnable probe, adversarial case, realistic testbed scenario, or explicit reason none is feasible.
+- Return ranked branch candidates with consequence, likely owning boundary, evidence needed, and a recommendation to stop, retain a finding, open a campaign, or run another scout.
+- A code tour or repository summary alone is not a completed scout.
+- Do not create child campaigns without a concrete current behavior or missing capability, consequence, likely code boundary, falsifiable evidence path, and bounded next question.
 
 ## Plain-language check
 
-- Begin every durable target hub, finding, campaign, lane report, retained experiment, integration trial, context dossier, and synthesis with `## In simple words`.
+- Begin every durable programme hub, target hub, scout report, finding, campaign, lane report, retained experiment, integration trial, context dossier, and synthesis with `## In simple words`.
 - State what the system is, where it sits, what is wrong or uncertain, why the result could be useful, and the current answer or next step.
 - Keep the block short enough to reveal whether the underlying model is actually understood.
 - Update it when the conclusion changes.
@@ -99,18 +110,18 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 
 ## Batch and parallel work
 
-- Read the batch manifest or parent issue before beginning.
-- Use the exact assignment ID, target label, deliverable, owned path, dependencies, source revision, claim scope, and stop condition.
-- One lane, probe, experiment, or integration trial has one owner and one owned output path or branch.
-- Do not edit another worker's result, testbed branch, campaign status, batch manifest, synthesis, or closeout.
+- Read the programme, batch, campaign, or parent issue before beginning.
+- Use the exact assignment ID, programme label, target label, deliverable, owned path, dependencies, source revision, claim scope, and stop condition.
+- One scout, lane, probe, experiment, or integration trial has one owner and one owned output path or branch.
+- Do not edit another worker's result, testbed branch, programme state, campaign status, batch manifest, synthesis, or closeout.
 - For one-shot probes, write only the assigned result file or post a complete handoff marked `needs:materialization`.
-- For coordinated lanes, claim the lane before substantial work.
+- Claim coordinated work before substantial investigation.
 - When evidence affects another assignment, report the dependency in both relevant Fieldwork records.
 - Finish with the handoff protocol in `START_HERE.md` and `COORDINATION.md`.
 
 ## Write modes
 
-1. **Fieldwork PR** — preferred when an agent can create a branch and durable files. One PR should contain one lane or a coherent group of tiny probes.
+1. **Fieldwork PR** — preferred when an agent can create a branch and durable files. One PR should contain one scout, lane, or coherent group of tiny probes.
 2. **Issue handoff** — use when repository writes are unavailable. Include the complete result and apply `needs:materialization`.
 3. **Coordinator materialization** — a coordinator may combine several issue-only handoffs into one repository change.
 4. **Playground experiment** — use for bounded local tests that require no shared coordination or upstream modification.
@@ -129,7 +140,7 @@ Never have multiple workers push shared files directly to `main`.
 
 ## External interactions
 
-A target hub, target map, batch, campaign, lane, playground, testbed trial, context dossier, repository note, or Fieldwork issue does not authorize upstream contact. Direct upstream interaction requires a specific user instruction and must be recorded in the campaign closeout or upstream packet.
+A programme, target hub, target map, batch, campaign, lane, playground, testbed trial, context dossier, repository note, or Fieldwork issue does not authorize upstream contact. Direct upstream interaction requires a specific user instruction and must be recorded in the campaign closeout or upstream packet.
 
 ## Safety
 
