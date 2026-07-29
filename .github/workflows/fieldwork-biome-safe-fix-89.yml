@@ -31,3 +31,6 @@ jobs:
       - name: Probe noUselessStringConcat numeric formatting
         shell: bash
         run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/no-useless-string-concat-numbers/reproduce.sh
+      - name: Explore useFlatMap Array species behavior
+        shell: bash
+        run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-flat-map-array-species/reproduce.sh
