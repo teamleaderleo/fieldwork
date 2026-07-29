@@ -10,7 +10,9 @@ Parent candidate: #134
 
 Worker: `chatgpt:gpt-5.6-thinking`
 
-Owned Codex implementation: `teamleaderleo/codex#28`
+Owned Codex implementation: `teamleaderleo/codex#29`
+
+Superseded validation surface: `teamleaderleo/codex#28`
 
 Owned Codex base: `f7265553ea1510304f3091833dcbce65ef21f10c`
 
@@ -71,7 +73,7 @@ Therefore:
 
 ## First internal model
 
-Owned Codex PR #28 proposes four states:
+Owned Codex PR #29 proposes four states:
 
 ```rust
 NotDispatched
@@ -105,7 +107,7 @@ Remote execution may still be running or may already have committed an effect.
 
 ## Why the classifier belongs below string conversion
 
-`PreparedMcpCall` adds `anyhow::Context`, but the original typed timeout remains in the cause chain. PR #28 classifies that cause before `handle_approved_mcp_tool_call` formats the error for existing public output.
+`PreparedMcpCall` adds `anyhow::Context`, but the original typed timeout remains in the cause chain. PR #29 classifies that cause before `handle_approved_mcp_tool_call` formats the error for existing public output.
 
 This avoids:
 
@@ -116,7 +118,7 @@ This avoids:
 
 ## Behavior-neutral first slice
 
-PR #28 deliberately does not change:
+PR #29 deliberately does not change:
 
 - model-visible function-call output;
 - Code Mode result JSON;
@@ -144,7 +146,7 @@ This lane does not infer those facts. It only provides a typed place to retain t
 
 ### Codex PR #25 — generic terminal semantics
 
-PR #25 conservatively maps handler-executed failures and unconfirmed aborts to ambiguity. It does not cover an MCP timeout returned as a normal failed output. PR #28 supplies the missing MCP-specific evidence.
+PR #25 conservatively maps handler-executed failures and unconfirmed aborts to ambiguity. It does not cover an MCP timeout returned as a normal failed output. PR #29 supplies the missing MCP-specific evidence.
 
 ## Retry and authority rules
 
@@ -168,7 +170,7 @@ Future policy must satisfy all of these:
 
 ## Validation plan
 
-Owned Codex PR #28 runs:
+Owned Codex PR #29 runs:
 
 ```text
 codex-rmcp-client typed cause classification
@@ -178,7 +180,7 @@ Rust formatting
 git diff --check
 ```
 
-The branch remains draft until a source-only head replaces its temporary validation carrier and the exact Rust diff is reviewed.
+The branch remains draft until a source-only head replaces its temporary validation carrier and the exact Rust diff is reviewed. PR #28 remains closed and contains no accepted implementation result.
 
 ## Next bounded steps
 
