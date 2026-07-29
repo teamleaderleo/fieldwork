@@ -6,6 +6,8 @@ GitHub Issues are the canonical live workboard. This document defines how to rea
 
 Programme hubs explain broad research directions. Target hubs explain recurring systems. Scout lanes map the lay of the land and return concrete branches. Target labels collect work by system. Testbed labels show which owned repository was actually used for a realistic trial.
 
+The review queue answers what needs judgment. The [Delivery Desk](https://github.com/teamleaderleo/fieldwork/issues/160) answers what can move toward landing now and what exact gate remains.
+
 ## Record types
 
 Issue forms and labels are configured for:
@@ -52,18 +54,43 @@ See `LABELS.md`. Every work item should have:
 
 Issue forms apply the initial type and state automatically. Agents add programme, target, and testbed labels when known.
 
+## Queue surfaces
+
+### Canonical workboard
+
+GitHub issues hold current owner, state, blockers, dependencies, decisions, and completion signals.
+
+### Review queue
+
+A review queue or review hub prioritizes evidence that needs an eligible independent disposition. It should state what to inspect, which evidence class applies, what uncertainty must survive, and what decision closes the card.
+
+### Delivery Desk
+
+Issue [#160](https://github.com/teamleaderleo/fieldwork/issues/160) is the live finish-line index. It contains only work in one of four delivery lanes:
+
+- `D0` — accepted exact head and full gate; land now;
+- `D1` — one canonical implementation; final gate now;
+- `D2` — strong direction; clean application or bounded polish needed;
+- `D3` — one human decision unlocks implementation.
+
+The Delivery Desk links to canonical issues and PRs. It does not replace their evidence, state, or review history. See `DELIVERY.md`.
+
 ## What to work on
 
 A worker should select work in this order:
 
 1. an explicitly assigned scout, batch probe, or campaign lane;
-2. an unclaimed `state:ready` scout in an active programme;
-3. an unclaimed `state:ready` lane inside an active campaign;
-4. a requested synthesis or decision;
-5. a lead the user explicitly asked to triage;
-6. a bounded code-first exploration explicitly assigned against a target.
+2. a Delivery Desk `D1` item whose exact remaining gate matches the worker's capability;
+3. a Delivery Desk `D2` item with one bounded cleanup or direct-source task;
+4. an unclaimed `state:ready` scout in an active programme;
+5. an unclaimed `state:ready` lane inside an active campaign;
+6. a requested synthesis or decision;
+7. a lead the user explicitly asked to triage;
+8. a bounded code-first exploration explicitly assigned against a target.
 
-Never treat programme, target, or testbed registries as automatic permission to work or contact upstream.
+Do not start a new exploration while a higher-value selected implementation is waiting only on a gate you can perform.
+
+Never treat programme, target, testbed, review, or Delivery Desk registries as automatic permission to contact upstream.
 
 ## Source of truth
 
@@ -75,6 +102,8 @@ Never treat programme, target, or testbed registries as automatic permission to 
 - **Campaign `STATUS.md`** — durable campaign snapshot and identifiers.
 - **Scout, lane, or batch result** — evidence and conclusion owned by one worker.
 - **Integration trial** — realistic use in an owned repository.
+- **Review record** — exact-head disposition and required next action.
+- **Delivery Desk** — current finish-line routing and remaining gate, not underlying evidence.
 - **Synthesis** — interpretation across assignments.
 - **Ledgers** — final normalized outcomes, not active task management.
 
@@ -98,6 +127,8 @@ is:open label:"type:batch"
 is:open label:"policy:reference-violation"
 ```
 
+The curated live finish-line view is issue #160 rather than a label-only search because delivery readiness also depends on exact heads, review eligibility, evidence class, workflow receipts, and canonical branch identity.
+
 ## Work-in-progress limits
 
 - One worker claims one primary scout or coordinated lane at a time unless assignments are explicitly coupled.
@@ -108,3 +139,4 @@ is:open label:"policy:reference-violation"
 - A batch should declare a maximum useful concurrency.
 - New scouts or lanes require a distinct question, deliverable, or evidence type.
 - Duplicate reconnaissance should be merged or stopped quickly.
+- Do not create a second delivery candidate when one canonical clean implementation already owns the invariant.
