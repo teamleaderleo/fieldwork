@@ -1,0 +1,63 @@
+name: Fieldwork Codex cached schema drift
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - campaigns/0004-host-mcp-lifecycle-reconciliation/artifacts/codex-cached-schema-drift/**
+      - .github/workflows/fieldwork-codex-cached-schema-drift.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Fieldwork fixture
+        uses: actions/checkout@v4
+        with:
+          path: fieldwork
+      - name: Checkout public Codex read-only
+        uses: actions/checkout@v4
+        with:
+          repository: openai/codex
+          ref: a5082373f18119dc5d3eb993267c97f37880935d
+          path: codex
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install just
+        run: cargo install just --locked
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+      - name: Apply bounded ephemeral patch
+        run: >-
+          python3
+          fieldwork/campaigns/0004-host-mcp-lifecycle-reconciliation/artifacts/codex-cached-schema-drift/patch.py
+          codex
+      - name: Format and inspect patch
+        working-directory: codex/codex-rs
+        run: |
+          cargo fmt --all
+          cargo fmt --all -- --check
+          git -C .. diff --check
+          git -C .. diff -- codex-rs/rmcp-client/src/bin/test_stdio_server.rs codex-rs/core/tests/suite/mcp_tool_cache.rs | tee ../../fieldwork/campaigns/0004-host-mcp-lifecycle-reconciliation/artifacts/codex-cached-schema-drift/latest.patch
+      - name: Run focused public Codex regression
+        working-directory: codex/codex-rs
+        shell: bash
+        run: |
+          set -o pipefail
+          just test -p codex-core regular_mcp_definition_cache_preserves_live_session_state -- --nocapture \
+            | tee ../../fieldwork/campaigns/0004-host-mcp-lifecycle-reconciliation/artifacts/codex-cached-schema-drift/latest.log
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-cached-schema-drift-evidence
+          if-no-files-found: warn
+          path: |
+            fieldwork/campaigns/0004-host-mcp-lifecycle-reconciliation/artifacts/codex-cached-schema-drift/latest.patch
+            fieldwork/campaigns/0004-host-mcp-lifecycle-reconciliation/artifacts/codex-cached-schema-drift/latest.log
