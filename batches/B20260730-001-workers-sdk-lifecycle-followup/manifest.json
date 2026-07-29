@@ -127,10 +127,10 @@
       "owner": "coordinator",
       "target": "teamleaderleo/workers-sdk",
       "source_revision": "609623ba8552a016f3c67cee7259e38d8431bd91",
-      "result_revision": "d0fc749398ac8628d2f60a4adb763bfb52d5ff77",
+      "result_revision": "63f1b04431b79c9d3da1baf336e1396ae842f77c",
       "fork_pr": "teamleaderleo/workers-sdk#3",
       "question": "Which deployment mutations can succeed before Wrangler reports a later failure, and what state can be reported safely afterward?",
-      "method": "mutation-order map, executed dependency-free failure model, prepared package regression tests, and state-reporting design",
+      "method": "mutation-order map, executed dependency-free failure and reporting-guard model, prepared package regression tests, and state-reporting design",
       "claim_scope": "operations",
       "claim_to_support_or_falsify": "Wrangler can fail after Worker activation or other mutations, while current output does not consistently identify the changed state, failed phase, or safe recovery actions.",
       "preferred_primary_sources": [
@@ -155,7 +155,7 @@
       ],
       "state": "complete",
       "stop_condition": "Stop at accurate guarded state reporting and recovery guidance; do not add automatic rollback unless resource-specific safety is demonstrated.",
-      "review_disposition": "Guarded state-reporting direction accepted; reporting is best-effort, original error identity is authoritative, and automatic rollback remains out of scope.",
+      "review_disposition": "Guarded state-reporting direction accepted; the dependency-free reporting guard executed, original error identity is authoritative, and automatic rollback remains out of scope.",
       "upstream_contact_authorized": false
     },
     {
