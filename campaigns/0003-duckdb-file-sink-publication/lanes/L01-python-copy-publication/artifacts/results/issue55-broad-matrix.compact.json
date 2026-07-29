@@ -1,0 +1,113 @@
+{
+  "cases": [
+    {
+      "after": {"checksum": 124999750000, "exists": true, "maximum": 499999, "minimum": 0, "readable": true, "row_count": 500000, "size_bytes": 35888900},
+      "case": "normal",
+      "format": "csv",
+      "observer": {"first_nonzero_seconds": 0.1111471119999976, "first_visible_seconds": 0.1111471119999976, "max_observed_size_bytes": 35888900, "nonzero_while_running": true, "samples": 41, "visible_while_running": true},
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "{\"ok\": true, \"rows\": 500000}"
+    },
+    {
+      "after": {"exists": false},
+      "case": "interrupt",
+      "connection_reusable": true,
+      "connection_reuse_error": null,
+      "first_visible_seconds": 0.010398819999991815,
+      "format": "csv",
+      "interrupted_at_seconds": 0.01041109300000187,
+      "max_size_before_interrupt_bytes": 1152163,
+      "outcome": {"completed": false, "error": "INTERRUPT Error: Interrupted!", "error_type": "InterruptException"},
+      "thread_finished": true,
+      "threshold_reached": true
+    },
+    {
+      "case": "crash",
+      "default_retry": {"after": {"checksum": 499500, "exists": true, "maximum": 999, "minimum": 0, "readable": true, "row_count": 1000, "size_bytes": 68900}, "succeeded": true},
+      "format": "csv",
+      "killed": true,
+      "observer": {"first_nonzero_seconds": 0.11117318099999807, "first_visible_seconds": 0.11117318099999807, "max_observed_size_bytes": 4141262147, "nonzero_while_running": true, "samples": 2963, "visible_while_running": true},
+      "residue_before_retry": {"checksum": 1575377333108736, "exists": true, "maximum": 56131583, "minimum": 0, "readable": true, "row_count": 56131584, "size_bytes": 4142626115},
+      "returncode": -9,
+      "stderr": "",
+      "stdout": "",
+      "threshold_bytes": 1048576,
+      "threshold_reached": true
+    },
+    {
+      "after": {"exists": false},
+      "case": "low_memory",
+      "connection_reusable": true,
+      "connection_reuse_error": null,
+      "first_visible_seconds": 0.010520702999997411,
+      "format": "csv",
+      "max_output_size_bytes": 0,
+      "max_temp_bytes": 208732160,
+      "memory_limit": "16MB",
+      "outcome": {"completed": false, "error": "Out of Memory Error: failed to pin block of size 256.0 KiB (15.1 MiB/15.2 MiB used)", "error_type": "OutOfMemoryException"},
+      "temp_entries_after_failure": [],
+      "visible_while_running": true
+    },
+    {
+      "after": {"checksum": 124999750000, "exists": true, "maximum": 499999, "minimum": 0, "readable": true, "row_count": 500000, "size_bytes": 10801032},
+      "case": "normal",
+      "format": "parquet",
+      "observer": {"first_nonzero_seconds": 0.2128631040000073, "first_visible_seconds": 0.11151510600001302, "max_observed_size_bytes": 10801032, "nonzero_while_running": true, "samples": 53, "visible_while_running": true},
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "{\"ok\": true, \"rows\": 500000}"
+    },
+    {
+      "after": {"exists": false},
+      "case": "interrupt",
+      "connection_reusable": true,
+      "connection_reuse_error": null,
+      "first_visible_seconds": 0.01035161699999776,
+      "format": "parquet",
+      "interrupted_at_seconds": 0.10130002799999716,
+      "max_size_before_interrupt_bytes": 2682051,
+      "outcome": {"completed": false, "error": "INTERRUPT Error: Interrupted!", "error_type": "InterruptException"},
+      "thread_finished": true,
+      "threshold_reached": true
+    },
+    {
+      "case": "crash",
+      "default_retry": {"after": {"checksum": 499500, "exists": true, "maximum": 999, "minimum": 0, "readable": true, "row_count": 1000, "size_bytes": 21410}, "succeeded": true},
+      "format": "parquet",
+      "killed": true,
+      "observer": {"first_nonzero_seconds": 0.21233598200001325, "first_visible_seconds": 0.11104833999999641, "max_observed_size_bytes": 830754361, "nonzero_while_running": true, "samples": 2961, "visible_while_running": true},
+      "residue_before_retry": {"error": "Invalid Input Error: No magic bytes found at end of file", "error_type": "InvalidInputException", "exists": true, "readable": false, "size_bytes": 830754361},
+      "returncode": -9,
+      "stderr": "",
+      "stdout": "",
+      "threshold_bytes": 1048576,
+      "threshold_reached": true
+    },
+    {
+      "after": {"exists": false},
+      "case": "low_memory",
+      "connection_reusable": true,
+      "connection_reuse_error": null,
+      "first_visible_seconds": 0.010443594000008716,
+      "format": "parquet",
+      "max_output_size_bytes": 0,
+      "max_temp_bytes": 208896000,
+      "memory_limit": "16MB",
+      "outcome": {"completed": false, "error": "Out of Memory Error: failed to pin block of size 256.0 KiB (15.1 MiB/15.2 MiB used)", "error_type": "OutOfMemoryException"},
+      "temp_entries_after_failure": [],
+      "visible_while_running": true
+    }
+  ],
+  "checks": [
+    {"name":"csv.normal.returncode","passed":true},{"name":"csv.normal.visible_while_running","passed":true},{"name":"csv.normal.nonzero_while_running","passed":true},{"name":"csv.normal.readable","passed":true},{"name":"csv.normal.count","passed":true},{"name":"csv.normal.checksum","passed":true},{"name":"csv.interrupt.threshold","passed":true},{"name":"csv.interrupt.raised","passed":true},{"name":"csv.interrupt.final_absent","passed":true},{"name":"csv.interrupt.reusable","passed":true},{"name":"csv.crash.threshold","passed":true},{"name":"csv.crash.killed","passed":true},{"name":"csv.crash.final_remains","passed":true},{"name":"csv.crash.partial_readable","passed":true},{"name":"csv.crash.default_retry_succeeds","passed":true},{"name":"csv.crash.default_retry_count","passed":true},{"name":"csv.crash.default_retry_checksum","passed":true},{"name":"csv.oom.raised","passed":true},{"name":"csv.oom.final_absent","passed":true},{"name":"csv.oom.reusable","passed":true},{"name":"csv.oom.temp_clean","passed":true},{"name":"parquet.normal.returncode","passed":true},{"name":"parquet.normal.visible_while_running","passed":true},{"name":"parquet.normal.nonzero_while_running","passed":true},{"name":"parquet.normal.readable","passed":true},{"name":"parquet.normal.count","passed":true},{"name":"parquet.normal.checksum","passed":true},{"name":"parquet.interrupt.threshold","passed":true},{"name":"parquet.interrupt.raised","passed":true},{"name":"parquet.interrupt.final_absent","passed":true},{"name":"parquet.interrupt.reusable","passed":true},{"name":"parquet.crash.threshold","passed":true},{"name":"parquet.crash.killed","passed":true},{"name":"parquet.crash.final_remains","passed":true},{"name":"parquet.crash.incomplete_rejected","passed":true},{"name":"parquet.crash.default_retry_succeeds","passed":true},{"name":"parquet.crash.default_retry_count","passed":true},{"name":"parquet.crash.default_retry_checksum","passed":true},{"name":"parquet.oom.raised","passed":true},{"name":"parquet.oom.final_absent","passed":true},{"name":"parquet.oom.reusable","passed":true},{"name":"parquet.oom.temp_clean","passed":true}
+  ],
+  "constants": {"crash_rows":100000000,"crash_threshold_bytes":1048576,"interrupt_rows":50000000,"interrupt_threshold_bytes":262144,"oom_rows":2000000,"success_rows":500000},
+  "duckdb_version": "1.5.5",
+  "failed": 0,
+  "passed": 42,
+  "pid": 2251,
+  "platform": "Linux-6.17.0-1020-azure-x86_64-with-glibc2.39",
+  "probe": "fieldwork-issue55-file-sink-publication-v2",
+  "python_version": "3.13.14"
+}
