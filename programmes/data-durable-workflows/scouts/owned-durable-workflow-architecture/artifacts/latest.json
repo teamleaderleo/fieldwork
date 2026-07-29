@@ -1,0 +1,168 @@
+{
+  "branch_decisions": {
+    "baseline": [
+      "stensibly-local-ledger-receipts"
+    ],
+    "campaigns": [
+      "stensibly-external-runner-reconciliation",
+      "smolrunner-attempt-journal-receipt-integration"
+    ],
+    "stops": [
+      "fin-agent-durable-job-recovery",
+      "generic-cross-system-retry-framework",
+      "dependency-or-runtime-attribution"
+    ]
+  },
+  "experiment": {
+    "id": "authority-after-interruption",
+    "input_kind": "synthetic profiles derived from pinned source",
+    "limitations": [
+      "does not execute the owned applications",
+      "does not prove deployed behaviour",
+      "does not attribute a dependency or runtime defect"
+    ],
+    "question": "After an interruption, which component owns enough durable evidence to choose read-back, reconciliation, fresh observation, or termination?",
+    "selected_after_maps": true
+  },
+  "profiles": [
+    {
+      "coordinator_state_owner": "stensibly-ledger",
+      "correlation_fields": [
+        "item_id",
+        "run_id",
+        "idempotency_key",
+        "event_id"
+      ],
+      "durable_cancellation_evidence": true,
+      "durable_logical_identity": true,
+      "durable_pre_effect_checkpoint": false,
+      "durable_terminal_evidence": true,
+      "effect_owner": "stensibly-ledger",
+      "fresh_observation_rule": false,
+      "name": "stensibly-local-ledger",
+      "receipt_scope": "local",
+      "system": "stensibly",
+      "work_model": "server-owned ledger mutation"
+    },
+    {
+      "coordinator_state_owner": "stensibly-ledger",
+      "correlation_fields": [
+        "item_id",
+        "run_id",
+        "retry_attempt",
+        "lease_generation",
+        "external_run_id"
+      ],
+      "durable_cancellation_evidence": true,
+      "durable_logical_identity": true,
+      "durable_pre_effect_checkpoint": false,
+      "durable_terminal_evidence": false,
+      "effect_owner": "external-runner-system",
+      "fresh_observation_rule": false,
+      "name": "stensibly-external-runner",
+      "receipt_scope": "local",
+      "system": "stensibly",
+      "work_model": "ledger-owned run coordinating an external effect"
+    },
+    {
+      "coordinator_state_owner": "smolrunner-store",
+      "correlation_fields": [
+        "request_id",
+        "reservation_id",
+        "reservation_generation",
+        "action_id",
+        "execution_id",
+        "journal_revision"
+      ],
+      "durable_cancellation_evidence": true,
+      "durable_logical_identity": true,
+      "durable_pre_effect_checkpoint": true,
+      "durable_terminal_evidence": false,
+      "effect_owner": "observed-host",
+      "fresh_observation_rule": true,
+      "name": "smolrunner-host-execution",
+      "receipt_scope": "none",
+      "system": "smolrunner",
+      "work_model": "local durable plan and executor journal"
+    },
+    {
+      "coordinator_state_owner": "browser-and-request-memory",
+      "correlation_fields": [
+        "message_array",
+        "step_count"
+      ],
+      "durable_cancellation_evidence": false,
+      "durable_logical_identity": false,
+      "durable_pre_effect_checkpoint": false,
+      "durable_terminal_evidence": false,
+      "effect_owner": "external-read-provider",
+      "fresh_observation_rule": false,
+      "name": "fin-agent-chat-request",
+      "receipt_scope": "none",
+      "system": "fin-agent",
+      "work_model": "request-scoped planner, read tool, and SSE response"
+    }
+  ],
+  "results": [
+    {
+      "decisive_evidence": [
+        "logical operation identity",
+        "local operation receipt",
+        "changed-request conflict"
+      ],
+      "disposition": "read_or_replay_local_result",
+      "missing_evidence": [],
+      "name": "stensibly-local-ledger",
+      "next_action": "read the retained outcome; when unknown, replay the exact same request identity under the same key",
+      "recommendation": "baseline"
+    },
+    {
+      "decisive_evidence": [
+        "stable local run identity",
+        "external operation reference",
+        "lease expiry or lost acknowledgement"
+      ],
+      "disposition": "reconcile_external_owner_before_replacement",
+      "missing_evidence": [
+        "external terminal receipt",
+        "read-after-interruption adapter",
+        "replacement gate tied to reconciliation"
+      ],
+      "name": "stensibly-external-runner",
+      "next_action": "query the external effect owner through a stable operation handle before retrying or creating replacement work",
+      "recommendation": "campaign"
+    },
+    {
+      "decisive_evidence": [
+        "pre-call executing checkpoint",
+        "immutable action or execution identity",
+        "fresh-observation rule"
+      ],
+      "disposition": "fresh_observation_required",
+      "missing_evidence": [
+        "live attempt-to-receipt mapping",
+        "durable receipt read-back",
+        "cross-system receipt publication"
+      ],
+      "name": "smolrunner-host-execution",
+      "next_action": "observe current ownership and preconditions, then resume, retry, compensate, or terminate under the same execution identity",
+      "recommendation": "campaign"
+    },
+    {
+      "decisive_evidence": [
+        "request lifecycle"
+      ],
+      "disposition": "no_durable_recovery_contract",
+      "missing_evidence": [
+        "durable job identity",
+        "attempt identity",
+        "checkpoint",
+        "cancellation record",
+        "terminal read-back"
+      ],
+      "name": "fin-agent-chat-request",
+      "next_action": "treat the request as ended; introduce a durable job only after an explicit asynchronous or write-capable product requirement",
+      "recommendation": "stop"
+    }
+  ]
+}
