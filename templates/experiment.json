@@ -5,11 +5,16 @@
   "owner": "worker-id",
   "created_at": "YYYY-MM-DD",
   "state": "draft",
+  "claim_scope": "mechanism",
+  "integration_context": null,
   "sources": [
     {
-      "name": "system-or-package",
+      "name": "standard, project, package, or system",
+      "url": "https://example.com/stable-source",
       "revision": "exact-version-or-commit",
-      "retrieved_at": "YYYY-MM-DD"
+      "retrieved_at": "YYYY-MM-DD",
+      "claim": "Exact statement this source supports.",
+      "evidence_label": "Normative"
     }
   ],
   "command": "python3 run.py",
