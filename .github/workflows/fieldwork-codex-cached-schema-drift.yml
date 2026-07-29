@@ -45,6 +45,9 @@ jobs:
           cargo fmt --all -- --check
           git -C .. diff --check
           git -C .. diff -- codex-rs/rmcp-client/src/bin/test_stdio_server.rs codex-rs/core/tests/suite/mcp_tool_cache.rs | tee ../../fieldwork/campaigns/0004-host-mcp-lifecycle-reconciliation/artifacts/codex-cached-schema-drift/latest.patch
+      - name: Build test MCP server
+        working-directory: codex/codex-rs
+        run: cargo build -p codex-rmcp-client --bin test_stdio_server
       - name: Run focused public Codex regression
         working-directory: codex/codex-rs
         shell: bash
