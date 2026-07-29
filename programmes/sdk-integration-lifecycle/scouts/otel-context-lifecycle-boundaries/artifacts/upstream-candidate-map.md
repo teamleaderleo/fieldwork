@@ -6,6 +6,23 @@ This file decomposes the Fieldwork findings into reviewable upstream candidates.
 
 The findings should not be submitted as one mega-issue or one mega-PR. They occur at different abstraction layers, have different compatibility risks, and require different maintainers to evaluate them.
 
+## Current evidence and review state
+
+- target revision: `open-telemetry/opentelemetry-js@7b06368b7362a30ca69c178f43bd94dfbb36f85d`
+- characterization fork head: `548b8a4b801bbc0a9624323585179de44e44e174`
+- prepared characterization cases: 18 across 7 lifecycle boundaries
+- `NodeSDK` start-guard fork head: `14b524ff0c0d8e39321c31be218b0c9ee0ca0b78`
+- repaired `startNodeSDK()` cleanup fork head: `482cb975f78572bc65a9b263fb677b7a274e2fff`
+- Fieldwork synthesis PR #32: draft and held for reconciliation with current main
+- target execution for the new fork tests: not retained
+
+Evidence classes:
+
+- source maps and implementation review: `source-read`;
+- retained dependency-free async/retry probe: `model-executed`;
+- fork characterization and fix tests: `target-test-prepared`;
+- target package execution: not claimed.
+
 ## Promoted candidates
 
 The promoted list remains five units. Additional findings below are retained as leads until their characterization runs and their preferred review boundaries are clearer.
@@ -18,6 +35,8 @@ Implemented in the user-owned fork:
 
 - branch: `fieldwork/nodesdk-start-state-guard`
 - draft PR: https://redirect.github.com/teamleaderleo/opentelemetry-js/pull/2
+- exact head: `14b524ff0c0d8e39321c31be218b0c9ee0ca0b78`
+- current disposition: `EXECUTE`
 
 ### Proposed upstream unit
 
@@ -35,30 +54,42 @@ Set a `_startAttempted` guard before the first startup side effect. Later calls 
 
 This prevents a proven ownership split without claiming process-level restart, global disposal, multi-instance coordination, shutdown-before-start policy, or a complete start/shutdown state machine.
 
-## Candidate B — `startNodeSDK()` failed-creation cleanup
+### Review boundary
+
+The branch is current against the pinned fork base and remains narrow: seven production additions plus one focused prepared test file. No target execution receipt exists yet.
+
+## Candidate B — `startNodeSDK()` failed-setup cleanup
 
 ### Status
 
-Implemented in the user-owned fork:
+Implemented and self-review-repaired in the user-owned fork:
 
 - branch: `fieldwork/start-node-sdk-failure-cleanup`
 - draft PR: https://redirect.github.com/teamleaderleo/opentelemetry-js/pull/3
-
-### Proposed upstream unit
-
-One focused PR in `@opentelemetry/sdk-node`.
+- exact head: `482cb975f78572bc65a9b263fb677b7a274e2fff`
+- current disposition: `EXECUTE`
 
 ### Problem
 
-`startNodeSDK()` currently registers supplied instrumentations before component creation. When component creation throws, it returns `NOOP_SDK` after potentially enabling instrumentation and an unreachable context manager.
+`startNodeSDK()` originally registered supplied instrumentations before component creation. When component creation threw, it returned `NOOP_SDK` after potentially enabling instrumentation and an unreachable context manager.
 
-### Resolution
+The first fork repair moved registration after global publication. Exact-head self-review found that ordering introduced another failure: if instrumentation registration threw, newly created providers could remain process-global even though the function returned no shutdown handle.
 
-Create components first, register instrumentation only after creation succeeds, and disable the context manager created during a failed attempt.
+### Current resolution
+
+1. create SDK components;
+2. register instrumentation against the newly created trace, metric, and log providers explicitly;
+3. if registration throws, disable the created context manager, start provider cleanup, and preserve the registration error;
+4. publish process globals only after registration succeeds;
+5. return the shutdown handle.
 
 ### Why separate
 
-This repairs a concrete failure path without deciding duplicate successful calls or process-global ownership.
+This repairs concrete setup failure paths without deciding duplicate successful calls, process-global replacement, or ownership-aware uninstallation.
+
+### Remaining boundary
+
+The helper is synchronous. Cleanup can start asynchronous provider shutdown but cannot await completion. Cleanup rejection handling and arbitrary partial side effects inside a throwing instrumentation remain unsolved.
 
 ## Candidate C — trace provider shutdown contract
 
@@ -138,7 +169,7 @@ The current APIs do not expose ownership tokens for globals or per-instrumentati
 
 ### Evidence state
 
-Characterization source exists in fork PR #1, but it has not run in this environment.
+Two target-native characterization cases exist in fork PR #1 at head `548b8a4b801bbc0a9624323585179de44e44e174`, but they have not run in this environment.
 
 Fieldwork record:
 
@@ -163,7 +194,14 @@ After a shutdown promise resolves, the same helper object should not subsequentl
 
 ### Evidence state
 
-A NodeSDK characterization test exists, and a source comparison covers trace, logs, metrics, and NodeSDK. The test has not run in this environment, and direct logs/metrics aggregate tests are not yet present.
+Two target-native NodeSDK characterization cases exist in fork PR #1 at head `548b8a4b801bbc0a9624323585179de44e44e174`.
+
+They cover:
+
+1. a synchronous trace-processor shutdown exception escaping before a promise is returned and preventing later trace processors and signal providers from being called;
+2. synchronous log-processor and metric-reader exceptions becoming rejected promises while still skipping later log processors and metric readers.
+
+The cases have not run in this environment. Direct package-level force-flush and aggregate tests remain absent.
 
 Fieldwork record:
 
@@ -175,7 +213,8 @@ Several aggregate lifecycle paths eagerly invoke children inside loops or `.map(
 
 - trace can throw synchronously before returning a promise and skip later processors;
 - a synchronous trace-provider exception can prevent NodeSDK from requesting logs and metrics shutdown;
-- logs and metrics return rejected promises through `async` methods, but later processors or collectors are still skipped when `.map()` aborts;
+- logs and metrics return rejected promises through `async` methods, but later processors or readers are still skipped when `.map()` aborts;
+- providers may become terminal or retain rejected one-shot state without ever reaching the skipped children;
 - force-flush paths have related behavior.
 
 ### Why it is not promoted yet
@@ -196,20 +235,26 @@ A concern that instrumentations might remain bound to a no-op logger provider wa
 ## Recommended submission order
 
 1. Candidate A: same-object start guard.
-2. Candidate B: failed function-start cleanup.
+2. Candidate B: repaired failed function-setup cleanup.
 3. Run and decide retained lead F without silently expanding candidate A.
 4. Candidate C: trace provider shutdown contract.
 5. Run and classify retained lead G; decide whether it belongs with candidate C or a cross-signal proposal.
 6. Candidate D: metric reader binding transactionality.
 7. Candidate E: global installation and disposal design.
 
-Candidates A and B are small, evidenced fixes. Candidates C and D are lower-level correctness issues. Candidate E is the umbrella design discussion informed by the earlier concrete fixes. Leads F and G are deliberately not counted as promoted proposals yet.
+Candidates A and B are small implementation candidates but still require target execution. Candidates C and D are lower-level correctness issues. Candidate E is the umbrella design discussion informed by the earlier concrete fixes. Leads F and G are deliberately not counted as promoted proposals yet.
+
+## Current Fieldwork review disposition
+
+Fieldwork PR #32 is draft and held because its branch diverged substantially from current main. The target, programme, and scout issue bodies remain the current discovery surfaces while the synthesis branch is reconciled.
+
+A new complete-diff review is required after reconciliation. The builder is not eligible to be the sole final accepter of a consequential upstream packet.
 
 ## What should link to Fieldwork
 
 A future upstream issue can include a single optional deep-dive link to the Fieldwork synthesis rather than pasting every experiment into every issue. Each issue should still be independently understandable and contain its own minimal reproduction.
 
-Suggested deep-dive target after explicit authorization:
+Suggested deep-dive target after explicit authorization and current-main reconciliation:
 
 https://redirect.github.com/teamleaderleo/fieldwork/pull/32
 
