@@ -1,0 +1,92 @@
+{
+  "schema": "fieldwork.duckdb.s3-publication.l01.v1",
+  "pins": {
+    "duckdb_python": "1.5.5",
+    "duckdb_fork_base": "2c9e51aa33dd07e928edae66304430aeb038edd7",
+    "duckdb_research_head": "98529427db7e99c2e4f7268c6c579216893a4458",
+    "httpfs_source": "df92a34d29eb589591adfadba89fa8df874e54ea",
+    "httpfs_loaded_version": "827222f",
+    "minio_release": "RELEASE.2025-07-23T15-54-02Z",
+    "minio_sha256": "eef6581f6509f43ece007a6f2eb4c5e3ce41498c8956e919a7ac7b4b170fa431",
+    "python": "3.13.14",
+    "runner": "Ubuntu 24.04 / Linux 6.17 Azure x86_64",
+    "duckdb_threads": 1
+  },
+  "workloads": {
+    "successful_rows": 400000,
+    "failure_rows": 50000000,
+    "retry_rows": 2000,
+    "s3_uploader_max_filesize": "100MB",
+    "s3_uploader_max_parts_per_file": 20,
+    "s3_uploader_thread_limit": 2,
+    "observed_part_size": 5504856
+  },
+  "broad_matrix": {
+    "workflow_run": 30480334339,
+    "artifact_id": 8735370197,
+    "artifact_digest": "sha256:af0a35335a3ca4a59337d69ddf3a502874d6908ce283b5b696666e95d7dd16ff",
+    "checks": {"passed": 42, "failed": 8},
+    "natural_completion": {
+      "csv": {"rows": 400000, "checksum": 79999800000, "bytes": 28688900, "multipart_parts": 6},
+      "parquet": {"rows": 400000, "checksum": 79999800000, "bytes": 8648130, "multipart_parts": 2}
+    },
+    "hard_process_death": {
+      "csv": {"final_object_exists": false, "incomplete_uploads": 1, "retained_part_bytes": 5504856},
+      "parquet": {"final_object_exists": false, "incomplete_uploads": 1, "retained_part_bytes": 5504856},
+      "same_key_retry_exact": true,
+      "older_upload_remained_after_retry": true
+    },
+    "remote_use_tmp_file": {
+      "accepted": true,
+      "tmp_object_key_observed": false,
+      "direct_multipart_used": true,
+      "successful_objects_exact": true
+    },
+    "manual_interrupt": {
+      "caller_error": "InterruptException",
+      "connection_reusable": true,
+      "csv_final_object": {"exists": true, "bytes": 14634499, "multipart_parts": 3},
+      "parquet_final_object": {"exists": true, "bytes": 7974056, "multipart_parts": 2}
+    }
+  },
+  "focused_interrupt_matrix": {
+    "workflow_run": 30481103612,
+    "artifact_id": 8735732540,
+    "artifact_digest": "sha256:0e8fbb05de6ae237fe5861a158d9c9f478e053de13358667c2a733f4f8cb8bd9",
+    "checks": {"passed": 50, "failed": 10},
+    "valid_repeats_per_format": 2,
+    "csv": {
+      "requested_rows": 50000000,
+      "published_rows": 256000,
+      "minimum": 0,
+      "maximum": 255999,
+      "checksum": 32767872000,
+      "final_bytes": 18320899,
+      "multipart_parts": 4,
+      "caller_error": "InterruptException",
+      "reader_accepted": true,
+      "repeatable": true
+    },
+    "parquet": {
+      "requested_rows": 50000000,
+      "final_bytes": 10620166,
+      "multipart_parts": 2,
+      "caller_error": "InterruptException",
+      "reader_accepted": false,
+      "reader_error": "missing final magic bytes/footer",
+      "repeatable": true
+    },
+    "unsupported_control": {
+      "option": "BATCH_SIZE_BYTES '6MB'",
+      "result": "NotImplementedException before execution for CSV and Parquet",
+      "case_failures": 8
+    },
+    "expected_parquet_prefix_checks_failed": 2
+  },
+  "decision": {
+    "classification": "actual correctness issue candidate",
+    "finding": "S3 COPY can return InterruptException while completing a partial object at the requested final key",
+    "promoted_lane": 103,
+    "upstream_contact_authorized": false
+  }
+}
