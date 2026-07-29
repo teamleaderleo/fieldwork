@@ -1,32 +1,60 @@
-# Shutdown fanout after a synchronous processor exception
+# Lifecycle fanout after a synchronous component exception
 
 ## In simple words
 
-Shutdown is supposed to fan out across all owned processors and signal providers. Today, one custom trace processor that throws synchronously can stop that fanout before later trace processors, the logger provider, or the meter provider are even asked to shut down.
+Shutdown and force-flush operations are supposed to fan out across owned processors, readers, collectors, and signal providers. Several JavaScript SDK aggregates eagerly call child methods while building arrays for `Promise.all`. If one child throws synchronously, array construction stops and later children are never called.
 
-This is retained as a lower-level lead. The characterization source has not been executed in the current environment, so it is not yet promoted to a separate upstream candidate.
+Tracing exposes the sharpest version: a custom trace processor can throw synchronously all the way out of `NodeSDK.shutdown()`, preventing logger- and meter-provider shutdown from even being requested. Logs and metrics use `async` wrappers, so the caller receives a rejected promise, but later processors or collectors inside their `.map()` are still skipped.
+
+This is retained as a lower-level cross-signal lead. The characterization source has not been executed in the current environment, so it is not yet promoted to a separate upstream candidate.
 
 ## Pinned scope
 
 - repository: `open-telemetry/opentelemetry-js`
 - revision: `7b06368b7362a30ca69c178f43bd94dfbb36f85d`
-- packages: `@opentelemetry/sdk-trace` and `@opentelemetry/sdk-node`
+- packages: `@opentelemetry/sdk-trace`, `@opentelemetry/sdk-logs`, `@opentelemetry/sdk-metrics`, and `@opentelemetry/sdk-node`
 - characterization branch: `fieldwork/nodesdk-shutdown-lifecycle-characterization`
 - characterization commit: `c4b8b1ea44563c2ae826ea36f6906c84dfb67642`
 
-## Source sequence
+## Source comparison
+
+### Traces
 
 `MultiSpanProcessor.shutdown()` calls each processor's `shutdown()` while constructing a promise array:
 
 https://redirect.github.com/open-telemetry/opentelemetry-js/blob/7b06368b7362a30ca69c178f43bd94dfbb36f85d/packages/sdk-trace/src/MultiSpanProcessor.ts#L64-L74
 
-If one call throws synchronously, the loop exits before later processors are invoked and before `Promise.all` exists.
+`forceFlush()` uses the same eager invocation pattern:
 
-`NodeSDK.shutdown()` uses the same eager pattern across providers, in trace → logs → metrics order:
+https://redirect.github.com/open-telemetry/opentelemetry-js/blob/7b06368b7362a30ca69c178f43bd94dfbb36f85d/packages/sdk-trace/src/MultiSpanProcessor.ts#L24-L41
+
+Because these methods are not declared `async`, a synchronous child exception escapes immediately before later processors are invoked and before a promise is returned.
+
+### Logs
+
+`MultiLogRecordProcessor.shutdown()` and `forceFlush()` call child methods inside `.map()` expressions passed to `Promise.all`:
+
+https://redirect.github.com/open-telemetry/opentelemetry-js/blob/7b06368b7362a30ca69c178f43bd94dfbb36f85d/experimental/packages/sdk-logs/src/MultiLogRecordProcessor.ts#L26-L43
+
+These aggregate methods are `async`, so a synchronous child throw becomes a rejected returned promise. However, `.map()` still aborts before later processors are invoked.
+
+The log force-flush path also calls `processor.forceFlush()` before passing the result into `callWithTimeout`, so the timeout wrapper cannot contain a synchronous exception thrown while obtaining the promise.
+
+### Metrics
+
+`MeterProvider.shutdown()` and `forceFlush()` call collectors inside `.map()` expressions passed to `Promise.all`:
+
+https://redirect.github.com/open-telemetry/opentelemetry-js/blob/7b06368b7362a30ca69c178f43bd94dfbb36f85d/packages/sdk-metrics/src/MeterProvider.ts#L91-L123
+
+The methods are `async`, so synchronous collector exceptions reject the returned promise, but later collectors are not invoked once `.map()` aborts.
+
+### NodeSDK
+
+`NodeSDK.shutdown()` eagerly invokes providers in trace → logs → metrics order while constructing its own promise array:
 
 https://redirect.github.com/open-telemetry/opentelemetry-js/blob/7b06368b7362a30ca69c178f43bd94dfbb36f85d/experimental/packages/opentelemetry-sdk-node/src/sdk.ts#L365-L381
 
-If trace-provider shutdown throws synchronously, logger- and meter-provider shutdown calls are never made.
+A synchronous trace-provider exception therefore prevents logger- and meter-provider shutdown calls. Asynchronous provider rejections do not have that specific effect because all provider calls have already returned promises before `Promise.all` observes rejection.
 
 ## Characterization
 
@@ -47,43 +75,59 @@ Source-predicted first-call result:
 - the logger processor is not called;
 - `NodeSDK.shutdown()` throws synchronously rather than returning a rejected promise.
 
-The test makes the first processor succeed on a second call so the remaining providers can be cleaned up and the skipped calls can be observed.
+The test makes the first processor succeed on a second call so remaining components can be cleaned up and the previously skipped calls can be observed.
+
+Direct log- and metric-aggregate tests have not yet been added. Their skipped-later-child behavior is currently a source-derived result from ordinary JavaScript `.map()` exception semantics.
 
 ## Why this matters
 
-A fanout coordinator should usually attempt cleanup for every owned component even when one component fails. Failing to call later components can leave background workers, exporter queues, timers, or network resources active during process termination.
+A lifecycle fanout coordinator should normally attempt cleanup or flush for every owned component even when one component fails. Skipping later components can leave:
 
-The synchronous-versus-asynchronous distinction is also externally visible:
+- exporter queues unflushed;
+- worker threads or timers active;
+- network resources open;
+- later signals incompletely shut down;
+- failure behavior dependent on whether a child throws before or after returning a promise.
 
-- an asynchronous processor rejection produces a returned rejected promise after all shutdown calls have already been started;
-- a synchronous processor throw escapes before later calls are started and before a promise is returned.
+The synchronous-versus-asynchronous distinction is externally visible and surprising:
+
+- an asynchronous rejection generally occurs after all child calls were started;
+- a synchronous throw can stop invocation itself;
+- trace may throw before returning a promise;
+- logs and metrics return rejected promises but still skip later children internally.
 
 JavaScript's `Promise<void>` type does not prevent an implementation from throwing before returning its promise.
 
 ## Possible fixes
 
-### At `MultiSpanProcessor`
+### Lazy promise wrapping
 
-Wrap each invocation so a synchronous throw becomes a rejection without stopping later invocation scheduling:
+Wrap every child invocation so synchronous exceptions become rejections without aborting scheduling of later calls:
 
 ```ts
-const promises = this._spanProcessors.map(spanProcessor =>
-  Promise.resolve().then(() => spanProcessor.shutdown())
+const promises = children.map(child =>
+  Promise.resolve().then(() => child.shutdown())
 );
 return Promise.all(promises).then(() => {});
 ```
 
-This preserves rejection while ensuring every processor is scheduled.
+The same structure can wrap force-flush calls and timeout helpers.
 
-An alternative is `Promise.allSettled()` plus an aggregated error policy, but that changes which error is surfaced and requires a contract decision.
+### Error aggregation policy
 
-### At `NodeSDK`
+`Promise.all` preserves fail-fast rejection after all callbacks have been scheduled. `Promise.allSettled` could retain every failure, but choosing which error or aggregate to expose is a separate API decision.
 
-Apply the same defensive wrapping to each provider shutdown so every signal provider is attempted even when one provider throws synchronously.
+### Shared internal utility
 
-### At provider implementations
+Because trace, logs, metrics, and NodeSDK have related fanout surfaces, a shared core helper could normalize:
 
-Providers may also catch synchronous processor exceptions internally, but aggregate helpers should not rely entirely on every nested implementation being defensive.
+- synchronous throws;
+- promise rejections;
+- timeout wrapping;
+- attempt-all semantics;
+- aggregate error reporting.
+
+A shared utility reduces repeated subtle differences, but it may create a broader review unit than small per-package patches.
 
 ## Relationship to existing candidates
 
@@ -93,8 +137,11 @@ Do not automatically expand that issue draft. First decide whether the review un
 
 - one broader trace shutdown-contract issue;
 - a narrow `MultiSpanProcessor` fanout issue and PR;
-- a separate NodeSDK aggregate-shutdown robustness issue;
-- or a shared utility used by trace, logs, metrics, and NodeSDK.
+- equivalent per-signal patches;
+- a NodeSDK aggregate-shutdown robustness issue;
+- or a shared cross-signal lifecycle fanout utility and contract.
+
+The source comparison makes a cross-signal design discussion plausible, but the exact user consequence and preferred error policy still need validation.
 
 ## Prior-art search
 
@@ -104,7 +151,7 @@ This negative search result is not proof that no related issue exists.
 
 ## Validation boundary
 
-The test source is present in the fork, but dependencies are unavailable in the current work environment and no passing CI run is claimed.
+The NodeSDK test source is present in the fork, but dependencies are unavailable in the current work environment and no passing CI run is claimed.
 
 Local command:
 
@@ -113,6 +160,13 @@ npm ci
 npm run compile
 npm test --workspace=@opentelemetry/sdk-node -- --grep "NodeSDK shutdown fanout characterization"
 ```
+
+Additional direct package tests should cover:
+
+- `MultiSpanProcessor.shutdown()` and `forceFlush()`;
+- `MultiLogRecordProcessor.shutdown()` and `forceFlush()`;
+- `MeterProvider.shutdown()` and `forceFlush()` with multiple collectors;
+- NodeSDK provider fanout after a synchronous trace failure.
 
 ## Contact boundary
 
