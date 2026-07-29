@@ -1,0 +1,72 @@
+name: fieldwork-169-receipt-schema-validation-repair
+
+on:
+  push:
+    branches:
+      - finding/169-enforce-receipt-schema
+    paths:
+      - .github/workflows/fieldwork-169-receipt-schema-validation-repair.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fieldwork-169-receipt-schema-validation-repair
+  cancel-in-progress: false
+
+jobs:
+  repair-test-publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out candidate branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: finding/169-enforce-receipt-schema
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Execute corrected staged transformer
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          carrier = Path('.github/workflows/fieldwork-169-receipt-schema-validation.yml')
+          lines = carrier.read_text(encoding='utf-8').splitlines()
+          start = next(i for i, line in enumerate(lines) if line.strip() == 'from pathlib import Path')
+          stop = next(
+              i for i, line in enumerate(lines[start:], start)
+              if line.strip() == '- name: Run focused receipt tests'
+          )
+          script = '\n'.join(
+              line[10:] if line.startswith('          ') else line
+              for line in lines[start:stop]
+          )
+          old_open = "added_tests = dedent('''\\\n"
+          new_open = "added_tests = __import__('textwrap').indent(dedent('''\\\n"
+          old_close = "\n''')\nif \"test_schema_accepts_all_retained_fixtures\" in text:"
+          new_close = "\n'''), '    ')\nif \"test_schema_accepts_all_retained_fixtures\" in text:"
+          if script.count(old_open) != 1 or script.count(old_close) != 1:
+              raise SystemExit('test indentation repair anchors did not match exactly')
+          script = script.replace(old_open, new_open, 1).replace(old_close, new_close, 1)
+          exec(compile(script, str(carrier), 'exec'))
+          PY
+
+      - name: Run focused receipt tests and equivalence gate
+        working-directory: campaigns/0002-tool-surface-continuity/lanes/L06-effective-surface-diagnostics/artifacts
+        run: |
+          python3 -m py_compile classify_receipts.py test_classify_receipts.py
+          python3 test_classify_receipts.py
+          python3 classify_receipts.py fixtures.json --output /tmp/fieldwork-169-latest.json
+          cmp /tmp/fieldwork-169-latest.json results/latest.json
+
+      - name: Verify and publish source-only repair
+        run: |
+          rm .github/workflows/fieldwork-169-receipt-schema-validation-repair.yml
+          git diff --check
+          test ! -e .github/workflows/fieldwork-169-receipt-schema-validation.yml
+          git config user.name fieldwork-ci
+          git config user.email fieldwork-ci@users.noreply.github.com
+          git add campaigns .github
+          git commit -m 'diagnostics: enforce receipt v1 schema before classification'
+          git push origin HEAD:finding/169-enforce-receipt-schema
