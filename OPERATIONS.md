@@ -2,16 +2,18 @@
 
 ## Live and durable records
 
-GitHub issues are the live queue. Campaign and lane files are the durable evidence record. Follow `WORKBOARD.md` and `COORDINATION.md` for parallel work and handoffs.
+GitHub issues are the live queue. Batch, campaign, lane, and result files are the durable evidence record. Follow `WORKBOARD.md`, `BATCHES.md`, and `COORDINATION.md` for parallel work and handoffs.
 
 ## Work hierarchy
 
 - A **finding** preserves an observation.
 - A **lead** awaits triage.
-- A **campaign** owns one bounded parent question.
-- A **lane** owns one independent research unit inside a campaign.
+- A **batch** dispatches many bounded assignments.
+- A **campaign** owns one substantive bounded parent question.
+- A **lane** owns one coordinated research unit inside a campaign.
+- A **probe** is a one-shot assignment inside a batch and normally has no issue.
 - A **decision** requests human or coordinator judgement.
-- A **synthesis** reconciles lane results.
+- A **synthesis** reconciles accepted results.
 
 ## Intake
 
@@ -22,7 +24,8 @@ A lead can enter Fieldwork when it comes from:
 - a security, correctness, or interoperability concern;
 - a technical question worth answering independently of a patch;
 - an upstream request that overlaps our interests;
-- a broader research programme already active here.
+- a broader research programme already active here;
+- a user-directed survey across public repositories.
 
 A famous repository with an available issue is not, by itself, a lead.
 
@@ -36,20 +39,15 @@ Score a lead informally across five dimensions:
 4. **Upstream viability** — is the project active, governed, and open to the kind of change proposed?
 5. **Boundedness** — can useful progress be made without an open-ended research commitment?
 
-Prefer leads with strong intrinsic value and evidence access. Visibility is a secondary multiplier.
+Prefer strong intrinsic value and evidence access. Visibility is a secondary multiplier.
 
 ## Activation
 
-A campaign becomes active only when it has:
+A campaign becomes active only when it has one falsifiable question, intrinsic value, scope, non-goals, a coordinator, stop conditions, a parent issue, and a durable directory.
 
-- one falsifiable question;
-- intrinsic value;
-- explicit scope and non-goals;
-- a coordinator;
-- stop conditions;
-- a parent issue and durable directory.
+A batch becomes active only when it has one purpose, a coordinator, a pruned assignment set, unique owned paths, a declared concurrency limit, stop conditions, a parent issue, and a durable manifest.
 
-Parallel lanes are created only after the parent campaign identifies distinct deliverables.
+Parallel lanes are created only after a parent campaign identifies distinct deliverables. Tiny one-shot checks remain probes until coordination is actually needed.
 
 ## Time boundaries
 
@@ -57,27 +55,11 @@ Before maintainer direction, cap speculative implementation. Spend enough time t
 
 Do not maintain more active upstream submissions than can be answered promptly and responsibly.
 
-## Campaign states
+## States
 
-- `observed`
-- `triage`
-- `ready`
-- `claimed`
-- `reproducing`
-- `investigating`
-- `blocked`
-- `ready-for-synthesis`
-- `synthesising`
-- `candidate`
-- `seeking-direction`
-- `implementing`
-- `submitted`
-- `merged`
-- `declined`
-- `withdrawn`
-- `negative-result`
-- `dormant`
-- `complete`
+Use the exact state tokens and labels in `LABELS.md`. Workers report transitions; coordinators replace the current state label after accepting them.
+
+Probe-only manifests may temporarily use `needs-decision` before promotion to a decision issue.
 
 ## Stop conditions
 
@@ -87,29 +69,31 @@ Stop or pause when:
 - the project explicitly rejects the direction;
 - the work requires access or data we do not have;
 - expected benefit no longer justifies the verification cost;
-- scope expands beyond the campaign question;
+- scope expands beyond the assigned question;
 - another contributor has already solved the problem;
 - the work becomes detached from anything we value;
-- safe testing is unavailable.
+- safe testing is unavailable;
+- a batch cell duplicates another assignment;
+- the coordinator cannot realistically review the active fan-out.
 
 ## Fork conventions
 
-- Name branches after the campaign and bounded outcome.
-- Record upstream base revision in the campaign.
+- Name branches after the batch, campaign, lane, and bounded outcome where practical.
+- Record upstream base revision in the durable result.
 - Avoid long-lived forks that silently diverge.
-- Keep experiments in Fieldwork when they are independent; keep modifications in the fork.
+- Keep independent experiments in Fieldwork; keep upstream modifications in the fork.
 - Delete or archive superseded branches only after recording the relevant revision.
 
-## Weekly review
+## Review cadence
 
-Review active campaigns for:
+Review active batches and campaigns for:
 
 - new evidence;
 - unanswered upstream feedback;
-- stale assumptions caused by upstream changes;
-- excessive scope;
-- candidates ready for a decision;
-- lanes ready for synthesis;
+- stale assumptions caused by target changes;
+- excessive scope or duplicate work;
+- assignments ready for synthesis;
+- decisions awaiting human judgement;
 - abandoned claims;
 - leads that should be closed rather than carried indefinitely.
 
@@ -123,4 +107,7 @@ Metrics describe the work; they do not become quotas. Useful measures include:
 - maintainer questions answered by the initial packet;
 - accepted, declined, withdrawn, and negative outcomes;
 - reused fixtures, tests, or methods;
-- defects caught before submission.
+- defects caught before submission;
+- dispatched assignments versus accepted results;
+- duplication caught before dispatch;
+- coordinator review load and synthesis backlog.
