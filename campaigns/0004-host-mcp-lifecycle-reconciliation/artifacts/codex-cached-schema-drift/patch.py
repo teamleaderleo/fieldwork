@@ -122,7 +122,8 @@ fn echo_schema_v2() -> bool {
                     return Ok(Self::structured_result(json!({
                         "echo": format!("{process}-count-{count}"),
                         "env": null,
-                    })));
+                    }))
+                    .into());
                 }
 
                 let args: EchoArgs = match request.arguments {
