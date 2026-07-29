@@ -1,0 +1,23 @@
+name: Wasmtime interruption probe
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wasmtime-interruption-probe.yml"
+      - "programmes/high-leverage-open-source/scouts/wasmtime-capability-interruption/probe/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run exact-source probe
+        run: >-
+          cargo run
+          --manifest-path programmes/high-leverage-open-source/scouts/wasmtime-capability-interruption/probe/Cargo.toml
