@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "source_revision": "3725f02cf38d856bc82bb46dd68ab61bb96ec6fc",
+  "cases": [
+    {
+      "id": "native-v1-direct-no-search",
+      "family": "native.multi_agent_v1",
+      "presence": "present",
+      "exposure": "direct",
+      "search_metadata": true,
+      "discovery": {
+        "tool": null,
+        "advertised": false,
+        "registered": false,
+        "executable": false,
+        "semantics": null,
+        "execution": "absent",
+        "result_count": null
+      },
+      "expected": "accept",
+      "note": "Built-in compatibility path when search_tool_enabled is false."
+    },
+    {
+      "id": "native-v1-deferred-tool-search",
+      "family": "native.multi_agent_v1",
+      "presence": "present",
+      "exposure": "deferred",
+      "search_metadata": true,
+      "discovery": {
+        "tool": "tool_search",
+        "advertised": true,
+        "registered": true,
+        "executable": true,
+        "semantics": "load_existing_deferred_tools",
+        "execution": "unexecuted",
+        "result_count": null
+      },
+      "expected": "accept",
+      "note": "Built-in deferred path when search_tool_enabled is true."
+    },
+    {
+      "id": "mcp-direct-no-search",
+      "family": "mcp.configured",
+      "presence": "present",
+      "exposure": "direct",
+      "search_metadata": true,
+      "discovery": {
+        "tool": null,
+        "advertised": false,
+        "registered": false,
+        "executable": false,
+        "semantics": null,
+        "execution": "absent",
+        "result_count": null
+      },
+      "expected": "accept",
+      "note": "build_mcp_tool_runtimes directly exposes eligible tools when search is unavailable."
+    },
+    {
+      "id": "mcp-deferred-tool-search-zero-results",
+      "family": "mcp.configured",
+      "presence": "present",
+      "exposure": "deferred",
+      "search_metadata": true,
+      "discovery": {
+        "tool": "tool_search",
+        "advertised": true,
+        "registered": true,
+        "executable": true,
+        "semantics": "load_existing_deferred_tools",
+        "execution": "executed",
+        "result_count": 0
+      },
+      "expected": "accept",
+      "note": "The loader existed and executed. Zero matches is a result state, not a missing route."
+    },
+    {
+      "id": "app-direct-no-search",
+      "family": "app.curated_mcp",
+      "presence": "present",
+      "exposure": "direct",
+      "search_metadata": true,
+      "discovery": {
+        "tool": null,
+        "advertised": false,
+        "registered": false,
+        "executable": false,
+        "semantics": null,
+        "execution": "absent",
+        "result_count": null
+      },
+      "expected": "accept",
+      "note": "Curated app tools share the MCP direct-exposure fallback."
+    },
+    {
+      "id": "app-deferred-tool-search",
+      "family": "app.curated_mcp",
+      "presence": "present",
+      "exposure": "deferred",
+      "search_metadata": true,
+      "discovery": {
+        "tool": "tool_search",
+        "advertised": true,
+        "registered": true,
+        "executable": true,
+        "semantics": "load_existing_deferred_tools",
+        "execution": "executed",
+        "result_count": 2
+      },
+      "expected": "accept",
+      "note": "Curated app tools are deferred through the same searchable MCP runtime."
+    },
+    {
+      "id": "dynamic-deferred-search-disabled",
+      "family": "native.dynamic_host",
+      "presence": "present",
+      "exposure": "deferred",
+      "search_metadata": true,
+      "discovery": {
+        "tool": null,
+        "advertised": false,
+        "registered": false,
+        "executable": false,
+        "semantics": null,
+        "execution": "absent",
+        "result_count": null
+      },
+      "expected": "reject",
+      "note": "Dynamic defer_loading selects Deferred independently of model/provider search capability."
+    },
+    {
+      "id": "extension-deferred-search-disabled",
+      "family": "extension.contributed",
+      "presence": "present",
+      "exposure": "deferred",
+      "search_metadata": true,
+      "discovery": {
+        "tool": null,
+        "advertised": false,
+        "registered": false,
+        "executable": false,
+        "semantics": null,
+        "execution": "absent",
+        "result_count": null
+      },
+      "expected": "reject",
+      "note": "A contributed runtime may preserve Deferred exposure while search_tool_enabled is false."
+    },
+    {
+      "id": "deferred-missing-search-metadata",
+      "family": "extension.contributed",
+      "presence": "present",
+      "exposure": "deferred",
+      "search_metadata": false,
+      "discovery": {
+        "tool": "tool_search",
+        "advertised": true,
+        "registered": true,
+        "executable": true,
+        "semantics": "load_existing_deferred_tools",
+        "execution": "unexecuted",
+        "result_count": null
+      },
+      "expected": "reject",
+      "note": "The family cannot enter the tool_search index even though another deferred family caused the loader to exist."
+    },
+    {
+      "id": "deferred-tool-suggest-only",
+      "family": "app.installed_existing",
+      "presence": "present",
+      "exposure": "deferred",
+      "search_metadata": true,
+      "discovery": {
+        "tool": "tool_suggest",
+        "advertised": true,
+        "registered": true,
+        "executable": true,
+        "semantics": "recommend_or_install_plugins",
+        "execution": "unexecuted",
+        "result_count": null
+      },
+      "expected": "reject",
+      "note": "Plugin recommendation/install semantics do not expose an already registered deferred runtime."
+    },
+    {
+      "id": "genuinely-absent-family",
+      "family": "mcp.configured",
+      "presence": "absent",
+      "exposure": "absent",
+      "search_metadata": false,
+      "discovery": {
+        "tool": null,
+        "advertised": false,
+        "registered": false,
+        "executable": false,
+        "semantics": null,
+        "execution": "absent",
+        "result_count": null
+      },
+      "expected": "accept",
+      "note": "No eligible runtime exists, so no discovery route is required."
+    },
+    {
+      "id": "direct-model-only-override",
+      "family": "namespace.config_override",
+      "presence": "present",
+      "exposure": "direct_model_only",
+      "search_metadata": true,
+      "discovery": {
+        "tool": null,
+        "advertised": false,
+        "registered": false,
+        "executable": false,
+        "semantics": null,
+        "execution": "absent",
+        "result_count": null
+      },
+      "expected": "accept",
+      "note": "The configured namespace remains directly callable by the model."
+    }
+  ]
+}
