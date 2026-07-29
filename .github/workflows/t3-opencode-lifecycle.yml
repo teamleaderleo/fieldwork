@@ -31,7 +31,7 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
-          elif git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(.github/workflows/t3-opencode-lifecycle.yml|campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt)$'; then
+          elif git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt$'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -51,6 +51,8 @@ jobs:
             test: apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts
           - name: Interrupt settlement
             test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
+          - name: Pending request cleanup
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.pending-request.test.ts
           - name: Steering affinity
             test: apps/server/src/provider/Layers/OpenCodeAdapter.steering-affinity.test.ts
           - name: Reaper race
