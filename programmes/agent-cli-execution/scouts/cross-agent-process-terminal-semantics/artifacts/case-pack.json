@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "name": "cross-agent-process-terminal-semantics",
+  "owner": "chatgpt:gpt-5.6-thinking",
+  "created_at": "2026-07-29",
+  "claim_scope": ["mechanism", "interface"],
+  "network_policy": "disabled",
+  "upstream_contact_authorized": false,
+  "source_revisions": {
+    "fieldwork": "teamleaderleo/fieldwork@09fe47ac92ec9c0c333b4979011f6321795deff2",
+    "gemini_cli": "google-gemini/gemini-cli@3499c84f7b8e70c86600e7cd2c67a7c65a667f5e",
+    "codex": "openai/codex@3725f02cf38d856bc82bb46dd68ab61bb96ec6fc"
+  },
+  "runner": {
+    "path": "artifacts/run_process_terminal_cases.py",
+    "command": "python3 artifacts/run_process_terminal_cases.py --pretty",
+    "dependencies": ["Python 3.11+ standard library", "bash for two POSIX process-tree cases"],
+    "mutability": "temporary child processes only",
+    "platform_notes": "Pipe and PTY cases target POSIX. /proc state inspection is Linux-specific and degrades to an unknown state elsewhere."
+  },
+  "event_vocabulary": [
+    "spawned",
+    "stdout_bytes",
+    "stderr_bytes",
+    "pty_bytes",
+    "display_snapshot",
+    "input_accepted",
+    "interrupt_requested",
+    "termination_requested",
+    "direct_process_exited",
+    "output_closed",
+    "result_settled"
+  ],
+  "cases": [
+    {
+      "id": "stream-interleave",
+      "runner_cases": ["pipe_interleave", "pty_interleave"],
+      "question": "Which channel and ordering information survives each transport and result contract?",
+      "invariants": [
+        "Per-channel byte order remains stable.",
+        "Any claimed cross-channel total order names its observation point.",
+        "A merged PTY stream does not invent stdout/stderr provenance."
+      ],
+      "adapter_focus": {
+        "gemini_pipe": "Record callback arrival order and the absence of stream tags.",
+        "gemini_pty": "Record serialized terminal snapshots and effective execution method.",
+        "codex_exec": "Compare stream-tagged live deltas with final stdout, stderr, and aggregated_output.",
+        "codex_unified": "Record the merged transcript and the stream tag used in protocol deltas."
+      }
+    },
+    {
+      "id": "terminal-identity",
+      "runner_cases": ["pipe_terminal_identity", "pty_terminal_identity"],
+      "question": "What terminal identity does the child observe?",
+      "invariants": [
+        "isatty results, TERM, and terminal size are captured as separate fields.",
+        "Requested interactivity and effective transport are both reported.",
+        "Fallbacks preserve evidence of the effective transport."
+      ]
+    },
+    {
+      "id": "terminal-rewrite",
+      "runner_cases": ["pipe_terminal_rewrite", "pty_terminal_rewrite"],
+      "question": "Does the consumer receive raw bytes, an append-only transcript, or rendered screen state?",
+      "invariants": [
+        "Carriage returns and erase sequences remain available when the contract is raw transcript.",
+        "Rendered-screen contracts expose the final visible cell state.",
+        "Comparisons never treat a raw transcript and a rendered screen as interchangeable."
+      ]
+    },
+    {
+      "id": "inherited-pipe-drain",
+      "runner_cases": ["inherited_pipe_after_direct_exit", "inherited_pipe_beyond_two_seconds"],
+      "question": "How are direct child exit, descendant-held output handles, output EOF, and final settlement related?",
+      "invariants": [
+        "Direct child exit and output closure are separate events.",
+        "Bytes read before a drain deadline remain in the final result.",
+        "A bounded drain reports incomplete output explicitly.",
+        "Settlement has a documented relationship to remaining descendants."
+      ]
+    },
+    {
+      "id": "invalid-utf8",
+      "runner_cases": ["invalid_utf8"],
+      "question": "Which byte information survives decoding and binary detection?",
+      "invariants": [
+        "The adapter records whether raw bytes remain available.",
+        "Lossy decoding and binary classification are distinguishable outcomes.",
+        "Chunk boundaries never split a declared text event into invalid UTF-8."
+      ]
+    },
+    {
+      "id": "final-marker",
+      "runner_cases": ["final_marker_before_exit"],
+      "question": "Can the final bytes emitted immediately before exit disappear from live or final output?",
+      "invariants": [
+        "The final marker appears in the final result when the underlying output handle closes normally.",
+        "End events occur after the implementation's declared output-drain boundary.",
+        "Live and final views identify truncation or omission separately."
+      ]
+    },
+    {
+      "id": "process-group-cancellation",
+      "runner_cases": ["process_group_cancellation"],
+      "question": "What happens to the direct process, descendants, cleanup handlers, output, and result during cancellation?",
+      "invariants": [
+        "The cancellation trace records requested signal, grace interval, escalation, and settlement.",
+        "Descendant survival is checked separately from direct child exit.",
+        "Result settlement does not silently imply operating-system cleanup has completed."
+      ]
+    }
+  ],
+  "stop_conditions": [
+    "Stop comparisons driven by terminal styling, wording, or UI preference.",
+    "Stop claims that depend on model output variance.",
+    "Stop cross-platform conclusions that exceed the executed platform or pinned source evidence.",
+    "Stop implementation work that would require upstream contact or an unapproved contribution path."
+  ]
+}
