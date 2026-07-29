@@ -1,304 +1,326 @@
-# Playwright execution, isolation, teardown, and artifacts scout
+# Playwright cleanup recovery, outcome accounting, and artifacts
 
 - Assignment: #26
 - Programme: #15, `web-tooling-runtime-correctness`
 - Target hub: #10, Playwright
+- Central review candidates: #141 and #142
 - Worker: `chatgpt:gpt-5.6-thinking`
 - State: `ready-for-synthesis`
-- Target repository: https://redirect.github.com/microsoft/playwright
-- Target revision: [`microsoft/playwright@0b2088e58e398106445c39fd3e5ec4cb85ef8bbb`](https://redirect.github.com/microsoft/playwright/commit/0b2088e58e398106445c39fd3e5ec4cb85ef8bbb)
-- Target package version at that revision: `1.63.0-next`
-- Target browser pin: Playwright Chromium revision `1235`, Chrome for Testing `151.0.7922.47`
-- Fieldwork base: `teamleaderleo/fieldwork@09fe47ac92ec9c0c333b4979011f6321795deff2`
-- Retrieval and probe date: `2026-07-29`
-- Claim scope supported: mechanism and interface
-- Integration context: proposed Elatura trial; trial has yet to begin
+- Original target revision: `microsoft/playwright@0b2088e58e398106445c39fd3e5ec4cb85ef8bbb`
+- Original target package version: `1.63.0-next`
+- Exact executed revisions: retained by the owned-fork pull requests and workflow runs named below
+- Retrieval and execution dates: 2026-07-29 through 2026-07-30
 - Upstream contact authorized: `false`
 
 ## In simple words
 
-Playwright Test divides execution across runner tasks, dispatchers, worker processes, fixtures, browser processes, contexts, pages, artifact recorders, and reporters. The runner owns scheduling and final status. Workers own hooks and fixtures. The default browser lives for a worker, while default contexts and pages live for one test attempt. Artifacts cross several completion boundaries before reporters see the finished result.
+Playwright is a robot with a cleanup checklist.
 
-The broad map shows a deliberate normal failure path: hooks, test fixtures, worker fixtures, context closure, and trace packaging complete before the runner reports an attempt. A failed job then retires its worker. Retry behaviour is one child of this wider ownership model.
+When the shared cleanup timer is already empty, the robot can erase a fixture cleanup from the checklist without running it. Later cleanup cannot try again because the fixture is no longer registered.
 
-The map identified fixture teardown as the strongest focused candidate. All test-fixture teardowns share an after-hooks time slot. Once one teardown consumes that slot, later fixtures skip their teardown bodies. The runner still removes those fixtures from its registry, so the later worker-cleanup pass has nothing left to retry. One hanging teardown can therefore suppress independent cleanup callbacks, including callbacks that close external resources or finish diagnostics.
+The reviewed recovery design does three things:
 
-Two other valuable candidates concern incomplete runs. Blob reports are assembled only during reporter `onEnd`, and screenshot or video finalization failures can disappear through silent catches. Abrupt cancellation can leave users with little evidence about which artifacts completed and which failed.
+1. keep only fixture finalizers that never started;
+2. give related fixtures one bounded recovery turn before `afterAll` enters;
+3. write a private receipt describing what completed and what did not.
 
-## Evidence labels
+This is bounded recovery. It is not a promise that every stalled user callback will finish.
 
-- **Normative**: repository protocols and public Playwright option semantics.
-- **Documented**: comments and tests in the pinned Playwright source.
-- **Observed**: outputs from the retained local probes.
-- **Inferred**: consequences derived from pinned source flow and awaiting a target-version reproduction.
-- **Illustrative**: proposed campaign interventions and Elatura trial design.
-- **Unknown**: exact runtime behavior of `1.63.0-next` in this container.
+A separate result-model issue also emerged. A test marked with `test.fail()` can absorb an unrelated fixture cleanup exception because both use the public `failed` status. The run may then be counted as expected without retrying. That question is deliberately separated into candidate #142.
 
-## Exact source map
+## What reviewers are being asked to decide
 
-| Area | Primary owners at the pinned revision | Relevant tests | Evidence |
-| --- | --- | --- | --- |
-| Retries and worker replacement | `packages/playwright/src/runner/dispatcher.ts`, `packages/playwright/src/worker/workerMain.ts` | `tests/playwright-test/playwright.trace.spec.ts`, `tests/playwright-test/playwright.artifacts.spec.ts` | Documented |
-| Fixture setup and teardown | `packages/playwright/src/worker/fixtureRunner.ts`, `packages/playwright/src/worker/workerMain.ts` | `tests/playwright-test/timeout.spec.ts` | Documented, Inferred |
-| Browser and context cleanup | `packages/playwright/src/index.ts`, `packages/utils/processLauncher.ts`, `packages/playwright/src/runner/processHost.ts` | artifact and timeout suites | Documented, Observed |
-| Test trace lifecycle | `packages/playwright/src/worker/testTracing.ts`, `packages/playwright/src/index.ts` | `tests/playwright-test/playwright.trace.spec.ts`, artifact suite | Documented, Observed |
-| Screenshots and page snapshots | `packages/playwright/src/index.ts` (`SnapshotRecorder`, `ArtifactsRecorder`) | `tests/playwright-test/playwright.artifacts.spec.ts` | Documented, Observed |
-| Video lifecycle | `packages/playwright/src/index.ts` (`_contextFactory`) | option-level coverage plus artifact suites | Documented, Observed |
-| Reports | `packages/playwright/src/reporters/internalReporter.ts`, `packages/playwright/src/reporters/blob.ts`, `packages/playwright/src/runner/tasks.ts` | reporter suites | Documented, Inferred |
-| Cancellation and global timeout | `packages/playwright/src/runner/taskRunner.ts`, `packages/playwright/src/runner/testRunner.ts`, `packages/playwright/src/runner/dispatcher.ts` | timeout and runner suites | Documented, Inferred |
-| Worker and child-process stop | `packages/playwright/src/runner/processHost.ts`, `packages/utils/processLauncher.ts` | runner/process tests | Documented, Observed |
+### Candidate #141 — bounded fixture recovery
+
+Review whether Playwright should retain never-started shared-slot fixture finalizers, recover them by dependency group within one existing cleanup budget before `afterAll`, reuse the remaining budget for worker cleanup, and emit an internal receipt before `testEnd`.
+
+### Candidate #142 — unexpected cleanup failure after `test.fail()`
+
+Review how a cleanup, hook, fixture, or runner failure that is independent of an expected body failure should reach worker replacement, retry selection, and final outcome without casually changing the public status model.
+
+These are different owning boundaries and should not be one patch.
+
+## Evidence vocabulary
+
+- **Executed target reproduction** — exact Playwright Test runner tests executed in the owned fork with retained workflow runs.
+- **Source-confirmed** — pinned implementation and repository history directly support the mechanism.
+- **Prepared target test** — a focused test exists in an owned fork but does not yet have a retained execution result.
+- **Probe-reproduced model** — a controlled library-level or synthetic probe demonstrates part of the mechanism but is not the exact target runner path.
+- **Candidate contract** — a desired invariant proposed for review; current code is not assumed to promise it.
+
+The report does not upgrade prepared tests or source analysis into executed defects.
 
 ## Execution and ownership map
 
-| Owner | State and responsibility | Lifetime | Failure boundary |
+| Owner | Responsibility | Lifetime | Relevant completion boundary |
 | --- | --- | --- | --- |
-| `TaskRunner` and `TestRun` | configuration, project phases, overall status, cancellation, reporter completion | whole invocation | global timeout, SIGINT, programmatic stop, setup or reporter error |
-| `Dispatcher` | test groups, worker slots, retry jobs, max-failure stop, stdout/stderr routing | one phase | failed job, worker exit, max failures |
-| `WorkerMain` | suites loaded in the process, hooks, fixture runner, active test, worker cleanup | one worker process | unexpected test failure, fatal hook/fixture error, stop request |
-| Fixture runner | dependency graph and fixture instances for test or worker scope | scope-specific | setup timeout, teardown timeout, dependency failure |
-| Browser fixture or manual browser | browser server/process and launch options | usually one worker | fixture teardown, graceful close, process kill |
-| Browser context and page | cookies, storage, pages, video source, context tracing | usually one attempt | test timeout, hook failure, context close |
-| Artifact recorders | screenshots, snapshots, context trace chunks, video save, test trace merge | one attempt with cross-context inputs | capture failure, close failure, cancellation, output I/O |
-| Reporters | attempt events, attachments, final status, durable report files | whole invocation | `onEnd`/`onExit` failure or abrupt process exit |
+| Runner and dispatcher | scheduling, retries, final outcome, reporter dispatch | whole invocation or phase | worker result and `testEnd` |
+| `WorkerMain` | hooks, fixture runner, active test, worker shutdown | worker process | After Hooks, `afterAll`, Worker Cleanup |
+| Fixture runner | fixture graph, instances, setup and teardown order | test or worker scope | shared slot or custom fixture slot |
+| Browser/context fixtures | browser process, contexts, pages, video source | worker or attempt | fixture teardown and context close |
+| Artifact recorders | screenshot, trace, video, error context | attempt | context closure, trace packaging, attachment dispatch |
+| Reporters | result events and durable reports | whole invocation | `onEnd` and `onExit` |
 
-This ownership map explains the useful follow-up boundary: resources can be correctly isolated during ordinary execution while cleanup evidence still disappears when time or cancellation crosses from one owner to the next.
+The strongest defect sits at the boundary between the fixture registry, shared teardown timing, `afterAll`, and reporter completion.
 
-## Compatibility and realistic-use observations
+## Strongest confirmed mechanism
 
-- The pinned source expects Playwright Chromium revision `1235` and Chrome for Testing `151.0.7922.47`.
-- The local probe used Playwright Python `1.57.0` with Debian Chromium `144.0.7559.96`. Those observations establish library-level mechanisms only.
-- Browser-specific conclusions require the exact Playwright Test revision and browser bundle because launch flags, process trees, FFmpeg packaging, and artifact formats can differ.
-- Existing Playwright tests provide strong ordinary-path coverage across retry trace modes, screenshots, persistent contexts, serial suites, hooks, and fixture timeouts.
-- Elatura is a plausible owned realistic-use trial because it exercises a browser sidecar, session cleanup, retries, cancellation, and artifact evidence without production data.
-- This scout collected artifact sizes and process survivors. It did not claim comparative performance. A later campaign can measure teardown duration, browser relaunch cost, trace merge time, video close time, and report finalization latency at the exact target revision.
+A test-scoped fixture without its own timeout uses the runnable's shared After Hooks slot.
 
-## Lifecycle walk
+When that slot is already exhausted before the fixture teardown body begins, the current fixture teardown path skips the body. Its cleanup path still removes dependency usage and deletes the fixture from `instanceForId`.
 
-1. The dispatcher chooses a compatible worker or creates one.
-2. `WorkerMain` constructs `TestInfoImpl` with the attempt’s retry number and starts test tracing when configured.
-3. Before hooks and required fixtures run. Default browser is worker-scoped; default context and page are test-scoped.
-4. The test body runs. Timeout or an unexpected failure interrupts the current test.
-5. Playwright runs the finish callback, `afterEach`, test-fixture teardown, applicable `afterAll`, and full worker cleanup after failure.
-6. Context closure finalizes videos. Artifact recording stops context traces, captures screenshots, and writes error context. Test tracing then merges and attaches `trace.zip`.
-7. `testEnd` crosses to the dispatcher. Attachments arriving after that event are discarded because the dispatcher has removed the attempt record.
-8. A failed job retires its worker. Retry candidates enter a new job, either with remaining tests under the immediate strategy or in an isolated retry job.
-9. Once task cleanup finishes, reporters receive `onEnd` and `onExit`.
+The later cleanup pass therefore cannot find the fixture and cannot give its finalizer another bounded opportunity.
 
-## Findings by area
+Potential consequences include omitted custom finalizers, BrowserContext closure, local service shutdown, artifact finalization, and attachments that never reach the result.
 
-### Retries
+## Causal experiment stack
 
-**Documented.** An unexpected attempt failure marks the worker for shutdown. The dispatcher stops failed workers and creates replacements before the next job. This gives retries fresh worker fixtures and fresh default browser processes.
+The campaign did not jump directly from source reading to a preferred scheduler. Each design had a control that could reject it.
 
-**Documented.** Immediate retries can share the next job with tests left in the file. The alternate retry strategy queues isolated retries after ordinary jobs. Serial suites retry as a unit.
+| Step | Experiment | Result | Decision |
+| --- | --- | --- | --- |
+| 1 | Retain never-started fixtures | Later finalizer becomes reachable | Retention is necessary |
+| 2 | One shared fallback slot | First slow deferred callback consumes the slot; later receipt is absent before `testEnd` | One shared slot is insufficient |
+| 3 | Equal per-fixture shares | Independent finalizers progress | Useful fairness property |
+| 4 | Dependency safety control | Child callback times out but keeps running while parent resource closes | Equal per-fixture shares rejected |
+| 5 | Connected dependency-group shares | Child and parent share one slot; parent does not begin while child remains active | Dependency-group scheduler retained |
+| 6 | Retry only in later Worker Cleanup | `afterAll` reuses the failed test's retained fixture | Late placement rejected |
+| 7 | Spend the same cleanup slot before `afterAll` | Fresh `afterAll` fixture restored; campaign remains green | Current lead placement |
+| 8 | Internal receipt convention | Four states, stable identity, and source location retained | Reporting refinement accepted in fork |
+| 9 | Expected body failure plus cleanup exception | No retry; run counted as expected | Separate outcome-accounting candidate opened |
 
-**Consequence.** Campaigns should assert both isolation and ordering. A single `retry === 1` assertion says little about pending tests, serial-suite replay, worker indices, and artifacts from attempt zero.
+## Dependency-group scheduler
 
-### Fixtures
+The scheduler builds connected components using fixture dependency and usage relationships. Fixtures in one component share one recovery slot, preserving teardown order. Independent components receive bounded shares weighted by fixture count. Unused reservation returns to the remaining pool.
 
-**Documented.** Teardown order follows fixture dependencies and continues after errors, retaining the first teardown error.
+The scheduler passed eight exact runner tests with Node 22 and one worker:
 
-**Inferred lead finding.** `Fixture.teardown()` checks the shared time slot before starting its teardown body. Its `finally` block removes the fixture from dependency tracking and `instanceForId` even when the body never starts. The later worker-cleanup call to `teardownScope('test')` therefore cannot find that fixture. Existing timeout coverage demonstrates ordinary teardown timeout behavior; the scout found no focused assertion that an independent later fixture’s callback still runs after shared-slot exhaustion.
+| Platform | Result |
+| --- | --- |
+| Ubuntu 24.04 | 8 passed in 16.1s |
+| macOS 26.4 arm64 | 8 passed in 14.8s |
+| Windows Server 2025 | 8 passed in 19.8s |
 
-### Browser cleanup
+This validates the scheduler cases across the repository's three required platform families. It does not yet validate the final combined pre-`afterAll` ordering and internal-receipt stack on all three platforms.
 
-**Documented.** The default browser fixture closes its browser after `use()`. Graceful worker shutdown also calls `gracefullyCloseAll()` to cover browsers launched manually in tests, hooks, and internal tools.
+## Rejected late recovery placement
 
-**Documented.** Browser processes launch in their own process groups on Unix. Browser force-kill targets the whole process group and waits for temporary-directory cleanup.
+Owned probe PR `teamleaderleo/playwright#22` and execution PR `#23` tested whether retrying retained test fixtures only in later Worker Cleanup preserves hook isolation.
 
-**Unknown edge.** `ProcessHost` force-kills only the worker PID when heartbeats stop. The exact Playwright Test path deserves a bounded process-tree campaign because browsers sit in separate process groups. A local library-level parent-kill check produced no surviving observed Playwright driver or Chromium processes, so this candidate ranks below the finalization campaigns.
+Workflow run `30485904509`, job `90691366536`, observed:
 
-### Traces
-
-**Documented.** Trace modes explicitly distinguish every attempt, the first retry, all retries, first failure, failure retention, and failure-plus-retry retention. Trace recording names include retry ordinals.
-
-**Documented.** Context trace chunks stop before context closure, while test trace packaging happens after worker cleanup. `testEnd` follows packaging, preserving the ordinary attachment path.
-
-**Risk boundary.** Test trace source reads and attachment reads are best effort. A valid trace can omit requested resources without a direct artifact-completion record.
-
-### Screenshots
-
-**Documented.** Screenshots can be captured at test-function completion and again temporarily as contexts close. Temporary screenshots are promoted after the final result is known.
-
-**Risk boundary.** Snapshot errors are swallowed. This protects the test result from diagnostic failures while leaving reporters unable to distinguish “capture disabled,” “page unavailable,” “write failed,” and “capture succeeded.”
-
-### Videos
-
-**Documented.** Video capture begins with context creation. A usable video becomes available only after context close. Playwright then calls `saveAs()` and attaches the resulting WebM file according to the selected retention mode.
-
-**Risk boundary.** Empty or failed video saves are silently caught. The local probe also exposed FFmpeg as a concrete runtime dependency: the installed client expected its bundled executable path before a supplied system FFmpeg adapter was available.
-
-### Reports
-
-**Documented.** Reporter `onEnd` and `onExit` run after task cleanup. A reporter error can change a passing run to failed.
-
-**Inferred risk.** `BlobReporter` buffers report events and creates the ZIP only in `onEnd`. A second interrupt, hard exit, or process crash before or during `onEnd` can leave no replayable blob, even when earlier attachments already exist on disk.
-
-### Cancellation
-
-**Documented.** Task execution races the task loop against programmatic cancellation, SIGINT, and global timeout. Teardown tasks are registered in reverse order.
-
-**Documented sharp edge.** Global timeout cleanup reuses the already-expired deadline. The source comment states that cleanup exits immediately at that point. SIGINT and programmatic cancellation have more room to run cleanup, while a second interrupt can force browser termination.
-
-### Worker lifecycle
-
-**Documented.** A worker captures stdout and stderr into the active trace and attempt. Output emitted during failed-worker teardown remains visible for debugging but is kept away from the next retry’s result.
-
-**Documented.** Worker stop sends an IPC stop request and accepts heartbeats during long graceful teardown. Heartbeat silence eventually triggers a forced kill.
-
-## Retained runnable probe
-
-Files:
-
-- `probe/retry_artifact_probe.py`
-- `probe/result.json`
-- `probe/hard-kill-result.json`
-
-Run:
-
-```bash
-python probe/retry_artifact_probe.py \
-  --output /tmp/playwright-retry-artifacts \
-  --chromium /usr/bin/chromium \
-  --ffmpeg /usr/bin/ffmpeg
+```text
+resource-setup-1
+test-resource-1
+afterAll-resource-1
+afterAll-saw-test-resource-closed-false
+resource-teardown-1
 ```
 
-The focused probe emerged after the ownership map identified context isolation and artifact completion as useful distinguishing properties. It uses the installed Playwright Python client `1.57.0` and two fresh browser attempts. Attempt zero is labelled failed and attempt one passed. The orchestration remains outside Playwright Test, so the result supports browser/context/artifact mechanisms rather than the pinned runner’s retry scheduler.
+`afterAll` received the failed test's still-live fixture. A fresh second fixture was never created.
 
-Observed results:
+Repository history already required a new fixture instance for `afterAll` after an `afterEach` timeout. The negative control therefore rejected late Worker Cleanup as the primary recovery point.
 
-- fresh context removed the prior page global and cookie;
-- both attempts produced a PNG, trace ZIP, and WebM;
-- both trace ZIPs contained `trace.trace`, `trace.network`, and `trace.stacks`;
-- both browser process sets had zero survivors after explicit close;
-- the overall probe introduced zero Chromium processes that remained at the final check;
-- a separate library-level SIGKILL check found zero surviving observed Playwright driver or Chromium processes after three seconds.
+## Corrected pre-`afterAll` recovery
 
-Environment limits:
+Owned source PR `teamleaderleo/playwright#24` moves the test-fixture recovery pass before `afterAll` fixture resolution.
 
-- the exact `1.63.0-next` package was unavailable in the local runtime;
-- local network navigation was blocked by the execution environment, so the probe uses synthetic page content and context cookies;
-- the SIGKILL result covers the Python library driver path and leaves Playwright Test `ProcessHost` force-kill open.
+It creates one bounded full-cleanup slot using the existing project timeout, spends the test-fixture portion before `afterAll` when cleanup debt exists, and reuses the same slot during later Worker Cleanup. It does not add another cleanup deadline.
 
-## Ranked campaign candidates
+Execution PR `teamleaderleo/playwright#25`, workflow run `30486881047`, job `90694673635`, produced:
 
-### 1. `playwright-fixture-teardown-resumption`
+```text
+11 passed (22.9s)
+```
 
-**Claim to test:** every independent fixture whose teardown body has yet to start receives a later cleanup opportunity after a peer fixture exhausts the shared teardown slot.
+The repository's existing regression `should run fixture teardown with custom timeout after afterEach timeout` also passed separately:
 
-**Deterministic case pack:**
+```text
+1 passed (4.5s)
+```
 
-1. Define two independent test-scoped fixtures, `blocker` and `sentinel`.
-2. Make `blocker` consume the entire after-hooks slot during teardown.
-3. Make `sentinel` write a marker, close a manual context, and finish a small artifact.
-4. Fail or time out the test with `retries: 1`.
-5. Assert the marker, context closure, process count, retry worker index, and attempt artifact matrix.
-6. Repeat with reversed fixture declaration and dependency order.
+The source diff is limited to `workerMain.ts`: 17 additions and 5 deletions. The change moves recovery; it does not alter the dependency-group algorithm.
 
-**Current-source prediction:** `sentinel` can skip its teardown body and disappear from the fixture registry before worker cleanup.
+## Cleanup receipt
 
-**Smallest candidate intervention:** retain fixtures whose teardown body never started and retry them during worker cleanup with a dedicated bounded slot. An alternative gives each independent fixture its own teardown allowance.
+Deferred recovery can end in more states than pass or fail. The tested internal receipt records:
 
-**Promotion threshold:** reproduce on the pinned target revision or a current release with an independent cleanup callback omitted.
+- `completed`
+- `failed-after-start`
+- `timed-out-after-start`
+- `not-started-budget-exhausted`
 
-**Stop condition:** discard scenarios where the omitted callback depends on the blocking fixture or requires an unbounded cleanup promise.
+Owned source PR `teamleaderleo/playwright#26` aligns the receipt with existing repository conventions:
 
-### 2. `playwright-crash-resilient-report-journal`
+- attachment name `_fixture-cleanup`, following the internal underscore convention;
+- phase `deferred-test-fixture-recovery`;
+- opaque fixture registration id;
+- human fixture name;
+- source location;
+- recovery budget fields;
+- one of the four cleanup states.
 
-**Claim to test:** interrupted runs leave a parseable report containing completed attempts, known attachments, and an explicit incomplete-run marker.
+Execution PR `teamleaderleo/playwright#27`, workflow run `30487474207`, job `90696663923`, passed the complete eleven-test stack in 22.8 seconds on Ubuntu 24.04, Node 22, and one worker.
 
-**Deterministic case pack:**
+The receipt is emitted before `testEnd`. Output or callbacks that occur only after result dispatch cannot repair the already-delivered result.
 
-1. Run a failing test with trace, screenshot, video, and blob reporter enabled.
-2. Add a bounded slow teardown and a slow custom reporter.
-3. Send SIGINT at named phase offsets: test body, fixture teardown, trace merge, reporter `onEnd`.
-4. Add a second SIGINT case and a global-timeout case.
-5. Validate ZIP readability, event order, attachment references, completion marker, and exit status.
+## Current lead invariant
 
-**Current-source prediction:** cancellation before or during blob `onEnd` can leave no durable report ZIP.
+> When a shared-slot test fixture finalizer has not started because the normal slot is exhausted, retain only that fixture instance, recover retained fixtures by connected dependency group within one existing cleanup budget before `afterAll`, reuse the remaining budget for worker cleanup, and emit an internal receipt before `testEnd`.
 
-**Smallest candidate intervention:** append report events to a temporary JSONL journal during the run, then atomically finalize the ZIP and completion manifest during `onEnd`. Recovery tools can read an interrupted journal.
+The promise level is intentionally narrow:
 
-**Promotion threshold:** demonstrate missing or unreadable report data after at least one deterministic phase interruption.
+- provide a bounded recovery opportunity;
+- preserve dependency order;
+- prevent failed-test fixtures from crossing into `afterAll`;
+- make incomplete cleanup explicit;
+- do not wait indefinitely;
+- do not grant every fixture a complete extra timeout.
 
-**Stop condition:** separate user-authored reporter deadlocks from built-in reporter finalization.
+Cleanup that must have an independent allowance should continue to use an explicit fixture timeout.
 
-### 3. `playwright-artifact-finalization-receipts`
+## Expected-failure outcome accounting
 
-**Claim to test:** every requested built-in artifact ends with a machine-readable state: `completed`, `abandoned-by-policy`, `capture-failed`, or `finalization-interrupted`.
+Owned probe PR `teamleaderleo/playwright#28` tests a separate case:
 
-**Deterministic case pack:**
+- the body is marked with `test.fail()` and fails as expected;
+- fixture teardown throws `cleanup exploded`;
+- retries are set to one.
 
-- deny screenshot output writes;
-- remove or terminate FFmpeg during video completion;
-- fail trace resource reads or final ZIP creation;
-- close pages during after hooks;
-- cancel at each finalizer boundary;
-- compare list, JSON, blob, and HTML reporter visibility.
+Execution PR `teamleaderleo/playwright#29`, workflow run `30487755057`, job `90697590797`, printed:
 
-**Current-source prediction:** screenshot and video failures can vanish through silent catches; trace resource gaps can remain implicit.
+```text
+cleanup-0-worker-0
+1 passed
+```
 
-**Smallest candidate intervention:** emit an artifact-finalization record with artifact kind, attempt, phase, state, path, and concise error. Reporters decide how prominently to render it.
+Only attempt zero ran. No fresh worker appeared. The nested exit code was zero.
 
-**Promotion threshold:** produce a requested artifact failure with no reporter-visible explanation.
+The dispatcher selects failures by comparing result `status` with `expectedStatus`; final test outcome uses the same public comparison. A worker-stop flag alone can protect later tests but cannot make this result retryable or unexpected.
 
-**Stop condition:** retain best-effort artifact behavior; campaign only the missing completion signal.
+Candidate #142 therefore asks for a separate internal unexpected-cleanup dimension that can reach:
 
-### 4. `playwright-worker-hard-kill-process-tree`
+- worker replacement;
+- retry selection;
+- retained errors;
+- final outcome.
 
-**Claim to test:** forced worker termination cannot leave browser process groups or profile directories behind.
+No implementation has been selected. Blindly rewriting public status strings is explicitly out of scope.
 
-**Deterministic case pack:**
+## Repository precedent and intentions
 
-1. Launch a browser in a Playwright Test worker.
-2. block the worker event loop so heartbeats stop;
-3. set a small `PWTEST_CHILD_PROCESS_TIMEOUT`;
-4. let the runner force-kill the worker;
-5. inspect descendant process groups, browser profile directories, and retry startup.
+The history review found these constraints:
 
-**Current-source reason:** worker kill targets the worker PID, while browser processes use separate process groups.
+- timeout bounds are deliberate;
+- custom-timeout fixtures own independent slots and should continue after another slot expires;
+- attempted teardown must not be repeated merely because it failed;
+- test fixtures should be gone before `afterAll` resolves its own fixtures;
+- worker fixtures remain after `afterAll`;
+- test-runner changes require focused hermetic tests;
+- tests should work on Linux, macOS, and Windows;
+- prospective changes should remain small, issue-led, and reviewed before upstream work.
 
-**Counterevidence:** the retained Python-library SIGKILL check found no survivors.
+Durable detail is in `fixture-teardown-repository-intent-review-2026-07-30.md`.
 
-**Promotion threshold:** exact Playwright Test reproduction at the pinned revision or a current release.
+## Anti-patterns rejected
 
-**Disposition:** bounded probe before campaign expansion.
+- extending teardown without a hard bound;
+- multiplying project timeout by fixture count;
+- giving dependent fixtures independent timeout races;
+- retrying callbacks that already began and failed;
+- retaining every fixture rather than only never-started finalizers;
+- retrying retained test fixtures only after `afterAll`;
+- treating process-exit stdout as successful reporter evidence;
+- emitting internal scheduling data as an ordinary visible attachment;
+- identifying receipt entries only by fixture name;
+- changing public status strings solely to force retries;
+- combining scheduler, diagnostics, receipt schema, and outcome accounting in one patch.
 
-## Proposed Elatura trial
+## Other retained findings
 
-- Testbed: Elatura
-- Testbed revision: `teamleaderleo/elatura@bbea414c6e400ba748d053caedb777ecee1cc381`
-- Proposed branch: `fieldwork/playwright/retry-teardown-artifact-ledger`
-- State: proposed; no `testbed:*` label added
+### Playwright MCP and CLI video receipts
 
-Scenario:
+**Evidence class:** source-confirmed mechanism plus prepared target tests.
 
-1. Add a Playwright harness on the experimental branch around a synthetic local Elatura session.
-2. Run a failed first attempt and passing retry.
-3. Use two independent cleanup owners: session cleanup and artifact-ledger finalization.
-4. Introduce one bounded teardown stall and one SIGINT case.
-5. Record browser PIDs, profile directories, session markers, screenshots, traces, videos, and report completion.
-6. Remove the branch and generated outputs after the trial unless the harness earns retention as a regression case.
+The video flow can record a derived filename before screencast startup succeeds. Page-created startup failures are suppressed, so a stop response can advertise a recording whose screencast never started.
 
-The trial can establish behavior in a realistic owned browser sidecar. It cannot establish ecosystem demand or upstream intent.
+Owned fork tests exist in `teamleaderleo/playwright-mcp#1` and `teamleaderleo/playwright-cli#1`. They still need exact execution before promotion.
 
-## Failed hypotheses and negative results
+### Python async stop retriability
 
-- Normal context and browser close produced complete trace, screenshot, and video artifacts with zero surviving launched Chromium processes in the local probe.
-- Fresh contexts cleared the synthetic cookie and page global.
-- The local Python-library parent-SIGKILL case left zero observed Playwright driver or Chromium survivors after three seconds.
-- Existing Playwright tests already cover ordinary retry trace modes, screenshot retention modes, multiple contexts, persistent contexts, serial suites, after hooks, and ordinary fixture teardown timeout.
-- Container navigation policy prevented external or local-server navigation. Those failures were excluded from target conclusions.
-- The scout did not execute the exact pinned JavaScript runner because that package revision was unavailable locally.
+**Evidence class:** source-confirmed mechanism plus prepared target test.
 
-## Recommendation
+`PlaywrightContextManager.__aexit__` marks exit before awaiting asynchronous transport shutdown. If the first `playwright.stop()` is cancelled, a retry can return immediately while connection cleanup remains incomplete.
 
-Open `playwright-fixture-teardown-resumption` first. It has the clearest source-level mechanism, a compact deterministic case pack, and a direct cleanup consequence.
+Owned fork test `teamleaderleo/playwright-python#1` blocks transport shutdown, cancels the first stop, releases transport completion, retries stop, and requires final cleanup. It has not yet produced a retained target execution result.
 
-Run `playwright-crash-resilient-report-journal` next and `playwright-artifact-finalization-receipts` in parallel. Both improve evidence preservation across failures and cancellation.
+### Crash-resilient blob reporting
 
-Keep `playwright-worker-hard-kill-process-tree` as a bounded exact-runner probe until a survivor appears.
+**Evidence class:** source-confirmed candidate.
 
-## Upstream contact
+Blob report events are accumulated in memory and the durable ZIP is created during `onEnd`. A hard exit before or during `onEnd` can leave no replayable blob even when attempt artifacts already exist.
 
-No upstream contact occurred. External contact remains unauthorized.
+A journal prototype exists in the owned fork, but the next useful evidence is a deterministic phase-interruption matrix, not another implementation variant.
+
+### Worker heartbeat hard kill
+
+**Evidence class:** bounded open probe with counterevidence.
+
+The worker force-kill path and browser process groups use different ownership boundaries. A library-level SIGKILL probe found no surviving observed Playwright driver or Chromium processes. The exact Playwright Test heartbeat-loss path remains worth one bounded process-tree probe, but no defect is claimed.
+
+## Review packet
+
+### Review candidate #141
+
+Check:
+
+1. skip-and-delete source mechanism;
+2. no-budget starvation control;
+3. equal-share dependency race;
+4. connected-component safety;
+5. late-placement `afterAll` failure;
+6. same-budget pre-`afterAll` correction;
+7. internal receipt naming, identity, and timing;
+8. final cross-platform execution need.
+
+Return one disposition: **accept**, **revise**, **execute**, **hold**, or **reject/stop**.
+
+### Review candidate #142
+
+Check:
+
+1. expected body failure is distinct from cleanup exception;
+2. only attempt zero runs despite one retry;
+3. current result model's status comparison;
+4. adjacent unhandled-error and hook-error precedent;
+5. reporter, serial-suite, max-failure, and retry consequences of a new internal signal.
+
+Return one disposition: **accept as separate candidate**, **revise**, or **hold for result-model design**.
+
+## Durable evidence index
+
+- `fixture-teardown-deep-dive-2026-07-30.md`
+- `fixture-teardown-negative-control-2026-07-30.md`
+- `fixture-teardown-dependency-safety-run-1-2026-07-30.md`
+- `fixture-teardown-dependency-safety-run-2-2026-07-30.md`
+- `fixture-teardown-component-budget-2026-07-30.md`
+- `fixture-teardown-component-cross-platform-2026-07-30.md`
+- `fixture-teardown-cleanup-receipt-negative-2026-07-30.md`
+- `fixture-teardown-cleanup-receipt-run-2026-07-30.md`
+- `fixture-teardown-recovery-diagnostics-state-matrix-2026-07-30.md`
+- `fixture-teardown-repository-intent-review-2026-07-30.md`
+- `fixture-teardown-repository-alignment-run-2026-07-30.md`
+- `follow-up-2026-07-30.md`
+- retained probes under `probe/`
+
+## Handoff
+
+- Parent scout: #26
+- Central recovery candidate: #141
+- Central outcome-accounting candidate: #142
+- Fieldwork review PR: #49
+- Primary owned source PRs: `teamleaderleo/playwright#24` and `#26`
+- Primary negative outcome probe: `teamleaderleo/playwright#28`
+- Upstream contact: unauthorized
+
+No upstream contact occurred.
