@@ -16,10 +16,10 @@ Eight independently owned lanes are ready to identify why an agent thread can lo
 ## Prior work accepted
 
 - #23 and PR #33 provide broad Codex tool/process/terminal reconnaissance and a distinct unified-exec transcript-loss candidate.
-- `teamleaderleo/stensibly#544` provides the owned canonical research programme.
-- `teamleaderleo/stensibly#490` provides the active ChatGPT connector/developer-MCP incident.
-- `teamleaderleo/stensibly#552`, `#553`, and `#554` provide source-map, reproduction, and public-evidence coordination.
-- `teamleaderleo/codex` branch `research/effective-tool-surface-checkpoint-20260729` preserves the first owned-fork experiment contract.
+- [Stensibly issue 544](https://redirect.github.com/teamleaderleo/stensibly/issues/544) provides the owned canonical research programme.
+- [Stensibly issue 490](https://redirect.github.com/teamleaderleo/stensibly/issues/490) provides the active ChatGPT connector/developer-MCP incident.
+- [Stensibly source-map issue 552](https://redirect.github.com/teamleaderleo/stensibly/issues/552), [reproduction issue 553](https://redirect.github.com/teamleaderleo/stensibly/issues/553), and [evidence issue 554](https://redirect.github.com/teamleaderleo/stensibly/issues/554) provide source-map, reproduction, and public-evidence coordination.
+- The `teamleaderleo/codex` branch `research/effective-tool-surface-checkpoint-20260729` preserves the first owned-fork experiment contract.
 
 ## Lane state
 
