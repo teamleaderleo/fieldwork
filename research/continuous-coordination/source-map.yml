@@ -1,0 +1,402 @@
+version: 1
+retrieved: "2026-07-30"
+question: >-
+  Which build, incremental-computation, orchestration, reconciliation,
+  workflow, provenance, policy, and CI ideas should inform Fieldwork and
+  Stensibly continuous coordination?
+source_policy:
+  upstream_contact_authorized: false
+  use: quiet_public_research
+  interpretation: >-
+    Sources inform mechanisms and failure boundaries. They do not establish
+    product fit, measured benefit in Fieldwork, or permission to contact any
+    external project.
+sources:
+  - id: build-systems-a-la-carte
+    family: build_systems
+    title: Build Systems à la Carte
+    url: https://www.microsoft.com/en-us/research/publication/build-systems-a-la-carte/
+    source_type: research_paper
+    contribution:
+      - separates scheduling strategy from rebuilding strategy
+      - provides a comparative vocabulary for build-system designs
+    disposition: adopt_concept
+    fieldwork_use:
+      - keep eligibility evaluation separate from execution scheduling
+
+  - id: bazel-skyframe
+    family: build_systems
+    title: Bazel Skyframe
+    url: https://bazel.build/reference/skyframe
+    source_type: official_documentation
+    contribution:
+      - keyed immutable graph values
+      - reverse-transitive invalidation
+      - semantic change pruning
+      - clean reproducibility preference
+    disposition: adapt
+    fieldwork_use:
+      - versioned graph nodes
+      - affected descendant calculation
+      - raw-change versus semantic-change distinction
+
+  - id: buck2-single-graph
+    family: build_systems
+    title: Build faster with Buck2
+    url: https://engineering.fb.com/2023/04/06/open-source/buck2-open-source-large-scale-build-system/
+    source_type: engineering_blog
+    contribution:
+      - one persistent incremental dependency graph
+      - dynamic dependencies under restricted APIs
+      - fewer phase-boundary invalidation bugs
+    disposition: adapt
+    fieldwork_use:
+      - one evaluator substrate with typed edge classes
+      - avoid separately reconstructed incompatible graphs
+
+  - id: shake
+    family: build_systems
+    title: Shake build system manual
+    url: https://shakebuild.com/manual
+    source_type: official_documentation
+    contribution:
+      - tracked dynamic dependency discovery
+      - build-rule and version changes as invalidation inputs
+      - CI-oriented multi-error reporting
+    disposition: adapt
+    fieldwork_use:
+      - policy and evaluator revisions in fingerprints
+      - explicit untracked-input condition
+
+  - id: salsa-red-green
+    family: incremental_computation
+    title: Salsa red-green algorithm
+    url: https://salsa-rs.github.io/salsa/reference/algorithm.html
+    source_type: official_documentation
+    contribution:
+      - revision tracking
+      - reuse when inputs have not semantically changed
+    disposition: adapt
+    fieldwork_use:
+      - semantic result hashes
+      - change pruning
+
+  - id: salsa-durability
+    family: incremental_computation
+    title: Salsa durability
+    url: https://salsa-rs.github.io/salsa/reference/durability.html
+    source_type: official_documentation
+    contribution:
+      - change-frequency tiers reduce dependency traversal
+    disposition: adapt_cautiously
+    fieldwork_use:
+      - high medium low and ephemeral coordination inputs
+    caution:
+      - durability is an optimization hint, never permission to ignore a known change
+
+  - id: adapton
+    family: incremental_computation
+    title: Adapton — composable, demand-driven incremental computation
+    url: https://www.cs.umd.edu/~mwh/papers/hammer13adapton.html
+    source_type: research_paper
+    contribution:
+      - demand-driven recomputation
+      - explicit separation between computation and observer demand
+    disposition: adapt
+    fieldwork_use:
+      - bottom-up invalidation plus top-down requested projection
+
+  - id: self-adjusting-computation
+    family: incremental_computation
+    title: Self-adjusting computation
+    url: https://csd.cs.cmu.edu/academics/doctoral/degrees-conferred/umut-a-acar
+    source_type: research_summary
+    contribution:
+      - dynamic dependence traces
+      - change propagation
+      - from-scratch equivalence goal
+    disposition: adopt_correctness_goal
+    fieldwork_use:
+      - incremental versus clean evaluator differential tests
+
+  - id: differential-dataflow
+    family: incremental_views
+    title: Differential dataflow
+    url: https://www.microsoft.com/en-us/research/publication/differential-dataflow/
+    source_type: research_paper
+    contribution:
+      - incremental maintenance of iterative and recursive graph computations
+    disposition: defer_runtime_adopt_model
+    fieldwork_use:
+      - conceptual support for recursive affected-work queries
+    caution:
+      - current Fieldwork scale does not justify distributed differential infrastructure
+
+  - id: materialize-freshness
+    family: incremental_views
+    title: Freshness and operational autonomy
+    url: https://materialize.com/blog/freshness/
+    source_type: engineering_blog
+    contribution:
+      - continuously maintained derived views
+      - push changes through business logic rather than recomputing on read
+    disposition: adapt
+    fieldwork_use:
+      - review queue as incrementally maintained projection
+
+  - id: materialize-self-correction
+    family: incremental_views
+    title: Self-correcting materialized views
+    url: https://materialize.com/blog/self-correcting-materialized-views/
+    source_type: engineering_blog
+    contribution:
+      - compare desired output with persisted output and apply the difference
+      - recover projection correctness after implementation changes
+    disposition: adopt_concept
+    fieldwork_use:
+      - generated-view drift detection
+      - clean evaluator canary
+
+  - id: dagster-assets
+    family: orchestration
+    title: Software-defined assets
+    url: https://dagster.io/blog/software-defined-assets
+    source_type: product_design_blog
+    contribution:
+      - asset currentness and lineage over task-run status
+      - decentralized graph ownership
+    disposition: adapt
+    fieldwork_use:
+      - evidence review and decision assets
+      - queue nodes as derived views
+
+  - id: dagster-virtual-assets
+    family: orchestration
+    title: Dagster virtual assets
+    url: https://dagster.io/blog/dagster-1-13-octopuss-garden
+    source_type: product_release_blog
+    contribution:
+      - represent assets whose contents update through their parents without a materialization run
+    disposition: adopt_concept
+    fieldwork_use:
+      - queue and blocker projections as virtual assets
+
+  - id: kubernetes-controllers
+    family: reconciliation
+    title: Kubernetes controllers
+    url: https://kubernetes.io/docs/concepts/architecture/controller/
+    source_type: official_documentation
+    contribution:
+      - focused reconciliation loops
+      - desired versus current state
+      - reported status enables other controllers
+    disposition: adapt
+    fieldwork_use:
+      - narrow source adapters
+      - visible drift and degraded conditions
+      - later mutation ownership boundaries
+
+  - id: argocd
+    family: reconciliation
+    title: Argo CD
+    url: https://argo-cd.readthedocs.io/en/stable/
+    source_type: official_documentation
+    contribution:
+      - Git-backed desired state
+      - out-of-sync detection
+      - manual or automatic convergence
+      - separate repository and application controllers
+    disposition: adapt_read_only_first
+    fieldwork_use:
+      - repository facts remain independently usable
+      - report drift before mutation
+
+  - id: temporal
+    family: durable_workflows
+    title: Temporal documentation
+    url: https://docs.temporal.io/
+    source_type: official_documentation
+    contribution:
+      - durable event history
+      - replay after failure
+      - long-running workflow state
+    disposition: adapt_later
+    fieldwork_use:
+      - durable human signals and recovery events in Stensibly
+    caution:
+      - event replay does not replace current asset/readiness projection
+
+  - id: slsa-provenance
+    family: provenance
+    title: SLSA provenance v1.2
+    url: https://slsa.dev/spec/v1.2/provenance
+    source_type: specification
+    contribution:
+      - build definition
+      - external parameters
+      - resolved dependencies
+      - builder and run identity
+      - subjects and byproducts
+    disposition: adapt_envelope
+    fieldwork_use:
+      - coordination evaluation receipts
+      - explicit subjects inputs evaluator and environment
+
+  - id: in-toto
+    family: provenance
+    title: in-toto Attestation Framework
+    url: https://in-toto.io/
+    source_type: specification
+    contribution:
+      - statement binds a typed predicate to a subject
+      - extensible attestation envelope
+    disposition: design_for_compatibility
+    fieldwork_use:
+      - avoid an incompatible custom signing format
+
+  - id: tekton-chains
+    family: provenance
+    title: Tekton Chains SLSA provenance
+    url: https://tekton.dev/docs/chains/slsa-provenance/
+    source_type: official_documentation
+    contribution:
+      - task-run provenance generation
+      - execution result to attestation bridge
+    disposition: observe_and_adapt
+    fieldwork_use:
+      - repository-native workflow receipt design
+
+  - id: opa-decision-logs
+    family: policy
+    title: Open Policy Agent decision logs
+    url: https://www.openpolicyagent.org/docs/management-decision-logs
+    source_type: official_documentation
+    contribution:
+      - decision identity
+      - policy bundle revision
+      - input result and trace context
+      - redaction support
+    disposition: adapt
+    fieldwork_use:
+      - evidence and authority policy decision receipts
+
+  - id: nx-affected
+    family: selective_ci
+    title: Nx affected
+    url: https://nx.dev/docs/features/ci-features/affected
+    source_type: official_documentation
+    contribution:
+      - combine Git history and project graph to select affected tasks
+    disposition: adapt_not_sufficient
+    fieldwork_use:
+      - affected-subgraph fast path
+    caution:
+      - Git diff cannot observe issue workflow policy or authority changes
+
+  - id: pants-target-selection
+    family: selective_ci
+    title: Pants advanced target selection
+    url: https://www.pantsbuild.org/stable/docs/using-pants/advanced-target-selection
+    source_type: official_documentation
+    contribution:
+      - changed-file and transitive dependency selection
+    disposition: adapt_not_sufficient
+    fieldwork_use:
+      - changed-source fast path
+
+  - id: google-ci-selection
+    family: selective_ci
+    title: Techniques for improving regression testing in CI
+    url: https://research.google/pubs/techniques-for-improving-regression-testing-in-continuous-integration-development-environments/
+    source_type: research_paper
+    contribution:
+      - fast pre-submit selection
+      - broader post-submit testing
+      - prioritize failures without running everything immediately
+    disposition: adopt_two_speed_structure
+    fieldwork_use:
+      - PR fast path and scheduled full reconciliation
+
+  - id: google-breakage-ranking
+    family: selective_ci
+    title: What Breaks Google?
+    url: https://research.google/pubs/what-breaks-google/
+    source_type: research_talk
+    contribution:
+      - risk-based target ranking for post-submit cycles
+    disposition: defer_optional_ranking
+    fieldwork_use:
+      - later queue prioritization only
+    caution:
+      - prediction cannot replace deterministic correctness gates
+
+  - id: github-actions-concurrency
+    family: ci_transport
+    title: GitHub Actions concurrency
+    url: https://docs.github.com/en/actions/concepts/workflows-and-actions/concurrency
+    source_type: official_documentation
+    contribution:
+      - local run and job serialization
+      - pending and cancellation behavior
+    disposition: adapt_as_optimization
+    fieldwork_use:
+      - duplicate-work reduction
+    caution:
+      - concurrency groups are not durable claims or causal ordering
+
+  - id: github-actions-environments
+    family: ci_transport
+    title: GitHub Actions deployments and environments
+    url: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments
+    source_type: official_documentation
+    contribution:
+      - required reviewers
+      - protected secrets
+      - branch restrictions
+      - custom protection rules
+    disposition: defer_protected_effects
+    fieldwork_use:
+      - later deployment or exact protected action gates
+    caution:
+      - environment approval does not automatically authorize Fieldwork upstream contact
+
+  - id: github-actions-triggers
+    family: ci_transport
+    title: GitHub Actions workflow triggers
+    url: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
+    source_type: official_documentation
+    contribution:
+      - workflow_run and repository_dispatch transport
+    disposition: adapt_with_idempotency
+    fieldwork_use:
+      - later cross-repository receipt intake
+    caution:
+      - transport delivery and workflow completion are not the canonical work state
+
+decisions:
+  adopt_now:
+    - one keyed graph core with typed relationship classes
+    - readiness DAG separated from causal history
+    - clean and incremental evaluator equivalence tests
+    - reverse-reachability affected calculation
+    - semantic change pruning
+    - queue as generated virtual materialized view
+    - policy evaluator and policy revision as inputs
+    - explanation traces
+    - read-only PR and scheduled reconciliation workflows
+  adapt_later:
+    - attestation-shaped interoperable receipts
+    - persistent incremental evaluation cache
+    - durable Stensibly event replay
+    - federated target-repository execution receipts
+    - GitHub environment or custom protection gates for exact protected effects
+    - risk-based queue ordering
+  reject_for_first_slice:
+    - automatic issue or label mutation
+    - automatic claiming or dispatch
+    - automatic merge deployment or upstream contact
+    - Git diff as the complete change model
+    - workflow-run status as canonical truth
+    - one giant DAG for readiness and history
+    - full distributed differential-dataflow infrastructure
+    - heuristic prioritization replacing deterministic checks
