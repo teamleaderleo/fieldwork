@@ -1,0 +1,58 @@
+schema_version: 1
+
+patterns:
+  - id: retry-idempotency
+    state: worked-example
+    dossier: contexts/patterns/retry-idempotency.md
+    experiments:
+      - playgrounds/examples/retry-idempotency/
+    case_packs:
+      - playgrounds/cases/retry-idempotency.json
+    context_lenses:
+      - mechanism
+      - contract
+      - operations
+      - observability
+
+  - id: stream-lifecycle
+    state: candidate
+    question: How do partial delivery, reconnection, duplication, ordering, and terminal state interact in streamed workflows?
+    possible_case_packs:
+      - playgrounds/cases/event-sequences.json
+      - playgrounds/cases/malformed-streams.json
+
+  - id: cancellation-timeout
+    state: candidate
+    question: Which component owns cancellation, cleanup, final state, and retry after a timeout?
+    possible_case_packs:
+      - playgrounds/cases/event-sequences.json
+
+  - id: trace-correlation
+    state: candidate
+    question: Does one logical operation remain attributable across services, retries, background work, and partial failure?
+    primary_source_leads:
+      - https://www.w3.org/TR/trace-context/
+      - https://opentelemetry.io/docs/specs/semconv/http/
+
+  - id: schema-evolution
+    state: candidate
+    question: How do producers, consumers, stored records, and rolling deployments behave across incompatible or partially compatible schema changes?
+
+  - id: cache-consistency
+    state: candidate
+    question: Which freshness, invalidation, identity, and authorization assumptions are preserved or violated by caching?
+
+  - id: job-recovery
+    state: candidate
+    question: What state must survive interruption so a job can resume, replay, or reconcile without losing or duplicating work?
+
+  - id: filesystem-boundaries
+    state: candidate
+    question: How do path normalization, case sensitivity, reserved names, traversal, and atomic replacement affect a larger workflow?
+    possible_case_packs:
+      - playgrounds/cases/path-boundaries.json
+
+notes:
+  - A registry entry is not an assignment or endorsement.
+  - Promote a candidate only when a concrete investigation needs its wider context.
+  - Document actual target usage separately from illustrative architecture.
