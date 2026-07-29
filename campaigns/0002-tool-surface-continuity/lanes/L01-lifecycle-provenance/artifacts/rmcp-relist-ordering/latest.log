@@ -1,0 +1,12 @@
+
+running 1 test
+sdk_cache=catalogue_c naive_application=catalogue_b ticketed_application=catalogue_c requests=3
+test stale_relist_result_can_roll_back_application_but_not_sdk_cache ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
