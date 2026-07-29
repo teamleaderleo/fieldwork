@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260729-identity-adapter",
+  "question": "Does the canonical case runner preserve JSON values through a minimal stdin/stdout adapter?",
+  "owner": "fieldwork",
+  "created_at": "2026-07-29",
+  "state": "complete",
+  "sources": [
+    {
+      "name": "Python standard library",
+      "revision": "Python 3",
+      "retrieved_at": "2026-07-29"
+    }
+  ],
+  "command": "python3 scripts/run_playground_cases.py --pack playgrounds/cases/identity-smoke.json --adapter \"python3 playgrounds/examples/identity-adapter/run.py\"",
+  "environment": {
+    "runtime": "Python 3",
+    "platform": "portable",
+    "dependencies": []
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "All identity-smoke cases pass.",
+      "interpretation": "The runner and adapter protocol work for JSON values."
+    },
+    {
+      "observation": "Any identity-smoke case fails.",
+      "interpretation": "The runner, fixture, or adapter implementation is inconsistent."
+    }
+  ],
+  "stop_condition": "Stop after the identity-smoke pack passes or produces a reproducible failure.",
+  "network_policy": "disabled",
+  "upstream_contact_authorized": false,
+  "result_paths": [],
+  "promoted_to": "regression fixture"
+}
