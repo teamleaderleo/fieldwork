@@ -2,7 +2,7 @@
 
 ## In simple words
 
-Campaign #83 is in staged owned-fork implementation. The canonical session receipt owner now records lifecycle start, terminal outcome, and authoritative persistence for direct tool results. Owned Codex PR #20 reports persistence only after rollout append succeeds and marks append failure as ambiguous. Nested Code Mode delivery, durable reconstruction, safe receipt retirement, and compaction enforcement remain unwired.
+Campaign #83 is in staged owned-fork implementation. The canonical session receipt owner now begins from the exact selected runtime effect, records certain pre-dispatch failure, and records authoritative persistence for direct tool results. Recent MCP timeout evidence adds a blocking rule: a persisted timeout output does not prove that remote execution stopped. Typed execution certainty, durable reconstruction, safe receipt retirement, source-qualified nested Code Mode delivery, and compaction enforcement remain unwired.
 
 - Campaign issue: #83
 - Programme: #14
@@ -11,7 +11,7 @@ Campaign #83 is in staged owned-fork implementation. The canonical session recei
 - State: `implementing`
 - Worker: GPT-5.6 Thinking
 - Fieldwork dossier: merged PR #93
-- Current owned Codex main: `teamleaderleo/codex@1d9cc9709bb4c71b7b388e2baf0ab131e5585a61`
+- Current owned Codex main: `teamleaderleo/codex@73ae22f90300d632833f9e4a531c4dd857c5db36`
 - Public source pin: [Codex revision `3725f02cf38d856bc82bb46dd68ab61bb96ec6fc`](https://redirect.github.com/openai/codex/commit/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc)
 - Upstream contact: unauthorized
 
@@ -24,14 +24,17 @@ Campaign #83 is in staged owned-fork implementation. The canonical session recei
 | exposure wrapper effect delegation | `teamleaderleo/codex#12` | `e6b3017f4c725e0e6c48fc4e7fa703e365b2be67` | focused regression passed: 1 test, 3111 skipped | none |
 | canonical live owner plus lifecycle begin/terminal wiring | `teamleaderleo/codex#19` | `f9da1593f2499f6acde081d405c1a5df4ee2ea00` | focused owner and lifecycle suites, formatting, and diff hygiene passed | records live receipt state; no compaction gate |
 | authoritative direct result persistence | `teamleaderleo/codex#20` | `1d9cc9709bb4c71b7b388e2baf0ab131e5585a61` | 4 direct transition tests, 1 identity-classification test, 9 owner tests, patch hygiene, and final-head V8 passed | direct results become persisted or ambiguous from authoritative append outcome; no compaction gate |
+| selected-runtime effect and certain pre-dispatch closure | `teamleaderleo/codex#21` | `73ae22f90300d632833f9e4a531c4dd857c5db36` | 3 selected-runtime/pre-dispatch tests, lifecycle contributor regression, 3 lifecycle mapping tests, formatting, and diff hygiene passed | exact selected effect begins the receipt; unsupported and incompatible calls close before handler execution; no compaction gate |
 
 ## Canonical live receipt contract
 
 The accepted owner lives on `SessionState`, not `TurnState`.
 
 - one session-scoped map is keyed by existing call identity;
-- lifecycle start begins a conservative `PotentialMutation` receipt;
-- lifecycle finish records completed, failed or blocked, and aborted terminal states;
+- exact registry selection begins a receipt with the selected runtime's `operation_effect()`;
+- unsupported registry calls begin conservatively as `PotentialMutation`;
+- certain unsupported and incompatible-payload failures close as terminal `Failed` before handler execution;
+- lifecycle finish records completed, failed or blocked, and aborted terminal observations for dispatched calls;
 - direct result persistence is recorded only after `record_conversation_items` reports authoritative rollout append success;
 - direct append failure records an ambiguous result;
 - a duplicate persistence observation becomes ambiguous;
@@ -55,24 +58,49 @@ The direct in-flight drain is the authoritative direct-result owner.
 5. Record `Ambiguous` when the append fails.
 6. Leave server-executed tool-search results outside the client receipt path.
 
-Handler return and terminal lifecycle completion are not persistence evidence.
+Handler return and terminal lifecycle completion are not persistence evidence. The merged tests currently inject synthetic append outcomes into the receipt transition helper; a controlled real `live_thread.append_items()` success/failure test remains required.
 
-## Sequence correction from recent Fieldwork review
+## Selected-runtime boundary now accepted
 
-The next stages are ordered to avoid turning long healthy sessions into permanent coverage-loss failures.
+Direct model call items are recorded before their tool future is created and polled. Receipt begin now occurs inside registry dispatch after exact runtime selection and before extension start callbacks or handler side effects.
 
-1. Move receipt begin to the durable call-item boundary and propagate the exact selected-runtime effect.
-2. Add separate source-qualified nested Code Mode result delivery; direct and nested identities must not update each other.
+- selected read-only runtimes retain `ReadOnly` rather than being overwritten by a generic conservative begin;
+- unsupported calls retain conservative mutation evidence and receive a model-visible failure result;
+- incompatible payloads retain the selected runtime effect and close as certain pre-handler failure;
+- one atomic terminal guard prevents pre-dispatch closure and cancellation from recording two terminal observations;
+- malformed calls rejected before registry dispatch remain a separate coverage case;
+- the owner still uses raw call ID, so this slice does not claim source-qualified nested Code Mode identity.
+
+## Execution-certainty correction from MCP timeout evidence
+
+Fieldwork #134 demonstrates that the legacy Codex MCP outer timeout can end the local wait without cancelling the server request. The server can later complete its mutation even though Codex already produced a timeout/failure output.
+
+Current MCP handling can return that error as a normal `McpToolOutput`. Generic registry lifecycle then observes `Completed { success: false }`, and direct persistence can record the output as `Persisted`. That pair must not be treated as proof that remote execution reached a terminal state.
+
+Required typed distinction before compaction, retry, fallback, refresh, or reconnect consumes receipts:
+
+- remote request definitively completed;
+- remote cancellation or request-stream closure definitively settled with adequate transport semantics;
+- local wait ended while remote execution remains uncertain.
+
+The uncertain state must remain `Ambiguous` or an explicit `MayStillRun` equivalent even when the user-visible timeout output was persisted. Campaign #133 owns cancellation mechanics and should expose this terminal-authority signal without requiring #83 to parse error strings.
+
+## Revised implementation sequence
+
+1. Add typed post-dispatch execution certainty, consuming Campaign #133's legacy, native-timeout, cancellation-delivery, late-result, and modern request-stream evidence.
+2. Add a controlled production-path append test for direct result persistence, including durable success, append failure after in-memory insertion, and ephemeral-session semantics.
 3. Emit versioned receipt lineage into rollout state, restore it on resume and fork, and carry the minimal required evidence in compacted checkpoints.
-4. Define safe retirement for reconciled receipts after their evidence is durable. Unresolved or ambiguous potential mutations must never be silently evicted.
-5. Only then enable the raw-history plus receipt preflight before request construction and before replacement installation in local, remote v1, and remote v2 compaction.
-6. Apply the resulting certainty contract to automatic retry and authority-aware fallback.
+4. Define safe retirement for reconciled receipts after durable checkpoint ownership. Unresolved, ambiguous, or may-still-run mutations must never be silently evicted.
+5. Add separate source-qualified nested Code Mode result delivery; direct and nested identities must not update each other.
+6. Only then enable raw-history plus receipt preflight before request construction and before replacement installation in local, remote v1, and remote v2 compaction.
+7. Apply the resulting certainty and authority lineage to automatic retry and fallback.
 
 This order is consistent with adjacent campaigns:
 
 - #84 requires captured-call authority across MCP catalogue generations and should reuse #83 receipts rather than create another lifecycle owner;
 - #85 preserves the distinction between Direct and Code Mode execution surfaces;
-- #86 depends on #83 mutation certainty before allowing or rejecting fallback.
+- #86 depends on #83 mutation certainty before allowing or rejecting fallback;
+- #133 must settle or explicitly preserve uncertainty for timed-out remote operations.
 
 ## Durable checkpoint boundary
 
@@ -81,13 +109,14 @@ The session owner remains process-local. Resume and fork reconstruction requires
 - versioned receipt update rollout items before compaction;
 - restoration into the live owner on resume or fork;
 - the minimal unresolved or reconciled receipt set carried in each compacted checkpoint;
-- a retirement rule proving that removed live entries remain recoverable from durable evidence.
+- a retirement rule proving that removed live entries remain recoverable from durable evidence;
+- preservation of uncertain remote-execution state until cancellation or late completion is reconciled against the same operation identity.
 
 Do not put receipts only in replacement history and do not leave them only in memory.
 
 ## Enforcement map
 
-After authoritative nested result persistence, durable restoration, and safe retirement exist, one shared preflight must run twice in every compaction implementation:
+After typed execution certainty, authoritative nested result delivery, durable restoration, and safe retirement exist, one shared preflight must run twice in every compaction implementation:
 
 1. **Before request construction**
    - local compaction: before cloned history is converted with `for_prompt`;
@@ -101,20 +130,22 @@ The preflight must reject when:
 - raw history has any call/result identity defect;
 - the live owner reports an unreconciled potentially mutating operation;
 - live or durable receipt coverage is incomplete;
+- remote execution may still be running;
 - a duplicate, conflicting, late, or reordered observation remains unreconciled.
 
-The second check matters because tool futures or persistence state can change while a compaction request is in flight.
+The second check matters because tool futures, remote terminal authority, or persistence state can change while a compaction request is in flight.
 
 ## Remaining work
 
-1. Move begin/effect capture to the durable selected-call boundary.
-2. Add source-qualified nested Code Mode result persistence.
-3. Define versioned rollout receipt updates, checkpoint carry-forward, and resume/fork restoration.
+1. Add typed settled-versus-uncertain post-dispatch terminal authority, especially for MCP timeout and cancellation.
+2. Add real append-boundary fault injection for direct result persistence.
+3. Add versioned rollout receipt updates, checkpoint carry-forward, and resume/fork restoration.
 4. Add safe retirement without silent loss of ambiguous mutation evidence.
-5. Add the shared preflight at all six request and installation boundaries.
-6. Add late-result reconciliation plus duplicate and causal-order rejection.
-7. Prove complete identities continue normally and every ambiguous mutation fails closed without automatic replay.
+5. Add source-qualified nested Code Mode result delivery.
+6. Invoke the raw-history identity validator and receipt preflight at all six request and installation boundaries.
+7. Add late-result reconciliation plus duplicate and causal-order rejection.
+8. Prove complete identities continue normally and every ambiguous or may-still-run mutation fails closed without automatic replay.
 
 ## Stop rule
 
-Do not claim a repair until compiled owned-fork tests cover complete, missing, duplicate, reordered, orphan, late, persistence-failure, coverage-loss, retirement, resume, and fork cases across local, remote v1, remote v2, continuation, and retry. No upstream interaction is authorized.
+Do not claim a repair until compiled owned-fork tests cover complete, missing, duplicate, reordered, orphan, late, persistence-failure, local-timeout, cancellation-unconfirmed, coverage-loss, retirement, resume, and fork cases across local, remote v1, remote v2, continuation, retry, and fallback. No upstream interaction is authorized.
