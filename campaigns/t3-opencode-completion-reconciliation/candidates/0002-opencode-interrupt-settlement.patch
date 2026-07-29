@@ -22,17 +22,16 @@ index 73c23b7..0000000 100644
  interface OpenCodeSessionContext {
    session: ProviderSession;
    readonly client: OpencodeClient;
-@@ -221,6 +227,8 @@ interface OpenCodeSessionContext {
+@@ -221,6 +227,7 @@ interface OpenCodeSessionContext {
    readonly turns: Array<OpenCodeTurnSnapshot>;
    activeTurnId: TurnId | undefined;
    activeAgent: string | undefined;
    activeVariant: string | undefined;
-+  activeTurnObservedProviderActivity: boolean;
 +  readonly interruptOperation: Ref.Ref<OpenCodeInterruptOperation | undefined>;
    /**
     * One-shot guard flipped by `stopOpenCodeContext` / `emitUnexpectedExit`.
     * The session lifecycle is owned by `sessionScope`; this Ref exists only
-@@ -502,6 +510,13 @@ function sessionErrorMessage(error: unknown): string {
+@@ -502,6 +509,13 @@ function sessionErrorMessage(error: unknown): string {
      : "OpenCode session failed.";
  }
  
@@ -48,81 +47,42 @@ index 73c23b7..0000000 100644
  function updateProviderSession(
    context: OpenCodeSessionContext,
    patch: Partial<ProviderSession>,
-@@ -1033,6 +1048,7 @@ export function makeOpenCodeAdapter(
-         case "session.status": {
-           if (event.properties.status.type === "busy") {
-+            context.activeTurnObservedProviderActivity = true;
-             yield* updateProviderSession(context, {
-               status: "running",
-               activeTurnId: turnId,
-@@ -1051,7 +1067,14 @@ export function makeOpenCodeAdapter(
+@@ -1051,7 +1065,11 @@ export function makeOpenCodeAdapter(
              break;
            }
  
--          if (event.properties.status.type === "idle" && turnId) {
-+          if (event.properties.status.type === "idle" && turnId) {
+           if (event.properties.status.type === "idle" && turnId) {
 +            const interruptOperation = yield* Ref.get(context.interruptOperation);
-+            if (
-+              interruptOperation?.turnId === turnId ||
-+              !context.activeTurnObservedProviderActivity
-+            ) {
++            if (interruptOperation?.turnId === turnId) {
 +              break;
 +            }
              context.activeTurnId = undefined;
-+            context.activeTurnObservedProviderActivity = false;
              yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
              yield* emit({
-               ...(yield* buildEventBase({
-@@ -1072,8 +1095,39 @@ export function makeOpenCodeAdapter(
+@@ -1072,6 +1090,13 @@ export function makeOpenCodeAdapter(
          case "session.error": {
            const message = sessionErrorMessage(event.properties.error);
            const activeTurnId = context.activeTurnId;
 +          const interruptOperation = yield* Ref.get(context.interruptOperation);
-+          if (isOpenCodeMessageAbortedError(event.properties.error)) {
-+            if (
-+              activeTurnId === undefined ||
-+              interruptOperation?.turnId === activeTurnId ||
-+              !context.activeTurnObservedProviderActivity
-+            ) {
-+              break;
-+            }
-+            context.activeTurnId = undefined;
-+            context.activeAgent = undefined;
-+            context.activeVariant = undefined;
-+            context.activeTurnObservedProviderActivity = false;
-+            yield* updateProviderSession(
-+              context,
-+              { status: "ready" },
-+              { clearActiveTurnId: true },
-+            );
-+            yield* emit({
-+              ...(yield* buildEventBase({
-+                threadId: context.session.threadId,
-+                turnId: activeTurnId,
-+                raw: event,
-+              })),
-+              type: "turn.completed",
-+              payload: {
-+                state: "interrupted",
-+              },
-+            });
++          if (
++            activeTurnId !== undefined &&
++            interruptOperation?.turnId === activeTurnId &&
++            isOpenCodeMessageAbortedError(event.properties.error)
++          ) {
 +            break;
 +          }
            context.activeTurnId = undefined;
-+          context.activeTurnObservedProviderActivity = false;
            yield* updateProviderSession(
              context,
-             {
-@@ -1287,6 +1341,8 @@ export function makeOpenCodeAdapter(
+@@ -1287,6 +1312,7 @@ export function makeOpenCodeAdapter(
            activeTurnId: undefined,
            activeAgent: undefined,
            activeVariant: undefined,
-+          activeTurnObservedProviderActivity: false,
 +          interruptOperation: yield* Ref.make<OpenCodeInterruptOperation | undefined>(undefined),
            stopped: yield* Ref.make(false),
            sessionScope: started.sessionScope,
          };
-@@ -1411,6 +1467,16 @@ export function makeOpenCodeAdapter(
+@@ -1411,6 +1437,16 @@ export function makeOpenCodeAdapter(
  
      const sendTurn: OpenCodeAdapterShape["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
        const context = yield* ensureSessionContext(sessions, input.threadId);
@@ -137,17 +97,7 @@ index 73c23b7..0000000 100644
        // A sendTurn while a turn is active is a steer: OpenCode queues the
        // prompt into the busy session and the work continues as one turn, so
        // the active turn id is reused instead of opening a new turn.
-@@ -1459,6 +1525,9 @@ export function makeOpenCodeAdapter(
-       const agent = getModelSelectionStringOptionValue(modelSelection, "agent");
-       const variant = getModelSelectionStringOptionValue(modelSelection, "variant");
- 
-+      if (steeringTurnId === undefined) {
-+        context.activeTurnObservedProviderActivity = false;
-+      }
-       context.activeTurnId = turnId;
-       context.activeAgent = agent ?? (input.interactionMode === "plan" ? "plan" : undefined);
-       context.activeVariant = variant;
-@@ -1538,21 +1607,100 @@ export function makeOpenCodeAdapter(
+@@ -1538,21 +1574,97 @@ export function makeOpenCodeAdapter(
  
      const interruptTurn: OpenCodeAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
        function* (threadId, turnId) {
@@ -192,7 +142,6 @@ index 73c23b7..0000000 100644
 +              context.activeTurnId = undefined;
 +              context.activeAgent = undefined;
 +              context.activeVariant = undefined;
-+              context.activeTurnObservedProviderActivity = false;
 +              yield* updateProviderSession(
 +                context,
 +                { status: "ready" },
@@ -251,19 +200,3 @@ index 73c23b7..0000000 100644
 -        }
        },
      );
-diff --git a/apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts b/apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
-index d663aaa..0000000 100644
---- a/apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
-+++ b/apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
-@@ -356,6 +356,11 @@ it.effect("does not let a delayed duplicate idle from the previous turn close a
-     const terminals: Array<ProviderRuntimeEvent> = [];
-     const watcher = yield* watchTerminalEvents(adapter, threadId, terminals);
- 
-+    harness.events.push({
-+      type: "session.status",
-+      properties: { sessionID: resumedSessionId, status: { type: "busy" } },
-+    });
-+    yield* drainFibers;
-     harness.events.push({
-       type: "session.status",
-       properties: { sessionID: resumedSessionId, status: { type: "idle" } },
