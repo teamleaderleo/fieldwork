@@ -2,13 +2,15 @@
 
 ## In simple words
 
-Codex has two refresh meanings that currently overlap.
+Codex currently has several refresh boundaries with different meanings.
 
-Ordinary runtime reconciliation is optimized to reuse an unchanged ready MCP connection. That contract has an explicit regression test: refreshing desired state with the same connection configuration should avoid another `tools/list` request.
+- Ordinary reconciliation deliberately reuses an unchanged ready MCP connection.
+- Explicit host MCP config reload is a stronger freshness action and now has a compiled owned-fork candidate that requests fresh connections.
+- A server tool-list-change notification reaches Codex but is only logged.
+- Cached regular MCP tools may be advertised before the replacement server is ready; call dispatch can later resolve the same tool name through a newer live binding.
+- The Rust SDK protects its own cache from late stale relist writes, but its public result does not protect an application's published catalogue.
 
-A host MCP config reload is a stronger user-facing action. It loads a new config snapshot, installs the MCP inputs into every thread, marks each runtime dirty, and schedules prewarming. At the inspected revision, the public `CodexThread::refresh_mcp_config` entrypoint does not request a fresh connection before that publication. A remote server at the same endpoint can therefore keep the client, server identity, and tool catalogue captured at startup.
-
-The first candidate draws a narrow boundary: explicit host config reload requests reconnect; ordinary per-turn reconciliation continues to reuse its connection.
+Campaign #84 must give each boundary a generation, equality decision, publication outcome, and request-authority rule.
 
 ## Assignment
 
@@ -20,76 +22,75 @@ The first candidate draws a narrow boundary: explicit host config reload request
 - Owned Codex branch: `fieldwork/31-mcp-config-reload-reconnect`
 - Owned draft Codex PR: `teamleaderleo/codex#5`
 - Owned fork base: `2b7b93081361b77f8ddaceaf362a09765b4153bf`
-- Claim scope for this stage: mechanism and interface
+- Current public Codex recheck: `85c082ccccf6b5ac4d6c31d14f960057348b78f4`
+- Official Rust SDK pin: `cb50ae7890d8a5daacae1a4ad95f395f06733c07`
+- Claim scope: mechanism, interface, and focused compiled behavior
 - Upstream contact authorized: `false`
 
 ## Evidence inherited
 
 ### L01 lifecycle provenance
 
-Saved host dynamic tools and selected capability roots can remain thread-scoped across cold reconstruction. Public resume and fork inputs do not expose an equivalent current-host replacement field. Host preserve, replace, clear, and reject behavior therefore requires an explicit contract.
+Saved host dynamic tools and selected capability roots can remain thread-scoped across cold reconstruction. Public resume and fork inputs do not expose current-host replace or clear fields. Host preserve, replace, clear, and reject behavior requires an explicit contract.
 
-### L04 MCP and app catalogue convergence
+### L04 MCP catalogue convergence
 
-The retained stable-endpoint fixture changes a local MCP-shaped server from one stub tool to a different real catalogue. Ordinary refresh with unchanged connection configuration reuses the ready client and its startup catalogue. Router registration and model advertisement stay mutually consistent with that stale binding. Fresh thread, reconnect, restart, and connection-identity change converge.
+Ordinary refresh with unchanged connection configuration can reuse the ready client and its startup catalogue. Fresh thread, explicit reconnect, restart, and changed connection identity converge. Recomputed desired inputs alone do not prove that a live binding learned a changed remote catalogue.
 
 ### L06 effective-surface diagnostics
 
-A stale-binding receipt needs both tool-set and server-identity or provenance digests. Tool names alone miss identity-only changes. Diagnostics remain observational and separate from repair.
+Catalogue, binding, model advertisement, executable path, completion, and client delivery are separate observations. A valid loader can still use stale saved provenance or a stale catalogue.
 
 ## Public source map
 
 ### Host-facing config reload
 
-`codex-rs/app-server/src/mcp_refresh.rs`
+`codex-rs/app-server/src/mcp_refresh.rs` loads the current configuration and calls `CodexThread::refresh_mcp_config` for active threads.
 
-- loads the latest configuration;
-- resolves a thread-specific refresh snapshot;
-- calls `CodexThread::refresh_mcp_config` for each active thread.
+`codex-rs/core/src/codex_thread.rs` exposes that host-facing MCP-only reload.
 
-`codex-rs/core/src/codex_thread.rs`
-
-- exposes `refresh_mcp_config` as the public host-facing MCP-only reload;
-- delegates to the session at the inspected revision;
-- does not request reconnect.
-
-`codex-rs/core/src/session/mod.rs`
-
-- applies only MCP-related config inputs;
-- marks the thread MCP runtime dirty;
-- schedules MCP prewarming.
+At the owned-fork base it applied config and marked MCP state dirty without requesting fresh connections.
 
 ### Ordinary runtime publication
 
-`codex-rs/core/src/session/mcp.rs`
+`codex-rs/core/src/session/mcp.rs` claims refresh work, recomputes desired state, and publishes through the thread-owned runtime.
 
-- claims pending refresh work;
-- recomputes current desired MCP state and projection;
-- publishes into the thread-owned runtime;
-- loops when another invalidation arrives during publication.
+`codex-rs/codex-mcp/src/runtime.rs` reuses prior connections unless reconnect is requested.
 
-`codex-rs/codex-mcp/src/runtime.rs`
-
-- `replace` reuses prior connections unless the reconnect flag was claimed;
-- `reconnect_on_next_refresh` forces the next publication to start fresh connections;
-- existing request-scoped bindings retain their exact captured connections.
-
-`codex-rs/codex-mcp/src/connection_manager_tests.rs`
-
-- `reconciliation_reuses_connection_without_relisting_regular_tools` protects ordinary reuse and avoids a blocking relist.
+`reconciliation_reuses_connection_without_relisting_regular_tools` protects this low-latency ordinary reuse contract.
 
 ### Explicit reconnect operation
 
-`codex-rs/core/src/session/handlers.rs`
+`Op::RefreshMcpServers` already requests reconnect before runtime refresh. This provides a source precedent for treating an explicit freshness action differently from routine reconciliation.
 
-- `Op::RefreshMcpServers` calls `reconnect_on_next_refresh`;
-- then requests MCP runtime refresh.
+### Tool-list-change notification
 
-This establishes a source precedent: an explicit refresh action may request fresh connections while ordinary reconciliation remains reusable.
+The RMCP client receives `notifications/tools/list_changed`. The Codex logging handler records the event and returns. No Codex relist, remote identity check, catalogue digest, revision increment, or thread publication follows.
 
-## First candidate
+### Cached-startup late binding
 
-Change `CodexThread::refresh_mcp_config` to request reconnect before applying the caller-supplied MCP config:
+Current Codex can advertise cached regular-MCP tools while a replacement optional client remains pending.
+
+The sampling step and `McpHandler` retain catalogue A for:
+
+- model schema and description;
+- search metadata;
+- hook identity;
+- initial request tool registration.
+
+At call time, core dispatch waits for server startup and asks the thread runtime for the latest binding B. B supplies:
+
+- prepared call;
+- current client and server metadata;
+- current approval policy and permission profile;
+- file-input rewrite metadata;
+- execution and result.
+
+The current path can therefore plan as A and execute as B.
+
+## First owned Codex candidate
+
+The bounded source change calls `reconnect_on_next_refresh()` before applying the host-supplied MCP config:
 
 ```rust
 pub async fn refresh_mcp_config(&self, next_config: crate::config::Config) {
@@ -101,112 +102,200 @@ pub async fn refresh_mcp_config(&self, next_config: crate::config::Config) {
 }
 ```
 
-### Intended effect
+### Compiled result
 
-- app-server MCP config reload produces a fresh client for each enabled configured server;
-- startup negotiation and tool listing run again at the stable endpoint;
-- the new publication receives current remote identity and catalogue;
-- older captured request bindings retain their exact client and authority;
-- future steps capture the new binding;
-- ordinary per-turn reconciliation retains the established reuse contract.
+Passing:
 
-### Deliberate exclusions
-
-- no live relist on a reused connection;
-- no server identity or catalogue digest comparison yet;
-- no catalogue revision field yet;
-- no host reconstruction policy yet;
-- no automatic repair from diagnostic receipts;
-- no fallback rerouting;
-- no change to request-scoped router/model consistency.
-
-## Focused source-native regression
-
-The existing Apps MCP test server has an initialization counter and a stable endpoint. The candidate regression:
-
-1. starts a thread with the Apps MCP server;
-2. waits until the server is ready;
-3. records initialization attempts;
-4. calls `CodexThread::refresh_mcp_config` with the current config;
-5. requires one additional initialization attempt within five seconds.
-
-This tests fresh-client behavior directly. It does not rely on tool-name output or model behavior.
-
-The existing connection-manager regression remains unchanged and continues to prove that ordinary reconciliation can reuse a ready connection without relisting regular tools.
-
-## Validation commands
-
-Run from `codex-rs/`:
-
-```bash
-cargo fmt --all
+```text
 cargo fmt --all -- --check
 just test -p codex-core host_mcp_config_refresh_reconnects_ready_clients
-just test -p codex-core
-just test -p codex-app-server
+just test -p codex-mcp reconciliation_reuses_connection_without_relisting_regular_tools
 ```
 
-The owned CI runner also installs `cargo-nextest`, which the repository `just test` recipe requires.
+The candidate proves:
 
-## Validation history
+- host MCP config reload creates a fresh ready client at the stable test endpoint;
+- ordinary reconciliation still reuses an unchanged ready client without relisting regular tools.
 
-### Repository-wide formatter attempt
+The source and regression are committed in owned Codex PR #5.
 
-The first ephemeral run applied the Rust candidate and then invoked the repository-wide formatter. That command reached unrelated Python and Bazel formatters and stopped because `uv` and `dotslash` were unavailable. No Rust test ran. The branch retained only the temporary workflow.
+### Broader limits
 
-### Rust-only formatter attempt
+- Full `codex-core` encountered unrelated sandbox-dependent failures.
+- The app-server MCP filter stopped at an existing test initializer missing `ItemCompletedEvent.started_at_ms`.
 
-The second ephemeral run applied the same source candidate and regression. Rust formatting passed. The focused test command stopped before compilation because `cargo-nextest` was unavailable. No source commit was created.
+These are retained as baseline limits rather than candidate failures.
 
-### Current attempt
+### Why this is only the first slice
 
-The third run preserves the same candidate and regression, installs `cargo-nextest`, and runs the focused and scoped suites. The temporary workflow deletes itself and commits the source only after every command succeeds.
+The reconnect request is a boolean. An older publication can consume a reconnect request intended for a newer desired-state generation. `concurrency.md` defines the adversarial sequence and a generation-bound replacement.
 
-## Tool-list-change notification finding
+The candidate also does not address notification relist, remote identity, catalogue equality, request authority, cold reconstruction policy, or failed reconnect outcomes.
 
-The current MCP client service forwards server notifications to `LoggingClientHandler`. Its `on_tool_list_changed` implementation records a log entry and returns. Codex does not translate the signal into a thread-owned relist request, accepted catalogue revision, or new runtime publication.
+## Codex request-authority conflict
 
-The RMCP client already exposes a typed `list_tools` operation. The missing work belongs above that primitive:
+The source history contains a policy change that needs an explicit decision.
 
-- identify the server and current client generation;
-- request a relist;
-- compute server identity and catalogue digests;
-- reject late results from older generations;
-- publish a new revision only after validation;
-- preserve older request-scoped bindings;
-- provide a typed outcome for unchanged, replaced, failed, cancelled, or superseded refresh.
+### PR #34588 — captured catalogue revision
 
-This notification path is the next independent #84 slice. It should remain separate from the host-config reconnect candidate because one is an explicit host action and the other is a server-originated live change.
+This change introduced request-scoped MCP bindings and stated that a model-step tool call must not reroute to a replacement client or run against a catalogue revision the model did not see.
 
-## Competing candidates
+### PR #34930 — current runtime at dispatch
 
-### Reconnect every ordinary reconciliation
+Runtime centralization changed core dispatch to refresh MCP state and obtain the current binding before approval and execution. Its description continued to promise immutable bindings for model steps and tool calls.
 
-Rejected for this stage. It removes the source-defined reuse optimization and adds startup latency to routine step capture.
+### PR #35590 — cached A, live B
 
-### Relist every ordinary reconciliation
+This change intentionally advertises cached catalogue A before server startup, waits for the selected server, and then prepares the call against live B.
 
-Rejected for this stage. The existing regression explicitly protects against a blocking regular-tools relist, and relisting alone does not validate server identity or update all retained application state.
+Its integration test proves:
 
-### Add remote identity and catalogue digest to connection reuse identity
+- inference receives process A's cached description;
+- the same tool name executes on process B;
+- a tool absent from B fails closed.
 
-Promising larger candidate. It needs live or cached remote observations before reuse can be decided and must define failed-validation behavior.
+It does not test same-name changes to schema, approval, annotations, visibility, file-input metadata, hook metadata, or behavior.
 
-### Host reload requests reconnect
+### Approval-relaxation consequence
 
-Selected first slice. It uses an existing runtime control, matches the explicit refresh precedent, and leaves ordinary reconciliation unchanged.
+An already-sampled step can capture prompt-required A. Before its tool call dispatches, thread configuration can change to permissive B. Current dispatch can refresh to B and auto-approve under B.
 
-## Risks and open questions
+A later policy may tighten an in-flight call. It should not relax the authority under which the call was sampled.
 
-- Reconnecting every active thread during host config reload can be expensive when many threads share the same server.
-- A reload using an unchanged config may still represent a deliberate catalogue freshness request; the candidate treats it that way.
-- Failed reconnect publication needs a typed decision: retain old state, publish unavailable, or reject the reload.
-- Concurrent host reload and tool-list-change notification require generation ordering.
-- Apps-specific cache refresh and generic configured-MCP refresh have different current paths and should converge on one per-server outcome vocabulary.
-- Host preserve, replace, clear, and reject semantics remain unresolved for cold resume and fork.
+### Candidate authority rule
+
+For a prepared call captured by the sampling step:
+
+- execute the captured client, tool metadata, and approval authority;
+- fail on the captured client rather than rerouting;
+- apply current policy only as an added restriction;
+- defer relaxation until a newly sampled step.
+
+For a cached tool with no captured prepared call:
+
+- wait for live B only as a bounded exception;
+- compare A and B authority fingerprints;
+- execute B only when equality is verified;
+- otherwise fail closed and require a new sampling step.
+
+The fingerprint should cover server identity, tool name, schemas, authority-relevant annotations, visibility, file-input metadata, plugin or connector provenance, and approval/execution metadata.
+
+## Compiled Rust SDK relist result
+
+A focused fixture against the pinned official SDK used two real overlapping `on_tool_list_changed` callback relists over an in-process duplex transport.
+
+Controlled order:
+
+```text
+R1 captures older generation and waits
+→ second notification invalidates again
+→ R2 returns catalogue C and publishes first
+→ R1 returns catalogue B late
+```
+
+Observed:
+
+```text
+sdk_cache=catalogue_c
+naive_application=catalogue_b
+ticketed_application=catalogue_c
+requests=3
+```
+
+One test passed; zero failed.
+
+The SDK cache correctly retained C because its private generation rejected R1's late write. R1 still returned `Ok(B)` to application code, so a naive publisher rolled back from C to B. An application notification-generation ticket retained C.
+
+The fixture, lockfile, exact log, and validation record are retained on L01 amendment PR #74 under `artifacts/rmcp-relist-ordering/`.
+
+### SDK implication
+
+Calling `list_tools` from every list-change callback is insufficient under concurrent notifications.
+
+A generic opt-in SDK helper needs one of:
+
+- public relist ticket plus accepted-current result;
+- internal notification coalescing with newest-result publication;
+- watch or stream containing only accepted catalogue snapshots.
+
+The helper should not silently replace application approval policy, request bindings, or model advertisements. Codex still owns those decisions.
+
+## Unified refresh ticket
+
+Host reload, user reconnect, auth change, server notification, and recovery should use one ticket vocabulary.
+
+A ticket should contain:
+
+- desired-state generation;
+- source reason;
+- per-server reconnect or relist requirement;
+- configured connection identity;
+- observed remote server identity;
+- advertised and live catalogue digests;
+- approval/config authority digest;
+- supersession state;
+- typed result.
+
+Typed results should include:
+
+- `unchanged`;
+- `replaced`;
+- `failed_retained_old`;
+- `failed_unavailable`;
+- `cancelled`;
+- `superseded`;
+- `identity_mismatch`;
+- `catalogue_mismatch`;
+- `advertisement_execution_revision_mismatch`.
+
+Only a result accepted for the relevant current generation may publish.
+
+## Required compiled matrix
+
+### Host generation ownership
+
+Hold publication A before replacement, install B and request reconnect, release A, then prove B—not A—owns the fresh client.
+
+### Notification relist ordering
+
+Delay an older relist until after a newer one publishes. Prove only the accepted-current result changes the thread catalogue revision.
+
+### Captured approval
+
+Sample under prompt-required A, apply permissive B before dispatch, then prove the A call still prompts or fails. Reverse the policies and prove B may tighten the call.
+
+### Cached A/live B
+
+Test:
+
+- removed tool;
+- same name, changed schema;
+- same name, changed approval or annotations;
+- same name, changed file-input or provenance metadata;
+- verified equal fingerprint.
+
+### Failed refresh
+
+Test old-state retention, unavailable publication, partial per-server success, cancellation, timeout, and later recovery.
+
+### Host reconstruction
+
+Test `preserve_saved`, `replace_from_host`, `clear`, and `reject_on_mismatch` for dynamic tools and selected roots across resume and fork.
+
+## CI harness rule
+
+For Rust-only owned-fork changes:
+
+- use `cargo fmt --all -- --check` and focused package tests;
+- install `cargo-nextest` before `just test` when required;
+- use repository-wide `just fmt` only when the full formatter set, including `uv` and `dotslash`, is installed;
+- classify missing tools as `harness_unavailable`;
+- classify unrelated existing compile failures as `baseline_compile_blocker`.
 
 ## Current conclusion
 
-The stale catalogue behavior is partly intentional: ordinary reconciliation reuses ready connections by design. The defect candidate sits at the stronger host action. `refresh_mcp_config` currently looks like a reload boundary while permitting the old client catalogue to survive. A reconnect request at that entrypoint is the smallest coherent correction and now has a source-native regression under owned-fork validation.
+The first host-reload source slice is valid and compiled, but it is not the complete repair.
 
-The server-notification gap is separately source-confirmed: a tool-list-change signal is logged and discarded at the application boundary. Campaign #84 should pursue that after the host reload slice reaches a compiled result.
+The next Codex implementation step should introduce generation ownership and preserve captured request authority. Notification-driven relist should consume the compiled SDK lesson: cache freshness does not automatically provide application publication freshness.
+
+Public Codex and the official Rust SDK remained read-only. No upstream contact occurred.
