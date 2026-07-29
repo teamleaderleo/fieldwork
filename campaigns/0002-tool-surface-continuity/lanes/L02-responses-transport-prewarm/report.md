@@ -36,8 +36,8 @@ The client source rejects reuse when the tool list changes, clears reuse state o
 |---|---|---|
 | Fieldwork synthesis base | `teamleaderleo/fieldwork@aa72bd513f6664dc67517dabd9b03b4f051d8460` (draft PR #51 head) | 2026-07-29 |
 | Public Codex source | [`openai/codex@3725f02cf38d856bc82bb46dd68ab61bb96ec6fc`](https://redirect.github.com/openai/codex/commit/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc) | 2026-07-29/30 |
-| Owned Codex comparison | [`teamleaderleo/codex@2b7b93081361b77f8ddaceaf362a09765b4153bf`](https://github.com/teamleaderleo/codex/commit/2b7b93081361b77f8ddaceaf362a09765b4153bf) | 2026-07-30 |
-| Public symptom report | [`openai/codex#35751`](https://redirect.github.com/openai/codex/issues/35751) | 2026-07-30 |
+| Owned Codex comparison | [`teamleaderleo/codex@2b7b93081361b77f8ddaceaf362a09765b4153bf`](https://redirect.github.com/teamleaderleo/codex/commit/2b7b93081361b77f8ddaceaf362a09765b4153bf) | 2026-07-30 |
+| Public symptom report | [resumed compacted thread loses exec/code-mode tools on Responses WebSocket](https://redirect.github.com/openai/codex/issues/35751) | 2026-07-30 |
 
 The owned comparison revision has the same startup-prewarm file blob (`abffe19313943de4f493466bc906a54100313774`) and the same sampled reuse predicate. Its full `client.rs` blob differs, so conclusions remain pinned to the declared public revision and only use the owned revision as a corroborating snapshot.
 
