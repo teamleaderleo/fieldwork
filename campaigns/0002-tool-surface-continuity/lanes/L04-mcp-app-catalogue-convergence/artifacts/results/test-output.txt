@@ -1,0 +1,12 @@
+test_catalogue_only_change_is_invisible_to_ordinary_refresh (test_catalogue_transition.CatalogueTransitionTests.test_catalogue_only_change_is_invisible_to_ordinary_refresh) ... ok
+test_connection_identity_change_forces_convergence (test_catalogue_transition.CatalogueTransitionTests.test_connection_identity_change_forces_convergence) ... ok
+test_identity_only_change_is_invisible_to_ordinary_refresh (test_catalogue_transition.CatalogueTransitionTests.test_identity_only_change_is_invisible_to_ordinary_refresh) ... ok
+test_ordinary_refresh_reuses_stale_client (test_catalogue_transition.CatalogueTransitionTests.test_ordinary_refresh_reuses_stale_client) ... ok
+test_reconnect_fresh_thread_and_restart_converge (test_catalogue_transition.CatalogueTransitionTests.test_reconnect_fresh_thread_and_restart_converge) ... ok
+test_server_transition_first_leaves_binding_stale (test_catalogue_transition.CatalogueTransitionTests.test_server_transition_first_leaves_binding_stale) ... ok
+test_stub_baseline_agrees_and_executes (test_catalogue_transition.CatalogueTransitionTests.test_stub_baseline_agrees_and_executes) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 10.863s
+
+OK
