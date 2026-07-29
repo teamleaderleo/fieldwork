@@ -42,16 +42,52 @@ It should not be used as evidence that discovery itself is absent.
 
 ## Current Codex recheck
 
-The campaign pin was `openai/codex@3725f02cf38d856bc82bb46dd68ab61bb96ec6fc`. A post-closeout recheck through `openai/codex@7579a2b41353470efaef93c08b4a21068a366b7f` does not overturn the result:
+The campaign pin was `openai/codex@3725f02cf38d856bc82bb46dd68ab61bb96ec6fc`. A post-closeout recheck through `openai/codex@85c082ccccf6b5ac4d6c31d14f960057348b78f4` does not overturn the result:
 
 - `thread/start` accepts `dynamicTools` and `selectedCapabilityRoots`;
 - `thread/resume` and `thread/fork` still provide no equivalent replacement or clear fields;
 - Codex pins `rmcp = 3.0.0`;
 - MCP client reuse still compares configured transport, environment, credentials, authentication, and protocol-related inputs, but not remote server identity or the current tool-catalogue digest;
 - `ManagedClient` still retains server information and its startup-listed tool vector;
-- the newest additional commit changes environment-native MCP file-upload path handling, not lifecycle or catalogue publication.
+- environment-native MCP file-upload path handling does not alter lifecycle or catalogue publication;
+- the newest MCP change moves optional startup grace into the shared regular-tool catalogue cache without adding remote identity, executable-content, or catalogue-digest validation.
 
 The recent Rust MCP dependency upgrade improves discovery identity handling and preserves typed OAuth discovery failures. It does not add host replacement semantics or invalidate a reusable Codex client when the remote identity or catalogue changes behind a stable configured connection.
+
+## Shared regular-MCP catalogue boundary
+
+Current Codex now shares more than cached tool definitions across connection sets. For cacheable regular stdio servers, one process-scoped entry contains:
+
+- the cached tool snapshot and publication time;
+- the newest accepted fetch generation;
+- whether the server disabled caching;
+- the optional-server startup deadline.
+
+The cache key contains the configured server name, stdio command/config fingerprint, environment object identity, and local fallback directory. It does not contain the initialized server identity, executable content digest, or returned tool-catalogue digest. Replacing a server behind the same configured identity can therefore retain the old cache entry until publication, disablement, or expiry.
+
+The request-binding path creates an additional bounded race:
+
+1. a pending optional regular MCP server has cached tools;
+2. a later connection set skips waiting because cached tools exist or because the shared startup grace was already consumed;
+3. the binding advertises the cached tools but inserts no `PreparedMcpCall` while the replacement client remains pending;
+4. a model call during that interval is rejected as unavailable because dispatch requires a prepared call.
+
+This is not evidence that every cached tool call fails. The client may become ready before the model calls. It is evidence that catalogue advertisement and executable binding can diverge during startup, and the current shared-deadline test checks immediate advertisement without checking dispatch.
+
+The focused falsification case is:
+
+```text
+publish cache generation A
+→ start replacement server at same configured identity and hold initialization pending
+→ consume the shared optional startup grace
+→ capture a later binding
+→ verify tool A is advertised
+→ verify no prepared call exists while initialization is pending
+→ attempt the advertised call before readiness
+→ release initialization and verify a newly captured binding becomes executable
+```
+
+The expected diagnostic class before readiness is `advertised_without_executable_binding`, with the cached catalogue generation, client startup state, and prepared-call presence recorded separately.
 
 ## Rust MCP SDK boundary
 
@@ -101,11 +137,24 @@ The diagnostic receipt should retain bounded digests or generations for:
 - host catalogue, thread binding, and deferred search index;
 - saved and current dynamic-tool generations;
 - observed remote server identity and catalogue revision;
+- shared regular-tool cache identity, snapshot generation, age, and optional startup deadline;
+- client startup state and prepared-call presence for every advertised MCP tool;
 - tool-list-change notification receipt, SDK cache invalidation, relist generation, and publication outcome;
 - subscription ending state and reconnect decision when subscriptions are used;
 - prepared-call revision and whether irreversible preparation had begun before publication.
 
-These additions preserve the separate repair boundaries. Loader absence, wire omission, stale catalogue, stale saved provenance, and ignored or superseded list-change notification require different actions.
+These additions preserve the separate repair boundaries. Loader absence, wire omission, stale catalogue, stale saved provenance, cached advertisement without execution, and ignored or superseded list-change notification require different actions.
+
+## CI harness rule
+
+Owned-fork validation should be scoped to the changed language and package unless the deliverable explicitly requires the complete repository toolchain.
+
+- For a Rust-only patch, use `cargo fmt --all -- --check` plus focused `just test -p ...` targets.
+- Before using repository-wide `just fmt`, install every formatter it invokes, including `uv` and `dotslash`, or establish that those formatters are unrelated and use a narrower command.
+- Record a missing runner tool as `harness_unavailable`, not as a source or behavior failure.
+- Install required tools before applying or testing the candidate so the harness contract is explicit.
+
+The first owned Codex PR #5 run applied its patch and then failed in unrelated formatters because `uv` and `dotslash` were absent. The revised workflow uses Rust-only formatting and focused tests.
 
 ## Implementation handoff
 
@@ -116,6 +165,8 @@ The full authority contract should follow existing Codex Apps behavior:
 - a call already executing or preparing under the old revision may finish while publication waits;
 - an old prepared call that has not begun irreversible preparation fails closed after publication;
 - newly captured steps receive the accepted new revision.
+
+The generic-MCP follow-up should also test cached advertisement while a replacement optional client is pending, and require either an executable prepared call, an explicitly deferred/non-callable declaration, or omission from the model-facing catalogue.
 
 A separate Rust SDK scout is justified only if it tests a generic relist coordinator across concurrent notifications, out-of-order list responses, lagged subscription channels, and reconnect. Codex-specific catalogue publication remains in #84.
 
