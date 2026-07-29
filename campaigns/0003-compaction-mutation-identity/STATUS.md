@@ -2,7 +2,7 @@
 
 ## In simple words
 
-Campaign #83 has moved from source mapping into staged owned-fork implementation. The first three non-behavioral foundations are merged: tools have a conservative operation-effect contract, raw history has a privacy-safe call/result identity validator, and runtime wrappers preserve an explicit effect. A fourth slice is validating a turn-scoped live owner before any dispatch or compaction behavior changes.
+Campaign #83 is in staged owned-fork implementation. Three behavior-neutral foundations are accepted. A turn-scoped receipt owner was then merged while ownership review was still unresolved; corrective Codex PR #17 removes it and installs one bounded session-state owner, which is the minimum live lifetime needed for later manual compaction.
 
 - Campaign issue: #83
 - Programme: #14
@@ -11,11 +11,12 @@ Campaign #83 has moved from source mapping into staged owned-fork implementation
 - State: `implementing`
 - Worker: GPT-5.6 Thinking
 - Fieldwork branch: `campaign/83-implementation-checkpoint`
-- Owned Codex base after accepted slices: `teamleaderleo/codex@e6b3017f4c725e0e6c48fc4e7fa703e365b2be67`
+- Owned Codex base before correction: `teamleaderleo/codex@555332c9c4b92fe7426777297428a04dd11e605f`
+- Corrective owned Codex PR: `teamleaderleo/codex#17`
 - Public source pin: [Codex revision `3725f02cf38d856bc82bb46dd68ab61bb96ec6fc`](https://redirect.github.com/openai/codex/commit/3725f02cf38d856bc82bb46dd68ab61bb96ec6fc)
 - Upstream contact: unauthorized
 
-## Merged owned-fork foundations
+## Accepted owned-fork foundations
 
 1. `teamleaderleo/codex#3` — shared `ToolOperationEffect` and versioned terminal/result receipt contract; focused `codex-tools` suite passed; merged as `f84e8d6fb48917965b7dacc1b28147663a28dd84`.
 2. `teamleaderleo/codex#2` — raw-history validator for missing, duplicate, reordered, orphaned, and unpairable client call/result identity; focused `codex-core` suite passed; merged as `f68ad3830bf582ebd78f046f039be08510f48a9f`.
@@ -23,22 +24,35 @@ Campaign #83 has moved from source mapping into staged owned-fork implementation
 
 These slices change no compaction or automatic-retry behavior.
 
-## Active owned-fork slice
+## Ownership correction
 
-`teamleaderleo/codex#9` adds a turn-scoped receipt owner without wiring it to production dispatch. The candidate:
+Codex PR #9 merged a receipt map into `TurnState` as `555332c9c4b92fe7426777297428a04dd11e605f`. That map cannot be the canonical owner:
 
-- keys live receipts by the existing call identity;
-- conservatively creates a potentially mutating receipt for terminal or persistence observations that arrive before `begin`;
-- escalates repeated call identity to potentially mutating and ambiguous instead of replacing prior state;
-- reuses the shared ambiguity-preserving terminal/result state machine;
-- exposes whether the turn contains an unreconciled potentially mutating operation;
-- has focused tests for transition order, duplicate persistence, conflicting terminal outcomes, repeated begin, effect escalation, and late observations.
+- a later manual compact operation has a different active turn;
+- ordinary turn completion would discard the prior map before compaction reads it;
+- resume and fork require reconstruction beyond process-local turn lifetime;
+- keeping both turn and session maps would create competing synchronization owners.
 
-Turn scope is deliberate. Cross-turn retention, result-source ownership, rollout restoration, compacted-checkpoint carry-forward, and compaction enforcement remain later stages.
+Corrective Codex PR #17 therefore removes the turn map and replaces it with exactly one owner on `SessionState`.
+
+## Corrective live-owner slice
+
+Codex PR #17 contains no dispatch or compaction behavior. It provides:
+
+- one session-scoped map keyed by existing call identity;
+- conservative late observations defaulting to `PotentialMutation`;
+- repeated identity escalation to potentially mutating with ambiguous terminal/result state;
+- shared terminal, persisted-result, and ambiguous-result transitions;
+- `has_unreconciled_potential_mutation()` for later preflight;
+- a 1,024-receipt bound;
+- permanent `coverage_lost` after overflow, with no silent eviction and fail-closed preflight semantics;
+- focused ordering, ambiguity, read-only, persistence-failure, and overflow tests.
+
+Session scope is still only the live owner. Durable rollout restoration and compacted-checkpoint carry-forward remain separate stages.
 
 ## Next wiring stage
 
-After the live owner merges, wire it at three exact seams:
+After the canonical owner merges, wire it at three exact seams:
 
 1. begin only after the model call item is durable;
 2. record terminal state after direct, code-mode, failed, blocked, or cancelled dispatch;
@@ -61,23 +75,23 @@ The preflight must reject when:
 
 - raw history has any call/result identity defect;
 - the live owner reports an unreconciled potentially mutating operation;
-- durable receipt coverage is incomplete after the persistence stage exists;
+- live or durable receipt coverage is incomplete;
 - a duplicate, conflicting, late, or reordered observation remains unreconciled.
 
 The second check matters because tool futures or persistence state can change while a compaction request is in flight.
 
 ## Durable checkpoint boundary
 
-A turn-scoped owner is necessary but insufficient. Resume and fork reconstruction begins from the newest compacted checkpoint plus its surviving suffix. The implementation therefore needs both:
+A session-scoped owner is necessary but insufficient. Resume and fork reconstruction begins from the newest compacted checkpoint plus its surviving suffix. The implementation therefore needs both:
 
-- versioned durable operation receipt items before compaction; and
+- versioned durable operation receipt updates before compaction; and
 - the minimal unresolved/reconciled receipt set carried in the compacted checkpoint.
 
-Do not put receipts only in replacement history and do not put them only in an in-memory map.
+Do not put receipts only in replacement history and do not leave them only in an in-memory map.
 
 ## Remaining work
 
-1. Finish and merge the turn-scoped live owner.
+1. Validate and merge corrective PR #17.
 2. Wire begin, terminal, and authoritative result-persistence transitions for direct and nested code-mode paths.
 3. Define the versioned rollout/checkpoint representation and resume restoration.
 4. Add the shared preflight and wire all six request/install boundaries.
@@ -86,4 +100,4 @@ Do not put receipts only in replacement history and do not put them only in an i
 
 ## Stop rule
 
-Do not claim a repair until compiled owned-fork tests cover complete, missing, duplicate, reordered, late, and persistence-failure cases across local, remote v1, and remote v2 compaction. Any bounded durable owner must also prove explicit fail-closed behavior when coverage is lost. No upstream interaction is authorized.
+Do not claim a repair until compiled owned-fork tests cover complete, missing, duplicate, reordered, late, persistence-failure, and coverage-loss cases across local, remote v1, and remote v2 compaction. No upstream interaction is authorized.
