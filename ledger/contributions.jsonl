@@ -1,0 +1,1 @@
+{"record_type":"fieldwork-ledger-schema","ledger":"contributions","version":1,"required_fields":["id","campaign","target","kind","state","opened_at","closed_at","outcome"]}

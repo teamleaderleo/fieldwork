@@ -1,0 +1,39 @@
+name: Finding
+about: Record an observation that may become a campaign
+labels:
+  - finding
+body:
+  - type: textarea
+    id: observation
+    attributes:
+      label: Observation
+      description: What happened, without interpretation?
+    validations:
+      required: true
+  - type: textarea
+    id: consequence
+    attributes:
+      label: Consequence
+      description: Why is this worth understanding?
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Target repository or system
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Current reproduction evidence
+      description: Include environment, revisions, commands, and observed output where available.
+  - type: textarea
+    id: hypotheses
+    attributes:
+      label: Initial hypotheses
+  - type: checkboxes
+    id: quiet
+    attributes:
+      label: External-reference check
+      options:
+        - label: External issue and pull-request references are quiet unless contact is intentional.
+          required: true

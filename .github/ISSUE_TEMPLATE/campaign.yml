@@ -1,0 +1,44 @@
+name: Campaign proposal
+about: Propose a bounded investigation
+labels:
+  - campaign
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Primary question
+      description: State one falsifiable question.
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Intrinsic value
+      description: Why would this result matter without visibility or contribution credit?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence already available
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+    validations:
+      required: true
+  - type: textarea
+    id: stop
+    attributes:
+      label: Stop conditions
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Boundaries
+      options:
+        - label: This proposal does not authorize upstream contact.
+          required: true
+        - label: The campaign will follow current target contribution and AI policies.
+          required: true
