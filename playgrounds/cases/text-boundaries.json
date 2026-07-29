@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "name": "text-boundaries",
+  "description": "Text encoding, line, whitespace, normalization, and control-character boundaries.",
+  "timeout_seconds": 5,
+  "cases": [
+    {"id": "empty", "tags": ["empty"], "stdin_text": ""},
+    {"id": "space", "tags": ["whitespace"], "stdin_text": " "},
+    {"id": "tabs-and-spaces", "tags": ["whitespace"], "stdin_text": "\t  \t"},
+    {"id": "lf", "tags": ["line-ending"], "stdin_text": "alpha\nbeta\n"},
+    {"id": "crlf", "tags": ["line-ending"], "stdin_text": "alpha\r\nbeta\r\n"},
+    {"id": "no-final-newline", "tags": ["line-ending"], "stdin_text": "alpha\nbeta"},
+    {"id": "unicode-mixed", "tags": ["unicode"], "stdin_text": "naïve café — 東京 — مرحبا — 👩🏽‍💻"},
+    {"id": "normalization-pair", "tags": ["unicode", "normalization"], "stdin_text": "é\né\n"},
+    {"id": "zero-width", "tags": ["unicode", "invisible"], "stdin_text": "left\u200bright\nleft\u200dright"},
+    {"id": "null-character", "tags": ["control"], "stdin_text": "before\u0000after"},
+    {"id": "quotes-and-slashes", "tags": ["escaping"], "stdin_text": "\"quoted\" \\ / `backtick`"},
+    {"id": "long-line", "tags": ["length"], "stdin_text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
+  ]
+}
