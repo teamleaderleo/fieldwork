@@ -1,0 +1,84 @@
+{
+  "probe": "supabase-auth-refresh-subscriber-ordering",
+  "sourceRevision": "supabase/supabase-js@63318987365bbcea2c31a00b62cbb95b21083ad5",
+  "claimScope": "mechanism",
+  "modelPreserves": [
+    "Deferred implementation semantics",
+    "refresh single-flight promise",
+    "session save before TOKEN_REFRESHED notification",
+    "awaited asynchronous subscribers",
+    "single-flight settlement after subscriber completion"
+  ],
+  "modelOmits": [
+    "HTTP implementation",
+    "JWT contents",
+    "storage adapters",
+    "BroadcastChannel",
+    "auth service database state"
+  ],
+  "scenarios": [
+    {
+      "scenario": "nested refresh inside TOKEN_REFRESHED subscriber",
+      "outcome": {
+        "outcome": "timeout"
+      },
+      "fetchCount": 1,
+      "persistedRefreshToken": "R2",
+      "trace": [
+        "refresh:begin",
+        "service:refresh",
+        "storage:saved",
+        "notify:TOKEN_REFRESHED:begin",
+        "listener:nested-refresh:begin",
+        "refresh:join-inflight"
+      ]
+    },
+    {
+      "scenario": "subscriber throws after rotated session is saved",
+      "outcome": {
+        "outcome": "rejected",
+        "error": "application subscriber failed"
+      },
+      "fetchCount": 1,
+      "persistedRefreshToken": "R2",
+      "trace": [
+        "refresh:begin",
+        "service:refresh",
+        "storage:saved",
+        "notify:TOKEN_REFRESHED:begin",
+        "listener:throw",
+        "notify:TOKEN_REFRESHED:end",
+        "refresh:rejected:application subscriber failed",
+        "refresh:end"
+      ]
+    },
+    {
+      "scenario": "read-only TOKEN_REFRESHED subscriber control",
+      "outcome": {
+        "outcome": "resolved",
+        "value": {
+          "data": {
+            "access_token": "A2",
+            "refresh_token": "R2"
+          },
+          "error": null
+        }
+      },
+      "fetchCount": 1,
+      "persistedRefreshToken": "R2",
+      "trace": [
+        "refresh:begin",
+        "service:refresh",
+        "storage:saved",
+        "notify:TOKEN_REFRESHED:begin",
+        "listener:read:R2",
+        "notify:TOKEN_REFRESHED:end",
+        "refresh:resolved",
+        "refresh:end"
+      ]
+    }
+  ],
+  "unhandledRejections": [
+    "application subscriber failed"
+  ]
+}
