@@ -18,9 +18,9 @@ Owned implementation: `teamleaderleo/node-lru-cache#1`
 
 Owned branch: `fieldwork/background-fetch-size-validation`
 
-Owned head: `f50193f7d92809eb1941469af3708d4d2406fce1`
+Reviewed owned head: `e801fe5e2f4355177ed8eb97658db6d9835ce73d`
 
-Candidate workflow: `30495807465`
+Candidate workflow: pending run from Fieldwork head `e6278ccf6f2ce0138e1a09617217f6ff4697dda4`
 
 Upstream contact authorized: `false`
 
@@ -44,9 +44,11 @@ Released `lru-cache@11.5.2` reproduced several consequences on Node 22, 24, and 
 Feature commit `4708153206daf822a3ad440ce47248b9cfbdb973` added:
 
 - `backgroundFetchSize?: number`;
-- a public `backgroundFetchSize` field;
+- a mutable public `backgroundFetchSize` field;
 - constructor default `1`;
 - provisional use when a background fetch does not shadow a stale entry.
+
+The class documentation states that normal public option fields can be changed after construction and affect later calls. A complete repair therefore has to account for both constructor input and later mutation.
 
 ### Constructor boundary
 
@@ -152,40 +154,67 @@ The connected GitHub editor only supports complete file replacement, while `src/
 - an exact source hunk in `.fieldwork/background-fetch-size-validation.patch`;
 - a Fieldwork workflow that applies the hunk to a clean checkout before building and testing.
 
-The candidate guard is:
+The candidate introduces one runtime predicate:
+
+```ts
+const isNonNegativeInt = (n: unknown): n is number =>
+  typeof n === 'number' && (n === 0 || isPosInt(n))
+```
+
+Construction rejects an invalid supplied value immediately.
+
+Because the field remains mutable, the cache-miss background-fetch path checks it again before creating an `AbortController`, dispatching `fetchMethod`, creating a promise, or inserting a provisional entry. That second check is limited to active size tracking and a missing key:
 
 ```ts
 if (
-  typeof backgroundFetchSize !== 'number' ||
-  (backgroundFetchSize !== 0 && !isPosInt(backgroundFetchSize))
+  index === undefined &&
+  this.#sizes !== undefined &&
+  !isNonNegativeInt(this.backgroundFetchSize)
 ) {
   throw new TypeError(
     'backgroundFetchSize must be a nonnegative integer',
   )
 }
-
-this.backgroundFetchSize = backgroundFetchSize
 ```
 
-The explicit runtime type check is required before `isPosInt()`. It guarantees that strings, booleans, bigint, symbols, null, arrays, and objects receive the package's stable `TypeError` instead of incidental JavaScript coercion errors.
+This scope preserves three compatibility properties:
+
+- a mutated invalid value cannot enter size accounting or start provider work;
+- stale-entry refreshes continue reusing the stale entry's existing size;
+- caches without size tracking continue ignoring `backgroundFetchSize`, as documented.
+
+The public property remains a normal mutable field; no getter/setter or enumerability change is introduced.
 
 ## Candidate tests
 
 The owned branch covers:
 
-- constructor acceptance for `0`, `1`, and another positive integer;
+- constructor acceptance for `0`, `1`, and positive integers;
 - rejection of `-1`, `1.5`, `NaN`, positive/negative infinity;
 - rejection of runtime string, boolean, bigint, symbol, null, object, and array inputs;
 - stable error name and message;
+- mutation of the public field after construction;
+- zero provider calls and unchanged cache state after invalid mutation with size tracking;
+- compatibility for mutated irrelevant values when size tracking is disabled;
 - zero-size pending fetch coalescing;
 - a custom positive provisional size transitioning to the resolved entry size;
 - the existing stale-value and eviction behavior.
 
-Candidate workflow `30495807465` checks out the exact owned branch, applies the source hunk with `git apply --check`, builds the repository, and runs the focused test on Node 22, 24, and 26. The jobs were queued at the latest recorded check; no candidate execution result is claimed yet.
+## Self-review
+
+The first candidate validated only construction. Review found that callers could mutate the public field afterward and recreate the defect. The second candidate checked every cache miss, but that would make an otherwise irrelevant option affect caches without size tracking. The current reviewed candidate validates precisely at construction and at the accounting-enabled cache-miss boundary.
+
+A COMMENT review is recorded on the owned PR. No remaining source-level correctness defect is known within this scope.
+
+## Candidate execution
+
+The Fieldwork workflow now pins exact owned head `e801fe5e2f4355177ed8eb97658db6d9835ce73d`, applies the source patch with `git apply --check`, builds the repository, and runs the focused test on Node 22, 24, and 26.
+
+The latest jobs were queued at the recorded check; no candidate execution result is claimed yet.
 
 ## Decision
 
-This is a confirmed released-package defect with a narrow owned-fork candidate. The candidate is source-reviewed and ready for execution. Keep the implementation draft until the clean-checkout matrix passes and the source hunk can be committed directly through an approved write path.
+This is a confirmed released-package defect with a narrow, reviewed owned-fork candidate. Keep the implementation draft until the clean-checkout matrix passes and the source hunk can be committed directly through an approved write path.
 
 ## Contact boundary
 
