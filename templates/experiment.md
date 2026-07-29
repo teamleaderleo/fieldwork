@@ -4,6 +4,12 @@ Experiment ID: `EXP-YYYYMMDD-short-name`
 
 State: `draft | running | complete | negative-result | blocked | promoted`
 
+Target label:
+
+Target hub:
+
+Testbed label or neutral identifier: none
+
 Claim scope: `mechanism | interface | integration | operational | ecosystem`
 
 Integration context: none or path to context dossier
@@ -14,6 +20,14 @@ Owner:
 
 Date:
 
+## In simple words
+
+- What component or behaviour is this?
+- Where does it sit?
+- What is being tested?
+- Why could the answer be useful?
+- What is the current answer or next step?
+
 ## Question
 
 State one bounded question whose possible outcomes can be distinguished by this experiment.
@@ -21,6 +35,13 @@ State one bounded question whose possible outcomes can be distinguished by this 
 ## Why this experiment
 
 Explain what decision, hypothesis, or larger investigation this result informs.
+
+## Change thesis
+
+- current behaviour:
+- consequence:
+- candidate improvement:
+- evidence boundary:
 
 ## Scope boundary
 
@@ -74,6 +95,10 @@ Describe what happened without overstating the conclusion.
 
 State which hypothesis the result supports, weakens, or leaves unresolved.
 
+## Owned-repository trial
+
+Link `templates/integration-trial.md` when realistic use is required. Otherwise explain why the isolated test is sufficient.
+
 ## Wider integration context
 
 Leave this section mechanism-only when appropriate.
@@ -84,7 +109,7 @@ When asserting wider usefulness or consequence, link `templates/integration-cont
 - who or what depends on it;
 - how failure propagates;
 - which use cases are documented, observed, inferred, or illustrative;
-- what the toy model preserves and omits.
+- what the toy model or testbed preserves and omits.
 
 ## Uncertainty and threats to validity
 
@@ -92,6 +117,8 @@ Record nondeterminism, environment dependence, missing cases, weak controls, com
 
 ## Reproduction status
 
+- [ ] Plain-language block updated
+- [ ] Target label and hub recorded
 - [ ] Exact command recorded
 - [ ] Source revisions or versions recorded
 - [ ] Evidence labels used for wider claims
@@ -111,6 +138,7 @@ Choose one:
 - promote to a finding;
 - attach to a batch probe;
 - promote to a campaign lane;
+- run an owned-repository integration trial;
 - preserve as a regression fixture;
 - add or revise an integration-context dossier.
 
@@ -118,4 +146,4 @@ Choose one:
 
 - Upstream contact remains unauthorized unless explicitly recorded otherwise.
 - No secrets, production payloads, or proprietary inputs were retained.
-- Mechanism evidence is not presented as integration or operational proof without supporting context.
+- Mechanism evidence and one owned testbed are not presented as general integration or operational proof without supporting context.
