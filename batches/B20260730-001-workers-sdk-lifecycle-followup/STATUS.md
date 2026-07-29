@@ -10,14 +10,14 @@ Coordinator-owned file. Workers must not edit this file directly.
 
 | Assignment | Role | State | Workers SDK branch / PR | Fieldwork result | Review |
 | --- | --- | --- | --- | --- | --- |
-| A001 | Teardown lifecycle ownership | complete | `fieldwork/teardown-lifecycle-hardening` / fork PR #1 | `results/A001.md` via Fieldwork PR #98 | Mechanism accepted; kill assertions now bind to the workerd child; package execution and test-stack split remain |
+| A001 | Teardown lifecycle ownership | complete | `fieldwork/teardown-lifecycle-hardening` / fork PR #1 | `results/A001.md` via Fieldwork PR #98 | Mechanism accepted; kill assertions bind to workerd; adjacent Vite cleanup ownership moved to candidate #165; execution and test-stack split remain |
 | A002 | Configuration selection contract | complete | `fieldwork/config-selection-contract` / fork PR #2 | `results/A002.md` | Matrix tightened for nearer JSONC/TOML and relative explicit paths; formal characterization review recorded; execution remains |
 | A003 | Partial deployment state | complete | `fieldwork/deploy-state-reporting` / fork PR #3 | `results/A003.md` | Activation-path matrix corrected; reporting-failure flaw fixed and modeled; formal review recorded; package execution remains |
 | A004 | Independent review and prior art | withdrawn | none | `results/A004.md` | Duties redistributed at user direction |
 
 ## Reviewed Workers SDK heads
 
-- A001: `eb2574f8cf7f73f244fed9733ca1902ab1e3fe7a`
+- A001 and adjacent Vite artifacts: `3d67e4cf38fe270a8d871056536b0e36d9a80893`
 - A002: `82ffab5d51abf7b5311891f31c6aa77f42bec41f`
 - A003: `bc0dc5b064f3f4fd684b9ca8afa0b34de8489376`
 
@@ -62,15 +62,21 @@ Guarded state-reporting direction accepted. Before source integration:
 - review terminal and machine-readable output contracts;
 - keep automatic rollback out of the first patch.
 
-### Adjacent Vite container cleanup
+### Candidate #165 — Vite container cleanup ownership
 
-Source-confirmed ownership-registration gap; not part of the first A001 fix. Before production edits:
+Source-confirmed and model-executed; separate from the first A001 patch. Before production edits:
 
+- test two same-mode dev instances and two same-mode preview instances;
 - test partial image-preparation failure after earlier image work;
 - test programmatic preview close;
-- test cleanup returning `false`, warning, and later retry;
+- test successful unregister without disturbing another owner;
+- test cleanup returning `false`, warning, retained ownership, and later retry;
 - preserve the original preparation or close error;
 - keep the patch separate from Miniflare child-ownership work.
+
+Durable note: `notes/vite-container-cleanup-ownership.md`.
+
+Canonical candidate: #165.
 
 ## Validation
 
@@ -79,7 +85,8 @@ Executed dependency-free models:
 - A001 teardown ownership and bounded cleanup;
 - A002 predecessor discovery and redirect probes;
 - A003 refreshed post-activation receipt and reporting-failure model;
-- adjacent Vite container cleanup ownership model.
+- Vite early container cleanup ownership;
+- Vite single-slot exit negative control and per-instance cleanup registry.
 
 Prepared but unexecuted:
 
@@ -88,8 +95,17 @@ Prepared but unexecuted:
 - deploy-helper package tests and mocked integration paths;
 - Vite dev/preview container cleanup plugin tests.
 
-No owned-fork Actions runs appeared for the reviewed Workers SDK heads.
+No owned-fork Actions runs appeared for the reviewed Workers SDK heads at the last check.
+
+## Coordination placement
+
+- #88 is the canonical batch review and disposition hub.
+- #165 is the canonical Vite cleanup candidate.
+- #112 is the durable synthesis and notes PR.
+- #87 owns the generated board and stale-state validation convention.
+
+The existing labels are sufficient for generated filtering; no extra ad hoc candidate label is required.
 
 ## Synthesis
 
-`synthesis.md` is ready for programme-level review after the adversarial test corrections, A003 reporting fix, and adjacent cleanup-ownership exploration. The next useful implementation work requires a complete Workers SDK checkout with dependencies or an owned CI route capable of executing the package tests.
+`synthesis.md` is ready for programme-level review after the adversarial test corrections, A003 reporting fix, Vite cleanup candidate extraction, and centralized visibility updates. The next useful implementation work requires a complete Workers SDK checkout with dependencies or an owned CI route capable of executing the package tests.
