@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/codex
-          ref: d637bf38108afedd52ac8d99efb80ceff797aa48
+          ref: 202ef94490f9f6e2b3f4942741f49b1645c2017d
           path: codex
           fetch-depth: 1
 
@@ -36,6 +36,7 @@ jobs:
           cargo test -p codex-rmcp-client --test tool_timeout_elicitation_probe -- --nocapture
           cargo test -p codex-rmcp-client --test tool_timeout_modern_http_probe -- --nocapture
           cargo test -p codex-rmcp-client --test tool_timeout_cancel_delivery_probe -- --nocapture
+          cargo test -p codex-rmcp-client --test tool_timeout_ignored_cancellation_probe -- --nocapture
 
       - name: SDK-native timeout controls
         working-directory: codex
@@ -52,6 +53,7 @@ jobs:
           cargo test -p codex-rmcp-client --test tool_timeout_elicitation_probe -- --nocapture
           cargo test -p codex-rmcp-client --test tool_timeout_modern_http_probe -- --nocapture
           cargo test -p codex-rmcp-client --test tool_timeout_cancel_delivery_probe -- --nocapture
+          cargo test -p codex-rmcp-client --test tool_timeout_ignored_cancellation_probe -- --nocapture
           git checkout -- rmcp-client/src/rmcp_client.rs
 
       - name: Pause-aware explicit cancellation controls
@@ -68,6 +70,7 @@ jobs:
           cargo test -p codex-rmcp-client --test tool_timeout_elicitation_probe -- --nocapture
           cargo test -p codex-rmcp-client --test tool_timeout_modern_http_probe -- --nocapture
           cargo test -p codex-rmcp-client --test tool_timeout_cancel_delivery_probe -- --nocapture
+          cargo test -p codex-rmcp-client --test tool_timeout_ignored_cancellation_probe -- --nocapture
           git checkout -- rmcp-client/src/rmcp_client.rs
 
       - name: Pause-aware bounded cancellation controls
@@ -84,3 +87,4 @@ jobs:
           cargo test -p codex-rmcp-client --test tool_timeout_elicitation_probe -- --nocapture
           cargo test -p codex-rmcp-client --test tool_timeout_modern_http_probe -- --nocapture
           cargo test -p codex-rmcp-client --test tool_timeout_cancel_delivery_probe -- --nocapture
+          cargo test -p codex-rmcp-client --test tool_timeout_ignored_cancellation_probe -- --nocapture
