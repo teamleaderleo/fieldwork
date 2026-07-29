@@ -1,0 +1,158 @@
+diff --git a/apps/server/src/provider/Layers/OpenCodeAdapter.ts b/apps/server/src/provider/Layers/OpenCodeAdapter.ts
+index 73c23b7..0000000 100644
+--- a/apps/server/src/provider/Layers/OpenCodeAdapter.ts
++++ b/apps/server/src/provider/Layers/OpenCodeAdapter.ts
+@@ -17,6 +17,7 @@ import {
+ import * as Cause from "effect/Cause";
+ import * as Crypto from "effect/Crypto";
+ import * as DateTime from "effect/DateTime";
++import * as Deferred from "effect/Deferred";
+ import * as Effect from "effect/Effect";
+ import * as Exit from "effect/Exit";
+ import * as FileSystem from "effect/FileSystem";
+@@ -206,6 +207,11 @@ function openCodeEventSessionTitle(event: OpenCodeSubscribedEvent): string | und
+   return trimText(event.properties.info.title);
+ }
+ 
++interface OpenCodeInterruptOperation {
++  readonly turnId: TurnId;
++  readonly result: Deferred.Deferred<void, ProviderAdapterRequestError>;
++}
++
+ interface OpenCodeSessionContext {
+   session: ProviderSession;
+   readonly client: OpencodeClient;
+@@ -221,6 +227,8 @@ interface OpenCodeSessionContext {
+   readonly turns: Array<OpenCodeTurnSnapshot>;
+   activeTurnId: TurnId | undefined;
+   activeAgent: string | undefined;
+   activeVariant: string | undefined;
++  activeTurnObservedProviderActivity: boolean;
++  readonly interruptOperation: Ref.Ref<OpenCodeInterruptOperation | undefined>;
+   /**
+    * One-shot guard flipped by `stopOpenCodeContext` / `emitUnexpectedExit`.
+    * The session lifecycle is owned by `sessionScope`; this Ref exists only
+@@ -1033,6 +1041,7 @@ export function makeOpenCodeAdapter(
+         case "session.status": {
+           if (event.properties.status.type === "busy") {
++            context.activeTurnObservedProviderActivity = true;
+             yield* updateProviderSession(context, {
+               status: "running",
+               activeTurnId: turnId,
+@@ -1051,7 +1060,14 @@ export function makeOpenCodeAdapter(
+             break;
+           }
+ 
+-          if (event.properties.status.type === "idle" && turnId) {
++          if (event.properties.status.type === "idle" && turnId) {
++            const interruptOperation = yield* Ref.get(context.interruptOperation);
++            if (
++              interruptOperation?.turnId === turnId ||
++              !context.activeTurnObservedProviderActivity
++            ) {
++              break;
++            }
+             context.activeTurnId = undefined;
++            context.activeTurnObservedProviderActivity = false;
+             yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
+             yield* emit({
+               ...(yield* buildEventBase({
+@@ -1287,6 +1303,8 @@ export function makeOpenCodeAdapter(
+           activeTurnId: undefined,
+           activeAgent: undefined,
+           activeVariant: undefined,
++          activeTurnObservedProviderActivity: false,
++          interruptOperation: yield* Ref.make<OpenCodeInterruptOperation | undefined>(undefined),
+           stopped: yield* Ref.make(false),
+           sessionScope: started.sessionScope,
+         };
+@@ -1459,6 +1477,9 @@ export function makeOpenCodeAdapter(
+       const agent = getModelSelectionStringOptionValue(modelSelection, "agent");
+       const variant = getModelSelectionStringOptionValue(modelSelection, "variant");
+ 
++      if (steeringTurnId === undefined) {
++        context.activeTurnObservedProviderActivity = false;
++      }
+       context.activeTurnId = turnId;
+       context.activeAgent = agent ?? (input.interactionMode === "plan" ? "plan" : undefined);
+       context.activeVariant = variant;
+@@ -1538,21 +1559,80 @@ export function makeOpenCodeAdapter(
+ 
+     const interruptTurn: OpenCodeAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
+       function* (threadId, turnId) {
+         const context = yield* ensureSessionContext(sessions, threadId);
++
++        const activeTurnId = context.activeTurnId;
++        if (turnId !== undefined && turnId !== activeTurnId) {
++          return yield* new ProviderAdapterValidationError({
++            provider: PROVIDER,
++            operation: "interruptTurn",
++            issue: activeTurnId
++              ? `OpenCode interrupt turn '${turnId}' does not match active turn '${activeTurnId}'.`
++              : `OpenCode interrupt turn '${turnId}' has no active turn to interrupt.`,
++          });
++        }
++        if (activeTurnId === undefined) {
++          return;
++        }
++
++        const candidate = yield* Deferred.make<void, ProviderAdapterRequestError>();
++        const claim = yield* Ref.modify(context.interruptOperation, (current) => {
++          if (current?.turnId === activeTurnId) {
++            return [{ owner: false as const, result: current.result }, current] as const;
++          }
++          const operation: OpenCodeInterruptOperation = {
++            turnId: activeTurnId,
++            result: candidate,
++          };
++          return [{ owner: true as const, result: candidate }, operation] as const;
++        });
++
++        if (!claim.owner) {
++          return yield* Deferred.await(claim.result);
++        }
++
++        const clearOwnedInterrupt = Ref.update(context.interruptOperation, (current) =>
++          current?.result === claim.result ? undefined : current,
++        );
++
+         yield* runOpenCodeSdk("session.abort", () =>
+           context.client.session.abort({ sessionID: context.openCodeSessionId }),
+-        ).pipe(Effect.mapError(toRequestError));
+-        if (turnId ?? context.activeTurnId) {
++        ).pipe(
++          Effect.mapError(toRequestError),
++          Effect.tapError((error) =>
++            clearOwnedInterrupt.pipe(
++              Effect.andThen(Deferred.fail(claim.result, error)),
++            ),
++          ),
++        );
++
++        if (context.activeTurnId === activeTurnId) {
++          context.activeTurnId = undefined;
++          context.activeAgent = undefined;
++          context.activeVariant = undefined;
++          context.activeTurnObservedProviderActivity = false;
++          yield* updateProviderSession(
++            context,
++            { status: "ready" },
++            { clearActiveTurnId: true },
++          );
+           yield* emit({
+             ...(yield* buildEventBase({
+               threadId,
+-              turnId: turnId ?? context.activeTurnId,
++              turnId: activeTurnId,
+             })),
+             type: "turn.aborted",
+             payload: {
+               reason: "Interrupted by user.",
+             },
+           });
+         }
++
++        yield* clearOwnedInterrupt;
++        yield* Deferred.succeed(claim.result, undefined);
+       },
+     );
