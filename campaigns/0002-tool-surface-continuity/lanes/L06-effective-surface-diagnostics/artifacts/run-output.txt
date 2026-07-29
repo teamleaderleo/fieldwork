@@ -1,0 +1,1 @@
+classified 8 receipts: 7 divergences, 1 healthy, 0 mismatches

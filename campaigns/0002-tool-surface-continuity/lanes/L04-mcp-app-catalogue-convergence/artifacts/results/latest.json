@@ -1,0 +1,295 @@
+{
+  "assertions": {
+    "catalogue_change_ignored_by_ordinary_refresh": true,
+    "config_identity_change_converged": true,
+    "explicit_reconnect_converged": true,
+    "first_stale_layer_after_transition": "binding",
+    "fresh_thread_converged": true,
+    "full_restart_converged": true,
+    "identity_change_ignored_by_ordinary_refresh": true,
+    "identity_reconnect_converged": true,
+    "ordinary_refresh_reused_client": true,
+    "router_and_model_agree_each_step": true
+  },
+  "checkpoints": [
+    {
+      "binding": {
+        "catalogue_digest": "2f248f05f5cb106b",
+        "runtime_generation": 1,
+        "server_identity_digest": "238a97f27f288a72",
+        "server_info": {"name": "bridge", "version": "stub-1"},
+        "tools": ["offline_status"]
+      },
+      "execution": {
+        "raw_control_plane_smoke": {"offline_status": "stub-1:offline_status:ok"},
+        "router_smoke": {"offline_status": "stub-1:offline_status:ok"}
+      },
+      "global": {
+        "catalogue_digest": "2f248f05f5cb106b",
+        "server_identity_digest": "238a97f27f288a72",
+        "server_info": {"name": "bridge", "version": "stub-1"},
+        "tools": ["offline_status"]
+      },
+      "label": "01-stub-baseline",
+      "model": {"advertised": ["offline_status"], "catalogue_digest": "2f248f05f5cb106b"},
+      "router": {"catalogue_digest": "2f248f05f5cb106b", "registered": ["offline_status"]}
+    },
+    {
+      "binding": {
+        "catalogue_digest": "2f248f05f5cb106b",
+        "runtime_generation": 1,
+        "server_identity_digest": "238a97f27f288a72",
+        "server_info": {"name": "bridge", "version": "stub-1"},
+        "tools": ["offline_status"]
+      },
+      "execution": {
+        "raw_control_plane_smoke": {
+          "catalogue_version": "real-2:catalogue_version:ok",
+          "echo": "real-2:echo:ok",
+          "health": "real-2:health:ok",
+          "offline_status": "ERROR:unknown tool: offline_status"
+        },
+        "router_smoke": {
+          "catalogue_version": "ERROR:handler missing: catalogue_version",
+          "echo": "ERROR:handler missing: echo",
+          "health": "ERROR:handler missing: health",
+          "offline_status": "ERROR:unknown tool: offline_status"
+        }
+      },
+      "global": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "server_identity_digest": "95cfd4ee4d15ab20",
+        "server_info": {"name": "bridge", "version": "real-2"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "label": "02-server-became-real-before-refresh",
+      "model": {"advertised": ["offline_status"], "catalogue_digest": "2f248f05f5cb106b"},
+      "router": {"catalogue_digest": "2f248f05f5cb106b", "registered": ["offline_status"]}
+    },
+    {
+      "binding": {
+        "catalogue_digest": "2f248f05f5cb106b",
+        "runtime_generation": 1,
+        "server_identity_digest": "238a97f27f288a72",
+        "server_info": {"name": "bridge", "version": "stub-1"},
+        "tools": ["offline_status"]
+      },
+      "execution": {
+        "raw_control_plane_smoke": {
+          "catalogue_version": "real-2:catalogue_version:ok",
+          "echo": "real-2:echo:ok",
+          "health": "real-2:health:ok",
+          "offline_status": "ERROR:unknown tool: offline_status"
+        },
+        "router_smoke": {
+          "catalogue_version": "ERROR:handler missing: catalogue_version",
+          "echo": "ERROR:handler missing: echo",
+          "health": "ERROR:handler missing: health",
+          "offline_status": "ERROR:unknown tool: offline_status"
+        }
+      },
+      "global": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "server_identity_digest": "95cfd4ee4d15ab20",
+        "server_info": {"name": "bridge", "version": "real-2"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "label": "03-ordinary-refresh-same-config",
+      "model": {"advertised": ["offline_status"], "catalogue_digest": "2f248f05f5cb106b"},
+      "refresh_action": "reused",
+      "router": {"catalogue_digest": "2f248f05f5cb106b", "registered": ["offline_status"]}
+    },
+    {
+      "binding": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "runtime_generation": 1,
+        "server_identity_digest": "95cfd4ee4d15ab20",
+        "server_info": {"name": "bridge", "version": "real-2"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "execution": {
+        "raw_control_plane_smoke": {
+          "catalogue_version": "real-2:catalogue_version:ok",
+          "echo": "real-2:echo:ok",
+          "health": "real-2:health:ok"
+        },
+        "router_smoke": {
+          "catalogue_version": "real-2:catalogue_version:ok",
+          "echo": "real-2:echo:ok",
+          "health": "real-2:health:ok"
+        }
+      },
+      "global": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "server_identity_digest": "95cfd4ee4d15ab20",
+        "server_info": {"name": "bridge", "version": "real-2"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "label": "04-fresh-thread",
+      "model": {"advertised": ["catalogue_version", "echo", "health"], "catalogue_digest": "d22cc55e351c2c2a"},
+      "refresh_action": "new-thread-runtime",
+      "router": {"catalogue_digest": "d22cc55e351c2c2a", "registered": ["catalogue_version", "echo", "health"]}
+    },
+    {
+      "binding": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "runtime_generation": 2,
+        "server_identity_digest": "95cfd4ee4d15ab20",
+        "server_info": {"name": "bridge", "version": "real-2"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "execution": {
+        "raw_control_plane_smoke": {"catalogue_version": "real-2:catalogue_version:ok", "echo": "real-2:echo:ok", "health": "real-2:health:ok"},
+        "router_smoke": {"catalogue_version": "real-2:catalogue_version:ok", "echo": "real-2:echo:ok", "health": "real-2:health:ok"}
+      },
+      "global": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "server_identity_digest": "95cfd4ee4d15ab20",
+        "server_info": {"name": "bridge", "version": "real-2"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "label": "05-explicit-reconnect",
+      "model": {"advertised": ["catalogue_version", "echo", "health"], "catalogue_digest": "d22cc55e351c2c2a"},
+      "refresh_action": "reconnected",
+      "router": {"catalogue_digest": "d22cc55e351c2c2a", "registered": ["catalogue_version", "echo", "health"]}
+    },
+    {
+      "binding": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "runtime_generation": 1,
+        "server_identity_digest": "95cfd4ee4d15ab20",
+        "server_info": {"name": "bridge", "version": "real-2"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "execution": {
+        "raw_control_plane_smoke": {"catalogue_version": "real-2:catalogue_version:ok", "echo": "real-2:echo:ok", "health": "real-2:health:ok"},
+        "router_smoke": {"catalogue_version": "real-2:catalogue_version:ok", "echo": "real-2:echo:ok", "health": "real-2:health:ok"}
+      },
+      "global": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "server_identity_digest": "95cfd4ee4d15ab20",
+        "server_info": {"name": "bridge", "version": "real-2"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "label": "06-full-restart",
+      "model": {"advertised": ["catalogue_version", "echo", "health"], "catalogue_digest": "d22cc55e351c2c2a"},
+      "refresh_action": "new-process-runtime",
+      "router": {"catalogue_digest": "d22cc55e351c2c2a", "registered": ["catalogue_version", "echo", "health"]}
+    },
+    {
+      "binding": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "runtime_generation": 1,
+        "server_identity_digest": "95cfd4ee4d15ab20",
+        "server_info": {"name": "bridge", "version": "real-2"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "execution": {
+        "raw_control_plane_smoke": {"catalogue_version": "real-3-identity-only:catalogue_version:ok", "echo": "real-3-identity-only:echo:ok", "health": "real-3-identity-only:health:ok"},
+        "router_smoke": {"catalogue_version": "real-3-identity-only:catalogue_version:ok", "echo": "real-3-identity-only:echo:ok", "health": "real-3-identity-only:health:ok"}
+      },
+      "global": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "server_identity_digest": "77165f54d1b4d5c8",
+        "server_info": {"name": "bridge", "version": "real-3-identity-only"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "label": "07-identity-only-ordinary-refresh",
+      "model": {"advertised": ["catalogue_version", "echo", "health"], "catalogue_digest": "d22cc55e351c2c2a"},
+      "refresh_action": "reused",
+      "router": {"catalogue_digest": "d22cc55e351c2c2a", "registered": ["catalogue_version", "echo", "health"]}
+    },
+    {
+      "binding": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "runtime_generation": 2,
+        "server_identity_digest": "77165f54d1b4d5c8",
+        "server_info": {"name": "bridge", "version": "real-3-identity-only"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "execution": {
+        "raw_control_plane_smoke": {"catalogue_version": "real-3-identity-only:catalogue_version:ok", "echo": "real-3-identity-only:echo:ok", "health": "real-3-identity-only:health:ok"},
+        "router_smoke": {"catalogue_version": "real-3-identity-only:catalogue_version:ok", "echo": "real-3-identity-only:echo:ok", "health": "real-3-identity-only:health:ok"}
+      },
+      "global": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "server_identity_digest": "77165f54d1b4d5c8",
+        "server_info": {"name": "bridge", "version": "real-3-identity-only"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "label": "07b-identity-reconnect-control",
+      "model": {"advertised": ["catalogue_version", "echo", "health"], "catalogue_digest": "d22cc55e351c2c2a"},
+      "refresh_action": "reconnected",
+      "router": {"catalogue_digest": "d22cc55e351c2c2a", "registered": ["catalogue_version", "echo", "health"]}
+    },
+    {
+      "binding": {
+        "catalogue_digest": "d22cc55e351c2c2a",
+        "runtime_generation": 2,
+        "server_identity_digest": "77165f54d1b4d5c8",
+        "server_info": {"name": "bridge", "version": "real-3-identity-only"},
+        "tools": ["catalogue_version", "echo", "health"]
+      },
+      "execution": {
+        "raw_control_plane_smoke": {
+          "catalogue_version": "real-3-identity-only:catalogue_version:ok",
+          "echo": "real-3-identity-only:echo:ok",
+          "health": "real-3-identity-only:health:ok",
+          "new_read_only_tool": "real-3-identity-only:new_read_only_tool:ok"
+        },
+        "router_smoke": {
+          "catalogue_version": "real-3-identity-only:catalogue_version:ok",
+          "echo": "real-3-identity-only:echo:ok",
+          "health": "real-3-identity-only:health:ok",
+          "new_read_only_tool": "ERROR:handler missing: new_read_only_tool"
+        }
+      },
+      "global": {
+        "catalogue_digest": "38e3ca4d6c6fe10e",
+        "server_identity_digest": "77165f54d1b4d5c8",
+        "server_info": {"name": "bridge", "version": "real-3-identity-only"},
+        "tools": ["catalogue_version", "echo", "health", "new_read_only_tool"]
+      },
+      "label": "08-catalogue-only-ordinary-refresh",
+      "model": {"advertised": ["catalogue_version", "echo", "health"], "catalogue_digest": "d22cc55e351c2c2a"},
+      "refresh_action": "reused",
+      "router": {"catalogue_digest": "d22cc55e351c2c2a", "registered": ["catalogue_version", "echo", "health"]}
+    },
+    {
+      "binding": {
+        "catalogue_digest": "38e3ca4d6c6fe10e",
+        "runtime_generation": 3,
+        "server_identity_digest": "77165f54d1b4d5c8",
+        "server_info": {"name": "bridge", "version": "real-3-identity-only"},
+        "tools": ["catalogue_version", "echo", "health", "new_read_only_tool"]
+      },
+      "execution": {
+        "raw_control_plane_smoke": {
+          "catalogue_version": "real-3-identity-only:catalogue_version:ok",
+          "echo": "real-3-identity-only:echo:ok",
+          "health": "real-3-identity-only:health:ok",
+          "new_read_only_tool": "real-3-identity-only:new_read_only_tool:ok"
+        },
+        "router_smoke": {
+          "catalogue_version": "real-3-identity-only:catalogue_version:ok",
+          "echo": "real-3-identity-only:echo:ok",
+          "health": "real-3-identity-only:health:ok",
+          "new_read_only_tool": "real-3-identity-only:new_read_only_tool:ok"
+        }
+      },
+      "global": {
+        "catalogue_digest": "38e3ca4d6c6fe10e",
+        "server_identity_digest": "77165f54d1b4d5c8",
+        "server_info": {"name": "bridge", "version": "real-3-identity-only"},
+        "tools": ["catalogue_version", "echo", "health", "new_read_only_tool"]
+      },
+      "label": "09-connection-config-change",
+      "model": {"advertised": ["catalogue_version", "echo", "health", "new_read_only_tool"], "catalogue_digest": "38e3ca4d6c6fe10e"},
+      "refresh_action": "reconnected",
+      "router": {"catalogue_digest": "38e3ca4d6c6fe10e", "registered": ["catalogue_version", "echo", "health", "new_read_only_tool"]}
+    }
+  ],
+  "environment": {"platform": "linux", "python": "3.13.5"},
+  "experiment": "L04-mcp-app-catalogue-convergence",
+  "source_revision": "3725f02cf38d856bc82bb46dd68ab61bb96ec6fc"
+}

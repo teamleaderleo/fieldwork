@@ -1,0 +1,12 @@
+{
+  "catalogue_change_ignored_by_ordinary_refresh": true,
+  "config_identity_change_converged": true,
+  "explicit_reconnect_converged": true,
+  "first_stale_layer_after_transition": "binding",
+  "fresh_thread_converged": true,
+  "full_restart_converged": true,
+  "identity_change_ignored_by_ordinary_refresh": true,
+  "identity_reconnect_converged": true,
+  "ordinary_refresh_reused_client": true,
+  "router_and_model_agree_each_step": true
+}

@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "source_revision": "3725f02cf38d856bc82bb46dd68ab61bb96ec6fc",
+  "case_count": 12,
+  "accepted": [
+    "native-v1-direct-no-search",
+    "native-v1-deferred-tool-search",
+    "mcp-direct-no-search",
+    "mcp-deferred-tool-search-zero-results",
+    "app-direct-no-search",
+    "app-deferred-tool-search",
+    "genuinely-absent-family",
+    "direct-model-only-override"
+  ],
+  "rejected": [
+    "dynamic-deferred-search-disabled",
+    "extension-deferred-search-disabled",
+    "deferred-missing-search-metadata",
+    "deferred-tool-suggest-only"
+  ],
+  "mismatches": [],
+  "passed": true,
+  "cases": [
+    {
+      "id": "native-v1-direct-no-search",
+      "family": "native.multi_agent_v1",
+      "expected": "accept",
+      "actual": "accept",
+      "reasons": [],
+      "discovery_execution": "absent",
+      "result_count": null
+    },
+    {
+      "id": "native-v1-deferred-tool-search",
+      "family": "native.multi_agent_v1",
+      "expected": "accept",
+      "actual": "accept",
+      "reasons": [],
+      "discovery_execution": "unexecuted",
+      "result_count": null
+    },
+    {
+      "id": "mcp-direct-no-search",
+      "family": "mcp.configured",
+      "expected": "accept",
+      "actual": "accept",
+      "reasons": [],
+      "discovery_execution": "absent",
+      "result_count": null
+    },
+    {
+      "id": "mcp-deferred-tool-search-zero-results",
+      "family": "mcp.configured",
+      "expected": "accept",
+      "actual": "accept",
+      "reasons": [],
+      "discovery_execution": "executed",
+      "result_count": 0
+    },
+    {
+      "id": "app-direct-no-search",
+      "family": "app.curated_mcp",
+      "expected": "accept",
+      "actual": "accept",
+      "reasons": [],
+      "discovery_execution": "absent",
+      "result_count": null
+    },
+    {
+      "id": "app-deferred-tool-search",
+      "family": "app.curated_mcp",
+      "expected": "accept",
+      "actual": "accept",
+      "reasons": [],
+      "discovery_execution": "executed",
+      "result_count": 2
+    },
+    {
+      "id": "dynamic-deferred-search-disabled",
+      "family": "native.dynamic_host",
+      "expected": "reject",
+      "actual": "reject",
+      "reasons": [
+        "discovery tool absent"
+      ],
+      "discovery_execution": "absent",
+      "result_count": null
+    },
+    {
+      "id": "extension-deferred-search-disabled",
+      "family": "extension.contributed",
+      "expected": "reject",
+      "actual": "reject",
+      "reasons": [
+        "discovery tool absent"
+      ],
+      "discovery_execution": "absent",
+      "result_count": null
+    },
+    {
+      "id": "deferred-missing-search-metadata",
+      "family": "extension.contributed",
+      "expected": "reject",
+      "actual": "reject",
+      "reasons": [
+        "deferred family has no searchable metadata"
+      ],
+      "discovery_execution": "unexecuted",
+      "result_count": null
+    },
+    {
+      "id": "deferred-tool-suggest-only",
+      "family": "app.installed_existing",
+      "expected": "reject",
+      "actual": "reject",
+      "reasons": [
+        "discovery semantics do not load existing deferred tools"
+      ],
+      "discovery_execution": "unexecuted",
+      "result_count": null
+    },
+    {
+      "id": "genuinely-absent-family",
+      "family": "mcp.configured",
+      "expected": "accept",
+      "actual": "accept",
+      "reasons": [],
+      "discovery_execution": "absent",
+      "result_count": null
+    },
+    {
+      "id": "direct-model-only-override",
+      "family": "namespace.config_override",
+      "expected": "accept",
+      "actual": "accept",
+      "reasons": [],
+      "discovery_execution": "absent",
+      "result_count": null
+    }
+  ],
+  "command": "python3 run_invariant.py fixtures/deferred-surfaces.json --output results/latest.json",
+  "run_date": "2026-07-30",
+  "environment": "local zero-dependency Python probe; upstream source read-only"
+}
