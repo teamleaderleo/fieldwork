@@ -5,8 +5,8 @@ These instructions apply to every AI system and automated worker operating in th
 ## Entry protocol
 
 - Start with `START_HERE.md`.
-- Read `CHARTER.md`, `METHOD.md`, `REFERENCE_POLICY.md`, `COORDINATION.md`, `BATCHES.md`, and `EXPERIMENTS.md` before modifying research material.
-- Search open Fieldwork issues, active batches, existing experiments, and campaign folders before creating work.
+- Read `CHARTER.md`, `METHOD.md`, `REFERENCE_POLICY.md`, `EXPERIMENTS.md`, `INTEGRATION_CONTEXT.md`, `COORDINATION.md`, and `BATCHES.md` before modifying research material.
+- Search open Fieldwork issues, active batches, existing experiments, contexts, and campaign folders before creating work.
 - Treat GitHub issues as live coordination and repository files as durable evidence.
 - Work only from an explicit assignment, claimed lane, requested synthesis, user-directed triage task, or bounded fork-free experiment.
 
@@ -26,29 +26,40 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 
 - Small one-worker experiments may be created under `playgrounds/` without an upstream fork or Fieldwork issue.
 - Use a stable `EXP-YYYYMMDD-short-name` directory and `templates/experiment.json`.
-- State one bounded question, exact command, environment, source revisions, stop condition, and upstream-contact authorization.
+- State one bounded question, exact command, environment, source revisions, claim scope, stop condition, and upstream-contact authorization.
 - Reuse `playgrounds/cases/` where those inputs can distinguish the hypotheses.
 - Default to synthetic inputs and no network access.
 - One experiment has one owner; parallel variants use separate directories.
 - Retain a human-readable result when another worker, report, or decision may rely on it.
-- Promote the experiment to a finding, batch probe, campaign lane, or regression fixture when it stops being disposable.
+- Promote the experiment to a finding, batch probe, campaign lane, regression fixture, or integration-context dossier when it stops being disposable.
 - A playground never authorizes upstream contact.
+
+## Integration context and citations
+
+- Name the widest claim supported by the evidence: `mechanism`, `interface`, `integration`, `operational`, or `ecosystem`.
+- Do not describe a toy example as proof of real adoption, production impact, or ecosystem need.
+- When claiming wider usefulness, failure consequence, downstream dependence, or upstream importance, create or link an integration-context dossier under `contexts/`.
+- Label consequential statements as `Normative`, `Documented`, `Observed`, `Inferred`, `Illustrative`, or `Unknown`.
+- Prefer primary sources and record title, stable URL, version or revision, retrieval date, exact supported claim, section or path, and limitations.
+- Distinguish actual callers and deployments from plausible examples.
+- State what the small model preserves and what it omits.
+- A broader context may be researched in separate mechanism, usage, contract, operations, and adversarial lanes when the work warrants parallelization.
 
 ## Default behaviour
 
 - Treat external observation as quiet research.
 - Never open, comment on, react to, or modify upstream work without an explicit user instruction for that interaction.
 - Never manufacture contribution volume, low-value cleanup, or speculative patches.
-- Do not claim a reproduction, test result, benchmark, policy, or maintainer position without evidence.
+- Do not claim a reproduction, test result, benchmark, policy, maintainer position, use case, or integration consequence without evidence.
 - Preserve exact source revisions, retrieval dates, environments, and commands.
-- Record uncertainty, contradictions, and negative results.
+- Record uncertainty, contradictions, alternative architectures, and negative results.
 - Do not rely on chat history as the only record of work.
 - A target map is not required before quietly examining an assigned public repository.
 
 ## Batch and parallel work
 
 - Read the batch manifest or parent issue before beginning.
-- Use the exact assignment ID, deliverable, owned path, dependencies, source revision, and stop condition.
+- Use the exact assignment ID, deliverable, owned path, dependencies, source revision, claim scope, and stop condition.
 - One lane or probe has one owner and one owned output path.
 - Do not edit another worker's result, campaign status, batch manifest, synthesis, or closeout.
 - For one-shot probes, write only the assigned result file or post a complete handoff marked `needs:materialization`.
@@ -62,6 +73,7 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 2. **Issue handoff** — use when repository writes are unavailable. Include the complete result and apply `needs:materialization`.
 3. **Coordinator materialization** — a coordinator may combine several issue-only handoffs into one repository change.
 4. **Playground experiment** — use for bounded local tests that require no shared coordination or upstream modification.
+5. **Context dossier** — use when isolated evidence needs sourced integration, operational, or ecosystem interpretation.
 
 Never have multiple workers push shared files directly to `main`.
 
@@ -75,7 +87,7 @@ Never have multiple workers push shared files directly to `main`.
 
 ## External interactions
 
-A target map, batch, campaign, lane, playground, repository note, or Fieldwork issue does not authorize upstream contact. Direct upstream interaction requires a specific user instruction and must be recorded in the campaign closeout or upstream packet.
+A target map, batch, campaign, lane, playground, context dossier, repository note, or Fieldwork issue does not authorize upstream contact. Direct upstream interaction requires a specific user instruction and must be recorded in the campaign closeout or upstream packet.
 
 ## Safety
 
