@@ -7,9 +7,11 @@ Before working:
 1. read `START_HERE.md`;
 2. read `AGENTS.md`;
 3. read the assigned batch, campaign, lane, experiment, context, or issue;
-4. obey `REFERENCE_POLICY.md` before writing any external GitHub reference;
+4. obey `REFERENCE_POLICY.md` before writing third-party GitHub references;
 5. obey `INTEGRATION_CONTEXT.md` before claiming broader use, operational consequence, or ecosystem impact.
+
+Direct links and `teamleaderleo/repository#number` shorthand are allowed for repositories under `teamleaderleo/*`. Use `redirect.github.com` only for third-party issue, pull-request, discussion, and commit references unless the exact upstream interaction was authorized.
 
 A bounded one-worker playground experiment needs no upstream fork or Fieldwork issue. Wider claims require evidence labels, primary sources, explicit limitations, and an integration-context dossier.
 
-No Fieldwork task authorizes upstream contact unless the user explicitly authorizes that exact interaction.
+No Fieldwork task authorizes third-party upstream contact unless the user explicitly authorizes that exact interaction.
