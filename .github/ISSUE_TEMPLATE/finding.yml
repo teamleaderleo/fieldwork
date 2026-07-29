@@ -1,13 +1,19 @@
 name: Finding
-description: Record an observation that may become a campaign
+description: Record an observation that may become work
 title: "[Finding] "
-labels: []
+labels:
+  - "type:finding"
+  - "state:observed"
 body:
+  - type: markdown
+    attributes:
+      value: |
+        External GitHub issue, pull-request, discussion, and commit links must use `redirect.github.com`. External shorthand is prohibited. This finding does not authorize upstream contact.
   - type: textarea
     id: observation
     attributes:
       label: Observation
-      description: What happened, without interpretation?
+      description: State what was observed without overstating certainty.
     validations:
       required: true
   - type: textarea
@@ -17,10 +23,12 @@ body:
       description: Why is this worth understanding?
     validations:
       required: true
-  - type: input
-    id: target
+  - type: textarea
+    id: source
     attributes:
-      label: Target repository or system
+      label: Source, revision, and retrieval date
+    validations:
+      required: true
   - type: textarea
     id: reproduction
     attributes:
@@ -29,11 +37,11 @@ body:
   - type: textarea
     id: hypotheses
     attributes:
-      label: Initial hypotheses
+      label: Initial hypotheses and uncertainty
   - type: checkboxes
     id: quiet
     attributes:
       label: External-reference check
       options:
-        - label: External issue and pull-request references are quiet unless contact is intentional.
+        - label: External interaction references are wrapped and no upstream contact is authorized.
           required: true
