@@ -19,6 +19,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Reproduce released safe-fix behavior
+      - name: Reproduce useObjectSpread accessor behavior
         shell: bash
         run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-object-spread-accessors/reproduce.sh
+      - name: Reproduce useArrayLiterals spread behavior
+        shell: bash
+        run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-array-literals-spread/reproduce.sh
