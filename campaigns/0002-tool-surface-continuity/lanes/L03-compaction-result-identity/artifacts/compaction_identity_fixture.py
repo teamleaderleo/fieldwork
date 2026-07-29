@@ -317,12 +317,54 @@ def build_report() -> dict[str, Any]:
     return report
 
 
+def compact_prompt_census(census: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "call_count": census["call_count"],
+        "output_count": census["output_count"],
+        "synthetic_output_count": census["synthetic_output_count"],
+        "positions": census["positions"],
+    }
+
+
+def compact_report(report: dict[str, Any]) -> dict[str, Any]:
+    compact_cases = []
+    for row in report["cases"]:
+        compact_cases.append(
+            {
+                "implementation": row["implementation"],
+                "scenario": row["scenario"],
+                "provider_compaction_completed": row["provider_compaction_completed"],
+                "fail_closed_at_boundary": row["fail_closed_at_boundary"],
+                "prompt_before": compact_prompt_census(row["prompt_before"]),
+                "installed_after_compaction": {
+                    "call_count": row["installed_after_compaction"]["call_count"],
+                    "output_count": row["installed_after_compaction"]["output_count"],
+                },
+                "raw_after_late_delivery_output_count": row[
+                    "raw_after_late_delivery"
+                ]["output_count"],
+                "prompt_after_late_delivery_output_count": row[
+                    "prompt_after_late_delivery"
+                ]["output_count"],
+                "current_behavior": row["current_behavior"],
+            }
+        )
+    return {
+        "fixture_version": report["fixture_version"],
+        "source_revision": report["source_revision"],
+        "mutation": report["mutation"],
+        "implementations": report["implementations"],
+        "cases": compact_cases,
+        "summary": report["summary"],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
-    report = build_report()
+    report = compact_report(build_report())
     rendered = json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
