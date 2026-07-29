@@ -1,6 +1,6 @@
 # Zustand persist undefined option overrides
 
-State: `source-confirmed`
+State: `implementing`
 
 Fieldwork lane: #170
 
@@ -8,21 +8,21 @@ Programme: data-durable-workflows
 
 Target source: `pmndrs/zustand@beca84e600e4e250f6b244d22878e72948f331c7`
 
-Owned characterization: `teamleaderleo/zustand#2`
+Owned implementation: `teamleaderleo/zustand#2`
 
 Owned branch: `fieldwork/persist-undefined-option-overrides`
 
-Owned head: `79ed669019eed3733361cb3a338860dc9b8353c2`
+Owned head: `278ede8b60c111ec4291b26cd95794d7bdd5da37`
 
-Fork workflow: `30500083370`
+Fork focused workflow: pending for corrected committed-source head
 
-Fieldwork workflow: `30500148562`
+Fieldwork focused workflow: pending for Fieldwork head `b383c4b14abdf8e890616d1c040c85cb39613f6a`
 
 Upstream contact authorized: `false`
 
 ## In simple words
 
-Persist creates defaults and then spreads user options over them:
+Persist previously created defaults and then spread user options over them:
 
 ```ts
 let options = {
@@ -34,88 +34,97 @@ let options = {
 }
 ```
 
-Object spread copies properties whose value is explicitly `undefined`. Runtime callers and composed configuration objects can therefore replace defaulted functions and values without supplying a usable replacement.
+Object spread copies properties whose value is explicitly `undefined`. Runtime callers and composed configuration objects could therefore replace defaulted functions and values without supplying a usable replacement.
 
-`persist.setOptions()` repeats the spread behavior. Its storage handling is additionally split: `options.storage` can become `undefined`, but the private `storage` reference changes only when `newOptions.storage` is truthy.
+`persist.setOptions()` repeated the spread behavior. Its storage handling was additionally split: `options.storage` could become `undefined`, while the private storage reference changed only when `newOptions.storage` was truthy.
 
-## Source-equivalent execution
+## Confirmed released behavior
 
-A Node `v22.16.0` execution transcribed the pinned vanilla store, JSON storage adapter, synchronous thenable, persist option merge, `setItem`, hydration, and `setOptions()` paths.
+A source-equivalent Node `v22.16.0` execution confirmed:
 
-The execution confirmed every prepared case. The detailed receipt is in `source-equivalent-execution.md`.
+- constructor `merge: undefined` caused hydration failure;
+- constructor `partialize: undefined` changed in-memory state and then threw before persistence;
+- the same failures could be introduced through `setOptions()`;
+- `setOptions({ storage: undefined })` made public options report no storage while the old private storage kept reading and writing;
+- `setOptions({ version: undefined })` removed version `0` from later JSON writes;
+- `setOptions({ onRehydrateStorage: undefined })` intentionally removed the optional callback.
 
-## Confirmed consequences
+The detailed released-source receipt is in `source-equivalent-execution.md`.
 
-### Constructor `merge: undefined`
+## Owned implementation
 
-- explicit hydration fulfilled under the released error-settlement contract;
-- state remained `{ count: 0 }`;
-- `hasHydrated()` remained false;
-- the post-rehydration callback received `TypeError: options.merge is not a function`.
+Draft PR: `teamleaderleo/zustand#2`
 
-### Constructor `partialize: undefined`
+Construction now uses destructuring defaults for:
 
-- `setState({ count: 1 })` changed in-memory state;
-- persistence then threw a `TypeError`;
-- storage `setItem` was not called.
-
-### `setOptions({ merge: undefined })`
-
-- `getOptions().merge` became `undefined`;
-- the next hydration failed with the same merge `TypeError`.
-
-### `setOptions({ partialize: undefined })`
-
-- `getOptions().partialize` became `undefined`;
-- the next `setState` changed in-memory state and then threw before persistence.
-
-### `setOptions({ storage: undefined })`
-
-- `getOptions().storage` reported `undefined`;
-- the existing private storage still received a write and a later read;
-- the later hydration from that storage applied `{ count: 3 }`.
-
-### `setOptions({ version: undefined })`
-
-- the next JSON write serialized as `{"state":{"count":1}}`;
-- the default version `0` was silently omitted.
-
-### Optional callback control
-
-- `setOptions({ onRehydrateStorage: undefined })` intentionally removed the callback;
-- later hydration succeeded without invoking it.
-
-## Characterization matrix
-
-The owned branch stores the characterization outside Vitest's default `tests` directory. Dedicated workflows copy it into `tests`, run it with the existing async and sync persist suites, and lint it on Node 22, 24, and 26.
-
-Fork workflow `30500083370` and Fieldwork workflow `30500148562` were queued at the latest recorded check. No clean-checkout result is claimed yet.
-
-## Prior-art status
-
-Searches for persist `merge`, `partialize`, `storage`, `setOptions`, explicit `undefined`, and default replacement found no matching current upstream issue or pull request.
-
-## Candidate repair shape
-
-A safe repair must be field-aware.
-
-Defaulted or invariant fields should treat `undefined` as "not supplied":
-
-- `name` during `setOptions()`;
 - `storage`;
 - `partialize`;
 - `version`;
 - `merge`.
 
-Intentionally clearable fields should retain normal spread semantics:
+`persist.setOptions()` resolves `undefined` to the current value for:
 
-- `onRehydrateStorage`;
-- `migrate`;
-- other optional callbacks or flags where clearing is meaningful.
+- `name`;
+- `storage`;
+- `partialize`;
+- `version`;
+- `merge`.
 
-One narrow implementation direction is to use destructuring defaults for the invariant fields at construction and during `setOptions()`, then spread the remaining fields normally. This would also keep the public `options.storage` and private storage reference aligned.
+All other fields retain normal spread behavior. Optional callbacks such as `onRehydrateStorage` remain intentionally clearable with `undefined`.
 
-Do not retain a patch until the clean-checkout characterization matrix settles.
+The private active storage is assigned from the same resolved value stored in `options.storage`, keeping public and private state aligned.
+
+## Regression suite
+
+The committed test `tests/persistUndefinedOptions.test.ts` verifies:
+
+- constructor undefined `merge` retains the default shallow merge;
+- constructor undefined `partialize` retains identity persistence;
+- the same defaults survive `setOptions()` updates;
+- public and private storage remain aligned;
+- the storage name remains stable;
+- version `0` remains in serialized writes;
+- `onRehydrateStorage` can still be removed intentionally.
+
+The focused matrix runs this regression with the existing `persistAsync.test.tsx` and `persistSync.test.tsx` suites and lints the changed source and test on Node 22, 24, and 26.
+
+## Candidate source-equivalent execution
+
+A Node `v22.16.0` execution of the repaired option-resolution paths passed:
+
+- construction defaults preserved;
+- update defaults preserved;
+- public/private storage alignment;
+- optional callback removal.
+
+A focused strict TypeScript model also compiled with TypeScript `5.8.3`.
+
+The detailed candidate receipt is in `candidate-source-equivalent-execution.md`.
+
+## Self-review correction
+
+The first direct-source revision named the resolved construction storage value `storage`, colliding with the existing active storage variable later in the function. Source review caught the duplicate binding before CI. The corrected code uses `initialStorage`.
+
+## Prior-art status
+
+Searches for persist `merge`, `partialize`, `storage`, `setOptions`, explicit `undefined`, and default replacement found no matching current upstream issue or pull request.
+
+## Compatibility assessment
+
+The repair is deliberately field-aware rather than a blanket undefined filter.
+
+Defaulted runtime invariants are preserved when an update supplies `undefined`, while optional callbacks and other intentionally clearable fields retain their existing removal semantics.
+
+The remaining questions are repository-level:
+
+- whether the destructuring changes affect generic inference under the project's full type matrix;
+- whether any consumer intentionally used `version: undefined` to omit the version field;
+- whether `storage: undefined` should preserve current storage or restore the platform default;
+- whether additional defaulted fields should receive the same treatment.
+
+## Current decision
+
+Treat this as a confirmed source defect with a directly committed owned implementation. Keep the fork and Fieldwork PRs draft until native and focused CI are green.
 
 ## Boundary
 
