@@ -22,6 +22,12 @@ python3 scripts/run_playground_cases.py \
 - `key-reuse-with-different-payload` — one identity cannot silently represent different intent.
 - `distinct-operations-remain-distinct` — separate identities still create separate effects.
 
+## Validation
+
+All four canonical cases passed in a local Python 3 execution on 2026-07-29 before the example was added to CI.
+
+CI reruns the pack through `.github/workflows/playground-integrity.yml` whenever the playground, context, case packs, or supporting scripts change.
+
 ## What the model preserves
 
 - ambiguity after response loss;
