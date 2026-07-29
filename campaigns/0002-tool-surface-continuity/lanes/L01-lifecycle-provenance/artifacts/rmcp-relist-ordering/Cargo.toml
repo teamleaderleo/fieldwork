@@ -1,0 +1,9 @@
+[package]
+name = "fieldwork-rmcp-relist-ordering"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", rev = "cb50ae7890d8a5daacae1a4ad95f395f06733c07", default-features = false, features = ["client", "server", "transport-io"] }
+tokio = { version = "1", features = ["io-util", "macros", "rt-multi-thread", "sync", "time"] }
