@@ -1,0 +1,80 @@
+version: 1
+
+programmes:
+  - id: sdk-integration-lifecycle
+    issue: pending
+    state: ready
+    thesis: SDK boundaries fail where streaming, retries, cancellation, state, types, and observability meet real applications.
+    targets:
+      - vercel-ai
+      - workers-sdk
+      - opentelemetry-js
+      - mcp-typescript-sdk
+      - supabase
+    likely_testbeds:
+      - stensibly
+      - elatura
+      - fin-agent
+      - smolrunner
+    initial_scouts:
+      - vercel-ai-stream-tool-lifecycle
+      - workers-local-remote-lifecycle
+      - otel-async-retry-correlation
+      - mcp-transport-session-lifecycle
+      - supabase-client-runtime-contracts
+
+  - id: agent-cli-execution
+    issue: pending
+    state: ready
+    thesis: Agent and CLI systems need defensible tool execution, approval, cancellation, session recovery, terminal behavior, and extension boundaries.
+    targets:
+      - gemini-cli
+      - codex
+    likely_testbeds:
+      - stensibly
+      - smolrunner
+      - terminal-kit
+    initial_scouts:
+      - gemini-tool-session-recovery
+      - codex-tool-terminal-lifecycle
+      - cross-agent-process-terminal-semantics
+
+  - id: web-tooling-runtime-correctness
+    issue: pending
+    state: ready
+    thesis: Build, browser, parser, and runtime tooling should preserve code, state, invalidation, teardown, and compatibility across realistic projects.
+    targets:
+      - vite
+      - playwright
+      - biome
+      - workers-sdk
+    likely_testbeds:
+      - elatura
+      - scrapbook
+      - renderprove
+      - proofwake
+    initial_scouts:
+      - vite-plugin-hmr-invalidation
+      - playwright-retry-teardown-artifacts
+      - biome-transform-and-fix-safety
+
+  - id: data-durable-workflows
+    issue: pending
+    state: ready
+    thesis: Data and background-work systems need clear transaction, retry, recovery, identity, migration, and reconciliation behavior.
+    targets:
+      - duckdb
+      - supabase
+    likely_testbeds:
+      - narrative-duckdb
+      - bsc-compare
+      - fin-agent
+      - stensibly
+    initial_scouts:
+      - duckdb-query-storage-failure-boundaries
+      - durable-job-retry-recovery
+
+notes:
+  - Programmes are directions, not automatic permission to contact upstream projects.
+  - Scout lanes may be added or stopped after reconnaissance changes the lay of the land.
+  - A target may participate in several programmes when the questions are genuinely different.
