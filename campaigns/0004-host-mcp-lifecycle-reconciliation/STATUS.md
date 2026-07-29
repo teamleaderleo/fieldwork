@@ -1,176 +1,160 @@
 # Host Capability and MCP Catalogue Lifecycle Reconciliation
 
-## In simple words
+## What this campaign is deciding
 
-Campaign #84 now has three compiled results.
+Campaign #84 is no longer a broad search for every MCP edge case. It is deciding one concrete rule:
 
-1. Explicit host MCP config reload can create a fresh ready client while ordinary runtime reconciliation keeps its existing reuse contract.
-2. Concurrent Rust-SDK relists can leave the SDK cache on newer catalogue C while naive application publication rolls back to older B.
-3. Public Codex can advertise cached schema A, accept an A-shaped model call, and later invoke same-name live tool B with a different schema. B's parser rejects the call, and Codex returns that B-side error without first reporting an A/B revision mismatch.
+> When MCP state changes from generation A to generation B, future work may use B, while work already sampled or dispatched under A must retain A's identity and operation lineage until it reaches a proven terminal outcome.
 
-The third result proves the revision split in the real core path. The observed server rejection is useful containment, but it is not a Codex equality decision and cannot be treated as the general safety rule.
+This requires two controls:
 
-Adjacent Scout #130/#131 also compiled a timeout-ownership result: a Codex-style outer timeout sent no MCP cancellation and allowed the server side effect to complete, while the SDK's native request timeout sent cancellation and stopped it. Timeout ownership remains a separate scout, but #84 must account for timed-out calls that can still overlap refresh and publication.
+1. **Publication control** — only the newest accepted refresh or relist result may publish a catalogue for future requests.
+2. **In-flight authority control** — an existing call cannot silently switch from the runtime, schema, or approval authority it was sampled under.
+
+## Current state
 
 - Campaign issue: #84
 - Programme: #14
 - Parent campaign: #31
 - Target hub: #8
 - Priority: P0 after #83
-- State: `investigating — schema revision split compiled`
+- State: `investigating — implementation direction narrowed`
 - Worker: GPT-5.6 Thinking
 - Fieldwork branch: `campaign/84-host-mcp-lifecycle-reconciliation`
-- Owned Codex branch: `fieldwork/31-mcp-config-reload-reconnect`
-- Owned draft Codex PR: `teamleaderleo/codex#5`
-- Public Codex schema-drift test pin: `openai/codex@a5082373f18119dc5d3eb993267c97f37880935d`
-- Official Rust SDK relist test pin: `modelcontextprotocol/rust-sdk@cb50ae7890d8a5daacae1a4ad95f395f06733c07`
-- Owned fork base: `teamleaderleo/codex@2b7b93081361b77f8ddaceaf362a09765b4153bf`
+- Owned Codex reconnect draft: `teamleaderleo/codex#5`
+- Public Codex schema reproduction revision: `a5082373f18119dc5d3eb993267c97f37880935d`
+- Latest inspected public Codex revision: `9cf6b3905c102cf38b4f93ec2533261a99764d4d`
+- Codex MCP dependency: `rmcp = 3.0.0`
+- Latest inspected Rust MCP SDK release: `3.0.1`
 - Upstream contact: unauthorized and unused
 
-## Completed
+## What has been proved
 
-- consumed accepted L01, L04, and L06 evidence from Campaign #31;
-- separated ordinary low-latency reconciliation from explicit host refresh;
-- confirmed that `Op::RefreshMcpServers` already requests reconnect;
-- confirmed that `CodexThread::refresh_mcp_config` previously applied config without requesting reconnect;
-- committed the bounded reconnect candidate and focused regression in owned Codex PR #5;
-- passed Rust formatting;
-- passed `host_mcp_config_refresh_reconnects_ready_clients`;
-- passed `reconciliation_reuses_connection_without_relisting_regular_tools`;
-- classified unrelated repository formatter prerequisites as `harness_unavailable`;
-- classified the existing app-server `ItemCompletedEvent.started_at_ms` compile failure as `baseline_compile_blocker`;
-- confirmed that Codex logs `notifications/tools/list_changed` without relisting or publishing a new catalogue revision;
-- compiled a real official-SDK reproduction with two overlapping callback relists;
-- confirmed that the SDK cache retains newer catalogue C while a naive application publisher can roll back to older B;
-- retained the SDK fixture, `Cargo.lock`, exact log, and validation record on L01 amendment PR #74;
-- traced the Codex request-authority history through the captured-binding, runtime-centralization, and cached-startup changes;
-- confirmed that cached catalogue A can supply model planning while live binding B supplies current approval and execution;
-- compiled the same-name input-schema transition on public Codex;
-- proved that A advertised `echo(message: string)` while B required `echo(count: integer)`;
-- proved that current dispatch invoked B with the A-shaped arguments and returned B's schema error to the model;
-- retained the exact patch, focused test log, result note, workflow run, job, artifact ID, and artifact digest under `artifacts/codex-cached-schema-drift/`;
-- removed the completed temporary schema-drift workflow;
-- reviewed Campaign #83's accepted session-scoped receipt owner and adopted its distinction between terminal execution, authoritative persistence, client delivery, and display;
-- reviewed Scout #130/#131's compiled timeout result and kept timeout cancellation ownership separate from catalogue publication authority.
+### Explicit host reload can reconnect
 
-## Active work
+The owned reconnect slice proves that host `refresh_mcp_config` can request a fresh client while ordinary reconciliation keeps its existing ready-client reuse behavior.
 
-1. Keep owned Codex PR #5 draft as the accepted first implementation slice.
-2. Add the generation-bound host-refresh regression from `concurrency.md`; a boolean reconnect request can be consumed by an older publication.
-3. Add a captured-call authority test: a step sampled under prompt-required A must not become silently auto-approved after a permissive config B arrives before dispatch.
-4. Convert the compiled same-name schema result into a Codex-side typed pre-execution equality decision. B-side argument rejection is only a negative control.
-5. Add cached A/live B tests for changed approval, annotations, visibility, file-input metadata, provenance, behavior, and verified-equal catalogues.
-6. Define one authority fingerprint and one catalogue digest used by cache publication, request advertisement, and call-time compatibility checks.
-7. Design the Codex notification-driven relist coordinator using the compiled SDK ordering result: only an accepted-current result may publish.
-8. Add typed per-server outcomes for unchanged, replaced, failed, cancelled, timed out, superseded, and revision-mismatch refreshes.
-9. Specify how an MCP call that timed out locally but remains live on the server is represented during refresh, replacement, shutdown, and result persistence. Coordinate with #83 and #130 rather than duplicating their owners.
-10. Add host `preserve_saved`, `replace_from_host`, `clear`, and `reject_on_mismatch` reconstruction semantics after the live-MCP publication boundary is testable.
+This is a valid primitive, not the complete repair. A boolean reconnect request does not identify which refresh generation owns the resulting publication.
 
-## Current implementation boundary
+### SDK cache freshness is not application publication freshness
 
-The first owned Codex slice changes one host-facing refresh entrypoint. It does not solve:
-
-- generation ownership when refresh publications overlap;
-- server-originated tool-list-change relist;
-- application publication ordering;
-- remote identity or catalogue-digest validation;
-- request-captured versus call-time authority;
-- call cancellation when an outer timeout ends the local wait;
-- cold resume/fork host replacement semantics;
-- failed-refresh retention policy.
-
-## Accepted authority direction
-
-For an MCP tool already prepared by the sampling step:
-
-- execute the captured call rather than routing to a replacement client;
-- fail on the captured client if it closes;
-- permit current policy to add restrictions;
-- defer current-policy relaxation until a new sampling step.
-
-For a cached tool advertised without a captured prepared call:
-
-- wait for the live client only as a bounded exception;
-- compare advertised A and live B authority fingerprints;
-- execute B only when equality is verified;
-- otherwise fail closed with a typed revision-mismatch result and require a new sampling step.
-
-The compiled schema-drift fixture shows current Codex does not yet perform this comparison. It calls B and relies on B's argument parser to reject the A-shaped call.
-
-## Validation receipts
-
-### Owned Codex PR #5
-
-Passing:
+The official Rust SDK reproduction used two overlapping relists:
 
 ```text
-cargo fmt --all -- --check
-just test -p codex-core host_mcp_config_refresh_reconnects_ready_clients
-just test -p codex-mcp reconciliation_reuses_connection_without_relisting_regular_tools
+sdk_cache=catalogue_c
+naive_application=catalogue_b
+ticketed_application=catalogue_c
+requests=3
 ```
 
-Broader limits:
+The SDK retained current catalogue C internally, while an older successful callback still returned B to application code. Codex therefore needs its own accepted-current publication ticket.
 
-- full `codex-core` encountered unrelated sandbox-dependent failures;
-- the app-server MCP filter stopped at the pre-existing missing `started_at_ms` field;
-- neither result is evidence against the reconnect candidate.
+Rust MCP SDK 3.0.1 does not change this conclusion. Its release fixes authentication resource selection, protocol-header errors, stateless initialize negotiation, and graceful subscription metadata.
 
-### Official Rust SDK relist fixture
+### Cached A can execute through changed live B
 
-Retained output:
-
-```text
-sdk_cache=catalogue_c naive_application=catalogue_b ticketed_application=catalogue_c requests=3
-```
-
-Result: one compiled test passed, zero failed.
-
-The reproduction proves that the SDK's private cache generation is not an application publication contract. A Codex or SDK coordinator needs a public ticket, accepted-current result, or stream containing only accepted snapshots.
-
-### Public Codex cached-schema fixture
-
-Run: `30488803287`  
-Job: `90701186402`  
-Artifact: `8739076993`  
-Digest: `sha256:f759a6b2e0a75bd8b2e2cfb8ef23c42a9d5e4e259473ae121a3b7614089e3148`
-
-Controlled transition:
+The public Codex reproduction established:
 
 ```text
 A advertises echo(message: string)
 → model emits {"message":"hello"}
 → B exposes echo(count: integer)
-→ current dispatch calls B
+→ current dispatch invokes B
 → B rejects the A-shaped arguments
-→ Codex returns B's schema error to the model
+→ Codex returns B's error
 ```
 
-Result: one focused integration test passed, zero failed.
+Codex did not compare A and B before invocation. The server-side schema rejection is only containment for this fixture; another B implementation could accept or reinterpret A's fields.
 
 Classification: `advertisement_execution_revision_mismatch`.
 
-### Adjacent timeout scout
+### A local timeout may leave A running
 
-Scout #130/#131 observed with `rmcp 3.0.0`:
+Fieldwork #134 and owned Codex PR #22 exercise the real Codex MCP client. Current legacy behavior is:
 
 ```text
-external outer timeout: cancellation=false, side effect completed=true
-native SDK timeout:     cancellation=true,  side effect completed=false
+caller reports timeout
+MCP cancellation is not observed
+server mutation completes later
+follow-up request remains usable
 ```
 
-This is not a catalogue-refresh result. It establishes that a locally timed-out Codex call may remain an active server operation while #84 publishes or replaces MCP state.
+A persisted timeout message proves what Codex told the model. It does not prove remote execution stopped.
 
-## Stop rule
+## Ownership shared with Campaign #83
 
-Do not promote Campaign #84 as complete until compiled owned-fork tests prove:
+Campaign #83 now has one accepted session-scoped operation receipt owner. Merged owned-Codex slices record:
 
-- generation-bound explicit host refresh;
-- notification-driven relist with late-result rejection;
-- remote identity and catalogue equality decisions;
-- captured-call authority under config changes;
-- cached A/live B mismatch behavior before execution;
-- locally timed-out live-call treatment across refresh and publication;
-- failed refresh and partial-server outcomes;
-- host reconstruction policy across resume and fork.
+- selected runtime effect;
+- lifecycle begin before hooks and handler execution;
+- certain pre-dispatch failure closure;
+- terminal observations;
+- authoritative direct result persistence;
+- ambiguity after persistence failure or conflicting observations.
 
-Keep public Codex and the official Rust SDK read-only unless a separate human decision authorizes upstream contact.
+Campaign #84 must reuse this owner. It must not create a second MCP-specific ledger.
+
+The missing shared field is **execution certainty after dispatch**. At minimum, the result vocabulary must distinguish:
+
+- certain pre-dispatch failure;
+- confirmed remote completion or failure;
+- confirmed cancellation or terminal stream closure;
+- cancellation requested but delivery unknown;
+- local timeout or dropped wait while the operation may still run;
+- transport loss or resumable disconnect with unknown remote state.
+
+A practical name for the last class is `MayStillRun`.
+
+## Current implementation direction
+
+### Legacy MCP timeout
+
+The strongest candidate keeps Codex's elicitation-aware active-time clock, retains the SDK request handle, and explicitly requests cancellation when active time expires.
+
+Cancellation delivery must be bounded and typed. Even confirmed delivery does not prove a mutation had not already committed.
+
+### Prepared call authority
+
+For a call already prepared by the sampling step:
+
+- retain the captured runtime, client, schema, and authority;
+- fail on that captured client instead of rerouting to B;
+- allow current policy to add restrictions;
+- defer policy relaxation until a newly sampled step.
+
+### Cached startup exception
+
+For a cached tool with no prepared call:
+
+- wait for live B only as a bounded startup exception;
+- compare A and B authority fingerprints before file rewrite, approval, or execution;
+- execute B only after verified equality;
+- otherwise return a typed revision mismatch and require a new sampling step.
+
+### Future catalogue publication
+
+Host reload, explicit reconnect, authentication change, server notification, and recovery should use one refresh-ticket vocabulary. Only an accepted-current ticket may publish.
+
+## Next discriminating tests
+
+1. Cancellation delivery fails or stalls.
+2. Server receives cancellation but ignores it and commits later.
+3. Session-expiry recovery attempts to replay a potential mutation.
+4. Stateless modern HTTP stream closure proves terminal cancellation.
+5. Stateful or resumable modern transport loses the local wait but may retain remote execution.
+6. Refresh B publishes while timed-out operation A remains active; A's late result stays attached to A.
+7. Older refresh or relist result finishes after newer publication and is rejected as superseded.
+8. Cached A/live B equality and mismatch decisions happen before execution.
+
+## Stop condition
+
+The campaign can advance from investigation when compiled owned-fork tests prove:
+
+- newest-generation publication;
+- captured-call authority;
+- typed A/B mismatch before execution;
+- `MayStillRun` treatment for uncertain post-dispatch outcomes;
+- no automatic mutation replay while terminal certainty is absent;
+- host preserve, replace, clear, and reject reconstruction behavior across resume and fork.
+
+Public Codex and the official Rust MCP SDK remain read-only. No upstream interaction occurs without a separate human decision.
