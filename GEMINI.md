@@ -4,4 +4,4 @@ Read and follow `AGENTS.md` and `START_HERE.md` before taking action.
 
 Small bounded tests may use `playgrounds/` without an upstream fork or Fieldwork issue. Read `INTEGRATION_CONTEXT.md` before claiming real integration, operational consequence, or ecosystem importance. Distinguish documented, observed, inferred, illustrative, and unknown use.
 
-External GitHub issue, pull-request, discussion, and commit references must use `redirect.github.com`. Do not contact upstream without a specific user authorization.
+Direct links and `teamleaderleo/repository#number` shorthand are allowed for repositories under `teamleaderleo/*`. Third-party GitHub issue, pull-request, discussion, and commit references must use `redirect.github.com` unless the exact upstream interaction was authorized. Do not contact third-party upstream projects without a specific user authorization.
