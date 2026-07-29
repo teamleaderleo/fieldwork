@@ -1,0 +1,27 @@
+{
+  "model": "gpt-test-responses-lite",
+  "base_instructions": "Use the available tools.",
+  "history": [
+    {
+      "type": "compacted",
+      "replacement_history": [
+        {"type": "message", "role": "user", "content": "Earlier task"},
+        {"type": "message", "role": "assistant", "content": "Earlier answer"}
+      ]
+    },
+    {"type": "message", "role": "user", "content": "Run the benign exec probe"}
+  ],
+  "startup_tools": [
+    {"type": "function", "name": "exec", "parameters": {"type": "object"}},
+    {"type": "function", "name": "file_edit", "parameters": {"type": "object"}}
+  ],
+  "turn_tools": [
+    {"type": "function", "name": "exec", "parameters": {"type": "object"}},
+    {"type": "function", "name": "file_edit", "parameters": {"type": "object"}}
+  ],
+  "changed_turn_tools": [
+    {"type": "function", "name": "exec", "parameters": {"type": "object"}},
+    {"type": "function", "name": "file_edit", "parameters": {"type": "object"}},
+    {"type": "function", "name": "view_image", "parameters": {"type": "object"}}
+  ]
+}
