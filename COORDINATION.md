@@ -1,54 +1,87 @@
 # Coordination
 
-Fieldwork supports batches, multiple campaigns, multiple lanes within a campaign, and many one-shot probes when ownership remains explicit.
+Fieldwork supports long-lived programmes, batches, multiple campaigns, multiple lanes within a campaign, and many one-shot probes when ownership remains explicit.
 
 ## Unit hierarchy
 
 ```text
-batch: dispatch envelope
-├── campaign: one bounded parent question
-│   ├── lane: coordinated independently owned unit
-│   ├── probe: one-shot bounded check
-│   ├── decision: coordinator or human choice
-│   └── synthesis: campaign-level interpretation
-├── probe: one-shot bounded check
-└── synthesis: batch-level comparison
+programme: long-lived research direction
+├── scout lane: bounded reconnaissance on one target or boundary
+│   ├── finding: concrete observation
+│   └── campaign: one bounded parent question promoted from evidence
+│       ├── lane: coordinated independently owned unit
+│       ├── probe: one-shot bounded check
+│       ├── decision: coordinator or human choice
+│       └── synthesis: campaign-level interpretation
+└── programme synthesis: cross-target interpretation and next branches
+
+batch: temporary dispatch envelope
+├── campaign
+├── probe
+└── synthesis
 ```
 
-A batch has one parent issue and one durable manifest. A campaign has one parent issue and one durable campaign directory. A coordinated lane has one issue and one lane-owned directory. A tiny probe may exist only in the batch manifest, one owned result file, and a handoff to the batch issue.
+A programme has one hub issue and a durable registry entry. A batch has one parent issue and one durable manifest. A campaign has one parent issue and one durable campaign directory. A coordinated lane has one issue and one lane-owned directory. A tiny probe may exist only in the batch manifest, one owned result file, and a handoff to the batch issue.
+
+## Programme scouts
+
+A scout lane maps the lay of the land without pretending a specific bug or change is already known. It must still answer a bounded question and produce more than a repository summary.
+
+A scout should deliver:
+
+- an `In simple words` explanation;
+- exact revision and code map;
+- entrypoints, state ownership, side effects, failure paths, contracts, and test boundaries;
+- recent change and issue context where useful;
+- a runnable probe, adversarial case, or realistic testbed scenario when feasible;
+- ranked branch candidates with consequences and evidence needs;
+- negative results and dead ends;
+- a recommendation to stop, retain a finding, open a campaign, or dispatch another scout.
+
+A scout may spawn several child campaigns when the questions are genuinely independent. The programme coordinator approves branching and prevents duplicate premises.
 
 ## Ownership convention
 
 ```text
-batches/<batch-id>-<slug>/
-├── manifest.json        # coordinator only
-├── STATUS.md            # coordinator only
-├── results/
-│   ├── A001.md          # assignment A001 only
+programmes/<programme-id>/
+├── STATUS.md              # coordinator only
+├── scouts/
+│   ├── <scout-id>/
+│   │   ├── report.md      # scout owner only
+│   │   └── artifacts/
 │   └── ...
-├── synthesis.md         # coordinator only
-└── closeout.md          # coordinator only
+└── synthesis.md           # coordinator only
+
+batches/<batch-id>-<slug>/
+├── manifest.json          # coordinator only
+├── STATUS.md              # coordinator only
+├── results/
+│   ├── A001.md            # assignment A001 only
+│   └── ...
+├── synthesis.md           # coordinator only
+└── closeout.md            # coordinator only
 
 campaigns/<campaign-id>-<slug>/
-├── STATUS.md            # coordinator only
+├── STATUS.md              # coordinator only
 ├── question.md
 ├── lanes/
 │   ├── <lane-id>-<slug>/
-│   │   ├── report.md    # lane owner only
+│   │   ├── report.md      # lane owner only
 │   │   └── artifacts/
 │   └── ...
-├── synthesis.md         # coordinator only
-├── decision.md          # coordinator only
-└── closeout.md          # coordinator only
+├── synthesis.md           # coordinator only
+├── decision.md            # coordinator only
+└── closeout.md            # coordinator only
 ```
 
-Workers edit only their owned result or lane paths unless a handoff explicitly changes ownership. Never have several workers push shared files directly to `main`.
+Workers edit only their owned scout, result, experiment, or lane paths unless a handoff explicitly changes ownership. Never have several workers push shared files directly to `main`.
 
 ## Good lane boundaries
 
 Split work by independently answerable question or evidence type, for example:
 
 - source and execution-path map;
+- realistic usage or integration trial;
 - minimal reproduction;
 - prior issues, changes, and policy research;
 - competing hypotheses;
@@ -68,7 +101,7 @@ Use a probe when the work:
 - has no shared edits;
 - has one result path;
 - has no unresolved design dependency;
-- can be accepted or rejected by the batch coordinator without separate discussion.
+- can be accepted or rejected by the batch or programme coordinator without separate discussion.
 
 Promote a probe when scope expands, another worker depends on it, it needs a sustained conversation, or its result becomes a substantive campaign.
 
@@ -78,6 +111,7 @@ Before substantial coordinated work, the worker records:
 
 - worker identity;
 - state `claimed`;
+- programme, target hub, and parent issue;
 - exact assignment question;
 - expected deliverable;
 - owned path;
@@ -86,7 +120,7 @@ Before substantial coordinated work, the worker records:
 - stop condition;
 - upstream-contact authorization, normally `false`.
 
-A claim is a coordination lease, not ownership of the broader campaign or batch. If the worker disappears or the premise changes, the coordinator may release or replace it.
+A claim is a coordination lease, not ownership of the broader programme, campaign, or batch. If the worker disappears or the premise changes, the coordinator may release or replace it.
 
 ## Communication protocol
 
@@ -107,7 +141,7 @@ A handoff must state:
 5. failed hypotheses and negative results;
 6. unresolved uncertainty;
 7. blockers or dependencies;
-8. the exact next decision or action;
+8. exact branch candidates or next decision;
 9. whether upstream contact remains unauthorized.
 
 Use `templates/handoff.md` and the `FIELDWORK HANDOFF` block from `START_HERE.md`.
@@ -120,13 +154,14 @@ The synthesiser reads accepted result files and lane reports, reconciles contrad
 - plausible but unconfirmed interpretations;
 - disagreements between assignments;
 - missing evidence;
+- campaign candidates;
 - decisions requiring human judgement.
 
 Synthesis never silently upgrades a hypothesis into a fact. It identifies the result and artifact supporting every consequential conclusion.
 
 ## Completion protocol
 
-A lane or probe reaches a completed handoff state when its report and artifacts are durable or explicitly queued for materialization. The coordinator accepts, requests revision, promotes, or records a negative result.
+A scout, lane, or probe reaches a completed handoff state when its report and artifacts are durable or explicitly queued for materialization. The coordinator accepts, requests revision, promotes, or records a negative result.
 
 A campaign or batch reaches `complete` only after:
 
@@ -136,6 +171,8 @@ A campaign or batch reaches `complete` only after:
 - upstream status is accurate;
 - ledgers and closeout are updated.
 
+A programme remains open while its direction is useful. It may become dormant even when completed campaigns remain valuable.
+
 ## Conflict protocol
 
 When two workers overlap:
@@ -144,13 +181,13 @@ When two workers overlap:
 2. retain both evidence sets;
 3. identify the narrower ownership boundary;
 4. choose one synthesiser for the disputed conclusion;
-5. record the resolution in the parent campaign or batch.
+5. record the resolution in the parent programme, campaign, or batch.
 
 Do not resolve conflicts by silently deleting another worker's evidence.
 
 ## High-volume write modes
 
-- **Fieldwork PR:** preferred for a substantial lane or coherent result set.
+- **Fieldwork PR:** preferred for a substantial scout, lane, or coherent result set.
 - **Issue-only handoff:** allowed when repository writes are unavailable; apply `needs:materialization`.
 - **Coordinator bundle:** combines several tiny probe handoffs into one durable change.
 
@@ -158,4 +195,4 @@ Avoid one PR per trivial observation and avoid one giant PR containing unrelated
 
 ## Future automation boundary
 
-A future coordinator may automate dispatch, claims, state transitions, reminders, and synthesis queues. The durable contract is deliberately simple: stable identifiers, exact state tokens, JSON manifests, owned paths, issue numbers, and explicit handoff blocks.
+A future coordinator may automate dispatch, claims, state transitions, reminders, and synthesis queues. The durable contract is deliberately simple: stable identifiers, exact state tokens, JSON registries and manifests, owned paths, issue numbers, and explicit handoff blocks.
