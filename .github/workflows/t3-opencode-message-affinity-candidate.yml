@@ -7,17 +7,45 @@ on:
     paths:
       - .github/workflows/t3-opencode-message-affinity-candidate.yml
       - campaigns/t3-opencode-completion-reconciliation/candidates/0001-opencode-prompt-message-affinity.patch
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: t3-opencode-message-affinity-${{ github.ref }}
+  group: t3-opencode-message-affinity-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - name: Checkout Fieldwork head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+
+      - name: Check candidate inputs
+        id: filter
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(.github/workflows/t3-opencode-message-affinity-candidate.yml|campaigns/t3-opencode-completion-reconciliation/candidates/0001-opencode-prompt-message-affinity.patch)$'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
   candidate-check:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -35,6 +63,7 @@ jobs:
       - name: Checkout Fieldwork candidate
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: fieldwork
 
       - name: Checkout owned T3 campaign branch
