@@ -2,7 +2,7 @@
 
 ## In simple words
 
-Campaign #83 has moved from source mapping into staged owned-fork implementation. The first three non-behavioral foundations are merged: tools have a conservative operation-effect contract, raw history has a privacy-safe call/result identity validator, and runtime wrappers preserve an explicit effect. A fourth slice is validating a bounded session owner for direct-call receipts.
+Campaign #83 has moved from source mapping into staged owned-fork implementation. The first three non-behavioral foundations are merged: tools have a conservative operation-effect contract, raw history has a privacy-safe call/result identity validator, and runtime wrappers preserve an explicit effect. A fourth slice is validating a turn-scoped live owner before any dispatch or compaction behavior changes.
 
 - Campaign issue: #83
 - Programme: #14
@@ -25,21 +25,30 @@ These slices change no compaction or automatic-retry behavior.
 
 ## Active owned-fork slice
 
-`teamleaderleo/codex#13` is the clean restack of direct-call receipt ownership. The candidate:
+`teamleaderleo/codex#9` adds a turn-scoped receipt owner without wiring it to production dispatch. The candidate:
 
-- captures the selected runtime effect at direct dispatch;
-- records terminal outcome through the shared lifecycle path;
-- marks result persistence only after authoritative rollout append succeeds;
-- marks failed persistence ambiguous;
-- retains receipts across the originating turn in session state;
-- caps retained receipts at 1,024;
-- sets explicit `coverage_lost` on overflow and does not evict potentially mutating evidence.
+- keys live receipts by the existing call identity;
+- conservatively creates a potentially mutating receipt for terminal or persistence observations that arrive before `begin`;
+- escalates repeated call identity to potentially mutating and ambiguous instead of replacing prior state;
+- reuses the shared ambiguity-preserving terminal/result state machine;
+- exposes whether the turn contains an unreconciled potentially mutating operation;
+- has focused tests for transition order, duplicate persistence, conflicting terminal outcomes, repeated begin, effect escalation, and late observations.
 
-Nested code-mode calls, resume restoration, compacted-checkpoint carry-forward, and compaction enforcement remain outside this slice.
+Turn scope is deliberate. Cross-turn retention, result-source ownership, rollout restoration, compacted-checkpoint carry-forward, and compaction enforcement remain later stages.
+
+## Next wiring stage
+
+After the live owner merges, wire it at three exact seams:
+
+1. begin only after the model call item is durable;
+2. record terminal state after direct, code-mode, failed, blocked, or cancelled dispatch;
+3. record result persistence after direct history insertion or nested code-mode delivery reaches its authoritative owner.
+
+Do not infer persistence merely because a handler returned a value.
 
 ## Enforcement map
 
-The next source slice must use one shared preflight contract at two boundaries in every implementation:
+The later compaction slice must use one shared preflight contract at two boundaries in every implementation:
 
 1. **Before request construction**
    - local compaction: before cloned history is converted with `for_prompt`;
@@ -51,29 +60,30 @@ The next source slice must use one shared preflight contract at two boundaries i
 The preflight must reject when:
 
 - raw history has any call/result identity defect;
-- direct receipt coverage is incomplete;
-- a potentially mutating receipt lacks one unambiguous terminal outcome and one persisted result;
+- the live owner reports an unreconciled potentially mutating operation;
+- durable receipt coverage is incomplete after the persistence stage exists;
 - a duplicate, conflicting, late, or reordered observation remains unreconciled.
 
 The second check matters because tool futures or persistence state can change while a compaction request is in flight.
 
 ## Durable checkpoint boundary
 
-Live session receipts alone are insufficient. Resume and fork reconstruction begins from the newest compacted checkpoint plus its surviving suffix. The implementation therefore needs both:
+A turn-scoped owner is necessary but insufficient. Resume and fork reconstruction begins from the newest compacted checkpoint plus its surviving suffix. The implementation therefore needs both:
 
-- live receipt items or an equivalent durable operation ledger before compaction; and
+- versioned durable operation receipt items before compaction; and
 - the minimal unresolved/reconciled receipt set carried in the compacted checkpoint.
 
 Do not put receipts only in replacement history and do not put them only in an in-memory map.
 
 ## Remaining work
 
-1. Finish and merge the bounded direct-call owner.
-2. Define the versioned rollout/checkpoint representation and resume restoration.
-3. Add the shared preflight and wire all six request/install boundaries.
-4. Add late-result reconciliation plus duplicate and causal-order rejection.
-5. Prove complete identities continue normally and every ambiguous mutation fails closed without automatic replay.
+1. Finish and merge the turn-scoped live owner.
+2. Wire begin, terminal, and authoritative result-persistence transitions for direct and nested code-mode paths.
+3. Define the versioned rollout/checkpoint representation and resume restoration.
+4. Add the shared preflight and wire all six request/install boundaries.
+5. Add late-result reconciliation plus duplicate and causal-order rejection.
+6. Prove complete identities continue normally and every ambiguous mutation fails closed without automatic replay.
 
 ## Stop rule
 
-Do not claim a repair until compiled owned-fork tests cover complete, missing, duplicate, reordered, late, persistence-failure, and receipt-overflow cases across local, remote v1, and remote v2 compaction. No upstream interaction is authorized.
+Do not claim a repair until compiled owned-fork tests cover complete, missing, duplicate, reordered, late, and persistence-failure cases across local, remote v1, and remote v2 compaction. Any bounded durable owner must also prove explicit fail-closed behavior when coverage is lost. No upstream interaction is authorized.
