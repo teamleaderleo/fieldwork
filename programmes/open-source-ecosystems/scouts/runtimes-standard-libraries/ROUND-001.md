@@ -6,7 +6,7 @@ Scout issue: [#209](https://github.com/teamleaderleo/fieldwork/issues/209)
 
 ## In simple words
 
-Compiler diagnostics and standard-library boundary cases produce compact contributions when the issue already carries a source fixture, expected result, and localized owner. This round found excellent Rust diagnostic examples, but deeper assignment checks showed the sampled issues were already claimed. The CPython queue still contains uncovered synchronization and parser candidates.
+Compiler diagnostics and standard-library boundary cases produce compact contributions when an issue already carries a source fixture, expected result, and localized owner. This round found excellent Rust diagnostic examples, but deeper assignment checks showed the sampled issues were already claimed. The CPython queue still contains uncovered synchronization and parser candidates.
 
 ## Rust reference wave
 
@@ -14,17 +14,17 @@ Repository: `rust-lang/rust`
 
 ### Claimed candidates
 
-1. [#159745](https://github.com/rust-lang/rust/issues/159745) — nested generic parameters missing a turbofish produce only `expected expression, found ','`. The issue is assigned after rustbot claim comments.
-2. [#159686](https://github.com/rust-lang/rust/issues/159686) — a missing match arm receives tuple and alternative-pattern suggestions. The issue is assigned.
-3. [#159492](https://github.com/rust-lang/rust/issues/159492) — pedagogic dyn-compatibility wording. The issue is assigned and mentored.
-4. [#157184](https://github.com/rust-lang/rust/issues/157184) — validate `ignore-tidy-cr` entries against `.gitattributes`. The issue is assigned.
-5. [#157260](https://github.com/rust-lang/rust/issues/157260) — reject ineffective `#[path]` attributes. The issue is assigned and mentored.
+1. [Nested-turbofish diagnostic](https://redirect.github.com/rust-lang/rust/issues/159745) — assigned after rustbot claim comments.
+2. [Missing-match-arm diagnostic](https://redirect.github.com/rust-lang/rust/issues/159686) — assigned.
+3. [Dyn-compatibility wording](https://redirect.github.com/rust-lang/rust/issues/159492) — assigned and mentored.
+4. [Tidy and `.gitattributes` validation](https://redirect.github.com/rust-lang/rust/issues/157184) — assigned.
+5. [Ineffective `#[path]` attributes](https://redirect.github.com/rust-lang/rust/issues/157260) — assigned and mentored.
 
 No matching active pull requests were found in the sampled searches, but assignee and claim state are sufficient to stop independent implementation. Retain these issues as code-reading and test-packet examples. Reopen only if a claim is released or collaboration is explicitly requested.
 
 ### Diagnostic reference path
 
-#159745 remains a useful model:
+The nested-turbofish case remains a useful model:
 
 1. add the issue input to the closest parser/suggestion UI test;
 2. confirm current stderr exactly;
@@ -45,7 +45,7 @@ For Rust, an open issue with no pull request can still be owned. Check:
 - issue text requesting subdirectory-level coordination;
 - Zulip/mentor guidance when an `E-mentor` label exists.
 
-The search `label:E-easy no:assignee` found #159751, but that issue coordinates many independently claimed subdirectories and explicitly asks contributors to claim a subdirectory in comments. Treat it as a coordinated batch, not a free whole-issue task.
+The `label:E-easy no:assignee` search found the [`expect`-message coordination issue](https://redirect.github.com/rust-lang/rust/issues/159751), but that issue coordinates many independently claimed subdirectories and asks contributors to claim a subdirectory in comments. Treat it as a coordinated batch, not a free whole-issue task.
 
 ## CPython first wave
 
@@ -53,9 +53,9 @@ Repository: `python/cpython`
 
 ### Deep dive — free-threaded `GenericAlias` iterator race
 
-Issue: [#154916](https://github.com/python/cpython/issues/154916)
+Issue: [`GenericAlias` iterator race](https://redirect.github.com/python/cpython/issues/154916)
 
-The issue follows merged [PR #154108](https://github.com/python/cpython/pull/154108), which changed `ga_iternext()` to atomically exchange `gi->obj` with `NULL` in free-threaded builds.
+The issue follows a [merged iterator-state PR](https://redirect.github.com/python/cpython/pull/154108), which changed `ga_iternext()` to atomically exchange `gi->obj` with `NULL` in free-threaded builds.
 
 Current `Objects/genericaliasobject.c` still has:
 
@@ -78,7 +78,7 @@ Potential designs to evaluate:
 
 ### Test constraint
 
-Review of PR #154108 shows maintainers rejected a large expensive concurrency test for this unusual shared-iterator use. The next packet should therefore carry:
+Review of the earlier iterator-state PR shows maintainers rejected a large expensive concurrency test for this unusual shared-iterator use. The next packet should therefore carry:
 
 - the TSAN reproducer as retained evidence;
 - a small focused unit test for observable reduce/consume outcomes;
@@ -89,28 +89,28 @@ Disposition: issue-first or a tightly scoped patch after confirming the preferre
 
 ### Other CPython candidates
 
-- [#151464](https://github.com/python/cpython/issues/151464) — tokenizer emits `<>` even when the grammar rejects it. Retain as a parser/token contract candidate.
-- [#154848](https://github.com/python/cpython/issues/154848) — `_pickle.c` and `pickletools` diverge around FRAME boundaries. The issue body links PRs #154893 and #154909, so stop independent implementation and study the buffering fix.
-- [#154701](https://github.com/python/cpython/issues/154701) — JIT hang in Hypothesis has a reliable suite-level reproduction but lacks a reduced case. Retain as a reduction campaign.
-- [#154763](https://github.com/python/cpython/issues/154763) — Azure stack-protection test flake. Retain for Windows CI access.
+- [`<>` tokenizer issue](https://redirect.github.com/python/cpython/issues/151464) — retain as a parser/token contract candidate.
+- [pickle FRAME divergence](https://redirect.github.com/python/cpython/issues/154848) — linked fixes already exist; study the buffering correction.
+- [JIT/Hypothesis hang](https://redirect.github.com/python/cpython/issues/154701) — retain as a reduction campaign.
+- [Windows stack-protection flake](https://redirect.github.com/python/cpython/issues/154763) — retain for Windows CI access.
 
 ## Duplicate stops discovered
 
-The following current bugs already had focused pull requests:
+Focused pull requests already cover:
 
-- #154842 zipfile repack/live reader → PR #154843;
-- #154859 iconv incremental decoder state → PR #154862;
-- #154863 ISO-2022-CN-EXT empty encoding → PR #154899;
-- #154874 negative curses attributes → PRs #154875 and #154887;
-- #154387 struct-sequence repr → PRs #154434 and #154687;
-- #154791 repeated Future traceback loss → PR #154798.
+- [zip repack/live reader](https://redirect.github.com/python/cpython/issues/154842) → [PR](https://redirect.github.com/python/cpython/pull/154843);
+- [incremental iconv state](https://redirect.github.com/python/cpython/issues/154859) → [PR](https://redirect.github.com/python/cpython/pull/154862);
+- [ISO-2022-CN-EXT encoding](https://redirect.github.com/python/cpython/issues/154863) → [PR](https://redirect.github.com/python/cpython/pull/154899);
+- [negative curses attributes](https://redirect.github.com/python/cpython/issues/154874) → active fixes;
+- [struct-sequence repr](https://redirect.github.com/python/cpython/issues/154387) → active fixes;
+- [repeated Future traceback loss](https://redirect.github.com/python/cpython/issues/154791) → [PR](https://redirect.github.com/python/cpython/pull/154798).
 
 These are retained as examples of strong packets: a short reproducer, direct code explanation, failing test, and explicit control cases.
 
 ## Return
 
-- **Claimed references:** Rust #159745, #159686, #159492, #157184, and #157260.
-- **Issue-first/deep probe:** CPython #154916.
-- **Retain:** CPython #151464 and #154701.
-- **Stop duplicate implementation:** the six CPython issues with active PRs listed above.
+- **Claimed references:** the five Rust issues above.
+- **Issue-first/deep probe:** CPython's `GenericAlias` iterator race.
+- **Retain:** the tokenizer and JIT reduction candidates.
+- **Stop duplicate implementation:** the CPython issues with active fixes.
 - **Next expansion:** search unassigned Rust work with claim-state checks, then add Go and Node.js candidates.
