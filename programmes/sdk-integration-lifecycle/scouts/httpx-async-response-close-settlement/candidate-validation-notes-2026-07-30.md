@@ -8,7 +8,7 @@ Fieldwork scout PR: #173
 
 Owned fork PR: `teamleaderleo/httpx#1`
 
-Exact fork head: `be200837cdb377f2649bb65244d49b7a157e8702`
+Exact fork head: `f601c2981d1bf2c9d036b8ce91e46fa11529cd87`
 
 Pinned fork base: `b5addb64f0161ff6bfe94c124ef76f6a1fba5254`
 
@@ -20,13 +20,14 @@ Upstream contact authorized: `false`
 
 The current fork remains a patch-applied experiment, not a direct production-source branch.
 
-It contains five files:
+It contains six files:
 
 1. exact source patch for response close ownership and elapsed ordering;
 2. eleven backend-neutral response/state regressions;
 3. one focused control-flow ownership regression;
-4. one default-transport pool-slot recovery integration control;
-5. a read-only Python 3.9/3.13 workflow.
+4. one in-progress pickle-state regression;
+5. one default-transport pool-slot recovery integration control;
+6. a read-only Python 3.9/3.13 workflow.
 
 ## Self-review findings and repairs
 
@@ -54,6 +55,19 @@ The repaired rule is:
 
 A dedicated concurrent owner/waiter test uses a synthetic `BaseException` subclass. The owner receives it once, the waiter retries the underlying stream close, and only successful retry publishes `is_closed`.
 
+### Pickle-state ownership
+
+`Response.__getstate__()` must not serialize the AnyIO event or an in-progress close-attempt object. `Response.__setstate__()` already restores responses as closed with an unattached stream.
+
+The new test pickles a response while its underlying close is blocked and requires the restored response to be:
+
+- publicly closed;
+- marked close-started;
+- free of transient attempt state;
+- unable to resume body consumption.
+
+The original response remains incomplete and retryable after its owner is cancelled. This separates serialization safety from the live response's close ownership.
+
 ## Earlier matrix additions
 
 The initial seven-test matrix was expanded after review to cover:
@@ -63,7 +77,8 @@ The initial seven-test matrix was expanded after review to cover:
 - cancelled `AsyncClient.stream()` context exit;
 - elapsed remaining unavailable after a failed close;
 - real default-transport pool-slot recovery;
-- non-cancellation control-flow interruption remaining owner-scoped.
+- non-cancellation control-flow interruption remaining owner-scoped;
+- serialization while close remains in progress.
 
 The tests use AnyIO rather than `asyncio.Task`, so the same contract is exercised under asyncio and Trio.
 
@@ -90,8 +105,8 @@ This proves recovery of the pool slot for the tested interruption point. It does
 
 Exact-head runs:
 
-- Fieldwork close-settlement workflow: `30503489188` — queued;
-- repository Test Suite: `30503489213` — queued.
+- Fieldwork close-settlement workflow: `30504179169` — queued;
+- repository Test Suite: `30504179155` — queued.
 
 All earlier queued receipts bind superseded heads. No pass or failure is claimed yet.
 
@@ -103,11 +118,13 @@ The current Fieldwork protocol split remains appropriate:
 - issue #160 / PR #161 own finish-line routing;
 - issue #138 owns the future read-only evaluator.
 
-The HTTPX node is a useful invalidation case: the released-package reproduction remains valid, while the prepared candidate and its queued receipts became stale when self-review found patch-application and control-flow defects.
+The HTTPX node is a useful invalidation case: the released-package reproduction remains valid, while prepared candidates and queued receipts become stale whenever complete-diff review changes the patch, tests, or workflow.
 
-Issue #138's stale HTTPX comment was refreshed and its third-party commit shorthand was replaced with a redirected, descriptive source link.
+Issue #138's HTTPX dogfood record and issue #87's human review record now separate async response, sync response, and client multi-transport ownership.
 
-## Adjacent lane
+## Adjacent lanes
+
+Fieldwork #185 records synchronous response close failure separately. The released sync path becomes terminal before stream cleanup succeeds and refuses public retry.
 
 Fieldwork #177 records client-level shutdown separately. `Client.close()`, `AsyncClient.aclose()`, and context exits publish `ClientState.CLOSED` before the main transport and mounted transports settle. That is a multi-owner teardown policy and must not be folded into the one-response candidate.
 
@@ -120,7 +137,8 @@ Do not promote the fork candidate until:
 - adjacent response/client controls pass;
 - Ruff, Mypy, and `git diff --check` pass;
 - the control-flow ownership regression passes;
+- the pickle-state regression passes;
 - the default-transport pool control passes;
-- complete-diff review finds no public-state, pickle, cancellation, failure-sharing, or elapsed-ordering regression.
+- complete-diff review finds no public-state, serialization, cancellation, failure-sharing, or elapsed-ordering regression.
 
 No upstream interaction occurred.
