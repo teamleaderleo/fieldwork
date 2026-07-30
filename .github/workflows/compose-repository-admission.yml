@@ -1,0 +1,277 @@
+name: Compose repository admission repairs
+
+on:
+  push:
+    branches:
+      - repair/repository-admission-composed
+
+permissions:
+  contents: write
+
+jobs:
+  compose:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact composition branch
+        uses: actions/checkout@v4
+        with:
+          ref: repair/repository-admission-composed
+          fetch-depth: 0
+
+      - name: Compose authority completeness and readable recovery
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import copy
+          import json
+          from pathlib import Path
+
+          lane = Path("campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission")
+          evaluator_path = lane / "artifacts/evaluate_admission.py"
+          cases_path = lane / "artifacts/cases.json"
+          composition_cases_path = lane / "artifacts/composition-cases.json"
+          report_path = lane / "report.md"
+          workflow_path = Path(".github/workflows/issue-244-repository-admission.yml")
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one match, found {count}")
+              return text.replace(old, new, 1)
+
+          evaluator = evaluator_path.read_text(encoding="utf-8")
+          evaluator = replace_once(
+              evaluator,
+              '    if request["version"] != 1:\n        raise ValueError("version must be 1")',
+              '    if type(request["version"]) is not int or request["version"] != 1:\n        raise ValueError("version must be primitive integer 1")',
+              "primitive version",
+          )
+          evaluator = replace_once(
+              evaluator,
+              '    unresolved_mutations: list[str] = []\n',
+              '    unresolved_mutations: list[str] = []\n    executable_reads: list[str] = []\n',
+              "read ownership declaration",
+          )
+          evaluator = replace_once(
+              evaluator,
+              '        if reason is None:\n            receipts.append(receipt)\n            continue\n',
+              '        if reason is None:\n            if capability_kind == "read":\n                executable_reads.append(capability_id)\n            receipts.append(receipt)\n            continue\n',
+              "direct read ownership",
+          )
+          evaluator = replace_once(
+              evaluator,
+              '            elif classification.decision != "allow_equivalent":\n                raise ValueError(\n                    f"fallback {capability_id} returned unknown decision "\n                    f"{classification.decision!r}"\n                )\n',
+              '            elif classification.decision == "allow_equivalent":\n                if capability_kind == "read":\n                    executable_reads.append(capability_id)\n            else:\n                raise ValueError(\n                    f"fallback {capability_id} returned unknown decision "\n                    f"{classification.decision!r}"\n                )\n',
+              "equivalent read ownership",
+          )
+          evaluator = replace_once(
+              evaluator,
+              '    if blocked:\n',
+              '    if unresolved_mutations and not executable_reads:\n        blocked.append("read_only_recovery_capability_unavailable")\n\n    if blocked:\n',
+              "read-only recovery gate",
+          )
+          evaluator_path.write_text(evaluator, encoding="utf-8")
+
+          base_cases = json.loads(cases_path.read_text(encoding="utf-8"))
+          by_id = {case["id"]: case for case in base_cases}
+          if len(base_cases) != 14 or len(by_id) != 14:
+              raise SystemExit("expected exact 14-case authority-completeness base")
+
+          present = {
+              "advertised": "present",
+              "registered": "present",
+              "discoverable": "present",
+              "callable": "present",
+              "executable": "present",
+          }
+          absent = {
+              "advertised": "present",
+              "registered": "present",
+              "discoverable": "present",
+              "callable": "absent",
+              "executable": "absent",
+          }
+
+          equivalent_read_input = copy.deepcopy(
+              by_id["ready-equivalent-fallback"]["request"]["fallbacks"][0]["classifier_input"]
+          )
+          equivalent_read_input.update(
+              {
+                  "operation_kind": "read",
+                  "logical_operation_id": "op-github.read",
+                  "original_call_id": "call-github.read",
+              }
+          )
+
+          boolean_version_request = copy.deepcopy(by_id["ready-direct"]["request"])
+          boolean_version_request["version"] = True
+          boolean_version_request["request_id"] = "invalid-boolean-version"
+
+          composition_cases = [
+              {
+                  "id": "degraded-equivalent-read-with-write-absent",
+                  "request": {
+                      "version": 1,
+                      "request_id": "degraded-equivalent-read-with-write-absent",
+                      "operation_kind": "potential_mutation",
+                      "required_capabilities": [
+                          {"id": "github.read", "capability_kind": "read"},
+                          {"id": "github.write", "capability_kind": "potential_mutation"},
+                      ],
+                      "observations": [
+                          {"id": "github.read", "route_provenance": "github-connector", "phases": absent},
+                          {"id": "github.write", "route_provenance": "github-connector", "phases": absent},
+                      ],
+                      "fallbacks": [
+                          {"capability_id": "github.read", "classifier_input": equivalent_read_input}
+                      ],
+                  },
+                  "expected_decision": "degraded_read_only",
+              },
+              {
+                  "id": "blocked-write-absent-without-read",
+                  "request": {
+                      "version": 1,
+                      "request_id": "blocked-write-absent-without-read",
+                      "operation_kind": "potential_mutation",
+                      "required_capabilities": [
+                          {"id": "github.write", "capability_kind": "potential_mutation"}
+                      ],
+                      "observations": [
+                          {"id": "github.write", "route_provenance": "github-connector", "phases": absent}
+                      ],
+                      "fallbacks": [],
+                  },
+                  "expected_decision": "blocked",
+              },
+              {
+                  "id": "blocked-read-and-write-absent",
+                  "request": {
+                      "version": 1,
+                      "request_id": "blocked-read-and-write-absent",
+                      "operation_kind": "potential_mutation",
+                      "required_capabilities": [
+                          {"id": "github.read", "capability_kind": "read"},
+                          {"id": "github.write", "capability_kind": "potential_mutation"},
+                      ],
+                      "observations": [
+                          {"id": "github.read", "route_provenance": "github-connector", "phases": absent},
+                          {"id": "github.write", "route_provenance": "github-connector", "phases": absent},
+                      ],
+                      "fallbacks": [],
+                  },
+                  "expected_decision": "blocked",
+              },
+              {
+                  "id": "invalid-boolean-version",
+                  "request": boolean_version_request,
+                  "expected_error": "version must be primitive integer 1",
+              },
+          ]
+          composition_cases_path.write_text(
+              json.dumps(composition_cases, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          workflow = workflow_path.read_text(encoding="utf-8")
+          workflow = replace_once(
+              workflow,
+              '          cmp /tmp/repository-admission-1.json /tmp/repository-admission-2.json\n',
+              '          cmp /tmp/repository-admission-1.json /tmp/repository-admission-2.json\n'
+              '          python3 "$path/evaluate_admission.py" \\\n'
+              '            --cases "$path/composition-cases.json" \\\n'
+              '            --output /tmp/repository-admission-composition-1.json\n'
+              '          python3 "$path/evaluate_admission.py" \\\n'
+              '            --cases "$path/composition-cases.json" \\\n'
+              '            --output /tmp/repository-admission-composition-2.json\n'
+              '          cmp /tmp/repository-admission-composition-1.json /tmp/repository-admission-composition-2.json\n',
+              "composition matrix workflow",
+          )
+          workflow_path.write_text(workflow, encoding="utf-8")
+
+          report = report_path.read_text(encoding="utf-8")
+          report = replace_once(
+              report,
+              'Canonical branch: `fieldwork/codex/fieldwork-repository-admission-v2`  \nOriginal carrier: closed PR #251  \nReplacement carrier: draft PR #259  ',
+              'Canonical branch: `repair/repository-admission-composed`  \nOriginal carrier: closed PR #251  \nPartial repair carriers: PR #257 and PR #259  ',
+              "report identity",
+          )
+          report = replace_once(
+              report,
+              'Complete-diff review found two incomplete-evidence paths in the first replacement: an authority-equivalent route could be admitted with omitted fields, and a partial comparison could still reach an approval or blocked decision. The current carrier requires every fallback comparison to cover the full declared authority field set before any classifier decision is accepted.',
+              'Complete-diff review found three fail-open paths across the partial repairs: an authority-equivalent route could be admitted with omitted fields, a partial comparison could still reach an approval or blocked decision, and a missing mutation could be labelled read-only even when no required read route remained executable. The composed carrier requires every fallback comparison to cover the full declared authority field set and requires at least one executable direct or authority-equivalent read before degradation.',
+              "report simple words",
+          )
+          report = replace_once(
+              report,
+              '- Complete-comparison repair commits: `92a0a44da24cff655530f5c42daace839e5ccafa` and `f2ff5d17e999592def29d56d0491e65de0016ef5`\n',
+              '- Complete-comparison repair commits: `92a0a44da24cff655530f5c42daace839e5ccafa` and `f2ff5d17e999592def29d56d0491e65de0016ef5`\n- Readable-recovery source: PR #257 at `61915028c97a0317d277c62a2258443b71e70563`\n- Composed successor base: PR #259 at `20a3eaef6db81c15ee2e0e725d180277990cff7c`\n',
+              "report source boundary",
+          )
+          report = replace_once(
+              report,
+              '5. Degrade a missing mutation capability to read-only work.\n',
+              '5. Degrade a missing mutation capability only when at least one required direct or authority-equivalent read remains executable.\n',
+              "report precedence",
+          )
+          report = replace_once(
+              report,
+              'The retained matrix contains 14 cases:\n\n```text\n14 cases\n2 ready\n1 degraded_read_only\n1 require_explicit_approval\n3 blocked\n7 invalid\n0 expectation mismatches\n```\n\nThe seven invalid controls cover contradictory phase revival, omitted deltas, empty deltas, partial mutation authority, empty binding generation, omitted reversibility, and partial read authority. The approval and ambiguous-prior controls now carry complete 12-field comparisons.\n\nEvidence class: `model-executed` for the deterministic matrix. Repository execution requires exact-head workflow receipts from PR #259.',
+              'The authority-completeness base retains 14 cases:\n\n```text\n14 base cases\n2 ready\n1 degraded_read_only\n1 require_explicit_approval\n3 blocked\n7 invalid\n0 expectation mismatches\n```\n\nThe composition matrix adds four cases:\n\n```text\n4 composition cases\n1 degraded_read_only\n2 blocked\n1 invalid\n0 expectation mismatches\n```\n\nThe added controls require degradation with an authority-equivalent read, block mutation-only degradation, block simultaneous missing read and mutation routes, and reject boolean schema versions. The seven base invalid controls continue covering contradictory phase revival, omitted deltas, empty deltas, partial mutation authority, empty binding generation, omitted reversibility, and partial read authority.\n\nEvidence class: `model-executed` after the temporary composition carrier runs both matrices. Exact-head pull-request workflows remain required for promotion.',
+              "report matrix",
+          )
+          report = replace_once(
+              report,
+              'State: `draft repair candidate — exact-head CI and independent review required`.',
+              'State: `composed repair candidate — exact-head CI and independent review required`.',
+              "report state",
+          )
+          report_path.write_text(report, encoding="utf-8")
+          PY
+
+          path=campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/artifacts
+          python3 -m py_compile \
+            campaigns/0006-authority-aware-capability-fallback/artifacts/classify_fallback.py \
+            "$path/evaluate_admission.py"
+          python3 "$path/evaluate_admission.py" \
+            --cases "$path/cases.json" \
+            --output /tmp/base.json
+          python3 "$path/evaluate_admission.py" \
+            --cases "$path/composition-cases.json" \
+            --output /tmp/composition.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          base = json.loads(Path('/tmp/base.json').read_text())
+          composition = json.loads(Path('/tmp/composition.json').read_text())
+          assert base['case_count'] == 14
+          assert base['all_expectations_passed'] is True
+          assert composition['case_count'] == 4
+          assert composition['decision_counts'] == {
+              'ready': 0,
+              'degraded_read_only': 1,
+              'require_explicit_approval': 0,
+              'blocked': 2,
+              'invalid': 1,
+          }
+          assert composition['all_expectations_passed'] is True
+          PY
+          git diff --check
+
+      - name: Commit composed source without temporary carrier
+        shell: bash
+        run: |
+          rm .github/workflows/compose-repository-admission.yml
+          git config user.name "fieldwork-composition-bot"
+          git config user.email "fieldwork-composition-bot@users.noreply.github.com"
+          git add \
+            .github/workflows/issue-244-repository-admission.yml \
+            campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/artifacts/evaluate_admission.py \
+            campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/artifacts/composition-cases.json \
+            campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/report.md \
+            .github/workflows/compose-repository-admission.yml
+          git commit -m "Compose repository admission authority and readable recovery"
+          git push origin HEAD:repair/repository-admission-composed
