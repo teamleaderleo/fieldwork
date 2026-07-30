@@ -57,15 +57,18 @@ These instructions apply to every AI system and automated worker operating in th
 
 ## External-reference rule
 
-Before creating or editing any Fieldwork issue, pull request, comment, review, Markdown file, JSON record, or research report:
+Follow `REFERENCE_POLICY.md`.
 
-- never write a direct external GitHub issue, pull-request, discussion, or commit URL;
-- use the equivalent `redirect.github.com` URL;
-- never use external owner/repository number shorthand;
-- use the intentional-upstream marker only when the user explicitly authorized that exact external interaction;
+Before creating or editing a Fieldwork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work:
+
+- use the equivalent `redirect.github.com` URL unless that exact upstream interaction was explicitly authorized;
+- remove external owner/repository item and commit shorthand;
+- use the intentional-upstream marker only for the specifically authorized interaction;
 - remember that creating a Fieldwork record never authorizes upstream contact.
 
-The interaction workflow is a last-resort detector. It cannot reliably stop GitHub from processing a direct reference at the instant an issue or comment is created. Prevention by the worker is mandatory.
+Repository notes, reports, maps, JSON records, and other tracked files may use ordinary direct links. They do not need the interaction preflight or an automated external-reference scan.
+
+The interaction workflow is a last-resort detector. It cannot reliably stop GitHub from processing a direct reference at the instant an issue or comment is created. Prevention by automated writers is mandatory for interaction text.
 
 ## Fork-free experiments
 
