@@ -124,8 +124,9 @@ Classification: **adjacent execution-provenance context; active candidate classi
 - branch: `fieldwork/83-direct-append-carrier-20260731`;
 - head: `324ddccba14b2b0934e2c56cc0cda7ca04a56e6d`;
 - intended source branch: `fieldwork/83-append-outcome-upstream-97576b`;
-- authoritative workflow: `30582576317`;
+- authoritative workflow: `30583872587`;
 - state at retrieval: `queued`;
+- superseded workflow `30582576317`: `cancelled`, no source-behavior result;
 - base: `97576b1794872e342450ebd577123e052ab57626`.
 
 Current upstream is three commits ahead. The external-agent connector and executor-path changes leave the three-file source fence untouched. The rollout reconciliation change is adjacent and requires post-publication review; it does not replace the append outcome.
@@ -133,10 +134,12 @@ Current upstream is three commits ahead. The external-agent connector and execut
 ### Terminal retention carrier #53
 
 - branch: `fieldwork/23-terminal-acd540-restack-carrier`;
-- head: `d5028fc9771407aa7a9bafbceb7eba051b91de36`;
+- head: `0bd2fad8da92ed9bf9064949a5d27f59741d1ae7`;
 - intended source branch: `fieldwork/23-terminal-97576-source`;
-- authoritative workflow: `30582012412`;
-- state at retrieval: `queued`;
+- authoritative rerun: `30584398042`;
+- state at retrieval: `queued` after exact-job rerun;
+- prior attempt `30582012412`, job `91004310038`: source reconstruction succeeded, formatting failed because `uv` was absent, no source tests ran;
+- repair: install current-upstream pinned `astral-sh/setup-uv` action and `uv` `0.11.3` before repository formatting;
 - base: `97576b1794872e342450ebd577123e052ab57626`.
 
 The three newer upstream commits leave the terminal four-file fence unchanged. A successful source publication can therefore be compared directly to current head for an exact no-overlap confirmation, followed by independent complete-diff review.
@@ -155,6 +158,6 @@ The three newer upstream commits leave the terminal four-file fence unchanged. A
 
 No active bounded candidate in this ledger is fully absorbed by current upstream.
 
-Two candidates are in exact execution-carrier validation. Two MCP candidates remain semantically complementary and need current-source comparison or restacks. Deferred discovery requires redesign at the standalone host boundary. The Responses Lite source idea needs a smaller production-representative fixture before a source candidate. Timeout outcome work remains a separate operation-lifecycle proposal.
+Two candidates remain in exact execution-carrier validation. Two MCP candidates remain semantically complementary and need current-source comparison or restacks. Deferred discovery requires redesign at the standalone host boundary. The Responses Lite source idea needs a smaller production-representative fixture before a source candidate. Timeout outcome work remains a separate operation-lifecycle proposal.
 
 Every `current`, `portable`, or `proposal-ready` claim must use `a01a2d91461a57809e944de7758477b92617ab01` or a newer explicitly recorded head.
