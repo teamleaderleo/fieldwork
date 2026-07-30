@@ -1,0 +1,436 @@
+{
+  "branch_decisions": {
+    "baselines": [
+      "stensibly-local-ledger-receipts",
+      "proofwake-append-only-observation-recovery",
+      "scrapbook-stale-while-error-coordinator",
+      "quarry-audit-chain-and-attempt-receipts"
+    ],
+    "campaigns": [
+      "stensibly-external-runner-reconciliation",
+      "smolrunner-attempt-journal-receipt-integration",
+      "days-upon-durable-provider-mutation-outbox",
+      "renderprove-interruption-safe-terminal-receipts"
+    ],
+    "retained_patterns": [
+      "starsector-preflight-run-directory-finalization",
+      "elatura-authoritative-fallback-cache-contract",
+      "gh-tidy-branches-live-revalidation-and-undo",
+      "botany-sim-deterministic-offline-catch-up",
+      "make-good-tv-deterministic-session-replay",
+      "shared-correlation-envelope"
+    ],
+    "stops": [
+      "one-universal-durable-workflow-library",
+      "treating-caches-or-simulations-as-background-workers",
+      "dependency-or-runtime-attribution-without-reproduction",
+      "elatura-private-content-persistence-before-product-gate",
+      "make-good-tv-persistent-worker-before-live-evidence",
+      "quarry-live-trading-or-order-authority"
+    ]
+  },
+  "experiment": {
+    "id": "portfolio-authority-after-interruption",
+    "input_kind": "synthetic profiles derived from pinned owned-system source",
+    "limitations": [
+      "does not execute the owned applications",
+      "does not prove deployed behaviour",
+      "does not attribute a dependency or runtime defect without a direct reproduction",
+      "does not authorize live trading, destructive operations, or private-data use"
+    ],
+    "question": "After an interruption, what identity and durable evidence survive, who still owns the effect, and what recovery action is authorized?",
+    "selected_after_maps": true
+  },
+  "profiles": [
+    {
+      "disposition": "read_local_receipt",
+      "effect_owner": "stensibly ledger",
+      "family": "coordination ledger",
+      "interruption_gap": null,
+      "logical_identity": "item, run, operation, and idempotency key",
+      "name": "stensibly-local-ledger",
+      "recommendation": "baseline",
+      "state_owner": "stensibly ledger",
+      "surviving_evidence": [
+        "operation receipt",
+        "run generation",
+        "event history"
+      ],
+      "system": "stensibly"
+    },
+    {
+      "disposition": "reconcile_external_owner",
+      "effect_owner": "external runner system",
+      "family": "coordination ledger plus external executor",
+      "interruption_gap": "external terminal read-back and replacement gate",
+      "logical_identity": "run ID plus external run ID",
+      "name": "stensibly-external-runner",
+      "recommendation": "campaign",
+      "state_owner": "stensibly ledger",
+      "surviving_evidence": [
+        "run identity",
+        "lease generation",
+        "external operation reference"
+      ],
+      "system": "stensibly"
+    },
+    {
+      "disposition": "fresh_observation_then_receipt",
+      "effect_owner": "observed host or worker",
+      "family": "local execution steward",
+      "interruption_gap": "live attempt-to-receipt publication and read-back",
+      "logical_identity": "request, reservation, action, and execution IDs",
+      "name": "smolrunner-host-execution",
+      "recommendation": "campaign",
+      "state_owner": "smolrunner durable store",
+      "surviving_evidence": [
+        "pre-call journal checkpoint",
+        "attempt state",
+        "fresh-observation rule"
+      ],
+      "system": "smolrunner"
+    },
+    {
+      "disposition": "rebuild_projection_from_ledger",
+      "effect_owner": "source producer",
+      "family": "append-only evidence index",
+      "interruption_gap": null,
+      "logical_identity": "provider delivery, receipt ID, or canonical observation digest",
+      "name": "proofwake-observation-ledger",
+      "recommendation": "baseline",
+      "state_owner": "proofwake observation ledger",
+      "surviving_evidence": [
+        "immutable observation",
+        "request fingerprint",
+        "rebuildable projection"
+      ],
+      "system": "proofwake"
+    },
+    {
+      "disposition": "full_sync_then_reconcile_outbox",
+      "effect_owner": "Google Calendar",
+      "family": "local-first provider synchronization",
+      "interruption_gap": "durable idempotent mutation outbox and terminal provider disposition",
+      "logical_identity": "calendar ID, remote event ID, sync token, and local event ID",
+      "name": "days-upon-google-sync",
+      "recommendation": "campaign",
+      "state_owner": "browser workspace and sync storage",
+      "surviving_evidence": [
+        "sync cursor",
+        "remote baseline fingerprint",
+        "local event state"
+      ],
+      "system": "days-upon"
+    },
+    {
+      "disposition": "read_terminal_receipt_or_mark_interrupted",
+      "effect_owner": "local runtime and browser",
+      "family": "bounded verifier and receipt producer",
+      "interruption_gap": "pre-start run identity and atomic interrupted or terminal receipt publication",
+      "logical_identity": "manifest project plus stable route and viewport case IDs",
+      "name": "renderprove-browser-review",
+      "recommendation": "campaign",
+      "state_owner": "renderprove output directory",
+      "surviving_evidence": [
+        "screenshots",
+        "case diagnostics",
+        "runtime summary when completion reaches receipt write"
+      ],
+      "system": "renderprove"
+    },
+    {
+      "disposition": "inspect_run_directory_and_finalize",
+      "effect_owner": "child launcher, game process, and local filesystem",
+      "family": "run wrapper, profiler, and cache pipeline",
+      "interruption_gap": null,
+      "logical_identity": "run directory, profile fingerprint, and benchmark cohort identity",
+      "name": "starsector-preflight-run",
+      "recommendation": "retain",
+      "state_owner": "preflight run directory and cache stores",
+      "surviving_evidence": [
+        "run directory",
+        "profile census",
+        "JFR recording",
+        "final run status"
+      ],
+      "system": "starsector-preflight"
+    },
+    {
+      "disposition": "discard_derived_cache_and_refetch",
+      "effect_owner": "authenticated application",
+      "family": "observe-only sidecar and derived cache",
+      "interruption_gap": "persistent private-content storage remains intentionally gated",
+      "logical_identity": "origin, browser profile, adapter, namespace, resource, and content identity",
+      "name": "elatura-derived-cache",
+      "recommendation": "retain",
+      "state_owner": "derived synthetic cache",
+      "surviving_evidence": [
+        "versioned cache envelope",
+        "provenance",
+        "freshness and corruption disposition"
+      ],
+      "system": "elatura"
+    },
+    {
+      "disposition": "serve_stale_and_backoff",
+      "effect_owner": "GitHub contribution source",
+      "family": "stale-while-error cache coordinator",
+      "interruption_gap": null,
+      "logical_identity": "generated snapshot plus request ID",
+      "name": "scrapbook-github-activity-cache",
+      "recommendation": "baseline",
+      "state_owner": "Next.js data cache and instance coordinator",
+      "surviving_evidence": [
+        "last successful snapshot",
+        "failure count",
+        "next retry time",
+        "source diagnostics"
+      ],
+      "system": "scrapbook"
+    },
+    {
+      "disposition": "revalidate_ref_then_delete_or_undo",
+      "effect_owner": "GitHub ref service",
+      "family": "bounded destructive command with undo receipt",
+      "interruption_gap": "GitHub delete-ref lacks an expected-SHA precondition",
+      "logical_identity": "repository, branch, merged PR, and exact head SHA",
+      "name": "gh-tidy-branches-delete",
+      "recommendation": "retain",
+      "state_owner": "GitHub refs plus local undo receipt",
+      "surviving_evidence": [
+        "fresh ref SHA",
+        "merged PR head SHA",
+        "atomic local undo receipt"
+      ],
+      "system": "gh-tidy-branches"
+    },
+    {
+      "disposition": "advance_from_absolute_time",
+      "effect_owner": "deterministic simulation",
+      "family": "deterministic offline simulation",
+      "interruption_gap": "explicit migration across calendar versions or time modes",
+      "logical_identity": "calendar, generator version, mode, event, and garden year",
+      "name": "botany-sim-garden-calendar",
+      "recommendation": "retain",
+      "state_owner": "garden save",
+      "surviving_evidence": [
+        "last evaluated day",
+        "pending events",
+        "history",
+        "absolute elapsed time"
+      ],
+      "system": "botany-sim"
+    },
+    {
+      "disposition": "replay_applied_actions",
+      "effect_owner": "game host",
+      "family": "deterministic simulation and controller audit",
+      "interruption_gap": "persistent worker or MCP remains gated on live evidence",
+      "logical_identity": "session ID, seed, seat, controller, and decision number",
+      "name": "make-good-tv-agent-session",
+      "recommendation": "retain",
+      "state_owner": "game host and applied-action trace",
+      "surviving_evidence": [
+        "untouched observation snapshot",
+        "applied action trace",
+        "terminal outcome"
+      ],
+      "system": "make-good-tv"
+    },
+    {
+      "disposition": "rebuild_state_from_audit_chain",
+      "effect_owner": "simulated execution engine and verification runner",
+      "family": "research pipeline and resumable paper execution",
+      "interruption_gap": null,
+      "logical_identity": "paper session, audit sequence, execution attempt, state, verification request, and receipt IDs",
+      "name": "quarry-paper-and-verification",
+      "recommendation": "baseline",
+      "state_owner": "hash-chained audit ledger and immutable attempt artifacts",
+      "surviving_evidence": [
+        "verified event chain",
+        "rebuildable state",
+        "content-addressed request",
+        "terminal verification receipt"
+      ],
+      "system": "quarry"
+    }
+  ],
+  "results": [
+    {
+      "decisive_evidence": [
+        "operation receipt",
+        "run generation",
+        "event history"
+      ],
+      "disposition": "read_local_receipt",
+      "missing_or_deferred_evidence": [],
+      "name": "stensibly-local-ledger",
+      "recommendation": "baseline",
+      "system": "stensibly"
+    },
+    {
+      "decisive_evidence": [
+        "run identity",
+        "lease generation",
+        "external operation reference"
+      ],
+      "disposition": "reconcile_external_owner",
+      "missing_or_deferred_evidence": [
+        "external terminal read-back and replacement gate"
+      ],
+      "name": "stensibly-external-runner",
+      "recommendation": "campaign",
+      "system": "stensibly"
+    },
+    {
+      "decisive_evidence": [
+        "pre-call journal checkpoint",
+        "attempt state",
+        "fresh-observation rule"
+      ],
+      "disposition": "fresh_observation_then_receipt",
+      "missing_or_deferred_evidence": [
+        "live attempt-to-receipt publication and read-back"
+      ],
+      "name": "smolrunner-host-execution",
+      "recommendation": "campaign",
+      "system": "smolrunner"
+    },
+    {
+      "decisive_evidence": [
+        "immutable observation",
+        "request fingerprint",
+        "rebuildable projection"
+      ],
+      "disposition": "rebuild_projection_from_ledger",
+      "missing_or_deferred_evidence": [],
+      "name": "proofwake-observation-ledger",
+      "recommendation": "baseline",
+      "system": "proofwake"
+    },
+    {
+      "decisive_evidence": [
+        "sync cursor",
+        "remote baseline fingerprint",
+        "local event state"
+      ],
+      "disposition": "full_sync_then_reconcile_outbox",
+      "missing_or_deferred_evidence": [
+        "durable idempotent mutation outbox and terminal provider disposition"
+      ],
+      "name": "days-upon-google-sync",
+      "recommendation": "campaign",
+      "system": "days-upon"
+    },
+    {
+      "decisive_evidence": [
+        "screenshots",
+        "case diagnostics",
+        "runtime summary when completion reaches receipt write"
+      ],
+      "disposition": "read_terminal_receipt_or_mark_interrupted",
+      "missing_or_deferred_evidence": [
+        "pre-start run identity and atomic interrupted or terminal receipt publication"
+      ],
+      "name": "renderprove-browser-review",
+      "recommendation": "campaign",
+      "system": "renderprove"
+    },
+    {
+      "decisive_evidence": [
+        "run directory",
+        "profile census",
+        "JFR recording",
+        "final run status"
+      ],
+      "disposition": "inspect_run_directory_and_finalize",
+      "missing_or_deferred_evidence": [],
+      "name": "starsector-preflight-run",
+      "recommendation": "retain",
+      "system": "starsector-preflight"
+    },
+    {
+      "decisive_evidence": [
+        "versioned cache envelope",
+        "provenance",
+        "freshness and corruption disposition"
+      ],
+      "disposition": "discard_derived_cache_and_refetch",
+      "missing_or_deferred_evidence": [
+        "persistent private-content storage remains intentionally gated"
+      ],
+      "name": "elatura-derived-cache",
+      "recommendation": "retain",
+      "system": "elatura"
+    },
+    {
+      "decisive_evidence": [
+        "last successful snapshot",
+        "failure count",
+        "next retry time",
+        "source diagnostics"
+      ],
+      "disposition": "serve_stale_and_backoff",
+      "missing_or_deferred_evidence": [],
+      "name": "scrapbook-github-activity-cache",
+      "recommendation": "baseline",
+      "system": "scrapbook"
+    },
+    {
+      "decisive_evidence": [
+        "fresh ref SHA",
+        "merged PR head SHA",
+        "atomic local undo receipt"
+      ],
+      "disposition": "revalidate_ref_then_delete_or_undo",
+      "missing_or_deferred_evidence": [
+        "GitHub delete-ref lacks an expected-SHA precondition"
+      ],
+      "name": "gh-tidy-branches-delete",
+      "recommendation": "retain",
+      "system": "gh-tidy-branches"
+    },
+    {
+      "decisive_evidence": [
+        "last evaluated day",
+        "pending events",
+        "history",
+        "absolute elapsed time"
+      ],
+      "disposition": "advance_from_absolute_time",
+      "missing_or_deferred_evidence": [
+        "explicit migration across calendar versions or time modes"
+      ],
+      "name": "botany-sim-garden-calendar",
+      "recommendation": "retain",
+      "system": "botany-sim"
+    },
+    {
+      "decisive_evidence": [
+        "untouched observation snapshot",
+        "applied action trace",
+        "terminal outcome"
+      ],
+      "disposition": "replay_applied_actions",
+      "missing_or_deferred_evidence": [
+        "persistent worker or MCP remains gated on live evidence"
+      ],
+      "name": "make-good-tv-agent-session",
+      "recommendation": "retain",
+      "system": "make-good-tv"
+    },
+    {
+      "decisive_evidence": [
+        "verified event chain",
+        "rebuildable state",
+        "content-addressed request",
+        "terminal verification receipt"
+      ],
+      "disposition": "rebuild_state_from_audit_chain",
+      "missing_or_deferred_evidence": [],
+      "name": "quarry-paper-and-verification",
+      "recommendation": "baseline",
+      "system": "quarry"
+    }
+  ]
+}
