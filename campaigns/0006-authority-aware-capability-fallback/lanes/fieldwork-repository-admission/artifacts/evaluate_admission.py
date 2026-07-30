@@ -32,6 +32,44 @@ INPUT_KEYS: Final = {
 CAPABILITY_KEYS: Final = {"id", "capability_kind"}
 OBSERVATION_KEYS: Final = {"id", "route_provenance", "phases"}
 FALLBACK_KEYS: Final = {"capability_id", "classifier_input"}
+FALLBACK_INPUT_KEYS: Final = {
+    "operation_kind",
+    "logical_operation_id",
+    "original_call_id",
+    "typed_absence_reason",
+    "original_execution_certainty",
+    "captured_binding_generation",
+    "proposed_binding_generation",
+    "proposed_route_provenance",
+    "preserves_logical_operation_identity",
+    "reversible",
+    "authority_deltas",
+}
+FALLBACK_STRING_KEYS: Final = {
+    "logical_operation_id",
+    "original_call_id",
+    "typed_absence_reason",
+    "original_execution_certainty",
+    "captured_binding_generation",
+    "proposed_binding_generation",
+    "proposed_route_provenance",
+}
+AUTHORITY_DELTA_KEYS: Final = {"field", "relation"}
+AUTHORITY_RELATIONS: Final = {"equal", "narrower", "changed", "broader", "weaker"}
+EQUIVALENT_AUTHORITY_FIELDS: Final = {
+    "account_binding",
+    "provider",
+    "approval_subject",
+    "actor_delegation",
+    "user_visibility",
+    "credential_binding",
+    "permission_scope",
+    "resource_scope",
+    "audit_contract",
+    "idempotency_contract",
+    "rollback_contract",
+    "recovery_contract",
+}
 
 
 def repository_root() -> Path:
@@ -139,6 +177,44 @@ def parse_observations(raw: Any) -> dict[str, dict[str, Any]]:
     return observations
 
 
+def validate_fallback_input(
+    classifier_input: dict[str, Any],
+    capability_id: str,
+) -> None:
+    label = f"fallback {capability_id} classifier_input"
+    exact_keys(classifier_input, FALLBACK_INPUT_KEYS, label)
+    if classifier_input["operation_kind"] not in {"read", "potential_mutation"}:
+        raise ValueError(f"{label} operation_kind is invalid")
+    for key in FALLBACK_STRING_KEYS:
+        nonempty_string(classifier_input[key], f"{label} {key}")
+    if not isinstance(classifier_input["preserves_logical_operation_identity"], bool):
+        raise ValueError(
+            f"{label} preserves_logical_operation_identity must be a boolean"
+        )
+    if not isinstance(classifier_input["reversible"], bool):
+        raise ValueError(f"{label} reversible must be a boolean")
+
+    raw_deltas = classifier_input["authority_deltas"]
+    if not isinstance(raw_deltas, list) or not raw_deltas:
+        raise ValueError(f"{label} authority_deltas must be a non-empty list")
+    seen_fields: set[str] = set()
+    for index, item in enumerate(raw_deltas):
+        if not isinstance(item, dict):
+            raise ValueError(f"{label} authority_deltas[{index}] must be an object")
+        exact_keys(item, AUTHORITY_DELTA_KEYS, f"{label} authority_deltas[{index}]")
+        field = nonempty_string(
+            item["field"],
+            f"{label} authority_deltas[{index}] field",
+        )
+        if item["relation"] not in AUTHORITY_RELATIONS:
+            raise ValueError(
+                f"{label} authority_deltas[{index}] relation is invalid"
+            )
+        if field in seen_fields:
+            raise ValueError(f"{label} duplicates authority field {field}")
+        seen_fields.add(field)
+
+
 def parse_fallbacks(raw: Any) -> dict[str, dict[str, Any]]:
     if not isinstance(raw, list):
         raise ValueError("fallbacks must be a list")
@@ -153,6 +229,7 @@ def parse_fallbacks(raw: Any) -> dict[str, dict[str, Any]]:
             raise ValueError(
                 f"fallback {capability_id} classifier_input must be an object"
             )
+        validate_fallback_input(classifier_input, capability_id)
         if capability_id in fallbacks:
             raise ValueError(f"duplicate fallback {capability_id}")
         fallbacks[capability_id] = classifier_input
@@ -170,6 +247,20 @@ def absence_reason(observation: dict[str, Any] | None) -> str | None:
         if value == "unknown":
             return f"{phase}_unknown"
     return None
+
+
+def require_complete_equivalent_authority(
+    fallback_input: dict[str, Any],
+    capability_id: str,
+) -> None:
+    fields = {item["field"] for item in fallback_input["authority_deltas"]}
+    if fields != EQUIVALENT_AUTHORITY_FIELDS:
+        missing = sorted(EQUIVALENT_AUTHORITY_FIELDS - fields)
+        unknown = sorted(fields - EQUIVALENT_AUTHORITY_FIELDS)
+        raise ValueError(
+            f"fallback {capability_id} equivalent authority comparison differs; "
+            f"missing={missing}, unknown={unknown}"
+        )
 
 
 def evaluate(request: dict[str, Any]) -> dict[str, Any]:
@@ -220,13 +311,13 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
 
         fallback_input = fallbacks.get(capability_id)
         if fallback_input is not None:
-            supplied_reason = fallback_input.get("typed_absence_reason")
+            supplied_reason = fallback_input["typed_absence_reason"]
             if supplied_reason != reason:
                 raise ValueError(
                     f"fallback {capability_id} typed_absence_reason "
                     f"{supplied_reason!r} does not match {reason!r}"
                 )
-            if fallback_input.get("operation_kind") != capability_kind:
+            if fallback_input["operation_kind"] != capability_kind:
                 raise ValueError(
                     f"fallback {capability_id} operation_kind must match "
                     f"{capability_kind}"
@@ -239,7 +330,12 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
                 blocked.append(f"{capability_id}:{classification.reason}")
             elif classification.decision == "require_explicit_approval":
                 approvals.append(capability_id)
-            elif classification.decision != "allow_equivalent":
+            elif classification.decision == "allow_equivalent":
+                require_complete_equivalent_authority(
+                    fallback_input,
+                    capability_id,
+                )
+            else:
                 raise ValueError(
                     f"fallback {capability_id} returned unknown decision "
                     f"{classification.decision!r}"
