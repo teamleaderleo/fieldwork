@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
 
 import { createJSONStorage } from 'jotai/vanilla/utils'
+
+const require = createRequire(import.meta.url)
+const installedPackage = require('jotai/package.json')
+assert.equal(installedPackage.version, '2.20.2')
 
 const equalJson = JSON.stringify({ nested: { count: 1 } })
 const differentJson = JSON.stringify({ nested: { count: 2 } })
@@ -53,7 +58,11 @@ const mutationCrossedKeyBoundary = beta.nested.count === 99
 
 const result = {
   node: process.version,
-  package: 'jotai@2.20.2',
+  package: {
+    name: installedPackage.name,
+    version: installedPackage.version,
+    runtimeDependencies: installedPackage.dependencies ?? {},
+  },
   controls: {
     sameKeySameJsonPreservesIdentity: alpha === alphaAgain,
     differentJsonIsDistinct: beta !== gamma,
