@@ -1,0 +1,96 @@
+name: T3 Orchestration V2 OpenCode evaluation
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t3-orchestration-v2-opencode-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - name: Checkout Fieldwork head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+
+      - name: Check evaluation inputs
+        id: filter
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(.github/workflows/t3-orchestration-v2-opencode-evaluation.yml|campaigns/t3-opencode-completion-reconciliation/artifacts/v2-opencode-target-head.txt)$'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  evaluation:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Lifecycle outbox ownership controls
+            command: >-
+              vp test run
+              apps/server/src/orchestration-v2/EffectOutbox.lifecycle-evaluation.test.ts
+          - name: OpenCode adapter lifecycle unit suite
+            command: >-
+              vp test run
+              apps/server/src/orchestration-v2/Adapters/OpenCodeAdapterV2.test.ts
+          - name: OpenCode cleanup replay fixtures
+            command: >-
+              vp test run
+              apps/server/src/orchestration-v2/testkit/OrchestratorReplayFixtures.integration.test.ts
+              -t "runs (opencode_error_cleanup|opencode_error_unscoped|opencode_interrupt_error_cleanup|turn_interrupt_mid_tool)/opencode"
+          - name: Server typecheck
+            command: vp run --filter t3 typecheck
+    steps:
+      - name: Checkout Fieldwork evaluation pin
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+
+      - name: Resolve pinned V2 OpenCode evaluation head
+        id: target
+        run: echo "ref=$(tr -d '\n' < fieldwork/campaigns/t3-opencode-completion-reconciliation/artifacts/v2-opencode-target-head.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout owned T3 V2 OpenCode evaluation head
+        uses: actions/checkout@v6
+        with:
+          repository: teamleaderleo/t3code
+          ref: ${{ steps.target.outputs.ref }}
+          path: t3code
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: t3code/package.json
+          cache: false
+          run-install: false
+
+      - name: Install target dependencies
+        working-directory: t3code
+        run: vp install
+
+      - name: Run evaluation check
+        working-directory: t3code
+        run: ${{ matrix.command }}
