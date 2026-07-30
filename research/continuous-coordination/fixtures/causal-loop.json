@@ -1,0 +1,43 @@
+{
+  "edges": [
+    {
+      "from": "attempt-1",
+      "kind": "causal",
+      "to": "attempt-2"
+    },
+    {
+      "from": "attempt-2",
+      "kind": "history",
+      "to": "attempt-1"
+    }
+  ],
+  "nodes": [
+    {
+      "authority": {
+        "upstream_contact": false
+      },
+      "evaluator_revision": "coordination-compiler/v1",
+      "generation": 1,
+      "id": "attempt-1",
+      "input_fingerprint": "sha256:input-attempt-1-1",
+      "kind": "technical-review",
+      "policy_revision": "fieldwork-review/v1",
+      "semantic_fingerprint": "sha256:semantic-attempt-1-1",
+      "semantic_state": "current"
+    },
+    {
+      "authority": {
+        "upstream_contact": false
+      },
+      "evaluator_revision": "coordination-compiler/v1",
+      "generation": 2,
+      "id": "attempt-2",
+      "input_fingerprint": "sha256:input-attempt-2-2",
+      "kind": "technical-review",
+      "policy_revision": "fieldwork-review/v1",
+      "semantic_fingerprint": "sha256:semantic-attempt-2-2",
+      "semantic_state": "current"
+    }
+  ],
+  "schema_version": "fieldwork.coordination/v1"
+}
