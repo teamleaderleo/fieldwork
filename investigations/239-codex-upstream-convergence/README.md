@@ -89,7 +89,7 @@ Execution carrier: `teamleaderleo/codex#52`.
 Current `Session::persist_rollout_items` logs append errors and returns no outcome to the caller. The bounded append-acknowledgement prerequisite therefore retains semantic residue. Typed `Persisted` versus `Ambiguous`, retry authority, duplicate reconciliation, compaction gating, and remote-effect settlement remain later and separate layers.
 
 Current carrier head: `324ddccba14b2b0934e2c56cc0cda7ca04a56e6d`.  
-Authoritative run: `30582576317`, queued at this workspace snapshot.
+Authoritative run: `30583872587`, queued at this workspace snapshot. Superseded run `30582576317` was cancelled and supplies no source-behavior result.
 
 ### Terminal output retention
 
@@ -98,8 +98,8 @@ Execution carrier: `teamleaderleo/codex#53`.
 
 Upstream adopted `VecDeque` buffering and improved invalid-UTF-8 progress. That work overlaps the same files and makes the historical patch mechanically conflicting. It does not transfer producer-owned retention before best-effort broadcast, so semantic residue remains.
 
-Current carrier head: `d5028fc9771407aa7a9bafbceb7eba051b91de36`.  
-Authoritative run: `30582012412`, queued at this workspace snapshot.
+Current carrier head: `0bd2fad8da92ed9bf9064949a5d27f59741d1ae7`.  
+Authoritative rerun: `30584398042`, queued at this workspace snapshot. The previous attempt reached source reconstruction and stopped in repository-wide formatting because `uv` was absent; the repaired head installs the same pinned runner as current upstream repo checks.
 
 ### Timeout and cancellation certainty
 
