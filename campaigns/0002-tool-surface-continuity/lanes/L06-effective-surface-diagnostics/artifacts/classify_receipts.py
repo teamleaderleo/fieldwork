@@ -152,6 +152,14 @@ def validate_document(document: Any) -> dict[str, Any]:
         document["source_boundary"], dict
     ):
         raise ValueError("document.source_boundary must be an object")
+
+    seen_receipt_ids: set[str] = set()
+    for receipt in receipts:
+        validated_receipt = validate_receipt_schema(receipt)
+        receipt_id = validated_receipt["receipt_id"]
+        if receipt_id in seen_receipt_ids:
+            raise ValueError(f"document has duplicate receipt_id {receipt_id!r}")
+        seen_receipt_ids.add(receipt_id)
     return document
 
 
@@ -370,7 +378,6 @@ def run(input_path: Path, output_path: Path) -> dict[str, Any]:
     receipts = document["receipts"]
     results = []
     for receipt in receipts:
-        validate_receipt_schema(receipt)
         violations = validate_privacy(receipt)
         if violations:
             raise ValueError(
