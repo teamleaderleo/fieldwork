@@ -23,7 +23,8 @@ Read, in order:
 11. `INTEGRATION_CONTEXT.md` when making claims about wider use or consequence
 12. `COORDINATION.md` for shared or parallel work
 13. `BATCHES.md` when the assignment belongs to a batch
-14. the relevant programme hub, target hub, map, experiment, trial, context, manifest, campaign, lane, and issue
+14. `REVIEWING.md` before asking for acceptance, execution, promotion, merge, or upstream preparation
+15. the relevant programme hub, target hub, map, experiment, trial, context, manifest, campaign, lane, and issue
 
 Tool-specific instruction files point back to `AGENTS.md`; they do not replace it.
 
@@ -185,7 +186,23 @@ Preferred durable outputs:
 
 Use the templates under `templates/`. Avoid several agents editing one shared report, context dossier, experiment directory, or testbed branch.
 
-## 10. Report completion visibly
+## 10. Self-review before handoff
+
+Follow `REVIEWING.md` and complete `templates/review.md` before asking another reviewer to accept, execute, promote, merge, or prepare work for upstream use.
+
+At minimum:
+
+1. trace every claim that affects the requested transition to an exact source path, artifact, test, workflow receipt, or retained result;
+2. record evidence class per claim rather than assigning one strongest class to the whole pull request;
+3. separate harness, setup, fixture, installation, and product failures;
+4. inspect the complete current diff and current-main relation;
+5. synchronize the issue, report, pull-request description, receipts, and queue or Delivery Desk entry;
+6. mark non-applicable fields instead of inventing evidence;
+7. prove temporary workflows or execution carriers are absent from the final canonical head before calling them retired.
+
+Self-review prepares the handoff. It does not replace eligible independent acceptance.
+
+## 11. Report completion visibly
 
 A standalone experiment does not require an issue comment. Finish its `README.md` or report, update `experiment.json`, and promote it when other work depends on the result.
 
@@ -215,7 +232,7 @@ Upstream contact authorized: no | yes, with explicit authority
 
 If repository writes are unavailable, place the full handoff in the issue and apply `needs:materialization`.
 
-## 11. Close through acceptance and synthesis
+## 12. Close through acceptance and synthesis
 
 A scout is finished when its revision, code and test map, runnable evidence or explicit feasibility limit, branch candidates, negative results, uncertainty, and recommendation are durable.
 
