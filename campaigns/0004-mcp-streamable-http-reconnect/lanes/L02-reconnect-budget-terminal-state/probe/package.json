@@ -1,0 +1,11 @@
+{
+  "name": "fieldwork-mcp-v2-reconnect-budget-probe",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node probe-release.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.0.0"
+  }
+}
