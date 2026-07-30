@@ -1,57 +1,75 @@
-# F244-repository-admission-authority: require complete authority evidence before fallback admission
+# F244-repository-admission-authority: require complete authority evidence and executable read work
 
-Finding state: `review-ready`
+Finding state: `research-active`
 
 Workstream: `A`  
 Canonical Fieldwork issue: `#244`  
 Canonical finding path: `findings/F244-repository-admission-authority/finding.md`  
 Canonical implementation: `teamleaderleo/fieldwork#259`  
-Exact implementation head: `20a3eaef6db81c15ee2e0e725d180277990cff7c`  
+Exact implementation head: `c3582f97bbe9ee10cde1cb7084912241075fed3b`  
+Exact repair source commit: `63ced110236929841a3afd1b9d9642627498ab24`  
 Exact base or source revision: `teamleaderleo/fieldwork@896a617c4b4dd8dd9fb9493d05f801c7baf9ade3`  
-Strongest evidence class: `full-gate`  
+Strongest evidence class: `target-test-prepared` for the current repair; prior authority-completeness generation is `full-gate`  
 Reviewed input generation: `PR #259 exact head 20a3eaef6db81c15ee2e0e725d180277990cff7c`  
-Current review disposition: `none — independent complete-diff review pending`  
-Desk routing: `Review Queue #213`  
+Current review disposition: `REPAIR — same-head execution and fresh complete-diff review required`  
+Desk routing: `Review Queue #213 repair-active`  
 Upstream contact authorized: `no`
 
 ## In simple words
 
-Fieldwork is testing a rule for workers whose normal tool route disappears. The worker may propose another route, but the repository must compare the old and new authority before allowing it.
+Fieldwork is testing a rule for workers whose normal tool route disappears. A worker may propose another route only after the repository compares the old and new authority.
 
-The first implementation could make a decision from missing evidence. An omitted authority list became an empty list, missing binding generations entered a digest as null values, and missing reversibility could pass. The first repair closed the direct allow path, yet a partial comparison could still produce “ask for approval” or “block.” Those outcomes sound conservative, but they still claim a comparison was performed when most fields were absent.
+The carrier has now exposed and repaired three separate evidence problems:
 
-PR #259 now requires one explicit relation for every declared authority dimension before the shared classifier runs. The exact head passes all three repository workflows. The implementation is ready for independent review.
+1. omitted authority facts could look equivalent;
+2. partial comparisons could still become approval or blocked receipts;
+3. a mutation-only request could claim `degraded_read_only` even when zero read routes were executable.
+
+The current source requires complete 12-field authority evidence and permits degradation only when at least one required read capability is directly executable or admitted through an authority-equivalent fallback. Same-head workflows and a fresh independent review remain before promotion.
 
 ## Why we care
 
-Fallback routing can change account, provider, approval subject, delegation, visibility, credentials, permissions, resource scope, audit behavior, idempotency, rollback, or recovery. A decision made from a partial comparison can hide an authority expansion or create an approval prompt whose stated differences are incomplete. That weakens operator understanding and can authorize the wrong route.
+Fallback routing can change account, provider, approval subject, delegation, visibility, credentials, permissions, resource scope, audit behavior, idempotency, rollback, or recovery. A partial comparison can hide an authority expansion or create an incomplete approval prompt.
+
+A degradation label also carries authority. It says useful read-only work may continue. Emitting that label with zero executable read routes creates an admission receipt for work that does not exist and can mislead dispatch or coordination code.
 
 ## What happens if we leave it alone
 
-The observed defect is deterministic in the model: incomplete fallback inputs can reach a classifier decision. In the original carrier they could reach `allow_equivalent`; in the first replacement they could still reach approval or fail-closed results. The repository could therefore emit a confident admission receipt from an incomplete comparison. This finding does not establish production exposure because hosted Stensibly import and Codex dispatch are outside the carrier.
+At reviewed head `20a3eaef...`, a request containing only one absent `potential_mutation` capability, no fallback, and no read capability returns `degraded_read_only`. The report and repository attachment define degradation as continuing executable reads, so the result overstates the remaining surface.
+
+The current repair blocks that request with `mutation_capability_missing:no_executable_read_only_work`. Production exposure remains unproved because hosted Stensibly import and Codex dispatch are outside this carrier.
+
+## Governing invariant
+
+**Every fallback decision uses a complete declared authority comparison, and read-only degradation requires at least one admitted required read capability.**
+
+Malformed or incomplete evidence is invalid input. Missing mutation capability may degrade only when required read work remains directly executable or authority-equivalent. Otherwise the request blocks.
 
 ## Current finding
 
-Every fallback proposal must provide exact typed input keys, non-empty operation and binding identities, strict boolean identity/reversibility receipts, and exactly one relation for all 12 declared authority dimensions before classification. The classifier may then return allow, approval, or fail-closed. Missing, duplicate, unknown, contradictory, or partial comparisons are invalid inputs rather than policy decisions.
+Every fallback proposal must provide exact typed input keys, non-empty operation and binding identities, strict boolean identity/reversibility receipts, and exactly one relation for all 12 declared authority dimensions before classification.
+
+The evaluator tracks admitted required read capabilities. A direct executable read or an `allow_equivalent` read fallback counts. Approval, fail-closed, absent, or unknown reads do not count. Unresolved mutation capability with zero admitted reads becomes blocked.
 
 ### Claim table
 
 | Claim | Evidence class | Exact support | Limit |
 | --- | --- | --- | --- |
-| The original carrier could allow a fallback with incomplete authority evidence. | `source-read` | Closed PR #251 at `17d4fc3dd17e0f7a37516aa38a8767eca9ade591`; Campaign #86 classifier defaults and evaluator call path. | Synthetic repository model; no live provider dispatch occurred. |
-| The first replacement still permitted partial comparisons for approval or fail-closed outcomes. | `source-read` | PR #259 predecessor review before commit `20a3eaef...`; completeness check was invoked only for `allow_equivalent`. | Shows one remaining boundary in the replacement, not a new live incident. |
-| Current head validates the complete 12-field comparison before invoking the classifier. | `source-read` | `evaluate_admission.py` at `20a3eaef...`, `REQUIRED_AUTHORITY_FIELDS`, validation before `classify_fallback`. | Trusted comparator provenance and live route identity remain outside scope. |
-| The exact head passes the admission, repository integrity, and shared-classifier workflows. | `full-gate` | Runs `30581988908`, `30581988915`, `30581988967`. | Workflow success does not substitute for independent complete-diff review. |
+| The original carrier could allow a fallback with incomplete authority evidence. | `source-read` | Closed PR #251 at `17d4fc3dd17e0f7a37516aa38a8767eca9ade591`; Campaign #86 classifier defaults and evaluator call path. | Synthetic repository model; no live provider dispatch. |
+| The first replacement still permitted partial comparisons for approval or fail-closed outcomes. | `source-read` | PR #259 predecessor before `20a3eaef...`; completeness was checked after classification. | Shows an input-contract defect in the replacement. |
+| Head `20a3eaef...` validates all 12 authority fields before classification. | `full-gate` | Runs `30581988908`, `30581988915`, `30581988967`. | Those runs predate the degradation repair. |
+| Head `20a3eaef...` can degrade a mutation-only request with zero admitted reads. | `source-read` plus durable discriminator | Review `4823835807`; `mutation_only_absence_case.json` added at `831ba998...`. | Current repair execution pending. |
+| Repair source `63ced110...` requires admitted read work before degradation. | `source-read` | `admitted_reads` tracking and explicit no-read-only-work block. | Same-head workflows and independent review remain. |
 
 ## System and ownership map
 
-- Entry point: `.github/workflows/issue-244-repository-admission.yml` executes the retained case matrix.
+- Entry point: `.github/workflows/issue-244-repository-admission.yml` executes the primary matrix and mutation-only discriminator.
 - Repository attachment: `STENSIBLY.md` declares static policy and allowed autonomous repository actions; it grants no live authority.
-- Admission evaluator: `campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/artifacts/evaluate_admission.py` validates observations and fallback receipts.
+- Admission evaluator: `campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/artifacts/evaluate_admission.py` validates observations, fallback receipts, and degradation eligibility.
 - Shared policy owner: Campaign #86 classifier at `campaigns/0006-authority-aware-capability-fallback/artifacts/classify_fallback.py` classifies complete proposed routes.
-- Evidence owner: retained `cases.json` and generated workflow receipt.
-- Side effect: none in this carrier; it emits a synthetic admission decision.
-- Recovery: invalid or incomplete inputs fail before a decision; missing mutation capability may degrade to read-only work only when required reads remain executable.
+- Evidence owner: `cases.json`, `mutation_only_absence_case.json`, and exact workflow receipts.
+- Side effect: none in this carrier; it emits synthetic admission decisions.
+- Recovery: invalid or incomplete inputs fail before a decision; unavailable mutation work blocks when no admitted reads remain.
 - Public contract: repository-local preflight candidate, not hosted runtime authority.
 
 ## Historical precedent
@@ -59,98 +77,113 @@ Every fallback proposal must provide exact typed input keys, non-empty operation
 ### Campaign #86 authority-aware fallback classifier
 
 - Source: `https://github.com/teamleaderleo/fieldwork/tree/896a617c4b4dd8dd9fb9493d05f801c7baf9ade3/campaigns/0006-authority-aware-capability-fallback`
-- Revision or date: `896a617c4b4dd8dd9fb9493d05f801c7baf9ade3`, reviewed 2026-07-31.
-- Principle supported: fallback decisions must preserve operation identity and classify named authority, execution-certainty, and recovery differences.
-- Important difference: the shared classifier assumes a caller supplies meaningful comparison data; this finding owns the repository-admission input contract that must validate completeness before invoking it.
+- Revision: `896a617c4b4dd8dd9fb9493d05f801c7baf9ade3`, reviewed 2026-07-31.
+- Principle supported: fallback decisions preserve operation identity and classify named authority, execution-certainty, and recovery differences.
+- Difference: the shared classifier assumes meaningful comparison data; this finding owns completeness and admission composition.
 
-### Reversion of premature admission landing
+### Repository attachment boundary
 
-- Source: Fieldwork commits `1dc47994dfd738640fac57e345a41ded657806bf`, `a057bea7a2eaa127f7961687459c5884d4a28482`, and `33c57f7597ab1b4f6d0cb6adacf7cc7814362f35`.
-- Revision or date: 2026-07-30.
-- Principle supported: admission files and repository attachments do not belong on `main` before their authority contract and review path are ready.
-- Important difference: the current PR is an owned draft carrier with exact-head gates; it still lacks hosted import and runtime integration.
+- Source: `STENSIBLY.md` in PR #259.
+- Principle supported: repository text is display and policy context; live capability and execution authority stay server-owned.
+- Consequence: a decision label must accurately describe executable work proven by the receipt.
+
+## Decision criteria
+
+1. Reject incomplete authority evidence before any policy outcome.
+2. Preserve fail-closed precedence for missing reads and ambiguous mutation outcomes.
+3. Permit degradation only when useful required read work remains admitted.
+4. Keep direct and equivalent read authority visible in the receipt.
+5. Preserve deterministic output and exact case reproduction.
+6. Avoid claims about hosted integration absent target execution.
 
 ## Approaches considered
 
-### Retained approach: exact complete comparison before classification
+### Selected: explicit admitted-read tracking
 
-The evaluator validates the full declared authority field set before calling Campaign #86. This cleanly separates malformed evidence from policy outcomes and prevents decision labels from laundering incomplete inputs.
+Track direct executable reads and read fallbacks classified `allow_equivalent`. Require a non-empty admitted set before unresolved mutation capability can degrade.
 
-### Declined: classifier defaults for omitted data
+Benefit: directly matches the attachment and report contract, preserves positive degradation, and yields inspectable receipts.
 
-Defaults make the classifier reusable for exploratory cases, but they are unsafe as a repository admission boundary. Empty lists and null digest values can look like evidence of equivalence.
+### Declined: infer read work from request operation kind
 
-### Declined: enforce completeness only for `allow_equivalent`
+The top-level operation kind does not prove that a required read route exists. A potential-mutation request can contain only mutation capability.
 
-Approval and fail-closed are conservative outcomes, yet a partial comparison still creates a misleading receipt and can omit the exact authority changes a person should evaluate.
+### Declined: treat every missing mutation as degradation
 
-### Deferred: trust live provider metadata directly
+This was the reviewed defect. It creates a read-only label without read-only work.
 
-Live route identity, accepted attachment generation, comparator identity, credentials, and provider behavior require hosted Stensibly/Codex integration. They belong to a later integration finding.
+### Deferred: validate live comparator and provider provenance
+
+Accepted attachment generation, comparator identity, credentials, and live provider state require hosted integration.
 
 ## Edge cases covered
 
-| Edge case or control | Evidence | Result |
+| Edge case or control | Evidence | Expected result |
 | --- | --- | --- |
-| Direct executable read and mutation routes | retained matrix | `ready`. |
-| Missing mutation route with reads intact | retained matrix | `degraded_read_only`. |
-| Complete changed account/provider comparison | retained matrix | `require_explicit_approval`. |
-| Ambiguous prior mutation with complete equal authority | retained matrix | `blocked`. |
-| Missing required read | retained matrix | `blocked`. |
-| Complete equivalent fallback with narrower permission | retained matrix | `ready`. |
-| Omitted delta key | invalid control | rejected as malformed. |
-| Empty delta list | invalid control | rejected. |
-| Partial read or mutation comparison | invalid controls | rejected before classification. |
-| Empty binding generation | invalid control | rejected. |
-| Missing reversibility | invalid control | rejected. |
+| Direct executable read and mutation routes | primary matrix | `ready`. |
+| Missing mutation route with direct read intact | primary matrix | `degraded_read_only`. |
+| Mutation-only request with missing mutation route | standalone discriminator | `blocked`. |
+| Complete changed account/provider comparison | primary matrix | `require_explicit_approval`. |
+| Ambiguous prior mutation with complete equal authority | primary matrix | `blocked`. |
+| Missing required read | primary matrix | `blocked`. |
+| Complete equivalent fallback with narrower permission | primary matrix | `ready`. |
+| Omitted, empty, partial, duplicate, unknown, or contradictory authority input | invalid controls and validator | rejected before classification. |
+| Empty binding generation or missing reversibility | invalid controls | rejected. |
 | Phase becoming present after absence/unknown | invalid control | rejected. |
 
 ## Edge cases deferred or outside scope
 
-| Edge case | Why deferred | Owning next record or reopening trigger |
+| Edge case | Reason | Next record or trigger |
 | --- | --- | --- |
-| Hosted Stensibly attachment import and acceptance | This carrier reads static repository files only. | New integration finding after versioned import exists. |
-| Trusted comparator provenance | The evaluator imports a repository path without a signed runtime identity. | Reopen when binding to accepted attachment and comparator generation. |
+| Equivalent read fallback plus missing mutation | Current source supports it; dedicated positive case absent. | Add before hosted integration or when receipt schema becomes contractual. |
+| Several missing mutations with one admitted read | Decision composition is deterministic but minimally covered. | Expand matrix before production use. |
+| Hosted Stensibly attachment import and acceptance | Static repository carrier only. | Integration finding after versioned import exists. |
+| Trusted comparator provenance | Repository path import lacks signed runtime identity. | Bind to accepted attachment and comparator generation. |
 | Codex dispatch and provider calls | No live dispatch occurs. | Runtime integration lane. |
-| Approval UI and human interpretation | Synthetic decision JSON only. | Design/integration finding before production use. |
-| Credential and provider availability changes during dispatch | Requires live generation fencing. | Runtime authority finding. |
+| Approval UI and human interpretation | Synthetic JSON only. | Design/integration finding. |
+| Capability changes during dispatch | Requires live generation fencing. | Runtime authority finding. |
 
 ## Exact execution and receipts
 
-| Repository/head | Command or workflow | Platform/environment | Result | Evidence class |
-| --- | --- | --- | --- | --- |
-| `teamleaderleo/fieldwork@20a3eaef6db81c15ee2e0e725d180277990cff7c` | issue #244 repository admission `30581988908` | GitHub Actions | success | `target-executed` |
-| same | Fieldwork integrity `30581988915` | GitHub Actions | success | `full-gate` |
-| same | Campaign #86 authority fallback classifier `30581988967` | GitHub Actions | success | `full-gate` |
-| predecessor local repair generation | deterministic 14-case matrix | coordinator execution | 2 ready, 1 degraded, 1 approval, 3 blocked, 7 invalid, 0 mismatches | `model-executed` |
+| Repository/head | Command or workflow | Result | Evidence class |
+| --- | --- | --- | --- |
+| `teamleaderleo/fieldwork@20a3eaef6db81c15ee2e0e725d180277990cff7c` | issue #244 admission `30581988908` | success | `target-executed` for complete-comparison generation |
+| same | Fieldwork integrity `30581988915` | success | `full-gate` |
+| same | Campaign #86 classifier `30581988967` | success | `full-gate` |
+| `831ba998af5c9ffd811b9f3352853c63b4ecf6cd` | mutation-only discriminator | prepared to expose degradation defect | `target-test-prepared` |
+| current head `c3582f97bbe9ee10cde1cb7084912241075fed3b` | issue #244, Fieldwork integrity, Campaign #86 workflows | queued after source and report repair | `target-test-prepared` |
+
+Primary matrix: 14 cases — 2 ready, 1 degraded, 1 approval, 3 blocked, 7 invalid. Standalone discriminator: 1 blocked mutation-only case.
 
 ## Complete-diff and compatibility review
 
-- Complete changed-file fence: `STENSIBLY.md`, `.github/workflows/issue-244-repository-admission.yml`, evaluator, retained cases, and lane report.
-- Current-base relationship: PR #259 is based on reviewed current main `896a617c...`; GitHub reports it mergeable and draft.
-- Temporary carrier status: closed PR #251 remains unmerged, superseded evidence; PR #259 is canonical.
-- Compatibility surfaces examined: direct capability, read-only degradation, missing reads, equivalent fallback, approval, ambiguous mutation certainty, malformed phases, typed input completeness, duplicate/unknown fields.
-- Known source defect or routine repair remaining: none identified at `20a3eaef...` after the second complete-diff pass.
-- Reviewer eligibility: independent reviewer required because the current coordinator authored the latest repair.
+- Current changed-file fence: `STENSIBLY.md`, admission workflow, evaluator, primary cases, mutation-only case, and lane report.
+- Current-base relationship: PR #259 remains based on reviewed main `896a617c...`; exact head moved after review and all earlier disposition expired.
+- Temporary carrier status: closed PR #251 remains unmerged and superseded; PR #259 is canonical.
+- Compatibility surfaces examined: direct capability, positive read-only degradation, mutation-only absence, missing reads, equivalent fallback, approval, ambiguous mutation certainty, malformed phases, typed input completeness, duplicate/unknown fields.
+- Output addition: `admitted_read_capabilities` makes degradation evidence inspectable.
+- Reviewer eligibility: fresh independent complete-diff review is required after same-head workflows pass because the current repair followed review `4823835807`.
 
 ## Current disposition and desk routing
 
-- Finding state: `review-ready`
-- Review disposition: `none — independent review pending`
-- Review Queue entry: `#213`
+- Finding state: `research-active`
+- Review disposition: `REPAIR — execution pending`
+- Review Queue entry: `#213 repair-active`
 - Delivery lane: `not-entered`
-- Exact next transition: independent complete-diff review of PR #259 at `20a3eaef...`.
-- Clearing condition: exact-head ACCEPT review confirming complete input validation, case coverage, report truth, and evidence limits.
-- Required subgates: complete diff, current-base relationship, three green workflows, supersession truth, hosted-runtime boundary.
-- User decision requested: none; technical review comes first.
+- Exact next transition: complete current-head workflows on `c3582f97...`, inspect outputs, then perform fresh independent complete-diff review.
+- Clearing condition: all three same-head workflows pass, the mutation-only discriminator reports blocked, the positive degradation case remains degraded, report claims match receipts, and review accepts the complete six-file diff.
+- Non-delegable human decision: none.
 
 ## Changes to the canonical conclusion
 
 | Date | Pull request or commit | Change in conclusion |
 | --- | --- | --- |
-| 2026-07-30 | PR #251 `17d4fc3...` | Green workflows were demoted to REPAIR after incomplete fallback inputs were found. |
-| 2026-07-30 | `f7a515ce...` and `5676a1af...` | Added exact keys, typed fields, non-empty deltas, and complete equivalent-route checks. |
-| 2026-07-30 | `20a3eaef6db81c15ee2e0e725d180277990cff7c` | Required the full authority field set before every classifier outcome; exact-head workflows passed. |
+| 2026-07-30 | PR #251 `17d4fc3...` | Green workflows demoted after incomplete fallback evidence was found. |
+| 2026-07-30 | `f7a515ce...` and `5676a1af...` | Added exact keys, typed fields, and initial completeness checks. |
+| 2026-07-30 | `20a3eaef...` | Required all 12 authority fields before every classifier outcome; workflows passed. |
+| 2026-07-31 | review `4823835807` | Demoted review-ready after mutation-only degradation was found. |
+| 2026-07-31 | `831ba998...` | Added durable mutation-only blocked discriminator. |
+| 2026-07-31 | `63ced110...` / `c3582f97...` | Added admitted-read guard, receipt, and synchronized report; current-head execution pending. |
 
 ## References
 
@@ -165,3 +198,4 @@ Live route identity, accepted attachment generation, comparator identity, creden
 - `campaigns/0006-authority-aware-capability-fallback/artifacts/classify_fallback.py`
 - `campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/artifacts/evaluate_admission.py`
 - `campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/artifacts/cases.json`
+- `campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/artifacts/mutation_only_absence_case.json`
