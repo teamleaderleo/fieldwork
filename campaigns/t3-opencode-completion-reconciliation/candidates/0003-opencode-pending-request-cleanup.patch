@@ -2,8 +2,7 @@ diff --git a/apps/server/src/provider/Layers/OpenCodeAdapter.ts b/apps/server/sr
 index 73c23b7..0000000 100644
 --- a/apps/server/src/provider/Layers/OpenCodeAdapter.ts
 +++ b/apps/server/src/provider/Layers/OpenCodeAdapter.ts
-@@ -59,7 +59,12 @@ function toToolLifecycleItemType(toolName: string): ToolLifecycleItemType {
- 
+@@ -320,6 +320,11 @@
  function mapPermissionToRequestType(
    permission: string,
 -): "command_execution_approval" | "file_read_approval" | "file_change_approval" | "unknown" {
@@ -16,7 +15,7 @@ index 73c23b7..0000000 100644
    switch (permission) {
      case "bash":
        return "command_execution_approval";
-@@ -68,6 +73,8 @@ function mapPermissionToRequestType(
+@@ -327,6 +332,8 @@
        return "file_read_approval";
      case "edit":
        return "file_change_approval";
@@ -25,9 +24,9 @@ index 73c23b7..0000000 100644
      default:
        return "unknown";
    }
-@@ -374,5 +381,58 @@ export function makeOpenCodeAdapter(
-       event: ProviderRuntimeEvent,
-     ) => Queue.offer(runtimeEvents, event).pipe(Effect.asVoid);
+@@ -654,4 +654,57 @@
+     const emit = (event: ProviderRuntimeEvent) =>
+       Queue.offer(runtimeEvents, event).pipe(Effect.asVoid);
 +
 +    const expirePendingInteractiveRequests = Effect.fn(
 +      "expirePendingInteractiveRequests",
@@ -83,34 +82,26 @@ index 73c23b7..0000000 100644
 +
      const writeNativeEvent = (
        threadId: ThreadId,
-       event: {
-@@ -680,6 +740,7 @@ export function makeOpenCodeAdapter(
-         return;
-       }
+@@ -682,3 +682,4 @@
        const turnId = context.activeTurnId;
 +      yield* expirePendingInteractiveRequests(context, turnId, "provider_exited");
        sessions.delete(context.session.threadId);
        // Emit lifecycle events BEFORE tearing down the scope. Both call sites
-       // run this inside a fiber forked via `Effect.forkIn(context.sessionScope)`;
-@@ -1051,6 +1112,7 @@ export function makeOpenCodeAdapter(
-           }
- 
+@@ -1061,3 +1061,4 @@
            if (event.properties.status.type === "idle" && turnId) {
 +            yield* expirePendingInteractiveRequests(context, turnId, "turn_completed");
              context.activeTurnId = undefined;
              yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
-             yield* emit({
-@@ -1079,6 +1141,7 @@ export function makeOpenCodeAdapter(
+@@ -1080,4 +1080,5 @@
            const message = sessionErrorMessage(event.properties.error);
            const activeTurnId = context.activeTurnId;
            context.activeTurnId = undefined;
 +          yield* expirePendingInteractiveRequests(context, activeTurnId, "session_error");
            yield* updateProviderSession(
-             context,
-             {
-@@ -1544,13 +1607,15 @@ export function makeOpenCodeAdapter(
+@@ -1542,14 +1542,16 @@
+     const interruptTurn: OpenCodeAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
        function* (threadId, turnId) {
-         const context = yield* ensureSessionContext(sessions, threadId);
+         context = yield* ensureSessionContext(sessions, threadId);
 +        const interruptedTurnId = turnId ?? context.activeTurnId;
          yield* runOpenCodeSdk("session.abort", () =>
            context.client.session.abort({ sessionID: context.openCodeSessionId }),
@@ -126,10 +117,7 @@ index 73c23b7..0000000 100644
              })),
              type: "turn.aborted",
              payload: {
-@@ -1613,6 +1678,11 @@ export function makeOpenCodeAdapter(
-             threadId,
-           });
-         }
+@@ -1613,2 +1613,7 @@
 +        yield* expirePendingInteractiveRequests(
 +          context,
 +          context.activeTurnId,
@@ -137,24 +125,20 @@ index 73c23b7..0000000 100644
 +        );
          const stopped = yield* stopOpenCodeContext(context);
          sessions.delete(threadId);
-         if (!stopped) {
- diff --git a/packages/contracts/src/providerRuntime.ts b/packages/contracts/src/providerRuntime.ts
+diff --git a/packages/contracts/src/providerRuntime.ts b/packages/contracts/src/providerRuntime.ts
 index eb2563e..0000000 100644
 --- a/packages/contracts/src/providerRuntime.ts
 +++ b/packages/contracts/src/providerRuntime.ts
-@@ -454,6 +454,7 @@ export type UserInputRequestedPayload = typeof UserInputRequestedPayload.Type;
- 
+@@ -459,3 +459,4 @@
  const UserInputResolvedPayload = Schema.Struct({
    answers: UnknownRecordSchema,
 +  resolution: Schema.optional(Schema.Unknown),
  });
- export type UserInputResolvedPayload = typeof UserInputResolvedPayload.Type;
- 
- diff --git a/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts b/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
+diff --git a/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts b/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
 index a8a51b3..0000000 100644
 --- a/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
 +++ b/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
-@@ -307,6 +307,18 @@ function requestKindFromCanonicalRequestType(
+@@ -309,4 +309,16 @@
    }
  }
  
@@ -171,9 +155,7 @@ index a8a51b3..0000000 100644
 +}
 +
  export function runtimeEventToActivities(
-   event: ProviderRuntimeEvent,
-   taskTitle?: string,
-@@ -353,6 +365,7 @@ export function runtimeEventToActivities(
+@@ -354,6 +354,7 @@
        if (event.payload.requestType === "tool_user_input") {
          return [];
        }
@@ -181,7 +163,7 @@ index a8a51b3..0000000 100644
        const requestKind = requestKindFromCanonicalRequestType(event.payload.requestType);
        return [
          {
-@@ -361,12 +374,15 @@ export function runtimeEventToActivities(
+@@ -361,10 +362,13 @@
            createdAt: event.createdAt,
            tone: "approval",
            kind: "approval.resolved",
@@ -196,11 +178,7 @@ index a8a51b3..0000000 100644
 +              ? { resolution: event.payload.resolution }
 +              : {}),
            },
-           turnId: toTurnId(event.turnId) ?? null,
-           ...maybeSequence,
-@@ -450,16 +466,20 @@ export function runtimeEventToActivities(
-     }
- 
+@@ -472,12 +472,16 @@
      case "user-input.resolved": {
 +      const resolutionStatus = runtimeResolutionStatus(event.payload.resolution);
        return [
@@ -218,5 +196,3 @@ index a8a51b3..0000000 100644
 +              ? { resolution: event.payload.resolution }
 +              : {}),
            },
-           turnId: toTurnId(event.turnId) ?? null,
-           ...maybeSequence,
