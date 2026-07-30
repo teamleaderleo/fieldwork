@@ -2,7 +2,7 @@ diff --git a/apps/server/src/provider/Layers/OpenCodeAdapter.ts b/apps/server/sr
 index 73c23b7..0000000 100644
 --- a/apps/server/src/provider/Layers/OpenCodeAdapter.ts
 +++ b/apps/server/src/provider/Layers/OpenCodeAdapter.ts
-@@ -17,6 +17,7 @@ import {
+@@ -17,6 +17,8 @@ import {
  import * as Cause from "effect/Cause";
  import * as Crypto from "effect/Crypto";
  import * as DateTime from "effect/DateTime";
@@ -10,31 +10,39 @@ index 73c23b7..0000000 100644
  import * as Effect from "effect/Effect";
  import * as Exit from "effect/Exit";
  import * as FileSystem from "effect/FileSystem";
-@@ -206,6 +207,13 @@ function openCodeEventSessionTitle(event: OpenCodeSubscribedEvent): string | und
++import * as Fiber from "effect/Fiber";
+@@ -206,4 +208,18 @@ function openCodeEventSessionTitle(event: OpenCodeSubscribedEvent): string | und
    return trimText(event.properties.info.title);
  }
  
-+interface OpenCodeInterruptOperation {
+-interface OpenCodeSessionContext {
++interface OpenCodeInterruptReceipt {
 +  readonly generationId: string;
 +  readonly providerSessionId: string;
 +  readonly turnId: TurnId;
++}
++
++interface OpenCodeInterruptOperation extends OpenCodeInterruptReceipt {
 +  readonly result: Deferred.Deferred<void, ProviderAdapterRequestError>;
 +}
 +
- interface OpenCodeSessionContext {
-   session: ProviderSession;
-   readonly client: OpencodeClient;
-@@ -221,7 +229,9 @@ interface OpenCodeSessionContext {
++type OpenCodeInterruptClaim =
++  | { readonly owner: true; readonly operation: OpenCodeInterruptOperation }
++  | { readonly owner: false; readonly operation: OpenCodeInterruptOperation };
++
++interface OpenCodeSessionContext {
+@@ -221,7 +238,10 @@ interface OpenCodeSessionContext {
    readonly turns: Array<OpenCodeTurnSnapshot>;
    activeTurnId: TurnId | undefined;
    activeAgent: string | undefined;
    activeVariant: string | undefined;
 +  readonly generationId: string;
 +  readonly interruptOperation: Ref.Ref<OpenCodeInterruptOperation | undefined>;
++  readonly completedInterrupt: Ref.Ref<OpenCodeInterruptReceipt | undefined>;
    /**
     * One-shot guard flipped by `stopOpenCodeContext` / `emitUnexpectedExit`.
     * The session lifecycle is owned by `sessionScope`; this Ref exists only
-@@ -502,6 +512,15 @@ function sessionErrorMessage(error: unknown): string {
+@@ -502,6 +522,15 @@ function sessionErrorMessage(error: unknown): string {
      : "OpenCode session failed.";
  }
  
@@ -50,7 +58,7 @@ index 73c23b7..0000000 100644
  function updateProviderSession(
    context: OpenCodeSessionContext,
    patch: Partial<ProviderSession>,
-@@ -543,12 +562,22 @@ const stopOpenCodeContext = Effect.fn("stopOpenCodeContext")(function* (
+@@ -543,12 +572,22 @@ const stopOpenCodeContext = Effect.fn("stopOpenCodeContext")(function* (
      return false;
    }
  
@@ -64,7 +72,7 @@ index 73c23b7..0000000 100644
 +  const interruptCompleted = interruptOperation
 +    ? yield* Deferred.await(interruptOperation.result).pipe(
 +        Effect.as(true),
-+        Effect.catchAll(() => Effect.succeed(false)),
++        Effect.catch(() => Effect.succeed(false)),
 +      )
 +    : false;
 +
@@ -79,7 +87,7 @@ index 73c23b7..0000000 100644
  
    // Closing the session scope interrupts every fiber forked into it and
    // runs each finalizer we registered — the `AbortController.abort()` call,
-@@ -1051,7 +1080,15 @@ export function makeOpenCodeAdapter(
+@@ -1051,7 +1090,15 @@ export function makeOpenCodeAdapter(
              break;
            }
  
@@ -95,33 +103,44 @@ index 73c23b7..0000000 100644
              context.activeTurnId = undefined;
              yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
              yield* emit({
-@@ -1072,6 +1109,16 @@ export function makeOpenCodeAdapter(
+@@ -1072,6 +1119,26 @@ export function makeOpenCodeAdapter(
          case "session.error": {
            const message = sessionErrorMessage(event.properties.error);
            const activeTurnId = context.activeTurnId;
 +          const interruptOperation = yield* Ref.get(context.interruptOperation);
-+          if (
++          const completedInterrupt = yield* Ref.get(context.completedInterrupt);
++          const matchesActiveInterrupt =
 +            activeTurnId !== undefined &&
 +            interruptOperation?.generationId === context.generationId &&
 +            interruptOperation.providerSessionId === context.openCodeSessionId &&
-+            interruptOperation.turnId === activeTurnId &&
-+            isOpenCodeMessageAbortedError(event.properties.error)
++            interruptOperation.turnId === activeTurnId;
++          const matchesCompletedInterrupt =
++            activeTurnId === undefined &&
++            completedInterrupt?.generationId === context.generationId &&
++            completedInterrupt.providerSessionId === context.openCodeSessionId;
++          if (
++            isOpenCodeMessageAbortedError(event.properties.error) &&
++            (matchesActiveInterrupt || matchesCompletedInterrupt)
 +          ) {
++            if (matchesCompletedInterrupt) {
++              yield* Ref.set(context.completedInterrupt, undefined);
++            }
 +            break;
 +          }
            context.activeTurnId = undefined;
            yield* updateProviderSession(
              context,
-@@ -1287,6 +1334,8 @@ export function makeOpenCodeAdapter(
+@@ -1287,6 +1359,9 @@ export function makeOpenCodeAdapter(
            activeTurnId: undefined,
            activeAgent: undefined,
            activeVariant: undefined,
 +          generationId: yield* randomUUIDv4,
 +          interruptOperation: yield* Ref.make<OpenCodeInterruptOperation | undefined>(undefined),
++          completedInterrupt: yield* Ref.make<OpenCodeInterruptReceipt | undefined>(undefined),
            stopped: yield* Ref.make(false),
            sessionScope: started.sessionScope,
          };
-@@ -1411,6 +1460,14 @@ export function makeOpenCodeAdapter(
+@@ -1411,6 +1486,15 @@ export function makeOpenCodeAdapter(
  
      const sendTurn: OpenCodeAdapterShape["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
        const context = yield* ensureSessionContext(sessions, input.threadId);
@@ -133,14 +152,15 @@ index 73c23b7..0000000 100644
 +          issue: `OpenCode turn '${interruptOperation.turnId}' is being interrupted; wait for cancellation to settle before sending another prompt.`,
 +        });
 +      }
++      yield* Ref.set(context.completedInterrupt, undefined);
        // A sendTurn while a turn is active is a steer: OpenCode queues the
        // prompt into the busy session and the work continues as one turn, so
        // the active turn id is reused instead of opening a new turn.
-@@ -1538,21 +1595,112 @@ export function makeOpenCodeAdapter(
+@@ -1538,21 +1622,129 @@ export function makeOpenCodeAdapter(
  
      const interruptTurn: OpenCodeAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
        function* (threadId, turnId) {
-         const context = yield* ensureSessionContext(sessions, threadId);
+         context = yield* ensureSessionContext(sessions, threadId);
 +
 +        const activeTurnId = context.activeTurnId;
 +        if (turnId !== undefined && turnId !== activeTurnId) {
@@ -157,50 +177,55 @@ index 73c23b7..0000000 100644
 +        }
 +
 +        const candidate = yield* Deferred.make<void, ProviderAdapterRequestError>();
-+        const claim = yield* Ref.modify(context.interruptOperation, (current) => {
-+          if (
-+            current?.generationId === context.generationId &&
-+            current.providerSessionId === context.openCodeSessionId &&
-+            current.turnId === activeTurnId
-+          ) {
-+            return [
-+              { owner: false as const, operation: current, result: current.result },
-+              current,
-+            ] as const;
-+          }
-+          const operation: OpenCodeInterruptOperation = {
-+            generationId: context.generationId,
-+            providerSessionId: context.openCodeSessionId,
-+            turnId: activeTurnId,
-+            result: candidate,
-+          };
-+          return [
-+            { owner: true as const, operation, result: candidate },
-+            operation,
-+          ] as const;
-+        });
++        const claim = yield* Ref.modify(
++          context.interruptOperation,
++          (
++            current,
++          ): readonly [OpenCodeInterruptClaim, OpenCodeInterruptOperation | undefined] => {
++            if (
++              current?.generationId === context.generationId &&
++              current.providerSessionId === context.openCodeSessionId &&
++              current.turnId === activeTurnId
++            ) {
++              return [{ owner: false, operation: current }, current];
++            }
++            const operation: OpenCodeInterruptOperation = {
++              generationId: context.generationId,
++              providerSessionId: context.openCodeSessionId,
++              turnId: activeTurnId,
++              result: candidate,
++            };
++            return [{ owner: true, operation }, operation];
++          },
++        );
 +
 +        if (claim.owner) {
++          const operation = claim.operation;
 +          const clearOwnedInterrupt = Ref.update(context.interruptOperation, (current) =>
-+            current?.generationId === claim.operation.generationId &&
-+            current.providerSessionId === claim.operation.providerSessionId &&
-+            current.turnId === claim.operation.turnId &&
-+            current.result === claim.result
++            current?.generationId === operation.generationId &&
++            current.providerSessionId === operation.providerSessionId &&
++            current.turnId === operation.turnId &&
++            current.result === operation.result
 +              ? undefined
 +              : current,
 +          );
 +          const operationBody = Effect.gen(function* () {
 +            yield* runOpenCodeSdk("session.abort", () =>
-+              context.client.session.abort({ sessionID: claim.operation.providerSessionId }),
++              context.client.session.abort({ sessionID: operation.providerSessionId }),
 +            ).pipe(Effect.mapError(toRequestError));
 +
 +            const currentContext = sessions.get(threadId);
 +            if (
 +              currentContext === context &&
-+              context.generationId === claim.operation.generationId &&
-+              context.openCodeSessionId === claim.operation.providerSessionId &&
-+              context.activeTurnId === claim.operation.turnId
++              context.generationId === operation.generationId &&
++              context.openCodeSessionId === operation.providerSessionId &&
++              context.activeTurnId === operation.turnId
 +            ) {
++              yield* Ref.set(context.completedInterrupt, {
++                generationId: operation.generationId,
++                providerSessionId: operation.providerSessionId,
++                turnId: operation.turnId,
++              });
 +              context.activeTurnId = undefined;
 +              context.activeAgent = undefined;
 +              context.activeVariant = undefined;
@@ -212,7 +237,7 @@ index 73c23b7..0000000 100644
 +              yield* emit({
 +                ...(yield* buildEventBase({
 +                  threadId,
-+                  turnId: claim.operation.turnId,
++                  turnId: operation.turnId,
 +                })),
 +                type: "turn.completed",
 +                payload: {
@@ -223,10 +248,10 @@ index 73c23b7..0000000 100644
 +            }
 +          });
 +
-+          yield* Effect.gen(function* () {
++          const operationRunner = Effect.gen(function* () {
 +            const exit = yield* Effect.exit(operationBody);
 +            if (Exit.isSuccess(exit)) {
-+              yield* Deferred.succeed(claim.result, undefined);
++              yield* Deferred.succeed(operation.result, undefined);
 +              yield* clearOwnedInterrupt;
 +              return;
 +            }
@@ -241,12 +266,24 @@ index 73c23b7..0000000 100644
 +                  cause: Cause.squash(exit.cause),
 +                }),
 +            );
-+            yield* Deferred.fail(claim.result, error);
++            yield* Deferred.fail(operation.result, error);
 +            yield* clearOwnedInterrupt;
-+          }).pipe(Effect.forkIn(context.sessionScope));
++          });
++
++          yield* Effect.uninterruptible(
++            Effect.gen(function* () {
++              const operationFiber = yield* operationRunner.pipe(
++                Effect.forkDetach({ startImmediately: true }),
++              );
++              yield* Scope.addFinalizer(
++                context.sessionScope,
++                Fiber.interrupt(operationFiber),
++              );
++            }),
++          );
 +        }
 +
-+        return yield* Deferred.await(claim.result);
++        return yield* Deferred.await(claim.operation.result);
 -        yield* runOpenCodeSdk("session.abort", () =>
 -          context.client.session.abort({ sessionID: context.openCodeSessionId }),
 -        ).pipe(Effect.mapError(toRequestError));
