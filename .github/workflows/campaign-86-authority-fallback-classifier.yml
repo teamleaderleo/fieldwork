@@ -16,25 +16,40 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Compile and execute deterministic case matrix
+      - name: Compile and execute deterministic case matrices
         run: |
           path=campaigns/0006-authority-aware-capability-fallback/artifacts
           python3 -m py_compile "$path/classify_fallback.py"
-          python3 "$path/classify_fallback.py" \
-            --cases "$path/cases.json" \
-            --output /tmp/campaign-86-results-1.json
-          python3 "$path/classify_fallback.py" \
-            --cases "$path/cases.json" \
-            --output /tmp/campaign-86-results-2.json
-          cmp /tmp/campaign-86-results-1.json /tmp/campaign-86-results-2.json
+          for matrix in cases review_cases; do
+            python3 "$path/classify_fallback.py" \
+              --cases "$path/${matrix}.json" \
+              --output "/tmp/${matrix}-results-1.json"
+            python3 "$path/classify_fallback.py" \
+              --cases "$path/${matrix}.json" \
+              --output "/tmp/${matrix}-results-2.json"
+            cmp "/tmp/${matrix}-results-1.json" "/tmp/${matrix}-results-2.json"
+          done
           python3 - <<'PY'
           import json
-          result = json.load(open('/tmp/campaign-86-results-1.json'))
-          print(json.dumps({
-              'case_count': result['case_count'],
-              'decision_counts': result['decision_counts'],
-              'all_expectations_passed': result['all_expectations_passed'],
-              'failed_cases': result['failed_cases'],
-          }, sort_keys=True))
+          totals = {
+              'case_count': 0,
+              'decision_counts': {
+                  'allow_equivalent': 0,
+                  'require_explicit_approval': 0,
+                  'fail_closed': 0,
+              },
+              'all_expectations_passed': True,
+              'failed_cases': [],
+          }
+          for matrix in ('cases', 'review_cases'):
+              result = json.load(open(f'/tmp/{matrix}-results-1.json'))
+              totals['case_count'] += result['case_count']
+              totals['all_expectations_passed'] &= result['all_expectations_passed']
+              totals['failed_cases'].extend(result['failed_cases'])
+              for decision, count in result['decision_counts'].items():
+                  totals['decision_counts'][decision] += count
+          print(json.dumps(totals, sort_keys=True))
+          if not totals['all_expectations_passed']:
+              raise SystemExit(1)
           PY
           git diff --check
