@@ -19,7 +19,10 @@ jobs:
       - name: Compile and execute deterministic case matrices
         run: |
           path=campaigns/0006-authority-aware-capability-fallback/artifacts
-          python3 -m py_compile "$path/classify_fallback.py"
+          python3 -m py_compile \
+            "$path/classify_fallback.py" \
+            "$path/test_canonical_deltas.py"
+          python3 "$path/test_canonical_deltas.py"
           for matrix in cases review_cases; do
             python3 "$path/classify_fallback.py" \
               --cases "$path/${matrix}.json" \
