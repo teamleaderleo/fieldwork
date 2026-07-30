@@ -10,9 +10,9 @@ This file is the short repository view. It does not attempt to list every mature
 
 ## Closest to landing
 
-1. [PR #238](https://github.com/teamleaderleo/fieldwork/pull/238) — playground validator primitive strictness; source-and-test head prepared, exact-head integrity and review remain.
-2. [PR #231](https://github.com/teamleaderleo/fieldwork/pull/231) — receipt boolean schema-version repair; source-only finalization and integrity remain.
-3. [PR #232](https://github.com/teamleaderleo/fieldwork/pull/232) — Workerd receiver-aware generated types; exact target receipts and complete-diff acceptance remain.
+1. [PR #238](https://github.com/teamleaderleo/fieldwork/pull/238) — playground validator primitive strictness at `bc3a40a18890d0a0faa90630748618a15c8c99d1`; exact-head integrity and retained experiment gates passed, human signoff remains.
+2. [PR #231](https://github.com/teamleaderleo/fieldwork/pull/231) — receipt boolean schema-version repair at source-only head `b7d64f2318c9799ebb229eaaeae275f17e0f60c5`; exact-head receipts and integrity passed, human signoff remains.
+3. [PR #232](https://github.com/teamleaderleo/fieldwork/pull/232) — Workerd receiver-aware generated types; repair the generic full-replacement receiver defect, add the generic/nongeneric matrix, then execute exact target gates and complete-diff review.
 4. [Issue #194](https://github.com/teamleaderleo/fieldwork/issues/194) — OpenTelemetry provider shutdown and delayed-reentry composition.
 
 ## Active implementation and contract work
@@ -33,7 +33,7 @@ This file is the short repository view. It does not attempt to list every mature
 - **Runtime and foundational work:** Execa, wgpu, Wasmtime, HTTPX/HTTPCore, Deno, uv, and node-lru-cache.
 - **Data and state work:** DuckDB, DataFusion/Polars, Tantivy, Jotai, Zustand, and Supabase.
 - **Protocol and tooling work:** OpenTelemetry, MCP TypeScript SDK, Workers/Workerd, Biome, Codex, and OpenCode/T3.
-- **Linux Fieldwork:** mmdebstrap, tarfilter, cache proxy, rootless package execution, package reproducibility, process ownership, and ecosystem intake.
+- **Linux Fieldwork:** use [Linux issue #194](https://github.com/teamleaderleo/linux-fieldwork/issues/194) for live exact-head receipts; QEMU PR #195 is merged, gpgv PR #196 and caching-proxy PR #198 are canonical composed carriers, and focused predecessors remain evidence records.
 
 See [`RESEARCH_INVENTORY.md`](RESEARCH_INVENTORY.md) for canonical issues, PRs, paths, owned working copies, maturity, stopped work, and remaining gates. See [`TARGET_PORTFOLIOS.md`](TARGET_PORTFOLIOS.md) for the four deepest multi-repository target maps.
 
