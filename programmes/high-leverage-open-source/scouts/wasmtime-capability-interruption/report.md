@@ -19,19 +19,19 @@ Wasmtime gives an embedding several different controls that can stop or limit We
 
 The first integration requirement is therefore a receipt boundary, not a runtime patch: record guest interruption, host-call entry, committed host effects, call-future cancellation, and final reconciliation separately.
 
-## Evidence class
+## Claim-scoped evidence
 
 - Wasmtime source and repository tests: `source-read`.
-- Fieldwork probe below: `target-test-prepared`.
-- Target execution: not yet performed.
-- Owned integration execution: not yet performed.
+- Exact three-case Fieldwork probe: `target-executed` at Fieldwork head `a302024b9b0197eb41cba49b7f3cbe99b831efb2` through workflow run `30504856467`.
+- Owned integration execution: absent.
+- WASI capability, process-death, detached-operation, pooled-store, and sandbox-security results: absent.
 
-No defect is claimed in this pass.
+No Wasmtime defect is claimed in this pass.
 
 ## Exact source
 
 Repository: `bytecodealliance/wasmtime`  
-Reviewed source revision: `12e1636852a6e797e94b0213a5a2a98f72a4fb8f`  
+Reviewed and executed source revision: `12e1636852a6e797e94b0213a5a2a98f72a4fb8f`  
 Workspace version at that revision: `48.0.0`
 
 Primary source surfaces:
@@ -48,7 +48,7 @@ Primary source surfaces:
 
 `Store::set_epoch_deadline` sets a deadline relative to the engine epoch. When epoch interruption is enabled and the deadline is reached, configured behavior can trap, yield, or invoke a callback.
 
-The API explicitly describes epoch interruption as coarse-grained. A trap occurs when instrumented WebAssembly reaches an epoch check. It is not a deterministic fixed-duration deadline and does not describe rollback of earlier host work.
+The API describes epoch interruption as coarse-grained. A trap occurs when instrumented WebAssembly reaches an epoch check. It is not a deterministic fixed-duration deadline and does not describe rollback of earlier host work.
 
 Repository tests place checks at function entries and loop headers and confirm interruption of an infinite guest loop after another thread increments the engine epoch.
 
@@ -79,17 +79,45 @@ The terminal receipt must distinguish:
 - allocator failure after the limiter allowed growth;
 - unrelated embedder memory pressure.
 
-## Prepared probe
+## Executed probe
 
 Path: `programmes/high-leverage-open-source/scouts/wasmtime-capability-interruption/probe/`
 
-The probe is pinned to the reviewed Wasmtime Git revision and prepares three cases:
+Retained receipt: `execution-receipt-30504856467.json`
 
-1. **Epoch interruption:** increment the engine epoch while a guest runs an infinite loop and require the call to trap.
-2. **Host-effect ambiguity:** enter an async host function, mark a synthetic effect committed, suspend forever, poll once, then drop the outer Wasmtime call future. Require the host future's drop guard to run while the committed-effect marker remains true.
-3. **Resource-limit outcomes:** deny a one-page memory growth once as ordinary `-1`, then repeat with `trap_on_grow_failure(true)` and require a trap.
+Exact execution:
 
-Expected evidence class after a successful run: `target-executed` for this exact source revision. It would still not be an owned integration or a sandbox-security result.
+- Fieldwork head: `a302024b9b0197eb41cba49b7f3cbe99b831efb2`;
+- workflow run: `30504856467`;
+- job: `90752268763`;
+- runner: Ubuntu 24.04.4 LTS, `x86_64-unknown-linux-gnu`;
+- compiler: Rust `1.97.1`;
+- command: `cargo run --manifest-path programmes/high-leverage-open-source/scouts/wasmtime-capability-interruption/probe/Cargo.toml`.
+
+Observed output:
+
+```text
+PASS: epoch interruption traps an infinite guest loop
+PASS: dropping an async call drops the host future but not a committed effect
+PASS: resource-limit denial and trap policy remain distinguishable
+```
+
+The exact result establishes three bounded claims:
+
+1. incrementing the configured engine epoch traps the instrumented infinite guest loop;
+2. dropping a suspended async Wasmtime call drops the host future while a marker committed before suspension remains true;
+3. the same memory-growth limit can be guest-visible `-1` or a trap depending on `trap_on_grow_failure` policy.
+
+The synthetic marker is not an external system. This run does not prove behavior for detached tasks, filesystem writes, network operations, process death, pooled stores, or sandbox escape.
+
+## Harness history
+
+Two earlier runs are retained as harness findings rather than target evidence:
+
+1. the first probe used an incompatible `anyhow::Context` call and failed during compilation;
+2. the second probe enabled epoch interruption on the ordinary resource-limit engine, so the later growth control trapped with `interrupt` before testing its intended limiter result.
+
+The accepted run scopes epoch interruption to the infinite-loop engine and uses an ordinary engine for the host-future and resource-limit controls.
 
 ## Candidate receipt vocabulary
 
@@ -119,16 +147,16 @@ A caller-visible timeout can coexist with a committed host effect. The host appl
 - No evidence currently supports a Wasmtime defect.
 - No WASI filesystem, network, clock, random, or socket capability matrix has been executed.
 - No process-death or pooled-instance test has run.
+- No detached-task negative control has run.
 - No claim is made that dropping a Rust future cancels an external operation already detached from that future.
-- No broad sandbox-security conclusion follows from the prepared probe.
+- No broad sandbox-security conclusion follows from the probe.
 - No upstream issue, pull request, comment, reaction, or message was created.
 
 ## Next bounded work
 
-1. Execute the prepared probe at the exact source revision.
-2. Add one control where the host effect occurs after a cancellation point and therefore must not commit.
-3. Add a detached-task negative control proving that dropping the host future does not cancel work deliberately spawned outside it.
-4. Add a WASI preview 2 file-write fixture with an operation receipt and process-death boundary.
-5. Compare fresh and pooled stores only after the standalone terminal vocabulary is stable.
+1. Add one control where the host effect occurs after a cancellation point and therefore must not commit.
+2. Add a detached-task negative control proving that dropping the host future does not cancel work deliberately spawned outside it.
+3. Add a WASI preview 2 file-write fixture with an operation receipt and process-death boundary.
+4. Compare fresh and pooled stores only after the standalone terminal vocabulary is stable.
 
 Stop before an owned Smolrunner adapter until these standalone outcomes are executed and reviewed.
