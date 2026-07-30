@@ -1,0 +1,49 @@
+diff --git a/src/vanilla/utils/atomWithStorage.ts b/src/vanilla/utils/atomWithStorage.ts
+--- a/src/vanilla/utils/atomWithStorage.ts
++++ b/src/vanilla/utils/atomWithStorage.ts
+@@ -119,23 +119,26 @@ export function createJSONStorage<Value>(
+   },
+   options?: JsonStorageOptions,
+ ): AsyncStorage<Value> | SyncStorage<Value> {
+-  let lastStr: string | undefined
+-  let lastValue: Value
++  const cachedValues = new Map<string, { str: string; value: Value }>()
+ 
+   const storage: AsyncStorage<Value> | SyncStorage<Value> = {
+     getItem: (key, initialValue) => {
+       const parse = (str: string | null) => {
+         str = str || ''
+-        if (lastStr !== str) {
+-          try {
+-            lastValue = JSON.parse(str, options?.reviver)
+-          } catch {
+-            return initialValue
+-          }
+-          lastStr = str
++        const cached = cachedValues.get(key)
++        if (cached?.str === str) {
++          return cached.value
+         }
+-        return lastValue
++        try {
++          const value = JSON.parse(str, options?.reviver) as Value
++          cachedValues.set(key, { str, value })
++          return value
++        } catch {
++          return initialValue
++        }
+       }
+       const str = getStringStorage()?.getItem(key) ?? null
+       if (isPromiseLike(str)) {
+@@ -147,7 +150,10 @@ export function createJSONStorage<Value>(
+         key,
+         JSON.stringify(newValue, options?.replacer),
+       ),
+-    removeItem: (key) => getStringStorage()?.removeItem(key),
++    removeItem: (key) => {
++      cachedValues.delete(key)
++      return getStringStorage()?.removeItem(key)
++    },
+   }
+ 
+   const createHandleSubscribe =
