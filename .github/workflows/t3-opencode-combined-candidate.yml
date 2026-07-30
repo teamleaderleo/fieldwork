@@ -31,7 +31,7 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
-          elif git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(.github/workflows/t3-opencode-combined-candidate.yml|campaigns/t3-opencode-completion-reconciliation/candidates/0004-opencode-interrupt-and-request-expiry.patch|campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt)$'; then
+          elif git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(.github/workflows/t3-opencode-combined-candidate.yml|campaigns/t3-opencode-completion-reconciliation/candidates/0002-opencode-interrupt-settlement.patch|campaigns/t3-opencode-completion-reconciliation/candidates/0004-opencode-interrupt-and-request-expiry.patch|campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt)$'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -79,10 +79,12 @@ jobs:
           ref: ${{ steps.target.outputs.ref }}
           path: t3code
 
-      - name: Apply composed candidate and harness correction
+      - name: Apply interrupt candidate, expiry overlay, and harness correction
         working-directory: t3code
         run: |
           sed -i 's/Fiber.Fiber<never, void>/Fiber.Fiber<void, never>/' apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts
+          git apply --check ../fieldwork/campaigns/t3-opencode-completion-reconciliation/candidates/0002-opencode-interrupt-settlement.patch
+          git apply ../fieldwork/campaigns/t3-opencode-completion-reconciliation/candidates/0002-opencode-interrupt-settlement.patch
           git apply --check ../fieldwork/campaigns/t3-opencode-completion-reconciliation/candidates/0004-opencode-interrupt-and-request-expiry.patch
           git apply ../fieldwork/campaigns/t3-opencode-completion-reconciliation/candidates/0004-opencode-interrupt-and-request-expiry.patch
           git diff --check
