@@ -25,6 +25,7 @@ A lower layer may add detail. It may not weaken a higher-layer authority, privac
 - [`execute.md`](execute.md) — target-native execution, carriers, exact receipts, and failure classification;
 - [`review.md`](review.md) — complete-diff review, evidence scope, freshness, and dispositions;
 - [`coordinate.md`](coordinate.md) — parallel work, writer leases, canonical findings, material events, and handoffs;
+- [`integrate.md`](integrate.md) — composed-state construction and validation across accepted components;
 - [`upstream.md`](upstream.md) — quiet external research and the explicit interaction boundary.
 
 A packet may name several profiles. For example, a worker repairing and validating a source candidate may use `[research, execute, review]`.
