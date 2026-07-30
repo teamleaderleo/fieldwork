@@ -222,6 +222,9 @@ const results = {}
       }
     }
   }
+  assert.equal(thrownCuts, changes[1].length - 1)
+  assert.equal(mutationAfterThrow, null)
+
   let full = Automerge.clone(base)
   ;[full] = Automerge.applyChanges(full, changes)
   assert.equal(full.text, "abef")
@@ -256,10 +259,20 @@ const results = {}
     if (threw !== null && (visible !== "" || stateVectorBytes > 1)) {
       mutationAfterThrow.push({ cut, visible, stateVectorBytes, error: threw })
     }
-    if (threw === null && visible !== "" && visible !== "abef") {
+    if (threw === null && (visible !== "" || stateVectorBytes > 1)) {
       silentPartialCuts += 1
     }
   }
+  assert.equal(thrownCuts, update.length - 1)
+  assert.equal(silentPartialCuts, 0)
+  assert.ok(mutationAfterThrow.length > 0)
+  assert.deepEqual(
+    mutationAfterThrow.map(receipt => receipt.cut),
+    [36, 37, 38, 39, 40, 41, 42, 43, 44],
+  )
+  assert.ok(mutationAfterThrow.every(receipt => receipt.visible === "abef"))
+  assert.ok(mutationAfterThrow.every(receipt => receipt.stateVectorBytes === 7))
+
   const full = new Y.Doc()
   Y.applyUpdate(full, update)
   assert.equal(full.getText("text").toString(), "abef")
@@ -295,10 +308,13 @@ const results = {}
     }
     return { value: { ...target }, error }
   }
-  results.automergeDuplicateWriterIdentity = {
-    leftThenRight: runOrder(left, right),
-    rightThenLeft: runOrder(right, left),
-  }
+  const leftThenRight = runOrder(left, right)
+  const rightThenLeft = runOrder(right, left)
+  assert.deepEqual(leftThenRight.value, { left: true })
+  assert.deepEqual(rightThenLeft.value, { right: true })
+  assert.match(leftThenRight.error ?? "", /duplicate seq 1/)
+  assert.match(rightThenLeft.error ?? "", /duplicate seq 1/)
+  results.automergeDuplicateWriterIdentity = { leftThenRight, rightThenLeft }
 }
 
 {
@@ -317,10 +333,11 @@ const results = {}
     }
     return target.getMap("values").toJSON()
   }
-  results.yjsDuplicateWriterIdentity = {
-    leftThenRight: runOrder([leftUpdate, rightUpdate]),
-    rightThenLeft: runOrder([rightUpdate, leftUpdate]),
-  }
+  const leftThenRight = runOrder([leftUpdate, rightUpdate])
+  const rightThenLeft = runOrder([rightUpdate, leftUpdate])
+  assert.deepEqual(leftThenRight, { left: true })
+  assert.deepEqual(rightThenLeft, { right: true })
+  results.yjsDuplicateWriterIdentity = { leftThenRight, rightThenLeft }
 }
 
 console.log(JSON.stringify({ versions, results }, null, 2))
