@@ -9,7 +9,7 @@ patch applies to its claimed source revision; target workflows must still run
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 import re
 import subprocess
@@ -21,6 +21,18 @@ HUNK_HEADER = re.compile(
     r"\+(?P<new_start>[0-9]+)(?:,(?P<new_count>[0-9]+))? @@(?: .*)?$"
 )
 NO_NEWLINE_MARKER = r"\ No newline at end of file"
+METADATA_PREFIXES = (
+    "old mode ",
+    "new mode ",
+    "new file mode ",
+    "deleted file mode ",
+    "similarity index ",
+    "dissimilarity index ",
+    "rename from ",
+    "rename to ",
+    "copy from ",
+    "copy to ",
+)
 
 
 class PatchSyntaxError(ValueError):
@@ -41,6 +53,15 @@ class HunkState:
             self.old_seen == self.old_expected
             and self.new_seen == self.new_expected
         )
+
+
+@dataclass
+class FileSection:
+    start_line: int
+    has_hunk: bool = False
+    has_binary: bool = False
+    file_headers_seen: bool = False
+    metadata: set[str] = field(default_factory=set)
 
 
 def _count(raw: str | None) -> int:
@@ -71,19 +92,50 @@ def _finish_hunk(path: str, hunk: HunkState) -> None:
         )
 
 
+def _metadata_only_section_is_valid(section: FileSection) -> bool:
+    metadata = section.metadata
+    return (
+        {"old mode", "new mode"} <= metadata
+        or "new file mode" in metadata
+        or "deleted file mode" in metadata
+        or {"rename from", "rename to"} <= metadata
+        or {"copy from", "copy to"} <= metadata
+    )
+
+
+def _finish_section(path: str, section: FileSection) -> None:
+    if (
+        section.has_hunk
+        or section.has_binary
+        or _metadata_only_section_is_valid(section)
+    ):
+        return
+    raise PatchSyntaxError(
+        f"{path}:{section.start_line}: file section contains no hunks, "
+        "binary payload, or complete metadata-only change"
+    )
+
+
+def _metadata_name(line: str) -> str | None:
+    for prefix in METADATA_PREFIXES:
+        if line.startswith(prefix):
+            return prefix.rstrip()
+    return None
+
+
 def validate_patch_text(text: str, path: str = "<patch>") -> None:
     """Validate one patch file's structural unified-diff syntax."""
 
     lines = text.splitlines()
     hunk: HunkState | None = None
-    saw_diff_header = False
-    saw_hunk = False
-    saw_binary_payload = False
+    section: FileSection | None = None
+    saw_section = False
 
     for index, line in enumerate(lines):
         line_number = index + 1
         next_line = lines[index + 1] if index + 1 < len(lines) else None
         header = HUNK_HEADER.match(line)
+        diff_boundary = line.startswith("diff --git ") or line.startswith("Index: ")
         hard_boundary = _is_hard_boundary(line)
         file_header_boundary = _is_file_header_boundary(line, next_line)
 
@@ -133,8 +185,26 @@ def validate_patch_text(text: str, path: str = "<patch>") -> None:
                     )
                 continue
 
+        if diff_boundary:
+            if section is not None:
+                _finish_section(path, section)
+            section = FileSection(start_line=line_number)
+            saw_section = True
+        elif file_header_boundary:
+            if section is None:
+                section = FileSection(start_line=line_number)
+                saw_section = True
+            elif section.file_headers_seen:
+                _finish_section(path, section)
+                section = FileSection(start_line=line_number)
+            section.file_headers_seen = True
+
         if header is not None:
-            saw_hunk = True
+            if section is None:
+                raise PatchSyntaxError(
+                    f"{path}:{line_number}: hunk appears before a file section"
+                )
+            section.has_hunk = True
             hunk = HunkState(
                 header_line=line_number,
                 old_expected=_count(header.group("old_count")),
@@ -146,18 +216,27 @@ def validate_patch_text(text: str, path: str = "<patch>") -> None:
             raise PatchSyntaxError(
                 f"{path}:{line_number}: malformed hunk header {line!r}"
             )
-        if line.startswith("diff --git "):
-            saw_diff_header = True
+
         if line == "GIT binary patch" or line.startswith("Binary files "):
-            saw_binary_payload = True
+            if section is None:
+                section = FileSection(start_line=line_number)
+                saw_section = True
+            section.has_binary = True
+
+        metadata_name = _metadata_name(line)
+        if metadata_name is not None:
+            if section is None:
+                raise PatchSyntaxError(
+                    f"{path}:{line_number}: metadata appears before a file section"
+                )
+            section.metadata.add(metadata_name)
 
     if hunk is not None:
         _finish_hunk(path, hunk)
-
-    if not saw_hunk and not saw_binary_payload and not saw_diff_header:
-        raise PatchSyntaxError(
-            f"{path}: contains no unified-diff hunks, binary payload, or git metadata"
-        )
+    if section is not None:
+        _finish_section(path, section)
+    if not saw_section:
+        raise PatchSyntaxError(f"{path}: contains no patch file sections")
 
 
 def discover_tracked_patches() -> list[Path]:
