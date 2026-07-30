@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: teamleaderleo/duckdb
-          ref: 304b530ea6d7dc19758159d75a3c5ca4e1cf2e42
+          ref: 520052d13b567cd5546289b9e4f31c4cb4ca99cc
           path: hive-carrier
           persist-credentials: false
 
@@ -71,14 +71,21 @@ jobs:
 
           cat > duckdb/test/sql/copy/parquet/fieldwork_hive_raw_marker_control.test <<'EOF'
           # name: test/sql/copy/parquet/fieldwork_hive_raw_marker_control.test
-          # description: Existing raw Hive default marker remains SQL NULL
+          # description: SQL NULL still writes and reads through the raw Hive default marker
           # group: [parquet]
 
           require parquet
 
           statement ok
-          COPY (SELECT 3 AS id) TO '{TEST_DIR}/hive-existing/p=__HIVE_DEFAULT_PARTITION__/data.parquet'
-          (FORMAT PARQUET);
+          COPY (SELECT NULL::VARCHAR AS p, 3 AS id)
+          TO '{TEST_DIR}/hive-existing'
+          (FORMAT PARQUET, PARTITION_BY (p), OVERWRITE);
+
+          query I
+          SELECT count(*)
+          FROM glob('{TEST_DIR}/hive-existing/p=__HIVE_DEFAULT_PARTITION__/*.parquet');
+          ----
+          1
 
           query II
           SELECT (p IS NULL)::INTEGER AS is_null, id
