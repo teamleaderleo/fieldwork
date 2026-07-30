@@ -107,7 +107,7 @@ jobs:
         run: |
           python3 -m py_compile classify_receipts.py test_classify_receipts.py
           python3 -m unittest -v test_classify_receipts.py
-          python3 classify_receipts.py fixtures.json /tmp/receipt-results.json
+          python3 classify_receipts.py fixtures.json --output /tmp/receipt-results.json
           python3 - <<'PY'
           import json
           from pathlib import Path
