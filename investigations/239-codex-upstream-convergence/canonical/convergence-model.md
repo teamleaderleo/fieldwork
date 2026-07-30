@@ -1,44 +1,45 @@
 # What the Codex convergence initiative is doing
 
 Canonical status: `accepted for internal orientation`  
+Canonical technical finding: [`F239`](../../../findings/F239-codex-upstream-convergence/finding.md)  
 Parent issue: [Fieldwork #239](https://github.com/teamleaderleo/fieldwork/issues/239)  
 Claim scope: plain-language system and investigation model  
-Current upstream pin: `a01a2d91461a57809e944de7758477b92617ab01`  
+Current upstream pin: `3016671bb077c43448b8fa88f3edfa9772e17058`  
 Source proposal authority: `none`  
-Upstream contact authorized: `false`
+Upstream contact authorized: `no`
 
 ## In simple words
 
-Codex gives an AI tools and lets it act. For that to work safely, several parts of Codex must tell the same story:
+Codex gives an AI tools and lets it act. Several parts of Codex must tell the same story:
 
 1. the model sees a tool;
 2. a real runtime can execute that exact tool;
 3. the call keeps one identity;
 4. timeout and cancellation describe what Codex actually knows;
 5. the result reaches the model;
-6. the result reaches durable history;
-7. resume and replay reconstruct the same story;
-8. subprocess completion includes the output Codex retained.
+6. durable history accepts or rejects the result explicitly;
+7. resume and replay reconstruct the same logical operation;
+8. subprocess completion includes the bounded output Codex retained.
 
-Fieldwork found gaps at several of those handoffs. Issue #239 checks every finding against current Codex, keeps the ones that still apply, separates overlapping ideas, executes the surviving candidates, and prepares clean proposal packets.
+Fieldwork found gaps at several handoffs. Issue #239 checks each finding against current Codex, keeps the parts that still apply, separates overlapping ideas, executes surviving candidates, and prepares bounded proposal packets.
 
 ## The five-year-old version
 
 Codex has several notebooks.
 
-One notebook lists the tools. One notebook says which machine is running them. One notebook records what the model asked. One notebook records what the machine did. One notebook saves the answer for later.
+One notebook lists the tools. One says which machine can run them. One records what the model asked. One records what the machine did. One stores the answer for later.
 
 Trouble begins when the notebooks disagree.
 
-The tool notebook can say “calculator” while the calculator machine was replaced. The model can hear “timeout” while the remote machine keeps working. The conversation can remember an answer while the disk copy missed it. The terminal can print words before the listener arrives.
+The tool notebook can say “calculator” while the calculator runtime was replaced. The model can hear “timeout” while the remote service keeps working. The live conversation can remember an answer that durable history missed. The terminal can receive words before a live listener subscribes.
 
-We are labeling each notebook, checking every handoff, and deciding which repairs belong together.
+The initiative labels each notebook, checks every handoff, and decides which repairs belong together.
 
 ## Why anyone should care
 
-Tool calls can perform real actions. A user may trust Codex to avoid a duplicate retry, preserve the result after restart, reconnect to the intended service, or show the complete retained output.
+Tool calls can perform real actions. A user may trust Codex to avoid a duplicate retry, preserve a result after restart, reconnect to the intended service, or show complete retained output.
 
-The following facts have different consequences:
+These facts have different consequences:
 
 - **visible** — the model was told a tool exists;
 - **bound** — a specific runtime can execute it;
@@ -49,7 +50,7 @@ The following facts have different consequences:
 - **result persisted** — durable history accepted the answer;
 - **history reconciled** — resume, fork, compaction, and replay agree on the logical item.
 
-Collapsing those facts into one success or failure string creates dangerous guesses. The initiative gives each fact an owner and an evidence rule.
+Collapsing those facts into one success or failure string creates unsafe guesses. The initiative gives each fact an owner and an evidence rule.
 
 ## The system model
 
@@ -85,33 +86,33 @@ Fieldwork tests the arrows. A component can behave correctly while the next hand
 
 ## What we have established so far
 
-### 1. Tool visibility and executable authority are separate
+### Tool visibility and executable authority are separate
 
-A request can contain a tool declaration while the executable loader or host path remains missing or mismatched. The standalone Code Mode host moved this boundary, so the historical deferred-loader candidate needs a current design.
+A request can contain a tool declaration while the executable loader or host path remains missing or mismatched. The standalone Code Mode host moved this boundary, so the historical deferred-loader source placement needs redesign.
 
-### 2. MCP refresh has future-publication and active-call questions
+### MCP refresh has future-publication and active-call questions
 
-An explicit refresh can require fresh connections. Overlapping refreshes also need a newest-eligible-generation rule. A prepared or active call still needs its captured runtime identity after a newer generation publishes.
+An explicit refresh can require fresh connections. Overlapping refreshes also need an eligible-generation rule. A prepared or active call still needs its captured runtime identity after a newer generation publishes.
 
-### 3. Timeout says when the caller stopped waiting
+### Timeout says when the caller stopped waiting
 
-Timeout alone says nothing definitive about a remote mutation. Cancellation delivery also leaves room for a server that commits anyway. Operation outcome requires separate facts for dispatch, cancellation, transport, and remote effect.
+Timeout alone says nothing definitive about a remote mutation. Cancellation delivery also leaves room for a server that commits anyway. Operation outcome requires separate dispatch, cancellation, transport, and remote-effect facts.
 
-### 4. Live conversation and durable history can disagree
+### Live conversation and durable history can disagree
 
-Current session code can place a result in live memory, attempt a durable append, log an error, and continue without returning an append outcome. A prewrite failure and a commit-then-error acknowledgement loss require different recovery behavior, yet both can look like an error.
+Current session code can place a result in live memory, attempt a durable append, log an error, and continue without returning an append outcome. A prewrite failure and a commit-then-error acknowledgement loss need different recovery behavior, yet both can look like an error.
 
-### 5. History reconciliation solves a later problem
+### History reconciliation solves a later problem
 
-Current upstream is improving logical item reconciliation, metadata normalization, projection, writer lifecycle, and execution-provenance records. Those changes help resume, replay, and client attribution. They cannot tell the original caller whether its append was acknowledged.
+Current upstream improves item reconciliation, metadata normalization, projection, writer lifecycle, and execution provenance. Those changes help resume, replay, and client attribution. They cannot tell the original caller whether its append was acknowledged.
 
-### 6. Live output broadcast is allowed to lose delivery
+### Live output broadcast may lose delivery
 
 Best-effort broadcast is useful for responsive streaming. Terminal completion needs a producer-owned bounded transcript so a late or lagging subscriber cannot define the final output.
 
-### 7. Historical green tests expire as current-source claims
+### Historical green tests expire as current-source claims
 
-A test at an exact old head remains valid historical evidence. Current, portable, conflict-free, and proposal-ready claims require a fresh upstream pin, source fence, exact tests, and complete-diff review.
+A test at an exact old head remains valid historical evidence. Current, portable, conflict-free, and proposal-ready claims require a fresh source pin, source fence, exact tests, and complete-diff review.
 
 ## Why this became several situations
 
@@ -126,11 +127,9 @@ The initial theme was “tool continuity.” Source reading revealed several ind
 - rollout projection and reconstruction;
 - process and terminal output handling.
 
-Each owner answers a different question. Combining them would produce a patch where one passing test could appear to validate unrelated behavior.
+Each owner answers a different question. Combining them too early would produce a patch where one passing test appears to validate unrelated behavior.
 
-The portfolio expanded because the code exposed real boundaries. The new workspace makes those boundaries readable.
-
-## The independent proposals we expect
+## The independent proposal areas
 
 ### Capability and deferred execution
 
@@ -140,7 +139,7 @@ Owner area: request construction and standalone Code Mode host.
 
 ### MCP refresh publication
 
-Goal: explicit refresh requests freshness, ordinary refresh reuses eligible clients, and only the newest eligible generation publishes its own result.
+Goal: explicit refresh requests freshness, ordinary refresh reuses eligible clients, and only an eligible generation publishes its own accepted result.
 
 Owner area: MCP runtime manager.
 
@@ -152,7 +151,7 @@ Owner area: MCP client plus manager-owned retirement and recovery.
 
 ### Append acknowledgement and result persistence
 
-Goal: expose canonical append outcome and conservatively represent `Persisted` versus `Ambiguous` before compaction, retry, or cleanup consumes it.
+Goal: expose canonical append outcome and conservatively represent persisted, absent, or ambiguous state before compaction, retry, or cleanup consumes it.
 
 Owner area: session, `LiveThread`, and `ThreadStore` boundary.
 
@@ -160,7 +159,7 @@ Owner area: session, `LiveThread`, and `ThreadStore` boundary.
 
 Goal: preserve current bounded output and decode behavior while retaining completion bytes before best-effort broadcast.
 
-Owner area: unified execution producer and completion path.
+Owner area: unified-execution producer and completion path.
 
 ### Carrier retirement and evidence transfer
 
@@ -170,7 +169,7 @@ Owner area: Fieldwork review and convergence process.
 
 ## What we declined
 
-We declined these directions:
+The current evidence declines these directions:
 
 - one mega-patch across all owners;
 - automatic retry after any append error;
@@ -187,7 +186,7 @@ The detailed tradeoffs live in [`../alternatives/approach-selection.md`](../alte
 
 ## Why the selected plan is strongest
 
-The plan combines one shared explanation with several bounded technical outputs.
+The plan combines one shared explanation with several bounded technical findings and outputs.
 
 That gives each reviewer:
 
@@ -202,29 +201,30 @@ That gives each reviewer:
 
 It also preserves negative results. An absorbed candidate can close with value because the ledger explains where upstream solved it.
 
-## What “fixed” means for #239
+## What “settled” means for #239
 
-Issue #239 can close when every current and historical candidate has one honest disposition:
+Issue #239 can leave comparative evaluation when every current and historical candidate has one honest state:
 
-- **proposal-ready** — current source-only head, exact execution, complete-diff review, prior-art classification, standalone packet, and no hidden prerequisite;
-- **design-decision-ready** — evidence is executed and the remaining human choice, alternatives, and consequences are explicit;
-- **absorbed or obsolete** — current evidence explains why the work should stop;
-- **historical evidence only** — old receipts remain useful and a successor owns current work;
-- **blocked** — exact failure and smallest continuation are durable.
+- `review-ready` — one canonical finding and exact evidence are ready for examination;
+- `delivery-gate-ready` or `land-ready` — one accepted implementation has only named landing gates left;
+- `design-decision-ready` — technical work is sufficient and one genuine human choice remains;
+- `stopped` — upstream absorption, disproved premise, obsolete source boundary, or explicit scope stop is retained;
+- `closed` — accepted work is merged, archived, or otherwise has no active transition.
 
-Every temporary carrier must transfer its evidence and successor links before retirement.
+Every temporary carrier must transfer evidence and successor links before retirement.
 
 ## Current state
 
 At this snapshot:
 
-- public upstream is `a01a2d91461a57809e944de7758477b92617ab01`;
-- the `745603... → a01a2d...` delta leaves every declared active candidate source fence unchanged;
-- append acknowledgement carrier #52 is queued at head `324ddccba14b2b0934e2c56cc0cda7ca04a56e6d`;
-- terminal retention carrier #53 is queued at head `d5028fc9771407aa7a9bafbceb7eba051b91de36`;
-- MCP reconnect/publication needs exact comparison with current upstream reconnect work;
+- F239 is `comparative-evaluation-active`;
+- public upstream is `3016671bb077c43448b8fa88f3edfa9772e17058`;
+- the one-commit delta after `a01a2d...` changes account-plan and related app-server/auth/status paths, leaving every declared active candidate source fence unchanged;
+- current-pin append carrier #80 is `401c2e5e6a37730aae3e8da95591cc6f56655cfc`, with run `30583967538` queued at refresh;
+- terminal carrier #53 is `c4e0de2e54d804d1054afb90c30b7150a774151c`, with run `30585540688` pending at refresh;
+- MCP reconnect/publication needs exact comparison with current reconnect work;
 - deferred discovery needs redesign around the standalone Code Mode host;
 - Responses Lite needs a lower-level exact-prefix and retry fixture;
 - public upstream remains read-only.
 
-The exact continuation record lives in [`../handoff.md`](../handoff.md).
+The exact continuation record lives in [`../handoff.md`](../handoff.md). The canonical transition state and conclusion live in [`F239`](../../../findings/F239-codex-upstream-convergence/finding.md).
