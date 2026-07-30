@@ -4,7 +4,7 @@ Workspace: <path>
 Parent issue: <issue>  
 Coordinator: <owner>  
 Workspace phase: `<orient | collect | compare | synthesize | decide | handoff>`  
-Current transition state: `<research-active | review-ready | design-decision-ready | delivery-gate-ready | land-ready | stopped | closed>`  
+Current transition state: `<research-active | comparative-evaluation-active | review-ready | design-decision-ready | delivery-gate-ready | land-ready | stopped | closed>`  
 Snapshot date: <date>  
 Current source or retrieval boundary: `<exact identity>`  
 Workspace branch and exact head: `<repository, branch, SHA>`  
@@ -25,6 +25,8 @@ Upstream contact authorized: `<no | yes with exact authority>`
 | Canonical finding | State | Disposition | Desk routing | Exact next transition |
 | --- | --- | --- | --- | --- |
 | `findings/F<issue>-<slug>/finding.md` | <canonical state> | <value> | <queue or desk> | <one transition> |
+
+Use `comparative-evaluation-active` while autonomous technical comparison can still select or reject options. Route `design-decision-ready` only when the remaining choice cannot be settled through further technical work.
 
 ## Current canonical outputs
 
