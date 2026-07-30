@@ -31,7 +31,7 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
-          elif git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(.github/workflows/t3-opencode-interrupt-candidate.yml|campaigns/t3-opencode-completion-reconciliation/candidates/0002-opencode-interrupt-settlement.patch)$'; then
+          elif git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(.github/workflows/t3-opencode-interrupt-candidate.yml|campaigns/t3-opencode-completion-reconciliation/candidates/0002-opencode-interrupt-settlement.patch|campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt)$'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -53,7 +53,7 @@ jobs:
               apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
               apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-error.test.ts
               apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-owner-cancellation.test.ts
-              -t "^(settles|rejects|coalesces|preserves|continues|classifies)"
+              -t "^(settles|rejects|coalesces|preserves|continues|classifies|reuses)"
           - name: Existing OpenCode adapter suite
             command: vp test run apps/server/src/provider/Layers/OpenCodeAdapter.test.ts
           - name: Server typecheck
@@ -65,11 +65,15 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: fieldwork
 
-      - name: Checkout owned T3 campaign branch
+      - name: Resolve pinned T3 head
+        id: target
+        run: echo "ref=$(tr -d '\n' < fieldwork/campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout owned T3 campaign head
         uses: actions/checkout@v6
         with:
           repository: teamleaderleo/t3code
-          ref: fieldwork/opencode-completion-reconciliation
+          ref: ${{ steps.target.outputs.ref }}
           path: t3code
 
       - name: Apply candidate and harness correction
