@@ -66,7 +66,7 @@ After an error, callers need a truthful terminal state:
 
 - all old workers stopped and no old segment can publish;
 - or the writer is retired and rejects new operations;
-- or an explicit reconciliation state blocks a later commit;
+- or an explicit reconciliation state blocks a later commit and late publication;
 - or a generation check proves late old publications are ignored.
 
 The reviewed source does not make one of those outcomes explicit at the `IndexWriter` boundary.
@@ -83,7 +83,43 @@ old generation partially joined
 + new document admission may remain available
 ```
 
-This is a source-backed hypothesis, not executed evidence.
+This remains a source-backed target hypothesis. The dependency-free model below executes the ordering and ownership consequences only; it does not execute Tantivy.
+
+## Executed ordering model
+
+Durable files:
+
+- `generation_fence_model.py`;
+- `generation_fence_model.output.json`.
+
+Executed command:
+
+```sh
+python3 generation_fence_model.py
+```
+
+The model compares four strategies:
+
+1. current source order;
+2. early replacement plus admission blocking only;
+3. join all old workers before replacement;
+4. early replacement plus generation-tagged publication fencing.
+
+The strongest negative control is the second strategy:
+
+```text
+prepare_commit returns the worker-B error
+new admission is blocked
+old worker C remains live
+old worker C can still publish
+```
+
+Blocking `add_document()` and later commit is therefore insufficient by itself. A failed-preparation state also needs to own completion of remaining old workers, retire the writer, or reject late old-generation publication.
+
+The model also distinguishes the two stronger families:
+
+- join-before-replace avoids mixed generations but can delay the next generation and requires explicit failure retirement;
+- generation-tagged publication can retain overlap, but widens the protocol into the segment-updater boundary and still needs reconciliation before new admission resumes.
 
 ## Discriminating target test
 
@@ -127,11 +163,11 @@ Join every old worker and collect all outcomes before starting any replacement w
 
 This is the simplest generation fence, but it may increase the gap before the next generation is ready.
 
-### Explicit failed-preparation state
+### Explicit failed-preparation state plus cleanup ownership
 
-Allow early replacement startup but mark the writer `preparation_failed` if any old worker fails. Block document admission and later commit until rollback or reconstruction joins every old and replacement worker.
+Allow early replacement startup but mark the writer `preparation_failed` if any old worker fails. Block document admission and later commit, then join or retire every old and replacement worker before permitting recovery.
 
-This preserves overlap but adds a durable lifecycle state.
+Admission blocking without cleanup or publication fencing is rejected by the model because an old worker may still publish after the error is returned.
 
 ### Generation-tagged publication
 
@@ -148,7 +184,7 @@ Historical change [`Prepare commit is public again`](https://redirect.github.com
 ## Evidence classification
 
 - source ordering and status ownership: `source-read`;
-- failure state machine: `model-prepared`;
+- ordering and ownership strategy comparison: `model-executed`;
 - repository-native regression: absent;
 - target execution: absent;
 - durable-index consequence: unconfirmed.
