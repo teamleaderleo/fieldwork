@@ -6,12 +6,12 @@ Workstream: `G`
 Canonical Fieldwork issue: `#254`  
 Canonical finding path: `findings/F254-make-mirror-update-cache-subshell/finding.md`  
 Canonical implementation: `teamleaderleo/linux-fieldwork#238` — focused stacked evidence carrier  
-Exact implementation head: `14771ccbfc0bd0f378bb3ee1ab0c6fe7c76895d4`  
+Exact implementation head: `f6966f0ccd6c3ea91ae39c260f23e6e416b5c601`  
 Exact base or source revision: PR #224 head `13b3c529e983b3ad967725f99f4e31d867fa4742`; imported `make_mirror.sh` blob `6c4be092edcf23b56b63a3befe238c099c45f590`  
 Strongest evidence class: `model-executed`; exact imported-source gate `target-test-prepared`  
-Reviewed input generation: current Fieldwork #254 protocol; Linux Fieldwork issue #231; PR #224 ownership boundary; PR #238 complete three-file diff  
+Reviewed input generation: current Fieldwork #254 protocol; Linux Fieldwork issue #231; PR #224 ownership boundary; PR #238 complete four-file diff; exact-head review `4824051814`  
 Current review disposition: `EXECUTE`  
-Desk routing: Review Queue #213 update pending  
+Desk routing: Review Queue #213 R1 routing updated  
 Upstream contact authorized: `no`
 
 ## In simple words
@@ -20,9 +20,9 @@ Upstream contact authorized: `no`
 
 The worker currently installs the same cleanup action for normal exit and for INT/TERM. When only the worker receives TERM, it can kill the parent's proxy, clean its own directory, return from the trap, continue later work, clean a second time on exit, and report success.
 
-PR #238 now retains a focused patch, investigation, and executable regression. The candidate makes the worker clean only its APT root and exit with an explicit signal-derived status. The parent receives the nonzero pipeline result and its own cleanup stops and waits for the proxy.
+PR #238 now retains a focused patch, investigation, ownership regression, and direct signal matrix. The candidate makes the worker clean only its APT root and exit with an explicit signal-derived status. The parent receives the nonzero pipeline result and its own cleanup stops and waits for the proxy.
 
-The local real-shell model is green. Exact patch application to the complete imported source and repository CI remain pending.
+Both local real-shell matrices are green. Exact patch application to the complete imported source and repository CI remain pending.
 
 ## Why we care
 
@@ -72,10 +72,10 @@ PR #238 retains this candidate contract:
 | --- | --- | --- | --- |
 | The imported source assigns one cleanup-only action to EXIT, INT, and TERM inside `update_cache()`. | `source-read` | imported blob `6c4be092…` and PR #238 baseline assertion | Static source plus retained exact-context check |
 | A subshell-only TERM can return 0, execute later work, clean twice, and kill the proxy. | `model-executed` | PR #238 baseline real-`/bin/sh` test; Linux issue #231 negative control | Reduced harness, not actual APT |
-| The candidate worker returns 143 through the parent pipeline, cleans once, omits later work, and leaves proxy shutdown to the parent. | `model-executed` | PR #238 four-test matrix, local 4/4 | Exact candidate functions extracted after patching an exact-context fixture |
+| The candidate worker returns 130/131/143 for INT/QUIT/TERM through the parent pipeline, cleans once, omits later work, and leaves proxy shutdown to the parent. | `model-executed` | PR #238 ownership suite plus direct signal matrix | Exact candidate functions extracted after patching an exact-context fixture |
 | Ordinary failure 42 and TERM 143 survive cleanup failure 74. | `model-executed` | PR #238 precedence test | Reduced disposable cleanup function |
-| Immediate unsignaled rerun succeeds with no retained APT marker or proxy. | `model-executed` | PR #238 same-runtime rerun | Small files and `sleep` proxy |
-| The complete imported source accepts the patch, passes `/bin/sh -n`, and preserves repository compatibility. | `target-test-prepared` | Linux Fieldwork CI `30589823763` / 695 | Queued at this finding revision |
+| Immediate unsignaled reruns succeed with no retained APT marker or proxy. | `model-executed` | same-runtime TERM rerun plus post-INT/QUIT/TERM matrix controls | Small files and `sleep` proxy |
+| The complete imported source accepts the patch, passes `/bin/sh -n`, and preserves repository compatibility. | `target-test-prepared` | Linux Fieldwork CI `30590250175` / 704 | Queued at this finding revision |
 
 ## System and ownership map
 
@@ -133,8 +133,8 @@ Group delivery may stop worker, foreground command, parent, and proxy together, 
 | Edge case or control | Evidence | Result |
 | --- | --- | --- |
 | Baseline worker-only TERM during foreground wait | PR #238 local real-shell negative control | status 0; proxy gone; cleanup twice; worker and parent later markers present |
-| Candidate worker-only TERM under parent `set -e` | PR #238 local composed model | parent status 143; worker cleanup once; parent cleanup once; no later markers; proxy gone |
-| Candidate immediate unsignaled rerun | same disposable runtime path | status 0; explicit worker cleanup once; parent cleanup once; no APT marker or proxy |
+| Candidate worker-only INT/QUIT/TERM under parent `set -e` | PR #238 local ownership and signal matrices | parent statuses 130/131/143; worker cleanup once; parent cleanup once; no later markers; proxy gone |
+| Candidate immediate unsignaled reruns | same-runtime TERM control plus one rerun after each signal | status 0; explicit worker cleanup once; parent cleanup once; no APT marker or proxy |
 | Ordinary failure plus cleanup failure | precedence control | status 42 wins over cleanup 74 |
 | TERM plus cleanup failure | precedence control | status 143 wins over cleanup 74 |
 | Patch fixture and shell syntax | exact-context patch application and `/bin/sh -n` | passed locally |
@@ -144,9 +144,9 @@ Group delivery may stop worker, foreground command, parent, and proxy together, 
 
 | Edge case or gate | State or reason |
 | --- | --- |
-| Exact complete imported-source patch and `/bin/sh -n` | queued in CI `30589823763` |
+| Exact complete imported-source patch and `/bin/sh -n` | queued in CI `30590250175` |
 | Complete repository suite | queued on exact PR #238 head |
-| Complete three-file review | required after hosted result |
+| Complete four-file review | review `4824051814` found no source-visible blocker |
 | Prompt stop of foreground APT child | separate child-ownership design |
 | Process-group delivery | different topology and policy |
 | Full mirror and real APT transaction | high-cost integration gate after focused acceptance |
@@ -158,25 +158,26 @@ Group delivery may stop worker, foreground command, parent, and proxy together, 
 | Repository/head | Command or workflow | Result | Evidence class |
 | --- | --- | --- | --- |
 | local PR #238 fixture | `python3 -m unittest -v tests/test_make_mirror_update_cache_signal_ownership.py` | 4/4 passed in 1.562s | `model-executed` |
-| `linux-fieldwork#238@14771ccbfc0bd0f378bb3ee1ab0c6fe7c76895d4` | Linux Fieldwork CI `30589823763` / 695 | queued | `target-test-prepared` |
+| local PR #238 signal matrix | `python3 -m unittest -v tests/test_make_mirror_update_cache_signal_matrix.py` | INT 130, QUIT 131, TERM 143; cleanup and reruns clean | `model-executed` |
+| `linux-fieldwork#238@f6966f0ccd6c3ea91ae39c260f23e6e416b5c601` | Linux Fieldwork CI `30590250175` / 704 | queued | `target-test-prepared` |
 
 The first published PR #238 head omitted context lines declared by the first patch hunk. The current head repairs that carrier defect without changing the source mechanism or test contract.
 
 ## Complete-diff and compatibility status
 
-- Changed-file fence: retained source patch, focused investigation README, executable regression.
+- Changed-file fence: retained source patch, focused investigation README, ownership regression, direct signal matrix.
 - Stacking base: PR #224 exact head `13b3c529e983b3ad967725f99f4e31d867fa4742`.
 - Mechanical overlap: separate source region inside `update_cache()`; PR #224 remains independently reviewable.
 - Compatibility surfaces: top-level first-signal handling, launch ownership, cache ownership, published-cache preservation, worker ordinary success/failure, parent pipeline status, cleanup counts, process disappearance, and rerun cleanliness.
-- Current disposition: `EXECUTE`; exact hosted target execution and fresh complete-diff review remain.
+- Current disposition: `EXECUTE`; exact hosted target execution remains after complete-diff review `4824051814`.
 
 ## Current routing
 
 - Finding state: `delivery-gate-ready`
 - Review disposition: `EXECUTE`
-- Review Queue: #213 update pending this finding PR
+- Review Queue: #213 R1 routing updated
 - Delivery lane: not entered
-- Exact next transition: classify PR #238 CI, review its unchanged exact head, then promote or issue one bounded repair list.
+- Exact next transition: classify PR #238 CI at the reviewed unchanged head, then promote or issue one bounded repair list.
 - Clearing condition: exact imported-source execution of worker status, parent propagation, ownership split, ordinary paths, and rerun.
 - User decision requested: none for this internal evidence step.
 
@@ -186,7 +187,7 @@ The first published PR #238 head omitted context lines declared by the first pat
 | --- | --- | --- |
 | 2026-07-30 | Linux Fieldwork #231 | Recorded exact source boundary, executed negative control, and candidate ownership model |
 | 2026-07-30 | Initial finding PR | Materialized the follow-up as `research-active` |
-| 2026-07-30 | Linux Fieldwork PR #238 | Added a focused retained patch, regression, local 4/4 model gate, and queued exact-source CI; state advanced to `delivery-gate-ready` / `EXECUTE` |
+| 2026-07-30 | Linux Fieldwork PR #238 | Added a focused retained patch, two regressions, executed INT/QUIT/TERM matrix, exact-head review, and queued exact-source CI; state remains `delivery-gate-ready` / `EXECUTE` |
 
 ## References
 
@@ -195,5 +196,5 @@ The first published PR #238 head omitted context lines declared by the first pat
 - https://github.com/teamleaderleo/linux-fieldwork/pull/238
 - https://github.com/teamleaderleo/linux-fieldwork/pull/205
 - https://github.com/teamleaderleo/linux-fieldwork/pull/196
-- https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30589823763
+- https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30590250175
 - https://github.com/teamleaderleo/fieldwork/issues/254
