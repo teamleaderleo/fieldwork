@@ -43,7 +43,7 @@ jobs:
             "datafusion https://github.com/apache/datafusion.git $DATAFUSION_COMMIT" \
             "polars https://github.com/pola-rs/polars.git $POLARS_COMMIT" \
             "object-store https://github.com/apache/arrow-rs-object-store.git $OBJECT_STORE_RELEASE_COMMIT" \
-            "polars-object-store https://github.com/apache/arrow-rs-object-store.git $POLARS_OBJECT_STORE_COMMIT"
+            "polars-object-store https://github.com/kdn36/arrow-rs-object-store.git $POLARS_OBJECT_STORE_COMMIT"
           do
             set -- $spec
             name="$1"
