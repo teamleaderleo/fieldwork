@@ -1,7 +1,7 @@
 # <Investigation title>
 
 Workspace phase: `<orient | collect | compare | synthesize | decide | handoff>`  
-Current transition state: `<research-active | review-ready | design-decision-ready | delivery-gate-ready | land-ready | stopped | closed>`
+Current transition state: `<research-active | comparative-evaluation-active | review-ready | design-decision-ready | delivery-gate-ready | land-ready | stopped | closed>`
 
 Parent issue: <Fieldwork issue>  
 Programme: <programme and hub>  
@@ -23,6 +23,7 @@ A workspace is an orientation and synthesis layer for several canonical findings
 - Workspace `findings/` files are evidence notes or comparisons and link their canonical finding.
 - Transition state, review disposition, desk routing, and exact next transition live in the canonical finding.
 - Workspace phase describes the coordinator activity: collecting, comparing, synthesizing, deciding, or handing off.
+- Use `comparative-evaluation-active` while executable technical work can still distinguish alternatives. Use `design-decision-ready` only for a genuine non-delegable human choice.
 
 ## Why this investigation exists
 
