@@ -24,7 +24,7 @@ index 73c23b7..0000000 100644
  interface OpenCodeSessionContext {
    session: ProviderSession;
    readonly client: OpencodeClient;
-@@ -221,6 +229,8 @@ interface OpenCodeSessionContext {
+@@ -221,7 +229,9 @@ interface OpenCodeSessionContext {
    readonly turns: Array<OpenCodeTurnSnapshot>;
    activeTurnId: TurnId | undefined;
    activeAgent: string | undefined;
@@ -34,7 +34,7 @@ index 73c23b7..0000000 100644
    /**
     * One-shot guard flipped by `stopOpenCodeContext` / `emitUnexpectedExit`.
     * The session lifecycle is owned by `sessionScope`; this Ref exists only
-@@ -502,6 +512,13 @@ function sessionErrorMessage(error: unknown): string {
+@@ -502,6 +512,15 @@ function sessionErrorMessage(error: unknown): string {
      : "OpenCode session failed.";
  }
  
@@ -50,7 +50,7 @@ index 73c23b7..0000000 100644
  function updateProviderSession(
    context: OpenCodeSessionContext,
    patch: Partial<ProviderSession>,
-@@ -543,12 +560,24 @@ const stopOpenCodeContext = Effect.fn("stopOpenCodeContext")(function* (
+@@ -543,12 +562,22 @@ const stopOpenCodeContext = Effect.fn("stopOpenCodeContext")(function* (
      return false;
    }
  
@@ -95,7 +95,7 @@ index 73c23b7..0000000 100644
              context.activeTurnId = undefined;
              yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
              yield* emit({
-@@ -1072,6 +1109,15 @@ export function makeOpenCodeAdapter(
+@@ -1072,6 +1109,16 @@ export function makeOpenCodeAdapter(
          case "session.error": {
            const message = sessionErrorMessage(event.properties.error);
            const activeTurnId = context.activeTurnId;
@@ -112,7 +112,7 @@ index 73c23b7..0000000 100644
            context.activeTurnId = undefined;
            yield* updateProviderSession(
              context,
-@@ -1287,6 +1333,8 @@ export function makeOpenCodeAdapter(
+@@ -1287,6 +1334,8 @@ export function makeOpenCodeAdapter(
            activeTurnId: undefined,
            activeAgent: undefined,
            activeVariant: undefined,
@@ -121,7 +121,7 @@ index 73c23b7..0000000 100644
            stopped: yield* Ref.make(false),
            sessionScope: started.sessionScope,
          };
-@@ -1411,6 +1459,16 @@ export function makeOpenCodeAdapter(
+@@ -1411,6 +1460,14 @@ export function makeOpenCodeAdapter(
  
      const sendTurn: OpenCodeAdapterShape["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
        const context = yield* ensureSessionContext(sessions, input.threadId);
@@ -136,7 +136,7 @@ index 73c23b7..0000000 100644
        // A sendTurn while a turn is active is a steer: OpenCode queues the
        // prompt into the busy session and the work continues as one turn, so
        // the active turn id is reused instead of opening a new turn.
-@@ -1538,21 +1596,119 @@ export function makeOpenCodeAdapter(
+@@ -1538,21 +1595,112 @@ export function makeOpenCodeAdapter(
  
      const interruptTurn: OpenCodeAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
        function* (threadId, turnId) {
