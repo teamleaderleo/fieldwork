@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/zustand
-          ref: 278ede8b60c111ec4291b26cd95794d7bdd5da37
+          ref: ef5fa2fc2e305dd146ee3a6c4d1a8a1075d52a12
 
       - uses: actions/setup-node@v4
         with:
