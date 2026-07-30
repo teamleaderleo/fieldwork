@@ -2,7 +2,7 @@
 
 Owner: coordinator synthesis for Fieldwork #239  
 Claim scope: system map with bounded source-read and executed findings linked elsewhere  
-Current upstream pin: `745603a5a1eb48b6f343633d622eeb72dd549d7b`  
+Current upstream pin: `a01a2d91461a57809e944de7758477b92617ab01`  
 Upstream contact authorized: `false`
 
 ## In simple words
@@ -137,7 +137,7 @@ Owned Codex #51 exposes the bounded append acknowledgement prerequisite. Typed r
 
 ## 8. History projection, compaction, and replay
 
-Canonical rollout items feed reconstructed conversation history, thread metadata, compaction, resume, fork, and traces. Upstream continues to change these paths, including passthrough-metadata normalization at current head.
+Canonical rollout items feed reconstructed conversation history, thread metadata, compaction, resume, fork, and traces. Upstream continues to change these paths, including passthrough-metadata normalization in the current ancestry. The latest commit also preserves executor paths in read-command action records, adding adjacent execution-provenance context.
 
 Questions:
 
