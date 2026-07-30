@@ -337,7 +337,7 @@ This approach preserves disagreement, supports parallel work, reduces reviewer s
 The selected packaging becomes ready for final canonical decisions when:
 
 1. carriers #52 and #53 complete or retain exact failure receipts;
-2. current head `745603a5a1eb48b6f343633d622eeb72dd549d7b` receives candidate-by-candidate overlap review;
+2. current head `a01a2d91461a57809e944de7758477b92617ab01` receives candidate-by-candidate overlap review;
 3. MCP reconnect/publication source paths are compared with upstream #34952/#35151 and current manager code;
 4. deferred discovery is redesigned around the standalone Code Mode host;
 5. accepted source heads receive complete-diff and exact-test review;
