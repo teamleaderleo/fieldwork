@@ -10,21 +10,21 @@ Live exact-head decisions remain in [issue #213](https://github.com/teamleaderle
 
 ### 1. Playground validator primitive strictness — PR #238 / issue #237
 
-Current source-and-test head: `3151710ad9eae2e004bc62da0805990aafe9ad2c`.
+Current source-and-test head: `bc3a40a18890d0a0faa90630748618a15c8c99d1`.
 
 The branch validates pack defaults and case overrides independently, handles huge integers through the promised error boundary, distinguishes JSON booleans from numbers, and contains no temporary repair carrier.
 
-Remaining gate: exact-head Playground/context and Fieldwork integrity, then one fresh diff review.
+Exact-head Playground/context run `30566396493` and Fieldwork integrity run `30566396740` passed. The remaining transition is human signoff on the reviewed four-file source, test, and permanent workflow-hook diff.
 
 ### 2. Receipt boolean schema-version repair — PR #231
 
-Current carrier head: `7564622af0c75899b5e84fb55d7718949d4fa119`.
+Current source-only head: `b7d64f2318c9799ebb229eaaeae275f17e0f60c5`.
 
-The durable change is limited to the receipt classifier and focused tests. The queued finalizer must publish the source-only head, remove itself, preserve semantic output, and pass repository integrity.
+The durable change is limited to the receipt classifier and focused tests. The temporary execution workflow is absent from the current diff; Effective surface receipts run `30561575792` and Fieldwork integrity run `30561575896` passed. The remaining transition is human signoff.
 
 ### 3. Workerd receiver-aware generated types — PR #232 / issue #230
 
-The repaired lexical-heritage resolution candidate needs exact generator, repository, lint, coverage, and complete-diff receipts. Fork-only workflow material must disappear before proposal preparation.
+The lexical-heritage collision repair is retained, while the current complete-diff review found a generic full-replacement defect: a nongeneric replacement can inherit a generated receiver such as `this: Owner<T>` without declaring `T`. Repair the exact owned workerd head, add the three-case generic/nongeneric replacement matrix, then execute generator, repository, lint, coverage, and complete-diff gates. Fork-only workflow material must disappear before proposal preparation.
 
 ### 4. OpenTelemetry provider shutdown and delayed reentry — issue #194
 
@@ -80,7 +80,9 @@ The complete set is indexed in [`RESEARCH_INVENTORY.md`](RESEARCH_INVENTORY.md).
 
 ### Linux Fieldwork
 
-Linux package, process, filesystem, privilege, archive, cache, and VM work is maintained in `teamleaderleo/linux-fieldwork`. The current handoff is Linux Fieldwork PR #187. It covers the active mmdebstrap, cache-proxy, tarfilter, rootless package-execution, and ecosystem queues without treating every historical or diagnostic branch as current work.
+Linux package, process, filesystem, privilege, archive, cache, and VM work is maintained in `teamleaderleo/linux-fieldwork`. The landed historical handoff is [Linux Fieldwork PR #187](https://github.com/teamleaderleo/linux-fieldwork/pull/187); the live last-mile receipt and routing surface is [Linux Fieldwork issue #194](https://github.com/teamleaderleo/linux-fieldwork/issues/194).
+
+Current composition state includes merged QEMU lifecycle PR #195, canonical open gpgv lifecycle PR #196, hosted-green LF-02 PR #197 and LF-23 PR #199, and the green nine-file caching-proxy composition PR #198. Focused predecessors remain evidence records and do not replace those composed carriers.
 
 ## Other implementation underway
 
