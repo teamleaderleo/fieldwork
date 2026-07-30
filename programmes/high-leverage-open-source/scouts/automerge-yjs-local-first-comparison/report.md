@@ -1,103 +1,198 @@
 # Automerge and Yjs local-first identity and recovery corpus
 
+State: `target-executed`
+
 ## In simple words
 
-This pass compares two released CRDT engines with the same application-level cases. The question is broader than convergence: after offline edits, duplicate delivery, restart, deletion, malformed input, or writer-identity reuse, can the application still explain what happened and apply its own authority rules?
+This pass compares released Automerge and Yjs packages with the same application-level recovery cases. Both engines converge ordinary duplicate/reordered delivery and preserve text positions through restart. Both also converge product states that still need application policy, such as duplicate provider records and delete-plus-edit.
 
-The corpus deliberately keeps provider identity, authorization, schema migration, deletion policy, backup acceptance, and user-visible recovery outside the CRDT engine.
+The decisive recovery differences are malformed update handling and duplicate writer identity:
 
-## Exact target pins
+- Automerge rejected every truncated change without changing the public immutable document;
+- Yjs threw after mutating the destination for nine suffix truncations;
+- Automerge detected duplicate actor sequence after accepting the first writer;
+- Yjs silently retained whichever colliding writer arrived first.
 
-- Automerge JavaScript package: `@automerge/automerge@3.3.2`.
-- Automerge release commit: `b4a1bbe9fc17d26c4d3f1819f9ee3b318de3a516`.
-- Yjs stable package: `yjs@13.6.31`.
-- Yjs release tag/commit: `v13.6.31` / `271330889b13eae102873bb417d6747a0ddd8b4a`.
-- Runner: Node 22 and Node 24 on Ubuntu.
+## Exact identity
 
-Yjs `main` currently identifies itself as a 14.0 release candidate, so this first compatibility corpus uses the latest stable 13.x package and records 14.x as a later migration lane.
+- Fieldwork issue: #121
+- Fieldwork carrier: PR #263
+- Executed carrier head: `b9627c9a0a6fe1168e47272cad95b5e2ecb378fa`
+- Automerge package: `@automerge/automerge@3.3.2`
+- Automerge release source: `b4a1bbe9fc17d26c4d3f1819f9ee3b318de3a516`
+- Yjs package: `yjs@13.6.31`
+- Yjs release source: `271330889b13eae102873bb417d6747a0ddd8b4a`
+- Execution: `30582556167`, Node 22 and Node 24 on Ubuntu
+- Executed-head Fieldwork integrity: `30582555951`
+- Upstream contact authorized: `false`
+
+Yjs `main` identified itself as a 14.0 release candidate during the source pass, so this compatibility corpus uses the stable 13.x release. A 14.x comparison is a distinct migration lane.
 
 ## Source map
 
 ### Automerge
 
-The released JavaScript entry point documents these relevant contracts:
+The released JavaScript entry point exposes:
 
 - `getChanges` / `applyChanges` for change delivery;
 - `save` / `load` and incremental save/load for persistence;
 - stateful per-peer sync;
-- concurrent same-key assignments expose conflicts through `getConflicts` while one deterministic value is presented;
-- actor IDs represent sequential writers and must not be used concurrently;
-- cursors can preserve a position through edits and can be resolved after later document states.
+- deterministic presented values plus `getConflicts` for concurrent same-key assignments;
+- actor IDs as sequential-writer identity;
+- cursors that preserve positions through edits and later document states.
 
-The clone API creates a fresh actor ID by default specifically to avoid duplicate sequence numbers.
+The clone API creates a fresh actor ID by default to avoid duplicate sequence numbers.
 
 ### Yjs
 
 The stable source exposes:
 
 - state vectors and idempotent update application;
-- relative positions that encode, decode, and resolve after a full update is loaded into a new document;
+- relative positions that encode, decode, and resolve after restart;
 - per-client clocks, structs, delete sets, pending causal updates, and transaction cleanup;
 - application-independent shared maps, arrays, and text.
 
-`readUpdateV2()` integrates decoded structs before it reads and applies the delete set. `transact()` completes transaction cleanup in `finally`, including when update decoding throws. The truncation scan tests the resulting failure-atomicity boundary instead of assuming an exception leaves the destination unchanged.
+`readUpdateV2()` decodes and integrates client structs before reading and applying the delete set. Transaction cleanup runs through `finally`. A suffix truncation can therefore throw after integrated state has become observable.
 
-## Shared executable cases
+## Executed shared cases
 
-1. **Duplicate and reordered delivery**
-   - independent writers add distinct keys;
-   - updates arrive in reverse order;
-   - one update is delivered twice;
-   - the final value must contain both keys exactly once.
+### Duplicate and reordered delivery
 
-2. **Duplicate provider identity**
-   - two offline writers create locally distinct calendar records with the same provider identity;
-   - both records converge;
-   - the result demonstrates why provider uniqueness remains application-owned.
+Independent writers added distinct keys. Updates arrived in reverse order and one update was delivered twice.
 
-3. **Delete versus edit**
-   - one writer marks an event deleted;
-   - another changes its start time;
-   - both fields converge;
-   - product policy still decides whether the edit is ignored, retained for restore, rejected, or surfaced as a conflict.
+Both engines retained both keys exactly once.
 
-4. **Stable text position after restart**
-   - create a position at index 2;
-   - insert two leading characters;
-   - serialize and load into a new document;
-   - the position must resolve to index 4.
+Disposition: ordinary idempotent delivery control passed.
 
-5. **Truncated second change or update**
-   - create text and then delete its middle bytes;
-   - truncate every possible suffix boundary;
-   - record exceptions, silent partial results, and any destination mutation after an exception;
-   - compare the full accepted result.
+### Duplicate provider identity
 
-6. **Duplicate writer identity**
-   - create two independent writers with the same Automerge actor ID or Yjs client ID;
-   - deliver the conflicting first operations in both orders;
-   - record rejection, loss, or order-dependent state.
+Two offline writers created locally distinct calendar records with provider ID `provider-42`.
 
-## Evidence classes
+Both engines converged two records sharing one provider identity.
 
-- Source contracts and candidate mechanism: `source-read`.
-- Node execution of released packages: `target-executed` once the exact workflow is green and its output is retained.
-- Calendar and manuscript product conclusions: application-model evidence only. They describe ownership boundaries and do not establish a target defect by themselves.
+Disposition: provider uniqueness remains application-owned. Convergence does not deduplicate product identity.
 
-## Promotion rules
+### Delete versus edit
 
-A target-specific candidate requires all of:
+One writer marked an event deleted while another changed its start time.
 
-- a minimized byte/update corpus;
-- exact package and source revision;
-- ordinary and negative controls;
-- repeatability across the named Node matrix;
-- a documented expectation or a clear recovery/API hazard;
-- a likely owning subsystem;
-- an explicit application consequence.
+Both engines converged:
 
-A difference between Automerge and Yjs remains comparative evidence until one engine violates its own stated contract or exposes an unsafe, unexplained recovery boundary.
+```text
+deleted: true
+start: 10:00
+```
 
-## Contact boundary
+Disposition: application policy decides whether the edit is ignored, retained for restoration, rejected, or surfaced.
 
-This is owned Fieldwork research. No public upstream issue, pull request, comment, review, or message is authorized or included.
+### Stable text position after restart
+
+A position at index 2 was retained through a two-character leading insertion and a full save/load or update/load restart.
+
+Both engines resolved the position to index 4.
+
+Disposition: bounded stable-position controls passed.
+
+## Malformed update boundary
+
+### Automerge
+
+The second change was 128 bytes. Every proper truncation, 127 cuts, threw. No returned immutable document showed mutation after the exception. The full change produced `abef`.
+
+```text
+bytes: 128
+proper cuts: 127
+throws: 127
+public-state mutation after throw: none
+full text: abef
+```
+
+Disposition: this public immutable-document corpus was failure-atomic.
+
+### Yjs
+
+The complete update was 45 bytes. Every proper truncation, 44 cuts, threw. Cuts 36 through 44 threw after the destination already exposed the complete visible text `abef` and a seven-byte state vector.
+
+```text
+bytes: 45
+proper cuts: 44
+throws: 44
+silent partial cuts: 0
+throws after observable mutation: 9
+mutation cuts: 36–44
+visible text after throw: abef
+state-vector bytes after throw: 7
+```
+
+Disposition: an exception from `Y.applyUpdate` is not a rollback receipt. Apply untrusted, corrupted, or crash-recovered update bytes to a disposable candidate document or validate them under an equivalent complete framing contract before durable acceptance.
+
+Canonical finding: `findings/F121-yjs-truncated-update-mutation/finding.md`.
+
+## Duplicate writer identity boundary
+
+### Automerge
+
+Two independent documents reused actor ID `00000000000000000000000000000001` and each emitted sequence 1.
+
+The first writer was retained; the second raised a duplicate-sequence error. Reversing delivery reversed which value remained.
+
+Disposition: collision is detected, but recovery still requires application authority over source histories and arrival order.
+
+### Yjs
+
+Two independent documents reused client ID `424242` and each created its first map item.
+
+The first delivered writer remained. The second value disappeared without an exception. Reversing delivery reversed the surviving value.
+
+Disposition: writer identity collision can turn arrival order into silent authority.
+
+Canonical finding: `findings/F121-crdt-duplicate-writer-identity/finding.md`.
+
+## Application ownership boundary
+
+The application must retain:
+
+- account and authorization scope;
+- provider and source identity;
+- schema and migration policy;
+- conflict semantics beyond pure convergence;
+- backups and export acceptance;
+- unique writer-history binding;
+- user-visible recovery and rejection decisions.
+
+The CRDT may own operation convergence. It does not own product truth, provider uniqueness, backup authority, or collision recovery.
+
+## Deterministic corpus assertions
+
+The retained script now asserts:
+
+- duplicate/reordered delivery results;
+- duplicate provider and delete-plus-edit controls;
+- stable positions after restart;
+- every Automerge proper truncation throws with no public immutable-document mutation;
+- every Yjs proper truncation throws, no silent partial cut advances visible or state-vector state, and exact cuts 36–44 mutate before throwing;
+- duplicate Automerge actor sequence rejects the second writer;
+- duplicate Yjs client identity retains only the first delivered writer in both orders.
+
+The exact executed receipt predates these assertion additions. The final source head requires ordinary repository checks or local Node execution before promotion; the accepted target observations remain tied to `b9627c9a...`.
+
+## Evidence boundary
+
+- source contracts and mechanisms: `source-read`;
+- exact released-package outcomes: `target-executed` on Node 22 and Node 24;
+- calendar and manuscript conclusions: application-model evidence;
+- Automerge truncation result: public immutable-document boundary only;
+- Yjs mutation-after-throw: exact stable v13 update and corpus only;
+- Yjs 14 behavior: unmeasured;
+- security/resource-limit conclusion: absent;
+- public upstream interaction: absent.
+
+## Current disposition
+
+**ACCEPT the two recovery findings and retain the shared corpus.**
+
+- Require disposable-candidate application or equivalent validation for untrusted Yjs update bytes.
+- Require one unique writer identity per independent history and explicit collision recovery.
+- Keep provider uniqueness, deletion policy, and schema authority application-owned.
+
+The one-off execution workflow is retired after receipt transfer. A target-specific upstream candidate requires a documented contract mismatch or a narrower diagnostics/safety improvement.
