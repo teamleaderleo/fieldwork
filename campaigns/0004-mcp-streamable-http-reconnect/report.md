@@ -1,287 +1,202 @@
-# MCP TypeScript v2 Streamable HTTP reconnect campaign
+# MCP Streamable HTTP reconnect campaign synthesis
 
 Date: 2026-07-30
 
-Fieldwork campaign: #65
-Programme: #13
-Target hub: #7
-Parent scout: #20
+Fieldwork campaign: #65  
+Programme: #13  
+Target hub: #7  
+Parent scout: #20  
 Upstream contact authorized: `false`
 
 ## In simple words
 
-This campaign tested whether the v2 TypeScript SDK correctly keeps reconnect state separate when several MCP HTTP response streams overlap, whether its retry ceiling has a real lifecycle hole, and whether lost results cause duplicate application execution.
+The campaign separated four things that are easy to blur together:
 
-One client defect candidate survived real execution:
+1. retry advice for one resumable response stream;
+2. terminal ownership after one request times out;
+3. replay of a stored result after transport loss;
+4. a new application request after the original result is uncertain.
 
-> A reconnecting stream can use another stream's SSE `retry` value.
+Two client-side defect candidates survived exact public execution in the supported 2025-era compatibility transport:
 
-Two broader concerns were narrowed:
+- one stream can use another stream's SSE `retry` value;
+- a request can report timeout while its resumable reconnect chain continues issuing GET requests and later produces an unknown-message diagnostic.
 
-- `maxRetries` counts consecutive failures to open the next stream; successful long-lived reconnects resetting that count are not a separate defect by themselves.
-- stateful MCP result replay can deliver the same stored result more than once while executing the tool once; application retry is a separate path that can re-enter the handler and therefore needs durable idempotency.
+The server-side Stensibly lane found a dependency-version boundary instead of a new defect:
 
-## Source pins
+- exact SDK 1.29.0 loses a request-scoped terminal result after the SSE stream is closed;
+- exact published SDK 1.30.0 stores and replays that result without re-executing the handler;
+- the bug is already owned and repaired upstream;
+- current hosted Stensibly is stateless JSON-response mode and does not expose that session-replay path.
 
-- MCP TypeScript SDK: `modelcontextprotocol/typescript-sdk@cc4b41617ce3601b1290d67216ea0b194a3cd9ac`
-- SDK v2 package line: `@modelcontextprotocol/client@2.0.0`, `@modelcontextprotocol/server@2.0.0`
-- Owned SDK fork probe head: `teamleaderleo/typescript-sdk@d9fcf9d085f9c75bfec49d714a7a17ba1c5ad571`
-- Stensibly: `teamleaderleo/stensibly@20241e668fb493b7f389df8b9df7f229bcadff68`
+## Protocol-era boundary
 
-## Lane results
+These findings concern the SDK's supported 2025-era Streamable HTTP compatibility path, which uses sessions, GET reconnects, SSE event IDs, and `Last-Event-ID`.
+
+Protocol revision `2026-07-28` has no protocol session, GET stream endpoint, or `Last-Event-ID` resumption. The campaign does not project legacy reconnect findings onto that native modern path.
+
+## Exact lane results
 
 ### Lane #66 — concurrent reconnect ownership
 
-Result: **confirmed SDK defect candidate**.
+Durable report: PR #82, merged.
 
-Public HTTP reproduction:
+Confirmed:
 
-1. Stream A receives a priming event with its own `retry` value and event ID.
-2. Stream B receives a different `retry` value and event ID.
-3. A's reconnect performs a real GET carrying A's `Last-Event-ID`.
-4. When that GET fails, A's next scheduled delay uses B's value.
+- request stream A receives retry advice and event ID A;
+- request stream B later receives different retry advice and event ID B;
+- A reconnects through a GET carrying A's own `Last-Event-ID`;
+- if that GET fails, A's next delay uses B's later retry value.
 
-Both directions reproduced:
+Both directions executed on Node 20, 22, and 24:
 
 | A instruction | Later B instruction | A next delay |
 | ---: | ---: | ---: |
 | 50 ms | 5000 ms | 5000 ms |
 | 5000 ms | 50 ms | 50 ms |
 
-The shorter direction can make A reconnect earlier than A's server instructed. The longer direction can delay result recovery.
+The transport also records one reconnect-cancellation callback. With two pending timers, close can leave the older timer alive until it fires, although abort guards prevented network resurrection in the tested path.
 
-Supporting cleanup finding:
+Disposition:
 
-- two pending reconnects share one recorded cancellation callback;
-- close cancels the newest default timer and leaves the older timer pending;
-- the older callback later fires but transport abort guards prevent a fetch or error in the tested path.
+- confirmed client defect candidate;
+- narrow title: `StreamableHTTPClientTransport shares SSE retry state across concurrent streams`;
+- upstream packet remains held for explicit authorization.
 
-Verification:
+### Lane #67 — request timeout and reconnect terminal state
 
-- public and class-level probes;
-- Node 20, 22, and 24;
-- final client workflow `30476941445`;
-- lane report in PR #82.
+Durable report: PR #90, merged.
 
-Held upstream packet:
+The original `maxRetries` concern narrowed:
 
-`StreamableHTTPClientTransport shares SSE retry state across concurrent streams`
+- successful reopen cycles legitimately reset the consecutive failed-open count;
+- `maxRetries` is not a total lifetime budget for a resumable stream.
 
-This is the campaign's first upstream candidate.
+A deeper terminal-state defect then reproduced against source and exact published `@modelcontextprotocol/client@2.0.0` on Node 20, 22, and 24:
 
-### Lane #67 — reconnect budget and terminal state
+1. a default v2 client negotiates the 2025-era path;
+2. one request starts a resumable SSE reconnect chain;
+3. the request deadline expires;
+4. the caller receives `Request timed out` and cancellation is sent;
+5. the transport continues issuing resumed GET requests with `Last-Event-ID`;
+6. a late result is reported for an unknown message ID.
 
-Result: **confirmed behavior; separate defect promotion rejected**.
+The default scheduler generated real HTTP traffic after caller settlement.
 
-With `maxRetries: 2`:
+Disposition:
 
-- six successful primed reopen/drop cycles all scheduled at attempt zero;
-- two consecutive failed GET opens used attempts zero and one, then ended the affected request stream once;
-- a later independent JSON response succeeded on the same transport;
-- a resumed stream that delivered the awaited result ended cleanly and scheduled no further reconnect.
+- confirmed client terminal-ownership candidate;
+- keep separate from the retry-value coupling issue;
+- retain `maxRetries` wording as a documentation clarification, not a limit-bypass bug;
+- upstream packet remains held for explicit authorization.
 
-Interpretation:
+### Lane #68 — Stensibly result loss, replay, and application retry
 
-- `maxRetries` is the maximum number of consecutive failures to open the next SSE stream;
-- it is not a total lifetime limit for a resumable logical stream;
-- the option wording is broader than the implementation and deserves clarification;
-- standalone dead response-channel behavior remains correctly routed to upstream #2098.
-
-Verification:
-
-- source-tree fixture on Node 20, 22, and 24;
-- published `@modelcontextprotocol/client@2.0.0` fixture on Node 20, 22, and 24;
-- source workflow `30477560619`;
-- release-artifact workflow `30478067730`;
-- lane report in PR #90.
-
-### Lane #68 — result replay and duplicate execution
-
-Result: **confirmed ownership boundary**.
-
-Stateful v2 server replay:
-
-- event-store-backed server stores the final result after the original SSE stream closes;
-- two GET reconnects with the same session and `Last-Event-ID` each replay the result;
-- tool execution count remains one.
+Durable report: PR #104, merged. PR #100 was closed unmerged as its older conflicting generation.
 
 Current hosted Stensibly:
 
 - POST-only;
-- stateless JSON response;
+- stateless JSON-response mode;
 - session IDs disabled;
-- one transport created and closed per request;
+- fresh server and transport per request;
 - no event store or GET resume path.
 
-Stensibly ambiguous retry test:
+Exact SDK 1.29.0 stateful fixture:
 
-- first mutation commits while the response body is abandoned;
-- operation receipt identifies one item and says `do_not_retry`;
-- exact retry enters `createItem` again and returns the original item;
-- one item and one creation event remain;
-- changed durable input under the same idempotency key conflicts.
+- a real Stensibly mutation commits one item and one creation event;
+- `closeSSEStream()` removes the live request stream;
+- only the priming event is stored;
+- the terminal result is not replayable;
+- the reconnect GET returns no result;
+- the original caller times out;
+- an exact new application retry enters the handler again but returns the original item and preserves one durable effect.
 
-Verification:
+Exact published SDK 1.30.0 fixture:
 
-- SDK replay workflow `30480085816` on Node 20, 22, and 24;
-- Stensibly CI `30480313838` with typecheck, 952 Bun tests across 192 files, Convex tests, Worker bundle, and runtime parity;
-- Stensibly PR #565;
-- lane report in PR #100.
+- two request-stream events are stored;
+- one reconnect GET returns the original result;
+- handler execution remains one during transport replay;
+- a later exact new request raises handler entries to two while durable item/event count remains one.
 
-No MCP SDK defect packet came from Lane #68. The replay behavior correctly separates duplicate result delivery from duplicate execution.
+The 1.29 defect is already tracked and repaired by the SDK's store-first response work on the v1.x and v2 lines. No duplicate upstream report is warranted.
 
-## Evidence ranking
+Disposition:
 
-### 1. Cross-stream retry-value coupling
+- upgrade to at least verified SDK 1.30.0 before enabling stateful request-scoped replay;
+- keep operation receipts and exact idempotency because transport replay does not prevent a client from sending a new request after uncertainty;
+- duplicate transport delivery was not demonstrated by the final lane fixture;
+- current hosted exposure is absent because stateful replay is disabled.
 
-Status: confirmed and novel after duplicate search.
-
-Evidence:
-
-- source ownership mismatch;
-- private-method control;
-- real class execution;
-- public `start()` / `send()` reproduction;
-- real local HTTP POST and resumed GET;
-- replay cursor proves the reconnect belongs to A;
-- both shorter and longer delay directions;
-- Node 20/22/24 matrix.
-
-Remaining evidence before upstream filing:
-
-- a concise standalone reproduction suitable for the v2 issue template;
-- optional workload measurement showing reconnect volume or latency impact;
-- explicit human authorization to contact upstream.
-
-### 2. One reconnect cancellation slot
-
-Status: confirmed lower-impact cleanup issue.
-
-Evidence:
-
-- one cancellation field;
-- newest-only cancellation;
-- older default timer remains after close.
-
-Narrowing control:
-
-- stale callback is blocked from network activity by abort guards.
-
-Recommended routing:
-
-- supporting evidence in the retry-state issue, or a separate cleanup issue only if a platform scheduler demonstrates larger retained-work cost.
-
-### 3. Standalone response-channel terminal state
-
-Status: real adjacent concern, already tracked upstream in #2098.
-
-Recommended routing:
-
-- do not duplicate;
-- add per-request versus standalone-channel distinctions only after authorization.
-
-### 4. Retry-count reset after successful open
-
-Status: confirmed mechanism; defect promotion rejected.
-
-Recommended routing:
-
-- documentation clarification, not a bug report titled as limit bypass.
-
-### 5. Session replay duplicate execution
-
-Status: disproved.
-
-Stateful replay redelivers a stored result without resubmitting the tool call.
-
-### 6. Stateless exact retry duplicate durable effect
-
-Status: disproved for Stensibly's protected create path.
-
-The handler runs again, but exact request fingerprinting preserves one item and one creation event.
-
-## Protocol and application ownership
+## Ownership model
 
 | Concern | Correct owner |
 | --- | --- |
-| retry delay for one SSE reconnect chain | transport stream state |
-| reconnect attempt count | reconnect chain / stream-open sequence |
-| cancellation of one pending reconnect | reconnect chain scheduler state |
-| session and event replay | server transport and event store |
-| duplicate response settlement | client protocol request map |
+| retry delay | one reconnect chain / response stream |
+| failed-open retry count | one reconnect chain |
+| request deadline | protocol request operation |
+| reconnect termination after request settlement | request-linked stream lifecycle |
+| session and event replay | server transport plus event store |
+| duplicate response settlement | client request map |
 | durable mutation deduplication | application idempotency contract |
-| ambiguity reconciliation | application receipt/read path |
+| uncertainty reconciliation | application receipt or read path |
 
-The campaign's main failure comes from storing stream-local retry advice at transport scope.
+A shared transport may host many request streams, but stream-local retry and terminal state cannot be stored as one transport-global value.
 
-## Held upstream issue packet
+## Evidence ranking
 
-### Proposed title
+### Confirmed and novel
 
-`StreamableHTTPClientTransport shares SSE retry state across concurrent streams`
+1. Cross-stream SSE retry-state coupling.
+2. Resumable GET activity continuing after request timeout.
 
-### Summary
+Both have exact source and published-package execution on Node 20/22/24 and are scoped to the 2025 compatibility path.
 
-The v2 client supports concurrent request SSE streams but stores the latest parsed SSE `retry` value once per transport. After A and B receive different retry values, a failed resumed GET for A schedules A's next retry using B's value.
+### Confirmed supporting behavior
 
-### Minimal sequence
+- one reconnect cancellation slot can leave an older timer pending;
+- `maxRetries` counts consecutive failed opens;
+- application exact retry can re-enter a handler while preserving one durable effect.
 
-1. Construct one transport with a deterministic reconnect scheduler.
-2. Send request A; server returns SSE priming event `retry: 5000`, `id: a-1`, empty data, then closes.
-3. Send request B; server returns `retry: 50`, `id: b-1`, empty data, then closes.
-4. Execute A's reconnect callback.
-5. Observe GET `Last-Event-ID: a-1`; server returns 503.
-6. Observe A's next schedule at 50 ms rather than 5000 ms.
-7. Reverse the values to reproduce delayed recovery.
+### Existing upstream ownership
 
-### Expected behavior requiring maintainer confirmation
+- SDK 1.29 request-scoped terminal result loss after stream disconnection;
+- corresponding store-first repair in fixed SDK releases;
+- standalone dead-response-channel behavior already tracked separately.
 
-Retry advice should remain associated with the SSE stream/reconnect chain that received it, or the transport must document and enforce a policy that respects every active stream's required interval.
+### Negative results
 
-### Demonstrated impact
-
-- unrelated streams change each other's reconnect timing;
-- a stream may retry earlier than its server instructed;
-- a stream may recover later than its server instructed;
-- behavior depends on event ordering among concurrent requests.
-
-### Supporting cleanup observation
-
-The transport also records one reconnect cancellation callback. Closing with two pending default timers leaves the older timer pending until it fires, although abort guards prevent a network request.
-
-### Duplicate check
-
-- #2499: resumption token loss, different behavior;
-- #2098: failed-open exhaustion/dead response channel, different behavior;
-- no matching issue or pull request found for cross-stream retry coupling.
+- no evidence that native 2026 Streamable HTTP uses legacy GET resumption;
+- no duplicate durable Stensibly mutation under exact retry;
+- no duplicate transport result delivery in the final Lane #68 fixture;
+- no evidence that enabling a session ID alone would create durable hosted replay;
+- no authorization to file or comment upstream.
 
 ## Recommended next actions
 
-1. Keep the issue packet held until explicit authorization.
-2. Reduce the public HTTP fixture to one standalone reproduction file for the v2 issue template.
-3. Optionally measure early-retry request volume and delayed-recovery latency under alternating retry values.
-4. Review Stensibly PR #565 as an owned regression test.
-5. Treat a stateful hosted Stensibly transport as a separate design campaign, not a small toggle.
-6. Preserve all negative findings in any upstream packet so the claim remains narrow.
+1. Keep the two client packets separate and narrow.
+2. Reduce each to one standalone public reproduction before any contact decision.
+3. Upgrade Stensibly's SDK independently of upstream reporting.
+4. Retain the 1.29 negative fixture and invert it to a replay-success regression after upgrade.
+5. Preserve receipts and exact idempotency as application-level recovery.
+6. Treat hosted stateful replay as a separate architecture decision requiring stable routing, shared event storage, expiry, authorization, and observability.
 
 ## Campaign decision
 
-State: ready-for-synthesis
+State: `complete — packets held`
 
-- Primary confirmed SDK defect candidate: cross-stream retry-value coupling.
-- Secondary cleanup finding: one cancellation slot / older timer retention.
-- Existing issue routing: standalone dead-channel behavior to #2098.
-- Documentation candidate: clarify `maxRetries` as consecutive failed stream opens.
-- Session replay: works as result replay without tool re-execution.
-- Stensibly exact retry: handler re-entry with one durable effect.
+- Lane #66: confirmed client defect candidate, merged evidence.
+- Lane #67: confirmed client terminal-ownership candidate, merged evidence.
+- Lane #68: fixed dependency exposure and hosted recovery boundary, merged evidence.
 - Upstream contact: none.
+- Filing authorization: absent.
 
-## Durable artifacts
+## Durable records
 
-- Scout PR #42;
-- Campaign Lane #66 PR #82;
-- Campaign Lane #67 PR #90;
-- Campaign Lane #68 PR #100;
-- SDK fork draft PR `teamleaderleo/typescript-sdk#1`;
-- Stensibly ready PR `teamleaderleo/stensibly#565`;
-- this campaign report.
+- Lane #66: Fieldwork PR #82.
+- Lane #67: Fieldwork PR #90.
+- Lane #68: Fieldwork PR #104.
+- Superseded Lane #68 generation: PR #100, closed without merge.
+- Campaign synthesis: this report and PR #102.
+- Owned SDK fixture: `teamleaderleo/typescript-sdk#1`.
+- Owned Stensibly fixture: `teamleaderleo/stensibly#565`.
