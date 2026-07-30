@@ -1,6 +1,6 @@
 # Metrics final collection ownership
 
-Status: repairing exact head under execution  
+Status: exact-head executed  
 Target: `teamleaderleo/opentelemetry-js`  
 Base trial: fork PR #5  
 Composition and repair: fork PR #9  
@@ -15,9 +15,9 @@ How can `MetricReader` publish terminal shutdown state immediately while still a
 
 The public and teardown authorities must remain distinct:
 
-- an external caller must receive `MetricReader is shutdown` once shutdown begins;
-- the reader-owned shutdown operation must still wait for an active export, collect final metrics, flush the exporter, and shut the exporter down;
-- a caller-local timeout must not silently revoke an underlying cleanup operation that the API documents as able to continue.
+- an external caller receives `MetricReader is shutdown` once shutdown begins;
+- the reader-owned shutdown operation still waits for an active export, collects final metrics, flushes the exporter, and shuts the exporter down;
+- a caller timeout does not silently revoke an underlying cleanup operation that the API documents as able to continue.
 
 ## Base-trial failure
 
@@ -66,7 +66,7 @@ This is retained as product-contract evidence, not harness noise.
 
 ## Repair contract
 
-Fork PR #9 now separates public and teardown collection paths.
+Fork PR #9 separates public and teardown collection paths.
 
 ### Public path
 
@@ -88,7 +88,7 @@ The same stacked branch applies attempt-all safe calls to `MeterProvider.shutdow
 
 ## Focused regression
 
-The new target-native control creates a real meter and periodic reader, then:
+The target-native control creates a real meter and periodic reader, then:
 
 1. begins one force flush;
 2. holds the first export open;
@@ -99,22 +99,31 @@ The new target-native control creates a real meter and periodic reader, then:
 
 This exercises the asynchronous wait boundary that a synchronous-only authorization flag would miss.
 
-## Current exact head
+## Exact repaired head
 
 ```text
 5bb520f141759ce003dc002196c43cda4fe96551
 ```
 
-Current state at this record:
+Exact-head results:
 
-- workflow security: passed;
-- W3C integration: passed;
-- Bundler: passed;
-- API peer dependency: passed;
+- Unit Tests: passed;
+- Lint: passed;
+- E2E Tests: passed;
 - CodeQL: passed;
-- Unit, Lint, and E2E: running.
+- Bundler tests: passed;
+- W3C integration: passed;
+- API peer dependency: passed;
+- workflow security analysis: passed.
 
-No final passing claim is made until all current exact-head gates settle.
+The E2E gate that failed on the predecessor now passes on every supported runtime, confirming that the final metric collection is restored while terminal public collection remains enforced.
+
+Evidence class:
+
+- base failure: target-executed product-contract evidence;
+- repair mechanism and complete seven-file diff: source-reviewed;
+- focused regression and repository matrix: target-executed on the exact repaired head;
+- compatibility choices below: held for an explicit review decision.
 
 ## Remaining compatibility decisions
 
@@ -132,9 +141,9 @@ Delayed recursion is separated into Fieldwork #216 so the metrics final-collecti
 
 Before any production or upstream packet:
 
-1. exact-head Unit, Lint, and E2E must pass;
-2. the complete seven-file diff must receive an exact-head review;
-3. PR #5 must remain classified as the isolated compatibility-sensitive base;
-4. PR #9 must remain the active composition carrier;
-5. #4, #19, #32, #194, and Archive #192 must carry the same exact head and evidence class;
+1. receive an independent exact-head disposition on the complete PR #9 contract;
+2. keep PR #5 classified as the isolated compatibility-sensitive base;
+3. keep PR #9 as the active composition carrier;
+4. synchronize #4, #19, #32, #194, and Archive #192 to this exact head and evidence class;
+5. decide the remaining compatibility questions without importing #216;
 6. no upstream contact occurs without a separate authorization decision.
