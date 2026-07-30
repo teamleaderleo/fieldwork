@@ -42,6 +42,12 @@ jobs:
             --cases "$path/cases.json" \
             --output /tmp/repository-admission-2.json
           cmp /tmp/repository-admission-1.json /tmp/repository-admission-2.json
+      - name: Execute mutation-only degradation discriminator
+        run: |
+          path=campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/artifacts
+          python3 "$path/evaluate_admission.py" \
+            --cases "$path/mutation_only_absence_case.json" \
+            --output /tmp/repository-admission-mutation-only.json
       - name: Run Fieldwork repository checks
         run: |
           node scripts/test_interaction_references.js
