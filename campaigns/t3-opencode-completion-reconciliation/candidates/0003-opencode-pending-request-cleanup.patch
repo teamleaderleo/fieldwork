@@ -25,7 +25,7 @@ index 73c23b7..0000000 100644
      default:
        return "unknown";
    }
-@@ -374,6 +381,55 @@ export function makeOpenCodeAdapter(
+@@ -374,5 +381,58 @@ export function makeOpenCodeAdapter(
        event: ProviderRuntimeEvent,
      ) => Queue.offer(runtimeEvents, event).pipe(Effect.asVoid);
 +
@@ -84,7 +84,7 @@ index 73c23b7..0000000 100644
      const writeNativeEvent = (
        threadId: ThreadId,
        event: {
-@@ -680,6 +736,7 @@ export function makeOpenCodeAdapter(
+@@ -680,6 +740,7 @@ export function makeOpenCodeAdapter(
          return;
        }
        const turnId = context.activeTurnId;
@@ -92,7 +92,7 @@ index 73c23b7..0000000 100644
        sessions.delete(context.session.threadId);
        // Emit lifecycle events BEFORE tearing down the scope. Both call sites
        // run this inside a fiber forked via `Effect.forkIn(context.sessionScope)`;
-@@ -1051,6 +1108,7 @@ export function makeOpenCodeAdapter(
+@@ -1051,6 +1112,7 @@ export function makeOpenCodeAdapter(
            }
  
            if (event.properties.status.type === "idle" && turnId) {
@@ -100,7 +100,7 @@ index 73c23b7..0000000 100644
              context.activeTurnId = undefined;
              yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
              yield* emit({
-@@ -1079,6 +1137,7 @@ export function makeOpenCodeAdapter(
+@@ -1079,6 +1141,7 @@ export function makeOpenCodeAdapter(
            const message = sessionErrorMessage(event.properties.error);
            const activeTurnId = context.activeTurnId;
            context.activeTurnId = undefined;
@@ -108,7 +108,7 @@ index 73c23b7..0000000 100644
            yield* updateProviderSession(
              context,
              {
-@@ -1544,11 +1603,13 @@ export function makeOpenCodeAdapter(
+@@ -1544,13 +1607,15 @@ export function makeOpenCodeAdapter(
        function* (threadId, turnId) {
          const context = yield* ensureSessionContext(sessions, threadId);
 +        const interruptedTurnId = turnId ?? context.activeTurnId;
@@ -126,7 +126,7 @@ index 73c23b7..0000000 100644
              })),
              type: "turn.aborted",
              payload: {
-@@ -1613,6 +1674,11 @@ export function makeOpenCodeAdapter(
+@@ -1613,6 +1678,11 @@ export function makeOpenCodeAdapter(
              threadId,
            });
          }
@@ -138,7 +138,7 @@ index 73c23b7..0000000 100644
          const stopped = yield* stopOpenCodeContext(context);
          sessions.delete(threadId);
          if (!stopped) {
-diff --git a/packages/contracts/src/providerRuntime.ts b/packages/contracts/src/providerRuntime.ts
+ diff --git a/packages/contracts/src/providerRuntime.ts b/packages/contracts/src/providerRuntime.ts
 index eb2563e..0000000 100644
 --- a/packages/contracts/src/providerRuntime.ts
 +++ b/packages/contracts/src/providerRuntime.ts
@@ -150,11 +150,11 @@ index eb2563e..0000000 100644
  });
  export type UserInputResolvedPayload = typeof UserInputResolvedPayload.Type;
  
-diff --git a/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts b/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
+ diff --git a/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts b/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
 index a8a51b3..0000000 100644
 --- a/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
 +++ b/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
-@@ -307,6 +307,17 @@ function requestKindFromCanonicalRequestType(
+@@ -307,6 +307,18 @@ function requestKindFromCanonicalRequestType(
    }
  }
  
@@ -173,7 +173,7 @@ index a8a51b3..0000000 100644
  export function runtimeEventToActivities(
    event: ProviderRuntimeEvent,
    taskTitle?: string,
-@@ -353,6 +364,7 @@ export function runtimeEventToActivities(
+@@ -353,6 +365,7 @@ export function runtimeEventToActivities(
        if (event.payload.requestType === "tool_user_input") {
          return [];
        }
@@ -181,7 +181,7 @@ index a8a51b3..0000000 100644
        const requestKind = requestKindFromCanonicalRequestType(event.payload.requestType);
        return [
          {
-@@ -361,12 +373,16 @@ export function runtimeEventToActivities(
+@@ -361,12 +374,15 @@ export function runtimeEventToActivities(
            createdAt: event.createdAt,
            tone: "approval",
            kind: "approval.resolved",
@@ -198,7 +198,7 @@ index a8a51b3..0000000 100644
            },
            turnId: toTurnId(event.turnId) ?? null,
            ...maybeSequence,
-@@ -450,15 +466,20 @@ export function runtimeEventToActivities(
+@@ -450,16 +466,20 @@ export function runtimeEventToActivities(
      }
  
      case "user-input.resolved": {
