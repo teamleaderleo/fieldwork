@@ -8,9 +8,9 @@ The operating contract is [`INVESTIGATION_WORKSPACES.md`](../INVESTIGATION_WORKS
 
 ## Active workspaces
 
-| Workspace | Parent issue | Purpose | Workspace phase | Current transition state |
-| --- | --- | --- | --- | --- |
-| [`239-codex-upstream-convergence/`](239-codex-upstream-convergence/) | [#239](https://github.com/teamleaderleo/fieldwork/issues/239) | Reconcile Codex upstream drift, overlapping lifecycle findings, source candidates, execution receipts, prior art, and proposal outputs | synthesize | research-active |
+| Workspace | Parent issue | Purpose | Workspace phase | Current transition state | Canonical finding |
+| --- | --- | --- | --- | --- | --- |
+| [`239-codex-upstream-convergence/`](239-codex-upstream-convergence/) | [#239](https://github.com/teamleaderleo/fieldwork/issues/239) | Reconcile Codex upstream drift, overlapping lifecycle findings, source candidates, execution receipts, prior art, and proposal outputs | synthesize | `comparative-evaluation-active` | [`F239`](../findings/F239-codex-upstream-convergence/finding.md) |
 
 ## Rules
 
@@ -18,8 +18,9 @@ The operating contract is [`INVESTIGATION_WORKSPACES.md`](../INVESTIGATION_WORKS
 - Every retained investigation keeps one canonical `findings/F<issue>-<slug>/finding.md`.
 - Workspace `findings/` files are subordinate evidence notes or comparisons and link their canonical finding.
 - Workers write to distinct evidence-note or receipt paths.
-- `canonical/README.md` declares which outward-facing outputs are candidates, accepted, disputed, superseded, or retired.
-- Output status and finding transition state are separate concepts.
+- `canonical/README.md` declares which outward-facing outputs are candidates, accepted, disputed, superseded, retired, or held.
+- Output status, workspace phase, and finding transition state are separate concepts.
+- Use `comparative-evaluation-active` while autonomous technical comparison can still distinguish alternatives.
 - Several accepted outputs are allowed when their audiences or claim boundaries differ.
 - Parent issues remain the live coordination surface.
 - Campaigns, lanes, batches, source branches, canonical findings, and review records remain the authority owners for their bounded claims.
