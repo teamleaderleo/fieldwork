@@ -259,8 +259,8 @@ def absence_reason(observation: dict[str, Any] | None) -> str | None:
 
 def evaluate(request: dict[str, Any]) -> dict[str, Any]:
     exact_keys(request, INPUT_KEYS, "request")
-    if request["version"] != 1:
-        raise ValueError("version must be 1")
+    if type(request["version"]) is not int or request["version"] != 1:
+        raise ValueError("version must be primitive integer 1")
     request_id = nonempty_string(request["request_id"], "request_id")
     operation_kind = request["operation_kind"]
     if operation_kind not in {"read", "potential_mutation"}:
@@ -283,6 +283,7 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
     blocked: list[str] = []
     approvals: list[str] = []
     unresolved_mutations: list[str] = []
+    executable_reads: list[str] = []
 
     for capability_id in sorted(capabilities):
         capability_kind = capabilities[capability_id]
@@ -300,6 +301,8 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
             "authority_delta_digest": None,
         }
         if reason is None:
+            if capability_kind == "read":
+                executable_reads.append(capability_id)
             receipts.append(receipt)
             continue
 
@@ -324,7 +327,10 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
                 blocked.append(f"{capability_id}:{classification.reason}")
             elif classification.decision == "require_explicit_approval":
                 approvals.append(capability_id)
-            elif classification.decision != "allow_equivalent":
+            elif classification.decision == "allow_equivalent":
+                if capability_kind == "read":
+                    executable_reads.append(capability_id)
+            else:
                 raise ValueError(
                     f"fallback {capability_id} returned unknown decision "
                     f"{classification.decision!r}"
@@ -337,6 +343,9 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
         else:
             unresolved_mutations.append(capability_id)
         receipts.append(receipt)
+
+    if unresolved_mutations and not executable_reads:
+        blocked.append("read_only_recovery_capability_unavailable")
 
     if blocked:
         decision = DECISION_BLOCKED
