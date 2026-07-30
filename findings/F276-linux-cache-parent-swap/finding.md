@@ -5,8 +5,10 @@ Finding state: `research-active`
 Workstream: `H`  
 Canonical Fieldwork issue: `#276`  
 Canonical finding path: `findings/F276-linux-cache-parent-swap/finding.md`  
-Canonical implementation: `teamleaderleo/linux-fieldwork` draft PR #228  
-Exact implementation head: `a626c46e4482c21de303a4b612f247351bd67712`  
+Canonical implementation: `none`  
+Exact implementation head: `none`  
+Canonical evidence carrier: `teamleaderleo/linux-fieldwork` draft PR #228  
+Exact evidence head: `66f0f6539d9ae7e714675f1f152e43a6fc2f4a5c`  
 Exact base or source revision: `teamleaderleo/linux-fieldwork@ed49c01a85e9d363626db5d2973a33b67209e13b`  
 Strongest evidence class: `target-test-prepared`  
 Reviewed input generation: `teamleaderleo/linux-fieldwork` issue #227 and PR #228  
@@ -35,7 +37,7 @@ The exact composed candidate separates path validation from path use:
 3. cache-hit checks and reads later call pathname-based `exists`/`stat`/`open` operations;
 4. publication later constructs a sibling temporary pathname, calls pathname-based `os.open()`, and calls pathname-based `os.replace()`.
 
-Those later operations re-resolve parent components. The source therefore contains the classic check/use boundary described by the Linux `openat()` rationale. The exact race result remains pending Linux Fieldwork CI run 671.
+Those later operations re-resolve parent components. The source therefore contains the classic check/use boundary described by the Linux `openat()` rationale. The exact race result remains pending Linux Fieldwork CI run 674.
 
 ### Claim table
 
@@ -44,7 +46,7 @@ Those later operations re-resolve parent components. The source therefore contai
 | The composed candidate validates a resolved strict descendant before the handler continues. | `source-read` | `linux-fieldwork/investigations/caching-proxy-complete-stack/compose_impl.py`, `request_context()` at base `ed49c01a...` | This proves the validation step, not later confinement. |
 | Cache-hit reads later use the retained pathname for existence, metadata, and open operations. | `source-read` | Imported `upstream/mmdebstrap/caching_proxy.py` cache-hit branch plus the composed setup replacement at `ed49c01a...` | The generated candidate is assembled during tests; execution remains pending. |
 | Atomic publication later derives a sibling temporary pathname and uses pathname-based `os.open()` and `os.replace()`. | `source-read` | `linux-fieldwork/investigations/caching-proxy-atomic-publication/0001-publish-cache-files-atomically.patch` | Atomic naming does not by itself bind the parent directory identity. |
-| The deterministic read and publication barriers are published on an exact branch. | `target-test-prepared` | Linux PR #228, `tests/test_caching_proxy_parent_swap_race.py` at `a626c46e...` | No product result is claimed until hosted execution completes. |
+| The deterministic read and publication barriers are published on an exact branch. | `target-test-prepared` | Linux PR #228, `tests/test_caching_proxy_parent_swap_race.py` at `66f0f653...` | No product result is claimed until hosted execution completes. |
 
 ## System and ownership map
 
@@ -130,7 +132,7 @@ The first candidate may treat resolved cache roots and their external ancestors 
 | Repository/head | Command or workflow | Platform/environment | Result | Evidence class |
 | --- | --- | --- | --- | --- |
 | `linux-fieldwork@ed49c01a...` | merged PR #198 complete matrix, run 612 | hosted Linux / Python | success | `integration-executed` |
-| `linux-fieldwork@a626c46e...` | `python3 tests/test_caching_proxy_parent_swap_race.py` via Linux Fieldwork CI run 671 | hosted Linux | queued | `target-test-prepared` |
+| `linux-fieldwork@66f0f653...` | `python3 tests/test_caching_proxy_parent_swap_race.py` via Linux Fieldwork CI run 674 | hosted Linux | queued | `target-test-prepared` |
 
 Classify any failure before the race assertions separately as setup, import, composer, patch, or inherited-matrix failure.
 
@@ -150,8 +152,8 @@ Classify any failure before the race assertions separately as setup, import, com
 - Review disposition: `none`
 - Review Queue entry: `none`
 - Delivery lane: `not-entered`
-- Exact next transition: execute Linux PR #228 at `a626c46e...`.
-- Clearing condition: run 671 completes with an authoritative race result and inherited controls.
+- Exact next transition: execute Linux PR #228 at `66f0f653...`.
+- Clearing condition: run 674 completes with an authoritative race result and inherited controls.
 - Required subgates: complete output review, cleanup review, current-base refresh, and exact-head synchronization.
 - User decision requested: `none`
 
