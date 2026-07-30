@@ -1,0 +1,48 @@
+name: fieldwork-reconcile-codex-stack
+
+on:
+  pull_request:
+    branches:
+      - integration/canonical-findings-workspaces-2026-07-31
+    paths:
+      - .github/workflows/fieldwork-reconcile-codex-stack.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fieldwork-reconcile-codex-stack
+  cancel-in-progress: true
+
+jobs:
+  reconcile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact stack head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: true
+
+      - name: Merge current protocol head and remove carrier
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          git config user.name fieldwork-ci
+          git config user.email fieldwork-ci@users.noreply.github.com
+          git fetch --no-tags origin "refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+          base_head=$(git rev-parse "refs/remotes/origin/$BASE_REF")
+          git merge --no-ff --no-commit "$base_head"
+          git rm .github/workflows/fieldwork-reconcile-codex-stack.yml
+          git diff --cached --check
+          git commit -m 'Merge repaired canonical-finding protocol into Codex stack'
+          test "$(git rev-parse HEAD^2)" = "$base_head"
+          test ! -e .github/workflows/fieldwork-reconcile-codex-stack.yml
+          git push origin "HEAD:refs/heads/$HEAD_REF"
+          echo "FIELDWORK_CODEX_STACK_HEAD=$(git rev-parse HEAD)"
+          echo "FIELDWORK_CODEX_STACK_BASE=$base_head"
