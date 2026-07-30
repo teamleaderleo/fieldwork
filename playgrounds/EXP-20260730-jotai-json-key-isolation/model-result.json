@@ -1,0 +1,17 @@
+{
+  "evidence_class": "model-executed",
+  "environment": {
+    "runtime": "Node.js v22.16.0",
+    "platform": "Linux 6.12.13 x86_64"
+  },
+  "source_revision_transcribed": "pmndrs/jotai@56a9cc51de8a5dd762b95a145820f12589cc47c9",
+  "scope": "Exact createJSONStorage getItem cache logic transcribed without importing the package.",
+  "result": {
+    "same_adapter_different_keys_same_json_share_identity": true,
+    "different_json_is_distinct": true,
+    "separate_adapters_are_distinct": true,
+    "mutation_crossed_key_boundary": true,
+    "second_key_count_after_first_key_mutation": 99
+  },
+  "limit": "This establishes the source mechanism only. It is not released-package or repository-native target execution."
+}
