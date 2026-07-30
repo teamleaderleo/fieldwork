@@ -1,7 +1,7 @@
 diff --git a/src/vanilla/utils/atomWithStorage.ts b/src/vanilla/utils/atomWithStorage.ts
 --- a/src/vanilla/utils/atomWithStorage.ts
 +++ b/src/vanilla/utils/atomWithStorage.ts
-@@ -117,22 +117,23 @@ export function createJSONStorage<Value>(
+@@ -117,22 +117,24 @@ export function createJSONStorage<Value>(
    },
    options?: JsonStorageOptions,
  ): AsyncStorage<Value> | SyncStorage<Value> {
@@ -30,12 +30,13 @@ diff --git a/src/vanilla/utils/atomWithStorage.ts b/src/vanilla/utils/atomWithSt
 +          cachedValues.set(key, { str, value })
 +          return value
 +        } catch {
++          cachedValues.delete(key)
 +          return initialValue
 +        }
        }
        const str = getStringStorage()?.getItem(key) ?? null
        if (isPromiseLike(str)) {
-@@ -145,7 +146,35 @@ export function createJSONStorage<Value>(
+@@ -145,7 +147,35 @@ export function createJSONStorage<Value>(
          key,
          JSON.stringify(newValue, options?.replacer),
        ),
