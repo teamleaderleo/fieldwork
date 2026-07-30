@@ -10,182 +10,107 @@ Upstream contact authorized: `false`
 
 Upstream contact performed: `false`
 
-`complete` in this batch means the bounded research result is complete. It does not mean the package tests ran or that source integration is ready.
+`complete` means a bounded research result is complete. It does not mean target package tests ran or production source is ready.
 
 ## In simple words
 
-The batch produced three core Workers SDK candidates and one extracted Vite follow-up:
+The batch produced three core Workers SDK candidates and two extracted Cloudflare Vite-plugin candidates:
 
 1. Miniflare can delay or skip terminating `workerd` when earlier cleanup fails or never settles.
-2. Wrangler and Vite can choose different configuration files from the same project layout.
-3. Wrangler can activate new Worker code and then fail later without clearly reporting the activation path, activated version, and failed phase.
-4. Vite dev/preview container cleanup can lose ownership because tags are registered late, one same-mode plugin instance can replace another instance's process-exit callback, and failed restart cleanup can be forgotten when new tags replace old tags.
+2. Wrangler and Vite can choose different configuration files from the same project tree.
+3. Wrangler can activate Worker code and then fail later without clearly reporting the activation path, activated version, and failed phase.
+4. Vite container cleanup can lose ownership across partial preparation, multiple same-mode instances, programmatic preview close, and failed restart cleanup.
+5. Vite process-global runtime and tunnel state can conflate unrelated servers, while sequential restart generations still need an explicit state handoff.
 
-The three core lanes have fork branches and prepared package-level tests. A001 and A003 have bounded repair prototypes. The Vite cleanup finding now has canonical candidate issue #165, a durable Fieldwork note, executed dependency-free models, and an unapplied patch candidate. None of the target package/plugin suites executed in the available environment, so implementation promotion remains gated on a full workspace run.
+None of the target package/plugin suites executed in the available environment. The dependency-free models are evidence for control-flow and ownership contracts, not substitutes for full integration execution.
 
-## A001 — Teardown lifecycle ownership
+## Reviewed heads
 
-Disposition: **accept mechanism; hold source integration for execution and test-stack split**
+| Candidate | Exact evidence head |
+| --- | --- |
+| A001 — teardown lifecycle | `fa39841a98d71edd2df7561beb877f4dacbc6b7c` |
+| A002 — configuration selection | `82ffab5d51abf7b5311891f31c6aa77f42bec41f` |
+| A003 — post-activation state | `bc0dc5b064f3f4fd684b9ca8afa0b34de8489376` |
+| #165 — Vite container cleanup | `c7dd4411bf474a09f87cd1575594e7aaa8e1cacd` |
+| #179 — Vite logical runtime ownership | `fa39841a98d71edd2df7561beb877f4dacbc6b7c` |
 
-Confidence: **high source confidence, medium execution confidence**
+## A001 — teardown lifecycle ownership
 
-Workers SDK PR: `teamleaderleo/workers-sdk#1`
+Disposition: **accept mechanism; hold source integration for package execution and test-slice separation**
 
-Reviewed head: `c7dd4411bf474a09f87cd1575594e7aaa8e1cacd`
+The current Miniflare cleanup sequence awaits browser and proxy cleanup before `Runtime.dispose()`. A rejection can skip runtime disposal; a pending promise can delay it indefinitely. `Runtime.dispose()` sends `SIGKILL` synchronously before returning its exit promise, so requesting runtime termination earlier is a bounded ownership fix.
 
-The real-runtime tests target the ownership invariant: browser or proxy cleanup must not prevent the synchronous `SIGKILL` request inside `Runtime.dispose()`.
+The real-runtime package tests now count only `SIGKILL` calls made on the child whose executable basename starts with `workerd`. The first three tests cover:
 
-Adversarial review strengthened the proof. The kill spy inspects each call's `this` context and counts only `SIGKILL` calls made on a child whose executable basename starts with `workerd`; an unrelated child kill cannot satisfy the assertion.
+- rejection before runtime disposal;
+- deterministic pending cleanup before runtime disposal;
+- a post-runtime rejection negative control.
 
-Coordinator and follow-up review accepted:
-
-- early rejection path;
-- deterministic pending-operation path;
-- post-runtime negative control;
-- workerd-specific kill ownership;
-- careful refusal to identify the public parallel-test hang as proven root cause.
-
-The fourth test, preserving both initialization and cleanup failures, requires phased error aggregation that the minimal runtime-first patch intentionally does not implement. The child-ownership fix and aggregation fix should remain separate green slices.
+The fourth test, preserving both initialization and cleanup failures, requires phased aggregation and remains a separate implementation slice.
 
 Next gate:
 
 - execute the first three tests before and after `runtime-first-dispose.patch`;
 - prove no child, worker thread, dispatcher, or unhandled rejection remains;
-- then review aggregation separately.
+- review primary-error aggregation separately.
 
-## A002 — Configuration selection contract
+## A002 — configuration selection contract
 
-Disposition: **accept behavior-preserving protocol direction; hold default changes for compatibility evidence**
+Disposition: **accept behavior-preserving protocol direction; hold default changes**
 
-Confidence: **high source confidence, high precedent confidence, medium execution confidence**
+Workers Utils and the Vite plugin differ across:
 
-Workers SDK PR: `teamleaderleo/workers-sdk#2`
-
-Reviewed head: `82ffab5d51abf7b5311891f31c6aa77f42bec41f`
-
-The source trace distinguishes four policy dimensions, and the prepared matrix contains five groups covering six layouts:
-
-- format precedence;
+- JSON/JSONC/TOML precedence;
 - upward versus root-only search;
 - deploy-config redirect enablement;
 - explicit-path convergence.
 
-Adversarial review tightened the matrix:
+The prepared six-layout matrix directly covers a farther parent JSON against nearer JSONC and nearer TOML, uses caller-neutral redirect language, and starts the explicit-path control from a Vite-relative path before the absolute Workers Utils handoff.
 
-- a farther parent JSON is directly compared with both a nearer child JSONC and a nearer child TOML;
-- redirect wording is caller-neutral and proves the behavior flag rather than attributing it to an unverified command profile;
-- the explicit-path control begins with a Vite-relative path, verifies Vite root resolution, and then hands the selected absolute path to Workers Utils.
+The predecessor discovery and redirect probes executed. The cross-package matrix remains unexecuted.
 
-The predecessor dependency-free discovery and redirect probes executed successfully. The cross-package matrix is committed and formally source-reviewed but remains unexecuted.
+Recommended direction:
 
-The precedent review compares TypeScript, Prettier, ESLint, Vite, Biome, Cargo, and recent Workers SDK redirect work. It shows that no single discovery anchor is universally correct:
+- centralize selection mechanics without changing outcomes;
+- retain named caller profiles;
+- expose a selection trace or `config explain` surface;
+- warn on ambiguous layouts before considering a major-version default migration.
 
-- file-oriented tools search from the target file;
-- command tools often search from the working directory;
-- Vite-style project tools anchor to an explicit root;
-- explicit config paths consistently override automatic discovery.
+## A003 — post-activation deployment state
 
-The unusual Workers behavior is format-first ancestor discovery: a farther parent JSON can beat a nearer JSONC or TOML. Existing compatibility prevents changing that silently.
+Disposition: **accept guarded state reporting; hold automatic rollback and integration for execution**
 
-The recommended direction is a shared engine with named profiles and a selection trace, not one forced default. The trace should record invocation anchor, boundary, discovery mode, extension order, redirect policy, candidates, source config, effective generated config, and stable selection reason.
+Code activation can precede later container or trigger failure. At the pinned revision:
 
-Next gate:
+- container rollout failure follows legacy script upload;
+- trigger failure can follow either versions deployment or legacy upload.
 
-- run the Vite package matrix on Windows and POSIX;
-- verify the selected path is also parsed, watched, and reported in a complete plugin flow;
-- centralize current behavior without changing outcomes;
-- add `config explain` or stable verbose output;
-- warn on ambiguous layouts before considering any major-version default alignment.
+The helper reports activation method, activated version when available, failed phase, and possible partial application while rethrowing the exact original error.
 
-## A003 — Post-activation deployment state
-
-Disposition: **accept guarded state-reporting direction; hold automatic rollback and source integration for execution**
-
-Confidence: **high source confidence, high model confidence, medium execution confidence**
-
-Workers SDK PR: `teamleaderleo/workers-sdk#3`
-
-Reviewed head: `bc0dc5b064f3f4fd684b9ca8afa0b34de8489376`
-
-The source order confirms that code activation precedes some later container and trigger operations. The deeper review corrected the path matrix:
-
-- container workers are excluded from the versions/deployments path at the pinned revision;
-- container rollout failure follows a legacy script upload;
-- trigger failure can follow either a versions deployment or a legacy upload.
-
-The receipt reports activation method, failed phase, activated version when available, and possible partial application while rethrowing the exact original error.
-
-A review found that the original helper could let a throwing diagnostic callback replace the deployment error. The fork now wraps receipt reporting separately and treats it as best-effort. The package regression covers a throwing reporter.
-
-The refreshed dependency-free model was executed with:
-
-```sh
-node /tmp/post-activation-state-reporting.mjs
-```
-
-The executed `/tmp` content was identical to the subsequently committed model. It passed operation-error preservation, reporting-failure preservation, activation-method distinctions, possible-partial-state receipts, and success without a receipt. The package regression remains unexecuted.
-
-The current output order is especially weak on trigger failure: `Uploaded` appears before triggers, while `Current Version ID` appears only after triggers succeed.
+Review found a real defect in the first helper version: a throwing reporting callback could replace the deployment error. Reporting is now best-effort, and the executed model proves the operation error remains authoritative.
 
 Next gate:
 
-- run the helper package tests, including the reporting-failure regression;
-- add mocked legacy-upload/container failure;
-- add mocked versions-deployment/trigger failure;
-- add mocked legacy-upload/trigger failure;
-- review terminal and machine-readable output contracts;
-- apply only the reporting integration after those tests pass.
-
-Automatic rollback remains out of scope because triggers may partially apply, containers may be retryable, activation paths differ, and rollback is another fallible deployment.
+- execute the helper package test including the throwing-reporter regression;
+- add mocked legacy-upload/container, versions/trigger, and legacy/trigger paths;
+- accept terminal and machine-readable receipt contracts;
+- keep automatic rollback out of the first patch.
 
 ## Candidate #165 — Vite container cleanup ownership
 
-Disposition: **accept as a source-confirmed, model-executed candidate; hold production changes for mocked plugin tests**
+Disposition: **accept as source-confirmed and model-executed; hold production edits for mocked plugin tests**
 
-Confidence: **high source confidence, high control-flow model confidence, low integration-execution confidence**
-
-Canonical candidate: #165
+Canonical issue: #165
 
 Durable note: `notes/vite-container-cleanup-ownership.md`
 
-Workers SDK artifact head: `c7dd4411bf474a09f87cd1575594e7aaa8e1cacd`
+The source establishes three connected ownership gaps:
 
-### Late registration
+1. current-session tags are registered only after asynchronous image preparation succeeds;
+2. dev and preview each keep one module-global process-exit callback slot, so a later same-mode instance can replace an earlier owner;
+3. failed dev restart cleanup can lose old tags when later preparation replaces the set.
 
-The Vite dev and preview plugins install their current-session container tag sets only after `prepareContainerImagesForDev()` fully resolves. Image preparation is sequential, and a later image build, pull, duplicate-tag cleanup, port validation, or egress-image pull can fail after earlier image work completed.
-
-This proves a cleanup-ownership registration gap. It does not prove that a running container exists on every preparation failure path.
-
-### Single-slot process-exit ownership
-
-Both `dev.ts` and `preview.ts` keep one module-global process-exit callback slot. Each completed same-mode plugin instance replaces the previous callback.
-
-The exported `cloudflare()` function creates a fresh `PluginContext` and plugin array on every call. Multiple same-mode plugin instances are therefore representable in one Node.js process. The latest registration can make an earlier server's force-exit cleanup callback unreachable.
-
-Ordinary CLI use commonly has one server, so incidence is unknown. Programmatic Vite use, tests, orchestrators, and multiple server instances are the key integration surfaces.
-
-### Restart retry ownership
-
-Dev restart cleanup calls `cleanupContainers()` and ignores the boolean result. The next successful preparation assigns a new tag set. If restart cleanup failed, this can discard the only retry record for old tags.
-
-The candidate keeps failed old tags and unions them with new tags until a later cleanup succeeds.
-
-### Executed models
-
-The early-registration model passed:
-
-- ownership before asynchronous preparation;
-- preparation-failure cleanup with exact primary-error preservation;
-- clearing tags only after successful cleanup;
-- warning and retained ownership after failed cleanup.
-
-The per-instance registry model was executed with:
-
-```sh
-node /tmp/vite-exit-cleanup-registry.mjs
-```
-
-The executed content was identical to the committed artifact. It passed:
+The model passed:
 
 ```text
 PASS: a single exit slot loses earlier cleanup ownership
@@ -196,55 +121,129 @@ PASS: preparation failure preserves its original error
 PASS: failed restart cleanup retains old tags alongside new tags
 ```
 
-### Draft repair
+The unapplied patch candidate combines:
 
-`vite-exit-cleanup-registry.patch` supersedes the narrower Vite cleanup patches for implementation review. It combines:
-
-- a per-instance callback registry;
-- ownership registration before image preparation;
-- retained old tags unioned with new tags after failed restart cleanup;
-- preparation-failure cleanup with exact primary-error preservation;
+- per-instance callbacks;
+- ownership registration before preparation;
+- old/new tag union after failed restart cleanup;
+- cleanup on preparation failure with exact-error preservation;
 - programmatic preview-close cleanup;
-- warnings and retained retry ownership when cleanup returns `false`;
-- unregistering only after successful final cleanup;
-- registration retained across dev restarts.
-
-The patch remains unapplied.
+- warnings and retry retention when cleanup returns `false`;
+- unregistering only after successful final cleanup.
 
 Next gate:
 
-- create two dev instances and prove both exit callbacks run;
-- create two preview instances and prove both exit callbacks run;
-- close one owner successfully without disturbing another;
-- fail cleanup on close and succeed on exit retry;
-- reject later preparation after earlier work and preserve the original error;
-- fail restart cleanup, prepare new tags, and prove a later retry cleans old and new tags;
-- clean preview containers on programmatic close while the host process continues.
+- execute mocked two-dev and two-preview instance tests;
+- execute partial-preparation, close, warning, retry, and restart-tag tests;
+- preserve primary errors and prove one owner cannot unregister another.
+
+## Candidate #179 — Vite logical runtime ownership
+
+Disposition: **accept the source finding and async owner-handoff direction; hold broad implementation for Vite 6/7/8 package tests**
+
+Canonical issue: #179
+
+Durable note: `notes/vite-shared-context-ownership.md`
+
+### Process-global ownership conflation
+
+`src/index.ts` creates one module-global `SharedContext`, and every `cloudflare()` call creates a fresh `PluginContext` backed by it.
+
+The shared object contains Miniflare, Worker export types, the warning latch, restart accounting, and tunnel hostnames. The tunnel plugin separately keeps one module-global `TunnelManager`.
+
+Consequences established by source:
+
+- a second plugin can call `setOptions()` on the Miniflare observed by the first;
+- one server's restart counter can cause another server to skip final container, tunnel, and Miniflare cleanup;
+- a later tunnel can replace an earlier server's tunnel;
+- closing one server can dispose process-global tunnel state;
+- export, warning, and host state use the same cross-server boundary.
+
+Ordinary CLI use commonly has one server, so incidence is unknown. Programmatic Vite use, tests, orchestrators, monorepo tooling, and embedded dev environments are the important surfaces.
+
+### Supported-version restart order
+
+The plugin supports Vite 6, 7, and 8. Source review of Vite 6.1.0, 7.1.12, and 8.1.5 found the same relevant order:
+
+1. create the replacement server and plugins from existing inline config;
+2. close the old generation;
+3. assign replacement properties onto the existing user server object;
+4. rebind the replacement's internal server reference;
+5. listen again.
+
+Replacement `cloudflare()` calls therefore occur inside the old server's `restart()` call before old-generation close.
+
+### Executed models
+
+The global-versus-owner-scoped model passed:
+
+```text
+PASS: a global runtime lets one plugin overwrite another plugin runtime
+PASS: a global restart counter can suppress an unrelated final close
+PASS: owner-scoped runtimes isolate concurrent servers
+PASS: owner-scoped restart state does not suppress another owner cleanup
+PASS: sequential generations of one logical server retain restart continuity
+```
+
+The async owner-handoff model passed:
+
+```text
+PASS: independent first-generation servers receive distinct owners
+PASS: replacement plugins inherit only the restarting server owner
+PASS: unrelated final close proceeds during another server restart
+PASS: concurrent restarts keep owner handoffs isolated
+PASS: failed replacement construction preserves the original server owner and error
+```
+
+### Repair slices
+
+A narrow patch moves restart accounting into one `PluginContext`. This prevents one server's restart from suppressing another server's close and can be reviewed independently.
+
+The broad repair needs a logical-owner record and explicit generation handoff. A promising foundation is an async-scoped owner context:
+
+- initial plugin factories outside restart create distinct owners;
+- the patched restart runs Vite's original restart inside one owner's async context;
+- replacement factories claim only that owner;
+- concurrent restarts keep separate async contexts;
+- failed replacement construction leaves the old owner and error intact.
+
+The complete owner record should include Miniflare, tunnel manager, export types, warning state, and tunnel hostnames. It also needs stale-generation protection and removal after true final close.
+
+Do not use a project-root-only key or process-global handoff queue.
+
+Next gate:
+
+- execute the narrow restart-counter package regression;
+- instrument owner handoff on Vite 6, 7, and 8;
+- prove two concurrent runtimes and tunnels remain isolated;
+- prove concurrent restarts do not cross-claim owners;
+- prove failed replacement and stale old generations preserve exactly one cleanup owner.
 
 ## Cross-review result
 
-A standalone A004 lane was withdrawn at user direction. Review coverage was retained and strengthened:
+A004 was withdrawn at user direction. Review coverage was retained through coordinator and peer review.
 
-- coordinator reviewed A001;
-- A001 reviewed and tightened A002;
-- a formal A002 review accepted characterization but required execution before promotion;
-- A003's activation-path matrix was corrected;
-- A003's reporting-failure flaw was found, fixed, modeled, and formally reviewed;
-- A001's kill assertion was narrowed to the actual workerd child;
-- the adjacent Vite cleanup finding was extracted into candidate #165 rather than mixed into the Miniflare patch;
-- the Vite candidate gained explicit multi-instance, partial-preparation, close, retry, and restart-ownership controls;
-- prior public discussion and broader tool precedent were reconciled in the lane results;
-- unexecuted package tests remain explicit blockers rather than being counted as review completion.
+The review pass:
+
+- strengthened A001's child identity assertion;
+- tightened A002's characterization and wording;
+- corrected A003's activation-path matrix;
+- found and fixed A003's reporting-failure flaw;
+- extracted container cleanup into candidate #165;
+- extracted process-global Vite ownership into candidate #179;
+- verified the restart construction order across every supported Vite major;
+- kept all package execution gaps explicit.
 
 ## Centralized visibility
 
-- #88 is the canonical batch review/disposition hub.
-- #165 is the canonical Vite cleanup candidate.
-- #112 carries the synthesis and durable note.
+- #88 is the canonical batch review and disposition hub.
+- #165 is the canonical Vite container-cleanup candidate.
+- #179 is the canonical Vite logical-runtime candidate.
+- #112 carries this synthesis and the durable notes.
 - #87 owns generated coordination and stale-state validation.
-- PR #105 remains a dated projection and should not override live issue state.
+- PR #105 remains a dated projection and must not override live issue state.
 
-Candidate #165 uses the existing filterable convention:
+Both extracted candidates use the existing filterable convention:
 
 - `state:ready`
 - `type:lane`
@@ -252,20 +251,19 @@ Candidate #165 uses the existing filterable convention:
 - `target:workers-sdk`
 - `programme:sdk-integration-lifecycle`
 
-No new ad hoc candidate label is necessary.
-
 ## Recommended order
 
-1. Execute A001's first three package regressions and validate the minimal runtime-first patch.
-2. Execute A003 helper and corrected mocked deploy-flow tests; refine the output contract.
+1. Execute A001's first three package regressions and validate the runtime-first patch.
+2. Execute A003 helper and mocked deploy-flow tests; refine the output contract.
 3. Execute A002's cross-selector matrix and implement behavior-preserving policy disclosure.
-4. Execute candidate #165's mocked multi-instance, partial-preparation, close, retry, and restart plugin tests.
-5. Return to A001 error aggregation and named cleanup deadlines as a separate change.
-6. Consider compatibility migrations only after execution evidence and ambiguous-layout review.
-7. Add accepted candidates to the generated human review queue with exact execution evidence.
+4. Execute #165's mocked container-ownership matrix.
+5. Execute #179's restart-counter regression and Vite 6/7/8 owner-handoff instrumentation.
+6. Prove #179 concurrent runtime/tunnel isolation before drafting the broad owner registry.
+7. Return to A001 error aggregation and named cleanup deadlines separately.
+8. Add accepted candidates to the generated review queue with exact execution evidence.
 
 ## Batch boundary
 
-No live Cloudflare deployment, route update, container rollout, retry, rollback, or Docker/container reproduction was performed.
+No live Cloudflare deployment, route update, container rollout, tunnel, retry, rollback, Docker/container reproduction, or browser multi-server run was performed.
 
 No issue, pull request, comment, review, reaction, branch, or message was created in public upstream repositories.
