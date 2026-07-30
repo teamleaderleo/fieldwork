@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/codex
-          ref: 2f7d44ea57758e913b196c6b14a432b0761efe8d
+          ref: e322eb92a6745616953bc00a3db8046c499dc6a7
           path: codex
           fetch-depth: 1
 
@@ -46,7 +46,7 @@ jobs:
           FIELDWORK_EXPECT_ELICITATION_TIMEOUT: "1"
           FIELDWORK_EXPECT_CANCEL_SEND_STALL: "1"
         run: |
-          python3 fieldwork/patches/mcp-timeout/apply_candidate.py native-sdk-timeout
+          python3 fieldwork/patches/mcp-timeout/apply_candidate_scoped.py native-sdk-timeout
           cd codex-rs
           cargo fmt --all -- --check
           git diff --check
@@ -64,7 +64,7 @@ jobs:
           FIELDWORK_EXPECT_MCP_CANCEL: "1"
           FIELDWORK_EXPECT_CANCEL_SEND_STALL: "1"
         run: |
-          python3 fieldwork/patches/mcp-timeout/apply_candidate.py pause-aware-explicit-cancel
+          python3 fieldwork/patches/mcp-timeout/apply_candidate_scoped.py pause-aware-explicit-cancel
           cd codex-rs
           cargo fmt --all -- --check
           git diff --check
@@ -82,7 +82,7 @@ jobs:
           FIELDWORK_EXPECT_MCP_CANCEL: "1"
           FIELDWORK_EXPECT_BOUNDED_CANCEL: "1"
         run: |
-          python3 fieldwork/patches/mcp-timeout/apply_candidate.py pause-aware-bounded-cancel
+          python3 fieldwork/patches/mcp-timeout/apply_candidate_scoped.py pause-aware-bounded-cancel
           cd codex-rs
           cargo fmt --all -- --check
           git diff --check
