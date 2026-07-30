@@ -2,45 +2,57 @@
 
 ## In simple words
 
-A large investigation can contain several real questions, several workers, several competing explanations, and several possible deliverables. An investigation workspace gives that work one front door while letting each finding live in its own file. Later, a coordinator can compare the findings, preserve disagreements, and declare one or more canonical outputs without erasing the research trail.
+A large investigation can contain several real questions, several workers, competing explanations, current and historical source candidates, and several possible deliverables.
 
-The reader should be able to open `README.md` and answer:
+An investigation workspace gives that work one front door. Canonical findings still own the current technical answers. Evidence notes, alternatives, precedent, decisions, carriers, and presentation outputs remain separate so readers can see how the answer was reached and what still competes.
+
+A reader should be able to open a workspace `README.md` and answer:
 
 - What are we studying?
 - Where does it sit in the larger system?
 - Why could anyone care?
-- What have we established?
-- Which answers still compete?
-- Which outputs are canonical today?
-- What happens next?
+- Which canonical findings currently own the conclusions?
+- Which alternatives still compete?
+- Which outputs are canonical for a named audience?
+- What exact execution, review, or decision happens next?
 
 ## Why this exists
 
-Fieldwork already separates campaign lanes from synthesis, batch results from synthesis, and execution carriers from canonical source branches. Complex meta-issues still scatter their orientation, source pins, alternatives, receipts, and final conclusions across issue comments, pull requests, lane reports, and chat handoffs.
+Complex meta-issues can scatter orientation, source pins, alternatives, receipts, decisions, and conclusions across issue comments, pull requests, reports, and handoffs.
 
 That scattering creates four recurring costs:
 
-1. **Orientation cost** — a new reader must reconstruct the entire history before understanding the current question.
-2. **Parallel-edit cost** — several workers compete for one shared report or avoid durable files entirely.
-3. **Premature-consensus cost** — one early summary can hide a useful disagreement or negative result.
-4. **Canonicalization cost** — the repository may contain many strong notes without a declared answer suitable for review, publication, implementation, or a new issue.
+1. **Orientation cost** — a new reader reconstructs the history before understanding the current question.
+2. **Parallel-edit cost** — workers compete for one shared report or avoid durable files.
+3. **Premature-consensus cost** — an early summary hides a useful disagreement or negative result.
+4. **Canonicalization cost** — the repository has strong notes without a declared current technical answer or audience-specific output.
 
-A workspace lowers those costs by separating collection from synthesis and synthesis from decision.
+A workspace lowers those costs by separating collection, technical synthesis, presentation, and decision.
 
 ## Position in Fieldwork
 
-Programmes, target hubs, campaigns, lanes, batches, issues, and pull requests remain the authority and coordination units defined by the existing Fieldwork rules. A workspace organizes evidence that spans several owned areas or needs several independently authored files.
+Programmes, target hubs, campaigns, lanes, batches, issues, pull requests, canonical findings, reviews, and delivery desks keep their existing authority.
 
-Use a workspace when at least one of these conditions applies:
+A workspace is an orientation and synthesis layer. It does not replace:
+
+- the owning issue for live assignment and authorization;
+- `findings/F<issue>-<slug>/finding.md` for the current technical conclusion and transition state;
+- an implementation PR for exact source diff and tests;
+- Review Queue #213 for examination;
+- Delivery Desk #160 for accepted work moving toward landing;
+- evidence files for exact receipts;
+- output status for audience-specific presentation artifacts.
+
+Use a workspace when at least one condition applies:
 
 - one issue has several independently answerable areas;
 - several workers need separate owned output paths;
-- competing explanations or designs deserve side-by-side treatment;
-- the same evidence may support several final outputs;
-- a meta-analysis spans several campaigns, branches, or source candidates;
+- competing technical explanations or designs deserve side-by-side treatment;
+- the same evidence supports several canonical findings or presentation outputs;
+- a meta-analysis spans campaigns, repositories, branches, or source candidates;
 - a reader needs a stable orientation page before entering detailed records.
 
-Small scouts, lanes, experiments, and findings can keep their existing single-report layout.
+Small scouts, lanes, experiments, and findings can keep their existing single-finding layout.
 
 ## Location
 
@@ -52,101 +64,144 @@ investigations/<issue-number>-<short-slug>/
 
 For a workspace contained entirely inside one campaign, scout, batch, or lane, use the same internal layout beneath that unit's existing owned directory.
 
-The parent issue or report must link the workspace. The workspace `README.md` must link the parent issue and every authority-bearing campaign, lane, decision, source branch, or pull request.
+The parent issue and every canonical finding must link the workspace when it materially supplies their synthesis. The workspace front door links every authority-bearing issue, campaign, lane, finding, implementation, decision, source branch, and pull request.
 
 ## Recommended layout
 
 ```text
 <workspace>/
 ├── README.md                 # coordinator-owned front door and current map
-├── findings/                 # independently owned observations and analyses
-├── evidence/                 # exact receipts, source maps, matrices, and raw records
+├── findings/                 # subordinate evidence notes and comparisons
+├── evidence/                 # exact receipts, source maps, matrices, raw records
 ├── alternatives/             # candidate approaches and tradeoffs
 ├── precedent/                # prior art and earlier internal decisions
-├── canonical/                # candidate or accepted outward-facing outputs
-├── decisions/                # explicit accept, hold, split, supersede, or stop records
+├── canonical/                # audience-specific presentation outputs
+├── decisions/                # packaging, accept, hold, split, supersede, stop records
 └── handoff.md                # exact current state, blockers, and continuation points
 ```
 
-Create only the areas the investigation uses. A compact workspace may contain `README.md`, two finding files, one canonical output, and `handoff.md`.
+Create only the areas the investigation uses. A compact workspace may contain one front door, two evidence notes, one canonical output, and one handoff.
+
+Canonical technical findings remain under repository-root `findings/`, not inside the workspace.
+
+## Three different status systems
+
+Do not collapse these concepts.
+
+### Workspace phase
+
+Workspace phase describes coordinator activity:
+
+```text
+orient → collect → compare → synthesize → decide → handoff
+```
+
+It carries no review or delivery authority.
+
+### Canonical finding transition state
+
+The canonical finding follows `FINDINGS.md`:
+
+- `research-active` — one technical direction still has work;
+- `comparative-evaluation-active` — several technically plausible directions remain and autonomous controls can still distinguish them;
+- `review-ready` — one complete current case is ready for examination;
+- `design-decision-ready` — evidence is sufficient and a genuine non-delegable human choice remains;
+- `delivery-gate-ready` — one implementation exists and bounded landing gates remain;
+- `land-ready` — exact-head acceptance and the named full gate are complete;
+- `stopped` — retained negative, overlap, disproved premise, or explicit stop;
+- `closed` — no active transition remains.
+
+Several options do not automatically mean `design-decision-ready`. Use `comparative-evaluation-active` while executable technical work can still select or reject them.
+
+### Canonical output status
+
+Presentation artifacts use:
+
+- `candidate`;
+- `accepted`;
+- `disputed`;
+- `held`;
+- `superseded`;
+- `retired`.
+
+An accepted orientation document can coexist with a research-active finding. Accepted output status grants no merge, delivery, or upstream authority.
 
 ## Front-door contract
 
-`README.md` is the current orientation surface. Keep it concise enough that a reader can understand the investigation before opening source-level detail.
+`README.md` is the current orientation surface. Keep it concise enough that a reader understands the investigation before opening source-level detail.
 
 It should contain:
 
 1. `## In simple words`;
-2. parent issue, programme, target, and authority links;
-3. exact current source or retrieval boundary;
-4. the system map and the bounded question;
-5. why the answer could be useful;
-6. investigation areas and their owned files;
-7. current established findings;
-8. active disagreements and missing evidence;
-9. canonical outputs and their status;
-10. blockers, decisions, and next actions;
-11. upstream-contact authorization.
+2. workspace phase and current canonical transition state;
+3. parent issue, programme, target, and authority links;
+4. exact current source or retrieval boundary;
+5. canonical finding index;
+6. the system map and bounded question;
+7. why the answer matters;
+8. investigation areas and owned files;
+9. current established findings;
+10. active disagreements and missing evidence;
+11. canonical outputs and presentation status;
+12. blockers, decisions, and exact next actions;
+13. upstream-contact authorization.
 
-The front door summarizes. Finding files carry the reasoning and evidence.
+The front door summarizes. Canonical findings carry current technical reasoning. Workspace notes carry evidence and comparisons.
 
-## Finding files
+## Canonical finding relationship
 
-Each finding file has one owner or one explicitly transferred owner. It should record:
+Every retained investigation has one canonical finding directory following `FINDINGS.md`.
 
-- the exact question;
-- source revisions and retrieval dates;
-- code, workflow, or system boundary examined;
-- evidence and evidence class per consequential claim;
-- strongest supported conclusion;
-- competing explanations;
-- negative results;
-- uncertainty and omitted boundaries;
-- dependencies on other findings;
-- recommendation for synthesis or further work.
+Workspace files under `findings/` are subordinate notes. Each note states whether it:
 
-Workers may create several files when the areas have different owners, evidence types, or decision consequences. They should avoid editing another worker's finding merely to make the prose agree.
+- supplies evidence to one canonical finding;
+- compares several canonical findings;
+- records a bounded question that still needs materialization;
+- preserves a superseded or negative result.
+
+A workspace may coordinate several canonical findings. It may not silently combine them into one conclusion or change their states without updating the canonical files.
+
+## Parallel ownership
+
+- Workers own unique workspace evidence, alternative, precedent, artifact, or review paths.
+- The workspace front door and handoff are coordinator-owned synthesis surfaces.
+- Canonical findings remain shared reviewed integration surfaces under `FINDINGS.md`.
+- Workers should avoid editing another worker's note merely to make prose agree.
+- Conflicting conclusions remain explicit until evidence or a decision resolves them.
 
 ## Evidence area
 
-Use `evidence/` for records whose main value is exactness or replayability, such as:
+Use `evidence/` for records whose main value is exactness or replayability:
 
 - source and commit maps;
 - changed-file inventories;
 - workflow receipts and exact test-name/count records;
 - compatibility or candidate matrices;
-- raw traces, reduced logs, and protocol transcripts;
+- raw traces, reduced logs, protocol transcripts;
 - citation tables;
 - branch and carrier retirement ledgers.
 
-A finding links the evidence it interprets. Raw records never carry a stronger claim by themselves.
+A canonical finding or evidence note interprets the record. Raw data never carries a stronger claim by itself.
 
 ## Alternatives and precedent
 
-`alternatives/` records serious approaches that were considered, including the attractive parts, failure modes, evidence required, and current disposition.
+`alternatives/` records serious approaches, including attraction, failure mode, discriminating control, current disposition, and reopening trigger.
 
 `precedent/` records relevant prior art:
 
 - earlier Fieldwork findings and decisions;
-- current and historical target-project implementations;
-- specifications, official design documents, and source history;
-- engineering patterns from incident response, RFC review, architecture decisions, or scientific research practice.
+- current and historical target implementations;
+- specifications and official design documents;
+- source history;
+- relevant engineering patterns.
 
 Precedent informs the decision. It does not replace current source and execution evidence.
 
 ## Canonical outputs
 
-Canonical status is declared explicitly. File location alone never grants authority.
+`canonical/README.md` indexes audience-specific outputs and gives each one an explicit presentation status.
 
-`canonical/README.md` indexes every outward-facing output and gives each one a status:
-
-- `candidate` — ready for comparison or review;
-- `accepted` — chosen for its named audience and claim boundary;
-- `disputed` — viable output with an unresolved decision;
-- `superseded` — retained for history and linked to its successor;
-- `retired` — useful evidence transferred, no longer an active presentation.
-
-An investigation may have several accepted canonical outputs when they serve distinct purposes, for example:
+Several accepted outputs are allowed when they serve distinct purposes, for example:
 
 - a plain-language explainer;
 - an implementation proposal;
@@ -155,98 +210,78 @@ An investigation may have several accepted canonical outputs when they serve dis
 - a negative-result closeout;
 - a historical or operational analysis.
 
-Every accepted output must name:
+Every accepted output names:
 
 - audience and purpose;
-- exact source findings and evidence inputs;
+- exact findings and evidence inputs;
 - claim scope;
 - unresolved limits;
 - decision owner and date;
 - successor or follow-up issue when applicable.
 
-Canonicalization links and interprets the underlying findings. The underlying records remain available.
+Canonicalization links and interprets underlying findings. The underlying records remain available.
 
 ## Conflict protocol
 
-When findings disagree:
+When findings or notes disagree:
 
-1. preserve both files;
+1. preserve both records;
 2. state the exact proposition in dispute;
-3. identify which source pin, assumption, evidence class, or decision value differs;
+3. identify which source pin, assumption, evidence class, invariant, or decision value differs;
 4. record the test or judgment that could resolve it;
-5. assign one coordinator for the synthesis;
-6. carry unresolved disagreement into `canonical/README.md` or a decision record.
-
-A disagreement can produce two canonical candidates when the choice depends on audience, compatibility, policy, or a human value judgment.
+5. assign one coordinator for synthesis;
+6. carry unresolved disagreement into the canonical finding or output index;
+7. use `comparative-evaluation-active` when further autonomous technical work remains;
+8. use `design-decision-ready` only when the remaining choice cannot be settled technically.
 
 ## Lifecycle
 
-Use this sequence:
-
 ```text
 orient
-→ collect independent findings
+→ collect independent evidence and findings
 → compare and challenge
-→ draft canonical candidates
-→ decide, split, or retain disagreement
-→ publish, implement, open follow-up issues, or close
+→ update canonical findings
+→ draft audience-specific outputs
+→ review, decide, split, stop, or retain disagreement
+→ deliver, publish internally, implement, open follow-ups, or close
 ```
 
-Source drift can send an output back to collection or comparison. Preserve the expired decision and name the new input that reopened it.
+Source drift can send an output or finding back to collection or comparison. Preserve the expired conclusion and name the new input that reopened it.
 
-## Approaches considered for this convention
+## Exact handoff
 
-### One giant issue or comment thread
+`handoff.md` records:
 
-Useful for live coordination, weak for exact diffs, durable ownership, and reviewable synthesis. Issue comments remain the notification surface; repository files carry the research record.
+- workspace phase and canonical finding states;
+- current source and owned heads;
+- exact workflows and outcomes;
+- active disagreements;
+- blockers and next actions;
+- expiry conditions;
+- public interaction boundary.
 
-### One shared report
-
-Simple at small scale, costly under parallel work. It encourages edit collisions and forces agreement before the evidence has matured.
-
-### One issue per observation
-
-Clear ownership, heavy coordination overhead. Use a new issue when a finding becomes an independently actionable question, decision, or campaign.
-
-### Independent agent files with no synthesis layer
-
-Safe for parallel collection, poor for readers and decisions. The workspace front door and `canonical/` area supply the missing convergence step.
-
-### Immediate single-answer consensus
-
-Efficient only when the evidence already converges. Complex lifecycle and source-drift work benefits from retaining competing candidates until their assumptions and evidence are explicit.
-
-### Database-first or generated registry-first workflow
-
-Potentially useful later. A file convention gives humans and agents an inspectable contract while the workflow is still evolving. Automation can index stable identifiers and statuses after the convention proves useful.
-
-## Historical precedent
-
-This convention extends patterns already present in Fieldwork:
-
-- campaign lane reports feed coordinator-owned `synthesis.md` and `decision.md`;
-- batch `results/` feed coordinator-owned synthesis and closeout;
-- execution carriers produce receipts for a separate canonical source branch;
-- exact-head review preserves the reviewed input and expires conclusions after relevant drift.
-
-It also follows familiar engineering practice:
-
-- laboratory notes remain separate from the paper that presents the conclusion;
-- incident timelines and raw evidence remain separate from the postmortem;
-- RFCs and architecture decision records preserve alternatives and the reason for the selected direction;
-- legal and investigative case files preserve exhibits separately from the final argument.
-
-The shared principle is simple: preserve what was learned, make authorship and evidence visible, and declare the current presentation through an explicit decision.
+Avoid self-referential exact-head claims in committed files. Put the live PR head in PR and issue metadata, or state the content input head before the handoff commit.
 
 ## Adoption
 
 New complex investigations should begin with this layout. Existing work can adopt it incrementally:
 
-1. create a front-door `README.md`;
-2. link existing reports and receipts before moving or rewriting them;
-3. add separate files for missing alternatives, precedent, or conflicts;
-4. create `canonical/README.md` when the investigation has an output ready for comparison;
-5. record the exact decision and successor links;
-6. update the parent issue with the workspace path and current handoff.
+1. materialize or identify canonical findings;
+2. create a front-door `README.md`;
+3. link existing reports and receipts before moving or rewriting them;
+4. add separate files for missing alternatives, precedent, evidence, or conflict;
+5. create `canonical/README.md` when an audience-specific output is ready for comparison;
+6. record exact decisions, successors, and stop conditions;
+7. update the parent issue with the workspace, canonical paths, state, and handoff.
 
 Migration should preserve existing URLs and evidence owners whenever practical.
+
+## Upstream boundary
+
+Every workspace and template uses:
+
+```text
+Upstream contact authorized: no | yes with exact authority
+```
+
+Read-only public source review is allowed when the owning instructions permit it. Public issues, pull requests, comments, reactions, messages, or other contact require separate explicit authorization.
