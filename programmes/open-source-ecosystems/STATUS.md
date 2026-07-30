@@ -21,23 +21,25 @@ Run a wide discovery portfolio while keeping implementation and review bounded.
 
 ## Retained rounds
 
-- [`2026-07-30 broad-spectrum round`](rounds/2026-07-30-broad-spectrum/README.md) — live issue scan, ranked queue, code-level deep dives, duplicate stops, environment gates, and recurring search playbook.
+- [`2026-07-30 broad-spectrum round`](rounds/2026-07-30-broad-spectrum/README.md) — live issue scan, ranked queue, code-level deep dives, active-PR and claim-state stops, environment gates, and recurring search playbook.
 
 Current first probes from that round:
 
 1. Ruff #27026 — constrain RUF038 to valid annotation contexts and preserve unsupported members;
 2. DuckDB #24308 — distinguish SQL NULL from the literal Hive default-partition marker;
-3. Rust #159745 — add a nested-turbofish diagnostic;
-4. Nixpkgs #516481 — restore `gomarkdoc` package tests;
+3. Nixpkgs #516481 — restore `gomarkdoc` package tests;
+4. libarchive #3337 — reproduce PPMd behavior across read-buffer sizes;
 5. systemd #43174 — VM trace of oomd registration loss;
 6. CPython #154916 — free-threaded/TSAN design for a safe `GenericAlias` iterator snapshot.
+
+Rust diagnostics #159745, #159686, #159492, #157184, and #157260 are retained as claimed references. Independent implementation is stopped while their assignments remain active.
 
 ## Execution waves
 
 ### Wave A — broad high-yield surfaces
 
 - Nixpkgs, Homebrew Core, Debian, Fedora, and Arch packaging;
-- CPython and Rust diagnostics or regression coverage;
+- CPython and unassigned Rust diagnostics or regression coverage;
 - Ruff, Clippy, pytest, Meson, and package-manager correctness;
 - reproducibility and downstream-patch retirement.
 
@@ -61,6 +63,7 @@ Current first probes from that round:
 - Keep at most three new implementation branches awaiting first review at once.
 - Each promoted contribution has one canonical branch, one owner, an exact source revision, and explicit remaining gates.
 - Park stale work with the blocker, preserved evidence, and the condition that would reopen it.
+- Treat assignees, claim-bot comments, and coordinated subdirectory claims as ownership signals even when no pull request exists.
 
 ## First outputs
 
@@ -73,4 +76,4 @@ Current first probes from that round:
 
 ## Current decision
 
-Begin executable probes for Ruff #27026, DuckDB #24308, Rust #159745, and Nixpkgs #516481. Keep systemd #43174 and CPython #154916 as environment-gated deep lanes. Continue broad reconnaissance, but require an active-PR and linked-work check before code changes.
+Begin executable probes for Ruff #27026, DuckDB #24308, Nixpkgs #516481, and libarchive #3337. Keep systemd #43174 and CPython #154916 as environment-gated deep lanes. Continue broad reconnaissance, requiring pull-request, linked-work, assignee, and claim-comment checks before code changes.
