@@ -1,11 +1,12 @@
 name: Repair receipt schema version booleans
 
 on:
-  push:
+  pull_request:
     branches:
-      - repair/receipt-schema-version-bool
+      - main
     paths:
       - '.github/workflows/repair-receipt-schema-version-bool.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write
