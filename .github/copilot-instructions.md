@@ -4,4 +4,4 @@ Fieldwork issues are live coordination; repository files are durable evidence. U
 
 Bounded local experiments may use `playgrounds/` without a fork or issue. Read `INTEGRATION_CONTEXT.md` before asserting broader use or impact. Label wider claims as Normative, Documented, Observed, Inferred, Illustrative, or Unknown and cite primary sources.
 
-External GitHub issue, pull-request, discussion, and commit references must use `redirect.github.com`. External shorthand references are prohibited. No Fieldwork record authorizes upstream contact.
+Third-party GitHub issue, pull-request, discussion, and commit references in issues, pull requests, comments, reviews, and discussions must use `redirect.github.com`; third-party shorthand is prohibited there. Repository notes, reports, maps, and other tracked files may link directly and do not need an automated reference check. No Fieldwork record authorizes upstream contact.
