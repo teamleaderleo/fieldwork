@@ -43,6 +43,8 @@
     "private_or_production_data": false,
     "material_spending": false
   },
+  "authority_record": null,
   "blocker": null,
-  "next_transition": "Run one bounded discriminating source or execution step."
+  "next_transition": "Run one bounded discriminating source or execution step.",
+  "terminal_record": null
 }
