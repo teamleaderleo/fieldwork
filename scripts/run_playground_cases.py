@@ -21,8 +21,17 @@ class PackError(ValueError):
     pass
 
 
-def _is_number(value: Any) -> bool:
-    return type(value) in {int, float}
+def _is_valid_timeout(value: Any) -> bool:
+    if type(value) is int:
+        if value <= 0:
+            return False
+        try:
+            return math.isfinite(float(value))
+        except OverflowError:
+            return False
+    if type(value) is float:
+        return math.isfinite(value) and value > 0
+    return False
 
 
 def _json_values_equal(left: Any, right: Any) -> bool:
@@ -61,6 +70,10 @@ def load_pack(path: Path) -> dict[str, Any]:
         )
     if not isinstance(pack.get("name"), str) or not pack["name"].strip():
         raise PackError(f"{path}: name must be a non-empty string")
+    if "timeout_seconds" in pack and not _is_valid_timeout(pack["timeout_seconds"]):
+        raise PackError(
+            f"{path}: timeout_seconds must be a finite positive number"
+        )
 
     cases = pack.get("cases")
     if not isinstance(cases, list) or not cases:
@@ -85,8 +98,12 @@ def load_pack(path: Path) -> dict[str, Any]:
                 f"{location}: provide exactly one of stdin_json or stdin_text"
             )
 
+        if "timeout_seconds" in case and not _is_valid_timeout(case["timeout_seconds"]):
+            raise PackError(
+                f"{location}: timeout_seconds must be a finite positive number"
+            )
         timeout = case.get("timeout_seconds", pack.get("timeout_seconds", 5))
-        if not _is_number(timeout) or not math.isfinite(timeout) or timeout <= 0:
+        if not _is_valid_timeout(timeout):
             raise PackError(
                 f"{location}: timeout_seconds must be a finite positive number"
             )
