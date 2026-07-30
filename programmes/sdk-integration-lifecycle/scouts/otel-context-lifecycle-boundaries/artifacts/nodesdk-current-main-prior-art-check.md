@@ -80,7 +80,7 @@ This is not proof that no related discussion exists under different wording. It 
 
 ## Related but distinct report
 
-A previous duplicate-registration report, `open-telemetry/opentelemetry-js#4804`, concerned application double initialization through separate setup paths. It was attributed to application startup duplication.
+A previous [OpenTelemetry JS duplicate-registration report](https://redirect.github.com/open-telemetry/opentelemetry-js/issues/4804) concerned application double initialization through separate setup paths. It was attributed to application startup duplication.
 
 The current same-object finding is narrower and mechanically different:
 
@@ -88,10 +88,6 @@ The current same-object finding is narrower and mechanically different:
 - private provider ownership moves while global ownership does not;
 - shutdown can then target the non-global provider;
 - metrics fail differently after preceding startup work.
-
-Use a redirect link when citing that prior report from Fieldwork:
-
-https://redirect.github.com/open-telemetry/opentelemetry-js/issues/4804
 
 ## Decision impact
 
