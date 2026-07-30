@@ -73,7 +73,7 @@ Never use `complete`, `ready`, or `done` alone. Use one of these explicit states
 | `research-active` | Evidence or implementation work remains within one current direction. | None unless a blocker is named. | Owning issue or campaign |
 | `comparative-evaluation-active` | Two or more technically plausible directions remain and autonomous prototypes, controls, or compatibility work can still distinguish them. | None; continue comparison until one direction wins, all stop, or a genuine human decision boundary appears. | Owning issue, campaign, or investigation workspace |
 | `review-ready` | The canonical finding, complete diff, exact-head evidence, limits, and proposed disposition are ready for examination. | Review and choose `ACCEPT`, `REPAIR`, `HOLD`, `EXECUTE`, or `REJECT`. | Review Queue #213 |
-| `design-decision-ready` | Evidence is sufficient and one unresolved authority, value, cost, private-context, or irreversible-risk choice blocks continuation. | Choose among the named options and consequences. | Review Queue #213 and Delivery Desk #160 lane D3 |
+| `design-decision-ready` | Evidence is sufficient and one unresolved authority, value, material cost, private-context, or irreversible-risk choice blocks continuation. | Choose among the named options and consequences. | Review Queue #213 and Delivery Desk #160 lane D3 |
 | `delivery-gate-ready` | One canonical implementation exists and only bounded execution, cleanup, restacking, or final review remains. | Clear the named gate. | Delivery Desk #160 lane D1 or D2 |
 | `land-ready` | The exact current head has eligible acceptance, the named full gate, a clean direct diff, and a current base relationship. | Merge or explicitly hold. | Delivery Desk #160 lane D0 |
 | `stopped` | The investigation ended with a retained negative result, overlap, disproved premise, or explicit scope stop. | None unless reopened by new evidence. | Owning issue and durable ledger |
@@ -81,7 +81,7 @@ Never use `complete`, `ready`, or `done` alone. Use one of these explicit states
 
 ### What “comparative-evaluation-active” means
 
-`comparative-evaluation-active` means workers should keep testing technically plausible alternatives. It does not route to the decision desk merely because several options exist. Move to `design-decision-ready` only when additional autonomous technical work cannot resolve a genuine authority, value, private-context, cost, or irreversible-risk choice.
+`comparative-evaluation-active` means workers should keep testing technically plausible alternatives. It does not route to the decision desk merely because several options exist. Move to `design-decision-ready` only when additional autonomous technical work cannot resolve a genuine authority, value, private-context, material cost, or irreversible-risk choice.
 
 ### What “review-ready” means for the user
 
@@ -154,5 +154,5 @@ For high-volume initiatives such as #254:
 - the initiative issue remains the dispatch and global status surface;
 - each retained investigation gets one canonical finding directory;
 - material progress comments link to the relevant finding PR and summarize only the state change;
-- a workstream final handoff links its touched findings and classifies each as comparative-evaluation-active, review-ready, design-decision-ready, delivery-gate-ready, stopped, or closed;
+- a workstream final handoff links its touched findings and classifies each with one of the explicit finding states above;
 - the initiative issue should never become the sole repository of investigation reasoning.
