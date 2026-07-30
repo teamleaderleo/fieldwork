@@ -1,0 +1,55 @@
+version: 1
+
+# Stable issue number, batch assignment, campaign lane, review task, or other
+# durable assignment identifier.
+assignment: ""
+
+# Load only the profiles needed for this task.
+profiles:
+  - research
+
+# Canonical records the worker must read before substantial work.
+canonical_records:
+  issues: []
+  findings: []
+  implementation_pull_requests: []
+  evidence_paths: []
+
+# Problem participation may be non-exclusive. This lease controls mutation of
+# one branch, shared file, manifest, canonical finding edit, or other artifact.
+writer_lease:
+  worker: ""
+  artifact: ""
+  state: active
+  transfer_record: null
+
+source_boundary:
+  repository: ""
+  revision_or_retrieval_boundary: ""
+  checked_at: ""
+
+claim_scope: mechanism
+
+expected_deliverable: ""
+stop_condition: ""
+
+# One exact issue, PR, or finding where material routing events belong.
+reporting_sink: ""
+
+# These values are explicit and do not follow from technical readiness.
+authority:
+  merge: false
+  release: false
+  deploy: false
+  upstream_contact: false
+  private_or_production_data: false
+  material_spending: false
+
+# Optional known dependencies and exclusions keep parallel workers from
+# silently widening the assignment.
+dependencies: []
+exclusions: []
+
+# Do not post instruction-intake or first-read reports unless a material
+# contradiction, stale premise, authority defect, or blocker is discovered.
+report_only_material_changes: true
