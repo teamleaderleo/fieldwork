@@ -97,7 +97,7 @@ Possible results include:
 - application startup continuing with the wrong settings;
 - two parts of the same application disagreeing about whether loading is finished.
 
-The proposed fork repair does not pretend failed hydration was successful. It makes an **explicit** `rehydrate()` call reject with the real error, while automatic startup loading keeps its existing contained-error behavior.
+The owned-fork experiment does not pretend failed hydration was successful. It makes an **explicit** `rehydrate()` call reject with the real error, while automatic startup loading keeps its existing contained-error behavior.
 
 It also keeps `hasHydrated()` and the finish event as success signals.
 
@@ -134,9 +134,16 @@ The released behavior allows several bad states:
 - the public options can say no storage is configured while a private reference continues using the old storage;
 - the default persistence version can silently disappear from saved JSON.
 
-The proposed repair is deliberately selective.
+The owned-fork repair is deliberately selective.
 
-It preserves required/defaulted values when they are replaced with `undefined`:
+During store construction, these `undefined` values behave like omitted properties so their built-in defaults survive:
+
+- storage;
+- partialize;
+- version;
+- merge.
+
+During a later `persist.setOptions()` update, `undefined` preserves the current value for:
 
 - name;
 - storage;
@@ -144,7 +151,9 @@ It preserves required/defaulted values when they are replaced with `undefined`:
 - version;
 - merge.
 
-It does **not** ignore every undefined value. Optional callbacks can still be intentionally removed.
+That distinction is important: `name` has no construction default. It can only be preserved after the store already has a current name.
+
+The repair does **not** ignore every undefined value. Optional callbacks can still be intentionally removed.
 
 # Is this a security disaster?
 
@@ -152,13 +161,16 @@ No evidence currently says these Zustand findings are remote security vulnerabil
 
 They are reliability and correctness defects.
 
-That still matters. Libraries like Zustand sit beneath application login flows, saved work, preferences, carts, offline state, and startup logic. A small disagreement in a foundational library can become a confusing failure in thousands of applications.
+That still matters. Zustand can sit beneath application login flows, saved work, preferences, carts, offline state, and startup logic. A small disagreement in a widely used library can become a confusing failure in many applications.
 
 The honest claim is:
 
-- the released source behavior has been reproduced at the relevant control-flow boundaries;
+- the released behavior has been reproduced at bounded control-flow boundaries;
 - focused repairs and regression tests exist in owned forks;
-- broader repository CI must still finish before calling those repairs fully validated;
+- every execution claim applies only to the exact head and gate named in its receipt;
+- the live hydration candidate status is recorded in Fieldwork PR #159;
+- the live undefined-options candidate status is recorded in Fieldwork PR #172;
+- neither draft is automatically accepted merely because some tests pass;
 - no public upstream project has been contacted without authorization.
 
 # Why use forks and draft pull requests?
