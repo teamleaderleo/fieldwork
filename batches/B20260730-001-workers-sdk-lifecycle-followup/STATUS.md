@@ -10,7 +10,7 @@ Coordinator-owned file. Workers must not edit this file directly.
 
 | Assignment | Role | State | Workers SDK branch / PR | Fieldwork result | Review |
 | --- | --- | --- | --- | --- | --- |
-| A001 | Teardown lifecycle ownership | complete | `fieldwork/teardown-lifecycle-hardening` / fork PR #1 | `results/A001.md` via Fieldwork PR #98 | Mechanism accepted; adjacent Vite findings extracted to #165, #179, #183, #186, and #187; package execution and test-stack split remain |
+| A001 | Teardown lifecycle ownership | complete | `fieldwork/teardown-lifecycle-hardening` / fork PR #1 | `results/A001.md` via Fieldwork PR #98 | Mechanism accepted; adjacent Vite findings extracted to #165, #179, #183, #186, #187, and #190; package execution and test-stack split remain |
 | A002 | Configuration selection contract | complete | `fieldwork/config-selection-contract` / fork PR #2 | `results/A002.md` | Characterization tightened and accepted; execution remains |
 | A003 | Partial deployment state | complete | `fieldwork/deploy-state-reporting` / fork PR #3 | `results/A003.md` | Reporting-failure flaw fixed and modeled; package execution remains |
 | A004 | Independent review and prior art | withdrawn | none | `results/A004.md` | Duties redistributed at user direction |
@@ -23,6 +23,7 @@ Coordinator-owned file. Workers must not edit this file directly.
 - #183 build operation scope: `26556bcf7cda31009039b3aaf1527a8e4649e37f`
 - #186 remote proxy sessions: `f1fa08c44cda1c5a77568dcf8a64a45a91702c88`
 - #187 container registry credentials: `f9f6e84fb64d72f5954325855c3846f7a069821b`
+- #190 Wrangler import proxy routing: `8f8123f9e0c0d1e0f26ff1e843dc214f10e7af3a`
 - A002: `82ffab5d51abf7b5311891f31c6aa77f42bec41f`
 - A003: `bc0dc5b064f3f4fd684b9ca8afa0b34de8489376`
 
@@ -104,6 +105,18 @@ Durable note: `notes/vite-remote-proxy-session-ownership.md`.
 
 Durable note: `notes/vite-container-registry-auth-scope.md`.
 
+### #190 — Wrangler import-time proxy dispatcher ownership
+
+- prove importing Wrangler or the Vite plugin preserves a preinstalled host dispatcher;
+- prove import alone emits no Wrangler proxy warning;
+- scope proxy dispatcher installation to CLI command lifetime;
+- restore the exact prior dispatcher on success and failure;
+- keep long-running CLI proxy routing until final close;
+- design explicit per-operation dispatchers for embedded Wrangler/Vite APIs;
+- prove concurrent host and embedded routes remain isolated.
+
+Durable note: `notes/vite-wrangler-import-proxy-dispatcher.md`.
+
 ## Validation
 
 Executed dependency-free models:
@@ -115,7 +128,8 @@ Executed dependency-free models:
 - #179 shared runtime, restart handoff, tunnel lifetime, metadata, and warning-exit ownership;
 - #183 sticky build marker and scoped operation state;
 - #186 remote-session lifecycle/identity and concurrent logger ownership;
-- #187 registry account/token operation scope.
+- #187 registry account/token operation scope;
+- #190 import-time global dispatcher and explicit operation routing.
 
 Prepared but unexecuted:
 
@@ -126,14 +140,15 @@ Prepared but unexecuted:
 - Vite logical-owner/multi-server tests across Vite 6/7/8;
 - Vite programmatic build/preview tests across Vite 6/7/8;
 - Vite remote-session mocked lifecycle/identity tests;
-- Vite container-registry concurrent-request tests.
+- Vite container-registry concurrent-request tests;
+- Wrangler/Vite import, CLI dispatcher lifetime, and embedded proxy-routing tests.
 
 ## Coordination placement
 
 - #88 is the canonical batch review hub.
-- #165, #179, #183, #186, and #187 are separate filterable Vite candidates.
+- #165, #179, #183, #186, #187, and #190 are separate filterable Vite candidates.
 - #112 retains synthesis and durable notes.
 - #87 owns generated coordination and stale-state validation.
 - PR #105 is a dated projection, not canonical live state.
 
-No live deployment, tunnel, remote binding, account access, credential use, Docker reproduction, browser multi-server run, or upstream interaction occurred.
+No live deployment, proxy, tunnel, remote binding, account access, credential use, Docker reproduction, browser multi-server run, or upstream interaction occurred.
