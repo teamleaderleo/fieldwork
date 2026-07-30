@@ -1,0 +1,264 @@
+{
+  "environment": {
+    "constants": {
+      "interrupt_range": 100000,
+      "rows": 50000,
+      "spill_rows": 1500000,
+      "threads": 1
+    },
+    "duckdb_library_version": "v1.5.5",
+    "duckdb_python_version": "1.5.5",
+    "platform": "Linux-6.17.0-1020-azure-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.13.14 (main, Jun 11 2026, 03:02:07) [GCC 13.3.0]"
+  },
+  "probes": {
+    "autocommit_insert_interrupt": {
+      "count_after": 1,
+      "invariants": {
+        "connection_reusable": true,
+        "interrupt_raised": true,
+        "statement_atomic": true
+      },
+      "query_outcome": {
+        "elapsed_seconds": 0.25116128300000184,
+        "error": {
+          "message": "INTERRUPT Error: Interrupted!",
+          "type": "InterruptException"
+        }
+      },
+      "reusable_value": 42
+    },
+    "connection_visibility": {
+      "first_local_count": 101,
+      "interrupted_query": {
+        "error": {
+          "message": "INTERRUPT Error: Interrupted!",
+          "type": "InterruptException"
+        }
+      },
+      "invariants": {
+        "commit_visible_to_sibling": true,
+        "interrupt_targets_connection": true,
+        "sibling_remains_reusable": true,
+        "uncommitted_changes_connection_local": true
+      },
+      "second_after_commit": 101,
+      "second_after_interrupt": 101,
+      "second_before_commit": 1,
+      "sibling_value_during_query": 84
+    },
+    "crash_recovery": {
+      "committed": {
+        "checksum": 1250025000,
+        "child_returncode": 18,
+        "count": 50001,
+        "invariants": {
+          "checksum_matches_commit": true,
+          "child_exited_abruptly": true,
+          "visibility_matches_commit": true
+        },
+        "wal_after_reopen": {
+          "exists": false,
+          "size": 0
+        },
+        "wal_before_reopen": {
+          "exists": true,
+          "size": 401315
+        }
+      },
+      "uncommitted": {
+        "checksum": 0,
+        "child_returncode": 17,
+        "count": 1,
+        "invariants": {
+          "checksum_matches_commit": true,
+          "child_exited_abruptly": true,
+          "visibility_matches_commit": true
+        },
+        "wal_after_reopen": {
+          "exists": false,
+          "size": 0
+        },
+        "wal_before_reopen": {
+          "exists": false,
+          "size": 0
+        }
+      }
+    },
+    "explicit_transaction_interrupt": {
+      "invariants": {
+        "interrupt_raised": true,
+        "rollback_succeeds": true,
+        "transaction_requires_rollback": true,
+        "uncommitted_rows_absent": true
+      },
+      "persisted_count": 1,
+      "post_interrupt": {
+        "error": {
+          "message": "TransactionContext Error: Current transaction is aborted (please ROLLBACK)",
+          "type": "TransactionException"
+        }
+      },
+      "query_outcome": {
+        "elapsed_seconds": 0.2506867700000015,
+        "error": {
+          "message": "INTERRUPT Error: Interrupted!",
+          "type": "InterruptException"
+        }
+      },
+      "rollback": {
+        "ok": true
+      }
+    },
+    "memory_pressure_and_parquet": {
+      "baseline": {
+        "checksum": 1124999250000,
+        "connection_reusable_value": 7,
+        "extension_after": [
+          {
+            "extension_name": "parquet",
+            "install_mode": "STATICALLY_LINKED",
+            "installed": true,
+            "installed_from": "",
+            "loaded": true
+          }
+        ],
+        "extension_before": [
+          {
+            "extension_name": "parquet",
+            "install_mode": "STATICALLY_LINKED",
+            "installed": true,
+            "installed_from": "",
+            "loaded": true
+          }
+        ],
+        "memory_limit": "128MB",
+        "output_exists": true,
+        "peak_temp": {
+          "files": [
+            {
+              "path": "duckdb_temp_storage_DEFAULT-0.tmp",
+              "size": 34865152
+            },
+            {
+              "path": "duckdb_temp_storage_S160K-0.tmp",
+              "size": 327680
+            },
+            {
+              "path": "duckdb_temp_storage_S192K-0.tmp",
+              "size": 3538944
+            },
+            {
+              "path": "duckdb_temp_storage_S96K-0.tmp",
+              "size": 5996544
+            }
+          ],
+          "total_bytes": 44728320
+        },
+        "query_error": null,
+        "row_count": 1500000,
+        "temp_after_close": {
+          "files": [],
+          "total_bytes": 0
+        },
+        "temp_after_query": {
+          "files": [],
+          "total_bytes": 0
+        }
+      },
+      "extension_second_connection_before": [
+        {
+          "extension_name": "parquet",
+          "install_mode": "STATICALLY_LINKED",
+          "installed": true,
+          "installed_from": "",
+          "loaded": true
+        }
+      ],
+      "invariants": {
+        "baseline_checksum": true,
+        "baseline_count": true,
+        "baseline_succeeds": true,
+        "parquet_reopens": true,
+        "pressure_connection_reusable": true,
+        "pressure_leaves_no_output": true,
+        "pressure_reports_oom": true,
+        "pressure_spills": true,
+        "pressure_temp_cleaned": true
+      },
+      "pressure": {
+        "checksum": null,
+        "connection_reusable_value": 7,
+        "extension_after": [
+          {
+            "extension_name": "parquet",
+            "install_mode": "STATICALLY_LINKED",
+            "installed": true,
+            "installed_from": "",
+            "loaded": true
+          }
+        ],
+        "extension_before": [
+          {
+            "extension_name": "parquet",
+            "install_mode": "STATICALLY_LINKED",
+            "installed": true,
+            "installed_from": "",
+            "loaded": true
+          }
+        ],
+        "memory_limit": "24MB",
+        "output_exists": false,
+        "peak_temp": {
+          "files": [
+            {
+              "path": "duckdb_temp_storage_DEFAULT-0.tmp",
+              "size": 83623936
+            },
+            {
+              "path": "duckdb_temp_storage_S128K-0.tmp",
+              "size": 786432
+            },
+            {
+              "path": "duckdb_temp_storage_S160K-0.tmp",
+              "size": 1310720
+            },
+            {
+              "path": "duckdb_temp_storage_S192K-0.tmp",
+              "size": 11010048
+            },
+            {
+              "path": "duckdb_temp_storage_S224K-0.tmp",
+              "size": 2981888
+            },
+            {
+              "path": "duckdb_temp_storage_S96K-0.tmp",
+              "size": 9732096
+            }
+          ],
+          "total_bytes": 109445120
+        },
+        "query_error": {
+          "message": "Out of Memory Error: failed to allocate data of size 8.0 MiB (18.2 MiB/22.8 MiB used)\n\nPossible solutions:\n* Reducing the number of threads (SET threads=X)\n* Disabling insertion-order preservation (SET preserve_insertion_order=false)\n* Increasing the memory limit (SET memory_limit='...GB')\n\nSee also https://duckdb.org/docs/stable/guides/performance/how_to_tune_workloads",
+          "type": "OutOfMemoryException"
+        },
+        "row_count": null,
+        "temp_after_close": {
+          "files": [],
+          "total_bytes": 0
+        },
+        "temp_after_query": {
+          "files": [],
+          "total_bytes": 0
+        }
+      },
+      "second_connection_count": 1500000
+    }
+  },
+  "summary": {
+    "all_invariants_passed": true,
+    "invariant_count": 26,
+    "invariant_pass_count": 26
+  }
+}
