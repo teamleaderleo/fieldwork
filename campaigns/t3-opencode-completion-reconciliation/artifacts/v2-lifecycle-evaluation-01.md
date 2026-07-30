@@ -11,6 +11,19 @@ This is test-only evaluation of the open Orchestration V2 stack on the owned T3 
 - Upstream-derived base examined before the test commit: `1c24c650c74c813d07209a25f1384890d22e315d`
 - Fieldwork workflow commit: `aeaa03826ec3d3821babe925c3b0be60f95b060d`
 
+## Branch ancestry boundary
+
+The pinned evaluation base does **not** contain the newer OpenCode lifecycle fixes.
+
+Both OpenCode pull requests branch from merge base `a73a9ffc6de60a5b0ad93affda69c3850b6f47e6` and diverge from the pinned V2 base:
+
+- upstream PR #4759 head `1e994fdcbe155999574a5f3c4ae964a2c8118e39` — close mid-flight tool items when an OpenCode turn terminalizes;
+- upstream PR #4786 head `a3b3a5d5af53850f74ef7d6741f6ef07b368cfdc` — includes #4759 and drains ordered OpenCode cleanup after scoped session errors.
+
+Therefore this evaluation can produce executable evidence for the V2 **core ownership layer**—A's durable effect ownership and D's release ordering—but cannot be cited as executable evidence for B, OpenCode cleanup ordering, or adapter-level terminal item completeness.
+
+Source review of #4759/#4786 remains separate evidence until an exact composed head is constructed and tested. Open upstream PR descriptions or their reported validation are not treated as merged facts.
+
 ## New executable controls
 
 File:
@@ -48,9 +61,10 @@ The workflow also runs:
 
 ## Interpretation boundary
 
-A green result would establish that V2 owns the relevant external-effect and release races at the durable orchestration boundary. It would not by itself establish:
+A green result would establish that the pinned V2 core owns the relevant external-effect and release races at the durable orchestration boundary. It would not by itself establish:
 
 - OpenCode adapter completeness;
+- pending-request or cleanup-drain behavior from upstream PR #4759 or #4786;
 - UI wording or compatibility behavior;
 - crash-time `interrupted` versus `cancelled` labeling policy;
 - readiness of upstream PR #2829 as a whole;
@@ -63,6 +77,10 @@ A failure must be classified as one of:
 3. durable outbox ownership defect;
 4. process-loss policy mismatch;
 5. existing V2 regression outside the two new controls.
+
+## Local execution note
+
+A clean temporary checkout was attempted from the execution container, but that environment could not resolve `github.com`. No local tests ran. This is an environment limitation, not a pass or a product failure.
 
 ## Current status
 
