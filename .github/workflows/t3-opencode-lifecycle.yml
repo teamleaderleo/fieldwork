@@ -59,6 +59,8 @@ jobs:
             test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-owner-cancellation.test.ts
           - name: Pending request cleanup
             test: apps/server/src/provider/Layers/OpenCodeAdapter.pending-request.test.ts
+          - name: Pending request explicit stop
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.pending-request-stop.test.ts
           - name: Reaper race
             test: apps/server/src/provider/Layers/ProviderSessionReaper.race.test.ts
     steps:
