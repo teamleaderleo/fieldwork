@@ -165,9 +165,12 @@ jobs:
           test "$count" -eq 9
           echo 'FIELDWORK_TERMINAL_97576_EXACT=9/9'
 
-      - name: Execute focused codex-core gate
+      - name: Execute codex-core library and integration compile gates
         working-directory: codex/codex-rs
-        run: just test -p codex-core
+        run: |
+          set -euo pipefail
+          just test -p codex-core --lib
+          cargo test -p codex-core --tests --no-run
 
       - name: Export exact source commit and files
         working-directory: codex
@@ -202,6 +205,8 @@ jobs:
             echo "source_parent=$(git rev-parse HEAD^)"
             echo "source_commit_count=$(git rev-list --count "$UPSTREAM_HEAD"..HEAD)"
             echo "exact_controls=9/9"
+            echo "library_gate=executed"
+            echo "integration_gate=compiled-only"
             echo "runner=$RUNNER_OS"
           } > "$output/metadata.txt"
           cp /tmp/resolved-tests "$output/resolved-tests.txt"
