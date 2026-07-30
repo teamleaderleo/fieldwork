@@ -1,0 +1,33 @@
+{
+  "schema_version": "fieldwork.execution-receipt/v1",
+  "repository": "teamleaderleo/fieldwork",
+  "fieldwork_head": "a302024b9b0197eb41cba49b7f3cbe99b831efb2",
+  "target_repository": "bytecodealliance/wasmtime",
+  "target_revision": "12e1636852a6e797e94b0213a5a2a98f72a4fb8f",
+  "target_workspace_version": "48.0.0",
+  "workflow_run": 30504856467,
+  "workflow_job": 90752268763,
+  "runner": {
+    "os": "Ubuntu 24.04.4 LTS",
+    "architecture": "x86_64-unknown-linux-gnu",
+    "rustc": "1.97.1 (8bab26f4f 2026-07-14)"
+  },
+  "command": "cargo run --manifest-path programmes/high-leverage-open-source/scouts/wasmtime-capability-interruption/probe/Cargo.toml",
+  "result": "passed",
+  "assertions": [
+    "epoch interruption traps an infinite guest loop",
+    "dropping an async call drops the host future but not a committed effect",
+    "resource-limit denial and trap policy remain distinguishable"
+  ],
+  "evidence_class": "target-executed",
+  "coverage_limits": [
+    "synthetic host effect marker only",
+    "no WASI capability fixture",
+    "no detached external operation",
+    "no process-death boundary",
+    "no pooled-store integration",
+    "no sandbox-security conclusion"
+  ],
+  "upstream_contact_authorized": false,
+  "upstream_contact_performed": false
+}

@@ -1,0 +1,9 @@
+[package]
+name = "fieldwork-wasmtime-interruption-probe"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+wasmtime = { git = "https://github.com/bytecodealliance/wasmtime", rev = "12e1636852a6e797e94b0213a5a2a98f72a4fb8f" }
