@@ -181,9 +181,10 @@ index 73c23b7..0000000 100644
 +                  threadId,
 +                  turnId: activeTurnId,
 +                })),
-+                type: "turn.aborted",
++                type: "turn.completed",
 +                payload: {
-+                  reason: "Interrupted by user.",
++                  state: "interrupted",
++                  stopReason: "Interrupted by user.",
 +                },
 +              });
 +            }
