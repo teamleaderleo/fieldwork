@@ -7,6 +7,10 @@ on:
     paths:
       - '.github/workflows/fieldwork-jotai-json-key-isolation.yml'
       - 'playgrounds/EXP-20260730-jotai-json-key-isolation/**'
+  pull_request:
+    paths:
+      - '.github/workflows/fieldwork-jotai-json-key-isolation.yml'
+      - 'playgrounds/EXP-20260730-jotai-json-key-isolation/**'
   workflow_dispatch:
 
 permissions:
