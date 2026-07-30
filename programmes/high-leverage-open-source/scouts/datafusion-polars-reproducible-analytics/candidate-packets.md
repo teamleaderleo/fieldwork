@@ -111,20 +111,64 @@ A documentation candidate should distinguish:
 
 This packet should be considered only after the focused remote-I/O control is stable.
 
-## Polars candidate — classify local publication before remote cleanup
+## Polars candidate A — local Parquet staging and atomic publication
 
-The first Polars experiment should use a local temporary destination and cancel after Parquet row-group output begins.
+### Source finding
 
-Record:
+The local `Writable::try_new` path creates and opens the requested destination immediately. The streaming Parquet I/O task writes through a buffered handle and only later runs `parquet_writer.finish()` and `file.close()`. That task is wrapped in an abort-on-drop handle.
 
-- whether a final path appears;
-- whether a temporary path remains;
-- footer validity and readable row count;
-- cancellation-to-return and cancellation-to-close latency;
-- retry to the same path;
-- explicit cancel versus dropping `InProcessQuery`.
+This means cancellation after row-group output begins can plausibly leave the final destination path containing a truncated Parquet file rather than leaving output hidden behind a temporary name. This is a source hypothesis until executed.
 
-Only after this boundary is known should a remote object-store cleanup claim be drafted.
+### Likely issue before pull request
+
+The first design question is whether local file sinks promise direct final-path writes or transactional publication. A robust publication design would normally write to a unique attempt-scoped temporary path, sync and close it, then atomically rename into the final path where the filesystem supports that operation.
+
+### Required local barrier
+
+- create a single-file Parquet sink at a fresh final path;
+- block after the first row group is written but before footer finalization;
+- cancel explicitly and by dropping `InProcessQuery`;
+- inspect final-path existence, byte length, Parquet footer validity, readable row count, and close latency;
+- retry to the same path and verify declared overwrite behavior;
+- run a successful publication control.
+
+### Possible narrow repair after execution
+
+If the final path is observably corrupt after cancellation, a local-only pull request could introduce attempt-scoped temporary output and rename-on-success for single-file sinks. Cross-platform rename and overwrite semantics must be specified before coding.
+
+## Polars candidate B — explicit cloud multipart abort
+
+### Source finding
+
+At the pinned Polars revision:
+
+- the cloud writer starts an `object_store::MultipartUpload` before data publication;
+- `PlMultipartUpload` exposes `put` and `finish`, but no `abort` method;
+- the I/O task is abort-on-drop;
+- the pinned object-store dependency is version `0.13.2` at source commit `f50a6e5c564b2b5933eca15cd20ff9b5614374a1`;
+- that exact dependency documents that S3- and GCS-style stores cannot clean multipart state on Drop and expose explicit `abort()` for cleanup.
+
+This creates a concrete retained-parts hypothesis for cancellation and ordinary writer errors.
+
+### Potential narrow pull request
+
+1. expose `abort()` on `PlMultipartUpload`;
+2. add an aborting terminal path to `InternalCloudWriter`;
+3. on ordinary write or finish error, await abort and preserve the initiating error;
+4. make abort idempotent against `NotStarted`, `Started`, and `Finished` states;
+5. record abort failure as secondary cleanup information.
+
+### Cancellation limitation
+
+As in DataFusion, aborting the whole I/O task drops the future before awaited cleanup can run. Cancellation-safe cleanup may therefore need a supervisor that owns the multipart session independently of the abort-on-drop task.
+
+### Required remote barrier
+
+- tracking object store at the exact pinned dependency;
+- block after the first accepted part;
+- cancel the Polars query;
+- record complete, abort, multipart drop, retained parts, final visibility, and cleanup latency;
+- compare ordinary part failure, explicit cancellation, handle drop, and success.
 
 ## Promotion rules
 
