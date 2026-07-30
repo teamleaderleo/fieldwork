@@ -1,0 +1,78 @@
+{
+  "claim_scope": "ordering and ownership only; not target execution",
+  "model": "tantivy-prepare-commit-generation-fence/v1",
+  "results": [
+    {
+      "admission_after_error": true,
+      "late_old_publication_accepted": true,
+      "mixed_generation_after_error": true,
+      "notes": [
+        "new generation installed before old joins",
+        "old A joined; replacement A started",
+        "old B failed; remaining join handle for C dropped"
+      ],
+      "old_workers_still_live_after_error": [
+        "C"
+      ],
+      "prepare_result": "error: worker B",
+      "replacement_workers_started": 1,
+      "strategy": "current-order",
+      "writer_retired": false
+    },
+    {
+      "admission_after_error": false,
+      "late_old_publication_accepted": true,
+      "mixed_generation_after_error": true,
+      "notes": [
+        "new generation installed before old joins",
+        "old A joined; replacement A started",
+        "old B failed; remaining join handle for C dropped",
+        "writer marks preparation_failed and blocks add_document",
+        "no publication fence was added for old worker C"
+      ],
+      "old_workers_still_live_after_error": [
+        "C"
+      ],
+      "prepare_result": "error: worker B",
+      "replacement_workers_started": 1,
+      "strategy": "early-replacement-plus-admission-block",
+      "writer_retired": false
+    },
+    {
+      "admission_after_error": false,
+      "late_old_publication_accepted": false,
+      "mixed_generation_after_error": false,
+      "notes": [
+        "old workers are joined before new generation publication",
+        "old A joined",
+        "old B failed",
+        "writer retired; old C cleanup remains owned before return"
+      ],
+      "old_workers_still_live_after_error": [],
+      "prepare_result": "error: worker B",
+      "replacement_workers_started": 0,
+      "strategy": "join-before-replace",
+      "writer_retired": true
+    },
+    {
+      "admission_after_error": false,
+      "late_old_publication_accepted": false,
+      "mixed_generation_after_error": true,
+      "notes": [
+        "new generation installed before old joins",
+        "old A joined; replacement A started",
+        "old B failed; remaining join handle for C dropped",
+        "failed old generation is invalidated at publication boundary",
+        "new admission stays blocked until reconciliation"
+      ],
+      "old_workers_still_live_after_error": [
+        "C"
+      ],
+      "prepare_result": "error: worker B",
+      "replacement_workers_started": 1,
+      "strategy": "early-replacement-plus-generation-fence",
+      "writer_retired": false
+    }
+  ],
+  "strongest_result": "Blocking new admission after a failed preparation is insufficient by itself; late old-generation publication also needs cleanup completion or a publication fence."
+}
