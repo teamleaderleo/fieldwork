@@ -105,15 +105,17 @@ For an integration trial, record:
 
 One worker may edit only the owned scout, experiment, trial branch, or assignment path. Coordinators own registries, manifests, status, synthesis, decision, and closeout files.
 
-## 4. Protect external projects before writing
+## 4. Protect external projects before posting interaction text
 
-Before creating or editing any Fieldwork issue, PR, comment, review, report, experiment note, integration trial, context dossier, or data record:
+Before creating or editing any Fieldwork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work:
 
-- convert external GitHub issue, PR, discussion, and commit links to `redirect.github.com`;
-- remove external shorthand cross-references;
+- convert third-party GitHub issue, pull-request, discussion, and commit links to `redirect.github.com`;
+- remove third-party shorthand cross-references;
 - use the intentional marker only after explicit authorization for that interaction.
 
-The CI detector runs after GitHub receives interaction text. It is a safety net, not permission to post a direct reference first.
+Repository reports, experiment notes, context dossiers, data records, and other tracked files may use ordinary direct links. They do not need the interaction preflight or an automated external-reference check.
+
+The interaction detector runs after GitHub receives conversation text. It is a safety net, not permission to post a direct reference first.
 
 ## 5. Read the code and form a change thesis
 

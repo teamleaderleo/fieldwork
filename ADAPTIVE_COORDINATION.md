@@ -95,9 +95,11 @@ Use the smallest durable unit that another worker can understand and continue.
 
 Follow [`REFERENCE_POLICY.md`](REFERENCE_POLICY.md).
 
-Direct links to third-party GitHub issues, pull requests, discussions, and commits can create backlinks, notifications, and implied participation in an upstream project. Quiet research uses `redirect.github.com` references by default. Direct references among controlled `teamleaderleo/*` repositories remain normal.
+The backlink-suppression rule applies to GitHub conversation text: issues, pull requests, comments, reviews, discussions, and intentional issue references in commit messages. Those surfaces can create backlinks, notifications, and implied involvement in third-party projects.
 
-A direct third-party cross-reference belongs only to an explicitly authorized upstream interaction.
+Repository notes, reports, maps, and other tracked files do not create autolinked issue or pull-request references. They may link directly to upstream material and do not need an automated external-reference check. Direct references among controlled `teamleaderleo/*` repositories remain normal everywhere.
+
+A direct third-party cross-reference in conversation text belongs only to an explicitly authorized upstream interaction; otherwise use `redirect.github.com`.
 
 ## Precedence and improvement
 
