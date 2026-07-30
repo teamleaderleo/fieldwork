@@ -50,7 +50,9 @@ jobs:
       - name: Run focused behavior without repository coverage threshold
         run: npx tap --disable-coverage test/background-fetch-size.ts
 
-      - name: Check changed source and test
+      - name: Check lint and expose exact formatter delta
         run: |
           npx oxlint src/index.ts test/background-fetch-size.ts
-          npx prettier --check src/index.ts test/background-fetch-size.ts
+          npx prettier --write src/index.ts test/background-fetch-size.ts
+          git diff -- src/index.ts test/background-fetch-size.ts
+          git diff --exit-code -- src/index.ts test/background-fetch-size.ts
