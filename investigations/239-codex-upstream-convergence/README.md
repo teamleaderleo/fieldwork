@@ -6,7 +6,7 @@ Parent issue: [Fieldwork #239](https://github.com/teamleaderleo/fieldwork/issues
 Programme: [agent and CLI execution, #14](https://github.com/teamleaderleo/fieldwork/issues/14)  
 Target hub: [Codex, #8](https://github.com/teamleaderleo/fieldwork/issues/8)  
 General autonomous initiative: [#254](https://github.com/teamleaderleo/fieldwork/issues/254)  
-Current read-only upstream pin: [`openai/codex@745603a5a1eb48b6f343633d622eeb72dd549d7b`](https://github.com/openai/codex/commit/745603a5a1eb48b6f343633d622eeb72dd549d7b)  
+Current read-only upstream pin: [`openai/codex@a01a2d91461a57809e944de7758477b92617ab01`](https://github.com/openai/codex/commit/a01a2d91461a57809e944de7758477b92617ab01)  
 Upstream contact authorized: `false`
 
 ## In simple words
@@ -59,12 +59,13 @@ The convergence pass has six jobs:
 
 The previous convergence pin was `97576b1794872e342450ebd577123e052ab57626`.
 
-The current read-only head is `745603a5a1eb48b6f343633d622eeb72dd549d7b`, two commits later:
+The current read-only head is `a01a2d91461a57809e944de7758477b92617ab01`, three commits later:
 
 1. `e6cfd40c3f444aadd6017c9eeab01db70f48961a` exposes connector candidates during external-agent detection;
-2. `745603a5a1eb48b6f343633d622eeb72dd549d7b` ignores passthrough metadata when reconciling rollout items.
+2. `745603a5a1eb48b6f343633d622eeb72dd549d7b` ignores passthrough metadata when reconciling rollout items;
+3. `a01a2d91461a57809e944de7758477b92617ab01` preserves executor paths in read-command actions and updates their app-server protocol representation.
 
-The first commit enters capability-discovery context but leaves the active deferred-loader, MCP runtime, append-outcome, and terminal source fences unchanged. The second enters rollout reconciliation and must be included in persistence/history review. It does not settle append acknowledgement or typed persistence outcome.
+The first commit enters capability-discovery context. The second enters rollout reconciliation and must be included in persistence/history review. The third adds adjacent execution-provenance context. Their combined delta leaves the active deferred-loader, MCP runtime, append-outcome, and terminal source fences unchanged. See [`evidence/upstream-snapshot-2026-07-31.md`](evidence/upstream-snapshot-2026-07-31.md).
 
 ## Current candidate picture
 
