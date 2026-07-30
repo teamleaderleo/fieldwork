@@ -26,11 +26,12 @@ env:
   OBJECT_STORE_RELEASE_COMMIT: 7a65b75b0d26fd8a282999462cb7030fb85fdcc3
   PROBE_DIR: programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/object-store-abort
   SINK_PROBE_DIR: programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/datafusion-sink-cancel
+  POLARS_PROBE_DIR: programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/polars-local-cancel
 
 jobs:
   ownership-control:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
 
@@ -109,6 +110,20 @@ jobs:
                       "file.close(sync_on_close)?",
                   ],
               ),
+              "polars_local_final_path": (
+                  Path(".fieldwork/polars/crates/polars-io/src/utils/file.rs"),
+                  [
+                      "create_file(&path)?;",
+                      "Self::Local(polars_utils::open_file_write(&path)?)",
+                  ],
+              ),
+              "polars_cloud_multipart": (
+                  Path(".fieldwork/polars/crates/polars-io/src/cloud/cloud_writer/multipart_upload.rs"),
+                  [
+                      "pub fn put(",
+                      "pub async fn finish(&mut self)",
+                  ],
+              ),
           }
 
           receipt = {}
@@ -122,14 +137,24 @@ jobs:
                   "anchors": len(needles),
               }
 
-          lock = Path(".fieldwork/datafusion/Cargo.lock").read_text(encoding="utf-8")
+          datafusion_lock = Path(".fieldwork/datafusion/Cargo.lock").read_text(encoding="utf-8")
           match = re.search(
               r'\[\[package\]\]\nname = "object_store"\nversion = "([^"]+)"',
-              lock,
+              datafusion_lock,
           )
           if not match or match.group(1) != "0.13.2":
-              raise SystemExit(f"unexpected object_store pin: {match.group(1) if match else 'missing'}")
+              raise SystemExit(f"unexpected DataFusion object_store pin: {match.group(1) if match else 'missing'}")
           receipt["datafusion_object_store_version"] = match.group(1)
+
+          polars_lock = Path(".fieldwork/polars/Cargo.lock").read_text(encoding="utf-8")
+          match = re.search(
+              r'\[\[package\]\]\nname = "object_store"\nversion = "([^"]+)"\nsource = "([^"]+)"',
+              polars_lock,
+          )
+          if not match or match.group(1) != "0.13.2" or "f50a6e5c564b2b5933eca15cd20ff9b5614374a1" not in match.group(2):
+              raise SystemExit(f"unexpected Polars object_store pin: {match.groups() if match else 'missing'}")
+          receipt["polars_object_store_version"] = match.group(1)
+          receipt["polars_object_store_source"] = match.group(2)
 
           Path("issue122-source-contract.json").write_text(
               json.dumps(receipt, indent=2, sort_keys=True) + "\n",
@@ -157,6 +182,13 @@ jobs:
           cargo test --manifest-path "$SINK_PROBE_DIR/Cargo.toml"
           cargo run --quiet --manifest-path "$SINK_PROBE_DIR/Cargo.toml" | tee issue122-datafusion-sink-cancel.json
 
+      - name: Check and run Polars local publication barrier
+        run: |
+          set -euxo pipefail
+          cargo fmt --manifest-path "$POLARS_PROBE_DIR/Cargo.toml" -- --check
+          cargo test --manifest-path "$POLARS_PROBE_DIR/Cargo.toml"
+          cargo run --quiet --manifest-path "$POLARS_PROBE_DIR/Cargo.toml" | tee issue122-polars-local-cancel.json
+
       - name: Upload source and execution receipts
         if: always()
         uses: actions/upload-artifact@v4
@@ -167,5 +199,6 @@ jobs:
             issue122-object-store-tree.txt
             issue122-object-store-abort.json
             issue122-datafusion-sink-cancel.json
+            issue122-polars-local-cancel.json
           if-no-files-found: warn
           retention-days: 30
