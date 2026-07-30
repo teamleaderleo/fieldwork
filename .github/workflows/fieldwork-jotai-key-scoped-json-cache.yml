@@ -52,6 +52,8 @@ jobs:
           git apply ../fieldwork/programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation/candidate.patch
           cp ../fieldwork/programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation/atomWithStorageKeyIsolation.test.ts \
             tests/react/vanilla-utils/atomWithStorageKeyIsolation.test.ts
+          cp ../fieldwork/programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation/atomWithStorageReadInvalidation.test.ts \
+            tests/react/vanilla-utils/atomWithStorageReadInvalidation.test.ts
           git diff --check
 
       - name: Install exact repository dependencies
@@ -63,6 +65,7 @@ jobs:
         run: |
           pnpm vitest run \
             tests/react/vanilla-utils/atomWithStorageKeyIsolation.test.ts \
+            tests/react/vanilla-utils/atomWithStorageReadInvalidation.test.ts \
             tests/react/vanilla-utils/atomWithStorage.test.tsx
 
       - name: Run changed-file static checks
@@ -71,6 +74,7 @@ jobs:
           changed_files=(
             src/vanilla/utils/atomWithStorage.ts
             tests/react/vanilla-utils/atomWithStorageKeyIsolation.test.ts
+            tests/react/vanilla-utils/atomWithStorageReadInvalidation.test.ts
           )
           pnpm eslint "${changed_files[@]}"
           snapshot=$(mktemp -d)
