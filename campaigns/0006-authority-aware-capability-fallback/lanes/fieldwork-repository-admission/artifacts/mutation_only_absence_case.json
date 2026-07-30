@@ -1,0 +1,31 @@
+[
+  {
+    "id": "blocked-mutation-only-absence",
+    "request": {
+      "version": 1,
+      "request_id": "blocked-mutation-only-absence",
+      "operation_kind": "potential_mutation",
+      "required_capabilities": [
+        {
+          "id": "github.write",
+          "capability_kind": "potential_mutation"
+        }
+      ],
+      "observations": [
+        {
+          "id": "github.write",
+          "route_provenance": "github-connector",
+          "phases": {
+            "advertised": "present",
+            "registered": "present",
+            "discoverable": "present",
+            "callable": "absent",
+            "executable": "absent"
+          }
+        }
+      ],
+      "fallbacks": []
+    },
+    "expected_decision": "blocked"
+  }
+]
