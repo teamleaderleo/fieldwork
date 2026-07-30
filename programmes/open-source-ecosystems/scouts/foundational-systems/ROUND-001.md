@@ -6,7 +6,7 @@ Scout issue: [#211](https://github.com/teamleaderleo/fieldwork/issues/211)
 
 ## In simple words
 
-The strongest foundational candidates use tiny inputs to expose data loss, incorrect results, parser state errors, or silent lifecycle failure. DuckDB currently offers several pure-SQL cases. libarchive offers compact binary fixtures and buffer-boundary tests. systemd offers high-consequence state-loss bugs that need VM or namespace execution.
+The strongest foundational candidates use tiny inputs to expose data loss, incorrect results, parser state errors, or silent lifecycle failure. DuckDB currently offers several pure-SQL cases. libarchive offers compact binary fixtures and buffer-boundary tests, although the first PPMd candidate gained an active fix during review. systemd offers high-consequence state-loss bugs that need VM or namespace execution.
 
 ## DuckDB first wave
 
@@ -76,16 +76,36 @@ The read side must preserve existing Hive datasets. A writer-only escaping rule 
 
 All are pure-SQL candidates. Run the partition collision first because its storage consequence and owning code are already clear.
 
-## libarchive first wave
+## libarchive reference and capability queue
 
 Repository: `libarchive/libarchive`
 
-### Candidate queue
+### Active-fix stop — PPMd small-buffer issue
 
-1. [PPMd small-buffer issue](https://redirect.github.com/libarchive/libarchive/issues/3337) — valid 7z decompression depends on caller read-buffer size.
-2. [Windows signed-shift issue](https://redirect.github.com/libarchive/libarchive/issues/3283) — file-information conversion reaches undefined behavior under CLANG64 UBSan.
-3. [`locale_charset` declaration issue](https://redirect.github.com/libarchive/libarchive/issues/3338) — one CMake configuration misses the declaration.
-4. [wide-inode cpio test issue](https://redirect.github.com/libarchive/libarchive/issues/3314) — tests fail intermittently on filesystems whose inode numbers exceed archive fields.
+The [PPMd small-buffer issue](https://redirect.github.com/libarchive/libarchive/issues/3337) gained [active PR #3340](https://redirect.github.com/libarchive/libarchive/pull/3340) during the live review refresh.
+
+The pull request owns the same consequence and reproducer boundary:
+
+- PPMd exhausts one input block and reads ahead into another;
+- the additional consumed bytes were not included in the input count;
+- the bytes can be replayed on the next read and corrupt extraction;
+- the regression uses four PPMd entries with 1000-byte input blocks.
+
+Stop independent implementation. Retain it as a strong parser-state packet:
+
+- distinguish physical input supplied from logical input consumed;
+- account for refill reads at one authoritative boundary;
+- prevent reads beyond the pack-stream boundary;
+- preserve a fixture whose behavior changes only with caller read size;
+- run focused and adjacent 7-Zip controls.
+
+### Remaining candidate queue
+
+1. [Windows signed-shift issue](https://redirect.github.com/libarchive/libarchive/issues/3283) — file-information conversion reaches undefined behavior under CLANG64 UBSan.
+2. [`locale_charset` declaration issue](https://redirect.github.com/libarchive/libarchive/issues/3338) — one CMake configuration misses the declaration.
+3. [wide-inode cpio test issue](https://redirect.github.com/libarchive/libarchive/issues/3314) — tests fail intermittently on filesystems whose inode numbers exceed archive fields.
+
+These remain capability- or configuration-gated. Recheck pull requests and issue comments before promotion.
 
 ### Duplicate stop — standalone AppleDouble entries
 
@@ -147,7 +167,7 @@ The key question is whether reload transiently reports AUTO from PID 1, clears c
 |---|---:|---:|---:|---:|---:|
 | DuckDB partition collision | yes | | | | |
 | DuckDB window/median cases | yes | | | | |
-| libarchive PPMd/CMake/inode cases | yes | | | | |
+| libarchive CMake/inode cases | yes | | | | |
 | libarchive signed shift | | | | yes | |
 | systemd oomd reload | | likely | yes | | cgroup v2/PSI |
 | systemd router advertisement | | yes | optional | | network namespace |
@@ -157,8 +177,8 @@ The key question is whether reload transiently reports AUTO from PID 1, clears c
 
 - **Promote first:** DuckDB partition-path collision.
 - **Parallel pure-SQL queue:** DuckDB window frame and high-precision median.
-- **Current-CI library probe:** libarchive PPMd short reads.
+- **Active-fix reference:** libarchive PPMd short reads through PR #3340; stop duplicate implementation.
 - **VM promotion:** systemd oomd registration through Linux Fieldwork.
 - **Capability queues:** libarchive Windows signed shift and systemd TPM renumbering.
-- **Stop duplicate implementation:** standalone AppleDouble parsing.
-- **Next expansion:** curl/HTTP parsing and container lifecycle after these first fixtures are executable.
+- **Stop duplicate implementation:** PPMd small-buffer handling and standalone AppleDouble parsing.
+- **Next expansion:** curl/HTTP parsing and container lifecycle after the first promoted fixtures are executable.
