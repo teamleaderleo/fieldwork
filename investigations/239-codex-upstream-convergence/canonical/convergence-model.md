@@ -220,8 +220,8 @@ At this snapshot:
 
 - public upstream is `a01a2d91461a57809e944de7758477b92617ab01`;
 - the `745603... → a01a2d...` delta leaves every declared active candidate source fence unchanged;
-- append acknowledgement carrier #52 is queued at head `324ddccba14b2b0934e2c56cc0cda7ca04a56e6d`;
-- terminal retention carrier #53 is queued at head `d5028fc9771407aa7a9bafbceb7eba051b91de36`;
+- append acknowledgement carrier #52 remains at head `324ddccba14b2b0934e2c56cc0cda7ca04a56e6d`, with queued run `30583872587`; superseded run `30582576317` was cancelled;
+- terminal retention carrier #53 is repaired at head `0bd2fad8da92ed9bf9064949a5d27f59741d1ae7`, with exact rerun `30584398042` queued after a carrier-only missing-`uv` failure;
 - MCP reconnect/publication needs exact comparison with current upstream reconnect work;
 - deferred discovery needs redesign around the standalone Code Mode host;
 - Responses Lite needs a lower-level exact-prefix and retry fixture;
