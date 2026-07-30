@@ -2,11 +2,11 @@
 
 ## In simple words
 
-This round surveyed live contribution queues across package collections, runtimes, developer tools, foundational libraries, databases, and Linux user space. It retained the places where useful work repeatedly appears, reduced several current issues to likely owning code and tests, and separated open work from candidates already covered by active upstream pull requests.
+This round surveyed live contribution queues across package collections, runtimes, developer tools, foundational libraries, databases, and Linux user space. It retained the places where useful work repeatedly appears, reduced several current issues to likely owning code and tests, and separated open work from candidates already covered by active pull requests or contributor claims.
 
 ## Source boundary
 
-Research was performed on 2026-07-30 against public GitHub issue, pull-request, and source views. Exact issue and source revisions are recorded in the scout reports. This is reconnaissance and local planning only; no upstream contact was authorized or made.
+Research was performed on 2026-07-30 against public GitHub issue, pull-request, assignment, comment, and source views. Exact issue and source revisions are recorded in the scout reports. This is reconnaissance and local planning only; no upstream contact was authorized or made.
 
 ## First result
 
@@ -14,16 +14,20 @@ The portfolio can sustain broad parallel discovery. The highest-yield surfaces s
 
 1. issues include a deterministic reproducer or pinned working and failing revisions;
 2. the likely owning code and adjacent test suite are compact;
-3. an overlap check can quickly distinguish open work from an existing fix.
+3. overlap checks cover active pull requests, linked work, assignees, and project-specific claim bots.
 
 ## Best immediate current-CI candidates
 
 1. **Ruff #27026 — RUF038 changes runtime expressions and drops `Literal` members.** The rule claims annotation scope but receives a general expression and can replace an entire runtime `Literal` expression. The owning rule file is compact and the issue includes a playground reproducer.
 2. **DuckDB #24308 — partitioned COPY can lose data.** SQL NULL and the literal string `__HIVE_DEFAULT_PARTITION__` map to the same directory. The writer and adjacent test file are identified, and the reproducer is a small SQL fixture.
-3. **Rust #159745 — missing turbofish in nested type parameters has a terse diagnostic.** The issue supplies current and desired compiler output and has no matching active pull request found in this round.
-4. **Nixpkgs #516481 — restore `gomarkdoc` tests.** The package currently disables `checkPhase`. The failure is pinned to a nixpkgs revision window and points toward `buildGoModule`, `GOFLAGS`, working-directory behavior, or an upstream test assumption.
-5. **Rust #159686 — a missing match arm receives irrelevant suggestions.** The input and desired diagnostic are already reduced.
-6. **DuckDB #24307 and #24314 — window-frame and high-precision median errors.** Both are pure SQL reproducers with no matching pull request found.
+3. **Nixpkgs #516481 — restore `gomarkdoc` tests.** The package currently disables `checkPhase`. The failure is pinned to a nixpkgs revision window and points toward `buildGoModule`, `GOFLAGS`, working-directory behavior, or an upstream test assumption.
+4. **DuckDB #24307 and #24314 — window-frame and high-precision median errors.** Both are pure SQL reproducers with no matching pull request found.
+5. **Ruff #27022 and #27024 — automatic fixes change string or buffer behavior.** Both carry compact before/after fixtures and clear fix-safety consequences.
+6. **libarchive #3337 — PPMd decompression depends on caller read-buffer size.** This offers a compact archive fixture and current-CI parser/refill investigation.
+
+## Claimed reference candidates
+
+Rust #159745, #159686, #159492, #157184, and #157260 are already assigned or claimed. They remain valuable diagnostic and contribution-packet references, while independent implementation is stopped unless their claims are released or coordination explicitly invites help.
 
 ## Environment-gated candidates
 
@@ -59,4 +63,4 @@ These remain useful as contribution-packet examples, test-design references, and
 
 ## Current decision
 
-Promote the Ruff, DuckDB, Rust-diagnostic, and Nixpkgs test-restoration candidates into executable probes first. Keep one VM lane and one free-threaded/TSAN lane ready behind them. Continue broad scanning, but run the active-PR check before code work begins.
+Promote Ruff #27026, DuckDB #24308, Nixpkgs #516481, and libarchive #3337 into executable probes first. Keep one VM lane and one free-threaded/TSAN lane ready behind them. Treat claimed Rust diagnostics as references and continue searching for unassigned compiler work. Run pull-request, linked-work, assignee, and claim-comment checks before code work begins.
