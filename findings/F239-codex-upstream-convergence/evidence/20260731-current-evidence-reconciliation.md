@@ -16,11 +16,11 @@ Upstream contact authorized: `no`.
 
 A complete GitHub compare shows no changed file in these active source fences:
 
-- terminal retention: `core/src/unified_exec/{process.rs,process_tests.rs,async_watcher.rs,async_watcher_tests.rs}`;
-- append acknowledgement: `core/src/session/mod.rs`, `core/src/session/turn_tests.rs`, `thread-store/src/in_memory.rs`;
-- deferred exposure: `core/src/tools/spec_plan.rs`, `core/src/tools/spec_plan_tests.rs`;
-- MCP publication: `codex-mcp/src/runtime.rs`;
-- MCP reconnect source: `core/src/codex_thread.rs`, `core/tests/suite/mcp_tool_exposure.rs`.
+- terminal retention: `codex-rs/core/src/unified_exec/process.rs`, `codex-rs/core/src/unified_exec/process_tests.rs`, `codex-rs/core/src/unified_exec/async_watcher.rs`, and `codex-rs/core/src/unified_exec/async_watcher_tests.rs`;
+- append acknowledgement: `codex-rs/core/src/session/mod.rs`, `codex-rs/core/src/session/turn_tests.rs`, and `codex-rs/thread-store/src/in_memory.rs`;
+- deferred exposure: `codex-rs/core/src/tools/spec_plan.rs` and `codex-rs/core/src/tools/spec_plan_tests.rs`;
+- MCP publication: `codex-rs/codex-mcp/src/runtime.rs`;
+- MCP reconnect source: `codex-rs/core/src/codex_thread.rs` and `codex-rs/core/tests/suite/mcp_tool_exposure.rs`.
 
 The drift changes app-server schemas and account surfaces, rollout normalization, Windows permission/sandbox policy, status, analytics, and path-URI code. This supports a file-disjoint carry-forward classification only. Every proposal still needs complete direct-diff and compatibility review against the current head.
 
@@ -97,7 +97,7 @@ The drift changes app-server schemas and account surfaces, rollout normalization
 
 ## Stop and reopening rules
 
-- Do not reopen the full live-rebind direction unless current source removes captured call authority or a counterexample proves cached-only fallback cannot be isolated.
-- Reopen terminal source behavior only if materialized Git objects differ from the exported commit/tree, current-head compatibility reveals an overlap, or an exact control regresses.
-- Reopen append acknowledgement only if current-head compatibility changes the three-file contract or execution cannot be reproduced from the clean source PR.
+- Keep the full live-rebind direction retired unless current source removes captured call authority or a counterexample proves cached-only fallback cannot be isolated.
+- Reopen terminal source behavior if materialized Git objects differ from the exported commit/tree, current-head compatibility reveals an overlap, or an exact control regresses.
+- Reopen append acknowledgement if current-head compatibility changes the three-file contract or execution cannot be reproduced from the clean source PR.
 - Public upstream interaction remains prohibited without separate exact authorization.
