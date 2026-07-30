@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://teamleaderleo.github.io/fieldwork/schemas/coordination-state.schema.json",
+  "title": "Fieldwork coordination state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "invariant_id",
+    "canonical_finding",
+    "phase",
+    "work_class",
+    "review",
+    "evidence",
+    "canonical_source",
+    "active_carrier",
+    "writer_lease",
+    "freshness",
+    "authority",
+    "blocker",
+    "next_transition"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "invariant_id": { "type": "string", "minLength": 1 },
+    "canonical_finding": { "type": "string", "minLength": 1 },
+    "phase": {
+      "enum": [
+        "research-active",
+        "comparative-evaluation-active",
+        "review-ready",
+        "design-decision-ready",
+        "delivery-gate-ready",
+        "land-ready",
+        "stopped",
+        "closed"
+      ]
+    },
+    "work_class": {
+      "enum": [
+        "owned-product-delivery",
+        "upstream-fork-research",
+        "execution-carrier",
+        "evidence-documentation",
+        "blocked-sensitive"
+      ]
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disposition", "exact_head", "reviewed_inputs"],
+      "properties": {
+        "disposition": {
+          "enum": ["ACCEPT", "REPAIR", "HOLD", "EXECUTE", "REJECT", "none"]
+        },
+        "exact_head": { "type": ["string", "null"] },
+        "reviewed_inputs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim", "level", "receipt", "limit"],
+        "properties": {
+          "claim": { "type": "string", "minLength": 1 },
+          "level": {
+            "enum": [
+              "source-read",
+              "model-executed",
+              "target-test-prepared",
+              "target-executed",
+              "integration-executed",
+              "full-gate"
+            ]
+          },
+          "receipt": { "type": "string", "minLength": 1 },
+          "limit": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "canonical_source": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "branch", "head"],
+          "properties": {
+            "repository": { "type": "string", "minLength": 1 },
+            "branch": { "type": "string", "minLength": 1 },
+            "head": { "type": "string", "minLength": 7 }
+          }
+        }
+      ]
+    },
+    "active_carrier": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "pull_request", "head", "purpose"],
+          "properties": {
+            "repository": { "type": "string", "minLength": 1 },
+            "pull_request": { "type": "integer", "minimum": 1 },
+            "head": { "type": "string", "minLength": 7 },
+            "purpose": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
+    "writer_lease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["worker", "artifact", "state", "transfer_record"],
+      "properties": {
+        "worker": { "type": ["string", "null"] },
+        "artifact": { "type": ["string", "null"] },
+        "state": { "enum": ["active", "released", "stale", "superseded", "none"] },
+        "transfer_record": { "type": ["string", "null"] }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base_head", "upstream_valid_through", "checked_at"],
+      "properties": {
+        "base_head": { "type": ["string", "null"] },
+        "upstream_valid_through": { "type": ["string", "null"] },
+        "checked_at": { "type": "string", "minLength": 1 }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "merge",
+        "release",
+        "deploy",
+        "upstream_contact",
+        "private_or_production_data",
+        "material_spending"
+      ],
+      "properties": {
+        "merge": { "type": "boolean" },
+        "release": { "type": "boolean" },
+        "deploy": { "type": "boolean" },
+        "upstream_contact": { "type": "boolean" },
+        "private_or_production_data": { "type": "boolean" },
+        "material_spending": { "type": "boolean" }
+      }
+    },
+    "blocker": { "type": ["string", "null"] },
+    "next_transition": { "type": "string" }
+  }
+}
