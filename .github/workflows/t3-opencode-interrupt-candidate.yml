@@ -53,7 +53,10 @@ jobs:
               apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
               apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-error.test.ts
               apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-owner-cancellation.test.ts
-              -t "^(settles|rejects|coalesces|preserves|continues|classifies|reuses)"
+              apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-projection.test.ts
+              -t "^(settles|rejects|coalesces|preserves|continues|classifies|reuses|emits)"
+          - name: Runtime ingestion compatibility
+            command: vp test run apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.test.ts
           - name: Existing OpenCode adapter suite
             command: vp test run apps/server/src/provider/Layers/OpenCodeAdapter.test.ts
           - name: Server typecheck
