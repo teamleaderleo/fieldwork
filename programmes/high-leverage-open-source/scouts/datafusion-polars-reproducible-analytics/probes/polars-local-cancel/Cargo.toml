@@ -10,5 +10,5 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3"
 
-[patch."https://github.com/kdn36/arrow-rs-object-store"]
+[patch.crates-io]
 object_store = { path = "../../../../../../.fieldwork/polars-object-store" }
