@@ -47,13 +47,18 @@ def _count(raw: str | None) -> int:
     return 1 if raw is None else int(raw)
 
 
-def _is_patch_boundary(line: str) -> bool:
+def _is_hard_boundary(line: str) -> bool:
     return (
         line.startswith("diff --git ")
         or line.startswith("Index: ")
-        or line.startswith("--- ")
         or line.startswith("Binary files ")
         or line.startswith("Only in ")
+    )
+
+
+def _is_file_header_boundary(line: str, next_line: str | None) -> bool:
+    return line.startswith("--- ") and bool(
+        next_line is not None and next_line.startswith("+++ ")
     )
 
 
@@ -75,15 +80,19 @@ def validate_patch_text(text: str, path: str = "<patch>") -> None:
     saw_hunk = False
     saw_binary_payload = False
 
-    for line_number, line in enumerate(lines, start=1):
+    for index, line in enumerate(lines):
+        line_number = index + 1
+        next_line = lines[index + 1] if index + 1 < len(lines) else None
         header = HUNK_HEADER.match(line)
+        hard_boundary = _is_hard_boundary(line)
+        file_header_boundary = _is_file_header_boundary(line, next_line)
 
         if hunk is not None:
             if line == NO_NEWLINE_MARKER:
                 continue
 
             if hunk.complete:
-                if header is not None or _is_patch_boundary(line):
+                if header is not None or hard_boundary or file_header_boundary:
                     _finish_hunk(path, hunk)
                     hunk = None
                 else:
@@ -91,10 +100,13 @@ def validate_patch_text(text: str, path: str = "<patch>") -> None:
                         f"{path}:{line_number}: extra content after completed hunk "
                         f"from line {hunk.header_line}"
                     )
-            elif header is not None or _is_patch_boundary(line):
+            elif header is not None or hard_boundary:
                 _finish_hunk(path, hunk)
                 hunk = None
             else:
+                # While a hunk is incomplete, every prefixed line is content.
+                # A deleted source line beginning "-- " appears as "--- " in
+                # the patch and must not be mistaken for a file header.
                 if line.startswith(" "):
                     hunk.old_seen += 1
                     hunk.new_seen += 1
