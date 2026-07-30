@@ -26,16 +26,21 @@ GIT binary patch
         )
 
     def test_text_hunk_cannot_hide_bare_binary_marker(self) -> None:
-        self.assert_missing_payload(
-            """diff --git a/a.txt b/a.txt
+        # A completed text hunk rejects later non-boundary content before the
+        # marker reaches section finalization. The safety requirement is that
+        # the mixed form cannot be accepted; the earlier error path is valid.
+        with self.assertRaises(PatchSyntaxError):
+            validate_patch_text(
+                """diff --git a/a.txt b/a.txt
 --- a/a.txt
 +++ b/a.txt
 @@ -1 +1 @@
 -old
 +new
 GIT binary patch
-"""
-        )
+""",
+                "candidate.patch",
+            )
 
     def test_binary_summary_cannot_hide_bare_binary_marker(self) -> None:
         self.assert_missing_payload(
