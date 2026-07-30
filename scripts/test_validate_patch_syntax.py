@@ -47,6 +47,32 @@ diff --git a/b.txt b/b.txt
 """
         )
 
+    def test_accepts_plain_unified_file_boundaries(self) -> None:
+        validate_patch_text(
+            """--- a/a.txt
++++ b/a.txt
+@@ -1 +1 @@
+-old
++new
+--- a/b.txt
++++ b/b.txt
+@@ -1 +1 @@
+-before
++after
+"""
+        )
+
+    def test_accepts_deleted_lines_that_resemble_file_headers(self) -> None:
+        validate_patch_text(
+            """diff --git a/a.txt b/a.txt
+--- a/a.txt
++++ b/a.txt
+@@ -1 +1 @@
+--- old heading
++++ new heading
+"""
+        )
+
     def test_rejects_wrong_old_count(self) -> None:
         self.assert_invalid(
             """diff --git a/a b/a
