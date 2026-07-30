@@ -18,7 +18,7 @@ env:
   CARGO_TERM_COLOR: always
   UPSTREAM_HEAD: 97576b1794872e342450ebd577123e052ab57626
   HISTORICAL_SOURCE: 7db66fe3f235df77c36a9db521677e23379bcac5
-  CARRIER_HEAD: d5028fc9771407aa7a9bafbceb7eba051b91de36
+  CARRIER_HEAD: c4e0de2e54d804d1054afb90c30b7150a774151c
 
 jobs:
   reconstruct-test-export:
@@ -110,25 +110,6 @@ jobs:
       - name: Reconstruct current Codex source
         working-directory: codex
         run: bash /tmp/restack.sh
-
-      - name: Preserve module-scoped terminal test access
-        working-directory: codex
-        shell: python
-        run: |
-          from pathlib import Path
-
-          process = Path('codex-rs/core/src/unified_exec/process.rs')
-          text = process.read_text(encoding='utf-8')
-          private = '    fn spawn_local_output_task(\n'
-          module_scoped = '    pub(super) fn spawn_local_output_task(\n'
-          if text.count(private) != 1:
-              raise SystemExit(
-                  'expected exactly one private spawn_local_output_task after reconstruction'
-              )
-          process.write_text(
-              text.replace(private, module_scoped, 1),
-              encoding='utf-8',
-          )
 
       - name: Format and verify four-file fence
         working-directory: codex
