@@ -1,160 +1,138 @@
 # Codex upstream drift and overlap ledger
 
-Owner: lane J, Fieldwork #239  
-Evidence class: source-read plus owned workflow states named below  
+Owner: lane J/I, Fieldwork #239  
+Parent canonical finding: [`F239`](../../../findings/F239-codex-upstream-convergence/finding.md)  
+Evidence class: source-read plus exact owned workflow state  
 Retrieval date: 2026-07-31  
-Current read-only upstream pin: `a01a2d91461a57809e944de7758477b92617ab01`  
-Upstream contact authorized: `false`
+Current read-only upstream pin: `3016671bb077c43448b8fa88f3edfa9772e17058`  
+Upstream contact authorized: `no`
 
 ## In simple words
 
-Codex changes quickly. A candidate that fit last night's code may collide with today's files, may already be implemented upstream, or may still solve a missing rule at a new location.
+Codex changes quickly. A candidate that fit an older source tree may conflict with current files, may have been absorbed upstream, or may still solve a missing rule at a new owner.
 
-This ledger compares exact upstream revisions with each Fieldwork source candidate. The classification answers two separate questions:
+This ledger separates:
 
-1. **Mechanical relation** — will the old patch apply cleanly?
-2. **Semantic relation** — does current Codex already enforce the intended behavior?
+1. **mechanical relation** — whether historical source applies cleanly;
+2. **semantic relation** — whether current Codex already enforces the intended invariant;
+3. **evidence relation** — whether the current exact carrier has executed and produced a reviewable source successor.
 
-A patch can conflict mechanically while remaining useful in meaning. Terminal retention currently has that classification.
+A candidate can conflict mechanically and remain useful semantically. Historical green tests remain historical evidence; they do not make a candidate current.
 
 ## Pin history
 
 | Pin | Relevant change | Convergence consequence |
 | --- | --- | --- |
-| `b545c94041017d000e2c8b2f6272705d21b85dfb` | Earlier execution base for deferred loader, MCP, terminal, and append candidates | Historical exact receipts remain valid at this pin |
-| `acd540f1581bf30f963fccbcce43ac494102242c` | Precomputed app-server protocol exports | Expired current-source claims and triggered the first reset review |
-| `97576b1794872e342450ebd577123e052ab57626` | Code Mode moved exclusively through the standalone host | Direct overlap with deferred discovery and request-authority placement |
-| `e6cfd40c3f444aadd6017c9eeab01db70f48961a` | Connector candidates exposed during external-agent detection | Adds capability-discovery context; active source fences remain unchanged |
-| `745603a5a1eb48b6f343633d622eeb72dd549d7b` | Passthrough metadata ignored during rollout-item reconciliation | Enters history/replay review; append acknowledgement and typed persistence outcome remain open |
-| `a01a2d91461a57809e944de7758477b92617ab01` | Executor paths preserved in read-command actions | Adds adjacent execution-provenance context; declared active candidate source fences remain unchanged |
+| `b545c94041017d000e2c8b2f6272705d21b85dfb` | Earlier execution base for deferred loader, MCP, terminal, and append candidates | Historical exact receipts remain valid only at this pin |
+| `97576b1794872e342450ebd577123e052ab57626` | Code Mode moved exclusively through the standalone host | Historical deferred-authority source placement became obsolete |
+| `745603a5a1eb48b6f343633d622eeb72dd549d7b` | Rollout reconciliation ignores passthrough metadata | Adjacent history/replay improvement; append acknowledgement remains open |
+| `a01a2d91461a57809e944de7758477b92617ab01` | Read-command actions preserve executor paths | Adjacent execution-provenance context |
+| `3016671bb077c43448b8fa88f3edfa9772e17058` | Enterprise automation account-plan support | Current head; one-commit delta from `a01a2d...` does not overlap declared active source fences |
 
-## Important upstream prior changes in the current ancestry
+## Current-head delta
+
+The complete `a01a2d... → 3016671...` compare changes:
+
+- account plan and authentication types;
+- rate-limit payloads and app-server schemas;
+- backend-client behavior;
+- login, cloud-config, protocol, and status tests;
+- TUI status presentation.
+
+It does not touch the declared current fences for:
+
+- session append acknowledgement;
+- ThreadStore in-memory controls;
+- unified-exec process and async watcher retention;
+- MCP runtime manager and reconnect paths;
+- request construction or standalone Code Mode host authority.
+
+Classification: **no active-fence overlap; prior candidate classifications carry forward to `3016671...` for those paths**.
+
+## Important prior changes in the current ancestry
 
 ### Streaming output deque conversion
 
-Commit `789c72dcf62d7439863d4d2846454f05b3d51db6` changes unified-exec output buffering from `Vec` to `VecDeque`, consumes valid UTF-8 prefixes through error offsets, and adds invalid-byte progress controls.
+Commit `789c72dcf62d7439863d4d2846454f05b3d51db6` replaces repeated front-shifting with `VecDeque`, advances through invalid UTF-8, and adds focused controls.
 
-Overlap:
+Classification: **mechanically conflicting, semantically complementary** to producer-owned completion retention. Every terminal restack must preserve this behavior.
 
-- same files as the historical terminal-retention candidate;
-- real mechanical conflict;
-- useful current behavior that every restack must preserve;
-- no producer-owned completion retention before best-effort broadcast.
+### Responses Lite logical trace and capability prefix
 
-Classification: **mechanically conflicting, semantically complementary**.
+Commit `20fedafff83f5c681fc62f73b0ca3227e42e3f8b` repairs logical websocket tracing after untraced prewarm. Commit `33cc928d339307795d4f5987337c7c4607f70338` carries Responses Lite tools in input items.
 
-### Logical websocket trace after prewarm
-
-Commit `20fedafff83f5c681fc62f73b0ca3227e42e3f8b` records the logical request when a generated websocket call reuses an untraced warmup response.
-
-Overlap:
-
-- same startup-prewarm neighborhood as the Responses Lite investigation;
-- solves rollout-trace replay of the logical request;
-- leaves capability-manifest retransmission and executable authority as separate questions.
-
-Classification: **partial adjacent absorption; source residue remains**.
-
-### Responses Lite input-item tools
-
-Commit `33cc928d339307795d4f5987337c7c4607f70338` places Responses Lite tools in `additional_tools` input items and a developer item.
-
-Overlap:
-
-- defines the capability prefix whose first generated transmission is under study;
-- strengthens the need to distinguish prewarm connection reuse from model-visible capability delivery;
-- does not answer Code Mode host authority or loader execution.
-
-Classification: **upstream prerequisite and contract context**.
+Classification: **trace repair and capability-delivery prerequisite**. Neither proves the first generated request transmitted the complete capability prefix or that executable host authority matched it.
 
 ### Standalone Code Mode host
 
-Commit `97576b1794872e342450ebd577123e052ab57626` moves Code Mode execution exclusively through its standalone host.
+Commit `97576b1794872e342450ebd577123e052ab57626` moves execution exclusively to the standalone host.
 
-Overlap:
-
-- changes the owning boundary for deferred discovery and executable loader policy;
-- invalidates a source-placement-only restack of the older candidate;
-- does not establish that every direct tool has an executable path or that deferred metadata matches host capability.
-
-Classification: **mechanically and architecturally changed; semantic residue remains**.
+Classification: **architectural conflict with historical placement; semantic executable-authority invariant remains**.
 
 ### Rollout passthrough-metadata normalization
 
-Commit `745603a5a1eb48b6f343633d622eeb72dd549d7b` ignores passthrough metadata during rollout-item reconciliation and adds focused reducer tests.
+Commit `745603a5a1eb48b6f343633d622eeb72dd549d7b` reduces false history divergence caused by passthrough metadata.
 
-Overlap:
+Classification: **adjacent history absorption**. It does not report original append acknowledgement or distinguish prewrite failure from commit-then-error ambiguity.
 
-- enters logical item equality and replay normalization;
-- can reduce false divergence caused by transport metadata;
-- does not report whether a live append persisted;
-- does not classify prewrite failure versus commit-then-error acknowledgement loss;
-- does not establish retry or compaction authority for an ambiguous result.
+### Executor path preservation
 
-Classification: **adjacent history absorption; append-outcome residue remains**.
+Commit `a01a2d91461a57809e944de7758477b92617ab01` preserves executor paths in public read-command actions.
 
-### Executor paths in read-command actions
-
-Commit `a01a2d91461a57809e944de7758477b92617ab01` preserves executor paths in app-server command-action records and updates protocol schemas, item builders, path-URI handling, and focused tests.
-
-Overlap:
-
-- adds adjacent provenance for environment-backed read actions;
-- touches none of the declared append, terminal, MCP runtime, request-construction, or Code Mode host source fences;
-- does not settle operation effect, result persistence, runtime-generation binding, or transcript retention.
-
-Classification: **adjacent execution-provenance context; active candidate classifications unchanged**.
+Classification: **adjacent provenance precedent**. It does not settle runtime generation, remote effects, result persistence, or terminal retention.
 
 ## Candidate ledger
 
-| Candidate | Historical source head | Current class | Strongest current conclusion | Exact next action |
+| Candidate | Historical source identity | Current classification | Strongest current conclusion | Exact next action |
 | --- | --- | --- | --- | --- |
-| Deferred executable loader, owned Codex #45 | `e8d14cd1e4e26f3963f318ceb9f7f7493df32eba` | architectural conflict; semantic residue | Direct exposure still needs an executable authority path; Code Mode host migration changes placement | Redesign against standalone host and current request construction before restack |
-| Host MCP reconnect, owned Codex #46 | `eb39c46b4bd0e115aa3e0acece50a19e803a37a4` | semantically complementary; current-source review pending | Explicit host refresh freshness remains distinct from ordinary runtime-config reuse | Re-read current manager call path and compare exact behavior with current upstream explicit-refresh reconnect |
-| MCP generation publication, owned Codex #48 | `af8d348408e4ab7a00f2423503f9862359063357` | semantically complementary; current-source review pending | Current drift does not establish newest-generation-only publication or result identity | Restack the generation gate after current runtime ownership review |
-| Terminal producer-owned retention, owned Codex #49 | `7db66fe3f235df77c36a9db521677e23379bcac5` | mechanically conflicting, semantically complementary | Upstream deque work improves decoding while retained completion still depends on the producer boundary | Execute and review carrier #53, preserving the deque behavior |
-| Append acknowledgement prerequisite, owned Codex #51 | `30a0a9b50da5fd2f7d58ee81315e0311e84e221e` | clean semantic residue; current execution pending | Current session code still logs append failure without returning an outcome | Execute and review carrier #52, then branch typed persistence state separately |
-| Responses Lite first generated capability prefix, historical owned Codex #23 work | carrier-only historical work | policy plausible; production source held | Trace repair and manifest delivery are different questions; full Code Mode test hits default worker stack limits | Build a lower-level exact-prefix and retry fixture before production candidate |
-| MCP timeout outcome separation, Fieldwork #134/#162 | experiment and report set | complementary to current source | Caller timeout, cancellation delivery, transport state, and remote effect require separate facts | Design manager-owned generation-checked retirement without mutation replay |
+| Deferred executable authority, owned #45 | `e8d14cd1e4e26f3963f318ceb9f7f7493df32eba` | architectural conflict; semantic residue | Every model-visible direct/deferred tool still needs matching executable authority, but standalone host owns the current boundary | Map host declaration, loader, dispatch, collision identity, and request prefix before new source |
+| Host MCP reconnect, owned #46 | `eb39c46b4bd0e115aa3e0acece50a19e803a37a4` | partial overlap; current comparison pending | Explicit freshness remains distinct from ordinary unchanged reuse | Compare exact manager call paths and tests with upstream #34952/#35151 |
+| MCP generation publication, owned #48 | `af8d348408e4ab7a00f2423503f9862359063357` | complementary; current comparison pending | Current source does not yet prove newest-eligible-generation publication or accepted-result identity | Restack only after manager ownership map |
+| Terminal producer retention, owned #49/#53 | historical source `7db66fe3f235df77c36a9db521677e23379bcac5`; carrier `#53@c4e0de2e54d804d1054afb90c30b7150a774151c` | mechanically conflicting, semantically complementary, executing | Current deque and lifecycle ordering remain valuable; producer-owned retained completion still has bounded residue | Inspect run `30585540688`, then review four-file source successor |
+| Append acknowledgement, owned #51/#80 | reviewed source `30a0a9b50da5fd2f7d58ee81315e0311e84e221e`; carrier `#80@401c2e5e6a37730aae3e8da95591cc6f56655cfc` | clean semantic residue, current-pin execution pending | Session still needs caller-visible canonical append acknowledgement | Inspect run `30583967538`, review source-only successor, then split typed ambiguity state |
+| Responses Lite first generated capability prefix | historical carrier-only work | plausible contract; production source held | Trace reconstruction and capability transmission are separate; default-stack failure requires smaller fixture | Build lower-level exact-prefix and failed-first-generated retry controls |
+| MCP timeout outcome separation, #134/#162 | executed experiment/report set | complementary operation model | Caller deadline, cancellation delivery, transport, and remote effect are separate facts | Design manager-owned generation-checked retirement; prohibit mutation replay while unknown |
 
 ## Current execution carriers
 
-### Append outcome carrier #52
+### Current-pin append carrier #80
 
-- branch: `fieldwork/83-direct-append-carrier-20260731`;
-- head: `324ddccba14b2b0934e2c56cc0cda7ca04a56e6d`;
-- intended source branch: `fieldwork/83-append-outcome-upstream-97576b`;
-- authoritative workflow: `30582576317`;
-- state at retrieval: `queued`;
-- base: `97576b1794872e342450ebd577123e052ab57626`.
+- branch: `fieldwork/83-append-outcome-carrier-a01a2d`;
+- exact head: `401c2e5e6a37730aae3e8da95591cc6f56655cfc`;
+- base: `a01a2d91461a57809e944de7758477b92617ab01`;
+- intended source branch: `fieldwork/83-append-outcome-a01a2d`;
+- authoritative workflow: `30583967538`;
+- state at this retrieval: `queued`;
+- source fence: `codex-rs/core/src/session/mod.rs`, `codex-rs/core/src/session/turn_tests.rs`, `codex-rs/thread-store/src/in_memory.rs`.
 
-Current upstream is three commits ahead. The external-agent connector and executor-path changes leave the three-file source fence untouched. The rollout reconciliation change is adjacent and requires post-publication review; it does not replace the append outcome.
+Historical carrier #52 remains a retained exact-pin record. It is superseded by #80 for current-source promotion and should retire only after #80 supplies a valid successor or retained failure.
 
 ### Terminal retention carrier #53
 
 - branch: `fieldwork/23-terminal-acd540-restack-carrier`;
-- head: `d5028fc9771407aa7a9bafbceb7eba051b91de36`;
+- exact head: `c4e0de2e54d804d1054afb90c30b7150a774151c`;
+- base: `97576b1794872e342450ebd577123e052ab57626`;
 - intended source branch: `fieldwork/23-terminal-97576-source`;
-- authoritative workflow: `30582012412`;
-- state at retrieval: `queued`;
-- base: `97576b1794872e342450ebd577123e052ab57626`.
+- authoritative workflow: `30585540688`;
+- state at this retrieval: `pending`;
+- source fence: `process.rs`, `process_tests.rs`, `async_watcher.rs`, `async_watcher_tests.rs` under unified execution.
 
-The three newer upstream commits leave the terminal four-file fence unchanged. A successful source publication can therefore be compared directly to current head for an exact no-overlap confirmation, followed by independent complete-diff review.
+The public delta from the carrier base through `3016671...` leaves the four-file terminal fence unchanged. A published source successor still requires direct current-head compare and complete-diff review.
 
 ## Classification vocabulary
 
-- **absorbed** — current upstream enforces the intended invariant with adequate evidence;
-- **cleanly portable** — the bounded source applies without material ownership change;
-- **mechanically conflicting** — overlapping code prevents direct application;
-- **semantically conflicting** — current architecture or contract rejects the proposed invariant;
-- **complementary** — current upstream changed adjacent behavior while leaving the invariant open;
-- **obsolete** — the premise, target boundary, or delivery value expired;
-- **historical evidence only** — exact past execution remains useful while current-source claims have expired.
+- **absorbed** — current source enforces the intended invariant with adequate evidence;
+- **cleanly portable** — bounded source applies without material ownership change;
+- **mechanically conflicting** — overlapping source prevents direct application;
+- **semantically conflicting** — current architecture rejects the proposed invariant;
+- **complementary** — current source changed adjacent behavior while leaving the invariant open;
+- **obsolete** — premise, owner, or delivery value expired;
+- **historical evidence only** — exact past execution remains useful while present-tense claims expired.
 
 ## Current conclusion
 
-No active bounded candidate in this ledger is fully absorbed by current upstream.
+No active bounded candidate in this ledger is fully absorbed by current Codex.
 
-Two candidates are in exact execution-carrier validation. Two MCP candidates remain semantically complementary and need current-source comparison or restacks. Deferred discovery requires redesign at the standalone host boundary. The Responses Lite source idea needs a smaller production-representative fixture before a source candidate. Timeout outcome work remains a separate operation-lifecycle proposal.
+Append acknowledgement and terminal retention are in exact carrier execution. MCP reconnect and generation publication need current manager comparison. Deferred executable authority needs a new standalone-host source map. Responses Lite needs a smaller capability-prefix fixture. Timeout outcome work remains a separate operation-lifecycle finding.
 
-Every `current`, `portable`, or `proposal-ready` claim must use `a01a2d91461a57809e944de7758477b92617ab01` or a newer explicitly recorded head.
+Every `current`, `portable`, `conflict-free`, or `proposal-ready` claim must use `3016671bb077c43448b8fa88f3edfa9772e17058` or a newer explicitly reviewed head.
