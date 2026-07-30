@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 import shlex
 import subprocess
@@ -20,6 +21,10 @@ class PackError(ValueError):
     pass
 
 
+def _is_number(value: Any) -> bool:
+    return type(value) in {int, float}
+
+
 def load_pack(path: Path) -> dict[str, Any]:
     try:
         pack = json.loads(path.read_text(encoding="utf-8"))
@@ -28,10 +33,11 @@ def load_pack(path: Path) -> dict[str, Any]:
 
     if not isinstance(pack, dict):
         raise PackError(f"{path}: pack must be a JSON object")
-    if pack.get("schema_version") != SCHEMA_VERSION:
+    schema_version = pack.get("schema_version")
+    if type(schema_version) is not int or schema_version != SCHEMA_VERSION:
         raise PackError(
-            f"{path}: schema_version must be {SCHEMA_VERSION}, "
-            f"got {pack.get('schema_version')!r}"
+            f"{path}: schema_version must be integer {SCHEMA_VERSION}, "
+            f"got {schema_version!r}"
         )
     if not isinstance(pack.get("name"), str) or not pack["name"].strip():
         raise PackError(f"{path}: name must be a non-empty string")
@@ -60,8 +66,10 @@ def load_pack(path: Path) -> dict[str, Any]:
             )
 
         timeout = case.get("timeout_seconds", pack.get("timeout_seconds", 5))
-        if not isinstance(timeout, (int, float)) or timeout <= 0:
-            raise PackError(f"{location}: timeout_seconds must be positive")
+        if not _is_number(timeout) or not math.isfinite(timeout) or timeout <= 0:
+            raise PackError(
+                f"{location}: timeout_seconds must be a finite positive number"
+            )
 
         expect = case.get("expect", {})
         if not isinstance(expect, dict):
@@ -76,6 +84,11 @@ def load_pack(path: Path) -> dict[str, Any]:
         unknown = set(expect) - allowed
         if unknown:
             raise PackError(f"{location}: unknown expectation keys: {sorted(unknown)}")
+
+        if "exit_code" in expect:
+            expected_exit_code = expect["exit_code"]
+            if expected_exit_code is not None and type(expected_exit_code) is not int:
+                raise PackError(f"{location}: expect.exit_code must be an integer or null")
 
     return pack
 
