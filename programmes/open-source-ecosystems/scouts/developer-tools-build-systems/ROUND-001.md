@@ -14,9 +14,9 @@ Repository: `astral-sh/ruff`
 
 ### Deep dive — RUF038 runtime mutation
 
-Issue: [#27026](https://github.com/astral-sh/ruff/issues/27026)  
+Issue: [RUF038 runtime/fix issue](https://redirect.github.com/astral-sh/ruff/issues/27026)  
 Owning file: `crates/ruff_linter/src/rules/ruff/rules/redundant_bool_literal.rs`  
-Related stabilization: [PR #26919](https://github.com/astral-sh/ruff/pull/26919)
+Related stabilization: [RUF038 stabilization PR](https://redirect.github.com/astral-sh/ruff/pull/26919)
 
 The rule documentation says it checks `Literal[True, False]` **type annotations**. The implementation receives a general `literal_expr`, traverses its members, and can replace the entire expression range with `bool` when it believes only `True` and `False` were seen.
 
@@ -59,16 +59,16 @@ Then trace the rule invocation to decide whether annotation context belongs at t
 
 ### Promotion signal
 
-A focused patch should prevent runtime diagnostics, preserve all unsupported members, and retain expected annotation fixes. Because PR #26919 proposes stabilization, coordinate the regression with that review path before upstream submission.
+A focused patch should prevent runtime diagnostics, preserve all unsupported members, and retain expected annotation fixes. Coordinate the regression with the stabilization review path before upstream submission.
 
 ## Other Ruff candidates
 
-1. [#27022](https://github.com/astral-sh/ruff/issues/27022) — B006 preview fix changes the contents of a multiline string by introducing indentation. Preserve exact runtime value.
-2. [#27024](https://github.com/astral-sh/ruff/issues/27024) — RUF055 is classified safe but changes bytes-regex behavior for buffer-protocol objects. Reassess fix safety or constrain the transformation.
-3. [#27008](https://github.com/astral-sh/ruff/issues/27008) — PEP 695 fixes remove unpacked `TypeVar` keyword arguments.
-4. [#26954](https://github.com/astral-sh/ruff/issues/26954) — PEP 695 fixes introduce syntax errors for starred constraints.
-5. [#27028](https://github.com/astral-sh/ruff/issues/27028) — EXE001 treats a nested ordinary `#!` comment as a shebang.
-6. [#25418](https://github.com/astral-sh/ruff/issues/25418) and [#26450](https://github.com/astral-sh/ruff/issues/26450) — conflicting lazy-import fixes fail to converge after 100 iterations.
+1. [B006 multiline-string fix issue](https://redirect.github.com/astral-sh/ruff/issues/27022) — a preview fix changes the contents of a multiline string by introducing indentation.
+2. [RUF055 buffer-behavior issue](https://redirect.github.com/astral-sh/ruff/issues/27024) — a safe fix changes bytes-regex behavior for buffer-protocol objects.
+3. [PEP 695 keyword-removal issue](https://redirect.github.com/astral-sh/ruff/issues/27008) — fixes remove unpacked `TypeVar` keyword arguments.
+4. [PEP 695 starred-constraint issue](https://redirect.github.com/astral-sh/ruff/issues/26954) — fixes introduce syntax errors.
+5. [EXE001 nested-comment issue](https://redirect.github.com/astral-sh/ruff/issues/27028) — an ordinary nested `#!` comment is treated as a shebang.
+6. [lazy-import convergence issue A](https://redirect.github.com/astral-sh/ruff/issues/25418) and [issue B](https://redirect.github.com/astral-sh/ruff/issues/26450) — conflicting fixes fail to converge after 100 iterations.
 
 The PEP 695 cases could form a bounded batch because they share TypeVar-to-type-parameter transformation code and require runtime/syntax preservation matrices.
 
@@ -78,7 +78,7 @@ Repository: `pypa/pip`
 
 ### Integrity boundary
 
-Issue [#13984](https://github.com/pypa/pip/issues/13984) reports that `--require-hashes` does not enforce hashes for build-system dependencies. This is consequential, but it crosses policy and compatibility boundaries. The first packet should use a fully local package index and sdist so the behavior can be demonstrated without network or registry variability, then ask maintainers which contract they want before implementation.
+The [build-dependency hash-policy issue](https://redirect.github.com/pypa/pip/issues/13984) reports that `--require-hashes` does not enforce hashes for build-system dependencies. This is consequential, but it crosses policy and compatibility boundaries. The first packet should use a fully local package index and sdist so the behavior can be demonstrated without network or registry variability, then ask maintainers which contract they want before implementation.
 
 Required fixture:
 
@@ -94,11 +94,11 @@ Record whether pip documents or reports the bypass and which resolver/install ph
 
 ### Diagnostic candidate
 
-Issue [#14193](https://github.com/pypa/pip/issues/14193) reports a “no matching distributions” hint for a package version that installs independently. Reduce the resolver state and environment marker combination before considering code.
+The [resolver hint issue](https://redirect.github.com/pypa/pip/issues/14193) reports a “no matching distributions” hint for a package version that installs independently. Reduce the resolver state and environment marker combination before considering code.
 
 ### Duplicate stop
 
-Issue #14177 already has [PR #14178](https://github.com/pypa/pip/pull/14178), fixing a `Version == str` comparison that made the `(latest)` output branch unreachable. Retain as a compact tool-correctness example.
+The latest-marker issue already has [a focused fix PR](https://redirect.github.com/pypa/pip/pull/14178), correcting a `Version == str` comparison that made the `(latest)` output branch unreachable. Retain it as a compact tool-correctness example.
 
 ## Test packet standard for developer tools
 
@@ -114,9 +114,9 @@ Every automatic-fix candidate should include:
 
 ## Return
 
-- **Promote first:** Ruff #27026.
-- **Parallel candidates:** Ruff #27022 and #27024.
-- **Batch candidate:** Ruff #27008 and #26954 around PEP 695 transformations.
-- **Issue-first:** pip #13984.
-- **Retain for reduction:** pip #14193 and Ruff convergence issues.
-- **Stop duplicate implementation:** pip #14177.
+- **Promote first:** the RUF038 annotation/runtime boundary.
+- **Parallel candidates:** B006 multiline strings and RUF055 buffer behavior.
+- **Batch candidate:** the two PEP 695 transformations.
+- **Issue-first:** pip build-dependency hash enforcement.
+- **Retain for reduction:** pip resolver diagnostics and Ruff convergence.
+- **Stop duplicate implementation:** pip latest-marker output.
