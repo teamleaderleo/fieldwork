@@ -62,7 +62,7 @@ GitHub issues hold current owner, state, blockers, dependencies, decisions, and 
 
 ### Actual review queue
 
-[`QUEUE.md`](QUEUE.md) is the repository entry point. [Issue #213](https://github.com/teamleaderleo/fieldwork/issues/213) is the live ordered set of at most eight bounded human review cards.
+[`QUEUE.md`](QUEUE.md) is the repository entry point. [Issue #213](https://github.com/teamleaderleo/fieldwork/issues/213) is the live ordered set of bounded human review cards. It may grow as work becomes reviewable; priority controls order rather than admission.
 
 Each card states:
 
@@ -72,7 +72,7 @@ Each card states:
 - the disposition that moves the work;
 - the canonical issue and pull request.
 
-Remove a card immediately after disposition. Route implementation and final gates to issue #160. A changed head or evidence input expires the review.
+Remove a card after disposition and durable routing. Route implementation and final gates to issue #160. A changed head or evidence input expires the review. Later source movement, execution evidence, or adjacent findings may return settled work for explicit re-examination.
 
 ### Delivery Desk
 
@@ -113,7 +113,7 @@ Never treat programme, target, testbed, review, or Delivery Desk registries as a
 - **Scout, lane, or batch result** — evidence and conclusion owned by one worker.
 - **Integration trial** — realistic use in an owned repository.
 - **Review record** — exact-head disposition and required next action.
-- **Actual review queue** — ordered human decisions, capped at eight cards.
+- **Actual review queue** — complete ordered human decisions and explicit re-examinations.
 - **Delivery Desk** — current execution and finish-line routing, not underlying evidence.
 - **Synthesis** — interpretation across assignments.
 - **Ledgers** — final normalized outcomes, not active task management.

@@ -2,7 +2,7 @@
 
 **Start here when reviewing Fieldwork:** [issue #213 — Actual review queue](https://github.com/teamleaderleo/fieldwork/issues/213)
 
-That issue is the canonical ordered list of work needing human judgment. It states the exact decision, the evidence to inspect, and the disposition that moves each card.
+That issue is the canonical ordered list of work needing human judgment. It states the exact decision, the evidence to inspect, and the disposition that moves each card. The queue grows whenever another bounded decision becomes reviewable; priority controls order, not inclusion.
 
 ## Current review order
 
@@ -15,7 +15,7 @@ That issue is the canonical ordered list of work needing human judgment. It stat
 7. [PR #163](https://github.com/teamleaderleo/fieldwork/pull/163) — Codex MCP cancellation packet.
 8. [PR #91](https://github.com/teamleaderleo/fieldwork/pull/91) — Supabase refresh notification ownership.
 
-The detailed asks live in issue #213. Keep this file compact and update it only when the ordered top-level set changes.
+The detailed asks live in issue #213. Keep this file readable, preserve the complete ordered set, and update it when a card enters, moves, is disposed, or returns for re-examination.
 
 ## Other queues
 
@@ -25,10 +25,12 @@ The detailed asks live in issue #213. Keep this file compact and update it only 
 
 ## Rules
 
-- At most eight items belong in the immediate review list.
-- Each item needs one bounded decision.
-- Remove disposed work immediately.
-- Move implementation chores to the Delivery Desk.
+- Include every bounded decision that is ready for human judgment; do not hide lower-priority cards to keep the list short.
+- Use ordering and headings to manage a large pile rather than deleting valid review debt.
+- Each item needs one clear decision and named evidence.
+- Remove disposed work after the decision and next action are durable.
+- Move implementation chores to the Delivery Desk without erasing their review history.
 - A changed head or changed evidence input expires the review.
-- Broad scouts, execution carriers, and historical PRs stay outside this list.
+- Re-open or add a re-examination card when later source movement, execution evidence, or adjacent findings weaken an earlier disposition.
+- Broad scouts, execution carriers, and historical PRs stay outside this list unless they present a current bounded decision.
 - This queue grants no upstream-contact authority.
