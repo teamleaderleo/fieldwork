@@ -35,7 +35,7 @@ index 0000000..0000000 100644
 +    )(function* (
 +      context: OpenCodeSessionContext,
 +      turnId: TurnId | undefined,
-+      reason: "turn_interrupted" | "session_error" | "provider_exited",
++      reason: "turn_interrupted" | "session_error" | "provider_exited" | "session_stopped",
 +    ) {
 +      const resolution = {
 +        status: "expired" as const,
@@ -108,6 +108,18 @@ index 0000000..0000000 100644
                context.activeTurnId = undefined;
                context.activeAgent = undefined;
                context.activeVariant = undefined;
+@@ -1800,6 +1863,11 @@ export function makeOpenCodeAdapter(
+             threadId,
+           });
+         }
++        yield* expirePendingInteractiveRequests(
++          context,
++          context.activeTurnId,
++          "session_stopped",
++        );
+         const stopped = yield* stopOpenCodeContext(context);
+         sessions.delete(threadId);
+         if (!stopped) {
 diff --git a/packages/contracts/src/providerRuntime.ts b/packages/contracts/src/providerRuntime.ts
 index eb2563e..0000000 100644
 --- a/packages/contracts/src/providerRuntime.ts
