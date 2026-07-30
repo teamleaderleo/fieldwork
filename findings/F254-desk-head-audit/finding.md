@@ -1,183 +1,176 @@
-# F254-desk-head-audit: fail when review and delivery desks point at expired pull-request heads
+# F254-desk-head-audit: detect expired pull-request heads in the review and delivery desks
 
 Finding state: `research-active`
 
-Workstream: `A`  
+Workstream: `A / I`  
 Canonical Fieldwork issue: `#254`  
 Canonical finding path: `findings/F254-desk-head-audit/finding.md`  
-Canonical implementation: draft Fieldwork pull request on `ops/desk-head-audit-2026-07-31`  
-Exact implementation head: recorded by the pull request after this file is committed  
-Exact base revision: `teamleaderleo/fieldwork@896a617c4b4dd8dd9fb9493d05f801c7baf9ade3`  
+Canonical implementation: draft PR #274  
+Exact implementation head: `f0660030a2b9346a8d4033d9843678919841e8dc`  
+Exact base revision: `teamleaderleo/fieldwork@896a617c4b4dd9fb9493d05f801c7baf9ade3`  
 Strongest evidence class: `target-test-prepared`  
-Reviewed input generation: Review Queue #213 and Delivery Desk #160 after 2026-07-31 exact-head synchronization  
+Reviewed inputs: live Review Queue #213 and Delivery Desk #160 after 2026-07-31 successor cleanup  
 Current review disposition: `EXECUTE`  
-Desk routing: `none — the audit validates the desks`  
+Desk routing: none; this tool validates desk routing  
 Upstream contact authorized: `no`
 
 ## In simple words
 
-Fieldwork's review queue and delivery desk tell people which exact pull-request commits are ready for review, a decision, or merge. Several entries stayed on old commits after their branches moved. One old entry even kept telling people to merge a commit after later review found a concrete defect.
+Fieldwork's review queue and delivery desk tell people which exact pull-request commits are ready for review, delivery, or merge. Several entries stayed on old commits or old successor relationships after branches moved and partial pull requests were replaced.
 
-The proposed audit reads hidden exact-head markers from #213 and #160, fetches the named owned pull requests, and fails when a marker is stale, missing, duplicated, conflicting, closed, or merged. It only reports problems. It cannot approve, promote, merge, or contact upstream.
+The proposed audit reads hidden exact-head markers from #213 and #160, fetches the named owned pull requests, and fails when a marker is stale, missing, duplicated, conflicting, closed, or merged. It reports drift only and cannot update or promote anything.
 
-The implementation and focused fixtures are prepared. Exact-head workflow execution is the next gate.
+The desks now carry markers only for active promotion or delivery entries: Fieldwork PRs #231, #238, and #252. Repair PR #281 and execution carrier #273 remain visible in prose without promotion markers.
 
 ## Why we care
 
-An exact-head review is a statement about one immutable code generation. When a queue points at an older head, a reviewer can inspect the wrong diff, rely on expired tests, or merge code that differs from the accepted candidate. Manual prose is easy to miss because branch names stay the same while commits move.
+An exact-head disposition describes one immutable code generation and reviewed input set. A stale marker can direct a reviewer toward the wrong diff, retain expired tests, or tell a person to merge code that differs from the accepted candidate.
 
-This failure appeared three times in the current desk pass:
+The observed cleanup found several forms of drift:
 
-- PR #249 remained in the queue and D0 at an old locked head after a later parser defect and repair;
-- PR #259 remained described as CI-queued after all exact-head gates completed;
-- PR #252 remained at an older R1 head after four commits added meaningful read-invalidation behavior and changed the remaining question to a retention-policy decision.
-
-## What happens if we leave it alone
-
-Observed consequences include expired signoff, misleading merge instructions, incorrect workflow status, and review questions attached to code that no longer exists at the branch tip. The frequency across all Fieldwork records is unknown because current desks are prose-driven and lack an automatic comparison.
+- PR #249 retained old locked and review-ready states after later parser defects;
+- PR #259 retained queued/review wording after completed workflows and later gained a composed successor;
+- PR #252 retained an older R1 head after meaningful source and decision changes;
+- partial PRs #257/#259 remained live after PR #273 became the single composed continuation.
 
 ## Current finding
 
-The queue and desk need an explicit machine-readable reference for each active owned pull request. A read-only evaluator should compare that expected head with live pull-request metadata and fail closed on stale or malformed routing data.
+The queue and desk need explicit machine-readable references for active owned pull requests. A read-only evaluator should compare the expected head with live PR state and fail closed on malformed or expired routing data.
 
-The proposed marker is:
+Marker form:
 
 ```text
 <!-- fieldwork:desk-ref repo=teamleaderleo/fieldwork pr=231 head=<40-hex-sha> lane=R3 -->
 ```
 
-The marker carries only routing identity. Narrative prose and canonical findings continue to explain evidence, limits, and decisions.
+Markers carry routing identity only. Canonical findings and implementation PRs explain evidence, defects, limits, and transitions.
 
 ### Claim table
 
 | Claim | Evidence class | Exact support | Limit |
 | --- | --- | --- | --- |
-| #213/#160 can retain an expired exact head after a branch moves. | `source-read` | Live PR #249 and PR #252 metadata compared with their desk text before repair. | Two observed owned-repository examples do not measure total historical frequency. |
-| A stale desk head can preserve expired review or merge wording. | `source-read` | PR #249 old D0 entry versus later binary-block defect and repaired head. | Human behavior after reading the stale entry was not measured. |
-| Explicit markers can be compared with live pull-request heads without write authority. | `target-test-prepared` | `scripts/audit_desk_heads.py` and `.github/workflows/desk-head-audit.yml`. | Exact workflow has not run at this finding generation yet. |
-| The audit does not issue promotion decisions. | `source-read` | Script output is JSON findings only; workflow permissions are read-only. | Repository administrators still control workflow and issue edits. |
+| Review/delivery prose can retain expired exact heads or successors. | `source-read` | PRs #249, #252, #257, and #259 compared with live branch and successor state during #254 cleanup. | Observed examples do not measure full history. |
+| Explicit markers can be checked with read-only GitHub access. | `target-test-prepared` | `scripts/audit_desk_heads.py` and workflow permissions. | Exact workflow remains queued. |
+| Live 404 responses become `missing_pull_request` findings. | `source-read` | `AuditNotFound` handling at head `f0660030...`. | Other transport failures remain blocked execution. |
+| The audit cannot issue a promotion or write. | `source-read` | JSON-only report path and read-only contents/issues/pull-request permissions. | Repository administrators still control workflows and issue edits. |
 
 ## System and ownership map
 
 - Human entrypoints: Review Queue #213 and Delivery Desk #160.
-- Durable reasoning: canonical finding files and implementation pull requests.
-- Machine-readable input: hidden `fieldwork:desk-ref` markers in issue bodies.
-- Live authority source: GitHub pull-request state and `head.sha` for owned repositories.
+- Technical authority: canonical findings and exact implementation PRs.
+- Machine input: `fieldwork:desk-ref` HTML comments in issue bodies.
+- Live state source: owned GitHub pull-request `state`, `merged`, and `head.sha`.
 - Evaluator: `scripts/audit_desk_heads.py`.
-- Focused regressions: `scripts/test_audit_desk_heads.py`.
-- Execution surface: `.github/workflows/desk-head-audit.yml` with read-only contents, issues, and pull-request permissions.
-- Side effect: workflow pass or failure only.
-- Recovery: update or remove the stale desk marker and synchronize the narrative record.
-- Human authority: acceptance, promotion, design choice, merge, and upstream contact remain outside the evaluator.
+- Regressions: `scripts/test_audit_desk_heads.py`.
+- Execution: `.github/workflows/desk-head-audit.yml`.
+- Side effect: workflow pass or failure and JSON output only.
+- Recovery: synchronize or remove the marker after technical reclassification.
 
 ## Historical precedent
 
-### Fieldwork exact-head review protocol
+### Exact-head review protocol
 
-- Source: `REVIEWING.md`.
-- Revision: `896a617c4b4dd8dd9fb9493d05f801c7baf9ade3`.
-- Principle supported: code-head movement or reviewed-input generation change expires a disposition; queues must carry exact referenced states and a validation timestamp to claim currency.
-- Important difference: the current protocol is manual. This finding implements one narrow detector for pull-request head and state drift.
+`REVIEWING.md` requires code-head and reviewed-input movement to expire a disposition. Generated queues without validated exact states are snapshots.
+
+Important difference: the protocol is manual; this finding adds one narrow detector for owned PR head and state drift.
 
 ### Coordination compiler
 
-- Source: `scripts/coordination_compiler.py` and `.github/workflows/coordination-compiler.yml`.
-- Revision: `896a617c4b4dd8dd9fb9493d05f801c7baf9ade3`.
-- Principle supported: read-only deterministic evaluators can validate explicit coordination inputs and fail closed on malformed or stale state.
-- Important difference: the compiler evaluates retained graph fixtures. The desk audit reads live issue markers and pull-request metadata.
+`scripts/coordination_compiler.py` shows that deterministic read-only evaluators can validate explicit coordination inputs and fail closed.
+
+Important difference: the compiler evaluates retained graph fixtures; this audit reads live issue markers and PR metadata.
 
 ## Approaches considered
 
-### Retained approach: explicit hidden markers plus read-only live audit
+### Retained: explicit markers plus read-only live comparison
 
-The issue body remains readable, and the evaluator receives exact fields without parsing headings or prose. A changed head fails until a coordinator synchronizes the desk.
+The issue remains readable while the evaluator receives exact fields without scraping historical prose.
 
-### Declined: scrape every SHA near a pull-request number
+### Declined: infer the active SHA from nearby prose
 
-Prose contains historical, removed, superseded, target-source, and evidence heads. Guessing which SHA is active would create false positives and could silently select the wrong generation.
+Issue bodies contain parent, repair, source, evidence, superseded, and historical heads. Guessing can select the wrong generation.
 
-### Declined: auto-update desk heads
+### Declined: automatically replace stale heads
 
-A new commit can invalidate semantics, evidence, or review. Automatically replacing the SHA would launder head movement instead of forcing reclassification.
+A new commit can change semantics or evidence. Automatic replacement would hide the need for review and reclassification.
 
-### Declined: auto-demote or promote issues
+### Declined: automatic demotion or promotion
 
-The evaluator lacks authority to decide whether new code is equivalent, repairable, accepted, or mergeable. It reports drift only.
+The evaluator cannot decide semantic equivalence, repair sufficiency, review eligibility, or delivery authority.
 
-### Deferred: verify every evidence receipt and issue-body generation
+### Deferred: receipt, issue-generation, and label audits
 
-Workflow runs, issue invariants, labels, dependencies, and canonical finding revisions also expire reviews. This first slice owns pull-request head/state drift only.
+Workflow conclusions, issue invariants, dependencies, labels, and canonical finding revisions can also expire review. This slice owns PR head/state drift only.
 
-## Edge cases covered by prepared fixtures
+## Covered controls
 
-| Edge case or control | Expected result |
+| Case | Expected result |
 | --- | --- |
-| Multiple valid markers in one issue | Parsed and audited. |
-| Issue with no markers | Invalid input. |
-| Malformed SHA or marker fields | Invalid input. |
-| Duplicate pull request in one issue | Invalid input. |
-| Live head differs from expected head | `stale_head`. |
-| Pull request missing from the snapshot or API | `missing_pull_request`. |
-| Closed active entry | `closed_active_entry`. |
-| Merged active entry | `merged_active_entry`. |
-| Same pull request carries conflicting heads across issues | `conflicting_expected_heads`. |
-| Current open pull request at the exact head | Pass. |
+| Multiple valid markers | parsed and audited |
+| Issue with no markers | invalid input |
+| Malformed SHA or fields | invalid input |
+| Duplicate marker in one issue | invalid input |
+| Conflicting heads across issues | `conflicting_expected_heads` |
+| Live head differs | `stale_head` |
+| Missing live PR / 404 | `missing_pull_request` |
+| Closed active entry | `closed_active_entry` |
+| Merged active entry | `merged_active_entry` |
+| Current open exact head | pass |
 
-## Edge cases deferred or outside scope
+## Deferred boundaries
 
-| Edge case | Why deferred | Owning next record or reopening trigger |
-| --- | --- | --- |
-| External public upstream pull requests | Public upstream interaction and trust boundaries differ. | Add only after explicit authority and reference-policy design. |
-| Workflow conclusion drift | Requires binding named receipts to exact heads and claim classes. | Separate receipt-audit finding. |
-| Issue body and label disagreement | Existing integrity rule; separate metadata evaluator. | Extend after exact-head slice proves useful. |
-| Semantic identity after head movement | Requires complete-diff review. | Human or independent reviewer. |
-| Auto-remediation | Could overwrite a valid demotion or hide new code. | Remains prohibited. |
+| Boundary | Next owner |
+| --- | --- |
+| Third-party public PRs | Separate authority and reference-policy design. |
+| Workflow conclusion drift | Receipt-audit finding with exact head binding. |
+| Issue body versus label disagreement | Metadata evaluator. |
+| Semantic identity after head movement | Complete-diff human or independent review. |
+| Auto-remediation | Remains prohibited. |
 
-## Prepared execution
+## Exact execution
 
-| Repository/head | Command or workflow | Platform/environment | Current result | Evidence class |
-| --- | --- | --- | --- | --- |
-| branch `ops/desk-head-audit-2026-07-31` | `python3 -m py_compile scripts/audit_desk_heads.py scripts/test_audit_desk_heads.py` | GitHub Actions Ubuntu 24.04 | prepared | `target-test-prepared` |
-| same | `python3 scripts/test_audit_desk_heads.py` | GitHub Actions Ubuntu 24.04 | prepared | `target-test-prepared` |
-| same | live audit of #213 and #160 with read-only token | GitHub Actions Ubuntu 24.04 | prepared | `target-test-prepared` |
+| Repository/head | Workflow | Current result | Evidence class |
+| --- | --- | --- | --- |
+| PR #274 `f0660030...` | focused syntax and fixture matrix | queued in `30586315692` | `target-test-prepared` |
+| same | live #213/#160 comparison | queued in `30586315692` | `target-test-prepared` |
+| same | Fieldwork integrity | queued in `30586315701` | `target-test-prepared` |
 
-## Complete-diff and compatibility review
+## Complete-diff and authority review
 
-- Complete changed-file fence: audit script, focused tests, read-only workflow, and this finding.
-- Base relationship: clean branch from current Fieldwork main `896a617c...`.
-- API surface: public GitHub REST reads for owned repository issues and pull requests.
-- Permissions: `contents: read`, `issues: read`, `pull-requests: read`.
-- Marker compatibility: markers are HTML comments and do not alter rendered issue prose.
-- Failure behavior: malformed inputs exit 2, live transport failures exit 3, detected drift exits 1, clean audit exits 0.
-- Known implementation risk: exact workflow execution and complete-diff review remain pending.
+- Complete file fence: audit script, focused tests, read-only workflow, and this finding.
+- Workflow permissions: `contents: read`, `issues: read`, `pull-requests: read`.
+- Checkout credentials are disabled.
+- Marker comments do not alter rendered issue prose.
+- Exit behavior: clean `0`, drift `1`, invalid input `2`, transport block `3`.
+- Current live marker set references PR #231 and #238 in both desks and PR #252 in #160, with identical expected heads across duplicate references.
+- Known remaining gate: exact workflow execution and independent complete-diff review.
 
-## Current disposition and desk routing
+## Current disposition
 
 - Finding state: `research-active`
 - Review disposition: `EXECUTE`
-- Exact next transition: open the draft pull request and run focused plus live exact-head audit.
-- Clearing condition: workflow passes against the current #213/#160 markers and complete-diff review finds no write or silent-promotion path.
-- Required subgates: fixture matrix, live read-only API comparison, Fieldwork integrity, permission review.
-- User decision requested: none.
+- Exact next transition: complete audit `30586315692` and integrity `30586315701`
+- Clearing condition: focused fixtures and live desk comparison pass at the exact head, followed by complete-diff review confirming read-only authority
+- Non-delegable human decision: none
 
-## Changes to the canonical conclusion
+## Changes to the conclusion
 
-| Date | Pull request or commit | Change in conclusion |
+| Date | Record | Change |
 | --- | --- | --- |
-| 2026-07-31 | desk synchronization pass | Found stale PR #249 and PR #252 heads plus completed PR #259 checks. |
-| 2026-07-31 | branch `ops/desk-head-audit-2026-07-31` | Prepared explicit marker parser, live comparator, focused fixtures, and read-only workflow. |
+| 2026-07-31 | first desk pass | Found expired PR #249/#252 heads and stale PR #259 workflow wording. |
+| 2026-07-31 | `f0660030...` | Added explicit markers, live/snapshot evaluator, 404 classification, tests, and read-only workflow. |
+| 2026-07-31 | successor cleanup | Removed closed PR #259 from promotion markers; retained repair and execution carriers as prose-only active state. |
 
 ## References
 
-- `https://github.com/teamleaderleo/fieldwork/issues/254`
-- `https://github.com/teamleaderleo/fieldwork/issues/213`
-- `https://github.com/teamleaderleo/fieldwork/issues/160`
-- `https://github.com/teamleaderleo/fieldwork/pull/249`
-- `https://github.com/teamleaderleo/fieldwork/pull/252`
-- `https://github.com/teamleaderleo/fieldwork/pull/259`
+- initiative #254
+- Review Queue #213
+- Delivery Desk #160
+- PR #274
+- active marked PRs #231, #238, and #252
+- repair PR #281 and execution carrier #273 as intentionally unmarked states
 - `REVIEWING.md`
 - `COORDINATION.md`
-- `scripts/coordination_compiler.py`
 - `scripts/audit_desk_heads.py`
 - `scripts/test_audit_desk_heads.py`
 - `.github/workflows/desk-head-audit.yml`
