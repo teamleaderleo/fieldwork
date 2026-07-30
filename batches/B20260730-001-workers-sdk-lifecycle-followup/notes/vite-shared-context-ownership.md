@@ -4,7 +4,7 @@ State: `candidate-created`
 
 Batch: `B20260730-001`
 
-Canonical candidate: #166
+Canonical candidate: #179
 
 Sibling candidate: #165
 
@@ -113,7 +113,7 @@ The exact Vite restart construction order needs package instrumentation before c
 
 ## Coordination placement
 
-- Candidate issue #166 is the canonical review and disposition surface.
+- Candidate issue #179 is the canonical review and disposition surface.
 - Candidate #165 remains the separate container cleanup callback/tag-ownership candidate.
 - Batch issue #88 remains the parent Workers SDK review hub.
 - PR #112 remains the repository-backed synthesis snapshot.
