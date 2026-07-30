@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: teamleaderleo/node-lru-cache
-          ref: 1dcfd7e07cc8b961c2aae38da37e2e148f92e6a9
+          ref: 86db8aef60d6501de03c84bc4acfe9d642819410
           persist-credentials: false
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
