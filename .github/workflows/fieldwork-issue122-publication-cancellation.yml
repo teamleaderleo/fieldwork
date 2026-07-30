@@ -1,0 +1,162 @@
+name: Fieldwork issue 122 publication cancellation
+
+on:
+  push:
+    branches:
+      - scout/122-datafusion-polars-publication-cancellation
+    paths:
+      - programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/**
+      - .github/workflows/fieldwork-issue122-publication-cancellation.yml
+  pull_request:
+    paths:
+      - programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/**
+      - .github/workflows/fieldwork-issue122-publication-cancellation.yml
+  workflow_dispatch:
+
+concurrency:
+  group: fieldwork-issue122-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DATAFUSION_COMMIT: 455a3add52d051a20df9960a726ee9acb98528a3
+  POLARS_COMMIT: 36e414b4cb1e74e7a171995b35b83c1163974324
+  OBJECT_STORE_RELEASE_COMMIT: 7a65b75b0d26fd8a282999462cb7030fb85fdcc3
+  PROBE_DIR: programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/object-store-abort
+
+jobs:
+  ownership-control:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact read-only source set
+        run: |
+          set -euxo pipefail
+          for spec in \
+            "datafusion https://github.com/apache/datafusion.git $DATAFUSION_COMMIT" \
+            "polars https://github.com/pola-rs/polars.git $POLARS_COMMIT" \
+            "object-store https://github.com/apache/arrow-rs-object-store.git $OBJECT_STORE_RELEASE_COMMIT"
+          do
+            set -- $spec
+            name="$1"
+            remote="$2"
+            commit="$3"
+            mkdir -p ".fieldwork/$name"
+            git -C ".fieldwork/$name" init
+            git -C ".fieldwork/$name" remote add origin "$remote"
+            git -C ".fieldwork/$name" fetch --depth=1 origin "$commit"
+            git -C ".fieldwork/$name" checkout --detach FETCH_HEAD
+            test "$(git -C ".fieldwork/$name" rev-parse HEAD)" = "$commit"
+          done
+
+      - name: Verify source ownership anchors
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          checks = {
+              "datafusion_cancellation": (
+                  Path(".fieldwork/datafusion/benchmarks/src/cancellation.rs"),
+                  [
+                      'Queries in DataFusion should stop executing "quickly"',
+                      "let stream = physical_plan.execute",
+                      "stream.try_collect().await",
+                  ],
+              ),
+              "datafusion_parquet_sink": (
+                  Path(".fieldwork/datafusion/datafusion/datasource-parquet/src/sink.rs"),
+                  [
+                      "BufWriter::with_capacity",
+                      "writer.write(&batch).await?",
+                      ".close()",
+                  ],
+              ),
+              "object_store_abort": (
+                  Path(".fieldwork/object-store/src/buffered.rs"),
+                  [
+                      "pub async fn abort(&mut self)",
+                      "x.take().unwrap().abort().await",
+                      "upload.finish().await?",
+                  ],
+              ),
+              "object_store_drop_contract": (
+                  Path(".fieldwork/object-store/src/upload.rs"),
+                  [
+                      "S3 and GCS, cannot perform cleanup on drop",
+                      "pub async fn abort(mut self)",
+                  ],
+              ),
+              "polars_cancel_token": (
+                  Path(".fieldwork/polars/crates/polars-lazy/src/frame/exitable.rs"),
+                  [
+                      "let token = state.cancel_token();",
+                      "self.token.store(true)",
+                      "impl Drop for InProcessQuery",
+                  ],
+              ),
+              "polars_parquet_close": (
+                  Path(".fieldwork/polars/crates/polars-stream/src/nodes/io_sinks/writers/parquet/io_writer.rs"),
+                  [
+                      "parquet_writer.finish()?",
+                      "file.close(sync_on_close)?",
+                  ],
+              ),
+          }
+
+          receipt = {}
+          for label, (path, needles) in checks.items():
+              text = path.read_text(encoding="utf-8")
+              missing = [needle for needle in needles if needle not in text]
+              if missing:
+                  raise SystemExit(f"{label}: missing anchors {missing}")
+              receipt[label] = {
+                  "path": str(path),
+                  "anchors": len(needles),
+              }
+
+          lock = Path(".fieldwork/datafusion/Cargo.lock").read_text(encoding="utf-8")
+          match = re.search(
+              r'\[\[package\]\]\nname = "object_store"\nversion = "([^"]+)"',
+              lock,
+          )
+          if not match or match.group(1) != "0.13.2":
+              raise SystemExit(f"unexpected object_store pin: {match.group(1) if match else 'missing'}")
+          receipt["datafusion_object_store_version"] = match.group(1)
+
+          Path("issue122-source-contract.json").write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Verify exact dependency selection
+        run: |
+          set -euxo pipefail
+          cargo tree --manifest-path "$PROBE_DIR/Cargo.toml" -i object_store | tee issue122-object-store-tree.txt
+          grep -F 'object_store v0.13.2' issue122-object-store-tree.txt
+
+      - name: Check and run multipart cleanup control
+        run: |
+          set -euxo pipefail
+          cargo fmt --manifest-path "$PROBE_DIR/Cargo.toml" -- --check
+          cargo test --manifest-path "$PROBE_DIR/Cargo.toml"
+          cargo run --quiet --manifest-path "$PROBE_DIR/Cargo.toml" | tee issue122-object-store-abort.json
+
+      - name: Upload source and execution receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fieldwork-issue122-publication-cancellation
+          path: |
+            issue122-source-contract.json
+            issue122-object-store-tree.txt
+            issue122-object-store-abort.json
+          if-no-files-found: warn
+          retention-days: 30
