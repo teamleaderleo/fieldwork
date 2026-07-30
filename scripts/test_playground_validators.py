@@ -93,6 +93,13 @@ class CasePackPrimitiveFieldTests(unittest.TestCase):
         self.assertEqual(loaded["cases"][0]["expect"]["exit_code"], 0)
         self.assertIs(loaded["cases"][0]["expect"]["timed_out"], False)
 
+    def test_accepts_positive_integer_case_timeout(self) -> None:
+        data = self.pack()
+        data["cases"][0]["timeout_seconds"] = 3
+        with tempfile.TemporaryDirectory() as tmp:
+            loaded = load_pack(self.write_pack(Path(tmp), data))
+        self.assertEqual(loaded["cases"][0]["timeout_seconds"], 3)
+
     def test_accepts_null_exit_code(self) -> None:
         data = self.pack()
         data["cases"][0]["expect"]["exit_code"] = None
@@ -104,23 +111,46 @@ class CasePackPrimitiveFieldTests(unittest.TestCase):
         data["schema_version"] = True
         self.assert_pack_rejected(data, "schema_version must be integer 1")
 
-    def test_rejects_boolean_pack_timeout(self) -> None:
+    def test_rejects_boolean_pack_timeout_even_with_case_override(self) -> None:
         data = self.pack()
         data["timeout_seconds"] = True
+        data["cases"][0]["timeout_seconds"] = 1
         self.assert_pack_rejected(
             data, "timeout_seconds must be a finite positive number"
         )
 
-    def test_rejects_boolean_case_timeout(self) -> None:
+    def test_rejects_non_finite_pack_timeout_even_with_case_override(self) -> None:
+        data = self.pack()
+        data["timeout_seconds"] = float("inf")
+        data["cases"][0]["timeout_seconds"] = 1
+        self.assert_pack_rejected(
+            data, "timeout_seconds must be a finite positive number"
+        )
+
+    def test_rejects_boolean_case_timeout_with_valid_pack_default(self) -> None:
         data = self.pack()
         data["cases"][0]["timeout_seconds"] = False
         self.assert_pack_rejected(
             data, "timeout_seconds must be a finite positive number"
         )
 
-    def test_rejects_non_finite_timeout(self) -> None:
+    def test_rejects_non_finite_case_timeout_with_valid_pack_default(self) -> None:
         data = self.pack()
-        data["timeout_seconds"] = float("inf")
+        data["cases"][0]["timeout_seconds"] = float("nan")
+        self.assert_pack_rejected(
+            data, "timeout_seconds must be a finite positive number"
+        )
+
+    def test_rejects_very_large_positive_integer_timeout(self) -> None:
+        data = self.pack()
+        data["timeout_seconds"] = 10**1000
+        self.assert_pack_rejected(
+            data, "timeout_seconds must be a finite positive number"
+        )
+
+    def test_rejects_very_large_negative_integer_timeout(self) -> None:
+        data = self.pack()
+        data["timeout_seconds"] = -(10**1000)
         self.assert_pack_rejected(
             data, "timeout_seconds must be a finite positive number"
         )
