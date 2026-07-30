@@ -97,9 +97,11 @@ Possible results include:
 - application startup continuing with the wrong settings;
 - two parts of the same application disagreeing about whether loading is finished.
 
-The owned-fork experiment does not pretend failed hydration was successful. It makes an **explicit** `rehydrate()` call reject with the real error, while automatic startup loading keeps its existing contained-error behavior.
+The released defect is the false-success wait above. The owned-fork candidate tries to make failures from the current hydration attempt observable to an **explicit** `rehydrate()` caller while automatic startup loading keeps its existing contained-error behavior.
 
-It also keeps `hasHydrated()` and the finish event as success signals.
+Review found one boundary still open: exceptions thrown by success observers or callbacks must stay separate from storage, parsing, migration, and merge failures. A callback throwing after state was already applied must not make the hydration operation look as though it failed before completion or trigger the error callback twice.
+
+`hasHydrated()` and the finish event remain success signals. The fork repair stays a candidate until those observer and operation outcomes are separated and executed together.
 
 # Problem two: a blank option can erase a working default
 
@@ -134,16 +136,17 @@ The released behavior allows several bad states:
 - the public options can say no storage is configured while a private reference continues using the old storage;
 - the default persistence version can silently disappear from saved JSON.
 
-The owned-fork repair is deliberately selective.
+The owned-fork candidate is deliberately selective.
 
-During store construction, these `undefined` values behave like omitted properties so their built-in defaults survive:
+During store construction, explicit `undefined` currently behaves like omission for:
 
-- storage;
 - partialize;
 - version;
 - merge.
 
-During a later `persist.setOptions()` update, `undefined` preserves the current value for:
+Construction-time `storage` remains a compatibility decision. `createJSONStorage()` can deliberately return `undefined` when the requested backend is unavailable. Treating that result as omission could silently select built-in browser storage that the caller never chose. The final repair must distinguish an omitted storage property from an explicitly supplied unavailable result, or preserve the explicit result.
+
+During a later `persist.setOptions()` update, the candidate preserves the current value when `undefined` is supplied for:
 
 - name;
 - storage;
@@ -151,9 +154,9 @@ During a later `persist.setOptions()` update, `undefined` preserves the current 
 - version;
 - merge.
 
-That distinction is important: `name` has no construction default. It can only be preserved after the store already has a current name.
+That later-update contract is separate: `name` has no construction default, and `storage` already has a selected current value to preserve.
 
-The repair does **not** ignore every undefined value. Optional callbacks can still be intentionally removed.
+The candidate does **not** ignore every undefined value. Optional callbacks can still be intentionally removed. Review and target execution still decide which preservation rules become the accepted repair.
 
 # Is this a security disaster?
 
@@ -166,10 +169,11 @@ That still matters. Zustand can sit beneath application login flows, saved work,
 The honest claim is:
 
 - the released behavior has been reproduced at bounded control-flow boundaries;
-- focused repairs and regression tests exist in owned forks;
+- focused candidate repairs and regression tests exist in owned forks;
 - every execution claim applies only to the exact head and gate named in its receipt;
 - the live hydration candidate status is recorded in Fieldwork PR #159;
 - the live undefined-options candidate status is recorded in Fieldwork PR #172;
+- both candidates retain review boundaries described above;
 - neither draft is automatically accepted merely because some tests pass;
 - no public upstream project has been contacted without authorization.
 
