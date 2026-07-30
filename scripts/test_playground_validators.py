@@ -8,7 +8,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.run_playground_cases import PackError, load_pack
+from scripts.run_playground_cases import PackError, check_expectations, load_pack
 from scripts.validate_experiments import ValidationError, validate_experiment
 
 
@@ -59,17 +59,17 @@ class ExperimentSchemaVersionTests(unittest.TestCase):
                 validate_experiment(directory)
 
 
-class CasePackNumericFieldTests(unittest.TestCase):
+class CasePackPrimitiveFieldTests(unittest.TestCase):
     def pack(self) -> dict[str, object]:
         return {
             "schema_version": 1,
-            "name": "numeric-field-control",
+            "name": "primitive-field-control",
             "timeout_seconds": 1.5,
             "cases": [
                 {
                     "id": "control",
                     "stdin_text": "",
-                    "expect": {"exit_code": 0},
+                    "expect": {"exit_code": 0, "timed_out": False},
                 }
             ],
         }
@@ -85,12 +85,13 @@ class CasePackNumericFieldTests(unittest.TestCase):
             with self.assertRaisesRegex(PackError, pattern):
                 load_pack(path)
 
-    def test_accepts_integer_schema_float_timeout_and_integer_exit_code(self) -> None:
+    def test_accepts_valid_primitive_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             loaded = load_pack(self.write_pack(Path(tmp), self.pack()))
         self.assertEqual(loaded["schema_version"], 1)
         self.assertEqual(loaded["timeout_seconds"], 1.5)
         self.assertEqual(loaded["cases"][0]["expect"]["exit_code"], 0)
+        self.assertIs(loaded["cases"][0]["expect"]["timed_out"], False)
 
     def test_accepts_null_exit_code(self) -> None:
         data = self.pack()
@@ -130,6 +131,32 @@ class CasePackNumericFieldTests(unittest.TestCase):
         self.assert_pack_rejected(
             data, "expect.exit_code must be an integer or null"
         )
+
+    def test_rejects_non_boolean_timed_out(self) -> None:
+        data = self.pack()
+        data["cases"][0]["expect"]["timed_out"] = 0
+        self.assert_pack_rejected(data, "expect.timed_out must be boolean")
+
+    def test_stdout_json_does_not_conflate_boolean_and_integer(self) -> None:
+        failures = check_expectations(
+            {"expect": {"stdout_json": True}},
+            exit_code=0,
+            stdout="1",
+            stderr="",
+            timed_out=False,
+        )
+        self.assertEqual(len(failures), 1)
+        self.assertIn("stdout_json expected True, got 1", failures[0])
+
+    def test_stdout_json_preserves_json_numeric_equivalence(self) -> None:
+        failures = check_expectations(
+            {"expect": {"stdout_json": {"value": 1}}},
+            exit_code=0,
+            stdout='{"value": 1.0}',
+            stderr="",
+            timed_out=False,
+        )
+        self.assertEqual(failures, [])
 
 
 if __name__ == "__main__":
