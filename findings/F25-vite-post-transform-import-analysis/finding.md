@@ -5,199 +5,224 @@ Finding state: `comparative-evaluation-active`
 Workstream: `B — Browser, web tooling, and runtime boundaries`  
 Canonical Fieldwork issue: `#25`  
 Canonical finding path: `findings/F25-vite-post-transform-import-analysis/finding.md`  
-Canonical implementation or alternatives: candidate A `teamleaderleo/vite#5`; execution carriers `#6` and `#7`; Option B prototype pending  
-Exact heads: A `1a5b6b5327efa43fc4a33ed5ad51553b6d9c37ba`; baseline carrier `7229602a44df963d0395bc9c0160ea062a014d5c`; A carrier `e169bafdcfc0c25b3f77cadb41aebf762458586b`  
+Canonical alternatives: `teamleaderleo/vite#5`, `#6`, `#7`, `#8`, and `#9`  
+Exact heads: A `1a5b6b5327efa43fc4a33ed5ad51553b6d9c37ba`; baseline `7229602a44df963d0395bc9c0160ea062a014d5c`; A comparison `e169bafdcfc0c25b3f77cadb41aebf762458586b`; desired contract `5d9a0ca545cd7763a7d8bfffd3a646ecb6c4a076`; Option B prototype `bf18a77bc97d63dc01aa7b3fab5ad10340f8e89a`  
 Exact base or source revision: owned base `8a245726944ed29225920d49be77c33c6e03afc8`; current upstream research `843a47da6b93dbd3ce28c4ffae33a8ef338c6f05`  
-Strongest evidence class: `full-gate` for candidate A; paired compatibility execution queued  
-Current review disposition: `REPAIR direction; EXECUTE comparison; prototype Option B`  
+Strongest evidence class: Candidate A `full-gate`; Option B `target-executed failure` plus repaired exact head queued  
+Current review disposition: `REPAIR and EXECUTE Option B; HOLD Candidate A promotion`  
 Desk routing: `not-entered`  
 Upstream contact authorized: `no`
 
 ## In simple words
 
-Vite reads transformed JavaScript to build its development import graph and hot-reload boundaries. A plugin can run a transform at the end. Today that plugin can add an import after Vite already read the file, so the browser receives code that the graph never records.
+Vite reads JavaScript after plugins transform it. That reading step rewrites imports, builds the development dependency graph, and records hot-reload boundaries.
 
-Candidate A fixes that by moving all import analysis after user post transforms. Further research found a current first-party React RSC plugin that deliberately adds a dynamic import after import analysis so Vite will leave it raw instead of adding `?import`. Candidate A reverses that behavior.
+A plugin can ask to run its transform last. Today that plugin can add an import after Vite already read the file. The browser receives the import, but Vite's graph never records it.
 
-The preferred next direction is now a compatibility-preserving late reconciliation phase: keep current import analysis and post-hook visibility, then update graph/HMR truth for safe late additions without rerunning every rewriting side effect.
+Candidate A moves all import analysis to the end. It fixes the graph, but a current first-party React RSC plugin deliberately adds a dynamic import after analysis so Vite will leave it raw instead of adding `?import`. Candidate A breaks that escape.
+
+Option B keeps ordinary import analysis where it is, then performs a smaller final reconciliation for graph and HMR state. The first prototype proved the combined one-shot behavior, then failed a repeat-transform control by emitting a false prune. A retained late-state overlay now targets add, retain, and remove transitions explicitly.
 
 ## Why we care
 
-Without a repair, final browser code and Vite's graph disagree. That can cause full reloads, stale HMR boundaries, missing hot-context setup, and dev/build divergence.
+Without a repair, served browser code and Vite's graph can disagree. That can cause full reloads, stale HMR boundaries, missing hot-context setup, and development behavior that differs from production build behavior.
 
-With candidate A unchanged, Vite repairs graph truth by changing an active first-party post-transform contract. The RSC plugin's source explicitly relies on injecting a dynamic import last to avoid Vite's `?import` rewrite. A viable repair needs to preserve both behaviors or document and execute a broader contract migration.
+Moving the entire analysis pass later repairs that mismatch by changing an active first-party ordering contract. A sound repair must preserve final graph truth and intentional post-analysis imports, or explicitly demonstrate why one contract must change.
 
 ## What happens if we leave it alone
 
-A post transform can inject imports or `import.meta.hot.accept()` calls that appear in served code but remain absent from the module graph. Dependency changes may then full-reload or propagate incorrectly.
+A post transform can add static imports or `import.meta.hot.accept()` calls that never enter the module graph. Changes to those dependencies can propagate incorrectly or trigger a full reload.
 
-The affected ecosystem frequency remains unmeasured. The mechanism and focused consequence are executed.
+The mechanism and focused consequence are executed. Ecosystem frequency remains unmeasured.
 
 ## Governing invariant
 
-**Vite's development graph and HMR metadata must describe final served source, while supported post transforms retain their current observable input and intentional late-import behavior unless a separately evidenced contract change is chosen.**
+**Vite's development graph and HMR metadata must describe final served source, while supported post transforms retain their current observable input and intentional late-import behavior unless a separately evidenced migration changes that contract.**
 
-| Contract or goal | Primary source | Design consequence |
+| Goal or contract | Primary evidence | Design consequence |
 | --- | --- | --- |
-| Internal plugins are intended to run after user plugins. | Vite `plugins/index.ts` at `843a47d…` | Final graph ownership must account for user transforms. |
-| Hook-level `order` is separate from plugin-level `enforce`. | Vite Plugin API and `getSortedPluginsByHook()` | Moving one hook changes the stage visible to later hooks. |
-| Sequential transforms expose prior results to later hooks. | Rolldown Plugin API | Current post-transform input is observable behavior. |
-| RSC raw imports are deliberately injected after analysis. | `vite-plugin-react` `plugin.ts` at `9db4976…` | Full late rewriting breaks a first-party intent. |
+| Internal server plugins are intended to complete Vite-owned dev processing. | Vite `plugins/index.ts` at `843a47d…` | Final graph ownership must account for user transforms. |
+| Hook-level `order` and plugin-level `enforce` are separate. | Current Vite Plugin API and hook sorter | Moving a hook changes user-visible stage ordering. |
+| Sequential transforms expose prior results to later hooks. | Current Rolldown Plugin API | Current post-transform input is observable behavior. |
+| React RSC inserts a dynamic import last to avoid `?import`. | `vite-plugin-react` `plugin.ts` at `9db4976…` | Full late rewriting conflicts with first-party intent. |
 
 ## Current finding
 
-Candidate A is source-coherent and passed the named repository gate for the originally tested graph/HMR invariant. It is no longer the preferred complete repair because current first-party source establishes a concrete compatibility dependency on the existing ordering.
+Candidate A remains the smallest one-pass proof that final-source analysis repairs the graph and HMR problem. Its exact head passed the named Vite CI matrix.
 
-Option B — preserve normal import analysis and add bounded late graph/HMR reconciliation — is the next prototype direction. It must separate final graph tracking from URL rewriting and helper injection.
+Candidate A is no longer the preferred complete direction because first-party React RSC source provides a concrete counterexample to moving every rewriting side effect after post transforms.
+
+Option B is the preferred family. Its first implementation separated normal rewriting from final graph/HMR reconciliation. Target execution showed that a naïve two-pass union emits a transient prune when the same late dependency is present on a second transform. The revised prototype retains a per-environment late import overlay through ordinary analysis, then replaces it from final source.
 
 ### Claim table
 
 | Claim | Evidence class | Exact support | Limit |
 | --- | --- | --- | --- |
-| Current post transforms can add imports after graph analysis. | `target-executed` | Vite PR #2 | Focused plugin pattern. |
-| The late import and HMR boundary are absent from graph state. | `target-executed` | PRs #2 and #5 regression | One dev path. |
-| Candidate A restores graph/HMR truth. | `full-gate` | PR #5 at `1a5b6b5…`; CI `30487475188`; Zizmor `30487475253` | Does not preserve current post-hook stage behavior. |
-| Current first-party RSC source injects a dynamic import in a post transform to avoid `?import`. | `source-read` | `vite-plugin-react` `packages/plugin-rsc/src/plugin.ts` at `9db4976…` | Paired minimal target test is queued. |
-| Candidate A would analyze and rewrite that late dynamic import. | `source-read` plus prepared target control | Hook order plus carrier #7 at `e169baf…` | Exact workflow result pending. |
+| A post transform can add imports after current dev analysis. | `target-executed` | Vite PR #2 | Focused plugin pattern. |
+| Missing late graph/HMR state changes update behavior. | `target-executed` | PRs #2 and #5 regression | One dev pipeline. |
+| Candidate A repairs final graph and HMR truth. | `full-gate` | PR #5 at `1a5b6b5…`; CI `30487475188`; Zizmor `30487475253` | Does not preserve current post-hook stage behavior. |
+| First-party RSC intentionally inserts a late raw dynamic import. | `source-read` | `vite-plugin-react` `plugin.ts` and `browser.ts` at `9db4976…` | Minimal analogue execution still queued. |
+| The naïve Option B prototype passes the first mechanism and emits a false prune on repeat transform. | `target-executed` | PR #9 run `30587631101`, macOS job `91022769607` | One platform job completed before repair; other jobs were still queued. |
+| The retained-overlay repair now defines add, unchanged-retain, and removal transitions. | `target-test-prepared` | PR #9 at `bf18a77…` | Exact execution pending. |
 
 ## Historical precedent
 
-### Plugin-injected imports must reach import analysis
+### Plugin-added imports must participate in analysis
 
 - Source: https://github.com/vitejs/vite/pull/23029
-- Principle: plugin-added imports must participate in Vite's analysis behavior.
-- Difference: the precedent does not settle when rewriting versus graph reconciliation should occur.
+- Principle supported: imports introduced by plugins must enter Vite's analysis behavior.
+- Important difference: the precedent does not decide which late side effects should rewrite source and which should update graph state only.
 
-### Plugin order and hook order are distinct
+### Plugin and hook ordering are distinct contracts
 
 - Source: https://vite.dev/guide/api-plugin.html#plugin-ordering
 - Retrieved: `2026-07-31`
-- Principle: plugin-level and hook-level order are separate.
-- Difference: the docs do not define a dedicated final graph phase.
+- Principle supported: plugin order and hook order are independently meaningful.
+- Important difference: the documentation does not define a final graph-commit phase.
 
-### Sequential hook results are visible
+### Sequential hooks expose intermediate results
 
 - Source: https://rolldown.rs/apis/plugin-api
 - Retrieved: `2026-07-31`
-- Principle: later sequential hooks receive earlier transform results.
-- Difference: Vite also owns graph and HMR state outside generic transformation.
+- Principle supported: later sequential hooks receive earlier results.
+- Important difference: Vite owns module-graph and HMR state in addition to source transformation.
 
-### First-party raw dynamic import escape
+### First-party raw-import escape
 
 - Source: https://github.com/vitejs/vite-plugin-react/blob/9db4976a9f30e89205d327b9e951a0a1d4912fe5/packages/plugin-rsc/src/plugin.ts
-- Related caller: https://github.com/vitejs/vite-plugin-react/blob/9db4976a9f30e89205d327b9e951a0a1d4912fe5/packages/plugin-rsc/src/browser.ts
-- Principle: a post transform intentionally bypasses Vite import rewriting.
-- Difference: the pattern still needs graph/HMR semantics appropriate to its dynamic runtime target.
+- Caller: https://github.com/vitejs/vite-plugin-react/blob/9db4976a9f30e89205d327b9e951a0a1d4912fe5/packages/plugin-rsc/src/browser.ts
+- Principle supported: a post transform intentionally inserts a dynamic import after normal analysis to avoid `?import`.
+- Important difference: the pattern still needs final graph semantics appropriate to its runtime behavior.
 
 ## Decision criteria
 
 | Priority | Criterion | Discriminating evidence |
 | --- | --- | --- |
-| 1 | Final graph and HMR truth | Late static import and late accept-boundary regression. |
-| 2 | First-party compatibility | Raw dynamic import stays free of `?import`. |
-| 3 | Current post-hook visibility | Baseline/candidate stage probes. |
-| 4 | Single state ownership | No duplicate rewriting, helper injection, pruning, or error replacement. |
-| 5 | Removal correctness | Late imports disappearing prune graph edges. |
-| 6 | Diagnostics and maps | Parse, resolve, and source-map controls. |
-| 7 | Proportional cost | Parse-count/source accounting and targeted benchmark if needed. |
+| 1 | Final graph and HMR truth | Late static import and accept-boundary controls. |
+| 2 | First-party raw-import compatibility | Dynamic non-JavaScript late import remains free of `?import`. |
+| 3 | Current post-hook stage | Baseline and Candidate A visibility carriers. |
+| 4 | Atomic graph ownership | No transient prune for unchanged state; one prune for removal. |
+| 5 | Complete HMR semantics | accepted deps, self accept, partial accept, bindings, and normalization. |
+| 6 | Recovery | Parse, resolution, invalidation, and stale-transform controls. |
+| 7 | Compatibility breadth | aliases, virtual IDs, optimized deps, CSS, SSR, workers, and query-bearing imports. |
+| 8 | Cost and maps | second-pass cost and source-map accuracy. |
 
-## Alternatives
+## Alternatives instantiated
 
 ### Baseline — current ordering
 
-- Carrier: `teamleaderleo/vite#6` at `7229602…`
-- Wins: preserves current post-hook input and first-party raw-import pattern.
-- Loses: reproduced final graph/HMR mismatch.
+- Carrier: `teamleaderleo/vite#6`
+- Head: `7229602a44df963d0395bc9c0160ea062a014d5c`
+- Preserves current post-hook input and raw-import behavior.
+- Loses the reproduced final graph/HMR case.
 
-### Option A — move full import analysis to `order: 'post'`
+### Option A — move full import analysis to the post bucket
 
-- Candidate: `teamleaderleo/vite#5` at `1a5b6b5…`
-- Carrier: `teamleaderleo/vite#7` at `e169baf…`
-- Wins: smallest one-pass final-source repair; full-gate evidence.
-- Loses: changes post-hook input and conflicts with explicit first-party raw-import intent.
-- Current status: retained negative comparison, no longer preferred.
+- Candidate: `teamleaderleo/vite#5`
+- Head: `1a5b6b5327efa43fc4a33ed5ad51553b6d9c37ba`
+- Comparison carrier: `teamleaderleo/vite#7` at `e169baf…`
+- Wins the smallest one-pass implementation and full-gate evidence.
+- Loses first-party raw-import compatibility and changes post-hook input.
+- Retained as a negative comparison.
+
+### Desired combined contract
+
+- Carrier: `teamleaderleo/vite#8`
+- Head: `5d9a0ca545cd7763a7d8bfffd3a646ecb6c4a076`
+- Requires raw-import preservation, late graph dependency, late accepted dependency, hot-context injection, and HMR update together.
+- Expected to fail on both baseline and Candidate A for different reasons.
 
 ### Option B — normal analysis plus bounded late reconciliation
 
-- Candidate: pending separate owned branch.
-- Goal: preserve current rewriting stage, then reconcile graph/HMR additions from final source.
-- Required boundary: late reconciliation must not rewrite intentional raw imports or duplicate hot-context/env injection.
-- Current status: preferred prototype direction.
+- Prototype: `teamleaderleo/vite#9`
+- Current head: `bf18a77bc97d63dc01aa7b3fab5ad10340f8e89a`
+- Changed files:
+  - `packages/vite/src/node/plugins/lateImportAnalysis.ts`
+  - `packages/vite/src/node/__tests__/server/post-transform-late-reconciliation-contract.spec.js`
+- The prototype remains test-config-only and is not globally wired.
+- Current mechanism:
+  - normal analysis keeps source-rewrite ownership;
+  - a preserve plugin carries prior late file imports through ordinary analysis;
+  - a final post plugin parses final source, reconciles imports and HMR state, normalizes accepted URLs, injects hot context, and replaces retained overlay state;
+  - dynamic imports requiring explicit import treatment are left raw.
 
-### Option C — internal finalization outside user transform hooks
+### Option C — explicit transform-scoped graph transaction
 
-- Candidate: paper design until Option B proves unsafe.
-- Goal: establish an explicit final graph phase with its own result contract.
-- Cost: broader plugin-container and source-map plumbing.
-- Current status: fallback.
-
-### Option D — diagnose or forbid late imports
-
-- Wins: preserves exact current execution.
-- Loses: leaves or rejects an expressible behavior instead of repairing graph truth.
-- Current status: rejected unless all repair directions fail.
+- Paper design.
+- Would stage ordinary and final graph changes and commit/prune once.
+- Better single-commit semantics, but broader plugin-container and module-graph change.
+- Becomes preferred if the retained overlay requires several hidden hooks or cannot protect concurrent/stale transforms.
 
 ## Comparative results
 
-| Criterion | Baseline | Option A | Option B | Option C | Current result |
+| Criterion | Baseline | Option A | Option B current | Option C | Current result |
 | --- | --- | --- | --- | --- | --- |
-| Final graph truth | Fails | Passes focused/full gate | Target requirement | Target requirement | A proven; B/C pending. |
-| Raw late import | Preserves | First-party conflict | Must preserve | Must define | B preferred. |
-| Post-hook input | Preserves | Changes | Preserves | Could preserve | B preferred. |
-| Mutation ownership | One incomplete early pass | One complete late pass | Split but bounded | Explicit final owner | Needs prototype. |
-| Breadth | None | Narrow | Medium | Broad | B before C. |
+| Final graph truth | Fails | Passes | One-shot passed before repeat control; repaired run pending | Target requirement | A proven; B active. |
+| Raw late import | Preserves | Conflicts | Preserves in mechanism test | Must define | B leads. |
+| Post-hook source input | Preserves | Changes | Preserves | Can preserve | B leads. |
+| Unchanged repeat transform | Existing graph never had edge | Consistent one-pass | First prototype emitted false prune; overlay repair queued | Should commit once | B must prove repair. |
+| Actual removal | No late state | One-pass final | Explicit one-prune control queued | Should commit once | Pending. |
+| Implementation breadth | None | Narrow | Medium, test-only | Broad | B before C. |
+
+## Exact execution and receipts
+
+| Repository/head | Workflow or job | Result | Evidence class |
+| --- | --- | --- | --- |
+| `teamleaderleo/vite@1a5b6b5…` | CI `30487475188` | Passed named Node/platform matrix | `full-gate` |
+| Same | Zizmor `30487475253` | Passed | `target-executed` |
+| `teamleaderleo/vite@7132850…` | CI `30587631101`, macOS job `91022769607` | Build passed; unit failed only at false-prune negative control | `target-executed` |
+| `teamleaderleo/vite@bf18a77…` | New PR #9 workflows | pending | pending |
+| PRs #6, #7, #8 | exact-head CI/Zizmor | queued at latest observation | pending |
+
+The macOS failure was the intended discriminating control: received one `prune` payload where the unchanged repeat transform required none.
 
 ## Edge cases covered
 
 | Case | Evidence | Result |
 | --- | --- | --- |
-| Late static import | PR #5 regression | Candidate A records graph edge. |
-| Late HMR accept boundary | PR #5 regression | Candidate A records accepted dependency. |
-| Hot-context injection | PR #5 regression | Final output receives helper. |
-| Dependency update | PR #5 regression | HMR update replaces full reload. |
-| Cross-platform graph lookup | PR #2 and full matrix | Passed Linux, macOS, Windows. |
-| Current post-hook input | Carrier #6 | Exact head queued. |
-| Candidate A post-hook input | Carrier #7 | Exact head queued. |
-| First-party raw-import analogue | Carriers #6/#7 | Exact heads queued. |
+| Late static import | PR #5 and PR #9 desired contract | A passes; B repaired run pending. |
+| Late accepted dependency | Same | A passes; B repaired run pending. |
+| Hot-context injection | Same | A passes; B first mechanism reached repeat control. |
+| HMR update | Same | B first mechanism reached repeat control after update assertion. |
+| First-party-style raw dynamic import | PRs #6/#7/#9 | B first mechanism preserved it; comparison runs queued. |
+| Unchanged repeat | PR #9 old head | Naïve B failed with false prune. |
+| Retained overlay repair | PR #9 current head | exact execution pending. |
+| Late removal | PR #9 current test | exactly-one-prune control prepared. |
+| Cross-platform graph lookup | PR #2 and Candidate A matrix | Passed Linux, macOS, and Windows for A. |
 
-## Deferred or next controls
+## Edge cases deferred
 
-| Case | Reason | Next record or trigger |
+| Case | Why deferred | Reopening or next record |
 | --- | --- | --- |
-| Option B late static import and HMR tracking | Prototype pending | Same finding, new owned branch. |
-| Late import removal/pruning | Requires Option B | Same prototype. |
-| Late parse/resolve failure | Requires result contract | Same prototype. |
-| Actual RSC integration | Minimal analogue may settle mechanism first | Run first-party integration if ambiguity remains. |
-| CSS analysis ordering | Separate CSS graph pipeline | Sibling finding after bounded reproduction. |
-| Bundled development | Different engine | Separate finding. |
+| Post-hook graph visibility for prior accepted deps | Overlay currently preserves file imports before normal analysis but restores accepted state only at final reconciliation. | Add control before global wiring. |
+| Imported bindings and `acceptExports` | Prototype preserves ordinary values but does not derive late additions. | Extend Option B or move to transaction design. |
+| Bare, aliased, virtual, optimized, CSS, query-bearing imports | Current desired contract uses relative JS plus raw non-JS dynamic import. | Add compatibility matrix after base lifecycle survives. |
+| SSR and workers | Different consumers and helper rules. | Targeted environment controls. |
+| Parse and resolution rollback | Current final pass reports parse errors but stale graph publication is unproved. | Add failure transaction controls. |
+| Concurrent or superseded transforms | WeakMap overlay has no generation fence. | Add stale-request control; may force Option C. |
+| Cleanup and retained-state lifetime | WeakMap scopes by environment, but module removal/close behavior is unproved. | Add invalidation and teardown controls. |
+| Source maps | Late HMR string rewrite and helper prepend generate maps through `MagicString`. | Assert mapping before promotion. |
+| Cost | Final pass adds a lexer parse. | Measure after correctness model stabilizes. |
 
-## Exact execution and receipts
+## Independent criticism
 
-| Repository/head | Workflow | Result | Evidence class |
-| --- | --- | --- | --- |
-| `teamleaderleo/vite@1a5b6b5…` | CI `30487475188` | Passed full named matrix | `full-gate` |
-| Same head | Zizmor `30487475253` | Passed | `target-executed` |
-| `teamleaderleo/vite@7229602…` | CI `30586609039`; Zizmor `30586609010` | queued/pending | pending |
-| `teamleaderleo/vite@e169baf…` | CI `30586630958`; Zizmor `30586630986` | pending/queued | pending |
-
-## Complete-diff and compatibility review
-
-- Candidate A complete diff remains two product/test files.
-- Carriers #6 and #7 each contain one execution-only test file and are non-canonical.
-- Current upstream source research revision is newer than the owned candidate base; selected implementation requires a refresh.
-- Earlier ACCEPT proves candidate A's exact tested behavior, not the expanded compatibility claim.
-- Carriers must close after receipts transfer.
+| Criticism | Concrete response | Effect |
+| --- | --- | --- |
+| Candidate A changes user post-hook input. | Created baseline/candidate visibility carriers #6/#7. | Reopened the lane. |
+| Candidate A conflicts with first-party RSC raw imports. | Added raw-import controls and selected Option B. | A held as negative comparison. |
+| A two-pass union may falsely prune unchanged late state. | Added repeat-transform negative control. | Old Option B head failed exactly there. |
+| Retaining prior state could make removed imports sticky. | Added removal transition requiring one real prune and absent graph relationships. | Current head queued. |
 
 ## Current disposition and routing
 
 - Finding state: `comparative-evaluation-active`
-- Review disposition: `REPAIR direction; EXECUTE paired controls; prototype Option B`
-- Review Queue entry: no user decision request
+- Review disposition: `REPAIR and EXECUTE Option B; HOLD Candidate A promotion`
+- Review Queue: no user design question; reviewers should attack concrete alternatives
 - Delivery lane: `not-entered`
-- Exact next transition: implement bounded late reconciliation on a separate owned branch
-- Clearing condition: one exact-head candidate preserves final graph truth and first-party raw-import/post-hook compatibility
-- Required subgates: paired receipts; Option B focused execution; current-source refresh; complete-diff review; carrier retirement
-- Autonomous work remaining: prototype, execution, source review, adversarial cross-review
+- Preferred family: Option B
+- Current preferred mechanism: retained late-state overlay, subject to exact execution and state-visibility review
+- Exact next transition: inspect current PR #9 workflows, repair concrete failures, then add accepted-state visibility, error rollback, and generation controls
+- Clearing condition: one exact-head implementation preserves final graph truth, raw-import compatibility, repeat/remove correctness, and defined post-hook graph visibility
 - Non-delegable human decision: `none`
 
 ## Changes to the conclusion
@@ -205,10 +230,16 @@ Option B — preserve normal import analysis and add bounded late graph/HMR reco
 | Date | Record | Change |
 | --- | --- | --- |
 | 2026-07-29 | Vite PR #2 | Reproduced final-source graph mismatch. |
-| 2026-07-29 | Vite PR #5 | Implemented and fully gated one-pass late analysis. |
-| 2026-07-30 | Exact-head review | Accepted A as coherent and treated compatibility as a design judgment. |
-| 2026-07-31 | Fieldwork PR #264 and Vite #6/#7 | Reopened as autonomous comparison. |
-| 2026-07-31 | First-party RSC source review | Found explicit current reliance on post-analysis dynamic-import injection; Option B became preferred prototype. |
+| 2026-07-29 | Vite PR #5 | Implemented and fully gated Candidate A. |
+| 2026-07-31 | First-party RSC source review | Found explicit reliance on late raw-import insertion; A ceased to be preferred. |
+| 2026-07-31 | PRs #6–#8 | Instantiated baseline, A, and combined desired contract. |
+| 2026-07-31 | PR #9 at `7132850…` | One-shot mechanism passed earlier assertions; repeat transform exposed false prune. |
+| 2026-07-31 | PR #9 at `bf18a77…` | Added retained overlay plus unchanged-retain and real-removal controls. |
+
+## Durable supporting records
+
+- `findings/F25-vite-post-transform-import-analysis/evidence/20260731-workstream-b-transform-order-comparison.md`
+- `findings/F25-vite-post-transform-import-analysis/alternatives/B-late-reconciliation.md`
 
 ## References
 
@@ -217,6 +248,8 @@ Option B — preserve normal import analysis and add bounded late graph/HMR reco
 - https://github.com/teamleaderleo/vite/pull/5
 - https://github.com/teamleaderleo/vite/pull/6
 - https://github.com/teamleaderleo/vite/pull/7
+- https://github.com/teamleaderleo/vite/pull/8
+- https://github.com/teamleaderleo/vite/pull/9
 - https://github.com/vitejs/vite/pull/23029
 - https://github.com/vitejs/vite/blob/843a47da6b93dbd3ce28c4ffae33a8ef338c6f05/packages/vite/src/node/plugins/index.ts
 - https://github.com/vitejs/vite/blob/843a47da6b93dbd3ce28c4ffae33a8ef338c6f05/packages/vite/src/node/plugins/importAnalysis.ts
@@ -224,4 +257,6 @@ Option B — preserve normal import analysis and add bounded late graph/HMR reco
 - https://rolldown.rs/apis/plugin-api
 - https://github.com/vitejs/vite-plugin-react/blob/9db4976a9f30e89205d327b9e951a0a1d4912fe5/packages/plugin-rsc/src/plugin.ts
 - https://github.com/vitejs/vite-plugin-react/blob/9db4976a9f30e89205d327b9e951a0a1d4912fe5/packages/plugin-rsc/src/browser.ts
-- `findings/F25-vite-post-transform-import-analysis/evidence/20260731-workstream-b-transform-order-comparison.md`
+- CI `30487475188`
+- Zizmor `30487475253`
+- PR #9 CI `30587631101`, job `91022769607`
