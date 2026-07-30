@@ -199,32 +199,41 @@ def _readiness_adjacency(
 def _find_readiness_cycle(
     node_ids: Iterable[str], outgoing: dict[str, list[str]]
 ) -> list[str] | None:
+    """Return one deterministic cycle without depending on Python recursion depth."""
     state: dict[str, int] = {node_id: 0 for node_id in node_ids}
-    stack: list[str] = []
-    stack_index: dict[str, int] = {}
 
-    def visit(node_id: str) -> list[str] | None:
-        state[node_id] = 1
-        stack_index[node_id] = len(stack)
-        stack.append(node_id)
-        for target in outgoing[node_id]:
-            if state[target] == 0:
-                cycle = visit(target)
-                if cycle:
-                    return cycle
-            elif state[target] == 1:
-                start = stack_index[target]
-                return stack[start:] + [target]
-        stack.pop()
-        stack_index.pop(node_id)
-        state[node_id] = 2
-        return None
+    for root in sorted(state):
+        if state[root] != 0:
+            continue
 
-    for node_id in sorted(state):
-        if state[node_id] == 0:
-            cycle = visit(node_id)
-            if cycle:
-                return cycle
+        path: list[str] = []
+        path_index: dict[str, int] = {}
+        stack: list[tuple[str, int]] = [(root, 0)]
+        while stack:
+            node_id, next_neighbor = stack[-1]
+            if state[node_id] == 0:
+                state[node_id] = 1
+                path_index[node_id] = len(path)
+                path.append(node_id)
+
+            neighbors = outgoing[node_id]
+            if next_neighbor < len(neighbors):
+                target = neighbors[next_neighbor]
+                stack[-1] = (node_id, next_neighbor + 1)
+                if state[target] == 0:
+                    stack.append((target, 0))
+                elif state[target] == 1:
+                    start = path_index[target]
+                    return path[start:] + [target]
+                continue
+
+            stack.pop()
+            state[node_id] = 2
+            path_index.pop(node_id)
+            if not path or path[-1] != node_id:
+                raise GraphError("cycle traversal stack became inconsistent")
+            path.pop()
+
     return None
 
 

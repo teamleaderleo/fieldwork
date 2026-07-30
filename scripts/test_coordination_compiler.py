@@ -117,6 +117,28 @@ class CoordinationCompilerTests(unittest.TestCase):
         with self.assertRaisesRegex(compiler.GraphError, "readiness cycle"):
             compiler.normalize_graph(value)
 
+    def test_maximum_depth_chain_does_not_depend_on_python_recursion(self) -> None:
+        nodes = [node(f"n-{index:04d}") for index in range(compiler.MAX_NODES)]
+        edges = [
+            {
+                "from": f"n-{index:04d}",
+                "to": f"n-{index + 1:04d}",
+                "kind": "requires",
+            }
+            for index in range(compiler.MAX_NODES - 1)
+        ]
+
+        normalized = compiler.normalize_graph(graph(nodes, edges))
+        result = compiler.evaluate_graph(normalized, ["n-0000"])
+
+        self.assertEqual(len(result["topological_order"]), compiler.MAX_NODES)
+        self.assertEqual(len(result["affected_nodes"]), compiler.MAX_NODES)
+        self.assertEqual(result["topological_order"][0], "n-0000")
+        self.assertEqual(
+            result["topological_order"][-1],
+            f"n-{compiler.MAX_NODES - 1:04d}",
+        )
+
     def test_affected_descendants_do_not_include_unrelated_branch(self) -> None:
         value = compiler.normalize_graph(
             graph(
