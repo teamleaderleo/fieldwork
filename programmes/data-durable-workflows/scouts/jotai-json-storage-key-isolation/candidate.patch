@@ -1,7 +1,7 @@
 diff --git a/src/vanilla/utils/atomWithStorage.ts b/src/vanilla/utils/atomWithStorage.ts
 --- a/src/vanilla/utils/atomWithStorage.ts
 +++ b/src/vanilla/utils/atomWithStorage.ts
-@@ -117,22 +117,24 @@ export function createJSONStorage<Value>(
+@@ -119,22 +119,23 @@ export function createJSONStorage<Value>(
    },
    options?: JsonStorageOptions,
  ): AsyncStorage<Value> | SyncStorage<Value> {
@@ -23,26 +23,36 @@ diff --git a/src/vanilla/utils/atomWithStorage.ts b/src/vanilla/utils/atomWithSt
 +        const cached = cachedValues.get(key)
 +        if (cached?.str === str) {
 +          return cached.value
-         }
--        return lastValue
++        }
 +        try {
 +          const value = JSON.parse(str, options?.reviver) as Value
 +          cachedValues.set(key, { str, value })
 +          return value
 +        } catch {
 +          return initialValue
-+        }
+         }
+-        return lastValue
        }
        const str = getStringStorage()?.getItem(key) ?? null
        if (isPromiseLike(str)) {
-@@ -145,7 +147,10 @@ export function createJSONStorage<Value>(
-       key,
-       JSON.stringify(newValue, options?.replacer),
-     ),
+@@ -147,7 +148,20 @@ export function createJSONStorage<Value>(
+         key,
+         JSON.stringify(newValue, options?.replacer),
+       ),
 -    removeItem: (key) => getStringStorage()?.removeItem(key),
 +    removeItem: (key) => {
++      const stringStorage = getStringStorage()
++      if (!stringStorage) {
++        return
++      }
++      const result = stringStorage.removeItem(key)
++      if (isPromiseLike(result)) {
++        return result.then(() => {
++          cachedValues.delete(key)
++        }) as never
++      }
 +      cachedValues.delete(key)
-+      return getStringStorage()?.removeItem(key)
++      return result
 +    },
    }
  
