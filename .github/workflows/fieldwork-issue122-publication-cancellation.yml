@@ -24,6 +24,7 @@ env:
   DATAFUSION_COMMIT: 455a3add52d051a20df9960a726ee9acb98528a3
   POLARS_COMMIT: 36e414b4cb1e74e7a171995b35b83c1163974324
   OBJECT_STORE_RELEASE_COMMIT: 7a65b75b0d26fd8a282999462cb7030fb85fdcc3
+  POLARS_OBJECT_STORE_COMMIT: f50a6e5c564b2b5933eca15cd20ff9b5614374a1
   PROBE_DIR: programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/object-store-abort
   SINK_PROBE_DIR: programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/datafusion-sink-cancel
   POLARS_PROBE_DIR: programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/polars-local-cancel
@@ -41,7 +42,8 @@ jobs:
           for spec in \
             "datafusion https://github.com/apache/datafusion.git $DATAFUSION_COMMIT" \
             "polars https://github.com/pola-rs/polars.git $POLARS_COMMIT" \
-            "object-store https://github.com/apache/arrow-rs-object-store.git $OBJECT_STORE_RELEASE_COMMIT"
+            "object-store https://github.com/apache/arrow-rs-object-store.git $OBJECT_STORE_RELEASE_COMMIT" \
+            "polars-object-store https://github.com/apache/arrow-rs-object-store.git $POLARS_OBJECT_STORE_COMMIT"
           do
             set -- $spec
             name="$1"
@@ -124,6 +126,10 @@ jobs:
                       "pub async fn finish(&mut self)",
                   ],
               ),
+              "polars_object_store_dns_resolver": (
+                  Path(".fieldwork/polars-object-store/src/client/mod.rs"),
+                  ["with_dns_resolver"],
+              ),
           }
 
           receipt = {}
@@ -167,6 +173,8 @@ jobs:
           set -euxo pipefail
           cargo tree --manifest-path "$PROBE_DIR/Cargo.toml" -i object_store | tee issue122-object-store-tree.txt
           grep -F 'object_store v0.13.2' issue122-object-store-tree.txt
+          cargo tree --manifest-path "$POLARS_PROBE_DIR/Cargo.toml" -i object_store | tee issue122-polars-object-store-tree.txt
+          grep -F 'object_store v0.13.2 (/home/runner/work/fieldwork/fieldwork/.fieldwork/polars-object-store)' issue122-polars-object-store-tree.txt
 
       - name: Check and run multipart cleanup control
         run: |
@@ -197,6 +205,7 @@ jobs:
           path: |
             issue122-source-contract.json
             issue122-object-store-tree.txt
+            issue122-polars-object-store-tree.txt
             issue122-object-store-abort.json
             issue122-datafusion-sink-cancel.json
             issue122-polars-local-cancel.json
