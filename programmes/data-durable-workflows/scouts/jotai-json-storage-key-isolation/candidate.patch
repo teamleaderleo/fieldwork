@@ -35,24 +35,39 @@ diff --git a/src/vanilla/utils/atomWithStorage.ts b/src/vanilla/utils/atomWithSt
        }
        const str = getStringStorage()?.getItem(key) ?? null
        if (isPromiseLike(str)) {
-@@ -145,7 +146,20 @@ export function createJSONStorage<Value>(
+@@ -145,7 +146,35 @@ export function createJSONStorage<Value>(
          key,
          JSON.stringify(newValue, options?.replacer),
        ),
 -    removeItem: (key) => getStringStorage()?.removeItem(key),
 +    removeItem: (key) => {
++      const invalidate = () => {
++        cachedValues.delete(key)
++      }
 +      const stringStorage = getStringStorage()
 +      if (!stringStorage) {
++        invalidate()
 +        return
 +      }
-+      const result = stringStorage.removeItem(key)
-+      if (isPromiseLike(result)) {
-+        return result.then(() => {
-+          cachedValues.delete(key)
-+        }) as never
++      try {
++        const result = stringStorage.removeItem(key)
++        if (isPromiseLike(result)) {
++          return result.then(
++            () => {
++              invalidate()
++            },
++            (error) => {
++              invalidate()
++              throw error
++            },
++          ) as never
++        }
++        invalidate()
++        return result
++      } catch (error) {
++        invalidate()
++        throw error
 +      }
-+      cachedValues.delete(key)
-+      return result
 +    },
    }
  
