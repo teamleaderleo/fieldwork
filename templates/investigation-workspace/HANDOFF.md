@@ -3,11 +3,13 @@
 Workspace: <path>  
 Parent issue: <issue>  
 Coordinator: <owner>  
-State: `<ready-for-synthesis | blocked | needs-decision | complete>`  
+Workspace phase: `<orient | collect | compare | synthesize | decide | handoff>`  
+Current transition state: `<research-active | review-ready | design-decision-ready | delivery-gate-ready | land-ready | stopped | closed>`  
 Snapshot date: <date>  
 Current source or retrieval boundary: `<exact identity>`  
 Workspace branch and exact head: `<repository, branch, SHA>`  
-Upstream contact authorized: `<false | exact authority>`
+Canonical finding index: `<links>`  
+Upstream contact authorized: `<no | yes with exact authority>`
 
 ## In simple words
 
@@ -18,11 +20,19 @@ Upstream contact authorized: `<false | exact authority>`
 - <finding, evidence, alternative, precedent, decision, or canonical output>;
 - <finding, evidence, alternative, precedent, decision, or canonical output>.
 
+## Canonical findings and transitions
+
+| Canonical finding | State | Disposition | Desk routing | Exact next transition |
+| --- | --- | --- | --- | --- |
+| `findings/F<issue>-<slug>/finding.md` | <canonical state> | <value> | <queue or desk> | <one transition> |
+
 ## Current canonical outputs
 
 | Output | Status | Audience | Exact inputs | Limit |
 | --- | --- | --- | --- | --- |
 | <path> | `<candidate | accepted | disputed | superseded | retired | held>` | <audience> | <revisions and receipts> | <limit> |
+
+Output status applies to the presentation artifact. It never substitutes for a finding's transition state.
 
 ## Exact external and owned source state
 
@@ -63,4 +73,4 @@ This handoff expires when:
 
 ## Public interaction
 
-Public upstream interaction performed: `<false | exact authorized interaction>`.
+Public upstream interaction performed: `<no | exact authorized interaction>`.
