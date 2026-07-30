@@ -111,6 +111,25 @@ jobs:
         working-directory: codex
         run: bash /tmp/restack.sh
 
+      - name: Preserve module-scoped terminal test access
+        working-directory: codex
+        shell: python
+        run: |
+          from pathlib import Path
+
+          process = Path('codex-rs/core/src/unified_exec/process.rs')
+          text = process.read_text(encoding='utf-8')
+          private = '    fn spawn_local_output_task(\n'
+          module_scoped = '    pub(super) fn spawn_local_output_task(\n'
+          if text.count(private) != 1:
+              raise SystemExit(
+                  'expected exactly one private spawn_local_output_task after reconstruction'
+              )
+          process.write_text(
+              text.replace(private, module_scoped, 1),
+              encoding='utf-8',
+          )
+
       - name: Format and verify four-file fence
         working-directory: codex
         run: bash /tmp/format.sh
@@ -120,7 +139,7 @@ jobs:
         run: |
           set -euo pipefail
           cargo nextest list -p codex-core --lib --message-format json > /tmp/tests.json
-          python3 - <<'PY' > /tmp/resolved-tests
+          python3 <<'PY' > /tmp/resolved-tests
           import json
           from pathlib import Path
 
