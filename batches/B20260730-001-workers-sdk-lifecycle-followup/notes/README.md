@@ -5,5 +5,6 @@
 - `vite-build-marker-scope.md` — candidate #183; operation-scoped build intent and entry-versus-prerender preview selection without sticky process environment.
 - `vite-remote-proxy-session-ownership.md` — candidate #186; live remote-binding session lifecycle, connection identity, disposed-entry reuse, and session-owned logging.
 - `vite-container-registry-auth-scope.md` — candidate #187; per-operation account and bearer-token authority for container registry credential generation.
+- `vite-wrangler-import-proxy-dispatcher.md` — candidate #190; side-effect-free Wrangler library import and explicit host/CLI/embedded proxy dispatcher ownership.
 
-All five candidates are separate from the first Miniflare runtime-first patch and remain blocked on package, mocked integration, or multi-operation execution appropriate to their evidence class.
+All six candidates are separate from the first Miniflare runtime-first patch and remain blocked on package, mocked integration, or multi-operation execution appropriate to their evidence class.
