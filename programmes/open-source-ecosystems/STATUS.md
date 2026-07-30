@@ -5,7 +5,7 @@
 Find consequential work across package collections, runtimes, tools, libraries, databases, and Linux systems; prove each candidate locally; then carry the strongest fixes upstream with tests and a compact evidence packet.
 
 - Programme hub: #207
-- State: `ready`
+- State: `investigating`
 - Coordinator: `teamleaderleo`
 - Upstream contact: unauthorized by default
 
@@ -18,6 +18,19 @@ Run a wide discovery portfolio while keeping implementation and review bounded.
 3. Promote foundational-library and database candidates when a reduced input or deterministic fixture exists.
 4. Route Linux package, process, filesystem, service, privilege, container, and kernel-facing work through `linux-fieldwork`.
 5. Keep security-sensitive, compiler-backend, hardware-specific, and kernel work behind stronger reproduction and environment gates.
+
+## Retained rounds
+
+- [`2026-07-30 broad-spectrum round`](rounds/2026-07-30-broad-spectrum/README.md) — live issue scan, ranked queue, code-level deep dives, duplicate stops, environment gates, and recurring search playbook.
+
+Current first probes from that round:
+
+1. Ruff #27026 — constrain RUF038 to valid annotation contexts and preserve unsupported members;
+2. DuckDB #24308 — distinguish SQL NULL from the literal Hive default-partition marker;
+3. Rust #159745 — add a nested-turbofish diagnostic;
+4. Nixpkgs #516481 — restore `gomarkdoc` package tests;
+5. systemd #43174 — VM trace of oomd registration loss;
+6. CPython #154916 — free-threaded/TSAN design for a safe `GenericAlias` iterator snapshot.
 
 ## Execution waves
 
@@ -52,11 +65,12 @@ Run a wide discovery portfolio while keeping implementation and review bounded.
 ## First outputs
 
 - [`SCOUT_MATRIX.md`](SCOUT_MATRIX.md) — initial portfolio and promotion gates;
-- ranked package-collection candidates;
+- [`rounds/2026-07-30-broad-spectrum/CANDIDATE_QUEUE.md`](rounds/2026-07-30-broad-spectrum/CANDIDATE_QUEUE.md) — first ranked live queue;
+- [`rounds/2026-07-30-broad-spectrum/SEARCH_PLAYBOOK.md`](rounds/2026-07-30-broad-spectrum/SEARCH_PLAYBOOK.md) — recurring searches and overlap checks;
 - runtime and developer-tool reduced reproducers;
 - a reusable contribution packet template backed by actual submissions;
 - a ledger of accepted, declined, superseded, and retained-negative-result work.
 
 ## Current decision
 
-Begin broad reconnaissance immediately. Prefer candidates that can reach a failing test or deterministic build difference in current CI. Use the larger ambition to create parallel choice, then concentrate review effort on branches with the clearest consequence and smallest credible patch.
+Begin executable probes for Ruff #27026, DuckDB #24308, Rust #159745, and Nixpkgs #516481. Keep systemd #43174 and CPython #154916 as environment-gated deep lanes. Continue broad reconnaissance, but require an active-PR and linked-work check before code changes.
