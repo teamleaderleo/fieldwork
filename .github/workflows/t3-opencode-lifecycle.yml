@@ -65,6 +65,8 @@ jobs:
             test: apps/server/src/provider/Layers/OpenCodeAdapter.pending-request.test.ts
           - name: Pending request explicit stop
             test: apps/server/src/provider/Layers/OpenCodeAdapter.pending-request-stop.test.ts
+          - name: Pending request normal completion
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.pending-request-completion.test.ts
           - name: Reaper race
             test: apps/server/src/provider/Layers/ProviderSessionReaper.race.test.ts
     steps:
