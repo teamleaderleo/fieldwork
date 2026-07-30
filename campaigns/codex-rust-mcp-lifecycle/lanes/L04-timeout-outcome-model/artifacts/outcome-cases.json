@@ -2,9 +2,10 @@
   "version": 1,
   "lane": "L04-timeout-outcome-model",
   "fieldwork_issue": 162,
-  "owned_codex_pr": 29,
-  "superseded_codex_pr": 28,
-  "owned_codex_base": "f7265553ea1510304f3091833dcbce65ef21f10c",
+  "active_codex_implementation": null,
+  "closed_codex_evidence_prs": [28, 29],
+  "inspected_owned_codex_base": "f7265553ea1510304f3091833dcbce65ef21f10c",
+  "clean_reapplication_required": true,
   "public_schema_changed": false,
   "cases": [
     {
@@ -59,7 +60,7 @@
       "remote_result_received": false,
       "effect_certainty": "may_still_run_or_may_have_committed",
       "automatic_retry_authorized": false,
-      "note": "Classified from the typed ClientOperationError cause, never from display text."
+      "note": "Classify from the typed ClientOperationError cause, never from display text."
     },
     {
       "id": "other-local-or-transport-failure",
