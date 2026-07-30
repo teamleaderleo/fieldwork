@@ -23,11 +23,110 @@ function isControlledRepository(repository, owner, currentRepository, ownedOwner
   return repository === currentRepository || ownedOwners.has(owner.toLowerCase());
 }
 
+function blankMarkdownSegment(segment) {
+  return segment.replace(/[^\r\n]/g, ' ');
+}
+
+function isEscaped(text, index) {
+  let backslashes = 0;
+  for (let cursor = index - 1; cursor >= 0 && text[cursor] === '\\'; cursor -= 1) {
+    backslashes += 1;
+  }
+  return backslashes % 2 === 1;
+}
+
+function maskFencedCode(text) {
+  const lines = text.split(/\r?\n/);
+  const masked = [];
+  let fence = null;
+
+  for (const line of lines) {
+    if (fence) {
+      masked.push(blankMarkdownSegment(line));
+      const closing = line.match(/^ {0,3}(`{3,}|~{3,})[ \t]*$/);
+      if (
+        closing &&
+        closing[1][0] === fence.character &&
+        closing[1].length >= fence.length
+      ) {
+        fence = null;
+      }
+      continue;
+    }
+
+    const opening = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (opening && (opening[1][0] === '~' || !opening[2].includes('`'))) {
+      fence = {
+        character: opening[1][0],
+        length: opening[1].length,
+      };
+      masked.push(blankMarkdownSegment(line));
+      continue;
+    }
+
+    masked.push(line);
+  }
+
+  return masked.join('\n');
+}
+
+function maskInlineCode(text) {
+  let masked = '';
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    if (text[cursor] !== '`' || isEscaped(text, cursor)) {
+      masked += text[cursor];
+      cursor += 1;
+      continue;
+    }
+
+    let openingEnd = cursor + 1;
+    while (openingEnd < text.length && text[openingEnd] === '`') openingEnd += 1;
+    const delimiterLength = openingEnd - cursor;
+    let closingStart = -1;
+    let searchFrom = openingEnd;
+
+    while (searchFrom < text.length) {
+      const candidate = text.indexOf('`', searchFrom);
+      if (candidate === -1) break;
+      if (isEscaped(text, candidate)) {
+        searchFrom = candidate + 1;
+        continue;
+      }
+
+      let candidateEnd = candidate + 1;
+      while (candidateEnd < text.length && text[candidateEnd] === '`') candidateEnd += 1;
+      if (candidateEnd - candidate === delimiterLength) {
+        closingStart = candidate;
+        break;
+      }
+      searchFrom = candidateEnd;
+    }
+
+    if (closingStart === -1) {
+      masked += text.slice(cursor, openingEnd);
+      cursor = openingEnd;
+      continue;
+    }
+
+    const closingEnd = closingStart + delimiterLength;
+    masked += blankMarkdownSegment(text.slice(cursor, closingEnd));
+    cursor = closingEnd;
+  }
+
+  return masked;
+}
+
+function maskMarkdownCode(text) {
+  return maskInlineCode(maskFencedCode(text));
+}
+
 function scan(text, currentRepository, ownedOwners = configuredOwnedOwners()) {
   if (!text) return [];
 
   const failures = [];
-  const lines = text.split(/\r?\n/);
+  const lines = maskMarkdownCode(text).split(/\r?\n/);
   const direct =
     /https?:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/(issues|pull|discussions|commit)\/([A-Za-z0-9_.-]+)/g;
   const shorthand =
@@ -322,6 +421,7 @@ module.exports = run;
 module.exports.auditRepository = auditRepository;
 module.exports.collectThreadEntries = collectThreadEntries;
 module.exports.configuredOwnedOwners = configuredOwnedOwners;
+module.exports.maskMarkdownCode = maskMarkdownCode;
 module.exports.policyCommentBody = policyCommentBody;
 module.exports.scan = scan;
 module.exports.scanEntries = scanEntries;
