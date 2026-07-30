@@ -1,0 +1,320 @@
+[
+  {
+    "id": "R1-local-shell-read-equivalent",
+    "operation_kind": "read",
+    "logical_operation_id": "op-r1",
+    "original_call_id": "call-r1",
+    "typed_absence_reason": "required_handler_absent",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "A",
+    "proposed_route_provenance": "local_shell",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "equal"},
+      {"field": "permission_scope", "relation": "narrower"},
+      {"field": "resource_scope", "relation": "equal"},
+      {"field": "audit_contract", "relation": "equal"},
+      {"field": "recovery_contract", "relation": "equal"}
+    ],
+    "expected_decision": "allow_equivalent"
+  },
+  {
+    "id": "R2-shell-http-ambient-credential",
+    "operation_kind": "read",
+    "logical_operation_id": "op-r2",
+    "original_call_id": "call-r2",
+    "typed_absence_reason": "connector_unavailable",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "A",
+    "proposed_route_provenance": "shell_http",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "changed"},
+      {"field": "resource_scope", "relation": "broader"},
+      {"field": "audit_contract", "relation": "weaker"}
+    ],
+    "expected_decision": "require_explicit_approval"
+  },
+  {
+    "id": "R3-same-broker-protocol-read",
+    "operation_kind": "read",
+    "logical_operation_id": "op-r3",
+    "original_call_id": "call-r3",
+    "typed_absence_reason": "tool_not_exposed",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "A",
+    "proposed_route_provenance": "same_broker_protocol",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "equal"},
+      {"field": "provider", "relation": "equal"},
+      {"field": "approval_subject", "relation": "equal"},
+      {"field": "resource_scope", "relation": "equal"},
+      {"field": "audit_contract", "relation": "equal"}
+    ],
+    "expected_decision": "allow_equivalent"
+  },
+  {
+    "id": "R4-browser-cookie-read",
+    "operation_kind": "read",
+    "logical_operation_id": "op-r4",
+    "original_call_id": "call-r4",
+    "typed_absence_reason": "required_tool_class_absent",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "browser-session-1",
+    "proposed_route_provenance": "browser_session",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "changed"},
+      {"field": "resource_scope", "relation": "broader"},
+      {"field": "user_visibility", "relation": "changed"},
+      {"field": "recovery_contract", "relation": "weaker"}
+    ],
+    "expected_decision": "require_explicit_approval"
+  },
+  {
+    "id": "R5-substitute-connector-read",
+    "operation_kind": "read",
+    "logical_operation_id": "op-r5",
+    "original_call_id": "call-r5",
+    "typed_absence_reason": "connector_unavailable",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "connector-alpha",
+    "proposed_binding_generation": "connector-beta",
+    "proposed_route_provenance": "substitute_connector",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "account_binding", "relation": "changed"},
+      {"field": "provider", "relation": "changed"},
+      {"field": "approval_subject", "relation": "changed"}
+    ],
+    "expected_decision": "require_explicit_approval"
+  },
+  {
+    "id": "R6-predelegated-subagent-read",
+    "operation_kind": "read",
+    "logical_operation_id": "op-r6",
+    "original_call_id": "call-r6",
+    "typed_absence_reason": "required_tool_class_absent",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "A",
+    "proposed_route_provenance": "subagent",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "actor_delegation", "relation": "equal"},
+      {"field": "permission_scope", "relation": "narrower"},
+      {"field": "resource_scope", "relation": "equal"},
+      {"field": "audit_contract", "relation": "equal"}
+    ],
+    "expected_decision": "allow_equivalent"
+  },
+  {
+    "id": "M1-local-file-mutation-equivalent",
+    "operation_kind": "potential_mutation",
+    "logical_operation_id": "op-m1",
+    "original_call_id": "call-m1",
+    "typed_absence_reason": "required_handler_absent",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "A",
+    "proposed_route_provenance": "local_shell",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "equal"},
+      {"field": "permission_scope", "relation": "equal"},
+      {"field": "resource_scope", "relation": "equal"},
+      {"field": "audit_contract", "relation": "equal"},
+      {"field": "rollback_contract", "relation": "equal"}
+    ],
+    "expected_decision": "allow_equivalent"
+  },
+  {
+    "id": "M2-shell-http-mutation-ambient",
+    "operation_kind": "potential_mutation",
+    "logical_operation_id": "op-m2",
+    "original_call_id": "call-m2",
+    "typed_absence_reason": "connector_unavailable",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "A",
+    "proposed_route_provenance": "shell_http",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "changed"},
+      {"field": "permission_scope", "relation": "broader"},
+      {"field": "resource_scope", "relation": "broader"},
+      {"field": "audit_contract", "relation": "weaker"}
+    ],
+    "expected_decision": "fail_closed"
+  },
+  {
+    "id": "M3-browser-mutation",
+    "operation_kind": "potential_mutation",
+    "logical_operation_id": "op-m3",
+    "original_call_id": "call-m3",
+    "typed_absence_reason": "required_tool_class_absent",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "browser-session-1",
+    "proposed_route_provenance": "browser_session",
+    "preserves_logical_operation_identity": true,
+    "reversible": false,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "changed"},
+      {"field": "resource_scope", "relation": "broader"},
+      {"field": "recovery_contract", "relation": "weaker"}
+    ],
+    "expected_decision": "fail_closed"
+  },
+  {
+    "id": "M4-substitute-connector-mutation",
+    "operation_kind": "potential_mutation",
+    "logical_operation_id": "op-m4",
+    "original_call_id": "call-m4",
+    "typed_absence_reason": "connector_unavailable",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "connector-alpha",
+    "proposed_binding_generation": "connector-beta",
+    "proposed_route_provenance": "substitute_connector",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "account_binding", "relation": "changed"},
+      {"field": "provider", "relation": "changed"},
+      {"field": "approval_subject", "relation": "changed"},
+      {"field": "audit_contract", "relation": "equal"},
+      {"field": "idempotency_contract", "relation": "equal"}
+    ],
+    "expected_decision": "require_explicit_approval"
+  },
+  {
+    "id": "M5-subagent-mutation-delegation",
+    "operation_kind": "potential_mutation",
+    "logical_operation_id": "op-m5",
+    "original_call_id": "call-m5",
+    "typed_absence_reason": "required_tool_class_absent",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "A",
+    "proposed_route_provenance": "subagent",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "actor_delegation", "relation": "changed"},
+      {"field": "approval_subject", "relation": "changed"},
+      {"field": "user_visibility", "relation": "changed"}
+    ],
+    "expected_decision": "require_explicit_approval"
+  },
+  {
+    "id": "M6-ambiguous-prior-result",
+    "operation_kind": "potential_mutation",
+    "logical_operation_id": "op-m6",
+    "original_call_id": "call-m6",
+    "typed_absence_reason": "binding_lost_after_dispatch",
+    "original_execution_certainty": "ambiguous",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "A",
+    "proposed_route_provenance": "same_broker_protocol",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "equal"},
+      {"field": "resource_scope", "relation": "equal"},
+      {"field": "audit_contract", "relation": "equal"}
+    ],
+    "expected_decision": "fail_closed"
+  },
+  {
+    "id": "M7-same-broker-protocol-mutation",
+    "operation_kind": "potential_mutation",
+    "logical_operation_id": "op-m7",
+    "original_call_id": "call-m7",
+    "typed_absence_reason": "tool_not_exposed",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "A",
+    "proposed_route_provenance": "same_broker_protocol",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "equal"},
+      {"field": "provider", "relation": "equal"},
+      {"field": "approval_subject", "relation": "equal"},
+      {"field": "idempotency_contract", "relation": "equal"},
+      {"field": "rollback_contract", "relation": "equal"}
+    ],
+    "expected_decision": "allow_equivalent"
+  },
+  {
+    "id": "M8-local-timeout-may-still-run",
+    "operation_kind": "potential_mutation",
+    "logical_operation_id": "op-m8",
+    "original_call_id": "call-m8",
+    "typed_absence_reason": "local_timeout",
+    "original_execution_certainty": "local_timeout_outcome_unknown",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "B",
+    "proposed_route_provenance": "refreshed_mcp_binding",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "equal"},
+      {"field": "provider", "relation": "equal"},
+      {"field": "resource_scope", "relation": "equal"}
+    ],
+    "expected_decision": "fail_closed"
+  },
+  {
+    "id": "M9-new-generation-equal-authority-before-dispatch",
+    "operation_kind": "potential_mutation",
+    "logical_operation_id": "op-m9",
+    "original_call_id": "call-m9",
+    "typed_absence_reason": "captured_binding_unavailable_before_dispatch",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "B",
+    "proposed_route_provenance": "refreshed_mcp_binding",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "equal"},
+      {"field": "provider", "relation": "equal"},
+      {"field": "permission_scope", "relation": "equal"},
+      {"field": "resource_scope", "relation": "equal"},
+      {"field": "approval_subject", "relation": "equal"},
+      {"field": "audit_contract", "relation": "equal"},
+      {"field": "idempotency_contract", "relation": "equal"},
+      {"field": "recovery_contract", "relation": "equal"}
+    ],
+    "expected_decision": "allow_equivalent"
+  },
+  {
+    "id": "R7-no-executable-route",
+    "operation_kind": "read",
+    "logical_operation_id": "op-r7",
+    "original_call_id": "call-r7",
+    "typed_absence_reason": "required_execution_absent",
+    "original_execution_certainty": "not_dispatched",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": null,
+    "proposed_route_provenance": null,
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [],
+    "expected_decision": "fail_closed"
+  }
+]
