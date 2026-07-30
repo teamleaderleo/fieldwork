@@ -20,7 +20,7 @@ Related stabilization: [RUF038 stabilization PR](https://redirect.github.com/ast
 
 The rule documentation says it checks `Literal[True, False]` **type annotations**. The implementation receives a general `literal_expr`, traverses its members, and can replace the entire expression range with `bool` when it believes only `True` and `False` were seen.
 
-The issue demonstrates two separate defects:
+The issue demonstrates two separate concerns:
 
 1. runtime calls such as `get_args(Literal[True, False])` are diagnosed and rewritten even though the expression is executed;
 2. a mixed expression containing `values[0]` can be traversed in a way that loses the subscripted member and its evaluation.
@@ -35,6 +35,15 @@ print(get_args(Literal[True, False, values[0]]))
 
 becomes runtime uses of `bool`, changing output and dropping `values[0]`.
 
+### Review split
+
+The live issue discussion sharpened the boundary after the original scan:
+
+- annotation rewrites remain runtime-visible through `__annotations__` and `typing.get_type_hints`, so whether every `Literal[...]` rewrite should be unsafe is a fix-policy decision;
+- dropping an unsupported member such as `values[0]` is an independent correctness bug even inside a legitimate annotation context.
+
+A contributor has publicly asked to work on the issue and identified the traversal path. There is no matching PR or formal assignment yet, but the request is an ownership signal under the programme's overlap rules.
+
 ### Likely owning boundaries
 
 ```text
@@ -44,22 +53,22 @@ RUF038 fixtures and snapshots
 semantic helpers that determine annotation context
 ```
 
-### First executable probe
+### Retained executable packet
 
-Add fixtures covering:
+Retain fixtures covering:
 
 - a variable annotation where replacement is permitted;
-- `typing.get_args()` runtime use where no diagnostic should appear;
-- a mixed `Literal[True, False, values[0]]` annotation where the rule must preserve the third member;
+- `typing.get_args()` runtime use and runtime introspection;
+- a mixed `Literal[True, False, values[0]]` annotation where the third member must never disappear;
 - postponed annotations and quoted annotations;
 - nested subscripts and unions;
 - a shadowed `Literal` binding.
 
-Then trace the rule invocation to decide whether annotation context belongs at the caller or inside the rule. Keep the member traversal conservative: any unsupported member must prevent whole-expression replacement.
+Any future work should separate the fix-safety classification from the mixed-member traversal correction. Do not silently solve both with one broad context restriction.
 
-### Promotion signal
+### Current disposition
 
-A focused patch should prevent runtime diagnostics, preserve all unsupported members, and retain expected annotation fixes. Coordinate the regression with the stabilization review path before upstream submission.
+Coordinate rather than create an independent branch while contributor intent is active. The round retains the diagnosis, fixtures, and split review boundary. Reopen implementation only after the contributor or maintainers release the work or explicitly invite collaboration.
 
 ## Other Ruff candidates
 
@@ -114,8 +123,8 @@ Every automatic-fix candidate should include:
 
 ## Return
 
-- **Promote first:** the RUF038 annotation/runtime boundary.
-- **Parallel candidates:** B006 multiline strings and RUF055 buffer behavior.
+- **Coordinate / hold independent implementation:** RUF038 #27026 while contributor intent remains active.
+- **Parallel candidates after overlap refresh:** B006 multiline strings and RUF055 buffer behavior.
 - **Batch candidate:** the two PEP 695 transformations.
 - **Issue-first:** pip build-dependency hash enforcement.
 - **Retain for reduction:** pip resolver diagnostics and Ruff convergence.
