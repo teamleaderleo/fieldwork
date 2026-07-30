@@ -1,0 +1,58 @@
+name: Campaign 86 authority fallback classifier
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - campaigns/0006-authority-aware-capability-fallback/**
+      - .github/workflows/campaign-86-authority-fallback-classifier.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and execute deterministic case matrices
+        run: |
+          path=campaigns/0006-authority-aware-capability-fallback/artifacts
+          python3 -m py_compile \
+            "$path/classify_fallback.py" \
+            "$path/test_canonical_deltas.py"
+          python3 "$path/test_canonical_deltas.py"
+          for matrix in cases review_cases; do
+            python3 "$path/classify_fallback.py" \
+              --cases "$path/${matrix}.json" \
+              --output "/tmp/${matrix}-results-1.json"
+            python3 "$path/classify_fallback.py" \
+              --cases "$path/${matrix}.json" \
+              --output "/tmp/${matrix}-results-2.json"
+            cmp "/tmp/${matrix}-results-1.json" "/tmp/${matrix}-results-2.json"
+          done
+          python3 - <<'PY'
+          import json
+          totals = {
+              'case_count': 0,
+              'decision_counts': {
+                  'allow_equivalent': 0,
+                  'require_explicit_approval': 0,
+                  'fail_closed': 0,
+              },
+              'all_expectations_passed': True,
+              'failed_cases': [],
+          }
+          for matrix in ('cases', 'review_cases'):
+              result = json.load(open(f'/tmp/{matrix}-results-1.json'))
+              totals['case_count'] += result['case_count']
+              totals['all_expectations_passed'] &= result['all_expectations_passed']
+              totals['failed_cases'].extend(result['failed_cases'])
+              for decision, count in result['decision_counts'].items():
+                  totals['decision_counts'][decision] += count
+          print(json.dumps(totals, sort_keys=True))
+          if not totals['all_expectations_passed']:
+              raise SystemExit(1)
+          PY
+          git diff --check

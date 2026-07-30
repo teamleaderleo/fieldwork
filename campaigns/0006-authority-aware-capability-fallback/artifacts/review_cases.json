@@ -1,0 +1,62 @@
+[
+  {
+    "id": "M10-remote-result-without-no-effect-proof",
+    "operation_kind": "potential_mutation",
+    "logical_operation_id": "op-m10",
+    "original_call_id": "call-m10",
+    "typed_absence_reason": "route_failed_after_dispatch",
+    "original_execution_certainty": "remote_result_received",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "A",
+    "proposed_route_provenance": "same_broker_protocol",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "equal"},
+      {"field": "permission_scope", "relation": "equal"},
+      {"field": "resource_scope", "relation": "equal"},
+      {"field": "audit_contract", "relation": "equal"}
+    ],
+    "expected_decision": "fail_closed"
+  },
+  {
+    "id": "M11-missing-execution-certainty",
+    "operation_kind": "potential_mutation",
+    "logical_operation_id": "op-m11",
+    "original_call_id": "call-m11",
+    "typed_absence_reason": "required_handler_absent",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "A",
+    "proposed_route_provenance": "local_shell",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "equal"},
+      {"field": "permission_scope", "relation": "equal"},
+      {"field": "resource_scope", "relation": "equal"}
+    ],
+    "expected_decision": "fail_closed"
+  },
+  {
+    "id": "M12-reconciled-no-effect-equivalent",
+    "operation_kind": "potential_mutation",
+    "logical_operation_id": "op-m12",
+    "original_call_id": "call-m12",
+    "typed_absence_reason": "route_failed_after_dispatch",
+    "original_execution_certainty": "reconciled_no_effect",
+    "captured_binding_generation": "A",
+    "proposed_binding_generation": "A",
+    "proposed_route_provenance": "same_broker_protocol",
+    "preserves_logical_operation_identity": true,
+    "reversible": true,
+    "authority_deltas": [
+      {"field": "credential_binding", "relation": "equal"},
+      {"field": "permission_scope", "relation": "equal"},
+      {"field": "resource_scope", "relation": "equal"},
+      {"field": "audit_contract", "relation": "equal"},
+      {"field": "idempotency_contract", "relation": "equal"},
+      {"field": "recovery_contract", "relation": "equal"}
+    ],
+    "expected_decision": "allow_equivalent"
+  }
+]
