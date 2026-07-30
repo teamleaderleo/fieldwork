@@ -1,0 +1,34 @@
+name: Effective surface receipts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/effective-surface-receipts.yml'
+      - 'campaigns/0002-tool-surface-continuity/lanes/L06-effective-surface-diagnostics/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: campaigns/0002-tool-surface-continuity/lanes/L06-effective-surface-diagnostics/artifacts
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - name: Compile classifier and tests
+        run: python3 -m py_compile classify_receipts.py test_classify_receipts.py
+      - name: Run focused regressions
+        run: python3 test_classify_receipts.py
+      - name: Preserve retained classification output
+        run: |
+          python3 classify_receipts.py fixtures.json --output /tmp/effective-surface-latest.json
+          cmp /tmp/effective-surface-latest.json results/latest.json
+      - name: Check diff hygiene
+        working-directory: ${{ github.workspace }}
+        run: git diff --check
