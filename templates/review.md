@@ -8,25 +8,40 @@ State what is being reviewed, what transition is requested, the strongest suppor
 
 - Repository:
 - Pull request or issue:
-- Reviewed issue or decision input generation: issue number plus `updated_at`, body digest, or explicit revision marker
+- Reviewed issue or decision input generation: issue number plus `updated_at`, body digest, explicit revision marker, or not applicable
 - Work class: owned product delivery | upstream-fork research | execution carrier | evidence/documentation | blocked/security-sensitive
 - Canonical branch:
 - Exact head SHA:
 - Base or current-main SHA:
 - Changed-file fence:
-- Author eligible to accept or merge: yes | no
-- Upstream contact authorized: yes | no
+- Author eligible to accept or merge: yes | no | not applicable
+- Upstream contact authorized: yes | no | not applicable
 
-## Evidence
+## Claim-scoped evidence
 
-- Evidence class: source-read | model-executed | target-test-prepared | target-executed | integration-executed | full-gate
+Record one row for every claim that affects the disposition. Do not assign one strongest evidence class to the whole pull request when different claims have different support.
+
+| Claim or invariant | Evidence class | Exact receipt, source, or artifact | Coverage limits |
+| --- | --- | --- | --- |
+|  | source-read |  |  |
+
+Allowed evidence classes: `source-read` | `model-executed` | `target-test-prepared` | `target-executed` | `integration-executed` | `full-gate`.
+
 - Commands or workflow runs:
 - Platforms and runtimes:
 - Focused tests:
-- Named full repository gate or command set:
-- Material paths not exercised by that gate:
+- Named full repository gate or command set: not applicable when no full-gate claim is made
+- Material paths not exercised by that gate: not applicable when no full-gate claim is made
 - Checks skipped, not triggered, or still running:
 - Retained artifacts or receipts:
+
+## Self-review before handoff
+
+- Strongest claim traced to exact support: yes | no
+- Intended assertion actually ran: yes | no | not applicable
+- Harness, setup, fixture, installation, and product failures separated: yes | no | not applicable
+- Candidate or theory rewritten after contradictory execution: yes | no | not applicable
+- Live issue, report, pull-request description, receipt, and queue entry synchronized: yes | no | not applicable
 
 ## Complete-diff review
 
@@ -44,9 +59,9 @@ State what is being reviewed, what transition is requested, the strongest suppor
 - Supersedes:
 - Superseded by:
 - Execution carriers to close:
-- Issue `State:` text agrees with labels: yes | no
-- Pull-request description is current for this head: yes | no
-- Current-main relation is known: yes | no
+- Issue `State:` text agrees with labels: yes | no | not applicable
+- Pull-request description is current for this head: yes | no | not applicable
+- Current-main relation is known: yes | no | not applicable
 
 ## Disposition
 
