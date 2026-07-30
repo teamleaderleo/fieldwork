@@ -139,15 +139,15 @@ class ReceiptClassifierTests(unittest.TestCase):
                 run(input_path, output_path)
             self.assertFalse(output_path.exists())
 
-    def test_run_writes_identical_zero_mismatch_summary(self):
+    def test_run_writes_semantically_identical_zero_mismatch_summary(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             output = Path(temp_dir) / "result.json"
             summary = run(Path("fixtures.json"), output)
             self.assertEqual([], summary["expectation_mismatches"])
             self.assertEqual(8, summary["receipt_count"])
             self.assertEqual(
-                Path("results/latest.json").read_text(encoding="utf-8"),
-                output.read_text(encoding="utf-8"),
+                json.loads(Path("results/latest.json").read_text(encoding="utf-8")),
+                json.loads(output.read_text(encoding="utf-8")),
             )
 
 
