@@ -25,6 +25,26 @@ def _is_number(value: Any) -> bool:
     return type(value) in {int, float}
 
 
+def _json_values_equal(left: Any, right: Any) -> bool:
+    """Compare decoded JSON without conflating booleans and numbers."""
+    if isinstance(left, bool) or isinstance(right, bool):
+        return type(left) is type(right) and left == right
+    if isinstance(left, dict) or isinstance(right, dict):
+        if not isinstance(left, dict) or not isinstance(right, dict):
+            return False
+        return left.keys() == right.keys() and all(
+            _json_values_equal(left[key], right[key]) for key in left
+        )
+    if isinstance(left, list) or isinstance(right, list):
+        if not isinstance(left, list) or not isinstance(right, list):
+            return False
+        return len(left) == len(right) and all(
+            _json_values_equal(left_value, right_value)
+            for left_value, right_value in zip(left, right)
+        )
+    return left == right
+
+
 def load_pack(path: Path) -> dict[str, Any]:
     try:
         pack = json.loads(path.read_text(encoding="utf-8"))
@@ -89,6 +109,8 @@ def load_pack(path: Path) -> dict[str, Any]:
             expected_exit_code = expect["exit_code"]
             if expected_exit_code is not None and type(expected_exit_code) is not int:
                 raise PackError(f"{location}: expect.exit_code must be an integer or null")
+        if "timed_out" in expect and type(expect["timed_out"]) is not bool:
+            raise PackError(f"{location}: expect.timed_out must be boolean")
 
     return pack
 
@@ -114,9 +136,9 @@ def check_expectations(
     expect = case.get("expect", {})
     failures: list[str] = []
 
-    if "timed_out" in expect and bool(expect["timed_out"]) != timed_out:
+    if "timed_out" in expect and expect["timed_out"] != timed_out:
         failures.append(
-            f"timed_out expected {bool(expect['timed_out'])}, got {timed_out}"
+            f"timed_out expected {expect['timed_out']}, got {timed_out}"
         )
     if "exit_code" in expect and expect["exit_code"] != exit_code:
         failures.append(f"exit_code expected {expect['exit_code']}, got {exit_code}")
@@ -130,7 +152,7 @@ def check_expectations(
         except json.JSONDecodeError as exc:
             failures.append(f"stdout was not valid JSON: {exc}")
         else:
-            if actual_json != expect["stdout_json"]:
+            if not _json_values_equal(actual_json, expect["stdout_json"]):
                 failures.append(
                     f"stdout_json expected {expect['stdout_json']!r}, "
                     f"got {actual_json!r}"
