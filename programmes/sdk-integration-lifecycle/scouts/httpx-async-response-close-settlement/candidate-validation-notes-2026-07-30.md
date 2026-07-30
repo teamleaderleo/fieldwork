@@ -29,7 +29,7 @@ Its candidate transformer:
 
 The fork also contains focused response-state, control-flow, pickle, client-context, and default-pool regressions plus a read-only workflow.
 
-## Exact-head execution receipt
+## Exact-head execution receipts
 
 Focused workflow run: `30507411692`
 
@@ -49,7 +49,7 @@ Exact runtime dependencies included:
 - Uvicorn `0.35.0`;
 - the remaining repository-declared requirements.
 
-Each job passed:
+Each focused job passed:
 
 ```text
 28 candidate close-settlement, control-flow, pickle, and pool tests
@@ -58,7 +58,11 @@ Ruff on changed source and focused tests
 Mypy on httpx
 ```
 
-The adjacent selector deselected 134 unrelated cases. This is a focused target result, not the complete repository gate.
+The adjacent selector deselected 134 unrelated cases. This is a focused target result, not by itself the complete repository gate.
+
+Ordinary repository Test Suite run: `30507411721` — passed on the same exact head.
+
+Together, the focused and ordinary runs establish exact-head candidate execution and repository compatibility for the staged transformer branch. They do not turn the transformer into a clean source-ready diff.
 
 ## Candidate behavior established
 
@@ -122,7 +126,7 @@ The path to target execution produced several useful non-product findings:
 3. The exact-anchor transformer first reached pytest without the repository's declared test dependencies and stopped during collection.
 4. The next run passed all behavior and adjacent tests but Ruff found one overlong test signature.
 
-None of those failures disproved the candidate behavior. The exact-head run above fixes the harness and passes every focused stage.
+None of those failures disproved the candidate behavior. The exact-head runs above fix the harness and pass every focused and ordinary repository stage.
 
 ## Claim-scoped evidence
 
@@ -130,11 +134,13 @@ None of those failures disproved the candidate behavior. The exact-head run abov
 - candidate response close ownership and state semantics: `target-executed` through run `30507411692`;
 - one deterministic default-pool recovery path: `integration-executed` through the same run;
 - selected adjacent response/client compatibility: `target-executed`;
+- ordinary repository Test Suite on the exact candidate head: passed through run `30507411721`;
 - direct source integration: absent;
-- complete repository gate on the exact candidate: queued separately at the latest check;
 - same-socket reuse, arbitrary transport behavior, every HTTPCore failure point, sync response close, and client multi-transport shutdown: unproven or owned by adjacent lanes.
 
-## Adjacent lanes
+## Matrix and adjacent lanes
+
+The durable cross-surface inventory is `correctness-matrix-2026-07-30.md`.
 
 Fieldwork #185 records synchronous response close failure separately.
 
@@ -142,14 +148,14 @@ Fieldwork #177 records client-level shutdown separately. Client shutdown publish
 
 ## Current disposition
 
-Accept the candidate behavior and focused compatibility result.
+Accept the candidate behavior, focused compatibility result, deterministic pool-slot result, and ordinary repository receipt at exact head `04e2da580eea759e712df1656323ae0dd7d26bff`.
 
 Do not treat the transformer branch as a source-ready merge candidate. The next transition is:
 
 1. apply the selected implementation directly to a clean source branch;
 2. commit the tests in normal target locations;
 3. run the complete repository gate at that exact source head;
-4. perform complete-diff review;
+4. perform complete-diff and independent technical review;
 5. keep upstream contact unauthorized unless separately approved.
 
 No upstream interaction occurred.
