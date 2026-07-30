@@ -1,6 +1,6 @@
 # Zustand persist undefined option overrides
 
-State: `candidate-executed`
+State: `direct-candidate-validating`
 
 Fieldwork lane: #170
 
@@ -12,11 +12,13 @@ Owned implementation: `teamleaderleo/zustand#2`
 
 Owned branch: `fieldwork/persist-undefined-option-overrides`
 
-Exact executed owned head: `17e93d6bc9d48c39ef52d1a4735e00eabe08a06f`
+Current direct owned head: `9eb5e57318d765ceb0343944992551385a0aeb55`
 
-Focused workflow: `30507502603` — passed
+Earlier transformed candidate head: `17e93d6bc9d48c39ef52d1a4735e00eabe08a06f`
 
-Retained receipt: `execution-receipt-30507502603.json`
+Earlier focused workflow: `30507502603` — passed
+
+Retained transformed-candidate receipt: `execution-receipt-30507502603.json`
 
 Upstream contact authorized: `false`
 
@@ -34,9 +36,11 @@ let options = {
 }
 ```
 
-Object spread copies properties whose value is explicitly `undefined`. Runtime callers and composed configuration objects could therefore replace defaulted functions and values without supplying a usable replacement.
+Object spread copies properties whose value is explicitly `undefined`. Runtime callers and composed configuration objects could therefore replace useful functions and values without supplying a usable replacement.
 
 `persist.setOptions()` repeated the spread behavior. Its storage handling was additionally split: `options.storage` could become `undefined`, while the private storage reference changed only when `newOptions.storage` was truthy.
+
+The owned fork now contains the field-aware repair directly in source, with native tests and no temporary transformer or publishing workflow remaining.
 
 ## Confirmed released behavior
 
@@ -51,7 +55,7 @@ A source-equivalent Node `v22.16.0` execution confirmed:
 
 The detailed released-source receipt is in `source-equivalent-execution.md`.
 
-## Owned implementation
+## Direct owned implementation
 
 Construction uses defaulted resolution for:
 
@@ -72,26 +76,41 @@ All other fields retain normal spread behavior. Optional callbacks such as `onRe
 
 The private active storage is assigned from the same resolved value stored in `options.storage`, keeping public and private state aligned.
 
-## Complete-diff review repairs
+## Review compatibility slice
 
-Review found two compatibility gaps after the primary source change:
+Complete-diff review found two compatibility gaps in the first direct implementation:
 
 1. construction placed user fields before the resolved default fields, changing the observable `Object.keys(persist.getOptions())` order;
-2. the tests proved built-in default preservation but did not prove custom current values survive later `undefined` updates.
+2. the first tests proved built-in default preservation but did not prove custom current values survive later `undefined` updates.
 
-The owned branch now contains an exact-anchor compatibility transformer used by the read-only focused workflow. It:
+The accepted slice:
 
-- restores the historical default-field-first option insertion order;
+- preserves the historical default-field-first option insertion order;
 - adds a key-order regression;
-- adds a custom current name/storage/partialize/version/merge preservation regression;
-- fails closed when reviewed source or test anchors move;
-- runs the target's pinned Prettier before validation.
+- proves custom current name, storage, partialize, version, and merge values survive later undefined updates;
+- preserves explicit replacement storage and public/private alignment;
+- continues allowing optional callback removal.
 
-This final compatibility slice is executed but not yet committed directly into the source and test files.
+That slice is now committed directly at `9eb5e57318d765ceb0343944992551385a0aeb55`.
 
-## Exact-head execution
+## Execution-carrier retirement
 
-Focused workflow run `30507502603` passed on Node 22, 24, and 26.
+The earlier branch used `.fieldwork/apply_persist_options_review_repair.py` and a one-shot finalizer workflow to apply and validate the reviewed slice.
+
+At the current direct head:
+
+- the transformer is absent;
+- the finalizer workflow is absent;
+- the complete pull-request diff contains only:
+  - `src/middleware/persist.ts`;
+  - `tests/persistUndefinedOptions.test.ts`;
+  - the permanent read-only focused workflow.
+
+This establishes canonical source application. It does not by itself establish the fresh direct-head test result.
+
+## Earlier transformed-candidate execution
+
+Focused workflow `30507502603` passed on Node 22, 24, and 26.
 
 Each job passed:
 
@@ -104,34 +123,45 @@ ESLint on changed source and tests
 Prettier verification
 ```
 
-The executed controls establish:
+The executed controls established the intended behavior and compatibility slice before direct publication. This receipt remains useful evidence for the transformation, but it is not reused as the full-gate result for the new direct head.
 
-- construction `undefined` retains built-in storage, partialize, version, and merge defaults;
-- later `undefined` updates retain custom current values;
-- public and private storage remain aligned;
-- historical options key order is preserved;
-- optional callback removal remains possible;
-- selected sync and async persist behavior remains compatible.
+## Direct-head review
 
-The broader native Test, old-TypeScript, build, multiple-version, preview, and size workflows were queued at the time this receipt was recorded.
+An exact-head complete-diff review at `9eb5e57318d765ceb0343944992551385a0aeb55` accepts the code and test shape:
 
-## Harness history
+- no accidental whole-file churn;
+- no surviving carrier material;
+- field-aware rather than blanket undefined handling;
+- no reinterpretation of `null`;
+- explicit replacement values still work;
+- optional callbacks remain clearable;
+- native tests cover JavaScript/runtime inputs despite `exactOptionalPropertyTypes` rejecting explicit undefined in ordinary typed calls.
 
-Earlier exact-head runs are retained as partial receipts:
+Disposition from that review:
 
-1. 51 behavior tests passed on Node 22/24/26, then one import-order lint rule failed;
-2. after adding the key-order and custom-value controls, 56 behavior tests passed, then the same import-order rule failed;
-3. after import ordering was corrected, 56 behavior tests and ESLint passed, then Prettier rejected the generated layout;
-4. the accepted run applies the target formatter and passes every focused stage.
+**ACCEPT the direct candidate shape. EXECUTE fresh exact-head workflows. HOLD landing until the focused and ordinary Test gates settle.**
 
-These failures were harness or presentation defects, not candidate behavior failures.
+## Current direct-head workflows
+
+At the latest check, these runs for `9eb5e57318d765ceb0343944992551385a0aeb55` were queued:
+
+- focused Node 22/24/26 persist matrix: `30548049634`;
+- ordinary Test: `30548052302`;
+- multiple versions: `30548049523`;
+- multiple builds: `30548050329`;
+- old TypeScript: `30548049441`;
+- compressed size: `30548048680`;
+- preview publication: `30548053498`.
+
+Preview publication remains optional fork configuration rather than product evidence. The focused and ordinary Test workflows are the immediate acceptance gates.
 
 ## Claim-scoped evidence
 
 - released undefined-option failures: `model-executed` through source-equivalent Node execution;
-- owned candidate option resolution and selected compatibility: `target-executed` through run `30507502603`;
-- direct source application of the final compatibility slice: absent;
-- complete repository gate: incomplete at receipt time;
+- intended candidate behavior and selected compatibility: `target-executed` through transformed-candidate run `30507502603`;
+- direct source application and carrier retirement: `source-read` and complete-diff reviewed at `9eb5e573...`;
+- direct exact-head focused execution: queued;
+- direct ordinary full Test gate: queued;
 - ecosystem compatibility for consumers intentionally relying on explicit `undefined`: unmeasured.
 
 ## Compatibility assessment
@@ -140,23 +170,25 @@ The repair is deliberately field-aware rather than a blanket undefined filter.
 
 Defaulted runtime invariants are preserved when an update supplies `undefined`, while optional callbacks and other intentionally clearable fields retain their existing removal semantics.
 
-The remaining questions are:
+Remaining questions after the direct matrix:
 
-- whether the broader type and build matrices pass on a direct-source final head;
 - whether any consumer intentionally used `version: undefined` to omit the version field;
 - whether `storage: undefined` should preserve current storage or restore the platform default;
 - whether any additional defaulted fields need the same policy.
 
+Those are compatibility questions, not reasons to misclassify the confirmed released failures.
+
 ## Current decision
 
-Accept the candidate behavior and focused compatibility result.
+Accept the direct code and test shape. Keep both PRs draft while the fresh exact-head focused and ordinary Test workflows run.
 
-Do not treat the current transformer-backed branch as a source-ready merge candidate. The next transition is:
+If those gates pass:
 
-1. apply the key-order and custom-current controls directly to a clean source/test branch;
-2. run the broader repository gates at that exact source head;
-3. perform complete-diff review;
-4. keep upstream contact unauthorized unless separately approved.
+1. retain their exact run and job receipts;
+2. refresh the complete-diff review against the unchanged head;
+3. update Fieldwork #170 and #172 to `validated-candidate`;
+4. decide owned-fork landing separately from upstream preparation;
+5. keep public upstream contact unauthorized unless separately approved.
 
 ## Boundary
 
