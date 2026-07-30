@@ -6,7 +6,7 @@
     "head": "b3083e7ce6a6ace1756d3cf1e4ec5371663c2c55",
     "base": "b5addb64f0161ff6bfe94c124ef76f6a1fba5254"
   },
-  "workflow": {
+  "focused": {
     "run_id": 30550892544,
     "conclusion": "success",
     "jobs": [
@@ -29,6 +29,43 @@
       "static checks"
     ]
   },
+  "ordinary_repository_suite": {
+    "run_id": 30550886069,
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 90898920126,
+        "python": "3.9",
+        "conclusion": "success"
+      },
+      {
+        "id": 90898920065,
+        "python": "3.10",
+        "conclusion": "success"
+      },
+      {
+        "id": 90898920354,
+        "python": "3.11",
+        "conclusion": "success"
+      },
+      {
+        "id": 90898920155,
+        "python": "3.12",
+        "conclusion": "success"
+      },
+      {
+        "id": 90898920267,
+        "python": "3.13",
+        "conclusion": "success"
+      }
+    ],
+    "gates": [
+      "linting",
+      "package and documentation build",
+      "repository tests",
+      "coverage"
+    ]
+  },
   "characterization": {
     "owner_observed_control_flow_abort": true,
     "waiter_completed": true,
@@ -39,7 +76,7 @@
   "interpretation": "The current retry-after-control-flow policy can duplicate a non-idempotent custom-stream cleanup that committed before the owner was interrupted.",
   "limits": [
     "The synthetic stream models a public custom AsyncByteStream, not HTTPCore internals.",
-    "The ordinary repository Test Suite for this exact head was still queued at the latest check.",
-    "The result does not select retry tolerance, shielding, or ambiguous terminal failure as the public contract."
+    "The result does not select retry tolerance, shielding, or ambiguous terminal failure as the public contract.",
+    "A direct production source branch has not been selected."
   ]
 }
