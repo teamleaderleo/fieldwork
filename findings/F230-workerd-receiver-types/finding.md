@@ -10,7 +10,8 @@ Exact base revision: `6aa890be9fa547e3907c805b312e39917a274221`
 Strongest evidence class: mixed `target-executed` and `source-read`; current head has a known source defect  
 Current review disposition: `REPAIR`  
 Desk routing: `Review Queue #213; not eligible for Delivery Desk advancement`  
-Upstream contact authorized: `no beyond the already-submitted issue; no follow-up`
+Upstream contact authorized: `no`  
+Historical public interaction: `cloudflare/workerd#6904`; no follow-up authorized
 
 ## In simple words
 
@@ -67,6 +68,13 @@ For a full replacement, receiver specialization must use only the type parameter
 - Source: https://www.typescriptlang.org/docs/handbook/2/functions.html#declaring-this-in-a-function
 - Principle supported: a declaration can express the required receiver without changing runtime call arguments.
 - Important difference: Workerd generates and transforms declarations across overrides and ambient globals, so a local handwritten example does not settle transformation correctness.
+
+### Submitted Workerd receiver-requirements issue
+
+- Source: https://github.com/cloudflare/workerd/issues/6904
+- Date: submitted before this canonical finding; open at the 2026-07-31 review.
+- Principle supported: the runtime/declaration mismatch is independently recorded on the public target.
+- Important difference: the issue does not establish the owned prototype's generic replacement correctness or authorize any follow-up contact.
 
 ## Approaches considered
 
@@ -138,7 +146,8 @@ Smallest repair:
 - Delivery lane: `not-entered` for advancement; existing campaign tracking may remain visible
 - Exact next transition: implement the narrow generic full-replacement repair and three-case matrix
 - Clearing condition: repaired exact head with focused/native execution and independent review
-- User decision requested: none; routine technical repair remains
+- Autonomous work remaining: source repair, three-case matrix, target execution, and exact-head review
+- Non-delegable human decision: none
 
 ## Changes to the canonical conclusion
 
@@ -147,12 +156,14 @@ Smallest repair:
 | 2026-07-29 | Workerd PR #1 early candidate | Receiver generation and override/global behavior established |
 | 2026-07-30 | Lexical repair head | Checker-first heritage resolution fixed same-name namespace ambiguity |
 | 2026-07-30 | Complete-diff review at `54926f86...` | Generic full-replacement defect changed disposition from cleared to `REPAIR` |
+| 2026-07-31 | Canonical protocol audit | Separated current no-contact authority from historical public issue #6904 and removed the false human-decision route |
 
 ## References
 
 - https://github.com/teamleaderleo/fieldwork/issues/230
 - https://github.com/teamleaderleo/workerd/pull/1
 - https://github.com/teamleaderleo/fieldwork/pull/232
+- https://github.com/cloudflare/workerd/issues/6904
 - https://github.com/teamleaderleo/workerd/blob/54926f86c95185a7b83b2bf1ea901c35876a9a58/src/workerd/api/ts/transform/override.ts
 - https://www.typescriptlang.org/docs/handbook/2/functions.html#declaring-this-in-a-function
 - Workflow runs `30557900133`, `30557899918`, `30557899889`, `30557900238`, `30557899299`
