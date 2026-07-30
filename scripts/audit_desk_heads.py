@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Audit machine-readable Review Queue and Delivery Desk pull-request heads.
+"""Audit exact pull-request heads recorded in Fieldwork review and delivery desks.
 
-The audit is intentionally read-only. It validates explicit markers embedded in
-Fieldwork issue bodies and compares them with live owned pull-request metadata,
-or with a retained JSON snapshot during focused tests.
+The evaluator is read-only. It validates explicit HTML-comment markers in issue
+bodies and compares them with live owned pull-request metadata, or with a
+retained JSON snapshot for focused tests.
 """
 
 from __future__ import annotations
@@ -21,11 +21,13 @@ from urllib import error, request
 
 MARKER_PREFIX = "fieldwork:desk-ref"
 LANES = {"R1", "R2", "R3", "D0", "D1", "D2", "D3"}
-REPOSITORY_RE = r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
+REPOSITORY_PATTERN = r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
+REPOSITORY_RE = re.compile(rf"{REPOSITORY_PATTERN}")
+SHA_RE = re.compile(r"[0-9a-f]{40}")
 MARKER_BLOCK_RE = re.compile(r"<!--\s*fieldwork:desk-ref\b.*?-->", re.DOTALL)
 MARKER_RE = re.compile(
     rf"<!--\s*{re.escape(MARKER_PREFIX)}\s+"
-    rf"repo=(?P<repository>{REPOSITORY_RE})\s+"
+    rf"repo=(?P<repository>{REPOSITORY_PATTERN})\s+"
     r"pr=(?P<pr>[1-9][0-9]*)\s+"
     r"head=(?P<head>[0-9a-f]{40})\s+"
     r"lane=(?P<lane>R1|R2|R3|D0|D1|D2|D3)\s*-->",
@@ -34,11 +36,15 @@ MARKER_RE = re.compile(
 
 
 class AuditInputError(ValueError):
-    """Raised when issue markers or retained snapshot data are malformed."""
+    """The issue markers or retained snapshot are malformed."""
 
 
 class AuditTransportError(RuntimeError):
-    """Raised when live GitHub metadata cannot be retrieved."""
+    """Live GitHub metadata could not be retrieved or decoded."""
+
+
+class AuditNotFound(AuditTransportError):
+    """A requested live GitHub object does not exist or is inaccessible."""
 
 
 @dataclass(frozen=True)
@@ -116,10 +122,6 @@ def parse_references(
         repository = match.group("repository")
         pr_number = int(match.group("pr"))
         lane = match.group("lane")
-        if lane not in LANES:
-            raise AuditInputError(
-                f"{issue_repository}#{issue_number} marker has unsupported lane {lane!r}"
-            )
         identity = (repository, pr_number)
         if identity in seen:
             raise AuditInputError(
@@ -235,42 +237,54 @@ def audit_references(
             )
 
     findings.sort(
-        key=lambda item: (
-            item.code,
-            item.repository or "",
-            item.pr_number or 0,
-            item.issue_number or 0,
-            item.lane or "",
+        key=lambda finding: (
+            finding.code,
+            finding.repository or "",
+            finding.pr_number or 0,
+            finding.issue_number or 0,
+            finding.lane or "",
         )
     )
     return findings
 
 
-def _github_json(
-    url: str,
-    *,
-    token: str | None,
-    timeout: float = 20.0,
-) -> dict[str, Any]:
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "User-Agent": "fieldwork-desk-head-audit/1",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    req = request.Request(url, headers=headers)
-    try:
-        with request.urlopen(req, timeout=timeout) as response:
-            payload = json.load(response)
-    except error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise AuditTransportError(f"GitHub request failed {exc.code} for {url}: {detail}") from exc
-    except (error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise AuditTransportError(f"GitHub request failed for {url}: {exc}") from exc
-    if not isinstance(payload, dict):
-        raise AuditTransportError(f"GitHub returned a non-object payload for {url}")
-    return payload
+class GitHubReader:
+    def __init__(
+        self,
+        *,
+        api_url: str = "https://api.github.com",
+        token: str | None = None,
+        timeout: float = 20.0,
+    ) -> None:
+        self.api_url = api_url.rstrip("/")
+        self.token = token
+        self.timeout = timeout
+
+    def get_json(self, path: str) -> dict[str, Any]:
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "fieldwork-desk-head-audit/1",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        url = f"{self.api_url}{path}"
+        req = request.Request(url, headers=headers)
+        try:
+            with request.urlopen(req, timeout=self.timeout) as response:
+                payload = json.load(response)
+        except error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            if exc.code == 404:
+                raise AuditNotFound(f"GitHub returned 404 for {url}") from exc
+            raise AuditTransportError(
+                f"GitHub request failed {exc.code} for {url}: {detail}"
+            ) from exc
+        except (error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+            raise AuditTransportError(f"GitHub request failed for {url}: {exc}") from exc
+        if not isinstance(payload, dict):
+            raise AuditTransportError(f"GitHub returned a non-object payload for {url}")
+        return payload
 
 
 def load_live(
@@ -280,11 +294,11 @@ def load_live(
     api_url: str,
     token: str | None,
 ) -> tuple[list[DeskReference], dict[str, PullRequestState]]:
+    reader = GitHubReader(api_url=api_url, token=token)
     references: list[DeskReference] = []
     for issue_number in issue_numbers:
-        issue = _github_json(
-            f"{api_url}/repos/{issue_repository}/issues/{issue_number}",
-            token=token,
+        issue = reader.get_json(
+            f"/repos/{issue_repository}/issues/{issue_number}"
         )
         references.extend(
             parse_references(
@@ -298,10 +312,12 @@ def load_live(
     for ref in references:
         if ref.pr_key in pull_requests:
             continue
-        pr = _github_json(
-            f"{api_url}/repos/{ref.repository}/pulls/{ref.pr_number}",
-            token=token,
-        )
+        try:
+            pr = reader.get_json(
+                f"/repos/{ref.repository}/pulls/{ref.pr_number}"
+            )
+        except AuditNotFound:
+            continue
         head = pr.get("head")
         if not isinstance(head, dict) or not isinstance(head.get("sha"), str):
             raise AuditTransportError(f"{ref.pr_key} response has no head SHA")
@@ -338,7 +354,7 @@ def load_snapshot(
         repository = item.get("repository")
         number = item.get("number")
         body = item.get("body")
-        if not isinstance(repository, str) or re.fullmatch(REPOSITORY_RE, repository) is None:
+        if not isinstance(repository, str) or REPOSITORY_RE.fullmatch(repository) is None:
             raise AuditInputError(f"snapshot issues[{index}].repository is invalid")
         if not isinstance(number, int) or isinstance(number, bool) or number <= 0:
             raise AuditInputError(f"snapshot issues[{index}].number is invalid")
@@ -360,13 +376,13 @@ def load_snapshot(
         state = item.get("state")
         merged = item.get("merged")
         draft = item.get("draft", False)
-        if not isinstance(repository, str) or re.fullmatch(REPOSITORY_RE, repository) is None:
+        if not isinstance(repository, str) or REPOSITORY_RE.fullmatch(repository) is None:
             raise AuditInputError(
                 f"snapshot pull_requests[{index}].repository is invalid"
             )
         if not isinstance(number, int) or isinstance(number, bool) or number <= 0:
             raise AuditInputError(f"snapshot pull_requests[{index}].number is invalid")
-        if not isinstance(head_sha, str) or re.fullmatch(r"[0-9a-f]{40}", head_sha) is None:
+        if not isinstance(head_sha, str) or SHA_RE.fullmatch(head_sha) is None:
             raise AuditInputError(f"snapshot pull_requests[{index}].head_sha is invalid")
         if state not in {"open", "closed"}:
             raise AuditInputError(f"snapshot pull_requests[{index}].state is invalid")
@@ -435,7 +451,7 @@ def main(argv: list[str] | None = None) -> int:
             references, pull_requests = load_live(
                 issue_repository=args.repository,
                 issue_numbers=issue_numbers,
-                api_url=args.api_url.rstrip("/"),
+                api_url=args.api_url,
                 token=os.environ.get("GITHUB_TOKEN"),
             )
             source = f"live:{args.repository}#{','.join(map(str, issue_numbers))}"
