@@ -1,0 +1,252 @@
+name: wgpu lifecycle experiments
+
+on:
+  push:
+    branches:
+      - scout/116-wgpu-portability-lifecycle
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wgpu-lifecycle-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: "false"
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+
+jobs:
+  public-wrapper:
+    name: wgpu public wrapper ownership
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact wgpu characterization
+        uses: actions/checkout@v6
+        with:
+          repository: teamleaderleo/wgpu
+          ref: 3e058e5d4b6d94631d28c2242a02bd1163888db5
+          path: wgpu
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install 1.93 --no-self-update --profile=minimal --component rustfmt
+          rustup override set 1.93
+          cargo -V
+        working-directory: wgpu
+
+      - name: Normalize and verify source
+        run: |
+          cargo fmt --all
+          cargo fmt --all -- --check
+          git diff --check
+          git diff --stat
+        working-directory: wgpu
+
+      - name: Require exact public-wrapper tests
+        run: |
+          cargo test --locked \
+            -p wgpu \
+            --no-default-features \
+            --features std,custom \
+            -- --list | tee /tmp/fieldwork-wrapper-tests.txt
+          grep -F "surface_texture::tests::ordinary_unpresented_drop_discards" /tmp/fieldwork-wrapper-tests.txt
+          grep -F "surface_texture::tests::present_panic_does_not_discard_or_release_after_ownership_commit" /tmp/fieldwork-wrapper-tests.txt
+        working-directory: wgpu
+
+      - name: Execute public-wrapper characterizations
+        run: |
+          cargo test --locked \
+            -p wgpu \
+            --no-default-features \
+            --features std,custom \
+            surface_texture::tests \
+            -- --nocapture
+        working-directory: wgpu
+
+  browser-runtime:
+    name: wgpu browser surface runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      RUST_LOG: debug,wasm_bindgen_wasm_interpreter=warn,wasm_bindgen_cli_support=warn,walrus=warn,naga=info
+      WASM_BINDGEN_TEST_TIMEOUT: "300"
+      WGPU_CI: "true"
+    steps:
+      - name: Checkout exact wgpu characterization
+        uses: actions/checkout@v6
+        with:
+          repository: teamleaderleo/wgpu
+          ref: 3e058e5d4b6d94631d28c2242a02bd1163888db5
+          path: wgpu
+          persist-credentials: false
+
+      - name: Install Rust and wasm target
+        run: |
+          rustup toolchain install 1.93 --no-self-update --profile=minimal --target wasm32-unknown-unknown
+          rustup override set 1.93
+          cargo -V
+        working-directory: wgpu
+
+      - name: Resolve and install wasm-bindgen CLI
+        run: |
+          WASM_BINDGEN_VERSION=$(cargo metadata --format-version 1 --all-features | jq -r '.packages[] | select(.name == "wasm-bindgen") | .version' | head -n1)
+          test -n "$WASM_BINDGEN_VERSION"
+          echo "WASM_BINDGEN_VERSION=$WASM_BINDGEN_VERSION" >> "$GITHUB_ENV"
+          cargo +stable install wasm-bindgen-cli --version="$WASM_BINDGEN_VERSION" --locked
+        working-directory: wgpu
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: List exact browser surface tests
+        run: |
+          cargo xtask test-wasm --list -- --test wgpu-gpu create_surface_error | tee /tmp/fieldwork-browser-tests.txt
+          grep -i "canvas_get_context_returned_null" /tmp/fieldwork-browser-tests.txt
+          grep -i "unconfigured_browser_surface_reports_lost" /tmp/fieldwork-browser-tests.txt
+          grep -i "zero_sized_browser_configuration_is_applied_with_validation" /tmp/fieldwork-browser-tests.txt
+          grep -i "rejected_browser_configuration_is_published_and_recoverable" /tmp/fieldwork-browser-tests.txt
+        working-directory: wgpu
+
+      - name: Execute browser surface module
+        run: cargo xtask test-wasm --test-threads 1 -- --test wgpu-gpu create_surface_error
+        working-directory: wgpu
+
+  pre-hal-failure:
+    name: wgpu post-detachment core ownership
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact pre-HAL experiment
+        uses: actions/checkout@v6
+        with:
+          repository: teamleaderleo/wgpu
+          ref: 1f50fdfd667782f0be96d709e9921990211ad328
+          path: wgpu
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install 1.93 --no-self-update --profile=minimal --component rustfmt
+          rustup override set 1.93
+          cargo -V
+        working-directory: wgpu
+
+      - name: Apply exact disposable experiment
+        run: |
+          python3 fieldwork/patch_pre_hal_probe.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("wgpu-core/src/present.rs")
+          text = path.read_text()
+          old = "assert_eq!(surface.configure(&device, &config), None);"
+          new = "assert!(surface.configure(&device, &config).is_none());"
+          if text.count(old) != 1:
+              raise SystemExit("generated configure assertion was not found exactly once")
+          path.write_text(text.replace(old, new, 1))
+          PY
+        working-directory: wgpu
+
+      - name: Normalize and verify generated source
+        run: |
+          cargo fmt --all
+          cargo fmt --all -- --check
+          git diff --check
+          git diff --stat
+        working-directory: wgpu
+
+      - name: Require and execute exact core probe
+        run: |
+          cargo test --locked \
+            -p wgpu-core \
+            --features noop \
+            -- --list | tee /tmp/fieldwork-prehal-tests.txt
+          grep -F "present::fieldwork_pre_hal_tests::fieldwork_pre_hal_failure_detaches_without_discard" /tmp/fieldwork-prehal-tests.txt
+          cargo test --locked \
+            -p wgpu-core \
+            --features noop \
+            present::fieldwork_pre_hal_tests::fieldwork_pre_hal_failure_detaches_without_discard \
+            -- --exact --nocapture
+        working-directory: wgpu
+
+  device-loss-teardown:
+    name: wgpu device-loss teardown ordering
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact teardown experiment
+        uses: actions/checkout@v6
+        with:
+          repository: teamleaderleo/wgpu
+          ref: ae2c6a6e08c437488f623ff75599ddc470d568e2
+          path: wgpu
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install 1.93 --no-self-update --profile=minimal --component rustfmt
+          rustup override set 1.93
+          cargo -V
+        working-directory: wgpu
+
+      - name: Apply exact disposable teardown experiment
+        run: |
+          python3 fieldwork/patch_device_loss_teardown.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("wgpu-hal/src/noop/mod.rs")
+          text = path.read_text()
+          old = """impl core::borrow::Borrow<Resource> for SurfaceResource {
+              fn borrow(&self) -> &Resource {
+                  &self.texture
+              }
+          }
+          """
+          new = old + """
+          impl core::borrow::Borrow<dyn crate::DynTexture> for SurfaceResource {
+              fn borrow(&self) -> &dyn crate::DynTexture {
+                  &self.texture
+              }
+          }
+          """
+          if text.count(old) != 1:
+              raise SystemExit("generated static surface borrow was not found exactly once")
+          path.write_text(text.replace(old, new, 1))
+          PY
+        working-directory: wgpu
+
+      - name: Normalize and verify generated source
+        run: |
+          cargo fmt --all
+          cargo fmt --all -- --check
+          git diff --check
+          git diff --stat
+        working-directory: wgpu
+
+      - name: Require exact teardown tests
+        run: |
+          cargo test --locked \
+            -p wgpu-core \
+            --features noop \
+            -- --list | tee /tmp/fieldwork-teardown-tests.txt
+          grep -F "fieldwork_device_loss_teardown_tests::fieldwork_surface_drop_unconfigures_before_retained_release" /tmp/fieldwork-teardown-tests.txt
+          grep -F "fieldwork_device_loss_teardown_tests::fieldwork_release_before_unconfigure_satisfies_noop_precondition" /tmp/fieldwork-teardown-tests.txt
+        working-directory: wgpu
+
+      - name: Execute teardown baseline and release control
+        run: |
+          cargo test --locked \
+            -p wgpu-core \
+            --features noop \
+            fieldwork_device_loss_teardown_tests \
+            -- --nocapture
+        working-directory: wgpu
