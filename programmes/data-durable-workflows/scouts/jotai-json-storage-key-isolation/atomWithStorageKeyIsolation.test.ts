@@ -127,4 +127,112 @@ describe('createJSONStorage key isolation', () => {
     expect(secondAlpha).not.toBe(firstAlpha)
     expect(secondBeta).toBe(firstBeta)
   })
+
+  it('preserves cached identity when synchronous removal throws', () => {
+    const values = new Map([['alpha', encoded(1)]])
+    const removalError = new Error('remove failed')
+    const storage = createJSONStorage<StoredValue>(() => ({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: () => {
+        throw removalError
+      },
+    }))
+
+    const firstAlpha = storage.getItem('alpha', { nested: { count: -1 } })
+
+    expect(() => storage.removeItem('alpha')).toThrow(removalError)
+    expect(
+      storage.getItem('alpha', { nested: { count: -2 } }),
+    ).toBe(firstAlpha)
+  })
+
+  it('preserves cached identity when asynchronous removal rejects', async () => {
+    const values = new Map([['alpha', encoded(1)]])
+    const removalError = new Error('remove failed')
+    const storage = createJSONStorage<StoredValue>(() => ({
+      getItem: async (key) => values.get(key) ?? null,
+      setItem: async (key, value) => {
+        values.set(key, value)
+      },
+      removeItem: async () => {
+        throw removalError
+      },
+    }))
+
+    const firstAlpha = await storage.getItem('alpha', {
+      nested: { count: -1 },
+    })
+
+    await expect(storage.removeItem('alpha')).rejects.toThrow(removalError)
+    expect(
+      await storage.getItem('alpha', { nested: { count: -2 } }),
+    ).toBe(firstAlpha)
+  })
+
+  it('preserves cached identity while asynchronous removal is pending', async () => {
+    const values = new Map([['alpha', encoded(1)]])
+    let finishRemoval: (() => void) | undefined
+    const removal = new Promise<void>((resolve) => {
+      finishRemoval = () => {
+        values.delete('alpha')
+        resolve()
+      }
+    })
+    const storage = createJSONStorage<StoredValue>(() => ({
+      getItem: async (key) => values.get(key) ?? null,
+      setItem: async (key, value) => {
+        values.set(key, value)
+      },
+      removeItem: () => removal,
+    }))
+
+    const firstAlpha = await storage.getItem('alpha', {
+      nested: { count: -1 },
+    })
+    const pendingRemoval = storage.removeItem('alpha')
+
+    expect(
+      await storage.getItem('alpha', { nested: { count: -2 } }),
+    ).toBe(firstAlpha)
+
+    finishRemoval?.()
+    await pendingRemoval
+  })
+
+  it('clears only the successfully removed key after async settlement', async () => {
+    const values = new Map([
+      ['alpha', encoded(1)],
+      ['beta', encoded(1)],
+    ])
+    const storage = createJSONStorage<StoredValue>(() => ({
+      getItem: async (key) => values.get(key) ?? null,
+      setItem: async (key, value) => {
+        values.set(key, value)
+      },
+      removeItem: async (key) => {
+        values.delete(key)
+      },
+    }))
+
+    const firstAlpha = await storage.getItem('alpha', {
+      nested: { count: -1 },
+    })
+    const firstBeta = await storage.getItem('beta', {
+      nested: { count: -2 },
+    })
+
+    await storage.removeItem('alpha')
+    values.set('alpha', encoded(1))
+
+    const secondAlpha = await storage.getItem('alpha', {
+      nested: { count: -3 },
+    })
+    const secondBeta = await storage.getItem('beta', {
+      nested: { count: -4 },
+    })
+
+    expect(secondAlpha).not.toBe(firstAlpha)
+    expect(secondBeta).toBe(firstBeta)
+  })
 })
