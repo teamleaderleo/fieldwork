@@ -1,13 +1,13 @@
-# H source map — caching-proxy parent-swap boundary
+# H source map — caching-proxy pathname replacement boundary
 
 Date: 2026-07-31  
 Worker: H  
 Linux source: `teamleaderleo/linux-fieldwork@ed49c01a85e9d363626db5d2973a33b67209e13b`  
-Prepared probe head: `66f0f6539d9ae7e714675f1f152e43a6fc2f4a5c`
+Prepared probe head: `dabe79cefb6062e20dc6201556b5f541a8470bbc`
 
 ## In simple words
 
-The cache candidate checks one resolved path and later uses the same text as a new filesystem lookup. A rename-plus-symlink swap can change what that text names. The prepared test pauses at the two exact gaps so hosted Linux execution can decide whether reads and writes leave the cache root.
+The cache candidate checks one resolved path and later uses the same text as a new filesystem lookup. A same-UID process can replace a checked parent or final component before that lookup. The prepared matrix pauses at the exact gaps, records parent and final-component behavior separately, restores the original state, reruns against the same roots, and repeats the full matrix under optimized Python.
 
 ## Source operation sequence
 
@@ -32,7 +32,7 @@ The generated handler retains the imported cache-hit sequence:
 4. stream to client;
 5. copy into the new cache destination.
 
-The prepared read barrier wraps `request_context()` and pauses on its second call, after old and new candidates are computed but before the handler performs its first cache existence check.
+The read barriers wrap `request_context()` and pause on its second call, after old and new candidates are computed but before the handler performs its first cache existence check. One test replaces the parent directory; another replaces only the final object name.
 
 ### New-cache publication
 
@@ -45,16 +45,24 @@ The atomic patch:
 5. publishes with pathname-based `os.replace(temporary, path)`;
 6. removes a surviving temporary pathname in `finally`.
 
-The prepared publication barrier wraps `cache_destination()` and pauses before the original context manager re-traverses the validated parent.
+The publication barriers wrap `cache_destination()` and pause before the original context manager re-traverses the validated parent. One test replaces the parent directory; a control creates only a final-name symlink and distinguishes replacing that symlink from following its target.
 
-## Distinguishing filesystem transition
+## Distinguishing filesystem transitions
 
-For each race:
+Parent replacement:
 
 ```text
 validated parent: <cache>/pool
 rename to:        <cache>/pool-validated
 replacement:      <cache>/pool -> <outside>
+```
+
+Final-component replacement:
+
+```text
+validated object: <cache>/pool/object.deb
+rename to:        <cache>/pool/object-validated.deb
+replacement:      <cache>/pool/object.deb -> <outside>/object.deb
 ```
 
 Read case outside state:
@@ -69,10 +77,18 @@ Publication case outside state:
 <outside>/sentinel = preserve me
 ```
 
-A confined implementation uses the checked directory identity or rejects the mutation. A pathname-retraversal implementation reads or publishes through the replacement symlink.
+A confined implementation uses the checked directory identity or rejects the mutation. A pathname-retraversal implementation can read or publish through a replacement parent. Final publication may differ because `os.replace()` can replace the symlink entry itself while preserving its target.
+
+## Rerun and optimized controls
+
+After each mutated case, the test restores the checked component, removes or resets any raced cache object, sends another request against the same cache roots, and asserts normal bytes, origin ownership, and hidden-temporary cleanup.
+
+The test file also spawns itself with `python -O`. A child marker skips only the recursive launcher; all inherited composed tests and replacement probes remain active in the optimized interpreter.
 
 ## Evidence limits
 
-The barrier is deliberate fault injection. It proves operation ordering and consequence on Linux when it runs; it does not measure natural race frequency. The outside directory remains inside one disposable temporary tree for cleanup, while remaining outside the validated old or new cache root.
+The barriers are deliberate fault injection. They establish operation ordering and consequence on Linux when they run; they do not measure natural race frequency. The outside directories remain inside one disposable temporary tree for cleanup while remaining outside the validated old or new cache root.
+
+The exact baseline does not separately force a replacement before the primary new-cache hit or before recursive parent creation. Those operations remain part of the candidate-wide path audit if the retained probes establish the underlying loss of authority.
 
 No public upstream interaction occurred.
