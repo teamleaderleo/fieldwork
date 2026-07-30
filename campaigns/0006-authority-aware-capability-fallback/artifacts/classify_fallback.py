@@ -12,12 +12,12 @@ DECISION_ALLOW: Final = "allow_equivalent"
 DECISION_APPROVE: Final = "require_explicit_approval"
 DECISION_FAIL: Final = "fail_closed"
 
-OUTCOME_UNKNOWN_STATES: Final = {
-    "ambiguous",
-    "local_timeout_outcome_unknown",
-    "may_still_run",
-    "cancellation_unconfirmed",
-    "transport_state_unknown",
+# Mutation fallback is eligible only when execution was proven absent or a
+# reconciliation step proved that the original operation produced no effect.
+# Every other value, including a returned application-level error, stays closed.
+MUTATION_SAFE_CERTAINTY_STATES: Final = {
+    "not_dispatched",
+    "reconciled_no_effect",
 }
 
 MUTATION_HARD_FIELDS: Final = {
@@ -126,7 +126,10 @@ def classify(case: dict[str, Any]) -> Classification:
         )
 
     execution_certainty = case.get("original_execution_certainty")
-    if operation_kind == "potential_mutation" and execution_certainty in OUTCOME_UNKNOWN_STATES:
+    if (
+        operation_kind == "potential_mutation"
+        and execution_certainty not in MUTATION_SAFE_CERTAINTY_STATES
+    ):
         return Classification(
             decision=DECISION_FAIL,
             reason="prior_mutation_reconciliation_required",
