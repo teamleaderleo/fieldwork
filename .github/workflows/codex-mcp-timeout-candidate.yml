@@ -48,6 +48,7 @@ jobs:
         run: |
           python3 fieldwork/patches/mcp-timeout/apply_candidate_scoped.py native-sdk-timeout
           cd codex-rs
+          rustfmt --edition 2024 rmcp-client/src/rmcp_client.rs
           rustfmt --edition 2024 --check rmcp-client/src/rmcp_client.rs
           git diff --check
           cargo test -p codex-rmcp-client --test tool_timeout_cancellation_probe -- --nocapture
@@ -66,6 +67,7 @@ jobs:
         run: |
           python3 fieldwork/patches/mcp-timeout/apply_candidate_scoped.py pause-aware-explicit-cancel
           cd codex-rs
+          rustfmt --edition 2024 rmcp-client/src/rmcp_client.rs
           rustfmt --edition 2024 --check rmcp-client/src/rmcp_client.rs
           git diff --check
           cargo test -p codex-rmcp-client --test tool_timeout_cancellation_probe -- --nocapture
@@ -84,6 +86,7 @@ jobs:
         run: |
           python3 fieldwork/patches/mcp-timeout/apply_candidate_scoped.py pause-aware-bounded-cancel
           cd codex-rs
+          rustfmt --edition 2024 rmcp-client/src/rmcp_client.rs
           rustfmt --edition 2024 --check rmcp-client/src/rmcp_client.rs
           git diff --check
           cargo test -p codex-rmcp-client --test tool_timeout_cancellation_probe -- --nocapture
