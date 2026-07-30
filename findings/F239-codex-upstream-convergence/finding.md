@@ -6,12 +6,12 @@ Workstream: `J/O/I — current-source convergence, synthesis, and cross-reposito
 Canonical Fieldwork issue: `#239`  
 Canonical finding path: `findings/F239-codex-upstream-convergence/finding.md`  
 Investigation workspace: `investigations/239-codex-upstream-convergence/`  
-Canonical implementation or alternatives: `several bounded owned Codex candidates; no combined implementation`  
-Exact active heads: `append #80@401c2e5e6a37730aae3e8da95591cc6f56655cfc; terminal Fieldwork #268@58c0d027e2acf80fb9e16d89d0daba65de0dc563; MCP publication #77@0fb2e6b09a6ff03bcfcbd665b187cadb64d36b4b; MCP reconnect #82@fee6e8350673b2fb87841dfb7b96d3c2ea8def0d; MCP authority #79@40ad25450b9b1296906b66126b710ea877dc7e82; other current candidates named below`  
+Canonical implementation or alternatives: `several bounded Codex findings and owned candidates; no combined implementation`  
+Exact active heads: `append source #84@d8299b7fdf3aaf7ebc46d2cac840828cf97fc2a2; terminal artifact source 8c7ea38419d790032db459816980e6b4dd38f574; MCP publication #75@c3373c717f3138ff5f0a979d12836f60800d2bcf; MCP reconnect carrier #82@feb0c46d3b88e03c94cb9f07d6ba903205e73f05; MCP authority #79@40ad25450b9b1296906b66126b710ea877dc7e82; other current candidates named below`  
 Exact base or source revision: `openai/codex@413492cd6c3a4d4f8dff6f406247ccda5a9d88aa`  
 Strongest evidence class: `target-executed` for current-pin append, bounded terminal retention, and MCP publication; other current candidates remain executing or queued  
-Reviewed input generation: `read-only public source snapshot, exact carrier heads, complete workspace evidence map, Codex CI prerequisite map`  
-Current review disposition: `EXECUTE, MATERIALIZE, and COMPARE`  
+Reviewed input generation: `read-only public source snapshot, exact carrier/source heads, split canonical findings, complete workspace evidence map, Codex CI prerequisite map`  
+Current review disposition: `EXECUTE, MATERIALIZE, SPLIT, and COMPARE`  
 Desk routing: `not-entered`  
 Upstream contact authorized: `no`
 
@@ -21,7 +21,13 @@ Codex tells a model which tools exist, chooses a runtime, sends a call, waits or
 
 A tool can be visible without matching executable authority. A timeout can occur while a remote effect still finishes. A result can reach live conversation memory while durable append fails. A subprocess can produce bytes before a late listener subscribes.
 
-The selected direction is one shared lifecycle explanation plus several bounded technical findings and source candidates. Current execution has now cleared the append prerequisite, bounded terminal-retention controls, and MCP publication controls. Reconnect, live authority, replay, typed identity, Responses Lite, and deferred discovery remain at separate gates. One mega-patch would mix unrelated authority, execution, persistence, replay, and output contracts.
+The selected direction is one shared lifecycle explanation plus several bounded technical findings and source candidates. Current execution and review have now separated three packets into their own canonical findings:
+
+- `F83-codex-append-acknowledgement`;
+- `F84-codex-mcp-publication-generation`;
+- `F23-codex-terminal-producer-retention`.
+
+Reconnect, live authority, replay, typed identity, Responses Lite, deferred discovery, and operation settlement remain at separate gates. One mega-patch would mix unrelated authority, execution, persistence, replay, and output contracts.
 
 ## Why we care
 
@@ -48,7 +54,8 @@ Observed bounded consequences across the linked findings include:
 - live result formation without caller-visible durable append outcome;
 - completion derived from best-effort output subscribers instead of producer-retained state;
 - historical candidates appearing current after upstream ownership moved;
-- carrier failures being mistaken for product failures when required repository tools or current source anchors are missing.
+- carrier failures being mistaken for product failures when required repository tools, current API names, or source anchors are missing;
+- executed source remaining unavailable for review because artifact publication and Git materialization were treated as the same event.
 
 Frequency and aggregate user impact are not measured. Each consequence remains limited to its exact source and execution record.
 
@@ -65,7 +72,8 @@ Governing invariant: every state transition must preserve the identity, authorit
 | History readers consume conservative persistence facts | rollout, projection, compaction, resume, fork | ambiguous append cannot authorize unsafe retry or cleanup |
 | Terminal completion uses non-lossy retained input | unified execution producer and bounded buffer | retain before best-effort broadcast and preserve current deque behavior |
 | Historical execution does not imply current portability | Fieldwork exact-head policy | current claims need current source, diff, tests, and overlap review |
-| Carrier setup follows target entrypoints | current Codex workflows, `setup-ci`, root `justfile`, and `scripts/format.py` | missing `just`, `uv`, nextest, or a current source anchor is harness evidence only |
+| Carrier setup follows target entrypoints | current Codex workflows, `setup-ci`, root `justfile`, and `scripts/format.py` | missing `just`, `uv`, nextest, a current method name, or a unique source anchor is harness evidence only |
+| Execution artifact and source branch are separate publication facts | Fieldwork carrier and Git review rules | verify artifact, materialize exact tree, then open source review |
 
 ## Current finding
 
@@ -80,22 +88,30 @@ The shared lifecycle model is useful for orientation. It does not authorize a co
 5. live result formation and durable append acknowledgement;
 6. receipt wire, typed identity, history projection, compaction, resume, fork, rollback, and replay;
 7. producer-owned terminal transcript retention;
-8. evidence-carrier setup, retirement, and canonical-source transfer.
+8. evidence-carrier setup, artifact verification, Git materialization, retirement, and canonical-source transfer.
+
+### Current split findings
+
+| Canonical finding | State | Accepted conclusion | Exact remaining gate |
+| --- | --- | --- | --- |
+| `findings/F83-codex-append-acknowledgement/finding.md` | `delivery-gate-ready` | return bounded append acknowledgement to Session caller | direct-current-head packaging and carrier retirement |
+| `findings/F84-codex-mcp-publication-generation/finding.md` | `delivery-gate-ready` | generation/freshness ticket owns publication winner | slow-older/fast-newer complete runtime fixture |
+| `findings/F23-codex-terminal-producer-retention/finding.md` | `delivery-gate-ready` | completion uses producer-owned bounded transcript | exact artifact-to-owned-Git source materialization |
 
 ### Claim table
 
 | Claim | Evidence class | Exact support | Current limit |
 | --- | --- | --- | --- |
 | One mega-patch crosses several state owners and rollback boundaries | `source-read` | workspace problem map and public Codex at `413492cd...` | Later composition remains possible after independent acceptance |
-| Current session append path needs caller-visible acknowledgement | `source-read` plus `target-executed` | owned Codex #51/#80; run `30583967538` passed | Clean source successor, current-head relation, and complete-diff review remain |
-| Terminal producer-owned retention survives current deque behavior | `source-read` plus `target-executed` | owned Codex #49/#53 and Fieldwork #268; run `30587866332` passed | Artifact/source materialization, integrity, and independent source review remain |
-| MCP newest-generation publication remains an independent invariant | `source-read` plus `target-executed` | owned Codex #75/#77; run `30584055792` passed | Source-only publication and current-head review remain |
-| Explicit reconnect overlaps historical #46 but still needs live request-path proof | `source-read` plus execution in progress | upstream #34952/#35151; owned #76/#82 | Run `30584136349` was in progress at refresh |
-| Model-advertised versus live MCP authority needs a captured comparison | `source-read`; carrier repair queued | owned #79; failed run `30584093534`; repair `40ad2545...` | Repaired exact run `30588729054` queued |
-| Current public head moved to `413492cd...` without active-fence overlap | `source-read` | compare `3016671... → 413492...`; permission/sandbox files only | A later relevant commit expires this carry-forward |
+| Append acknowledgement is a supported bounded prerequisite | `target-executed` plus independent review | #80 run `30583967538`; source #84 review `4823945751`; F83 | Typed persistence and current-head packaging remain |
+| Terminal producer retention is supported under bounded normal-close gates | `target-executed` plus artifact review | Fieldwork #268 run `30587866332`; artifact `8777460316`; F23 | Owned Git source commit is absent |
+| MCP publication generation is a supported manager invariant | `target-executed` plus independent review | #77 run `30584055792`; source #75 review `4823972975`; F84 | Complete overlapping runtime fixture remains |
+| Explicit reconnect source still requires its public app-server path | `source-read`; repaired execution queued | upstream #34952/#35151; #82 | Old run used nonexistent wire method; new run `30589313367` queued |
+| Model-advertised versus live MCP authority needs a captured comparison | `source-read`; carrier repair queued | #79; failed run `30584093534`; repair `40ad2545...` | Repaired run `30588729054` queued |
+| Current public head moved to `413492cd...` without active-fence overlap | `source-read` | complete public compare | A later relevant commit expires this carry-forward |
 | Deferred-tool authority has a current source candidate and mixed-catalogue gate | `source-read`; execution queued | source #81 at `8f73d8e...`; carrier #64 at `c09a94d...` | Run `30584556260` queued |
-| Responses Lite capability-prefix behavior remains separate from trace correctness | `source-read`; execution in progress | owned #58 at `40a56eef...` | Run `30584165709` in progress |
-| Codex full formatting requires explicit `uv` outside `setup-ci` | `source-read` plus carrier failure | current upstream repo checks, root entrypoints, PR #53 run `30582012412` | Exact versions must be refreshed from the inspected target revision |
+| Responses Lite capability-prefix behavior remains separate from trace correctness | `source-read`; execution in progress | #58 at `40a56eef...` | Run `30584165709` in progress at refresh |
+| Codex full formatting requires explicit `uv` outside `setup-ci` | `source-read` plus carrier failure | current public repo checks, root entrypoints, #53 run `30582012412` | Exact versions refresh from inspected target revision |
 
 ## System and ownership map
 
@@ -119,7 +135,7 @@ process output producer
 → terminal completion item
 ```
 
-The workspace carries orientation, evidence notes, alternatives, prior art, audience-specific outputs, and an exact handoff. This finding owns the present technical conclusion and transition state.
+The workspace carries orientation, evidence notes, alternatives, prior art, audience-specific outputs, and an exact handoff. This finding owns portfolio synthesis and routes bounded conclusions to their canonical technical findings.
 
 ## Historical precedent
 
@@ -133,7 +149,7 @@ The workspace carries orientation, evidence notes, alternatives, prior art, audi
 
 - Sources: openai/codex PRs #34952, #35151, #30083, #31471, #31292, and #31626.
 - Principle supported: managers own immutable published runtime state; ordinary reuse, explicit freshness, targeted replacement, request-stable snapshots, and shared reconnect work are distinct.
-- Important difference: newest-generation publication, accepted-result identity, and captured active-call authority require their own exact controls.
+- Important difference: newest-generation publication, accepted-result identity, and captured active-call authority require separate controls.
 
 ### Responses Lite and standalone Code Mode host
 
@@ -164,43 +180,40 @@ The full precedent ledger is `investigations/239-codex-upstream-convergence/prec
 | 3 | Current-source compatibility | exact public pin, overlap map, and complete current diff |
 | 4 | Conservative authority | no retry, compaction, publication, or cleanup inferred from weaker evidence |
 | 5 | Target-native execution | current repository entrypoints with complete declared prerequisites |
-| 6 | Rollback and carrier hygiene | source-only successor, immutable receipts, temporary workflow retirement |
-| 7 | Reader clarity | one canonical finding and workspace map without reconstructing issue chronology |
+| 6 | Artifact-to-source integrity | exact parent, tree, files, patch, checksums, and owned branch identity |
+| 7 | Rollback and carrier hygiene | source-only successor, immutable receipts, temporary workflow retirement |
+| 8 | Reader clarity | meta finding plus bounded canonical findings without reconstructing issue chronology |
 
 ## Alternatives instantiated or analyzed
 
 ### Option A — One lifecycle model plus bounded technical findings
 
-- Artifact or branch: this finding and the #239 workspace.
-- Invariant implemented: shared orientation without merging independent source authority.
-- Expected benefit: clear review scope, independent execution, and reusable negative results.
-- Expected cost: more records and coordination.
+- Artifact: F239 workspace plus F83, F84, F23, and later splits.
+- Benefit: clear review scope, independent execution, reusable negative results, and issue stability.
+- Cost: more records and explicit routing.
 - Discriminating control: each candidate survives exact current-source execution and complete-diff review.
-- Rollback boundary: retire or supersede individual outputs without discarding the shared model.
+- Rollback: retire or supersede individual findings without discarding the shared model.
 
-### Option B — One end-to-end mega-patch
+### Option B — One end-to-end mega-patch or mega-issue
 
-- Artifact or branch: paper-only.
-- Expected benefit: apparent end-to-end coherence.
+- Benefit: apparent end-to-end coherence.
 - Failure: mixes owners, evidence classes, compatibility surfaces, and rollback.
-- Discriminating control: demonstrate one source owner and one test matrix can establish every claimed layer.
-- Rollback boundary: broad coupled revert.
+- Discriminating control: demonstrate one source owner and test matrix can establish every claimed layer.
+- Rollback: broad coupled revert or issue rewrite.
 
 ### Option C — Independent findings with no synthesis layer
 
-- Artifact or branch: historical issue/PR layout.
-- Expected benefit: maximal source-level separation.
+- Benefit: maximal source-level separation.
 - Failure: readers cannot identify current relationships, overlap, or presentation status.
 - Discriminating control: orientation and contradictory-state audit.
-- Rollback boundary: retain findings and remove workspace index.
+- Rollback: retain findings and remove workspace index.
 
 ### Option D — One new issue for every intermediate observation
 
-- Artifact or branch: paper-only.
-- Expected benefit: obvious ownership.
+- Benefit: obvious ownership.
 - Failure: duplicates existing campaigns, repeats background, and creates coordination overhead before a bounded proposal is actionable.
 - Discriminating control: promote only after a finding owns one implementation or one independently reviewable proposal packet.
-- Rollback boundary: close duplicate issue with successor mapping.
+- Rollback: close duplicate issue with successor mapping.
 
 ## Comparative results
 
@@ -210,7 +223,7 @@ The full precedent ledger is `investigations/239-codex-upstream-convergence/prec
 | Reader orientation | strong | superficially strong | weak | weak across many issues | A |
 | Independent execution | strong | weak | strong | strong | A/C/D |
 | Preserves disagreement | strong | weak | weakly visible | visible but dispersed | A |
-| Current source readiness | partial with several green gates | absent | partial | premature for some packets | A |
+| Current source readiness | partial with three split findings | absent | partial | premature for remaining packets | A |
 | Review and rollback scope | bounded | broad | bounded but fragmented | bounded with issue overhead | A |
 
 ## Independent criticism
@@ -221,95 +234,108 @@ The full precedent ledger is `investigations/239-codex-upstream-convergence/prec
 | State-vocabulary audit | `comparative-evaluation-active` was missing from governing tables | Define it consistently and keep it off the human decision desk | Makes current #239 state explicit |
 | Protocol discussion gap | PR #283 had no obvious issue for broad review | Open Fieldwork #289 as the protocol-review surface | Gives the proposal a durable invitation and decision record |
 | Current source drift | Public head advanced through `413492cd...` | Compare every new delta and preserve source-fence expiry | Keeps present-tense claims bounded |
-| Carrier prerequisite failure | `setup-ci` installed `just` but full formatting still failed without `uv` | Add target-map guidance and an exact evidence note | Prevents repeated harness failures and false product conclusions |
-| MCP authority carrier drift | Generator anchor matched two current locations | Narrow anchor to the `handle_mcp_tool_call` parse boundary | Preserves candidate semantics and renews execution |
+| Carrier prerequisite failure | `setup-ci` installed `just` but full formatting still failed without `uv` | Add target-map guidance and exact evidence note | Prevents repeated harness failures and false product conclusions |
+| MCP authority carrier drift | Generator anchor matched two current locations | Narrow anchor to `handle_mcp_tool_call` parse boundary | Preserves candidate semantics and renews execution |
+| App-server reconnect control | Test used nonexistent `mcpServer/refresh` | Use current typed wire method `config/mcpServer/reload`; rerun queued | Separates request-harness error from reconnect behavior |
+| Terminal materialization check | Intended branch existed but remained identical to base | Verify artifact and require exact Git tree before source PR | Prevents artifact success from becoming a false source claim |
 
 ## Selected direction and losing reasons
 
-Selected direction: Option A — one lifecycle model, several canonical findings and evidence notes, and several bounded proposal packets.
+Selected direction: Option A — one lifecycle model, bounded canonical findings and evidence notes, and several proposal packets under existing owner issues.
 
 Why it wins: it preserves current ownership, supports technical comparison, gives readers a coherent map, and lets each source candidate fail or succeed independently.
 
 | Losing or deferred option | Reason it lost or moved elsewhere | Reopening trigger |
 | --- | --- | --- |
-| Mega-patch | Mixed authority and evidence; incompatible rollback | Current architecture consolidates owners and independent findings are accepted together |
+| Mega-patch or mega-issue | Mixed authority and evidence; incompatible rollback | Current architecture consolidates owners and findings are accepted together |
 | No synthesis | Durable facts remain difficult to navigate and reconcile | Workspace proves more costly than useful after real adoption |
 | Immediate single answer | Current carriers and source-owner comparisons remain open | Every candidate receives a settled disposition |
-| Issue per intermediate result | Existing campaigns already own the work and several packets remain unmaterialized | A bounded packet gains one owner, current source, exact evidence, and independent actionability |
+| Issue per intermediate result | Existing campaigns already own the work and several packets remain unmaterialized | A bounded packet lacks an existing owner and gains current source plus exact evidence |
 
 ## Edge cases covered
 
 | Edge case or control | Evidence | Result |
 | --- | --- | --- |
-| Public source drift after canonical pin | `3016671... → 413492...` complete compare | only Windows permission/sandbox files changed; active candidate fences unchanged |
-| Append historical versus current-pin execution | #51/#52 and current-pin #80 | current-pin append run `30583967538` passed |
-| Terminal historical patch versus current deque behavior | #49/#53 and Fieldwork #268 | bounded current-source run `30587866332` passed |
-| Overlapping MCP publication | #75/#77 | exact publication run `30584055792` passed |
-| Explicit versus ordinary MCP refresh | upstream #34952/#35151 and #76/#82 | live app-server execution remained in progress at refresh |
-| Advertised versus live MCP authority | #79 | old generator failed before source; repair run queued |
-| Trace correctness versus capability delivery | Responses Lite precedent and #58 | separate exact-source controls running |
-| Live result versus durable append | session/ThreadStore source map and #80 | append prerequisite executed; typed result state remains separate |
-| Broadcast versus completion transcript | unified-exec source map and #268 | producer retention executed under bounded gates |
-| Missing `just`, `uv`, or nextest | Codex target map and CI prerequisite evidence note | classified as carrier failures; required setup recorded |
+| Public source drift after canonical pin | complete compare through `413492cd...` | active candidate fences unchanged |
+| Append historical versus current-pin execution | #51/#52/#80/#84 and F83 | source prerequisite accepted; current-head packaging remains |
+| Terminal historical patch versus current deque behavior | #49/#53/#268 artifact and F23 | target behavior accepted; Git materialization remains |
+| Overlapping MCP publication | #75/#77 and F84 | manager publication invariant accepted; full runtime fixture remains |
+| Explicit versus ordinary MCP refresh | upstream #34952/#35151 and #76/#82 | old app-server method rejected; corrected run queued |
+| Advertised versus live MCP authority | #79 | old generator failed before source; repaired run queued |
+| Trace correctness versus capability delivery | Responses Lite precedent and #58 | separate controls remain active |
+| Live result versus durable append | Session/ThreadStore source map and F83 | append prerequisite split; typed result state remains separate |
+| Broadcast versus completion transcript | unified-exec source map and F23 | producer retention executed under bounded gates |
+| Missing `just`, `uv`, nextest, or current method | target map and CI evidence note | classified as carrier failures; prerequisites recorded |
 
 ## Edge cases deferred or outside scope
 
 | Edge case | Why deferred | Owning next record or reopening trigger |
 | --- | --- | --- |
-| Current MCP reconnect source acceptance | live app-server run and source publication pending | #82 and successor source review |
-| Prepared-call authority acceptance | repaired carrier queued | #79 and dedicated MCP authority finding after execution |
-| Typed `Persisted/Ambiguous` result state | append acknowledgement prerequisite first | successor after #80 source review |
+| Current MCP reconnect acceptance | corrected app-server run pending | #82 and later reconnect finding |
+| Prepared-call authority acceptance | repaired carrier queued | #79 and later MCP authority finding |
+| Typed `Persisted/Ambiguous` result state | append prerequisite accepted first | successor F83 finding |
 | Receipt replay and typed identity | separate wire/replay owners and gates | #73/#74/#78/#83 |
 | Remote mutation replay | unsafe while outcome unknown | MCP operation finding |
 | Hard process termination, Windows containment, restart reattachment | separate lifecycle owners | dedicated process findings |
-| Public proposal packaging | no authorization and several current gates incomplete | explicit delivery/upstream request |
+| Public proposal packaging | no authorization and current gates incomplete | explicit delivery/upstream request |
 
 ## Exact execution and receipts
 
 | Repository/head | Command or workflow | Result at refresh | Evidence class |
 | --- | --- | --- | --- |
 | `teamleaderleo/codex#80@401c2e5...` | run `30583967538` | success | `target-executed` append prerequisite |
+| `teamleaderleo/codex#84@d8299b7...` | review `4823945751` | bounded source accepted | independent source review |
 | `teamleaderleo/fieldwork#268@58c0d027...` | run `30587866332` | success | `target-executed` bounded terminal retention |
+| artifact `8777460316` | checksum/tree inspection | verified; owned source branch still untouched base | artifact review |
 | `teamleaderleo/codex#77@0fb2e6b...` | run `30584055792` | success | `target-executed` MCP publication |
-| `teamleaderleo/codex#82@fee6e83...` | run `30584136349` | in progress | execution pending for app-server reconnect |
-| `teamleaderleo/codex#79@d96bcf0...` | run `30584093534`, job `91011250342` | generator failed before source; superseded | carrier-only |
+| `teamleaderleo/codex#75@c3373c7...` | review `4823972975` | manager invariant accepted | independent source review |
+| `teamleaderleo/codex#82@fee6e83...` | run `30584136349` | failed before handler on unknown method | carrier-only |
+| `teamleaderleo/codex#82@feb0c46...` | run `30589313367` | queued | reconnect execution pending |
+| `teamleaderleo/codex#79@d96bcf0...` | run `30584093534` | generator failed before source | carrier-only |
 | `teamleaderleo/codex#79@40ad254...` | run `30588729054` | queued | authority execution pending |
-| `teamleaderleo/codex#78@e156bef...` | run `30584251271` | in progress | replay execution pending |
-| `teamleaderleo/codex#83@78fd39e...` | run `30584411308` | queued | typed-identity execution pending |
-| `teamleaderleo/codex#58@40a56ee...` | run `30584165709` | in progress | Responses Lite execution pending |
-| `teamleaderleo/codex#64@c09a94d...` | run `30584556260` | queued | deferred mixed-catalogue execution pending |
+| `teamleaderleo/codex#78@e156bef...` | run `30584251271` | in progress at prior refresh | replay execution pending |
+| `teamleaderleo/codex#83@78fd39e...` | run `30584411308` | queued at prior refresh | typed-identity execution pending |
+| `teamleaderleo/codex#58@40a56ee...` | run `30584165709` | in progress at prior refresh | Responses Lite execution pending |
+| `teamleaderleo/codex#64@c09a94d...` | run `30584556260` | queued at prior refresh | deferred mixed-catalogue execution pending |
 | `openai/codex@413492cd...` | compare from `3016671...` | one Windows permission-normalization commit; no active-fence overlap | `source-read` |
 
-Broad repository workflows such as `blocking-ci`, Fieldwork integrity, artifact review, and source-only materialization remain separate gates. A green bounded carrier does not by itself accept or merge source.
+Broad repository workflows such as `blocking-ci`, Fieldwork integrity, artifact review, source-only materialization, and carrier retirement remain separate gates. A green bounded carrier does not by itself accept or merge source.
 
 ## Complete-diff and compatibility review
 
 - Canonical findings, autonomous comparison, and investigation workspaces are composed in Fieldwork PR #283.
 - Fieldwork issue #289 is the protocol discussion and review surface.
-- This CI-prerequisite and current-state refresh is stacked on PR #283 so the canonical finding changes with its evidence.
-- Append, terminal, MCP, Responses Lite, and receipt workflows remain execution machinery and require source-only successors plus retirement receipts.
-- Current compatibility surfaces: standalone Code Mode host, MCP manager snapshots/reconnect, prepared-call authority, ThreadStore writer generations, rollout reconciliation, unified-exec deque and lifecycle ordering, and target workflow prerequisites.
+- Stacked PR #292 carries Codex prerequisites, current F239 synthesis, and the first three split findings.
+- F83 and F84 have real source PRs plus independent complete-diff reviews.
+- F23 has accepted target evidence and a verified artifact, while its intended owned branch still lacks the source commit.
+- Current compatibility surfaces: standalone Code Mode host, MCP manager snapshots/reconnect, prepared-call authority, ThreadStore writer generations, rollout reconciliation, unified-exec deque/lifecycle ordering, and target workflow prerequisites.
 - Exact-head review of each source successor remains required.
 
 ## Current disposition and desk routing
 
 - Finding state: `comparative-evaluation-active`
-- Review disposition: `EXECUTE, MATERIALIZE, and COMPARE`
+- Review disposition: `EXECUTE, MATERIALIZE, SPLIT, and COMPARE`
 - Review Queue entry: none
 - Delivery lane: `not-entered`
-- Exact next transition: materialize and independently review append, terminal, and MCP-publication source successors; settle reconnect, authority, Responses Lite, replay, typed identity, and deferred mixed-catalogue gates; then split accepted bounded technical findings or stopped records.
+- Exact next transition: materialize F23 source; finish corrected reconnect and authority runs; refresh replay, typed identity, Responses Lite, and deferred gates; split each supported conclusion into a canonical finding or stopped record.
 - Clearing condition: every current and historical candidate has a current-source disposition, canonical finding or stopped record, exact receipt, and carrier successor/retirement state.
 - Required subgates: current-source overlap, exact tests, complete diff, compatibility, source-only publication, independent review.
-- Autonomous work remaining: execution, source materialization, comparative review, canonical finding splits, and carrier cleanup.
+- Autonomous work remaining: execution, source materialization, comparative review, finding splits, and carrier cleanup.
 - Non-delegable human decision: none currently.
 
 ## Issue and proposal packaging
 
-Issue #239 remains the portfolio command surface and this file remains the meta-analysis finding. Do not replace it with one public-style mega-issue.
+Issue #239 remains the portfolio command surface and this file remains the meta-analysis finding. It should not become one public-style mega-issue.
 
-Create or reuse separate technical issues only when a packet becomes independently actionable: one bounded invariant, one current source owner, one implementation or explicit design comparison, exact evidence, and one review transition. Existing campaign issues #83, #84, #85, and #134 remain the current technical owners. New duplicate issues would add routing work before the packets are ready.
+Existing campaign issues #83, #84, #85, #134, and scout #23 remain the technical owner surfaces. The first accepted packets are represented by separate canonical findings under those existing issues. New issues are warranted only when a bounded packet lacks an existing owner or becomes a distinct implementation/review decision that the current issue cannot carry cleanly.
 
-The closest candidates for later standalone proposal drafts are append acknowledgement, terminal producer-owned retention, and MCP publication because their current exact controls are green. They still need source-only materialization and complete-diff review before the draft can claim a current implementation.
+Current source review surfaces:
+
+- append acknowledgement: owned source PR #84 and F83;
+- MCP publication generation: owned source PR #75 and F84;
+- terminal producer retention: F23, source PR blocked on Git materialization.
+
+No public proposal draft should claim full Codex tool continuity. Future drafts should present one bounded invariant, its exact cases, source owner, alternatives, compatibility limits, and evidence.
 
 ## Changes to the canonical conclusion
 
@@ -317,16 +343,20 @@ The closest candidates for later standalone proposal drafts are append acknowled
 | --- | --- | --- |
 | 2026-07-31 | PR #266 | Created one workspace and selected bounded outputs over a mega-patch |
 | 2026-07-31 | PR #271 review | Identified missing canonical-findings dependency and state-vocabulary contradiction |
-| 2026-07-31 | PR #283 | Composed the protocol, canonical finding, comparative state, and refreshed source/carrier identities |
-| 2026-07-31 | current stacked refresh | Recorded Codex CI prerequisites, public head `413492cd...`, green append/terminal/publication gates, and repaired MCP authority execution |
+| 2026-07-31 | PR #283 | Composed protocol, canonical finding, comparative state, and refreshed source/carrier identities |
+| 2026-07-31 | PR #292 initial refresh | Recorded Codex CI prerequisites, public head `413492cd...`, green append/terminal/publication gates, and repaired authority execution |
+| 2026-07-31 | F83/F84/F23 split | Promoted supported packets into canonical technical findings; retained different delivery gates instead of one issue draft |
 
 ## References
 
-- Fieldwork issues #239, #254, and protocol review #289.
-- Fieldwork PRs #268 and #283.
+- Fieldwork issues #23, #83, #84, #85, #134, #239, #254, and protocol review #289.
+- Fieldwork PRs #268, #283, and #292.
 - `investigations/239-codex-upstream-convergence/`.
 - `targets/codex/map.md`.
+- `findings/F83-codex-append-acknowledgement/finding.md`.
+- `findings/F84-codex-mcp-publication-generation/finding.md`.
+- `findings/F23-codex-terminal-producer-retention/finding.md`.
 - `findings/F239-codex-upstream-convergence/evidence/20260731-codex-ci-prerequisites.md`.
-- Owned Codex PRs #51, #52, #53, #58, #64, #73–#83.
+- Owned Codex PRs #51, #52, #53, #58, #64, #73–#84.
 - Public Codex source through `413492cd6c3a4d4f8dff6f406247ccda5a9d88aa`, read-only.
 - Public upstream interaction: none.
