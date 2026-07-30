@@ -100,6 +100,14 @@ class ReceiptClassifierTests(unittest.TestCase):
         ):
             validate_document(invalid)
 
+    def test_document_rejects_duplicate_receipt_ids(self):
+        document = json.loads(json.dumps(self.document))
+        document["receipts"][1]["receipt_id"] = document["receipts"][0][
+            "receipt_id"
+        ]
+        with self.assertRaisesRegex(ValueError, "duplicate receipt_id"):
+            validate_document(document)
+
     def test_privacy_allowlist(self):
         for receipt in self.document["receipts"]:
             with self.subTest(receipt=receipt["receipt_id"]):
