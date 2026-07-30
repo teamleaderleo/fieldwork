@@ -121,6 +121,7 @@ Dispatch packets name the profiles that apply:
 - `profiles/execute.md`;
 - `profiles/review.md`;
 - `profiles/coordinate.md`;
+- `profiles/integrate.md`;
 - `profiles/upstream.md`.
 
 Read deeper manuals only when a profile points to them or the assignment reaches that phase.
