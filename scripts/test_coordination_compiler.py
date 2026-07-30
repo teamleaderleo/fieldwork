@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
 from pathlib import Path
 import sys
 import unittest
@@ -15,6 +16,7 @@ import coordination_compiler as compiler
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "research" / "continuous-coordination" / "fixtures"
+SCHEMA = ROOT / "research" / "continuous-coordination" / "schema" / "graph-v1.schema.json"
 
 
 def node(
@@ -210,6 +212,43 @@ class CoordinationCompilerTests(unittest.TestCase):
         value["nodes"][0]["generation"] = ""
         with self.assertRaisesRegex(compiler.GraphError, "non-empty string"):
             compiler.normalize_graph(value)
+
+    def test_schema_and_compiler_reject_whitespace_only_text(self) -> None:
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        node_schema = schema["$defs"]["node"]["properties"]
+        edge_schema = schema["$defs"]["edge"]["properties"]
+        text_fields = [
+            node_schema["id"],
+            node_schema["input_fingerprint"],
+            node_schema["semantic_fingerprint"],
+            node_schema["evaluator_revision"],
+            node_schema["policy_revision"],
+            node_schema["output_key"],
+            node_schema["generation"]["oneOf"][0],
+            edge_schema["from"],
+            edge_schema["to"],
+        ]
+        self.assertTrue(all(field.get("pattern") == "\\S" for field in text_fields))
+
+        invalid = graph([node("   ")], [])
+        with self.assertRaisesRegex(compiler.GraphError, "non-empty string"):
+            compiler.normalize_graph(invalid)
+
+    def test_schema_and_compiler_require_output_key_for_exclusive_flag(self) -> None:
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        node_schema = schema["$defs"]["node"]
+        self.assertIn(
+            {
+                "if": {"required": ["exclusive_output"]},
+                "then": {"required": ["output_key"]},
+            },
+            node_schema["allOf"],
+        )
+
+        invalid = node("producer")
+        invalid["exclusive_output"] = False
+        with self.assertRaisesRegex(compiler.GraphError, "requires an output_key"):
+            compiler.normalize_graph(graph([invalid], []))
 
 
 if __name__ == "__main__":
