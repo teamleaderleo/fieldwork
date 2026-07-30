@@ -16,9 +16,9 @@ Every review item should identify one primary class:
 
 When one pull request contains more than one class, split it or name one canonical delivery surface and treat the others as supporting evidence.
 
-## Preserve evidence class
+## Preserve evidence class per claim
 
-Use the narrowest accurate evidence description. Recommended classes are:
+Use the narrowest accurate evidence description for each claim that affects the disposition. Recommended classes are:
 
 - `source-read` — implementation, tests, history, or contracts were inspected;
 - `model-executed` — an isolated model or dependency-free probe ran;
@@ -26,6 +26,15 @@ Use the narrowest accurate evidence description. Recommended classes are:
 - `target-executed` — the target package or repository test ran at an exact head;
 - `integration-executed` — a real owned integration, browser, process, provider, or platform path ran;
 - `full-gate` — the named repository-declared gate ran at the exact candidate head. The receipt must name that gate or command set and state important integration, platform, provider, authority, recovery, or ecosystem paths it does not exercise. `full-gate` does not imply coverage outside the named gate.
+
+Do not assign one strongest evidence class to an entire pull request when its claims have different support. A single review can legitimately record, for example:
+
+| Claim | Evidence class | Limit |
+| --- | --- | --- |
+| current implementation marks cleanup complete before the final await | `source-read` | source ordering only |
+| isolated failure model preserves the original error | `model-executed` | no package runtime |
+| target regression exists | `target-test-prepared` | not executed |
+| named package test passed | `target-executed` | one runtime and one package path |
 
 Do not upgrade evidence during synthesis. In particular:
 
@@ -36,6 +45,8 @@ Do not upgrade evidence during synthesis. In particular:
 - a named full gate is not proof of behavior outside the paths that gate exercises;
 - full CI is not proof of an untested security, authority, or lifecycle property;
 - one owned testbed is not ecosystem impact.
+
+Fields that do not apply should say `not applicable`. Do not invent a run, gate, issue generation, authority decision, or current-main relation merely to fill a template.
 
 ## Self-review before handoff
 
@@ -53,6 +64,7 @@ Before asking another reviewer to inspect a result:
 8. Synchronize the live issue, durable report, pull-request front page, execution receipt, and queue or Delivery Desk entry.
 9. Run Fieldwork integrity and external-reference checks on the final Fieldwork head.
 10. Confirm that upstream contact remains unauthorized unless the user approved that exact interaction.
+11. Complete `templates/review.md` as a self-review receipt or explicitly record why a field is not applicable.
 
 ## Execution workflow
 
@@ -69,6 +81,8 @@ When prepared work needs retained target evidence:
 
 An execution carrier is never a merge or upstream candidate merely because it produced a useful result.
 
+A workflow that intends to delete itself remains an active execution carrier until a later exact head proves that the workflow is absent and exposes the resulting source, tests, report, and retained receipt for review. Future self-removal is not evidence transfer.
+
 ## Exact-head review receipt
 
 A promotion review should record:
@@ -77,7 +91,8 @@ A promotion review should record:
 - canonical branch and exact head SHA;
 - exact base or current-main revision used for comparison;
 - changed-file fence or complete-diff scope;
-- work class and evidence class;
+- work class;
+- each disposition-relevant claim and its evidence class;
 - validation commands, workflow runs, platforms, and retained results;
 - unresolved failures, skipped jobs, and checks that did not run;
 - dependencies, replacements, and superseded branches;
@@ -124,6 +139,8 @@ After evidence transfer:
 - do not leave execution-only branches in the active merge queue;
 - do not cite a synthetic merge commit as the source revision without also naming the contained source head.
 
+A carrier is retired only when a later exact head proves the temporary workflow or branch is gone and the canonical source diff plus retained receipt are independently reviewable.
+
 ## Staleness and description hygiene
 
 Before marking work ready, re-read the live issue, pull request, checks, comments, dependencies, and current main branch.
@@ -137,7 +154,8 @@ Repair or remove wording that says:
 - a review is valid after its issue invariant, review ask, state, clearing condition, or authority input changed;
 - an execution carrier is the canonical implementation;
 - a full gate passed when only focused or model evidence ran;
-- a named full gate proves integrations or properties it did not exercise.
+- a named full gate proves integrations or properties it did not exercise;
+- a workflow has transferred evidence merely because it contains future self-removal instructions.
 
 Issue-body `State:` text and live `state:*` labels must agree. A generated queue or review index must carry a validation timestamp and exact referenced states; otherwise it is a snapshot, not a current queue.
 
@@ -165,14 +183,16 @@ Before moving a pull request out of draft or advancing a Fieldwork issue:
 - [ ] canonical branch and exact head are named;
 - [ ] reviewed issue or decision inputs are versioned when they affect the disposition;
 - [ ] self-review confirmed the intended assertion ran and classified harness failures separately;
-- [ ] evidence class is accurate;
+- [ ] each disposition-relevant claim has an accurate evidence class;
 - [ ] every `full-gate` claim names the gate and its material coverage limits;
-- [ ] current-main relation is known;
+- [ ] non-applicable receipt fields are marked instead of invented;
+- [ ] current-main relation is known or explicitly not applicable;
 - [ ] complete current diff was reviewed;
 - [ ] checks and failures are described truthfully;
 - [ ] author eligibility is explicit;
 - [ ] dependencies and supersession are current;
 - [ ] execution carriers are closed or clearly non-canonical;
+- [ ] retired carriers are absent from the reviewed exact head;
 - [ ] issue state text and labels agree;
 - [ ] uncertainty and clearing conditions are visible;
 - [ ] upstream-contact authorization is explicit;
