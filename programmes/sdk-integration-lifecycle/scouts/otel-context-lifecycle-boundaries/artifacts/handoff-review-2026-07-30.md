@@ -8,21 +8,16 @@ This review checks whether Fieldwork PR #32 is ready to move from a durable rese
 
 - Repository: `teamleaderleo/fieldwork`
 - Pull request: #32
-- Reviewed issue or decision body generation:
-  - issue #19, accepted coarse snapshot `updated_at=2026-07-30T13:35:14Z`;
-  - issue #194, accepted coarse snapshot `updated_at=2026-07-30T15:26:48Z`;
-  - issue #216, accepted coarse snapshot `updated_at=2026-07-30T14:50:32Z`;
-  - issue #226, accepted coarse snapshot `updated_at=2026-07-30T13:25:56Z`;
-  - issue #225 review correction included.
-- Reviewed live metadata generation: the above issues' current `State:` text and `state:*` labels were read and agreed at review time.
+- Reviewed issue or decision body generation: `not applicable` to the HOLD disposition. Issues #19, #194, #216, #225, and #226 were read as live coordination references, but their bodies do not define the invariant, authority, or clearing condition under review.
+- Reviewed live metadata generation: `not applicable` to the HOLD disposition. State text and labels were checked for coordination consistency only.
 - Work class: `evidence/documentation` with supporting `upstream-fork research`
 - Canonical branch: `fieldwork/opentelemetry-js/otel-async-retry-correlation`
 - Exact reviewed packet head: `d424993641195d4056ee2c47098afcae66f5c854`
-- Receipt commit: this file is the only addition after the reviewed packet head; it does not modify the reviewed report, handoff, source evidence, or fork state.
+- Receipt commits: the commits after the reviewed packet head add or clarify this review file only; they do not modify the reviewed report, handoff, source evidence, or fork state.
 - Current-main SHA: `13481ab6cce6039f5f8c127d5a0509d657f517d8`
 - Merge base: `09fe47ac92ec9c0c333b4979011f6321795deff2`
 - Current-main relation: diverged; packet is 57 commits ahead and 107 commits behind
-- Changed-file fence: complete PR #32 diff through `d424993641195d4056ee2c47098afcae66f5c854`, with emphasis on `report.md`, `artifacts/handoff-2026-07-30.md`, current artifact index, and the live issue inputs above
+- Changed-file fence: complete PR #32 diff through `d424993641195d4056ee2c47098afcae66f5c854`, with emphasis on `report.md`, `artifacts/handoff-2026-07-30.md`, and the retained artifact index
 - Author eligible to accept or merge: `no` for final repository promotion; self-review only
 - Upstream contact authorized: `no`
 
@@ -49,7 +44,7 @@ This review checks whether Fieldwork PR #32 is ready to move from a durable rese
 - Named full repository gate or command set: not claimed for Fieldwork PR #32 beyond its earlier integrity and reference-policy checks; fork product matrices are `target-executed`, not a Fieldwork `full-gate` claim.
 - Material paths not exercised by that gate: upstream maintainer review, real application integration, ecosystem frequency, installation disposal, trace existing-span policy, timeout aftermath, and delayed-recursion runtime repair.
 - Checks skipped, not triggered, or still running: fork PR #16 matrix was queued at handoff time; PR #3 exact-head target execution remains absent; PR #2 standalone execution remains absent.
-- Retained artifacts or receipts: `report.md`, `artifacts/handoff-2026-07-30.md`, issue #19, issue #194, issue #216, issue #226, and the exact fork pull requests listed above.
+- Retained artifacts or receipts: `report.md`, `artifacts/handoff-2026-07-30.md`, the exact fork pull requests listed above, and the live coordination issues as non-dispositive discovery surfaces.
 
 ## Self-review before handoff
 
@@ -57,7 +52,7 @@ This review checks whether Fieldwork PR #32 is ready to move from a durable rese
 - Intended assertion actually ran: `yes` for claims marked `target-executed`; `not applicable` for source-only and prepared claims
 - Harness, setup, fixture, installation, and product failures separated: `yes`
 - Candidate or theory rewritten after contradictory execution: `yes`; metrics final collection and fanout mutation are retained examples
-- Live issue, report, pull-request description, receipt, and queue entry synchronized: `partly`; report and handoff are current, live issues are current, PR #32 body requires one final metadata refresh, and Delivery Desk state remains coordinator-owned
+- Live issue, report, pull-request description, receipt, and queue entry synchronized: `yes` for the report, handoff, PR description, scout handoff comment, and signals-worker correction; Delivery Desk ownership is coordinator-only and not part of this review transition
 
 ## Complete-diff review
 
@@ -66,7 +61,7 @@ This review checks whether Fieldwork PR #32 is ready to move from a durable rese
 - Negative controls: metrics predecessor E2E failure, healthy unrelated lifecycle join, cross-owner nesting, direct versus delayed reentry, and the live-array mutation counterexample.
 - Compatibility controls: released diagnostic order, final metrics collection, first-caller timeout ownership, failed-shutdown terminal state, and ordinary concurrent promise sharing.
 - Error, cleanup, retry, authority, and recovery paths examined: setup cleanup, primary-error preservation, async cleanup rejection, partial global publication, provider/reader failure, timeout, late physical cleanup, recursive lifecycle promises, child mutation, and process-global disposal.
-- Diff-quality concerns: PR #32 has a large 36-file historical packet, is 107 commits behind main, and includes superseded snapshots alongside current artifacts. That is acceptable as an archive but not as a merge-ready diff.
+- Diff-quality concerns: PR #32 has a large historical packet, is 107 commits behind main, and includes superseded snapshots alongside current artifacts. That is acceptable as an archive but not as a merge-ready diff.
 - Evidence or claims that remain unsupported: ecosystem prevalence, production frequency, upstream acceptance, a portable delayed-recursion repair, the trace existing-span policy, timeout-aftermath reporting, reader-constructor transaction repair, and ownership-aware global disposal.
 
 ## Coordination state
@@ -75,8 +70,8 @@ This review checks whether Fieldwork PR #32 is ready to move from a durable rese
 - Supersedes: the stale synthesis in the previous `report.md`
 - Superseded by: none; a future current-main materialization should supersede PR #32 as the canonical merge surface
 - Execution carriers to close: none identified on the current PR #32 branch; historical temporary execution workflow was removed without a receipt
-- Issue `State:` text agrees with labels: `yes` for #19, #194, #216, and #226 at the reviewed snapshots
-- Pull-request description is current for this head: `no`; refresh required after this handoff receipt
+- Issue `State:` text agrees with labels: `yes` for the live surfaces checked at handoff time; non-dispositive to this HOLD review
+- Pull-request description is current for the handoff head: `yes`
 - Current-main relation is known: `yes`
 
 ## Disposition
@@ -99,4 +94,4 @@ The technical work still has open contract decisions for trace spans already rec
 
 ## Expiry
 
-This review applies to packet head `d424993641195d4056ee2c47098afcae66f5c854` and the reviewed issue snapshots. The receipt commit adds only this review file. Any further packet-content change, issue-input change, dependency change, policy change, or contradictory execution expires the disposition unless semantic identity is proved within the reviewed fence.
+This review applies to packet head `d424993641195d4056ee2c47098afcae66f5c854`. Later commits are review-receipt-only clarifications unless the report, handoff, source evidence, or fork-state summary changes. A packet-content change, current-main relation change relevant to the clearing condition, dependency change, policy change, or contradictory execution expires the disposition unless semantic identity is proved within the reviewed fence. Unrelated issue comments do not expire this review because issue bodies and metadata are not disposition inputs.
