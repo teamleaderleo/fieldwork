@@ -1,22 +1,30 @@
 # Fieldwork repository admission and capability gate
 
+State: `composed repair candidate`
+
 Date: 2026-07-31  
 Fieldwork lane: #244  
 Parent campaign: #86  
 Programme: #14  
 Primary target hub: #8  
 Owned testbed: `teamleaderleo/fieldwork`  
-Worker: Rook (`agent:rook-20260731`)  
-Canonical branch: `fieldwork/codex/fieldwork-repository-admission-v2`  
+Canonical branch: `repair/repository-admission-composed`  
 Original carrier: closed PR #251  
-Replacement carrier: draft PR #259  
+Partial repair carriers: PR #257 and PR #259  
+Composed successor: PR #273  
 Upstream contact authorized: `false`
 
 ## In simple words
 
-Fieldwork has a candidate repository contract and a deterministic admission check for workers that arrive with incomplete or stale tools. The check records five capability phases, blocks missing reads, permits verified read-only work when mutation routes disappear, and sends proposed alternate routes through Campaign #86's authority and execution-certainty classifier.
+Fieldwork has a candidate repository contract and deterministic admission check for workers that arrive with incomplete or stale tools. It records five capability phases, blocks missing reads, permits read-only degradation only when an executable read route remains, and sends alternate routes through Campaign #86's authority and execution-certainty classifier.
 
-Complete-diff review found two incomplete-evidence paths in the first replacement: an authority-equivalent route could be admitted with omitted fields, and a partial comparison could still reach an approval or blocked decision. The current carrier requires every fallback comparison to cover the full declared authority field set before any classifier decision is accepted.
+Complete-diff review found three fail-open paths across earlier carriers:
+
+1. an authority-equivalent route could be admitted with omitted evidence;
+2. a partial comparison could still reach approval or blocked outcomes;
+3. a missing mutation route could be labelled read-only when no readable route existed.
+
+The composed candidate requires a complete 12-field authority comparison before any fallback decision, tracks direct and authority-equivalent readable routes, and rejects boolean schema versions.
 
 ## Question
 
@@ -26,12 +34,10 @@ Can a repository-local Stensibly attachment plus the Campaign #86 fallback class
 
 - Fieldwork original base: `0ffc6d284ca8ac2d1ea0150ac7707e8a64697157`
 - Restored base after connector cleanup: `33c57f7597ab1b4f6d0cb6adacf7cc7814362f35`
-- Main reviewed for the replacement draft: `896a617c4b4dd8dd9fb9493d05f801c7baf9ade3`
-- Stensibly attachment-contract base: `7500506d6b9d451d12b2f6ef492ac46b496c3d6e`
+- Main reviewed for the composed draft: `896a617c4b4dd8dd9fb9493d05f801c7baf9ade3`
+- Complete-authority source: PR #259 at `20a3eaef6db81c15ee2e0e725d180277990cff7c`
+- Readable-recovery source: PR #257 at `61915028c97a0317d277c62a2258443b71e70563`
 - Campaign #86 classifier: `campaigns/0006-authority-aware-capability-fallback/artifacts/classify_fallback.py`
-- Original reviewed head: `17d4fc3dd17e0f7a37516aa38a8767eca9ade591`
-- Initial authority repair commits: `f7a515ce168df73124135c996c66f85cd15c53a6` and `5676a1afe066568a572e148aa98751b434018e1d`
-- Complete-comparison repair commits: `92a0a44da24cff655530f5c42daace839e5ccafa` and `f2ff5d17e999592def29d56d0491e65de0016ef5`
 - Public Codex source remains read-only.
 
 ## Static project attachment
@@ -42,6 +48,7 @@ Root `STENSIBLY.md` declares the Fieldwork repository, runner profiles, bounded 
 
 The evaluator consumes:
 
+- primitive integer schema version;
 - request identity and operation kind;
 - required capability IDs classified as read or potential mutation;
 - route provenance;
@@ -53,17 +60,17 @@ Each phase is `present`, `absent`, or `unknown`. A receipt that becomes present 
 The output is:
 
 - `ready` — every required capability is executable or has a fully evidenced authority-equivalent fallback;
-- `degraded_read_only` — required reads remain executable while mutation capability is absent;
+- `degraded_read_only` — mutation capability is absent while at least one required direct or authority-equivalent read remains executable;
 - `require_explicit_approval` — a complete comparison contains a named authority change requiring approval;
-- `blocked` — required reads are missing or a complete comparison causes Campaign #86 to fail closed.
+- `blocked` — required reads are missing, no readable recovery route exists, or a complete comparison causes Campaign #86 to fail closed.
 
 ## Authority-completeness repair
 
 The original carrier accepted an arbitrary fallback object. The shared classifier defaults an omitted delta list to an empty comparison, permits absent binding-generation values in its digest, and treats omitted reversibility differently from explicit `false`. That combination could produce `allow_equivalent` without a complete comparison.
 
-The first replacement closed the equivalent-route path but still allowed partial authority lists to reach approval or fail-closed outcomes. The current evaluator enforces completeness before invoking the classifier, so every fallback decision receives the same full comparison boundary.
+The first replacement closed the equivalent-route path but still allowed partial authority lists to reach approval or fail-closed outcomes. The composed evaluator enforces completeness before invoking the classifier, so every fallback decision receives the same full comparison boundary.
 
-The current evaluator requires:
+It requires:
 
 1. exact fallback-input keys;
 2. non-empty operation IDs, absence reason, execution certainty, captured and proposed binding generations, and route provenance;
@@ -72,23 +79,35 @@ The current evaluator requires:
 5. exactly one relation for each of account binding, provider, approval subject, actor delegation, user visibility, credential binding, permission scope, resource scope, audit, idempotency, rollback, and recovery;
 6. rejection of omitted, empty, partial, duplicate, unknown, or contradictory comparisons before any ready, approval, or blocked decision.
 
+## Readable-recovery repair
+
+A missing mutation route may degrade only when the requested work retains at least one required read route that is:
+
+- directly executable; or
+- accepted by Campaign #86 as authority-equivalent.
+
+A mutation-only request with no executable read recovery blocks with `read_only_recovery_capability_unavailable`. A simultaneous missing read and mutation also blocks through the missing-read reason and the readable-recovery guard.
+
+This makes the decision label truthful: `degraded_read_only` always names an executable mode rather than a hypothetical one.
+
 ## Decision precedence
 
-1. Reject malformed, partial, unknown, or contradictory receipts.
+1. Reject malformed, weakly typed, partial, unknown, or contradictory receipts.
 2. Block any Campaign #86 `fail_closed` result from a complete comparison.
 3. Block a missing required read capability.
-4. Request approval for a named authority change from a complete comparison.
-5. Degrade a missing mutation capability to read-only work.
-6. Admit complete direct capability or a fully evidenced equivalent route.
+4. Block unresolved mutation when no required readable route remains executable.
+5. Request approval for a named authority change from a complete comparison.
+6. Degrade a missing mutation capability only when readable work remains executable.
+7. Admit complete direct capability or a fully evidenced equivalent route.
 
 An ambiguous prior mutation remains blocked even when replacement authority compares equal.
 
-## Case matrix
+## Deterministic matrices
 
-The retained matrix contains 14 cases:
+The authority-completeness base retains 14 cases:
 
 ```text
-14 cases
+14 base cases
 2 ready
 1 degraded_read_only
 1 require_explicit_approval
@@ -97,13 +116,32 @@ The retained matrix contains 14 cases:
 0 expectation mismatches
 ```
 
-The seven invalid controls cover contradictory phase revival, omitted deltas, empty deltas, partial mutation authority, empty binding generation, omitted reversibility, and partial read authority. The approval and ambiguous-prior controls now carry complete 12-field comparisons.
+The composition matrix adds four discriminating cases:
 
-Evidence class: `model-executed` for the deterministic matrix. Repository execution requires exact-head workflow receipts from PR #259.
+```text
+4 composition cases
+0 ready
+1 degraded_read_only
+0 require_explicit_approval
+2 blocked
+1 invalid
+0 expectation mismatches
+```
+
+The added controls require:
+
+- degradation with an authority-equivalent read plus missing mutation;
+- blocking mutation-only absence;
+- blocking simultaneous missing read and mutation;
+- rejecting `version: true`.
+
+The workflow runs each matrix twice, compares byte-identical JSON output, and asserts the exact decision counts.
 
 ## Connector execution deviation
 
 The first write attempt passed `branch_name` to an action whose accepted field is `branch`. Five candidate files landed transiently on `main`, then were deleted in five cleanup commits. The tree was restored at `33c57f7597ab1b4f6d0cb6adacf7cc7814362f35`. Those transient commits remain execution-path evidence and carry no accepted product disposition.
+
+The later composition workflow remained queued without starting. Because its transformation was deterministic and fully specified in the carrier, the same composition was applied directly through repository writes. Temporary workflows and trigger material are removed before review.
 
 ## Evidence boundary
 
@@ -125,4 +163,4 @@ After exact-head CI and independent review:
 
 ## Handoff state
 
-State: `draft repair candidate — exact-head CI and independent review required`.
+State: `composed repair candidate — exact-head CI and independent complete-diff review required`.
