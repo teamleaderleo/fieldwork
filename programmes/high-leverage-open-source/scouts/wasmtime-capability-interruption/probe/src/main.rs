@@ -5,8 +5,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
-use anyhow::{Context as _, Result, ensure};
-use wasmtime::{Config, Engine, Func, FuncType, Instance, Module, Store, StoreLimitsBuilder};
+use wasmtime::{
+    Config, Engine, Func, FuncType, Instance, Module, Result, Store, StoreLimitsBuilder,
+};
 
 #[derive(Clone, Default)]
 struct HostEffectState {
@@ -24,9 +25,8 @@ impl Drop for DropMarker {
 
 fn async_engine() -> Result<Engine> {
     let mut config = Config::new();
-    config.async_support(true);
     config.epoch_interruption(true);
-    Engine::new(&config).context("create async Wasmtime engine")
+    Engine::new(&config)
 }
 
 async fn epoch_interrupts_guest_loop() -> Result<()> {
@@ -55,7 +55,10 @@ async fn epoch_interrupts_guest_loop() -> Result<()> {
 
     let result = run.call_async(&mut store, ()).await;
     interrupter.join().expect("epoch interrupter panicked");
-    ensure!(result.is_err(), "infinite guest loop completed instead of trapping");
+    assert!(
+        result.is_err(),
+        "infinite guest loop completed instead of trapping"
+    );
     Ok(())
 }
 
@@ -83,22 +86,22 @@ async fn dropping_call_future_preserves_committed_host_effect() -> Result<()> {
 
     let mut call: Pin<Box<_>> = Box::pin(host.call_async(&mut store, &[], &mut []));
     let mut context = Context::from_waker(Waker::noop());
-    ensure!(
+    assert!(
         matches!(call.as_mut().poll(&mut context), Poll::Pending),
         "async host call did not suspend"
     );
-    ensure!(
+    assert!(
         state.committed.load(Ordering::SeqCst),
         "synthetic host effect was not committed before suspension"
     );
 
     drop(call);
 
-    ensure!(
+    assert!(
         state.future_dropped.load(Ordering::SeqCst),
         "dropping the Wasmtime call did not drop the suspended host future"
     );
-    ensure!(
+    assert!(
         state.committed.load(Ordering::SeqCst),
         "future cancellation incorrectly erased the committed-effect marker"
     );
@@ -125,8 +128,8 @@ async fn resource_limit_denial_and_trap_are_distinct() -> Result<()> {
     let ordinary_grow =
         ordinary_instance.get_typed_func::<(), i32>(&mut ordinary_store, "grow")?;
     let ordinary_result = ordinary_grow.call_async(&mut ordinary_store, ()).await?;
-    ensure!(
-        ordinary_result == -1,
+    assert_eq!(
+        ordinary_result, -1,
         "ordinary denied memory.grow returned {ordinary_result}, expected -1"
     );
 
@@ -140,7 +143,7 @@ async fn resource_limit_denial_and_trap_are_distinct() -> Result<()> {
     let trapping_grow =
         trapping_instance.get_typed_func::<(), i32>(&mut trapping_store, "grow")?;
     let trapping_result = trapping_grow.call_async(&mut trapping_store, ()).await;
-    ensure!(
+    assert!(
         trapping_result.is_err(),
         "trap-on-grow-failure returned normally"
     );
