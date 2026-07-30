@@ -1,0 +1,29 @@
+{
+  "cases_completed": 11,
+  "observations": {
+    "final_marker_captured": true,
+    "inherited_pipe_lag_ms": 338.396,
+    "invalid_utf8_replacement_present": true,
+    "long_inherited_pipe_lag_ms": 2254.538,
+    "pipe_stream_tags": [
+      "stdout",
+      "stderr",
+      "stdout",
+      "stderr"
+    ],
+    "pty_is_single_stream": true
+  },
+  "platform": "Linux-6.12.13-x86_64-with-glibc2.41",
+  "process_group_cancellation": {
+    "descendant_proc_state": "Z",
+    "escalated_to_sigkill": true,
+    "exit_code": -9,
+    "grace_ms": 100,
+    "signal": "SIGTERM"
+  },
+  "python": "3.13.5",
+  "result_sha256": "0351318be72b09d9b287463c60c8f0b4e49a5409aaf618455bdf7dfd4d857c88",
+  "runner_commit": "a5415b3c374affa4eca036854b301e3783579302",
+  "schema_version": 1,
+  "validation": "cleanup-hardened-runner-local-rerun"
+}

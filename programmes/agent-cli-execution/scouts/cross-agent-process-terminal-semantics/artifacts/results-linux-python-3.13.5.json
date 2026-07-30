@@ -1,0 +1,283 @@
+{
+  "cases": {
+    "final_marker_before_exit": {
+      "direct_exit_ms": 1322.838,
+      "events": [
+        {
+          "at_ms": 1157.642,
+          "bytes_b64": "cHJlZml4CkZJTkFMLU1BUktFUg==",
+          "stream": "stdout",
+          "text_lossy": "prefix\nFINAL-MARKER"
+        },
+        {
+          "at_ms": 1157.743,
+          "bytes_b64": "ZGlhZ25vc3RpYwo=",
+          "stream": "stderr",
+          "text_lossy": "diagnostic\n"
+        }
+      ],
+      "exit_code": 0,
+      "output_eof_ms": 1322.852,
+      "pid": 1518,
+      "stderr_b64": "ZGlhZ25vc3RpYwo=",
+      "stderr_lossy": "diagnostic\n",
+      "stdout_b64": "cHJlZml4CkZJTkFMLU1BUktFUg==",
+      "stdout_lossy": "prefix\nFINAL-MARKER"
+    },
+    "inherited_pipe_after_direct_exit": {
+      "direct_exit_ms": 17.285,
+      "events": [
+        {
+          "at_ms": 7.099,
+          "bytes_b64": "REVTQ0VOREFOVC1QSUQ9MTUwMwo=",
+          "stream": "stdout",
+          "text_lossy": "DESCENDANT-PID=1503\n"
+        },
+        {
+          "at_ms": 363.464,
+          "bytes_b64": "REVTQ0VOREFOVC1GSU5BTAo=",
+          "stream": "stdout",
+          "text_lossy": "DESCENDANT-FINAL\n"
+        }
+      ],
+      "exit_code": 0,
+      "hold_seconds": 0.35,
+      "output_eof_ms": 364.092,
+      "output_lossy": "DESCENDANT-PID=1503\nDESCENDANT-FINAL\n",
+      "pid": 1502
+    },
+    "inherited_pipe_beyond_two_seconds": {
+      "direct_exit_ms": 17.851,
+      "events": [
+        {
+          "at_ms": 7.686,
+          "bytes_b64": "REVTQ0VOREFOVC1QSUQ9MTUwNgo=",
+          "stream": "stdout",
+          "text_lossy": "DESCENDANT-PID=1506\n"
+        },
+        {
+          "at_ms": 2264.73,
+          "bytes_b64": "REVTQ0VOREFOVC1GSU5BTAo=",
+          "stream": "stdout",
+          "text_lossy": "DESCENDANT-FINAL\n"
+        }
+      ],
+      "exit_code": 0,
+      "hold_seconds": 2.25,
+      "output_eof_ms": 2265.471,
+      "output_lossy": "DESCENDANT-PID=1506\nDESCENDANT-FINAL\n",
+      "pid": 1505
+    },
+    "invalid_utf8": {
+      "direct_exit_ms": 1314.761,
+      "events": [
+        {
+          "at_ms": 1131.408,
+          "bytes_b64": "YmVmb3JlOv/+OmFmdGVyCg==",
+          "stream": "stdout",
+          "text_lossy": "before:\ufffd\ufffd:after\n"
+        }
+      ],
+      "exit_code": 0,
+      "output_eof_ms": 1314.774,
+      "pid": 1508,
+      "stderr_b64": "",
+      "stderr_lossy": "",
+      "stdout_b64": "YmVmb3JlOv/+OmFmdGVyCg==",
+      "stdout_lossy": "before:\ufffd\ufffd:after\n"
+    },
+    "pipe_interleave": {
+      "direct_exit_ms": 1547.827,
+      "events": [
+        {
+          "at_ms": 1295.066,
+          "bytes_b64": "TzEK",
+          "stream": "stdout",
+          "text_lossy": "O1\n"
+        },
+        {
+          "at_ms": 1325.346,
+          "bytes_b64": "RTEK",
+          "stream": "stderr",
+          "text_lossy": "E1\n"
+        },
+        {
+          "at_ms": 1355.507,
+          "bytes_b64": "TzIK",
+          "stream": "stdout",
+          "text_lossy": "O2\n"
+        },
+        {
+          "at_ms": 1385.71,
+          "bytes_b64": "RTIK",
+          "stream": "stderr",
+          "text_lossy": "E2\n"
+        }
+      ],
+      "exit_code": 7,
+      "output_eof_ms": 1547.842,
+      "pid": 1442,
+      "stderr_b64": "RTEKRTIK",
+      "stderr_lossy": "E1\nE2\n",
+      "stdout_b64": "TzEKTzIK",
+      "stdout_lossy": "O1\nO2\n"
+    },
+    "pipe_terminal_identity": {
+      "direct_exit_ms": 1407.958,
+      "events": [
+        {
+          "at_ms": 1241.316,
+          "bytes_b64": "eyJzdGRlcnJfdHR5IjogZmFsc2UsICJzdGRpbl90dHkiOiBmYWxzZSwgInN0ZG91dF90dHkiOiBmYWxzZSwgInRlcm0iOiAieHRlcm0tMjU2Y29sb3IiLCAid2luc2l6ZSI6IG51bGx9Cg==",
+          "stream": "stdout",
+          "text_lossy": "{\"stderr_tty\": false, \"stdin_tty\": false, \"stdout_tty\": false, \"term\": \"xterm-256color\", \"winsize\": null}\n"
+        }
+      ],
+      "exit_code": 0,
+      "output_eof_ms": 1407.974,
+      "pid": 1462,
+      "stderr_b64": "",
+      "stderr_lossy": "",
+      "stdout_b64": "eyJzdGRlcnJfdHR5IjogZmFsc2UsICJzdGRpbl90dHkiOiBmYWxzZSwgInN0ZG91dF90dHkiOiBmYWxzZSwgInRlcm0iOiAieHRlcm0tMjU2Y29sb3IiLCAid2luc2l6ZSI6IG51bGx9Cg==",
+      "stdout_lossy": "{\"stderr_tty\": false, \"stdin_tty\": false, \"stdout_tty\": false, \"term\": \"xterm-256color\", \"winsize\": null}\n"
+    },
+    "pipe_terminal_rewrite": {
+      "direct_exit_ms": 1410.595,
+      "events": [
+        {
+          "at_ms": 1204.224,
+          "bytes_b64": "cGhhc2U9b25l",
+          "stream": "stdout",
+          "text_lossy": "phase=one"
+        },
+        {
+          "at_ms": 1224.332,
+          "bytes_b64": "DXBoYXNlPXR3bw==",
+          "stream": "stdout",
+          "text_lossy": "\rphase=two"
+        },
+        {
+          "at_ms": 1244.46,
+          "bytes_b64": "G1sySw1waGFzZT1kb25lCg==",
+          "stream": "stdout",
+          "text_lossy": "\u001b[2K\rphase=done\n"
+        }
+      ],
+      "exit_code": 0,
+      "output_eof_ms": 1410.609,
+      "pid": 1482,
+      "stderr_b64": "",
+      "stderr_lossy": "",
+      "stdout_b64": "cGhhc2U9b25lDXBoYXNlPXR3bxtbMksNcGhhc2U9ZG9uZQo=",
+      "stdout_lossy": "phase=one\rphase=two\u001b[2K\rphase=done\n"
+    },
+    "process_group_cancellation": {
+      "descendant_proc_state": null,
+      "escalated_to_sigkill": true,
+      "exit_code": -9,
+      "grace_ms": 100,
+      "pids": {
+        "PARENT-PID": 1528,
+        "SPAWNED-DESCENDANT-PID": 1529
+      },
+      "settled_ms": 151.539,
+      "signal": "SIGTERM",
+      "stderr": ""
+    },
+    "pty_interleave": {
+      "configured_winsize": [72, 19],
+      "direct_exit_ms": 1441.315,
+      "events": [
+        {
+          "at_ms": 1170.187,
+          "bytes_b64": "TzENCg==",
+          "stream": "pty",
+          "text_lossy": "O1\r\n"
+        },
+        {
+          "at_ms": 1200.498,
+          "bytes_b64": "RTENCg==",
+          "stream": "pty",
+          "text_lossy": "E1\r\n"
+        },
+        {
+          "at_ms": 1230.645,
+          "bytes_b64": "TzINCg==",
+          "stream": "pty",
+          "text_lossy": "O2\r\n"
+        },
+        {
+          "at_ms": 1260.802,
+          "bytes_b64": "RTINCg==",
+          "stream": "pty",
+          "text_lossy": "E2\r\n"
+        }
+      ],
+      "exit_code": 7,
+      "output_eof_ms": 1441.413,
+      "pid": 1452,
+      "pty_b64": "TzENCkUxDQpPMg0KRTINCg==",
+      "pty_lossy": "O1\r\nE1\r\nO2\r\nE2\r\n"
+    },
+    "pty_terminal_identity": {
+      "configured_winsize": [72, 19],
+      "direct_exit_ms": 1398.198,
+      "events": [
+        {
+          "at_ms": 1221.526,
+          "bytes_b64": "eyJzdGRlcnJfdHR5IjogdHJ1ZSwgInN0ZGluX3R0eSI6IHRydWUsICJzdGRvdXRfdHR5IjogdHJ1ZSwgInRlcm0iOiAieHRlcm0tMjU2Y29sb3IiLCAid2luc2l6ZSI6IFs3MiwgMTldfQ0K",
+          "stream": "pty",
+          "text_lossy": "{\"stderr_tty\": true, \"stdin_tty\": true, \"stdout_tty\": true, \"term\": \"xterm-256color\", \"winsize\": [72, 19]}\r\n"
+        }
+      ],
+      "exit_code": 0,
+      "output_eof_ms": 1398.258,
+      "pid": 1472,
+      "pty_b64": "eyJzdGRlcnJfdHR5IjogdHJ1ZSwgInN0ZGluX3R0eSI6IHRydWUsICJzdGRvdXRfdHR5IjogdHJ1ZSwgInRlcm0iOiAieHRlcm0tMjU2Y29sb3IiLCAid2luc2l6ZSI6IFs3MiwgMTldfQ0K",
+      "pty_lossy": "{\"stderr_tty\": true, \"stdin_tty\": true, \"stdout_tty\": true, \"term\": \"xterm-256color\", \"winsize\": [72, 19]}\r\n"
+    },
+    "pty_terminal_rewrite": {
+      "configured_winsize": [72, 19],
+      "direct_exit_ms": 1312.589,
+      "events": [
+        {
+          "at_ms": 1107.06,
+          "bytes_b64": "cGhhc2U9b25l",
+          "stream": "pty",
+          "text_lossy": "phase=one"
+        },
+        {
+          "at_ms": 1127.228,
+          "bytes_b64": "DXBoYXNlPXR3bw==",
+          "stream": "pty",
+          "text_lossy": "\rphase=two"
+        },
+        {
+          "at_ms": 1147.295,
+          "bytes_b64": "G1sySw1waGFzZT1kb25lDQo=",
+          "stream": "pty",
+          "text_lossy": "\u001b[2K\rphase=done\r\n"
+        }
+      ],
+      "exit_code": 0,
+      "output_eof_ms": 1312.663,
+      "pid": 1492,
+      "pty_b64": "cGhhc2U9b25lDXBoYXNlPXR3bxtbMksNcGhhc2U9ZG9uZQ0K",
+      "pty_lossy": "phase=one\rphase=two\u001b[2K\rphase=done\r\n"
+    }
+  },
+  "environment": {
+    "executable": "/opt/pyvenv/bin/python3",
+    "pid": 1427,
+    "platform": "Linux-6.12.13-x86_64-with-glibc2.41",
+    "python": "3.13.5"
+  },
+  "observations": {
+    "final_marker_captured": true,
+    "inherited_pipe_lag_ms": 346.807,
+    "invalid_utf8_replacement_present": true,
+    "long_inherited_pipe_lag_ms": 2247.62,
+    "pipe_stream_tags": ["stdout", "stderr", "stdout", "stderr"],
+    "pty_is_single_stream": true
+  },
+  "schema_version": 1
+}
