@@ -2,13 +2,13 @@
 
 ## In simple words
 
-This round surveyed live contribution queues across package collections, runtimes, developer tools, foundational libraries, databases, and Linux user space. It retained the places where useful work repeatedly appears, reduced several current issues to likely owning code and tests, and separated open work from candidates already covered by active pull requests or contributor claims.
+This round surveyed live contribution queues across package collections, runtimes, developer tools, foundational libraries, databases, and Linux user space. It retained the places where useful work repeatedly appears, reduced several current issues to likely owning code and tests, and separated open work from candidates already covered by active pull requests, assignments, or contributor claim intent.
 
 ## Source boundary
 
 Research was performed on 2026-07-30 against public GitHub issue, pull-request, assignment, comment, and source views. Exact issue and source revisions are recorded in the scout reports. This is reconnaissance and local planning only; no upstream contact was authorized or made.
 
-Promotion state is perishable. A live review refresh found that libarchive #3337 gained PR #3340 after the original scan, so the round now retains that case as a reference and stops independent implementation. Every candidate must be rechecked immediately before a branch is created.
+Promotion state is perishable. A live review refresh found that libarchive #3337 gained PR #3340 after the original scan, and a later refresh found a contributor publicly asking to take Ruff #27026. The round retains those cases as references and stops independent implementation unless coordination reopens them. Every candidate must be rechecked immediately before a branch is created.
 
 ## First result
 
@@ -16,17 +16,24 @@ The portfolio can sustain broad parallel discovery. The highest-yield surfaces s
 
 1. issues include a deterministic reproducer or pinned working and failing revisions;
 2. the likely owning code and adjacent test suite are compact;
-3. overlap checks cover active pull requests, linked work, assignees, and project-specific claim bots.
+3. overlap checks cover active pull requests, linked work, assignees, contributor intent, and project-specific claim bots.
 
 ## Best immediate current-CI candidates
 
-1. **Ruff #27026 — RUF038 changes runtime expressions and drops `Literal` members.** The rule claims annotation scope but receives a general expression and can replace an entire runtime `Literal` expression. The owning rule file is compact and the issue includes a playground reproducer.
-2. **DuckDB #24308 — partitioned COPY can lose data.** SQL NULL and the literal string `__HIVE_DEFAULT_PARTITION__` map to the same directory. The writer and adjacent test file are identified, and the reproducer is a small SQL fixture.
-3. **Nixpkgs #516481 — restore `gomarkdoc` tests.** The package currently disables `checkPhase`. The failure is pinned to a nixpkgs revision window and points toward `buildGoModule`, `GOFLAGS`, working-directory behavior, or an upstream test assumption.
-4. **DuckDB #24307 and #24314 — window-frame and high-precision median errors.** Both are pure SQL reproducers with no matching pull request found in the round.
-5. **Ruff #27022 and #27024 — automatic fixes change string or buffer behavior.** Both carry compact before/after fixtures and clear fix-safety consequences.
+1. **DuckDB #24308 — partitioned COPY can lose data.** SQL NULL and the literal string `__HIVE_DEFAULT_PARTITION__` map to the same directory. The issue remains open, reproduced, unassigned, without comments or a matching pull request in the review refresh.
+2. **Nixpkgs #516481 — restore `gomarkdoc` tests.** The package currently disables `checkPhase`. The failure is pinned to a nixpkgs revision window and points toward `buildGoModule`, `GOFLAGS`, working-directory behavior, or an upstream test assumption. No active claim or matching pull request was found.
+3. **DuckDB #24307 — large FOLLOWING frames return non-empty results.** The pure SQL reproducer remains open, reproduced, unassigned, without comments or a matching pull request in the review refresh.
+4. **DuckDB #24314 — high-precision median error.** The issue offers a compact analytical boundary behind the first two database probes.
+5. **Ruff #27022 and #27024 — automatic fixes change string or buffer behavior.** Both carry compact before/after fixtures, but overlap must be refreshed before selection.
 
-## Claimed and active-work reference candidates
+## Coordination/reference candidates
+
+**Ruff #27026 — RUF038 runtime mutation and dropped `Literal` members** remains a high-value diagnosis, but it is no longer an independent first implementation. The issue discussion separates two concerns:
+
+- whether all `Literal[...]` rewrites should remain unsafe because annotations are runtime-visible through introspection;
+- the narrower correctness bug where an unsupported member such as `values[0]` is dropped.
+
+A contributor has publicly asked to work on the issue. Retain the fixtures and split diagnosis, but coordinate before opening a branch.
 
 Rust #159745, #159686, #159492, #157184, and #157260 are already assigned or claimed. They remain valuable diagnostic and contribution-packet references, while independent implementation is stopped unless their claims are released or coordination explicitly invites help.
 
@@ -67,4 +74,4 @@ These remain useful as contribution-packet examples, test-design references, and
 
 ## Current decision
 
-Promote Ruff #27026, DuckDB #24308, and Nixpkgs #516481 into executable probes first. Keep one VM lane and one free-threaded/TSAN lane ready behind them. Retain libarchive #3337 as an active-fix reference. Treat claimed Rust diagnostics as references and continue searching for unassigned compiler work. Run pull-request, linked-work, assignee, and claim-comment checks immediately before code work begins.
+Promote DuckDB #24308, Nixpkgs #516481, and DuckDB #24307 into the first independent executable probes. Keep Ruff #27026 as a coordination/reference packet until the contributor intent is resolved. Keep one VM lane and one free-threaded/TSAN lane ready behind them. Retain libarchive #3337 as an active-fix reference. Run pull-request, linked-work, assignee, contributor-intent, and claim-comment checks immediately before code work begins.
