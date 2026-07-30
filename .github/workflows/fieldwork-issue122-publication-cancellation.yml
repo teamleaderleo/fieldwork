@@ -25,11 +25,12 @@ env:
   POLARS_COMMIT: 36e414b4cb1e74e7a171995b35b83c1163974324
   OBJECT_STORE_RELEASE_COMMIT: 7a65b75b0d26fd8a282999462cb7030fb85fdcc3
   PROBE_DIR: programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/object-store-abort
+  SINK_PROBE_DIR: programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/datafusion-sink-cancel
 
 jobs:
   ownership-control:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -149,6 +150,13 @@ jobs:
           cargo test --manifest-path "$PROBE_DIR/Cargo.toml"
           cargo run --quiet --manifest-path "$PROBE_DIR/Cargo.toml" | tee issue122-object-store-abort.json
 
+      - name: Check and run DataFusion sink cancellation barrier
+        run: |
+          set -euxo pipefail
+          cargo fmt --manifest-path "$SINK_PROBE_DIR/Cargo.toml" -- --check
+          cargo test --manifest-path "$SINK_PROBE_DIR/Cargo.toml"
+          cargo run --quiet --manifest-path "$SINK_PROBE_DIR/Cargo.toml" | tee issue122-datafusion-sink-cancel.json
+
       - name: Upload source and execution receipts
         if: always()
         uses: actions/upload-artifact@v4
@@ -158,5 +166,6 @@ jobs:
             issue122-source-contract.json
             issue122-object-store-tree.txt
             issue122-object-store-abort.json
+            issue122-datafusion-sink-cancel.json
           if-no-files-found: warn
           retention-days: 30
