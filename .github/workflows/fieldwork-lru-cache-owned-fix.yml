@@ -13,7 +13,8 @@ permissions:
 jobs:
   focused-test:
     name: Node.js ${{ matrix.node-version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -23,21 +24,33 @@ jobs:
           - 26
     steps:
       - name: Check out owned fork candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: teamleaderleo/node-lru-cache
           ref: 1dcfd7e07cc8b961c2aae38da37e2e148f92e6a9
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
       - name: Apply candidate source patch
-        run: git apply --check .fieldwork/background-fetch-size-validation.patch && git apply .fieldwork/background-fetch-size-validation.patch
+        run: |
+          git apply --check .fieldwork/background-fetch-size-validation.patch
+          git apply .fieldwork/background-fetch-size-validation.patch
+          git diff --check
 
-      - name: Install dependencies
+      - name: Install exact dependencies
         run: npm install
 
-      - name: Run focused regression
-        run: npm test -- test/background-fetch-size.ts
+      - name: Build source and declarations
+        run: npm run prepare
+
+      - name: Run focused behavior without repository coverage threshold
+        run: npx tap --disable-coverage test/background-fetch-size.ts
+
+      - name: Check changed source and test
+        run: |
+          npx oxlint src/index.ts test/background-fetch-size.ts
+          npx prettier --check src/index.ts test/background-fetch-size.ts
