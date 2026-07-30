@@ -3,7 +3,7 @@
 Canonical status: `accepted for internal orientation`  
 Parent issue: [Fieldwork #239](https://github.com/teamleaderleo/fieldwork/issues/239)  
 Claim scope: plain-language system and investigation model  
-Current upstream pin: `745603a5a1eb48b6f343633d622eeb72dd549d7b`  
+Current upstream pin: `a01a2d91461a57809e944de7758477b92617ab01`  
 Source proposal authority: `none`  
 Upstream contact authorized: `false`
 
@@ -103,7 +103,7 @@ Current session code can place a result in live memory, attempt a durable append
 
 ### 5. History reconciliation solves a later problem
 
-Current upstream is improving logical item reconciliation, metadata normalization, projection, and writer lifecycle. Those changes help resume and replay. They cannot tell the original caller whether its append was acknowledged.
+Current upstream is improving logical item reconciliation, metadata normalization, projection, writer lifecycle, and execution-provenance records. Those changes help resume, replay, and client attribution. They cannot tell the original caller whether its append was acknowledged.
 
 ### 6. Live output broadcast is allowed to lose delivery
 
@@ -218,7 +218,8 @@ Every temporary carrier must transfer its evidence and successor links before re
 
 At this snapshot:
 
-- public upstream is `745603a5a1eb48b6f343633d622eeb72dd549d7b`;
+- public upstream is `a01a2d91461a57809e944de7758477b92617ab01`;
+- the `745603... → a01a2d...` delta leaves every declared active candidate source fence unchanged;
 - append acknowledgement carrier #52 is queued at head `324ddccba14b2b0934e2c56cc0cda7ca04a56e6d`;
 - terminal retention carrier #53 is queued at head `d5028fc9771407aa7a9bafbceb7eba051b91de36`;
 - MCP reconnect/publication needs exact comparison with current upstream reconnect work;
