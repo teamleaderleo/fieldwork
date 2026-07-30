@@ -8,137 +8,148 @@ Fieldwork scout PR: #173
 
 Owned fork PR: `teamleaderleo/httpx#1`
 
-Exact fork head: `f601c2981d1bf2c9d036b8ce91e46fa11529cd87`
+Exact executed fork head: `04e2da580eea759e712df1656323ae0dd7d26bff`
 
 Pinned fork base: `b5addb64f0161ff6bfe94c124ef76f6a1fba5254`
 
-Evidence class: `target-test-prepared`
-
 Upstream contact authorized: `false`
 
-## Candidate shape
+## Candidate form
 
-The current fork remains a patch-applied experiment, not a direct production-source branch.
+The fork remains a staged exact-anchor experiment, not a direct production-source branch.
 
-It contains six files:
+Its candidate transformer:
 
-1. exact source patch for response close ownership and elapsed ordering;
-2. eleven backend-neutral response/state regressions;
-3. one focused control-flow ownership regression;
-4. one in-progress pickle-state regression;
-5. one default-transport pool-slot recovery integration control;
-6. a read-only Python 3.9/3.13 workflow.
+- requires every pinned source snippet exactly once;
+- moves elapsed-time publication after underlying close succeeds;
+- adds one AnyIO event per authoritative close attempt;
+- separates body-read closure from cleanup completion;
+- excludes transient attempt state from pickling;
+- applies the same candidate on Python 3.9 and 3.13.
 
-## Self-review findings and repairs
+The fork also contains focused response-state, control-flow, pickle, client-context, and default-pool regressions plus a read-only workflow.
 
-### Patch application metadata
+## Exact-head execution receipt
 
-The first staged source patch had inconsistent unified-diff hunk counts and downstream new-line offsets. The code proposal was readable, but `git apply --check` would have rejected the artifact before compilation or tests.
+Focused workflow run: `30507411692`
 
-The current patch corrects:
+Jobs:
 
-- the top-level helper hunk count;
-- every later new-file line offset affected by that count;
-- the final `Response.aclose()` old/new line counts.
+- Python 3.9 — passed;
+- Python 3.13.14 — passed.
 
-This is a harness/transport repair. It supplies no product evidence until the exact patch applies in the target workflow.
+Exact runtime dependencies included:
 
-### Control-flow exception ownership
+- HTTPX `0.28.1`;
+- HTTPCore `1.0.9`;
+- AnyIO `4.12.1`;
+- Trio `0.31.0`;
+- Trustme `1.2.1`;
+- Cryptography `45.0.7`;
+- Uvicorn `0.35.0`;
+- the remaining repository-declared requirements.
 
-The first candidate distinguished the active backend's cancellation class from every other `BaseException`. It therefore stored and replayed a non-cancellation control-flow signal such as `KeyboardInterrupt`, `SystemExit`, or another direct `BaseException` into callers waiting on the close attempt.
+Each job passed:
 
-The repaired rule is:
+```text
+28 candidate close-settlement, control-flow, pickle, and pool tests
+24 adjacent response/client tests
+Ruff on changed source and focused tests
+Mypy on httpx
+```
 
-- ordinary `Exception` failures are shared with current waiters;
-- cancellation and other control-flow `BaseException` values remain owned by the interrupted caller;
-- waiters are awakened and may take retry ownership rather than receiving a duplicated control-flow signal.
+The adjacent selector deselected 134 unrelated cases. This is a focused target result, not the complete repository gate.
 
-A dedicated concurrent owner/waiter test uses a synthetic `BaseException` subclass. The owner receives it once, the waiter retries the underlying stream close, and only successful retry publishes `is_closed`.
+## Candidate behavior established
 
-### Pickle-state ownership
+### Completion state
 
-`Response.__getstate__()` must not serialize the AnyIO event or an in-progress close-attempt object. `Response.__setstate__()` already restores responses as closed with an unattached stream.
+Only successful underlying stream cleanup sets `response.is_closed = True`.
 
-The new test pickles a response while its underlying close is blocked and requires the restored response to be:
+Cancellation, non-cancellation control-flow interruption, and ordinary close errors leave public cleanup completion false and allow a later explicit close attempt.
 
-- publicly closed;
-- marked close-started;
-- free of transient attempt state;
-- unable to resume body consumption.
+### Attempt ownership
 
-The original response remains incomplete and retryable after its owner is cancelled. This separates serialization safety from the live response's close ownership.
+One caller owns one underlying close attempt. Concurrent callers wait for the same attempt rather than returning early or invoking the stream concurrently.
 
-## Earlier matrix additions
+Ordinary `Exception` failures are shared with callers already waiting. A later call may create a new retry attempt.
 
-The initial seven-test matrix was expanded after review to cover:
+Cancellation and other direct `BaseException` control-flow signals remain owned by the interrupted caller. Waiting callers wake and may take retry ownership rather than receiving a duplicated control-flow signal.
 
-- entry with cancellation already active;
-- repeated successful close idempotence;
-- cancelled `AsyncClient.stream()` context exit;
-- elapsed remaining unavailable after a failed close;
-- real default-transport pool-slot recovery;
-- non-cancellation control-flow interruption remaining owner-scoped;
-- serialization while close remains in progress.
+### Two-axis response state
 
-The tests use AnyIO rather than `asyncio.Task`, so the same contract is exercised under asyncio and Trio.
+Once close starts, body iteration remains prohibited even when cleanup completion is false.
 
-## Default-transport control
+The accepted candidate therefore distinguishes:
 
-The integration control uses the repository's local Uvicorn server and HTTPX's default transport with:
+- body consumption closed;
+- cleanup attempt incomplete and retryable;
+- cleanup completed.
+
+This is not a contract that reopens response content after a failed close.
+
+### Elapsed time and serialization
+
+`response.elapsed` becomes available only after underlying close succeeds. It stays unavailable after failed cleanup.
+
+Pickling an in-progress response does not serialize the AnyIO event or attempt state. The restored response is terminally closed with an unattached stream, while the original live response retains its own retry ownership.
+
+### Default-pool control
+
+The local-server integration uses HTTPX's default transport with:
 
 ```python
 httpx.Limits(max_connections=1, max_keepalive_connections=1)
 httpx.Timeout(5.0, pool=0.2)
 ```
 
-The first streaming response wraps its real bound transport stream with a deterministic close blocker.
+The first streaming response wraps its real bound transport stream with a deterministic blocker.
 
 1. First close enters the blocker.
-2. Caller cancellation occurs before close delegates to HTTPCore.
-3. Public response completion remains false.
-4. Retry delegates to the real bound stream and completes.
+2. Caller cancellation occurs before delegation to HTTPCore.
+3. Public cleanup completion remains false.
+4. Retry delegates to the real bound stream and succeeds.
 5. A follow-up request succeeds through the one-slot pool.
 
-This proves recovery of the pool slot for the tested interruption point. It does not prove same-socket reuse or every interruption point inside HTTPCore.
+This proves pool-slot recovery for the tested interruption point with HTTPCore 1.0.9. It does not prove same-socket reuse or every close failure inside HTTPCore.
 
-## Current execution state
+## Harness history
 
-Exact-head runs:
+The path to target execution produced several useful non-product findings:
 
-- Fieldwork close-settlement workflow: `30504179169` — queued;
-- repository Test Suite: `30504179155` — queued.
+1. The first workflow checked out GitHub's synthetic merge commit, whose moving base did not match the pinned candidate source.
+2. The original unified-diff artifact contained malformed hunk metadata and was retired.
+3. The exact-anchor transformer first reached pytest without the repository's declared test dependencies and stopped during collection.
+4. The next run passed all behavior and adjacent tests but Ruff found one overlong test signature.
 
-All earlier queued receipts bind superseded heads. No pass or failure is claimed yet.
+None of those failures disproved the candidate behavior. The exact-head run above fixes the harness and passes every focused stage.
 
-## Protocol review result
+## Claim-scoped evidence
 
-The current Fieldwork protocol split remains appropriate:
-
-- PR #143 owns exact-head evidence and independent-review semantics;
-- issue #160 / PR #161 own finish-line routing;
-- issue #138 owns the future read-only evaluator.
-
-The HTTPX node is a useful invalidation case: the released-package reproduction remains valid, while prepared candidates and queued receipts become stale whenever complete-diff review changes the patch, tests, or workflow.
-
-Issue #138's HTTPX dogfood record and issue #87's human review record now separate async response, sync response, and client multi-transport ownership.
+- released response-state mismatch: retained released-package execution in the scout report;
+- candidate response close ownership and state semantics: `target-executed` through run `30507411692`;
+- one deterministic default-pool recovery path: `integration-executed` through the same run;
+- selected adjacent response/client compatibility: `target-executed`;
+- direct source integration: absent;
+- complete repository gate on the exact candidate: queued separately at the latest check;
+- same-socket reuse, arbitrary transport behavior, every HTTPCore failure point, sync response close, and client multi-transport shutdown: unproven or owned by adjacent lanes.
 
 ## Adjacent lanes
 
-Fieldwork #185 records synchronous response close failure separately. The released sync path becomes terminal before stream cleanup succeeds and refuses public retry.
+Fieldwork #185 records synchronous response close failure separately.
 
-Fieldwork #177 records client-level shutdown separately. `Client.close()`, `AsyncClient.aclose()`, and context exits publish `ClientState.CLOSED` before the main transport and mounted transports settle. That is a multi-owner teardown policy and must not be folded into the one-response candidate.
+Fieldwork #177 records client-level shutdown separately. Client shutdown publishes terminal client state before all transport owners settle and requires its own policy.
 
-## Next disposition gate
+## Current disposition
 
-Do not promote the fork candidate until:
+Accept the candidate behavior and focused compatibility result.
 
-- the exact patch applies;
-- Python 3.9 and 3.13 pass under asyncio and Trio;
-- adjacent response/client controls pass;
-- Ruff, Mypy, and `git diff --check` pass;
-- the control-flow ownership regression passes;
-- the pickle-state regression passes;
-- the default-transport pool control passes;
-- complete-diff review finds no public-state, serialization, cancellation, failure-sharing, or elapsed-ordering regression.
+Do not treat the transformer branch as a source-ready merge candidate. The next transition is:
+
+1. apply the selected implementation directly to a clean source branch;
+2. commit the tests in normal target locations;
+3. run the complete repository gate at that exact source head;
+4. perform complete-diff review;
+5. keep upstream contact unauthorized unless separately approved.
 
 No upstream interaction occurred.
