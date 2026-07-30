@@ -12,6 +12,7 @@ Fieldwork investigates external systems seriously before asking their maintainer
 
 - [`QUEUE.md`](QUEUE.md) — the actual ordered human review queue; start here when deciding what to review.
 - [`START_HERE.md`](START_HERE.md) — exact runbook for a person or agent sent to Fieldwork.
+- [`ADAPTIVE_COORDINATION.md`](ADAPTIVE_COORDINATION.md) — the lightweight working agreement for ownership, dispatch, review, branching, and protocol improvement.
 - [`WHY_FIELDWORK.md`](WHY_FIELDWORK.md) — plain-language explanation of what Fieldwork does, why the evidence workflow exists, and what current examples prove.
 - [`PROGRAMMES.md`](PROGRAMMES.md) — long-lived directions, scout lanes, branching, and concurrency.
 - [`CODE_FIRST.md`](CODE_FIRST.md) — what kinds of changes are worth investigating and how to understand code before proposing them.
@@ -125,6 +126,7 @@ Any public repository may be observed quietly when a user or coordinator assigns
 ## Repository map
 
 - [`QUEUE.md`](QUEUE.md) — actual ordered human review queue and routing entry point.
+- [`ADAPTIVE_COORDINATION.md`](ADAPTIVE_COORDINATION.md) — the working agreement for adapting detailed protocols without losing responsibility or evidence.
 - [`CHARTER.md`](CHARTER.md) — purpose, boundaries, and standards.
 - [`METHOD.md`](METHOD.md) — campaign lifecycle and evidence method.
 - [`OPERATIONS.md`](OPERATIONS.md) — intake, triage, states, and stopping rules.
