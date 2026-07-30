@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260731-ffmpeg-mp4-interrupt-publication",
+  "question": "When an ordinary MP4 encode has written packets, how do graceful SIGINT and hard SIGKILL differ in final-path existence and ffprobe parseability, and does temporary-path staging keep the final pathname unpublished after interruption?",
+  "owner": "chatgpt:gpt-5.6-thinking",
+  "created_at": "2026-07-31",
+  "state": "running",
+  "claim_scope": "interface",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "FFmpeg 8.1.2 source",
+      "url": "https://github.com/FFmpeg/FFmpeg/tree/38b88335f99e76ed89ff3c93f877fdefce736c13",
+      "revision": "38b88335f99e76ed89ff3c93f877fdefce736c13",
+      "retrieved_at": "2026-07-31",
+      "claim": "Exact stable target for execution.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "FFmpeg development source",
+      "url": "https://github.com/FFmpeg/FFmpeg/tree/86940d45aff7d59810794df3ab2b39b7b83b478c",
+      "revision": "86940d45aff7d59810794df3ab2b39b7b83b478c",
+      "retrieved_at": "2026-07-31",
+      "claim": "Signal handling breaks the transcode loop, then output trailer writing runs before main returns 255 for a received signal.",
+      "evidence_label": "Observed"
+    }
+  ],
+  "command": "bash programmes/high-leverage-open-source/scouts/ffmpeg-interruption-finalization-provenance/run.sh",
+  "environment": {
+    "runtime": "FFmpeg and ffprobe built from exact 8.1.2 tag source",
+    "platform": "GitHub-hosted ubuntu-24.04 x86_64",
+    "dependencies": [
+      "bash",
+      "GNU coreutils",
+      "Python 3",
+      "C toolchain"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "SIGINT returns 255, logs normal signal exit, and ffprobe parses the shorter direct output.",
+      "interpretation": "Graceful interruption finalizes a usable partial MP4 while still reporting interruption; pathname existence is weaker than application acceptance."
+    },
+    {
+      "observation": "SIGINT output exists but ffprobe cannot parse it.",
+      "interpretation": "The expected trailer path did not yield a consumable artifact at the tested boundary; inspect timing and trailer errors."
+    },
+    {
+      "observation": "SIGKILL leaves an output that ffprobe cannot parse while SIGINT remains parseable.",
+      "interpretation": "Trailer execution distinguishes graceful cancellation from hard death for ordinary MP4."
+    },
+    {
+      "observation": "The staged final pathname remains absent because the interrupted process returns nonzero.",
+      "interpretation": "Application-level temporary-path staging supplies an explicit publication boundary without changing FFmpeg internals."
+    }
+  ],
+  "stop_condition": "Stop after exact stable-target execution classifies completed, SIGINT, SIGKILL, and staged SIGINT outputs and source review determines whether the result is expected behavior, a diagnostic lead, or a narrower campaign candidate.",
+  "network_policy": "Target source checkout only during the owned execution workflow; experiment execution uses synthetic local media and no network protocols.",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "programmes/high-leverage-open-source/scouts/ffmpeg-interruption-finalization-provenance/results/latest/summary.json",
+    "programmes/high-leverage-open-source/scouts/ffmpeg-interruption-finalization-provenance/results/latest/"
+  ],
+  "promoted_to": null
+}
