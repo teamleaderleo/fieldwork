@@ -106,13 +106,13 @@ fn run_cancelled(df: DataFrame, path: &Path) -> PolarsResult<RunReceipt> {
     let query = sink_plan(df, path)?.collect_concurrently()?;
     wait_for_output(path, 64 * 1024);
     query.cancel();
-    let cancellation_result = query
-        .fetch_blocking()
-        .err()
-        .map(|error| error.to_string());
+    let cancellation_result = query.fetch_blocking().err().map(|error| error.to_string());
     let file = inspect_file(path);
 
-    assert!(file.exists, "the local final path should already exist after output begins");
+    assert!(
+        file.exists,
+        "the local final path should already exist after output begins"
+    );
     assert!(
         cancellation_result.is_some(),
         "explicit cancellation should return an interrupted query result"
@@ -130,7 +130,10 @@ fn run_retry(df: DataFrame, path: &Path, expected_rows: usize) -> PolarsResult<R
     let started = Instant::now();
     sink_plan(df, path)?.collect()?;
     let file = inspect_file(path);
-    assert!(file.parquet_valid, "successful retry must publish a valid Parquet file");
+    assert!(
+        file.parquet_valid,
+        "successful retry must publish a valid Parquet file"
+    );
     assert_eq!(file.readable_rows, Some(expected_rows));
 
     Ok(RunReceipt {
