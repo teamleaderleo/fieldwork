@@ -27,10 +27,11 @@ Current first probes from that round:
 
 1. Ruff #27026 — constrain RUF038 to valid annotation contexts and preserve unsupported members;
 2. DuckDB #24308 — distinguish SQL NULL from the literal Hive default-partition marker;
-3. Nixpkgs #516481 — restore `gomarkdoc` package tests;
-4. libarchive #3337 — reproduce PPMd behavior across read-buffer sizes;
-5. systemd #43174 — VM trace of oomd registration loss;
-6. CPython #154916 — free-threaded/TSAN design for a safe `GenericAlias` iterator snapshot.
+3. Nixpkgs #516481 — restore `gomarkdoc` package tests through Linux Fieldwork;
+4. systemd #43174 — VM trace of oomd registration loss;
+5. CPython #154916 — free-threaded/TSAN design for a safe `GenericAlias` iterator snapshot.
+
+libarchive #3337 is retained as a parser-state and regression-design reference after active PR #3340 appeared. Independent implementation is stopped.
 
 Rust diagnostics #159745, #159686, #159492, #157184, and #157260 are retained as claimed references. Independent implementation is stopped while their assignments remain active.
 
@@ -63,7 +64,8 @@ Rust diagnostics #159745, #159686, #159492, #157184, and #157260 are retained as
 - Keep at most three new implementation branches awaiting first review at once.
 - Each promoted contribution has one canonical branch, one owner, an exact source revision, and explicit remaining gates.
 - Park stale work with the blocker, preserved evidence, and the condition that would reopen it.
-- Treat assignees, claim-bot comments, and coordinated subdirectory claims as ownership signals even when no pull request exists.
+- Treat assignees, claim-bot comments, coordinated subdirectory claims, linked work, and matching pull requests as ownership signals.
+- Recheck overlap immediately before branch creation; a dated scan does not reserve a candidate.
 
 ## First outputs
 
@@ -76,4 +78,4 @@ Rust diagnostics #159745, #159686, #159492, #157184, and #157260 are retained as
 
 ## Current decision
 
-Begin executable probes for Ruff #27026, DuckDB #24308, Nixpkgs #516481, and libarchive #3337. Keep systemd #43174 and CPython #154916 as environment-gated deep lanes. Continue broad reconnaissance, requiring pull-request, linked-work, assignee, and claim-comment checks before code changes.
+Begin executable probes for Ruff #27026, DuckDB #24308, and Nixpkgs #516481. Keep systemd #43174 and CPython #154916 as environment-gated deep lanes. Retain libarchive #3337 as an active-fix reference rather than creating a competing branch. Continue broad reconnaissance, requiring pull-request, linked-work, assignee, and claim-comment checks immediately before code changes.
