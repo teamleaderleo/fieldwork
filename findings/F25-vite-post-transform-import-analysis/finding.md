@@ -1,171 +1,262 @@
-# F25: Run Vite dev import analysis after user post transforms
+# F25: Reconcile Vite imports added by user post transforms
 
 Finding state: `comparative-evaluation-active`
 
 Workstream: `B — Browser, web tooling, and runtime boundaries`  
 Canonical Fieldwork issue: `#25`  
 Canonical finding path: `findings/F25-vite-post-transform-import-analysis/finding.md`  
-Canonical implementation: `teamleaderleo/vite#5`  
-Exact implementation head: `1a5b6b5327efa43fc4a33ed5ad51553b6d9c37ba`  
-Exact base revision: `8a245726944ed29225920d49be77c33c6e03afc8`  
-Strongest evidence class: `full-gate` for the fork repository's named CI matrix; browser-visible mechanism established by target execution  
-Current review disposition: `EXECUTE compatibility comparison; preferred source direction remains ACCEPT`  
+Current source alternatives: `teamleaderleo/vite#5`, baseline probe #6, candidate-order probe #7, late-reconciliation prototype pending`  
+Exact source identities: `#5@1a5b6b5327efa43fc4a33ed5ad51553b6d9c37ba`; `#6@7229602a44df963d0395bc9c0160ea062a014d5c`; `#7@e169bafdcfc0c25b3f77cadb41aebf762458586b`  
+Original base revision: `8a245726944ed29225920d49be77c33c6e03afc8`  
+Current source-read boundary: `vitejs/vite@843a47da6b93dbd3ce28c4ffae33a8ef338c6f05`; `vitejs/vite-plugin-react@9db4976a9f30e89205d327b9e951a0a1d4912fe5`  
+Strongest evidence class: `full-gate` for original repair plus current first-party compatibility source and paired target-test-prepared probes  
+Current review disposition: `EXECUTE Option B late-reconciliation prototype; Option A retained as negative comparison`  
 Desk routing: `not-entered`  
 Upstream contact authorized: `no`
 
 ## In simple words
 
-Vite reads transformed JavaScript to learn which files a page imports and which files can update through hot reload. A plugin can ask to run its transform at the very end. Today that plugin can add an import after Vite already finished reading the file.
+Vite reads JavaScript during development to learn which files a page imports and which files can hot update. A plugin can run a transform after Vite's normal import analysis.
 
-The browser receives the import, but Vite's development graph never records it. The candidate makes Vite's internal import analysis run at the end of the same post-transform group so it sees final user-transformed source.
+The original bug is real: a late plugin can add an import or HMR boundary that reaches the browser but never enters Vite's module graph.
+
+The first repair moved the entire import-analysis pass after user post transforms. That fixes final graph truth, but current first-party React RSC code intentionally inserts a raw dynamic import after normal analysis so Vite will not rewrite it with `?import`.
+
+The next direction is narrower: preserve normal import analysis and current post-hook observations, then reconcile only graph and HMR facts added by late transforms without reapplying every import rewrite.
 
 ## Why we care
 
-A missing graph edge creates two truths:
+The baseline can produce two truths:
 
-- the browser executes code that imports the dependency;
-- Vite's dev server believes the dependency and HMR boundary do not exist.
+- served code imports a dependency or declares an HMR boundary;
+- Vite's development graph does not know it exists.
 
-That can produce full-page reloads instead of hot updates, stale graph state, missing hot-context injection, and development behavior that diverges from production build output.
+That can cause full reloads, stale graph state, missing accepted dependencies, and development/build divergence.
+
+Moving full analysis later introduces a different incompatibility: supported first-party post transforms can rely on inserting imports after rewriting has finished. Reprocessing those imports changes their URL and observable hook stage.
+
+The repair must preserve both graph truth and supported late-transform contracts.
 
 ## What happens if we leave it alone
 
-Plugins using hook-level `transform: { order: 'post' }` can inject imports or `import.meta.hot.accept()` calls that are visible in served code yet absent from Vite's module graph. Dependency edits then fall back to full reload. Production build sees final transformed source, so the discrepancy is development-specific.
+Baseline consequence:
 
-The affected plugin population and compatibility dependence remain unmeasured.
+- post transforms can add real imports or HMR accepts that the graph misses.
+
+Original Option A consequence:
+
+- user post transforms receive pre-analysis source rather than currently analyzed source;
+- React RSC's deliberate raw dynamic import becomes visible to import rewriting and can gain `?import`, defeating the plugin's stated intent.
+
+Frequency outside the executed fixtures remains unmeasured.
+
+## Governing goals and invariant
+
+Governing invariant: Vite's development graph and HMR metadata must describe final served behavior without rerunning incompatible source-rewrite responsibilities after plugins that intentionally execute post-analysis.
+
+| Goal or contract | Primary source | Consequence for the design |
+| --- | --- | --- |
+| Final graph truth | original #25 reproduction and PR #5 | late static imports and HMR accepts need reconciliation |
+| Current hook-stage compatibility | Vite ordering source and probes #6/#7 | user post transforms should continue receiving normal import-analysis output unless an explicit contract changes |
+| First-party raw-import behavior | `vite-plugin-react` RSC `rsc:vite-client-raw-import` | late reconciliation must not rewrite intentional raw imports with `?import` |
+| Single ownership per effect | current import-analysis implementation | graph update, URL rewriting, helper injection, pruning, and diagnostics must not run twice ambiguously |
+| Bounded cost | development transform hot path | extra parsing or scanning needs measured and narrow scope |
 
 ## Current finding
 
-The strongest current direction is to give the internal `vite:import-analysis` transform `order: 'post'`. Vite already appends this internal server-only plugin after user plugins, so it remains last inside the post-transform bucket and analyzes final user-transformed source without adding a second parse or graph pass.
+The original `order: 'post'` source change is no longer the preferred production direction. It remains valuable as a negative comparison because it proves one way to recover graph truth and makes the compatibility change executable.
 
-The source and repository gate are strong. One technical comparison remains before routing the candidate toward delivery: determine whether any supported plugin behavior intentionally depends on transforming after current import analysis and whether a focused ecosystem fixture can distinguish that from accidental ordering.
+The next implementation candidate is **Option B — compatibility-preserving late reconciliation**:
+
+1. keep the existing normal import-analysis pass;
+2. preserve the source currently observed by user post transforms;
+3. inspect final post-transform source for graph and HMR facts added after normal analysis;
+4. reconcile late imports, accepted dependencies, pruning, and HMR boundaries without blindly repeating URL rewriting or helper injection;
+5. retain explicit ownership and diagnostics for unsupported late-import forms.
+
+If bounded reconciliation cannot safely own these facts, the fallback is an explicit internal finalization stage outside user hooks rather than moving the existing full handler unchanged.
 
 ### Claim table
 
 | Claim | Evidence class | Exact support | Limit |
 | --- | --- | --- | --- |
-| A user post transform can inject an import after current dev import analysis. | `target-executed` | Vite PR #2 reproduction | Focused scenario |
-| The missing import also removes the accepted HMR dependency and hot-context injection. | `target-executed` | PR #2 and PR #5 regression | One plugin pattern |
-| Marking the internal hook `order: 'post'` repairs the graph and HMR update. | `full-gate` plus focused assertion | PR #5 at exact head; CI `30487475188`; Zizmor `30487475253` | Ecosystem compatibility outside repository tests remains unmeasured |
-| Plugin list order keeps import analysis last within the post bucket. | `source-read` | `packages/vite/src/node/plugins/index.ts` and hook sorting | Depends on current plugin ordering contract |
+| Current baseline misses imports and HMR boundaries added by post transforms. | `target-executed` | Vite PR #2 and original PR #5 regression | Focused plugin pattern |
+| Moving full import analysis to the post bucket repairs the reproduced graph and HMR mismatch. | `full-gate` | PR #5, CI `30487475188`, Zizmor `30487475253` | Does not establish compatibility |
+| Current baseline lets a user post transform observe import-analysis output. | `target-test-prepared` | baseline PR #6 at `7229602...` | CI `30586609039` and Zizmor `30586609010` pending at current record |
+| Option A makes the same hook observe pre-analysis source. | `target-test-prepared` | candidate PR #7 at `e169baf...` | CI `30586630958` and Zizmor `30586630986` queued |
+| First-party React RSC deliberately inserts a raw dynamic import after analysis to avoid `?import`. | `source-read` | `vite-plugin-react@9db4976...`, `packages/plugin-rsc/src/plugin.ts` and `browser.ts` | Exact paired execution still pending |
+| Option A would expose that final import to non-JavaScript import rewriting. | `source-read` plus prepared paired probe | ordering model and PR #7 raw-import control | Full target receipts pending |
 
 ## System and ownership map
 
-- User plugins can define hook-level transform order.
-- `getSortedPluginsByHook()` groups `pre`, normal, and `post` hooks while preserving plugin-list order inside each group.
-- `resolvePlugins()` appends internal server-only plugins after user plugins.
-- `vite:import-analysis` parses dev code to update module imports, HMR acceptance, and hot-context injection.
-- Production build uses the bundler's final parse and already observes the injected import.
+- Plugin list order places user post plugins before internal server-only plugins.
+- Hook-level `order` independently groups `pre`, normal, and `post` transforms.
+- Current `vite:import-analysis` is a normal transform hook.
+- User post transforms therefore observe analyzed source.
+- React RSC uses that stage to replace a placeholder with a real dynamic import after rewriting.
+- Import analysis owns more than graph discovery: URL rewriting, HMR parsing, helper injection, environment replacement, pruning, diagnostics, and metadata updates.
+- A final reconciliation stage should own only the late facts it can update without duplicating incompatible responsibilities.
 
-## Historical precedent
+## Historical and current precedent
 
-### Import analysis must observe plugin-injected imports
+### Plugin-injected imports must enter analysis where compatible
 
-- Source: https://github.com/vitejs/vite/pull/23029
-- Revision or date: merged before the pinned July 2026 base
-- Principle supported: imports injected by plugins must be visible to import-analysis behavior.
-- Important difference: that precedent concerns optimized dependency files and interop imports. This finding concerns hook ordering in the dev transform pipeline.
+- Source: `vitejs/vite#23029`
+- Principle supported: plugin-injected imports can require import-analysis visibility.
+- Important difference: the precedent concerns optimized dependency and interop behavior, not post-hook stage compatibility.
 
-### Internal server-only plugins are appended after user plugins
+### Current internal plugins run after user plugins by list order
 
-- Source: `packages/vite/src/node/plugins/index.ts` at the pinned base
-- Principle supported: Vite already intends internal analysis to run after user behavior.
-- Important difference: list order loses to hook-level `order: 'post'`, so current intent is incomplete without hook metadata.
+- Source: `packages/vite/src/node/plugins/index.ts` at `843a47d...`
+- Principle supported: internal server behavior is placed after user plugin lists.
+- Important difference: hook-level order creates a second ordering dimension; normal internal analysis still runs before user post hooks.
 
-## Approaches considered
+### First-party RSC raw-import post transform
 
-### Option A — mark the existing internal hook `order: 'post'`
+- Source: `vite-plugin-react@9db4976...`, `packages/plugin-rsc/src/plugin.ts`
+- Principle supported: current first-party integration intentionally uses post-analysis insertion to avoid Vite URL rewriting.
+- Important difference: it does not justify missing all graph and HMR facts added late.
 
-Why it leads: one analysis pass, existing handler, established hook-order mechanism, focused behavior repaired, full named CI passed.
+Detailed evidence: `evidence/20260731-workstream-b-transform-order-comparison.md`.
 
-How it can lose: a representative supported plugin or documented contract demonstrates that post transforms intentionally run after import analysis and require that order.
+## Alternatives instantiated or analyzed
 
-### Option B — retain current order and document the limit
+### Baseline — no late reconciliation
 
-Attraction: exact current compatibility remains.
+Benefit: preserves every current hook observation and raw-import behavior.
 
-Why it currently loses: served code and development graph remain inconsistent for supported post-hook metadata, and the focused HMR failure remains.
+Failure: final graph and HMR truth can be wrong.
 
-How it can win: ecosystem compatibility evidence shows moving analysis breaks a stronger contract than the reproduced graph mismatch.
+Disposition: retained negative control.
 
-### Option C — add a second final analysis pass
+### Option A — move full import analysis into the post bucket
 
-Attraction: late imports are observed without moving the first pass.
+Benefit: final source receives one complete analysis pass; original reproduction passes; tiny source diff.
 
-Why it currently loses: extra parsing, duplicate mutation risk, harder merge/idempotency model.
+Failure: changes post-hook observable input and conflicts with first-party RSC raw-import intent.
 
-How it can win: a focused prototype preserves both intermediate compatibility and final graph correctness with acceptable cost and no duplicate side effects.
+Disposition: retained negative comparison; no longer preferred.
 
-### Deferred — CSS analysis ordering
+Reopening trigger: evidence proves the first-party pattern is obsolete or a migration explicitly accepts the compatibility break.
 
-The confirmed reproduction is JavaScript import/HMR analysis. CSS has a different pipeline and needs a separate finding if reproduced.
+### Option B — preserve normal analysis and reconcile late facts
 
-## Edge cases covered
+Benefit: aims to preserve current stage compatibility and final graph truth.
+
+Risks:
+
+- duplicate parse and performance cost;
+- unclear subset of late imports that can remain unrewritten yet enter the graph;
+- pruning and HMR metadata can diverge if responsibilities split poorly;
+- diagnostics can report the wrong transform owner.
+
+Disposition: next implementation candidate.
+
+It loses if a bounded prototype cannot update graph/HMR truth without duplicating rewriting, helper injection, or inconsistent pruning.
+
+### Option C — explicit internal finalization stage
+
+Benefit: gives final-source reconciliation an explicit lifecycle outside user hook ordering.
+
+Risks: broader plugin-container design, new contract, more compatibility and maintenance surface.
+
+Disposition: fallback if Option B cannot establish clear ownership.
+
+### Option D — document the baseline limit
+
+Benefit: no implementation compatibility change.
+
+Failure: accepts demonstrated development graph divergence for supported hook metadata.
+
+Disposition: declined unless every repair direction fails stronger compatibility controls.
+
+## Option B required controls
+
+A viable prototype must cover:
+
+1. late static import added after normal analysis;
+2. late HMR accept boundary and hot dependency;
+3. intentional raw dynamic import that must remain without `?import`;
+4. late import removal and module-graph pruning;
+5. duplicate existing import versus newly late import;
+6. helper and hot-context injection exactly once;
+7. source maps and diagnostic ownership;
+8. parse and resolution failure after a post transform;
+9. post transform receiving the current analyzed-stage input;
+10. measured parse/runtime cost;
+11. current first-party React RSC fixture or a minimized equivalent;
+12. current-main complete diff and named repository gates.
+
+## Edge cases already covered
 
 | Edge case or control | Evidence | Result |
 | --- | --- | --- |
-| Injected static import | PR #5 regression | Dependency appears in served code and graph |
-| Injected HMR accept boundary | PR #5 regression | Accepted dependency recorded |
-| Hot-context injection | PR #5 regression | `__vite__createHotContext` present |
-| Dependency update | PR #5 regression | HMR `update`, not `full-reload` |
-| Cross-platform path identity | PR #2 correction | URL-facing graph lookup passes Linux, macOS, Windows |
-| Repository CI across Node 20/22/24/26 and major platforms | CI `30487475188` | Passed |
-| Workflow static analysis | Zizmor `30487475253` | Passed |
+| Late static import under Option A | PR #5 regression | graph records dependency |
+| Late HMR accept under Option A | PR #5 regression | accepted dependency recorded |
+| Hot-context injection under Option A | PR #5 regression | present |
+| Dependency update under Option A | PR #5 regression | HMR update rather than full reload |
+| Cross-platform path identity | PR #2 correction | Linux, macOS, Windows identity control passed |
+| Original repository gate | CI `30487475188` | passed named Node/platform matrix |
+| Workflow analysis | Zizmor `30487475253` | passed |
+| Baseline post-hook stage | PR #6 | exact target carrier pending |
+| Option A post-hook stage and raw import | PR #7 | exact target carrier pending |
 
 ## Edge cases deferred or outside scope
 
 | Edge case | Why deferred | Owning next record or reopening trigger |
 | --- | --- | --- |
-| Representative plugins that intentionally transform after current analysis | Technical compatibility evidence absent | Run source search and focused ecosystem fixtures before review-ready |
-| CSS post transforms and CSS analysis ordering | Separate pipeline | New finding if reproduced |
-| Source-map quality after ordering change | No regression observed, no targeted measurement | Add focused compatibility probe |
-| Bundled-development plugin behavior | Different HMR engine and existing experimental gap | Separate Vite bundled-dev finding |
-| Performance impact of later analysis | Same parse count; no benchmark retained | Benchmark if source review identifies a plausible hot-path cost |
+| CSS post-transform analysis | Different pipeline | Separate finding after reproduction |
+| Bundled-development HMR engine | Separate experimental implementation | Existing bundled-dev lane |
+| General plugin API contract change | Option B attempts to avoid one | Only if bounded reconciliation fails |
+| Public migration or release note | No public authority and no selected final source | Delivery stage after acceptance |
 
 ## Exact execution and receipts
 
-| Repository/head | Command or workflow | Platform/environment | Result | Evidence class |
-| --- | --- | --- | --- | --- |
-| `teamleaderleo/vite@1a5b6b5327efa43fc4a33ed5ad51553b6d9c37ba` | CI `30487475188` | Node 20/22/24/26 Ubuntu; Node 24 macOS and Windows | Lint, formatting, typecheck, docs, unit, serve, bundled dev, and build jobs passed | `full-gate` for named CI |
-| Same head | Zizmor `30487475253` | GitHub workflow analysis | Passed | `target-executed` |
+| Repository/head | Workflow | Result at this record | Evidence class |
+| --- | --- | --- | --- |
+| `teamleaderleo/vite@1a5b6b5327efa43fc4a33ed5ad51553b6d9c37ba` | CI `30487475188` | success | full named gate for Option A source |
+| same | Zizmor `30487475253` | success | workflow analysis |
+| `teamleaderleo/vite@7229602a44df963d0395bc9c0160ea062a014d5c` | CI `30586609039`; Zizmor `30586609010` | queued / pending | target-test-prepared baseline compatibility |
+| `teamleaderleo/vite@e169bafdcfc0c25b3f77cadb41aebf762458586b` | CI `30586630958`; Zizmor `30586630986` | queued | target-test-prepared Option A compatibility |
+
+Refresh exact live states before any promotion claim.
 
 ## Complete-diff and compatibility review
 
-The exact source candidate is small and the named repository gate passed. The remaining comparison is not a user preference question. It is a technical compatibility question:
-
-1. search current Vite source, docs, tests, and plugin ecosystem for code that depends on post transforms running after import analysis;
-2. instantiate the strongest plausible counterexample;
-3. compare Option A with a bounded second-pass prototype only if that counterexample survives;
-4. refresh the candidate on current main before review-ready.
-
-No public upstream action is authorized.
+- PR #5 remains a valid executed negative comparison and a useful source prototype.
+- PRs #6/#7 are execution carriers, not product candidates.
+- The first-party RSC dependency defeats the prior default ranking of Option A.
+- The next source branch must be separate and own only Option B reconciliation.
+- Temporary workflows and test-only carriers require receipt transfer and retirement mapping.
+- No source candidate is review-ready until Option B or Option C survives the paired compatibility matrix.
 
 ## Current disposition and desk routing
 
 - Finding state: `comparative-evaluation-active`
-- Review disposition: `EXECUTE compatibility comparison; Option A remains preferred`
-- Review Queue entry: none until the comparison is complete
+- Review disposition: `EXECUTE Option B; HOLD delivery of Option A`
+- Review Queue entry: none
 - Delivery lane: `not-entered`
-- Exact next transition: run current-source overlap and representative plugin compatibility controls
-- Clearing condition: Option A survives the strongest supported counterexample, or another option wins through execution
-- Required subgates: current-main refresh, complete diff, focused compatibility controls
-- Autonomous work remaining: ecosystem/source search, counterexample fixture, current-main refresh
+- Exact next transition: settle PRs #6/#7 and build a separate Option B late-reconciliation prototype
+- Clearing condition: one implementation preserves final graph/HMR truth and the supported first-party post-transform contract at a current exact head
+- Required subgates: paired stage/raw-import controls, pruning, errors, performance, complete diff, current-main repository gate
+- Autonomous work remaining: Option B design/source, fixtures, execution, cross-review, carrier cleanup
 - Non-delegable human decision: none
 
 ## Changes to the canonical conclusion
 
-| Date | Pull request or commit | Change in conclusion |
+| Date | Record | Change in conclusion |
 | --- | --- | --- |
-| 2026-07-29 | Vite PR #2 | Reproduced browser/dev-graph mismatch and corrected cross-platform probe identity |
-| 2026-07-29 | Vite PR #5 | Added narrow explicit-order repair and complete repository CI evidence |
-| 2026-07-30 | Exact-head cross-review | Preferred repair survived source and repository review; ecosystem compatibility remained unmeasured |
-| 2026-07-31 | Canonical protocol composition | Reclassified from human decision to autonomous comparative evaluation because technical controls can still distinguish options |
+| 2026-07-29 | Vite PR #2 | Reproduced served-source and development-graph mismatch |
+| 2026-07-29 | Vite PR #5 | Demonstrated tiny Option A and passed named repository gates |
+| 2026-07-31 | canonical protocol audit | Reclassified compatibility question from human decision to technical comparison |
+| 2026-07-31 | first-party RSC source and PRs #6/#7 | Option A lost default-winner status; Option B became next candidate |
 
 ## References
 
-- https://github.com/teamleaderleo/fieldwork/issues/25
-- https://github.com/teamleaderleo/vite/pull/2
-- https://github.com/teamleaderleo/vite/pull/5
-- https://github.com/vitejs/vite/pull/23029
-- CI run `30487475188`
-- Zizmor run `30487475253`
+- Fieldwork issue #25.
+- Vite owned PRs #2, #5, #6, and #7.
+- `findings/F25-vite-post-transform-import-analysis/evidence/20260731-workstream-b-transform-order-comparison.md`.
+- `vitejs/vite@843a47da6b93dbd3ce28c4ffae33a8ef338c6f05`.
+- `vitejs/vite-plugin-react@9db4976a9f30e89205d327b9e951a0a1d4912fe5`.
+- Vite upstream PR #23029.
+- No public upstream interaction occurred.
