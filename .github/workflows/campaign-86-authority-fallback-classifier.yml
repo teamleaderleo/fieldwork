@@ -1,0 +1,40 @@
+name: Campaign 86 authority fallback classifier
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - campaigns/0006-authority-aware-capability-fallback/**
+      - .github/workflows/campaign-86-authority-fallback-classifier.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and execute deterministic case matrix
+        run: |
+          path=campaigns/0006-authority-aware-capability-fallback/artifacts
+          python3 -m py_compile "$path/classify_fallback.py"
+          python3 "$path/classify_fallback.py" \
+            --cases "$path/cases.json" \
+            --output /tmp/campaign-86-results-1.json
+          python3 "$path/classify_fallback.py" \
+            --cases "$path/cases.json" \
+            --output /tmp/campaign-86-results-2.json
+          cmp /tmp/campaign-86-results-1.json /tmp/campaign-86-results-2.json
+          python3 - <<'PY'
+          import json
+          result = json.load(open('/tmp/campaign-86-results-1.json'))
+          print(json.dumps({
+              'case_count': result['case_count'],
+              'decision_counts': result['decision_counts'],
+              'all_expectations_passed': result['all_expectations_passed'],
+              'failed_cases': result['failed_cases'],
+          }, sort_keys=True))
+          PY
+          git diff --check
