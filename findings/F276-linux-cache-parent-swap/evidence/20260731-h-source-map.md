@@ -3,7 +3,7 @@
 Date: 2026-07-31  
 Worker: H  
 Linux source: `teamleaderleo/linux-fieldwork@ed49c01a85e9d363626db5d2973a33b67209e13b`  
-Prepared probe head: `a626c46e4482c21de303a4b612f247351bd67712`
+Prepared probe head: `66f0f6539d9ae7e714675f1f152e43a6fc2f4a5c`
 
 ## In simple words
 
@@ -26,13 +26,13 @@ The cache candidate checks one resolved path and later uses the same text as a n
 
 The generated handler retains the imported cache-hit sequence:
 
-1. check the old pathname;
+1. call `oldpath.exists()`;
 2. obtain size by pathname;
 3. open by pathname;
 4. stream to client;
 5. copy into the new cache destination.
 
-The prepared read barrier wraps `request_context()` and pauses on its second call, after old and new candidates are computed but before the handler checks the old path.
+The prepared read barrier wraps `request_context()` and pauses on its second call, after old and new candidates are computed but before the handler performs its first cache existence check.
 
 ### New-cache publication
 
