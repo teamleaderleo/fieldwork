@@ -24,13 +24,17 @@ impl Drop for DropMarker {
 }
 
 fn async_engine() -> Result<Engine> {
+    Engine::new(&Config::new())
+}
+
+fn epoch_engine() -> Result<Engine> {
     let mut config = Config::new();
     config.epoch_interruption(true);
     Engine::new(&config)
 }
 
 async fn epoch_interrupts_guest_loop() -> Result<()> {
-    let engine = async_engine()?;
+    let engine = epoch_engine()?;
     let module = Module::new(
         &engine,
         r#"
