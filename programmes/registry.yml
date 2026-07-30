@@ -114,6 +114,32 @@ programmes:
         target: unresolved-until-scout
         state: claimed
 
+  - id: open-source-ecosystems
+    issue: 207
+    state: ready
+    thesis: Open-source ecosystem research uses wide reconnaissance across package collections, runtimes, developer tools, foundational libraries, databases, and Linux systems, then promotes only reproducible and reviewable contribution units.
+    targets:
+      - duckdb
+    likely_testbeds:
+      - linux-fieldwork
+    scouts:
+      - id: package-collections
+        issue: 208
+        target: portfolio-inbox
+        state: ready
+      - id: runtimes-standard-libraries
+        issue: 209
+        target: portfolio-inbox
+        state: ready
+      - id: developer-tools-build-systems
+        issue: 210
+        target: portfolio-inbox
+        state: ready
+      - id: foundational-systems
+        issue: 211
+        targets: [duckdb, portfolio-inbox]
+        state: ready
+
 notes:
   - Programmes are broad directions, not default hypotheses or permission to contact upstream projects.
   - Scouts first map the system and may add narrower experiments only after evidence identifies a useful boundary.
