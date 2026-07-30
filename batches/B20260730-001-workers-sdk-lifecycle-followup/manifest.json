@@ -189,9 +189,9 @@
       "deliverable": "Originally planned independent review lane; duties redistributed to coordinator and peer review.",
       "owned_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/results/A004.md",
       "dependencies": [],
-      "state": "withdrawn",
+      "state": "complete",
       "stop_condition": "Withdrawn at user direction after the active batch was reduced.",
-      "review_disposition": "Review duties redistributed; package execution remains an explicit shared gate.",
+      "review_disposition": "Assignment withdrawn before execution; review duties redistributed; package execution remains an explicit shared gate.",
       "upstream_contact_authorized": false
     }
   ]
