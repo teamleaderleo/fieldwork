@@ -1,6 +1,6 @@
 # Vite container registry authentication-scope follow-up
 
-State: `candidate-created`
+State: `investigating — client boundary revised; mocked request execution required`
 
 Batch: `B20260730-001`
 
@@ -14,7 +14,11 @@ Synthesis PR: #112
 
 Workers SDK branch: `fieldwork/teardown-lifecycle-hardening`
 
-Reviewed Workers SDK head: `f9f6e84fb64d72f5954325855c3846f7a069821b`
+Reviewed Workers SDK head: `e92165ac96cd0648a2c824920e7605128a82afb4`
+
+Independent reviews: comments `5125221394`, `5125225141`
+
+Revision receipt: comment `5125330316`
 
 Upstream contact authorized: `false`
 
@@ -25,6 +29,8 @@ Upstream contact performed: `false`
 Container registry credential generation uses one generated `OpenAPI` configuration singleton. The Cloudflare Vite plugin mutates that singleton with an account URL and bearer token before asynchronous image preparation.
 
 Concurrent Vite servers can overwrite each other's account/token. A later external-only server can inherit an earlier server's credentials even though it never configures the client.
+
+The per-operation authority invariant is accepted. Independent review rejected the first client sketch because it still spread mutable global OpenAPI state and retained a silent fallback to the global generated service.
 
 ## Source findings
 
@@ -41,7 +47,34 @@ Consequences:
 - server A account/token can remain active for later external-only server B;
 - concurrent A can make its request after B overwrites the singleton, using B's endpoint/token;
 - restoring in `finally` cannot isolate concurrent operations;
-- without prior contamination, external-only lookup starts from empty generated-client defaults and falls into the existing warning/public-pull path.
+- without prior contamination, external-only lookup starts from empty generated-client defaults and falls into warning/public-pull fallback.
+
+## Review correction
+
+The first draft used `...OpenAPI`, which could inherit:
+
+- `TOKEN`;
+- `USERNAME` and `PASSWORD`;
+- global headers;
+- global logger;
+- credential mode;
+- path encoder.
+
+The generated request helper can apply inherited token or Basic authentication after custom headers, replacing the intended operation bearer token.
+
+The first draft also kept `ImageRegistriesService` as a default parameter, allowing missed callers to silently re-enter the global service.
+
+## Revised client boundary
+
+The current artifact:
+
+- builds a fresh `OpenAPIConfig` from explicit constants and operation inputs;
+- explicitly sets base URL, version, credential mode, Authorization header, path encoder, and operation logger;
+- explicitly clears token, username, and password fields;
+- makes the operation client mandatory for Cloudflare credential lookup;
+- keeps any temporary legacy global path separately named rather than a default;
+- makes external-only no-client work perform zero Cloudflare API requests before warning/public-pull fallback;
+- fails managed-image work without exact account/token before preparation.
 
 ## Executed model
 
@@ -58,41 +91,29 @@ Output:
 ```text
 PASS: external-only later work inherits prior account and token
 PASS: concurrent configuration sends operation A through operation B identity
-PASS: per-operation clients isolate account, token, and endpoint
-PASS: absent per-operation credentials cannot fall back to stale global auth
+PASS: a closed client inherits no global token, Basic auth, headers, encoder, or logger
+PASS: later global mutation cannot affect an in-flight operation client
+PASS: concurrent operation clients isolate endpoint, token, and logger
+PASS: operation diagnostics redact Authorization
+PASS: Cloudflare credential lookup cannot silently fall back to a global service
+PASS: external-only no-client work performs no credential request
 ```
 
 Evidence class: `source-read` plus `model-executed`.
 
 No real account, API token, registry request, Docker login, image pull, Vite package test, or network call executed.
 
-## Draft repair
+## Remaining execution controls
 
-`container-registry-client-scope.patch` sketches an immutable per-operation credential client passed explicitly through image preparation and pull.
-
-Desired behavior:
-
-- Cloudflare-managed images require an operation client;
-- external-only work without a client performs no Cloudflare API request and follows warning/fallback behavior;
-- concurrent operations keep distinct account endpoints, tokens, custom API bases, and loggers;
-- failed preparation leaves no shared credential state;
-- token values never enter diagnostics or retained artifacts;
-- existing static-client CLI callers migrate under explicit compatibility tests.
-
-A try/finally restore of the singleton is rejected because it is not concurrency-safe.
-
-## Required tests
-
-1. Concurrent servers with different mocked account/token pairs use their own endpoint/header.
-2. External-only B after account-A A does not send A's token/account URL.
-3. Failed preparation leaves no credential state visible later.
-4. External-only work without client makes no Cloudflare API request.
-5. Managed image without account/token fails before preparation.
-6. Mixed managed/external images intentionally share one operation client.
-7. Logger and custom API base remain operation-scoped.
-8. Tokens never appear in logs, errors, snapshots, or artifacts.
-9. Dev and preview do not share merely because they run in one process.
-10. Existing Wrangler/container CLI behavior is retained or explicitly migrated.
+1. Contaminate every global auth/logger field and capture actual generated request config.
+2. Run account A and B requests concurrently and capture exact endpoint/header/logger at dispatch.
+3. Prove omission of an operation client cannot compile or silently select the global service.
+4. Prove external-only work after contaminated state performs zero Cloudflare API calls.
+5. Prove managed-image work without exact account/token fails before preparation.
+6. Prove logger sanitization removes Authorization from errors and logs.
+7. Prove custom API base and path encoding remain operation-scoped.
+8. Assert secrets are absent from errors, logs, snapshots, and retained artifacts.
+9. Retain or explicitly migrate existing Wrangler/container CLI behavior.
 
 ## Coordination placement
 
@@ -105,6 +126,6 @@ A try/finally restore of the singleton is rejected because it is not concurrency
 
 ## Boundary
 
-This candidate governs account and bearer-token authority and remains separate from lifecycle cleanup, though one logical Vite operation may hold the immutable client.
+This candidate remains `state:investigating`. The authority invariant and revised client direction are strong, but generated-request package execution is still required before promotion.
 
 No upstream interaction occurred.
