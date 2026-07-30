@@ -1,7 +1,7 @@
 # <Investigation title>
 
 Workspace phase: `<orient | collect | compare | synthesize | decide | handoff>`  
-Current transition state: `<research-active | review-ready | design-decision-ready | delivery-gate-ready | land-ready | stopped | closed>`
+Current transition state: `<research-active | comparative-evaluation-active | review-ready | design-decision-ready | delivery-gate-ready | land-ready | stopped | closed>`
 
 Parent issue: <Fieldwork issue>  
 Programme: <programme and hub>  
@@ -21,8 +21,9 @@ A workspace is an orientation and synthesis layer for several canonical findings
 
 - Every retained investigation keeps one canonical `findings/F<issue>-<slug>/finding.md`.
 - Workspace `findings/` files are evidence notes or comparisons and link their canonical finding.
-- Transition state, review disposition, desk routing, and exact next transition live in the canonical finding.
+- Transition state, review disposition, desk routing, selected direction, reopening trigger, and exact next transition live in the canonical finding.
 - Workspace phase describes the coordinator activity: collecting, comparing, synthesizing, deciding, or handing off.
+- `DECISIONS.md` governs technical alternatives. A workspace in comparison does not become user-blocked while autonomous evidence can still distinguish the options.
 
 ## Why this investigation exists
 
@@ -51,10 +52,13 @@ A workspace is an orientation and synthesis layer for several canonical findings
 - <canonical finding with link>;
 - <canonical finding with link>.
 
-## Active disagreements or missing evidence
+## Active comparisons, disagreements, or missing evidence
 
-- <exact proposition in dispute>;
-- <test or decision that could resolve it>.
+| Proposition or choice | Options or positions | Distinguishing evidence | Canonical finding and state |
+| --- | --- | --- | --- |
+| <question> | <A/B or competing claims> | <test, source, benchmark, or non-delegable fact> | <path and state> |
+
+Technical disagreement triggers reconciliation or `comparative-evaluation-active` work under `DECISIONS.md`. Escalate only when the remaining question depends on authority, private context, material cost, project values absent from repository evidence, or irreversible risk.
 
 ## Alternatives
 
@@ -85,4 +89,4 @@ Output status describes a presentation artifact. It does not replace the canonic
 
 ## Handoff
 
-See [`handoff.md`](handoff.md) for exact heads, receipts, blockers, and continuation points.
+See [`handoff.md`](handoff.md) for exact heads, receipts, blockers, comparisons, and continuation points.
