@@ -10,6 +10,9 @@ on:
 permissions:
   contents: read
 
+env:
+  EVIDENCE_DIR: programmes/high-leverage-open-source/scouts/ffmpeg-interruption-finalization-provenance/results/latest
+
 jobs:
   mp4-interruption-publication:
     runs-on: ubuntu-24.04
@@ -17,6 +20,12 @@ jobs:
     steps:
       - name: Check out Fieldwork carrier
         uses: actions/checkout@v4
+
+      - name: Initialize retained evidence directory
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          printf 'carrier head: %s\n' "$GITHUB_SHA" >"$EVIDENCE_DIR/carrier-started.txt"
 
       - name: Check out exact FFmpeg 8.1.2 source
         uses: actions/checkout@v4
@@ -36,6 +45,7 @@ jobs:
         shell: bash
         working-directory: .target/ffmpeg
         run: |
+          set -o pipefail
           ./configure \
             --disable-doc \
             --disable-debug \
@@ -60,12 +70,16 @@ jobs:
             --enable-parser=mpeg4video \
             --enable-muxer=mov \
             --enable-demuxer=mov \
-            --enable-protocol=file
+            --enable-protocol=file \
+            2>&1 | tee "$GITHUB_WORKSPACE/$EVIDENCE_DIR/configure.log"
 
       - name: Build ffmpeg and ffprobe
         shell: bash
         working-directory: .target/ffmpeg
-        run: make --jobs "$(nproc)" ffmpeg ffprobe
+        run: |
+          set -o pipefail
+          make --jobs "$(nproc)" ffmpeg ffprobe \
+            2>&1 | tee "$GITHUB_WORKSPACE/$EVIDENCE_DIR/build.log"
 
       - name: Execute completed, SIGINT, SIGKILL, and staged controls
         shell: bash
@@ -73,6 +87,7 @@ jobs:
           FFMPEG_BIN: ${{ github.workspace }}/.target/ffmpeg/ffmpeg
           FFPROBE_BIN: ${{ github.workspace }}/.target/ffmpeg/ffprobe
           FFMPEG_SOURCE_DIR: ${{ github.workspace }}/.target/ffmpeg
+          PRESERVE_EXISTING_RESULTS: "1"
         run: bash programmes/high-leverage-open-source/scouts/ffmpeg-interruption-finalization-provenance/run.sh
 
       - name: Upload retained interruption evidence
@@ -80,6 +95,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-125-interruption-results
-          path: programmes/high-leverage-open-source/scouts/ffmpeg-interruption-finalization-provenance/results/latest
+          path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 30
