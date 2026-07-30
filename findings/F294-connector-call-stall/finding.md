@@ -106,21 +106,21 @@ A terminal state for one does not prove settlement of the others.
 
 ### Codex response-header wait can hang indefinitely
 
-- Source: https://github.com/openai/codex/issues/31376
+- Source: https://redirect.github.com/openai/codex/issues/31376
 - Revision or date: read 2026-07-31
 - Principle supported: every wait boundary needs its own effective timeout and retry/terminal policy; an idle timeout elsewhere may not cover a pre-stream wait.
 - Important difference: that report concerns transport establishment and `CLOSE_WAIT`, not connector argument presentation or an in-flight tool future.
 
 ### Codex desktop can stay thinking while a subagent remains active
 
-- Source: https://github.com/openai/codex/issues/23292
+- Source: https://redirect.github.com/openai/codex/issues/23292
 - Revision or date: read 2026-07-31
 - Principle supported: the visible main-turn terminal state can remain coupled to another runtime's lifecycle.
 - Important difference: the retained incident involved one connector read and a raw JSON presentation leak, not a known subagent.
 
 ### Goal workflow can remain in Thinking after steering
 
-- Source: https://github.com/openai/codex/issues/35641
+- Source: https://redirect.github.com/openai/codex/issues/35641
 - Revision or date: read 2026-07-31
 - Principle supported: client-visible progress and backend continuation can diverge after an event-ordering transition.
 - Important difference: no Goal workflow or steering event is known here.
@@ -237,6 +237,7 @@ No target-executed reproducer exists yet.
 | Date | Pull request or commit | Change in conclusion |
 | --- | --- | --- |
 | 2026-07-31 | Initial F294 materialization | Split one observed composed symptom into presentation-integrity and terminal-settlement hypotheses; held public Codex attribution pending execution. |
+| 2026-07-31 | Safe-reference self-audit | Routed public Codex issue citations through `redirect.github.com`; technical conclusion unchanged. |
 
 ## References
 
@@ -248,6 +249,6 @@ No target-executed reproducer exists yet.
 - `codex-rs/core/src/tools/router.rs`
 - `codex-rs/tools/src/function_call_error.rs`
 - `codex-rs/tools/src/tool_executor.rs`
-- https://github.com/openai/codex/issues/31376
-- https://github.com/openai/codex/issues/23292
-- https://github.com/openai/codex/issues/35641
+- https://redirect.github.com/openai/codex/issues/31376
+- https://redirect.github.com/openai/codex/issues/23292
+- https://redirect.github.com/openai/codex/issues/35641
