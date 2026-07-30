@@ -11,8 +11,6 @@ on:
     types: [submitted, edited]
   pull_request_review_comment:
     types: [created, edited]
-  push:
-    branches: [main]
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
@@ -47,7 +45,6 @@ jobs:
 
   audit-repository:
     if: >-
-      github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch'
     continue-on-error: true
