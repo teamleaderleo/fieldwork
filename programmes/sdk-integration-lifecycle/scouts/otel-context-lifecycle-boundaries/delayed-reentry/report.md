@@ -1,58 +1,47 @@
 # OpenTelemetry JS delayed lifecycle reentry
 
-State: `model-executed — target characterization pending`
+State: `model-executed — target characterization queued`
 
 Fieldwork lane: #216  
+Fieldwork packet: #221  
 Parent scout: #19  
 Signals worker: #194  
 Target hub: #4  
+Synthesis packet: #32  
 Upstream contact authorized: `false`
 
 ## In simple words
 
-The current owned OpenTelemetry lifecycle candidates correctly stop a processor or reader from calling its owner provider's shutdown method immediately inside the same synchronous callback.
+The current owned OpenTelemetry lifecycle candidates contain a processor or reader that calls its owner provider's shutdown method immediately inside the same synchronous callback.
 
-That protection ends when the callback returns its promise. A custom child can wait for one microtask and then call the same owner shutdown method. The owner returns the shared shutdown promise, while that shared promise is already waiting for the child's promise. Each promise then waits for the other and the operation can remain pending forever.
+That protection ends when the callback returns its promise. A custom child can wait for one microtask and then call the same owner shutdown method. The owner returns the shared shutdown promise while that promise is already waiting for the child's promise. The child promise adopts the owner promise, so each can wait for the other indefinitely.
 
-The difficult part is preserving an unrelated concurrent caller. That caller should receive and await the same shared shutdown result. At the public method boundary, the unrelated caller and the delayed self-reentrant child make the same call after the same synchronous guard has cleared. A correct runtime repair needs provenance, an operation-owned timeout policy, or an interface change; suppressing every in-flight call would silently break legitimate joiners.
+The hard compatibility requirement is preserving an unrelated concurrent caller. That caller should receive the same shared shutdown result. At the public method boundary, the legitimate caller and the delayed self-reentrant child make the same call after the synchronous guard has cleared.
 
 ## Exact source identities
 
 - core `BindOnceFuture` source base: `teamleaderleo/opentelemetry-js@7b06368b7362a30ca69c178f43bd94dfbb36f85d`
 - trace one-shot candidate: `teamleaderleo/opentelemetry-js#4` at `50cd262e326c2a24419bad53c932a688b42224a4`
 - logs direct-reentry candidate: `teamleaderleo/opentelemetry-js#8` at `7d49735173c8467a88afab426a4bf02910a3dd62`
-- metrics composed lifecycle candidate: `teamleaderleo/opentelemetry-js#9` at `5bb520f141759ce003dc002196c43cda4fe96551`
+- metrics composed lifecycle candidate: `teamleaderleo/opentelemetry-js#9` at `f3740eb9bda8ec22ae81941adcdaf0de0aa3c764`
 
-No claim in this record applies automatically to a later target head.
+The earlier metrics head `5bb520f141759ce003dc002196c43cda4fe96551` is the first all-green repair ancestor. Complete-diff review later restored released unbound-reader diagnostic order at `f3740eb...`; this inquiry uses the final head.
 
 ## Source mechanism
 
-### Shared owner promise
+`BindOnceFuture` owns one deferred promise. The first call invokes the lifecycle callback and settles the deferred only after the callback result settles. Later callers receive the same deferred promise.
 
-`BindOnceFuture` owns one deferred promise. On the first call it marks the operation called, invokes the callback, and resolves or rejects the deferred only after the callback's returned value settles:
-
-```text
-owner promise P
-  waits for callback result Q
-```
-
-Later calls return P.
-
-### Synchronous guard lifetime
-
-The owned trace, logs, `MeterProvider`, and `MetricReader` candidates use the same narrow pattern:
+The owned provider candidates use a narrow direct-reentry guard:
 
 ```text
 set invocation-active
-invoke child shutdown and return its promise
+invoke child lifecycle method and receive its promise
 clear invocation-active in finally
 ```
 
-The `finally` executes after the child function returns Q, not after Q settles. This correctly detects a child that calls the owner synchronously during invocation. It cannot identify the same child after an `await`.
+The `finally` runs after the child function returns its promise, not after that promise settles. A child that calls the owner synchronously is visible to the guard. A child that resumes after an `await` is not.
 
-### Delayed cycle
-
-For a delayed custom child:
+For a delayed child:
 
 ```ts
 async shutdown() {
@@ -61,16 +50,14 @@ async shutdown() {
 }
 ```
 
-execution becomes:
+the dependency becomes:
 
 ```text
 P = owner shared shutdown promise
 Q = async child shutdown promise
 
-owner invokes child and starts waiting for Q
-synchronous invocation flag clears
-child resumes after await
-child calls owner.shutdown()
+P waits for Q
+Q resumes and calls owner.shutdown()
 owner returns P
 Q adopts P
 
@@ -78,83 +65,135 @@ P waits for Q
 Q waits for P
 ```
 
-Neither side can settle without another terminal mechanism.
+Trace and logs preserve the dependency through `Promise.all`. Metrics preserves it through provider, collector, and reader layers.
 
-### Fanout does not remove the cycle
+## Executed model
 
-Trace and logs aggregate child shutdown promises with `Promise.all`. Metrics aggregates collectors and each collector awaits its reader. These layers preserve the dependency; they do not add independent completion authority.
+The dependency-free promise graph is retained at:
 
-### Metric timeout exception
+- `promise-graph.mjs`
+- `results/latest.json`
+- `contract-matrix.md`
 
-`MetricReader.shutdown({ timeoutMillis })` wraps its `onShutdown()` promise with an operation-owned timeout before returning through `BindOnceFuture`. If that timeout fires, the shared reader promise rejects, which can unwind a delayed self-cycle.
+Model head `140e8bfbe6a6cd7e0d287d3e654f251c6f9917e3` passed:
 
-This is materially different from a caller placing its own `Promise.race` around `shutdown()`: a caller-local deadline stops one waiter while the owner operation remains pending. `LoggerProvider.shutdown()` and `TracerProvider.shutdown()` expose no equivalent shutdown timeout option in the inspected candidates.
+- OpenTelemetry delayed lifecycle reentry focused workflow;
+- Fieldwork integrity;
+- External reference policy.
 
-The metric timeout path still leaves a policy question: the underlying `onShutdown()` work may continue after the shared result rejects, and the SDK must state what ownership, export, resource, and retry behavior survives that timeout.
-
-## Executed promise graph
-
-Run:
-
-```sh
-node programmes/sdk-integration-lifecycle/scouts/otel-context-lifecycle-boundaries/delayed-reentry/promise-graph.mjs
-```
-
-Retained result: `results/latest.json`.
+Current PR #221 head `9d8ba210a25df84214ae42886ffe40f02cf97713` adds review-queue notes. No current-head repository receipt is claimed for that later head.
 
 The model establishes:
 
-1. direct synchronous recursion settles through the current invocation guard;
-2. delayed same-owner recursion leaves both owner and child pending;
-3. an unrelated external caller correctly joins the same owner promise;
-4. cross-owner nesting settles when its dependency graph is acyclic;
-5. comparing the returned child promise with the owner promise misses an async adopting wrapper;
-6. a caller-local deadline leaves the owner cycle pending;
-7. an operation-owned watchdog rejects the one shared result for every joined caller;
-8. explicit owner provenance distinguishes self-reentry while preserving external joining;
-9. suppressing every in-flight call makes the external caller return early with a different result.
+1. direct synchronous same-owner recursion settles through the narrow guard;
+2. delayed same-owner recursion leaves owner and child pending;
+3. unrelated external callers correctly join the same owner promise;
+4. cross-owner nesting settles when the dependency graph is acyclic;
+5. promise identity misses an async adopting wrapper;
+6. a caller-local deadline stops one waiter but leaves the owner cycle pending;
+7. an operation-owned timeout rejects the shared result for every joiner and unwinds the adopting child;
+8. explicit owner provenance can distinguish self-reentry while preserving external joining;
+9. suppressing every in-flight call breaks the shared-result contract for legitimate callers.
 
 Evidence class: `model-executed`.
 
-## Why the obvious repairs fail
+## Timeout distinction
 
-### Keep the active flag set until all children settle
+A caller-local deadline:
 
-This prevents delayed recursion only by classifying every call during shutdown as recursive. An unrelated external caller during the same interval would stop joining the shared result and could miss the actual shutdown failure.
+```text
+caller stops waiting
+owner promise remains pending
+child/owner cycle remains
+```
 
-### Compare promise identity
+An operation-owned timeout:
 
-A directly returned P can be detected. An `async` child returns a distinct Q that adopts P. Q and P are different objects even though they form a cycle.
+```text
+shared owner promise rejects
+all joined callers receive the same rejection
+the adopting child promise unwinds
+```
 
-### Add a timeout around one caller
+`MetricReader.shutdown({ timeoutMillis })` already has an operation-owned timeout seam. The inspected trace and logs candidates do not expose an equivalent shutdown option.
 
-The caller returns, while P and Q remain pending and can retain processors, readers, exporters, timers, sockets, or other owned resources.
+The metric timeout still leaves an ownership question: underlying `onShutdown()` work may continue after the shared result rejects. Export, resource, retry, and late-error behavior require an explicit policy.
 
-### Use Node async context
+## Active target characterizations
 
-`AsyncLocalStorage` could carry provenance across an `await`, but OpenTelemetry JS lifecycle packages also support browser environments. A Node-only hidden dependency is not an acceptable cross-signal contract.
+### Logs — OTel PR #10
 
-### Stop awaiting children
+Exact head: `6bbd0f34b1e8579840033c7ded88ff8059afbb3f`
 
-That avoids the cycle by abandoning the meaning of shutdown completion and child failure propagation.
+Prepared controls:
 
-## Contract choices
+- delayed same-owner shutdown reentry;
+- delayed post-shutdown force-flush reentry;
+- unrelated external caller joins the canonical promise;
+- bounded pending-state watchdog;
+- one processor shutdown call and no processor force-flush call.
 
-The full comparison is retained in `contract-matrix.md`.
+### Trace — OTel PR #11
 
-Two directions remain credible:
+Exact head: `ea6f27274c2a7e9cd154f86bded9b23b18bafbd6`
 
-### Explicit lifecycle provenance
+Prepared controls:
 
-The owner invokes each child with an internal operation token or capability. A same-owner call carrying that token fails with a typed reentry error, while a public external call still receives P.
+- delayed same-owner shutdown reentry;
+- delayed post-shutdown force-flush reentry;
+- unrelated external caller joins the canonical promise;
+- bounded pending-state watchdog;
+- one child shutdown call and no child force-flush call;
+- delayed cross-provider shutdown nesting completes.
 
-This is portable and preserves the distinction. Current arbitrary processor and reader interfaces do not carry such provenance, so adopting it requires an internal adapter or interface contract change.
+### Metrics — OTel PR #12
+
+Exact head: `89563cf41d5da6b81d1016a7dedd89e206c290a3`
+
+Prepared controls:
+
+- delayed `MetricReader` same-owner cycle without timeout remains pending;
+- reader operation-owned timeout rejects the shared result;
+- delayed `MeterProvider` and reader cycle without timeout remains pending;
+- provider timeout options reach the reader and reject every provider joiner;
+- each case preserves one child shutdown invocation;
+- unrelated callers join the canonical promise.
+
+Unit, Lint, E2E, CodeQL, Bundler, W3C, API peer-dependency, and workflow-security runs are queued for all three exact heads. Evidence remains `target-test-prepared` until each matrix settles.
+
+## Contract comparison
+
+### Retain only the synchronous guard
+
+Preserves legitimate concurrency but leaves delayed same-owner cycles. Insufficient alone.
+
+### Suppress every call while shutdown is active
+
+Breaks delayed cycles by returning early, but unrelated callers no longer receive the shared result or its failure. Rejected.
+
+### Compare child and owner promise identity
+
+An async child returns a distinct promise that adopts the owner promise. Identity misses the cycle. Rejected.
+
+### Caller-local timeout
+
+Leaves the owner operation and resources pending. Rejected as a lifecycle repair.
 
 ### Operation-owned timeout
 
-The shared owner operation has a named timeout and terminal unfinished-cleanup policy. Every caller receives the same timeout result, and the child promise unwinds when P rejects.
+Portable and preserves shared-result semantics, but changes valid slow-cleanup behavior and requires an unfinished-cleanup policy. Viable only as an explicit provider contract.
 
-This is portable. It introduces compatibility and resource-ownership decisions for valid slow cleanup. Metrics has part of this mechanism; trace and logs do not expose it in the inspected candidates.
+### Node async context
+
+Could carry provenance in Node, but these SDK packages also target browsers. Rejected as the cross-signal contract.
+
+### Explicit lifecycle provenance
+
+An internal owner token or capability can distinguish same-owner callback ancestry from a public external caller. The current arbitrary processor and reader interfaces carry no such token. Correct model; requires an adapter or interface redesign.
+
+### Stop awaiting children
+
+Avoids the cycle by abandoning shutdown completion and child failure propagation. Rejected.
 
 ## Minimum compatible rule
 
@@ -162,56 +201,35 @@ Until a runtime mechanism is selected:
 
 > A lifecycle child must not await the shutdown or force-flush promise of the same owner whose lifecycle callback is currently awaiting that child.
 
-This should be stated as a lifecycle contract, not as proof that the runtime is protected from violations.
-
-## Required target characterizations
-
-Add direct tests on exact owned candidate heads for:
-
-1. delayed same-owner shutdown from a trace processor;
-2. delayed same-owner force flush during trace shutdown;
-3. delayed same-owner shutdown and force flush from a log processor;
-4. delayed `MeterProvider.shutdown()` from a custom reader path;
-5. delayed `MetricReader.shutdown()` from `onShutdown()` without a timeout;
-6. the same reader case with a short operation-owned timeout;
-7. unrelated external callers joining during each delayed child;
-8. cross-provider nesting as a passing control;
-9. cleanup failure after a timeout, with no unhandled rejection;
-10. no duplicate child shutdown, export, or final collection.
-
-Each hanging case must use a bounded test watchdog and assert the inner ownership state rather than leaving the suite process pending.
+This is a contract statement, not runtime protection.
 
 ## Current disposition
 
-**ACCEPT the mechanism and model. HOLD a production repair. EXECUTE target characterization.**
+**ACCEPT the mechanism and executed model. EXECUTE target characterization. HOLD production implementation.**
 
-The source and model establish a real promise dependency class in the owned one-shot candidates. They do not yet establish a released-package failure or choose a compatible cross-signal repair.
+After OTel PRs #10–#12 settle, decide whether the first durable contract is:
 
-Target execution should decide whether the first durable output is:
-
-- a documented prohibition plus regression characterizations;
-- a deliberate provider-wide timeout contract;
-- an explicit lifecycle provenance design;
+- explicit prohibition plus characterization tests;
+- a deliberate provider-wide operation timeout and unfinished-cleanup policy;
+- explicit lifecycle provenance;
 - or a held limitation with no safe narrow implementation.
 
-## Adjacent inquiries
+## Adjacent bounded inquiries
 
-This result exposes several useful follow-ons without merging them into #216:
+Promote separately only when each has an owner and distinguishing test:
 
-1. **Timeout aftermath ownership** — what work may continue after `MetricReader.shutdown()` rejects from its operation timeout, and how is later exporter failure observed?
-2. **Cross-signal lifecycle cycles** — a log processor, span processor, or metric exporter may call another provider whose child calls back into the first owner.
-3. **Global installation disposal** — provider shutdown and global API unregistration remain different owners; delayed reentry can cross that boundary.
-4. **Context-manager teardown** — disabling the context manager while processor/exporter callbacks still depend on active context can create a separate ordering problem.
-5. **Resource async attributes during shutdown** — final export may wait on async resource attributes that call instrumented services owning the same teardown path.
-6. **Error aggregation after timeout** — an operation timeout can become primary while later child cleanup failures still need observation without changing the public result.
-
-These should enter the growing queue when each has a bounded question and evidence owner.
+1. timeout aftermath and later child failure observation;
+2. cross-signal provider dependency cycles;
+3. provider shutdown versus global API unregistration;
+4. context-manager teardown ordering;
+5. async resource attributes during final export;
+6. error aggregation after operation timeout.
 
 ## Evidence boundary
 
 - exact source mechanism: `source-read`;
 - promise dependency outcomes and candidate comparison: `model-executed`;
-- target-native delayed reentry: pending;
+- target-native delayed reentry: `target-test-prepared` and queued;
 - released package behavior: unexecuted;
 - production compatibility and implementation: undecided;
 - external impact or frequency: unmeasured;
