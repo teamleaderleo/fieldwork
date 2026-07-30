@@ -25,7 +25,7 @@ index 0000000..0000000 100644
      default:
        return "unknown";
    }
-@@ -697,6 +704,60 @@ export function makeOpenCodeAdapter(
+@@ -697,6 +704,59 @@ export function makeOpenCodeAdapter(
      );
      const emit = (event: ProviderRuntimeEvent) =>
        Queue.offer(runtimeEvents, event).pipe(Effect.asVoid);
@@ -93,14 +93,14 @@ index 0000000..0000000 100644
        sessions.delete(context.session.threadId);
        // Emit lifecycle events BEFORE tearing down the scope. Both call sites
        // run this inside a fiber forked via `Effect.forkIn(context.sessionScope)`;
-@@ -1090,6 +1152,7 @@ export function makeOpenCodeAdapter(
+@@ -1090,5 +1151,6 @@ export function makeOpenCodeAdapter(
                break;
              }
 +            yield* expirePendingInteractiveRequests(context, turnId, "turn_completed");
              context.activeTurnId = undefined;
              yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
              yield* emit({
-@@ -1128,6 +1191,7 @@ export function makeOpenCodeAdapter(
+@@ -1128,6 +1190,7 @@ export function makeOpenCodeAdapter(
              break;
            }
            context.activeTurnId = undefined;
@@ -108,7 +108,7 @@ index 0000000..0000000 100644
            yield* updateProviderSession(
              context,
              {
-@@ -1751,6 +1815,11 @@ export function makeOpenCodeAdapter(
+@@ -1751,6 +1814,11 @@ export function makeOpenCodeAdapter(
                context.openCodeSessionId === claim.operation.providerSessionId &&
                context.activeTurnId === claim.operation.turnId
              ) {
@@ -120,7 +120,7 @@ index 0000000..0000000 100644
                context.activeTurnId = undefined;
                context.activeAgent = undefined;
                context.activeVariant = undefined;
-@@ -1878,6 +1947,11 @@ export function makeOpenCodeAdapter(
+@@ -1878,6 +1946,11 @@ export function makeOpenCodeAdapter(
              threadId,
            });
          }
@@ -148,7 +148,7 @@ diff --git a/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts b/
 index a8a51b3..0000000 100644
 --- a/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
 +++ b/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
-@@ -307,6 +307,17 @@ function requestKindFromCanonicalRequestType(
+@@ -307,6 +307,18 @@ function requestKindFromCanonicalRequestType(
    }
  }
  
@@ -167,7 +167,7 @@ index a8a51b3..0000000 100644
  export function runtimeEventToActivities(
    event: ProviderRuntimeEvent,
    taskTitle?: string,
-@@ -353,6 +364,7 @@ export function runtimeEventToActivities(
+@@ -353,6 +365,7 @@ export function runtimeEventToActivities(
        if (event.payload.requestType === "tool_user_input") {
          return [];
        }
@@ -175,7 +175,7 @@ index a8a51b3..0000000 100644
        const requestKind = requestKindFromCanonicalRequestType(event.payload.requestType);
        return [
          {
-@@ -361,12 +373,16 @@ export function runtimeEventToActivities(
+@@ -361,12 +374,15 @@ export function runtimeEventToActivities(
            createdAt: event.createdAt,
            tone: "approval",
            kind: "approval.resolved",
@@ -192,7 +192,7 @@ index a8a51b3..0000000 100644
            },
            turnId: toTurnId(event.turnId) ?? null,
            ...maybeSequence,
-@@ -450,15 +466,20 @@ export function runtimeEventToActivities(
+@@ -450,16 +466,20 @@ export function runtimeEventToActivities(
      }
  
      case "user-input.resolved": {
