@@ -1,6 +1,6 @@
 # Zustand persist undefined option overrides
 
-State: `implementing`
+State: `candidate-executed`
 
 Fieldwork lane: #170
 
@@ -12,11 +12,11 @@ Owned implementation: `teamleaderleo/zustand#2`
 
 Owned branch: `fieldwork/persist-undefined-option-overrides`
 
-Owned head: `278ede8b60c111ec4291b26cd95794d7bdd5da37`
+Exact executed owned head: `17e93d6bc9d48c39ef52d1a4735e00eabe08a06f`
 
-Fork focused workflow: pending for corrected committed-source head
+Focused workflow: `30507502603` — passed
 
-Fieldwork focused workflow: pending for Fieldwork head `b383c4b14abdf8e890616d1c040c85cb39613f6a`
+Retained receipt: `execution-receipt-30507502603.json`
 
 Upstream contact authorized: `false`
 
@@ -53,9 +53,7 @@ The detailed released-source receipt is in `source-equivalent-execution.md`.
 
 ## Owned implementation
 
-Draft PR: `teamleaderleo/zustand#2`
-
-Construction now uses destructuring defaults for:
+Construction uses defaulted resolution for:
 
 - `storage`;
 - `partialize`;
@@ -74,40 +72,67 @@ All other fields retain normal spread behavior. Optional callbacks such as `onRe
 
 The private active storage is assigned from the same resolved value stored in `options.storage`, keeping public and private state aligned.
 
-## Regression suite
+## Complete-diff review repairs
 
-The committed test `tests/persistUndefinedOptions.test.ts` verifies:
+Review found two compatibility gaps after the primary source change:
 
-- constructor undefined `merge` retains the default shallow merge;
-- constructor undefined `partialize` retains identity persistence;
-- the same defaults survive `setOptions()` updates;
+1. construction placed user fields before the resolved default fields, changing the observable `Object.keys(persist.getOptions())` order;
+2. the tests proved built-in default preservation but did not prove custom current values survive later `undefined` updates.
+
+The owned branch now contains an exact-anchor compatibility transformer used by the read-only focused workflow. It:
+
+- restores the historical default-field-first option insertion order;
+- adds a key-order regression;
+- adds a custom current name/storage/partialize/version/merge preservation regression;
+- fails closed when reviewed source or test anchors move;
+- runs the target's pinned Prettier before validation.
+
+This final compatibility slice is executed but not yet committed directly into the source and test files.
+
+## Exact-head execution
+
+Focused workflow run `30507502603` passed on Node 22, 24, and 26.
+
+Each job passed:
+
+```text
+13 undefined-option regressions
+22 existing sync persist tests
+21 existing async persist tests
+56 total focused tests
+ESLint on changed source and tests
+Prettier verification
+```
+
+The executed controls establish:
+
+- construction `undefined` retains built-in storage, partialize, version, and merge defaults;
+- later `undefined` updates retain custom current values;
 - public and private storage remain aligned;
-- the storage name remains stable;
-- version `0` remains in serialized writes;
-- `onRehydrateStorage` can still be removed intentionally.
+- historical options key order is preserved;
+- optional callback removal remains possible;
+- selected sync and async persist behavior remains compatible.
 
-The focused matrix runs this regression with the existing `persistAsync.test.tsx` and `persistSync.test.tsx` suites and lints the changed source and test on Node 22, 24, and 26.
+The broader native Test, old-TypeScript, build, multiple-version, preview, and size workflows were queued at the time this receipt was recorded.
 
-## Candidate source-equivalent execution
+## Harness history
 
-A Node `v22.16.0` execution of the repaired option-resolution paths passed:
+Earlier exact-head runs are retained as partial receipts:
 
-- construction defaults preserved;
-- update defaults preserved;
-- public/private storage alignment;
-- optional callback removal.
+1. 51 behavior tests passed on Node 22/24/26, then one import-order lint rule failed;
+2. after adding the key-order and custom-value controls, 56 behavior tests passed, then the same import-order rule failed;
+3. after import ordering was corrected, 56 behavior tests and ESLint passed, then Prettier rejected the generated layout;
+4. the accepted run applies the target formatter and passes every focused stage.
 
-A focused strict TypeScript model also compiled with TypeScript `5.8.3`.
+These failures were harness or presentation defects, not candidate behavior failures.
 
-The detailed candidate receipt is in `candidate-source-equivalent-execution.md`.
+## Claim-scoped evidence
 
-## Self-review correction
-
-The first direct-source revision named the resolved construction storage value `storage`, colliding with the existing active storage variable later in the function. Source review caught the duplicate binding before CI. The corrected code uses `initialStorage`.
-
-## Prior-art status
-
-Searches for persist `merge`, `partialize`, `storage`, `setOptions`, explicit `undefined`, and default replacement found no matching current upstream issue or pull request.
+- released undefined-option failures: `model-executed` through source-equivalent Node execution;
+- owned candidate option resolution and selected compatibility: `target-executed` through run `30507502603`;
+- direct source application of the final compatibility slice: absent;
+- complete repository gate: incomplete at receipt time;
+- ecosystem compatibility for consumers intentionally relying on explicit `undefined`: unmeasured.
 
 ## Compatibility assessment
 
@@ -115,16 +140,23 @@ The repair is deliberately field-aware rather than a blanket undefined filter.
 
 Defaulted runtime invariants are preserved when an update supplies `undefined`, while optional callbacks and other intentionally clearable fields retain their existing removal semantics.
 
-The remaining questions are repository-level:
+The remaining questions are:
 
-- whether the destructuring changes affect generic inference under the project's full type matrix;
+- whether the broader type and build matrices pass on a direct-source final head;
 - whether any consumer intentionally used `version: undefined` to omit the version field;
 - whether `storage: undefined` should preserve current storage or restore the platform default;
-- whether additional defaulted fields should receive the same treatment.
+- whether any additional defaulted fields need the same policy.
 
 ## Current decision
 
-Treat this as a confirmed source defect with a directly committed owned implementation. Keep the fork and Fieldwork PRs draft until native and focused CI are green.
+Accept the candidate behavior and focused compatibility result.
+
+Do not treat the current transformer-backed branch as a source-ready merge candidate. The next transition is:
+
+1. apply the key-order and custom-current controls directly to a clean source/test branch;
+2. run the broader repository gates at that exact source head;
+3. perform complete-diff review;
+4. keep upstream contact unauthorized unless separately approved.
 
 ## Boundary
 
