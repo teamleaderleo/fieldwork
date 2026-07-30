@@ -1,185 +1,178 @@
 # Codex convergence approach selection
 
 Owner: coordinator synthesis for Fieldwork #239  
-Decision state: `selected direction; bounded proposals still require exact-head review`  
-Upstream contact authorized: `false`
+Parent canonical finding: [`F239`](../../../findings/F239-codex-upstream-convergence/finding.md)  
+Technical state: `comparative-evaluation-active`  
+Selected packaging direction: one lifecycle model plus bounded technical findings and outputs  
+Current public source boundary: `3016671bb077c43448b8fa88f3edfa9772e17058`  
+Upstream contact authorized: `no`
 
 ## In simple words
 
-The easiest-looking plan was one giant Codex fix: make tools, reconnect, timeout, persistence, history, and terminal output agree in one stack. Source reading showed several independent owners and several different meanings of “done.”
+The easiest-looking plan was one giant Codex fix: make tools, reconnect, timeout, persistence, history, and terminal output agree in one stack.
 
-The selected approach keeps those meanings separate, proves each one at its real owner, and later presents several bounded canonical outputs. This costs more bookkeeping and gives reviewers much cleaner decisions.
+Source reading showed several independent owners and several different meanings of “finished.” A call can be dispatched without settling remotely. A result can reach the model without durable append acknowledgement. A runtime can publish a new catalogue while an older call still owns its captured authority. A producer can retain output that a live subscriber misses.
+
+The selected packaging keeps those meanings separate, proves each invariant at its real owner, and later presents several bounded outputs. The packaging direction is selected. The technical candidates remain under comparison and execution.
 
 ## Selection criteria
 
-The chosen approach should:
+A viable direction should:
 
-1. preserve current upstream ownership;
-2. make each invariant independently testable;
-3. prevent one successful layer from being mistaken for success in another;
-4. survive upstream source drift;
-5. preserve exact execution evidence;
-6. minimize authority widening and retry risk;
-7. allow independent proposals, stopped results, and negative findings;
-8. give a new reader a plain-language system map.
+1. preserve current source ownership;
+2. make each invariant independently falsifiable;
+3. prevent success in one layer from being treated as success in another;
+4. survive source drift through exact fences and expiry rules;
+5. preserve exact execution evidence and negative results;
+6. minimize authority widening and unsafe retry;
+7. support bounded review, rollback, and carrier retirement;
+8. give readers one understandable map without hiding disagreement.
 
 ## Investigation-format alternatives
 
-### Alternative A — keep everything in issue #239
+### A — issue thread only
 
-Attractive parts:
+Attraction:
 
-- one live command surface;
+- one live coordination surface;
 - immediate visibility;
-- no repository-file setup.
+- no repository structure.
 
-Costs:
+Why it loses:
 
-- long comment history obscures the current answer;
-- independently owned findings have no stable paths;
+- chronology obscures the current answer;
+- independent workers have no stable paths;
 - exact diff review is unavailable;
-- alternatives and expired conclusions become difficult to compare;
-- readers reconstruct the model from chronology.
+- expired and current conclusions mix together.
 
-Disposition: issue #239 remains the live notification and coordination surface. Repository workspace files carry the durable model, findings, alternatives, canonical outputs, and handoff.
+Retained use: issue #239 remains the live routing surface. Canonical findings and workspace files carry durable reasoning.
 
-### Alternative B — one shared mega-report
+### B — one shared mega-report
 
-Attractive parts:
+Attraction:
 
 - one file to open;
-- simple final publication path.
+- simple publication shape.
 
-Costs:
+Why it loses:
 
-- parallel workers collide on shared prose;
-- early editor choices can erase useful disagreement;
-- one conclusion can silently inherit evidence from another area;
-- a source-pin change can expire only part of the report while making the whole file appear current.
+- parallel edits collide;
+- early synthesis can erase disagreement;
+- partial source drift can expire one section while the whole file appears current;
+- evidence from one owner can silently support another.
 
-Disposition: use a concise front door plus separate finding files and explicit canonical outputs.
+Retained use: one concise front door plus separate findings, evidence, alternatives, precedent, outputs, and handoff.
 
-### Alternative C — one issue for every observation
+### C — one issue for every observation
 
-Attractive parts:
+Attraction:
 
-- clear ownership and discussion boundaries;
-- easy label and state tracking.
+- clear ownership and labels;
+- independent discussion.
 
-Costs:
+Why it loses:
 
-- issue proliferation for facts that still belong to one decision;
+- excessive coordination for subquestions that still feed one conclusion;
 - repeated background and source maps;
-- cross-issue synchronization overhead;
-- weak place for side-by-side alternatives before promotion.
+- weak side-by-side comparison before promotion.
 
-Disposition: create a new issue when a finding becomes an independently actionable invariant, campaign, decision, or proposal. Keep intermediate findings in the workspace.
+Retained use: create a new issue when a finding becomes independently actionable, as with Yjs #275.
 
-### Alternative D — let every agent write a final answer independently
+### D — independent worker conclusions without synthesis
 
-Attractive parts:
+Attraction:
 
 - maximal parallelism;
-- several viewpoints emerge quickly.
+- several viewpoints quickly.
 
-Costs:
+Why it loses:
 
-- repeated source work;
-- incompatible vocabularies and source pins;
-- unclear evidence authority;
-- no declared present answer.
+- repeated source work and incompatible vocabularies;
+- no declared current answer;
+- disagreement remains hidden across files.
 
-Disposition: agents own separate findings. A coordinator compares them and declares canonical candidates or accepted outputs.
+Retained use: workers own evidence notes; the canonical finding reconciles the current conclusion.
 
-### Alternative E — select one canonical answer immediately
+### E — immediate single canonical answer
 
-Attractive parts:
+Attraction:
 
 - simple message;
-- quick apparent convergence.
+- apparent convergence.
 
-Costs:
+Why it loses:
 
-- source drift can invalidate the answer;
-- unresolved policy and compatibility choices become hidden assumptions;
-- a clean narrative can outrun the evidence.
+- open technical comparisons become hidden assumptions;
+- a clean narrative can outrun current-source execution;
+- absorbed and stopped candidates lose their value.
 
-Disposition: allow `candidate`, `disputed`, and several purpose-specific `accepted` outputs.
+Retained use: allow `candidate`, `held`, `disputed`, `stopped`, and `accepted` records while F239 remains comparative.
 
-### Alternative F — build a database and generated dashboard first
+### F — database or generated dashboard first
 
-Attractive parts:
+Attraction:
 
-- queryable state;
-- automated indexes and stale-input detection;
-- potential scale across all targets.
+- queryable state and automatic stale-input detection;
+- portfolio-scale indexes.
 
-Costs:
+Why it loses now:
 
-- schema decisions would precede proven human workflow;
+- schema choices would precede a proven human workflow;
 - generated views can hide reasoning and authorship;
-- the repository would carry automation complexity before the canonicalization rules settle.
+- automation complexity would become another authority layer.
 
-Disposition: prove the file convention first. Later automation can index stable paths, statuses, exact heads, evidence classes, and successor links.
+Reopening trigger: the file protocol has stable identifiers, states, transitions, and real adoption evidence.
 
-## Codex packaging alternatives
+## Codex technical and packaging alternatives
 
-### Alternative 1 — one end-to-end mega-patch
+### 1 — one end-to-end mega-patch
 
-Candidate content:
+Candidate scope:
 
-- deferred loader;
-- Responses Lite first-turn behavior;
+- deferred loader and capability prefix;
 - MCP reconnect and publication;
 - operation identity and timeout;
 - append outcome and history;
-- terminal retention.
+- terminal output retention.
 
 Why it loses:
 
 - request construction, Code Mode host, MCP manager, session, ThreadStore, rollout reducer, and unified execution have different owners;
-- one test stack cannot establish every authority, persistence, execution, and recovery claim;
+- one test stack cannot establish authority, remote-effect, persistence, replay, and transcript claims;
 - compatibility and rollback differ by layer;
-- upstream can accept or absorb one invariant while rejecting another.
+- current source may absorb one invariant while rejecting another.
 
-Selected direction:
+Reopening trigger: accepted bounded findings converge on one source owner, one compatibility boundary, and one composed execution gate.
 
-Produce several independently reviewable source proposals plus one system-level explainer.
+### 2 — treat every append error as definitely absent
 
-### Alternative 2 — treat every append error as definitely unpersisted
+Attraction:
 
-Attractive parts:
-
-- simple failure enum;
+- simple failure state;
 - automatic retry appears safe.
 
 Why it loses:
 
-A write can commit and then lose acknowledgement. Retrying can duplicate a result or side effect record. The correct conservative state is `Ambiguous` until reconciliation proves presence or absence.
+A write can commit and then lose acknowledgement. Retrying can duplicate a logical result. The conservative state is ambiguous until reconciliation proves presence or absence.
 
-Selected direction:
+Current direction: first expose append acknowledgement through carrier #80. Add typed persistence states in a separate successor with prewrite and commit-then-error controls.
 
-First expose append acknowledgement. Add typed `Persisted/Ambiguous` behavior in a separate source slice with prewrite and commit-then-error controls.
+### 3 — use live conversation as durable truth
 
-### Alternative 3 — use live conversation history as durable truth
-
-Attractive parts:
+Attraction:
 
 - the model already sees the result;
-- ephemeral tests remain simple;
-- no immediate wait for storage.
+- simple active-session behavior.
 
 Why it loses:
 
-Resume, fork, process restart, and other readers depend on durable sources. Live memory can remain authoritative for one active ephemeral session while still providing no durable recovery proof.
+Resume, fork, restart, compaction, and other readers depend on durable sources. Live memory can be authoritative for one ephemeral session without proving durable recovery.
 
-Selected direction:
+Current direction: retain live result formation and durable append acknowledgement as separate facts.
 
-Retain live history and durable append outcome as separate facts.
+### 4 — persisted result proves remote execution settled
 
-### Alternative 4 — use persisted result as proof that remote execution settled
-
-Attractive parts:
+Attraction:
 
 - one receipt appears to answer the whole operation;
 - simple compaction and retry policy.
@@ -188,28 +181,24 @@ Why it loses:
 
 Persistence records Codex's local observation. A timeout item can persist while the remote mutation continues or commits later.
 
-Selected direction:
+Current direction: link operation identity and persistence without collapsing external-effect certainty.
 
-Operation settlement and result persistence remain separate dimensions linked by operation identity.
+### 5 — cancellation delivery proves no remote effect
 
-### Alternative 5 — treat cancellation delivery as proof of no remote effect
-
-Attractive parts:
+Attraction:
 
 - easy timeout wording;
-- retry can begin immediately.
+- immediate retry.
 
 Why it loses:
 
-A server can receive cancellation and still commit. Transport delivery proves a message event, not effect absence.
+A server can receive cancellation and still commit. Delivery proves a message event, not effect absence.
 
-Selected direction:
+Current direction: record caller deadline, cancellation request/delivery, transport state, and remote-effect certainty independently.
 
-Record caller deadline, cancellation request and delivery, transport terminal state, and external-effect certainty independently.
+### 6 — close the shared MCP service whenever one request times out
 
-### Alternative 6 — close the shared MCP service whenever one request times out
-
-Attractive parts:
+Attraction:
 
 - bounded caller return;
 - stalled transport is removed.
@@ -217,128 +206,142 @@ Attractive parts:
 Why it loses:
 
 - unrelated requests share the service;
-- an old timeout task can close a newer replacement;
-- catalogue and reconnect publication need manager ownership;
-- operation lineage can disappear during recovery.
+- stale timeout work can close a replacement generation;
+- operation lineage can disappear;
+- catalogue publication needs manager ownership.
 
-Selected direction:
+Current direction: request-scoped cancellation first; manager-owned generation-checked retirement only when delivery fails or stalls. Never replay a mutation while outcome is unknown.
 
-Use request-scoped cancellation first, then manager-owned generation-checked retirement when delivery fails or stalls. Automatic mutation replay remains prohibited while outcome is unknown.
+### 7 — rebuild every MCP connection on every refresh
 
-### Alternative 7 — always rebuild every MCP connection on every refresh
+Attraction:
 
-Attractive parts:
-
-- no reuse ambiguity;
-- simple freshness story.
+- simple freshness story;
+- no reuse ambiguity.
 
 Why it loses:
 
-- ordinary unchanged refresh should retain healthy ready clients;
+- ordinary unchanged refresh should preserve healthy ready clients;
 - active calls and shared reconnect work can be disrupted;
-- reconnect cost and startup failure increase.
+- reconnect cost and failure surface increase.
 
-Selected direction:
+Current direction: ordinary reconciliation reuses eligible clients; explicit freshness preserves reconnect intent and publishes through the manager.
 
-Separate ordinary reconciliation from explicit freshness requests. Preserve reconnect intent across cancelled replacement and let the manager publish only an eligible generation.
+### 8 — bind active calls to whichever catalogue is current at completion
 
-### Alternative 8 — bind a call to whichever MCP catalogue is current at completion
-
-Attractive parts:
+Attraction:
 
 - one global current snapshot;
 - simple result lookup.
 
 Why it loses:
 
-A prepared or active call was authorized by a captured runtime. A later refresh can change schema, approval metadata, annotations, visibility, hooks, or file-input behavior.
+A prepared or active call was authorized by a captured runtime. A later refresh can change schema, approval metadata, annotations, filters, hooks, or file-input behavior.
 
-Selected direction:
+Current direction: capture runtime and operation identity at preparation or dispatch. Publication affects future calls.
 
-Capture runtime and operation identity at preparation or dispatch. Publication affects future calls; active calls retain their original authority unless explicitly invalidated.
+### 9 — terminal completion depends on live subscribers
 
-### Alternative 9 — keep terminal completion dependent on live subscribers
-
-Attractive parts:
+Attraction:
 
 - one streaming path;
 - less retained state.
 
 Why it loses:
 
-Broadcast is best-effort. A late or lagging subscriber can miss bytes the producer received. Completion then differs from actual bounded retained output.
+Broadcast is best-effort. A late or lagging subscriber can miss bytes the producer received. Completion can then differ from the bounded actual transcript.
 
-Selected direction:
+Current direction: retain at the non-lossy producer boundary before broadcast, preserving bounded head/tail policy.
 
-Retain output at the non-lossy producer boundary before broadcast. Keep live deltas best-effort and preserve the existing bounded head/tail policy.
+### 10 — mechanically cherry-pick historical terminal source
 
-### Alternative 10 — cherry-pick historical terminal source and resolve conflicts mechanically
-
-Attractive parts:
+Attraction:
 
 - quick restack;
-- preserves historical commit identity.
+- historical patch identity.
 
 Why it loses:
 
-Current upstream improved decode buffering and invalid-UTF-8 progress in the same files. Choosing one conflict side discards real current behavior.
+Current source improved decode buffering and invalid-UTF-8 progress in the same files. Choosing one conflict side can discard real upstream behavior.
 
-Selected direction:
+Current direction: reconstruct the semantic retention change on current source and run old plus new controls through carrier #53.
 
-Reconstruct the semantic retention change on current source, preserve upstream deque behavior, then run exact old and new controls.
+### 11 — increase Tokio worker stack and accept the Responses Lite candidate
 
-### Alternative 11 — increase the Tokio worker stack and accept the Responses Lite source candidate
-
-Attractive parts:
+Attraction:
 
 - the full regression passes with a larger stack;
-- minimal immediate source change.
+- no immediate request-path redesign.
 
 Why it loses:
 
-The default-stack overflow reveals a deep or recursive execution path. A stack-size increase hides the boundary and gives no evidence that production behavior is safe or that the candidate caused the depth.
+The default-stack overflow reveals a deep or recursive path. A stack-size increase hides the boundary and does not establish production safety or causation.
 
-Selected direction:
+Current direction: use stack size only as a discriminator; build lower-level exact-prefix and retry controls.
 
-Use the larger stack as a discriminator only. Build lower-level request and trace controls, isolate the first failing future boundary, and retain production source on hold.
+### 12 — wait for upstream to stop changing
 
-### Alternative 12 — wait for upstream to stop changing
-
-Attractive parts:
+Attraction:
 
 - fewer restacks;
-- cleaner final diff.
+- cleaner final diffs.
 
 Why it loses:
 
 Codex development is continuous. Waiting creates stale evidence and postpones useful classification.
 
-Selected direction:
+Current direction: exact pins, narrow fences, drift ledgers, explicit expiry, and bounded successor branches.
 
-Use exact pins, narrow source fences, current-head drift ledgers, and outputs that expire explicitly when their relevant inputs change.
+## Current comparative table
 
-## Why the selected approach wins
+| Criterion | Bounded findings and outputs | Mega-patch | Independent notes only | Immediate single answer |
+| --- | --- | --- | --- | --- |
+| Source-owner fidelity | strong | weak | strong | unclear |
+| Independent falsifiability | strong | weak | strong | weak |
+| Reader orientation | strong | superficially strong | weak | strong but premature |
+| Preserves disagreement | strong | weak | weakly visible | weak |
+| Rollback and review scope | bounded | broad | bounded but fragmented | unclear |
+| Current-source readiness | partial; executing | absent | partial | absent |
+| Selected packaging | **yes** | no | no | no |
 
-The selected approach creates one coherent system model and several bounded delivery candidates:
+## Current technical comparisons
+
+| Area | Plausible directions still under comparison | Discriminating evidence |
+| --- | --- | --- |
+| Append acknowledgement | bounded acknowledgement prerequisite versus broader typed result state | carrier #80 exact execution, source-only diff, prewrite and commit-then-error successors |
+| Terminal retention | producer-owned retention preserving current deque/lifecycle behavior versus current subscriber path | carrier #53 exact nine-control execution and four-file review |
+| MCP refresh | upstream explicit reconnect absorption versus surviving host/generation residue | exact current manager call paths and overlapping-generation tests |
+| Deferred authority | current standalone-host loader/dispatch design versus retirement of historical candidate | capability declaration, collision identity, loader, dispatch, first-turn request controls |
+| Responses Lite | transport prefix defect versus test-stack artifact | lower-level prefix/retry fixture and first failing future boundary |
+
+These comparisons keep F239 `comparative-evaluation-active`. None currently requires a non-delegable human choice.
+
+## Selected direction
+
+Use:
 
 ```text
-shared orientation and source intelligence
-+ independently owned findings
-+ exact evidence and prior art
-+ explicit alternatives
-+ purpose-specific canonical outputs
-+ exact-head handoff and retirement ledger
+one shared orientation model
++ canonical findings for current technical conclusions
++ independently owned evidence and alternatives
++ purpose-specific presentation outputs
++ exact current-source carriers and successor branches
++ retained stopped and superseded records
 ```
 
-This approach preserves disagreement, supports parallel work, reduces reviewer scope, and keeps a strong negative result valuable. It also matches current Codex ownership: request snapshots, runtime managers, operation lifecycle, ThreadStore, rollout reducers, and process-output producers each enforce their own invariant.
+This direction wins because it preserves ownership, supports parallel work, makes alternatives lose through evidence, and keeps negative results useful.
 
 ## Clearing conditions
 
-The selected packaging becomes ready for final canonical decisions when:
+F239 can leave comparative evaluation when:
 
-1. carriers #52 and #53 complete or retain exact failure receipts;
-2. current head `745603a5a1eb48b6f343633d622eeb72dd549d7b` receives candidate-by-candidate overlap review;
-3. MCP reconnect/publication source paths are compared with upstream #34952/#35151 and current manager code;
-4. deferred discovery is redesigned around the standalone Code Mode host;
-5. accepted source heads receive complete-diff and exact-test review;
-6. each output names its audience, claim boundary, risks, alternatives, and successor issue.
+1. current-pin append carrier #80 settles and its source successor is reviewed or its failure retained;
+2. terminal carrier #53 settles and its source successor is reviewed or its failure retained;
+3. MCP reconnect/publication is compared against current manager behavior;
+4. deferred authority is mapped to the standalone host or stopped;
+5. Responses Lite receives a lower-level production-representative fixture or a retained stop;
+6. each active candidate becomes a separate canonical finding, a stopped record, or a closed historical record;
+7. temporary carriers transfer receipts and retire with successor mapping;
+8. the composed finding/workspace protocol receives exact-head review.
+
+A human design decision is requested only when further technical work cannot choose among remaining options because the choice depends on authority, values, private context, cost tolerance, or irreversible risk.
