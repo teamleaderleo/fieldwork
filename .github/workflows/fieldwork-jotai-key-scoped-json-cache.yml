@@ -68,10 +68,15 @@ jobs:
       - name: Run changed-file static checks
         working-directory: jotai
         run: |
-          pnpm eslint \
-            src/vanilla/utils/atomWithStorage.ts \
+          changed_files=(
+            src/vanilla/utils/atomWithStorage.ts
             tests/react/vanilla-utils/atomWithStorageKeyIsolation.test.ts
-          pnpm prettier --check \
-            src/vanilla/utils/atomWithStorage.ts \
-            tests/react/vanilla-utils/atomWithStorageKeyIsolation.test.ts
+          )
+          pnpm eslint "${changed_files[@]}"
+          if ! pnpm prettier --check "${changed_files[@]}"; then
+            pnpm prettier --write "${changed_files[@]}"
+            echo 'Prettier-required diff:' >&2
+            git --no-pager diff -- "${changed_files[@]}" >&2
+            exit 1
+          fi
           pnpm tsc --noEmit
