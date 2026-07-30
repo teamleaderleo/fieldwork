@@ -283,6 +283,7 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
     blocked: list[str] = []
     approvals: list[str] = []
     unresolved_mutations: list[str] = []
+    admitted_reads: list[str] = []
 
     for capability_id in sorted(capabilities):
         capability_kind = capabilities[capability_id]
@@ -300,6 +301,8 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
             "authority_delta_digest": None,
         }
         if reason is None:
+            if capability_kind == "read":
+                admitted_reads.append(capability_id)
             receipts.append(receipt)
             continue
 
@@ -324,7 +327,10 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
                 blocked.append(f"{capability_id}:{classification.reason}")
             elif classification.decision == "require_explicit_approval":
                 approvals.append(capability_id)
-            elif classification.decision != "allow_equivalent":
+            elif classification.decision == "allow_equivalent":
+                if capability_kind == "read":
+                    admitted_reads.append(capability_id)
+            else:
                 raise ValueError(
                     f"fallback {capability_id} returned unknown decision "
                     f"{classification.decision!r}"
@@ -337,6 +343,9 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
         else:
             unresolved_mutations.append(capability_id)
         receipts.append(receipt)
+
+    if unresolved_mutations and not admitted_reads:
+        blocked.append("mutation_capability_missing:no_executable_read_only_work")
 
     if blocked:
         decision = DECISION_BLOCKED
@@ -360,6 +369,7 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
         "blocked_reasons": sorted(blocked),
         "approval_capabilities": sorted(approvals),
         "unresolved_mutation_capabilities": sorted(unresolved_mutations),
+        "admitted_read_capabilities": sorted(admitted_reads),
         "capability_receipts": receipts,
     }
 
