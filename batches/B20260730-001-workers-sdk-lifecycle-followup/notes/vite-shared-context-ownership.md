@@ -14,7 +14,7 @@ Synthesis PR: #112
 
 Workers SDK branch: `fieldwork/teardown-lifecycle-hardening`
 
-Reviewed Workers SDK head: `a4fbcd0b2bce78199e24529725409b19546c2df0`
+Reviewed Workers SDK head: `fa39841a98d71edd2df7561beb877f4dacbc6b7c`
 
 Upstream contact authorized: `false`
 
@@ -46,19 +46,34 @@ The tunnel plugin uses one module-global `TunnelManager`. A later server can rep
 
 This proves process-wide ownership conflation. Real-world incidence remains unknown because ordinary CLI use commonly runs one server per process.
 
-## Executed model
+## Vite restart order across supported majors
+
+The plugin declares support for Vite `^6.1.0 || ^7.0.0 || ^8.0.0`.
+
+Vite 6.1.0, 7.1.12, and 8.1.5 all use the same relevant sequence:
+
+1. create the replacement server, plugins, and middleware from the existing inline config;
+2. close the old server;
+3. copy the replacement server onto the existing user-facing object;
+4. rebind the replacement's internal server reference;
+5. listen again.
+
+Replacement plugin construction therefore occurs inside the old server's `restart()` call before old-generation close. This supports an async-scoped logical-owner handoff across all supported majors.
+
+It also rules out the naive repair of creating an unrelated shared context for every `cloudflare()` call: the old close intentionally skips final teardown during restart, so the replacement must claim the old logical owner's state or the old runtime becomes stranded.
+
+## Executed models
 
 Executed:
 
 ```sh
 node /tmp/vite-shared-context-ownership.mjs
+node /tmp/vite-restart-owner-handoff.mjs
 ```
 
-The executed content is identical to the committed Workers SDK artifact:
+The executed content is identical to the committed Workers SDK artifacts.
 
-`fieldwork-experiments/teardown-lifecycle-hardening/vite-shared-context-ownership.mjs`
-
-Output:
+### Global-versus-owner-scoped state
 
 ```text
 PASS: a global runtime lets one plugin overwrite another plugin runtime
@@ -66,6 +81,16 @@ PASS: a global restart counter can suppress an unrelated final close
 PASS: owner-scoped runtimes isolate concurrent servers
 PASS: owner-scoped restart state does not suppress another owner cleanup
 PASS: sequential generations of one logical server retain restart continuity
+```
+
+### Async restart owner handoff
+
+```text
+PASS: independent first-generation servers receive distinct owners
+PASS: replacement plugins inherit only the restarting server owner
+PASS: unrelated final close proceeds during another server restart
+PASS: concurrent restarts keep owner handoffs isolated
+PASS: failed replacement construction preserves the original server owner and error
 ```
 
 Evidence class: `source-read` plus `model-executed`.
@@ -82,21 +107,19 @@ The patched `restart()` and close wrappers for one Vite server capture that same
 
 This patch remains unapplied pending package tests.
 
-### Logical runtime-owner design
+### Logical runtime-owner handoff
 
-The Miniflare, tunnel, export-map, warning, and tunnel-hostname fields still need continuity across sequential restart generations without being shared by concurrent servers.
+A promising foundation is an async-scoped handoff:
 
-A complete design needs:
+- initial `cloudflare()` calls outside a restart create separate owners;
+- the patched `restart()` runs Vite's original restart inside that owner's async context;
+- replacement plugin factories invoked during config reload claim only that owner;
+- concurrent restarts keep distinct async contexts;
+- failed replacement construction retains the old generation and its owner.
 
-- an opaque logical-server owner token;
-- one state record per owner;
-- a bounded handoff from an old restart generation to its replacement;
-- no project-root-only key, because concurrent servers may intentionally share a root;
-- protection against a stale generation disposing the replacement;
-- owner removal after true final close;
-- primary-error preservation when handoff cleanup also fails.
+The complete owner record should contain Miniflare, tunnel manager, export types, warning state, and tunnel hostnames. A generation protocol must prevent an old close from disposing a replacement that already claimed the owner.
 
-The exact Vite restart construction order needs package instrumentation before choosing the handoff mechanism.
+Do not use a project-root-only key or process-global handoff queue. Concurrent servers can share a root and concurrent restarts can interleave.
 
 ## Required tests
 
@@ -106,10 +129,14 @@ The exact Vite restart construction order needs package instrumentation before c
 4. Updating server B does not mutate server A's runtime.
 5. Closing server B does not dispose server A's runtime or tunnel.
 6. Two tunnels retain distinct origins, public URLs, loggers, and allowed-host state.
-7. Sequential generations of server A retain only A's state.
-8. Failed restart leaves exactly one reachable cleanup owner.
-9. Export-type and warning state from one server cannot alter another server's validation.
-10. Final close removes the owner record and repeated close remains safe.
+7. Sequential generations of server A inherit only A's owner.
+8. Concurrent restarts of A and B do not cross-claim owners.
+9. Failed replacement construction preserves the old owner and exact failure.
+10. A stale old generation cannot dispose the replacement.
+11. Export-type and warning state from one server cannot alter another server's validation.
+12. Final close removes the owner record and repeated close remains safe.
+
+The restart and owner-handoff tests should run against Vite 6, 7, and 8.
 
 ## Coordination placement
 
