@@ -73,10 +73,17 @@ jobs:
             tests/react/vanilla-utils/atomWithStorageKeyIsolation.test.ts
           )
           pnpm eslint "${changed_files[@]}"
+          snapshot=$(mktemp -d)
+          for file in "${changed_files[@]}"; do
+            mkdir -p "$snapshot/$(dirname "$file")"
+            cp "$file" "$snapshot/$file"
+          done
           if ! pnpm prettier --check "${changed_files[@]}"; then
             pnpm prettier --write "${changed_files[@]}"
-            echo 'Prettier-required diff:' >&2
-            git --no-pager diff -- "${changed_files[@]}" >&2
+            echo 'Prettier-required changes:' >&2
+            for file in "${changed_files[@]}"; do
+              diff -u "$snapshot/$file" "$file" >&2 || :
+            done
             exit 1
           fi
           pnpm tsc --noEmit
