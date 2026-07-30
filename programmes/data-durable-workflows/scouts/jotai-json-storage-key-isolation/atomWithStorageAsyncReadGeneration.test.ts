@@ -80,6 +80,48 @@ describe('createJSONStorage async read generation characterization', () => {
     expect(restoredValue).toBe(staleValue)
   })
 
+  it('lets an older valid completion restore cache authority after a newer missing read', async () => {
+    const { reads, storage } = createDeferredStorage()
+
+    const olderRead = storage.getItem('alpha', { nested: { count: -1 } })
+    const newerRead = storage.getItem('alpha', { nested: { count: -2 } })
+
+    reads[1]!.resolve(null)
+    const newerValue = await newerRead
+    reads[0]!.resolve(encoded(1))
+    const olderValue = await olderRead
+
+    const restoredRead = storage.getItem('alpha', {
+      nested: { count: -3 },
+    })
+    reads[2]!.resolve(encoded(1))
+    const restoredValue = await restoredRead
+
+    expect(newerValue).toEqual({ nested: { count: -2 } })
+    expect(restoredValue).toBe(olderValue)
+  })
+
+  it('lets an older valid completion restore cache authority after a newer malformed read', async () => {
+    const { reads, storage } = createDeferredStorage()
+
+    const olderRead = storage.getItem('alpha', { nested: { count: -1 } })
+    const newerRead = storage.getItem('alpha', { nested: { count: -2 } })
+
+    reads[1]!.resolve('{malformed')
+    const newerValue = await newerRead
+    reads[0]!.resolve(encoded(1))
+    const olderValue = await olderRead
+
+    const restoredRead = storage.getItem('alpha', {
+      nested: { count: -3 },
+    })
+    reads[2]!.resolve(encoded(1))
+    const restoredValue = await restoredRead
+
+    expect(newerValue).toEqual({ nested: { count: -2 } })
+    expect(restoredValue).toBe(olderValue)
+  })
+
   it('keeps an unrelated key stable through same-key completion reordering', async () => {
     const { reads, storage } = createDeferredStorage()
 
