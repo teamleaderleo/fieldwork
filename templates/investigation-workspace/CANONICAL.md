@@ -6,7 +6,7 @@ Purpose: <what this output enables>
 Decision owner: <owner>  
 Decision date: <date or pending>  
 Current source or retrieval boundary: `<exact identity>`  
-Upstream contact authorized: `<false | exact authority>`
+Upstream contact authorized: `<no | yes with exact authority>`
 
 ## In simple words
 
