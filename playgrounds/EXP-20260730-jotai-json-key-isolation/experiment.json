@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260730-jotai-json-key-isolation",
+  "question": "Does one Jotai createJSONStorage adapter return the same parsed object instance for different storage keys whose JSON text is equal?",
+  "owner": "chatgpt:gpt-5.6-thinking",
+  "created_at": "2026-07-30",
+  "state": "prepared",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "Jotai atomWithStorage implementation",
+      "url": "https://redirect.github.com/pmndrs/jotai/commit/56a9cc51de8a5dd762b95a145820f12589cc47c9",
+      "revision": "56a9cc51de8a5dd762b95a145820f12589cc47c9",
+      "retrieved_at": "2026-07-30",
+      "claim": "createJSONStorage keeps one lastStr and lastValue cache in the adapter closure while getItem accepts arbitrary storage keys.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Jotai released package",
+      "url": "https://www.npmjs.com/package/jotai/v/2.20.2",
+      "revision": "2.20.2",
+      "retrieved_at": "2026-07-30",
+      "claim": "The exact released package used by the runtime probe.",
+      "evidence_label": "Observed"
+    }
+  ],
+  "command": "npm install --ignore-scripts --no-audit --no-fund && node probe.mjs",
+  "environment": {
+    "runtime": "Node.js 22, 24, and 26",
+    "platform": "GitHub-hosted Ubuntu",
+    "dependencies": [
+      "jotai@2.20.2"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "Different keys with equal JSON return the same object reference, while separate adapters or different JSON do not.",
+      "interpretation": "The adapter cache crosses key boundaries; retain a key-isolation finding and test per-key caching as the narrow repair direction."
+    },
+    {
+      "observation": "Different keys with equal JSON return distinct object references.",
+      "interpretation": "The source-level concern does not reproduce in the released package; retain a negative result and stop."
+    }
+  ],
+  "stop_condition": "Stop after the released package establishes whether parsed object identity is isolated by storage key and the controls distinguish adapter-wide caching from ordinary repeated reads.",
+  "network_policy": "dependency-install-only; the probe itself performs no network access",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260730-jotai-json-key-isolation/README.md",
+    "playgrounds/EXP-20260730-jotai-json-key-isolation/result.json"
+  ],
+  "promoted_to": null
+}
