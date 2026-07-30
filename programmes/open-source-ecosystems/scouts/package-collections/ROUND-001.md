@@ -28,15 +28,15 @@ Repository: `Homebrew/homebrew-core`
 
 Durable intake issues:
 
-- [#139929](https://github.com/Homebrew/homebrew-core/issues/139929) — formula updates blocked by build, test, or other unresolved failures;
-- [#278366](https://github.com/Homebrew/homebrew-core/issues/278366) — OpenSSL 4 migration grouped by dependent count and build system;
-- [#191352](https://github.com/Homebrew/homebrew-core/issues/191352) — additional platform-independent bottle candidates.
+- [unsolved-formula tracker](https://redirect.github.com/Homebrew/homebrew-core/issues/139929) — formula updates blocked by build, test, or other unresolved failures;
+- [OpenSSL 4 migration tracker](https://redirect.github.com/Homebrew/homebrew-core/issues/278366) — grouped by dependent count and build system;
+- [architecture-independent bottle tracker](https://redirect.github.com/Homebrew/homebrew-core/issues/191352) — additional bottle candidates.
 
 These trackers are better starting points than an unfiltered formula scan because they already express a package consequence and often expose logs or a failed automation path.
 
 ## Deep dive A — restore `gomarkdoc` tests
 
-Issue: [Nixpkgs #516481](https://github.com/NixOS/nixpkgs/issues/516481)
+Issue: [`gomarkdoc` test-regression issue](https://redirect.github.com/NixOS/nixpkgs/issues/516481)
 
 ### Evidence
 
@@ -77,11 +77,11 @@ Promote when the suite can be restored with a bounded package or shared-tool cor
 
 ## Deep dive B — AAVMF regression
 
-Issue: [Nixpkgs #485220](https://github.com/NixOS/nixpkgs/issues/485220)
+Issue: [AAVMF regression issue](https://redirect.github.com/NixOS/nixpkgs/issues/485220)
 
 The issue includes a QEMU script and pinned good and bad revisions. Firmware from stable reaches PXE behavior; sampled unstable revisions stop after the UEFI banner. No matching pull request was found in this round.
 
-This is valuable, but it belongs behind an aarch64 QEMU or VM capability gate. The first retained artifact should turn the observed console boundary into a pass/fail script and bisect package inputs rather than only nixpkgs commits.
+This belongs behind an aarch64 QEMU or VM capability gate. The first retained artifact should turn the observed console boundary into a pass/fail script and bisect package inputs rather than only nixpkgs commits.
 
 Likely areas:
 
@@ -96,31 +96,31 @@ cross-compilation inputs
 
 ### Pandoc Lua feature regression
 
-- Issue: [#540900](https://github.com/NixOS/nixpkgs/issues/540900)
-- Active fix: [PR #540913](https://github.com/NixOS/nixpkgs/pull/540913)
+- Issue: [pandoc Lua feature issue](https://redirect.github.com/NixOS/nixpkgs/issues/540900)
+- Active fix: [package PR](https://redirect.github.com/NixOS/nixpkgs/pull/540913)
 
 The top-level static pandoc silently lost Lua support after an Apple SDK update. The active fix forces automatic default-on flags so future feature loss becomes a build failure. Retain this as the preferred package-test pattern.
 
 ### Darwin libffi on macOS 27
 
-- Issue: [#541367](https://github.com/NixOS/nixpkgs/issues/541367)
-- Active fix: [PR #541990](https://github.com/NixOS/nixpkgs/pull/541990)
+- Issue: [Darwin libffi issue](https://redirect.github.com/NixOS/nixpkgs/issues/541367)
+- Active fix: [package PR](https://redirect.github.com/NixOS/nixpkgs/pull/541990)
 
 Retain as a platform-transition diagnosis example. Stop independent implementation while the focused fix is active.
 
 ## Ranked next searches
 
 1. Disabled checks in Nixpkgs packages with an open issue or explanatory comment.
-2. Homebrew #139929 leaves with current logs and no active pull request.
+2. Leaves in the Homebrew unsolved-formula tracker with current logs and no active pull request.
 3. Automatic build features that silently disable themselves after SDK/compiler transitions.
 4. Downstream patches whose upstream equivalent has landed.
 5. Hydra-versus-local discrepancies with a small environment delta.
-6. OpenSSL 4 leaf migrations from Homebrew #278366.
+6. OpenSSL 4 leaf migrations from the Homebrew tracker.
 
 ## Return
 
-- **Promote:** Nixpkgs #516481 into Linux Fieldwork LF-35.
-- **Capability queue:** Nixpkgs #485220.
-- **Recurring intake:** Homebrew #139929 and #278366.
-- **Stop duplicate implementation:** Nixpkgs #540900 and #541367.
+- **Promote:** `gomarkdoc` into Linux Fieldwork LF-35.
+- **Capability queue:** AAVMF.
+- **Recurring intake:** Homebrew blocked updates and OpenSSL migration.
+- **Stop duplicate implementation:** pandoc Lua and Darwin libffi.
 - **Next scout expansion:** Debian reproducibility/autopkgtest and Fedora FTBFS after the first package probe is executable.
