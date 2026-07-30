@@ -1,0 +1,39 @@
+{
+  "schema_version": "fieldwork.execution-receipt/v1",
+  "repository": "teamleaderleo/zustand",
+  "pull_request": 2,
+  "candidate_head": "17e93d6bc9d48c39ef52d1a4735e00eabe08a06f",
+  "target_base": "beca84e600e4e250f6b244d22878e72948f331c7",
+  "workflow_run": 30507502603,
+  "result": "passed",
+  "platform": "ubuntu-24.04",
+  "node_versions": [22, 24, 26],
+  "candidate_application": "exact-anchor transformer followed by target Prettier",
+  "focused_tests_per_runtime": {
+    "undefined_option_regressions": 13,
+    "existing_sync_persist": 22,
+    "existing_async_persist": 21,
+    "total": 56
+  },
+  "static_checks": [
+    "ESLint on src/middleware/persist.ts and tests/persistUndefinedOptions.test.ts",
+    "Prettier check on src/middleware/persist.ts and tests/persistUndefinedOptions.test.ts"
+  ],
+  "evidence_class": "target-executed",
+  "accepted_claims": [
+    "built-in construction defaults survive explicit undefined",
+    "custom current option values survive later undefined updates",
+    "public and private storage references remain aligned",
+    "historical options key order is preserved",
+    "optional callback removal remains possible",
+    "selected sync and async persist controls remain compatible"
+  ],
+  "coverage_limits": [
+    "final key-order and custom-value compatibility slice is staged by transformer rather than committed directly",
+    "broader repository Test and old-TypeScript/build/version/preview/size gates were queued at receipt time",
+    "no consumer ecosystem survey",
+    "no upstream interaction"
+  ],
+  "upstream_contact_authorized": false,
+  "upstream_contact_performed": false
+}
