@@ -1,37 +1,65 @@
 # Actual Queue
 
-**Start here when reviewing Fieldwork:** [issue #213 — Actual review queue](https://github.com/teamleaderleo/fieldwork/issues/213)
+**Start here for current movement:** [`CURRENT.md`](CURRENT.md)
 
-That issue is the canonical ordered list of work needing human judgment. It states the exact decision, the evidence to inspect, and the disposition that moves each card. The queue grows whenever another bounded decision becomes reviewable; priority controls order, not inclusion.
+**Use the comprehensive research ledger:** [`RESEARCH_INVENTORY.md`](RESEARCH_INVENTORY.md)
 
-## Current review order
+Live detailed decisions remain in [issue #213 — Actual review queue](https://github.com/teamleaderleo/fieldwork/issues/213). Implementation, final gates, landing, and cleanup remain in [issue #160 — Delivery Desk](https://github.com/teamleaderleo/fieldwork/issues/160).
 
-1. [PR #174](https://github.com/teamleaderleo/fieldwork/pull/174) — receipt schema enforcement.
-2. [PR #166](https://github.com/teamleaderleo/fieldwork/pull/166) — Wasmtime interruption result.
-3. [PR #173](https://github.com/teamleaderleo/fieldwork/pull/173) — HTTPX async response close ownership.
-4. [PR #172](https://github.com/teamleaderleo/fieldwork/pull/172) — Zustand undefined option preservation.
-5. [PR #159](https://github.com/teamleaderleo/fieldwork/pull/159) — Zustand explicit rehydrate failure settlement.
-6. [PR #182](https://github.com/teamleaderleo/fieldwork/pull/182) — Tantivy worker-generation fencing.
-7. [PR #163](https://github.com/teamleaderleo/fieldwork/pull/163) — Codex MCP cancellation packet.
-8. [PR #91](https://github.com/teamleaderleo/fieldwork/pull/91) — Supabase refresh notification ownership.
-9. [PR #221](https://github.com/teamleaderleo/fieldwork/pull/221) — OpenTelemetry delayed lifecycle reentry and timeout/provenance contract.
+This file is the short repository view. It does not attempt to list every mature scout, campaign, note set, owned fork, ecosystem experiment, ready lane, or Linux execution branch.
 
-The detailed asks live in issue #213. Keep this file readable, preserve the complete ordered set, and update it when a card enters, moves, is disposed, or returns for re-examination.
+## Closest to landing
 
-## Other queues
+1. [PR #238](https://github.com/teamleaderleo/fieldwork/pull/238) — playground validator primitive strictness; source-and-test head prepared, exact-head integrity and review remain.
+2. [PR #231](https://github.com/teamleaderleo/fieldwork/pull/231) — receipt boolean schema-version repair; source-only finalization and integrity remain.
+3. [PR #232](https://github.com/teamleaderleo/fieldwork/pull/232) — Workerd receiver-aware generated types; exact target receipts and complete-diff acceptance remain.
+4. [Issue #194](https://github.com/teamleaderleo/fieldwork/issues/194) — OpenTelemetry provider shutdown and delayed-reentry composition.
 
-- [Issue #160 — Delivery Desk](https://github.com/teamleaderleo/fieldwork/issues/160): implementation, final gates, clean application, landing, and closeout.
-- [Open issues](https://github.com/teamleaderleo/fieldwork/issues): full live workboard.
-- [Open pull requests](https://github.com/teamleaderleo/fieldwork/pulls): evidence and implementation surfaces, including broad histories that are outside the immediate review queue.
+## Active implementation and contract work
+
+1. [Issue #171](https://github.com/teamleaderleo/fieldwork/issues/171) / [PR #173](https://github.com/teamleaderleo/fieldwork/pull/173) — HTTPX terminal outcome-unknown close contract and direct candidate.
+2. [PR #159](https://github.com/teamleaderleo/fieldwork/pull/159) — Zustand hydration-source and observer settlement.
+3. [PR #236](https://github.com/teamleaderleo/fieldwork/pull/236) — Jotai key-scoped JSON storage cache.
+4. [PR #91](https://github.com/teamleaderleo/fieldwork/pull/91) — Supabase refresh notification ownership.
+5. [Issue #239](https://github.com/teamleaderleo/fieldwork/issues/239) — Codex current-upstream convergence and proposal readiness.
+6. [PR #219](https://github.com/teamleaderleo/fieldwork/pull/219) — DataFusion/Polars publication cancellation and provenance controls.
+
+## Major portfolios outside the short finish list
+
+- **Playwright:** target #10, scout #26, PR #49, handoff #181, candidates #141/#142/#149/#153, and 25 retained scout files.
+- **Vercel AI SDK:** target #2, scout #17, PR #34, and campaigns #76/#94/#95/#150.
+- **Gemini CLI:** target #5, scout #22, PR #45, cross-agent PR #50, and owned candidate PRs #1/#2/#3/#4.
+- **Vite:** target #9 and PR #48, plus six Cloudflare Vite plugin candidates under Workers SDK issues #165/#179/#183/#186/#187/#190.
+- **Runtime and foundational work:** Execa, wgpu, Wasmtime, HTTPX/HTTPCore, Deno, uv, and node-lru-cache.
+- **Data and state work:** DuckDB, DataFusion/Polars, Tantivy, Jotai, Zustand, and Supabase.
+- **Protocol and tooling work:** OpenTelemetry, MCP TypeScript SDK, Workers/Workerd, Biome, Codex, and OpenCode/T3.
+- **Linux Fieldwork:** mmdebstrap, tarfilter, cache proxy, rootless package execution, package reproducibility, process ownership, and ecosystem intake.
+
+See [`RESEARCH_INVENTORY.md`](RESEARCH_INVENTORY.md) for canonical issues, PRs, paths, owned working copies, maturity, stopped work, and remaining gates. See [`TARGET_PORTFOLIOS.md`](TARGET_PORTFOLIOS.md) for the four deepest multi-repository target maps.
+
+## Current repository maps
+
+- [`CURRENT.md`](CURRENT.md) — readable publication-readiness snapshot.
+- [`RESEARCH_INVENTORY.md`](RESEARCH_INVENTORY.md) — comprehensive portfolio, campaign, lane, and Linux ledger.
+- [`TARGET_PORTFOLIOS.md`](TARGET_PORTFOLIOS.md) — deep Playwright, Vercel AI SDK, Gemini CLI, and Vite maps.
+- [`REPOSITORIES.md`](REPOSITORIES.md) — coordination repos, registered public testbeds, target working copies, and unclassified public repositories.
+- [`programmes/open-source-ecosystems/STATUS.md`](programmes/open-source-ecosystems/STATUS.md) — broad contribution programme and current ranked probes.
+
+## Recently removed from the short queue
+
+- PR #172 — owned Zustand source landed and the historical Fieldwork carrier closed.
+- PR #166 — Wasmtime research result merged; current-main transfer and synthesis are separate work.
+- PR #182 — Tantivy target finding merged; production repair is a separate candidate.
+- PR #221 — OpenTelemetry delayed-reentry packet merged; provider composition remains active under issue #194.
+- PR #163 — Codex MCP cancellation evidence accepted; implementation remains explicitly held.
+- PR #174 — receipt validator landed and was superseded by repair PR #231 after the boolean schema-version hole was confirmed.
 
 ## Rules
 
-- Include every bounded decision that is ready for human judgment; do not hide lower-priority cards to keep the list short.
-- Use ordering and headings to manage a large pile rather than deleting valid review debt.
-- Each item needs one clear decision and named evidence.
-- Remove disposed work after the decision and next action are durable.
-- Move implementation chores to the Delivery Desk without erasing their review history.
-- A changed head or changed evidence input expires the review.
-- Re-open or add a re-examination card when later source movement, execution evidence, or adjacent findings weaken an earlier disposition.
-- Broad scouts, execution carriers, and historical PRs stay outside this list unless they present a current bounded decision.
+- Every bounded decision ready for judgment stays visible in issue #213 or the Delivery Desk.
+- A changed source head or evidence input expires the prior review.
+- Execution carriers stay outside landing-ready status and disappear after receipt transfer.
+- Green workflows require a matching exact-head review.
+- Durable research may be complete while production implementation remains separate.
+- Target-label search alone does not prove portfolio completeness.
 - This queue grants no upstream-contact authority.

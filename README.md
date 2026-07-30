@@ -10,7 +10,11 @@ Fieldwork investigates external systems seriously before asking their maintainer
 
 ## Enter here
 
-- [`QUEUE.md`](QUEUE.md) — the actual ordered human review queue; start here when deciding what to review.
+- [`CURRENT.md`](CURRENT.md) — current publication and landing pass.
+- [`RESEARCH_INVENTORY.md`](RESEARCH_INVENTORY.md) — comprehensive ledger of mature targets, standalone scouts, campaigns, ecosystem rounds, ready lanes, stopped work, owned candidates, and Linux Fieldwork.
+- [`TARGET_PORTFOLIOS.md`](TARGET_PORTFOLIOS.md) — deep maps for Playwright, Vercel AI SDK, Gemini CLI, Vite, and their cross-target work.
+- [`QUEUE.md`](QUEUE.md) — short ordered human review and delivery queue.
+- [`REPOSITORIES.md`](REPOSITORIES.md) — account-level map of coordination repos, public testbeds, target working copies, and unclassified public repositories.
 - [`START_HERE.md`](START_HERE.md) — exact runbook for a person or agent sent to Fieldwork.
 - [`ADAPTIVE_COORDINATION.md`](ADAPTIVE_COORDINATION.md) — the lightweight working agreement for ownership, dispatch, review, branching, and protocol improvement.
 - [`WHY_FIELDWORK.md`](WHY_FIELDWORK.md) — plain-language explanation of what Fieldwork does, why the evidence workflow exists, and what current examples prove.
@@ -42,8 +46,10 @@ A proposed change should also explain what becomes safer, faster, more correct, 
 - [Agent and CLI execution](https://github.com/teamleaderleo/fieldwork/issues/14) — tools, approval, processes, sessions, terminals, interruption, and recovery.
 - [Web tooling and runtime correctness](https://github.com/teamleaderleo/fieldwork/issues/15) — source preservation, invalidation, teardown, isolation, compatibility, and performance.
 - [Data systems and durable workflows](https://github.com/teamleaderleo/fieldwork/issues/16) — queries, transactions, storage, state, resource behaviour, recovery, reconciliation, and integration.
+- [High-leverage open-source systems](https://github.com/teamleaderleo/fieldwork/issues/114) — runtime, graphics, local-first, engine, media, analytical, package, and recovery work.
+- [Open-source ecosystems and contribution campaigns](https://github.com/teamleaderleo/fieldwork/issues/207) — package collections, runtimes, developer tools, foundational libraries, databases, Linux systems, and upstream candidate discovery.
 
-The machine-readable portfolio is [`programmes/registry.yml`](programmes/registry.yml). Initial scouts begin with broad code and test reconnaissance. Narrow hypotheses belong in child experiments or campaigns only after evidence justifies them.
+The machine-readable programme registry is [`programmes/registry.yml`](programmes/registry.yml). Some later programmes and ecosystem rounds also have live issue-owned maps that predate registry consolidation; [`RESEARCH_INVENTORY.md`](RESEARCH_INVENTORY.md) reconciles both sources. Initial scouts begin with broad code and test reconnaissance. Narrow hypotheses belong in child experiments or campaigns only after evidence justifies them.
 
 ## Target hubs
 
@@ -61,7 +67,7 @@ The active mapped targets have stable orientation issues and dedicated labels:
 - [DuckDB](https://github.com/teamleaderleo/fieldwork/issues/11) — `target:duckdb`
 - [Supabase](https://github.com/teamleaderleo/fieldwork/issues/12) — `target:supabase`
 
-Hubs are indexes, not giant task lists. Related issues are discovered through their target label. The machine-readable registry is [`targets/hubs.yml`](targets/hubs.yml).
+Hubs are indexes, not giant task lists. Related issues are discovered through their target label, programme, scouts, campaigns, batches, handoffs, integration-package ownership, owned working copies, and Linux execution handoffs. The machine-readable registry is [`targets/hubs.yml`](targets/hubs.yml); the comprehensive readable map is [`RESEARCH_INVENTORY.md`](RESEARCH_INVENTORY.md).
 
 ## Working surfaces
 
@@ -85,7 +91,7 @@ Hubs are indexes, not giant task lists. Related issues are discovered through th
 
 **The review queue prioritizes judgment.** It identifies the evidence, uncertainty, and decision that deserve independent attention.
 
-**The Delivery Desk prioritizes finishing.** It lists selected implementations, exact remaining gates, bounded polish, landing-ready work, and carrier cleanup without replacing canonical issues or PRs.
+**The Delivery Desk prioritizes finishing.** It lists selected implementations, exact remaining gates, landing-ready work, and carrier cleanup without replacing canonical issues or PRs.
 
 Do not use one surface as a poor substitute for another. A scout is not complete after a code tour, a disposable test should not require campaign bureaucracy, a durable finding should not exist only in an issue comment, a testbed should not be presented as proof of ecosystem demand, a toy reproduction should not be presented as proof of production impact, an execution carrier should not be presented as the canonical implementation, and a green workflow should not be presented as a landing decision.
 
@@ -109,7 +115,7 @@ Documentation, lint, wording, and style work are not default research targets.
 Fieldwork supports these work units:
 
 1. **Programme hub** — stable direction across related targets.
-2. **Target hub** — stable orientation and discovery for a recurring system.
+2. **Target hub** — stable orientation for a recurring system.
 3. **Scout lane** — bounded reconnaissance that returns concrete branches.
 4. **Experiment** — a bounded fork-free local test owned by one worker.
 5. **Integration trial** — realistic use in an owned repository.
@@ -125,7 +131,11 @@ Any public repository may be observed quietly when a user or coordinator assigns
 
 ## Repository map
 
-- [`QUEUE.md`](QUEUE.md) — actual ordered human review queue and routing entry point.
+- [`CURRENT.md`](CURRENT.md) — current publication and landing pass.
+- [`RESEARCH_INVENTORY.md`](RESEARCH_INVENTORY.md) — comprehensive research and campaign ledger.
+- [`TARGET_PORTFOLIOS.md`](TARGET_PORTFOLIOS.md) — deep maps for four mature multi-repository target portfolios.
+- [`QUEUE.md`](QUEUE.md) — short ordered human review and delivery queue.
+- [`REPOSITORIES.md`](REPOSITORIES.md) — account-level repository inventory and classification boundary.
 - [`ADAPTIVE_COORDINATION.md`](ADAPTIVE_COORDINATION.md) — the working agreement for adapting detailed protocols without losing responsibility or evidence.
 - [`CHARTER.md`](CHARTER.md) — purpose, boundaries, and standards.
 - [`METHOD.md`](METHOD.md) — campaign lifecycle and evidence method.
