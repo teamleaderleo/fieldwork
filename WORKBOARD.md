@@ -6,7 +6,7 @@ GitHub Issues are the canonical live workboard. This document defines how to rea
 
 Programme hubs explain broad research directions. Target hubs explain recurring systems. Scout lanes map the lay of the land and return concrete branches. Target labels collect work by system. Testbed labels show which owned repository was actually used for a realistic trial.
 
-The review queue answers what needs judgment. The [Delivery Desk](https://github.com/teamleaderleo/fieldwork/issues/160) answers what can move toward landing now and what exact gate remains.
+The [actual review queue](QUEUE.md) and [issue #213](https://github.com/teamleaderleo/fieldwork/issues/213) answer what needs human judgment. The [Delivery Desk](https://github.com/teamleaderleo/fieldwork/issues/160) answers what can move toward landing now and what exact gate remains.
 
 ## Record types
 
@@ -60,17 +60,27 @@ Issue forms apply the initial type and state automatically. Agents add programme
 
 GitHub issues hold current owner, state, blockers, dependencies, decisions, and completion signals.
 
-### Review queue
+### Actual review queue
 
-A review queue or review hub prioritizes evidence that needs an eligible independent disposition. It should state what to inspect, which evidence class applies, what uncertainty must survive, and what decision closes the card. `REVIEWING.md` defines the exact-head receipt and evidence vocabulary.
+[`QUEUE.md`](QUEUE.md) is the repository entry point. [Issue #213](https://github.com/teamleaderleo/fieldwork/issues/213) is the live ordered set of at most eight bounded human review cards.
+
+Each card states:
+
+- the exact decision;
+- the evidence to inspect;
+- the uncertainty that must survive;
+- the disposition that moves the work;
+- the canonical issue and pull request.
+
+Remove a card immediately after disposition. Route implementation and final gates to issue #160. A changed head or evidence input expires the review.
 
 ### Delivery Desk
 
-Issue [#160](https://github.com/teamleaderleo/fieldwork/issues/160) is the live finish-line index. It contains only work in one of four delivery lanes:
+Issue [#160](https://github.com/teamleaderleo/fieldwork/issues/160) is the live execution and finish-line index. It contains work in one of four delivery lanes:
 
 - `D0` — accepted exact head, current base, direct source diff, and named full gate; land now;
 - `D1` — one canonical implementation; final gate now;
-- `D2` — strong direction; clean application or bounded polish needed;
+- `D2` — strong direction; clean application or bounded execution needed;
 - `D3` — one human decision unlocks implementation.
 
 The Delivery Desk links to canonical issues and PRs. It does not replace their evidence, state, or review history. See `DELIVERY.md`.
@@ -103,7 +113,8 @@ Never treat programme, target, testbed, review, or Delivery Desk registries as a
 - **Scout, lane, or batch result** — evidence and conclusion owned by one worker.
 - **Integration trial** — realistic use in an owned repository.
 - **Review record** — exact-head disposition and required next action.
-- **Delivery Desk** — current finish-line routing and remaining gate, not underlying evidence.
+- **Actual review queue** — ordered human decisions, capped at eight cards.
+- **Delivery Desk** — current execution and finish-line routing, not underlying evidence.
 - **Synthesis** — interpretation across assignments.
 - **Ledgers** — final normalized outcomes, not active task management.
 
@@ -127,7 +138,7 @@ is:open label:"type:batch"
 is:open label:"policy:reference-violation"
 ```
 
-The curated live finish-line view is issue #160 instead of a label-only search because delivery readiness also depends on exact heads, reviewed inputs, base identity, workflow receipts, evidence class, and canonical branch identity.
+Use issue #213 for the curated human review order and issue #160 for the curated execution order. Label searches remain discovery views; they cannot encode exact heads, reviewed inputs, evidence classes, canonical branch identity, or the next bounded decision.
 
 ## Work-in-progress limits
 

@@ -10,6 +10,7 @@ Fieldwork investigates external systems seriously before asking their maintainer
 
 ## Enter here
 
+- [`QUEUE.md`](QUEUE.md) — the actual ordered human review queue; start here when deciding what to review.
 - [`START_HERE.md`](START_HERE.md) — exact runbook for a person or agent sent to Fieldwork.
 - [`WHY_FIELDWORK.md`](WHY_FIELDWORK.md) — plain-language explanation of what Fieldwork does, why the evidence workflow exists, and what current examples prove.
 - [`PROGRAMMES.md`](PROGRAMMES.md) — long-lived directions, scout lanes, branching, and concurrency.
@@ -24,8 +25,9 @@ Fieldwork investigates external systems seriously before asking their maintainer
 - [`COORDINATION.md`](COORDINATION.md) — programme scouts, campaign lanes, ownership, handoffs, synthesis, and completion signals.
 - [`REVIEWING.md`](REVIEWING.md) — evidence classes, exact-head review, canonical branches, promotion, and stale-state rules.
 - [`DELIVERY.md`](DELIVERY.md) — finish-line lanes for final gates, bounded polish, landing-ready work, and execution-carrier cleanup.
-- [Delivery Desk issue #160](https://github.com/teamleaderleo/fieldwork/issues/160) — canonical live index of work closest to landing or closeout.
-- [Open Fieldwork issues](https://github.com/teamleaderleo/fieldwork/issues) — canonical live queue.
+- [Actual review queue issue #213](https://github.com/teamleaderleo/fieldwork/issues/213) — live detailed review cards and exact decisions.
+- [Delivery Desk issue #160](https://github.com/teamleaderleo/fieldwork/issues/160) — live execution, final-gate, landing, and closeout queue.
+- [Open Fieldwork issues](https://github.com/teamleaderleo/fieldwork/issues) — full canonical workboard.
 
 ## Operating principle
 
@@ -122,6 +124,7 @@ Any public repository may be observed quietly when a user or coordinator assigns
 
 ## Repository map
 
+- [`QUEUE.md`](QUEUE.md) — actual ordered human review queue and routing entry point.
 - [`CHARTER.md`](CHARTER.md) — purpose, boundaries, and standards.
 - [`METHOD.md`](METHOD.md) — campaign lifecycle and evidence method.
 - [`OPERATIONS.md`](OPERATIONS.md) — intake, triage, states, and stopping rules.
