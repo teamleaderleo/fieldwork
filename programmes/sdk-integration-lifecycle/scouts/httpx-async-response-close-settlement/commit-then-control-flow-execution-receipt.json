@@ -1,0 +1,45 @@
+{
+  "evidence_class": "target-executed",
+  "candidate": {
+    "repository": "teamleaderleo/httpx",
+    "pull_request": 1,
+    "head": "b3083e7ce6a6ace1756d3cf1e4ec5371663c2c55",
+    "base": "b5addb64f0161ff6bfe94c124ef76f6a1fba5254"
+  },
+  "workflow": {
+    "run_id": 30550892544,
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 90898942126,
+        "python": "3.9",
+        "conclusion": "success"
+      },
+      {
+        "id": 90898942124,
+        "python": "3.13",
+        "conclusion": "success"
+      }
+    ],
+    "gates": [
+      "exact runtime receipt",
+      "exact candidate application",
+      "close-settlement regressions",
+      "adjacent response and client controls",
+      "static checks"
+    ]
+  },
+  "characterization": {
+    "owner_observed_control_flow_abort": true,
+    "waiter_completed": true,
+    "response_is_closed": true,
+    "underlying_close_calls": 2,
+    "committed_cleanup_effects": 2
+  },
+  "interpretation": "The current retry-after-control-flow policy can duplicate a non-idempotent custom-stream cleanup that committed before the owner was interrupted.",
+  "limits": [
+    "The synthetic stream models a public custom AsyncByteStream, not HTTPCore internals.",
+    "The ordinary repository Test Suite for this exact head was still queued at the latest check.",
+    "The result does not select retry tolerance, shielding, or ambiguous terminal failure as the public contract."
+  ]
+}
