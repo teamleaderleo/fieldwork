@@ -1,0 +1,66 @@
+name: Fieldwork Yjs truncated update recovery 275
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-yjs-truncated-update-recovery-275.yml"
+      - "findings/F275-yjs-truncated-update-failure-atomicity/**"
+
+permissions:
+  contents: read
+
+jobs:
+  recovery-matrix:
+    name: Node ${{ matrix.node }} Yjs recovery matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - name: Check out Fieldwork carrier
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: programmes/high-leverage-open-source/scouts/automerge-yjs-local-first-comparison/package.json
+
+      - name: Install exact stable and release-candidate packages
+        shell: bash
+        run: |
+          npm install \
+            --no-save \
+            --package-lock=false \
+            --ignore-scripts \
+            --no-audit \
+            --no-fund \
+            yjs@13.6.31 \
+            @y/y@14.0.0-rc.24
+
+      - name: Run failure-atomicity and recovery matrix
+        shell: bash
+        env:
+          RESULTS_DIR: findings/F275-yjs-truncated-update-failure-atomicity/artifacts/node-${{ matrix.node }}
+        run: |
+          node findings/F275-yjs-truncated-update-failure-atomicity/evidence/run_recovery_matrix.mjs
+
+      - name: Check tracked diff hygiene
+        shell: bash
+        run: |
+          git diff --check
+          test -z "$(git status --short --untracked-files=no)"
+
+      - name: Upload exact recovery record
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: yjs-275-recovery-node-${{ matrix.node }}
+          path: findings/F275-yjs-truncated-update-failure-atomicity/artifacts/node-${{ matrix.node }}
+          if-no-files-found: error
+          retention-days: 30
