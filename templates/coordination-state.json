@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "F000-example",
+  "invariant_id": "example-invariant",
+  "canonical_finding": "findings/F000-example/finding.md",
+  "phase": "research-active",
+  "work_class": "upstream-fork-research",
+  "review": {
+    "disposition": "none",
+    "exact_head": null,
+    "reviewed_inputs": []
+  },
+  "evidence": [
+    {
+      "claim": "The current source path was inspected at the recorded revision.",
+      "level": "source-read",
+      "receipt": "findings/F000-example/evidence/YYYYMMDD-worker-source-map.md",
+      "limit": "No target execution has run."
+    }
+  ],
+  "canonical_source": {
+    "repository": "teamleaderleo/example",
+    "branch": "fieldwork/example-invariant",
+    "head": "0000000000000000000000000000000000000000"
+  },
+  "active_carrier": null,
+  "writer_lease": {
+    "worker": "worker-id",
+    "artifact": "findings/F000-example/finding.md",
+    "state": "active",
+    "transfer_record": null
+  },
+  "freshness": {
+    "base_head": "0000000000000000000000000000000000000000",
+    "upstream_valid_through": "0000000000000000000000000000000000000000",
+    "checked_at": "YYYY-MM-DDTHH:MM:SSZ"
+  },
+  "authority": {
+    "merge": false,
+    "release": false,
+    "deploy": false,
+    "upstream_contact": false,
+    "private_or_production_data": false,
+    "material_spending": false
+  },
+  "blocker": null,
+  "next_transition": "Run one bounded discriminating source or execution step."
+}
