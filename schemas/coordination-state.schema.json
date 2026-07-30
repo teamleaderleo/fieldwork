@@ -18,8 +18,10 @@
     "writer_lease",
     "freshness",
     "authority",
+    "authority_record",
     "blocker",
-    "next_transition"
+    "next_transition",
+    "terminal_record"
   ],
   "properties": {
     "schema_version": { "const": 1 },
@@ -158,7 +160,9 @@
         "material_spending": { "type": "boolean" }
       }
     },
+    "authority_record": { "type": ["string", "null"] },
     "blocker": { "type": ["string", "null"] },
-    "next_transition": { "type": "string" }
+    "next_transition": { "type": "string" },
+    "terminal_record": { "type": ["string", "null"] }
   }
 }
