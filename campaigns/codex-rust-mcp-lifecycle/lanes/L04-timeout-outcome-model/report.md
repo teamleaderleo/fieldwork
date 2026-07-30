@@ -1,6 +1,6 @@
 # L04 — MCP timeout outcome model
 
-State: `claimed`
+State: `ready — durable model retained; clean Codex application unowned`
 
 Programme: `sdk-integration-lifecycle`
 
@@ -8,21 +8,19 @@ Campaign: #133
 
 Parent candidate: #134
 
-Worker: `chatgpt:gpt-5.6-thinking`
+Fieldwork issue: #162
 
-Owned Codex implementation: `teamleaderleo/codex#29`
+Closed Codex evidence carriers: `teamleaderleo/codex#28`, `teamleaderleo/codex#29`
 
-Superseded validation surface: `teamleaderleo/codex#28`
-
-Owned Codex base: `f7265553ea1510304f3091833dcbce65ef21f10c`
+Inspected owned Codex base: `f7265553ea1510304f3091833dcbce65ef21f10c`
 
 Public upstream contact authorized: `false`
 
 ## In simple words
 
-An MCP timeout currently arrives at the model as an ordinary failed tool result. That message says Codex stopped waiting. It does not prove that the request stopped, that cancellation reached the server, or that a remote mutation did not commit.
+An MCP timeout says Codex stopped waiting. It does not prove that the request stopped, cancellation reached the server, or a remote mutation did not commit.
 
-This lane retains those distinctions as typed internal evidence before any retry, compaction, refresh, or fallback policy consumes them.
+This lane preserves the internal execution-certainty model needed before retry, compaction, refresh, recovery, or fallback policy consumes such a result. The durable result is this report and its case matrix. There is no active owned Codex implementation.
 
 ## Exact question
 
@@ -30,7 +28,7 @@ What is the smallest internal representation that lets Codex distinguish a local
 
 ## Source path
 
-Pinned owned Codex source establishes this path:
+The inspected owned Codex source establishes this information-loss path:
 
 ```text
 codex-rmcp-client::RmcpClient::call_tool
@@ -51,11 +49,11 @@ codex-core::McpHandler
   -> registry lifecycle can observe a normal returned output
 ```
 
-The information loss occurs when the typed `anyhow` cause is converted to a string before core retains execution certainty. Public MCP items then have only `inProgress`, `completed`, or `failed`, with an error message.
+The typed cause is lost before core retains execution certainty. Public MCP items then expose only their existing status and error message.
 
 ## Confirmed evidence
 
-The parent #134 probe shows current legacy behavior:
+The parent #134 legacy probe records:
 
 ```text
 caller deadline reached
@@ -68,12 +66,10 @@ Therefore:
 
 - a local timeout is not a remote terminal receipt;
 - a persisted failed tool output is not proof of non-execution;
-- a handler returning a failed `CallToolResult` can still look lifecycle-completed;
-- generic string matching is not a safe authority boundary.
+- a returned failed `CallToolResult` can still look lifecycle-completed;
+- display-string matching is not a safe authority boundary.
 
-## First internal model
-
-Owned Codex PR #29 proposes four states:
+## Durable internal model
 
 ```rust
 NotDispatched
@@ -84,112 +80,110 @@ LocalTimeoutOutcomeUnknown
 
 ### `NotDispatched`
 
-Used when core knows the remote call did not start, including invalid local arguments, unavailable prepared binding, disabled policy, and approval decline or cancellation before execution.
+Core knows the remote call did not start, such as invalid local arguments, an unavailable prepared binding, disabled policy, or approval exit before execution.
 
 ### `RemoteResultReceived`
 
-Used only when `PreparedMcpCall` returns a remote `CallToolResult`. This records response receipt. It does not reinterpret the tool's application-level `isError` field.
+`PreparedMcpCall` returned a remote `CallToolResult`. This records response receipt and does not reinterpret the tool's application-level `isError` field.
 
 ### `LocalFailureUnclassified`
 
-Conservative state for other local or transport failures whose dispatch and settlement facts have not yet been typed.
+Conservative state for another local or transport failure whose dispatch and settlement facts are not yet typed.
 
 ### `LocalTimeoutOutcomeUnknown`
 
-Used when the retained `anyhow` cause chain contains `ClientOperationError::Timeout { label: "tools/call" }`.
+The retained `anyhow` cause chain contains `ClientOperationError::Timeout { label: "tools/call" }`.
 
 It means:
 
 ```text
-Codex stopped waiting after the local active-time deadline.
+Codex stopped waiting after the local caller deadline.
 Remote execution may still be running or may already have committed an effect.
 ```
 
-## Why the classifier belongs below string conversion
+## Why classification belongs below string conversion
 
-`PreparedMcpCall` adds `anyhow::Context`, but the original typed timeout remains in the cause chain. PR #29 classifies that cause before `handle_approved_mcp_tool_call` formats the error for existing public output.
+`PreparedMcpCall` adds `anyhow::Context`, while the original typed timeout remains in the cause chain. A clean implementation should classify that cause before `handle_approved_mcp_tool_call` formats the error for existing output.
 
 This avoids:
 
 - parsing localized or reformatted messages;
 - coupling receipt safety to telemetry text;
-- treating every failure containing the word “timeout” as an MCP execution timeout;
-- losing the distinction between `tools/list`, handshake, and `tools/call` deadlines.
+- treating every failure containing “timeout” as a dispatched MCP tool deadline;
+- confusing handshake or `tools/list` timeouts with `tools/call`.
 
 ## Behavior-neutral first slice
 
-PR #29 deliberately does not change:
+A clean first implementation must not change:
 
 - model-visible function-call output;
 - Code Mode result JSON;
-- `McpToolCallItem` public status or error schema;
-- app-server or SDK generated schemas;
-- retry behavior;
-- compaction readiness;
+- public `McpToolCallItem` status or error schema;
+- app-server or generated SDK schemas;
+- retry or compaction behavior;
 - session-expiry recovery;
-- MCP refresh or rebinding;
-- fallback selection.
+- MCP refresh, rebinding, or fallback behavior.
 
-The candidate includes a regression requiring identical direct and Code Mode outputs for the same failed result tagged as ordinary local failure or timeout outcome-unknown.
+It should require identical model-visible direct and Code Mode output for an ordinary local failure and a timeout marked outcome-unknown.
+
+## Implementation history
+
+Codex PRs #28 and #29 staged this design and useful focused tests. Both are closed evidence carriers. Neither produced an accepted source-only, target-tested head, and neither is an active canonical implementation.
+
+Do not reopen or promote those carrier histories. A future application should branch cleanly from current owned Codex `main`, apply direct Rust source and tests, and publish a source-only exact head.
 
 ## Relationship to adjacent work
 
 ### #134 — cancellation mechanics
 
-#134 owns whether legacy cancellation is sent, whether modern request-stream closure is terminal, whether cancellation delivery is bounded, and what the server observes.
-
-This lane does not infer those facts. It only provides a typed place to retain them.
+#134 owns cancellation request, bounded delivery, server observation, and transport settlement. Cancellation delivery remains a fact, not proof that a mutation did not commit.
 
 ### #83 — mutation identity and compaction
 
-#83 may later map `LocalTimeoutOutcomeUnknown` to an ambiguous or may-still-run receipt. It must not consume this candidate until the exact source head passes and transport evidence from #134 is available.
+#83 may later map `LocalTimeoutOutcomeUnknown` to an ambiguous or may-still-run receipt. It must consume typed execution evidence, not error strings.
 
-### Codex PR #25 — generic terminal semantics
+### Generic terminal semantics
 
-PR #25 conservatively maps handler-executed failures and unconfirmed aborts to ambiguity. It does not cover an MCP timeout returned as a normal failed output. PR #29 supplies the missing MCP-specific evidence.
+The closed generic receipt experiment from Codex PR #25 remains useful evidence for pre-execution failure versus handler-executed uncertainty. It cannot identify an MCP timeout returned as an ordinary failed output.
 
 ## Retry and authority rules
 
-The first slice authorizes no retry.
+This lane authorizes no retry.
 
-Future policy must satisfy all of these:
+Future policy must:
 
-1. Preserve the original call and authority identity.
-2. Do not trust arbitrary-server `readOnlyHint` or `idempotentHint` as proof.
-3. Require a host trust policy, durable idempotency contract, or reconciliation read before replaying a potential mutation.
-4. Treat cancellation delivery as a fact, not proof that the effect did not commit.
-5. Require a new sampled step after runtime or authority changes.
+1. preserve original call and authority identity;
+2. not trust arbitrary-server `readOnlyHint` or `idempotentHint` as proof;
+3. require host policy, durable idempotency, or reconciliation before replaying a potential mutation;
+4. treat cancellation requested, delivered, observed, and settled as separate facts;
+5. require a new sampled step after runtime or authority changes.
 
 ## Negative results
 
 - No public schema extension is justified by this first slice.
-- No distinct public `timedOut` status is proposed yet.
-- No cancellation-delivered state is claimed before #134 completes its transport matrix.
+- No distinct public `timedOut` status is proposed.
+- No cancellation-delivered terminal state is claimed before #134 completes its transport matrix.
 - No automatic retry is safe merely because the local failure is typed.
-- No upstream issue, PR, comment, reaction, branch, or message was created.
+- No upstream interaction occurred.
 
-## Validation plan
+## Clean application gate
 
-Owned Codex PR #29 runs:
-
-```text
-codex-rmcp-client typed cause classification
-core execution-state mapping
-behavior-neutral direct and Code Mode output
-Rust formatting
-git diff --check
-```
-
-The branch remains draft until a source-only head replaces its temporary validation carrier and the exact Rust diff is reviewed. PR #28 remains closed and contains no accepted implementation result.
+1. Branch from current owned Codex `main`.
+2. Apply direct source and tests without temporary carrier history in the final diff.
+3. Prove typed `tools/call` deadline classification survives outer `anyhow::Context`.
+4. Prove other operation timeouts and generic failures remain unclassified.
+5. Add one real `RmcpClient -> PreparedMcpCall -> core output` timeout control.
+6. Prove direct and Code Mode model-visible output remains unchanged.
+7. State that any exported Rust workspace type is an internal API boundary even without a wire-schema change.
+8. Publish and independently review a source-only exact head.
 
 ## Next bounded steps
 
-1. Finish and review the behavior-neutral internal type.
-2. Consume #134 results for cancellation requested, delivered, observed, and transport-terminal facts.
-3. Add a typed core outcome that can carry those facts without exposing arguments, output bodies, credentials, or resource names.
-4. Map the typed outcome into #83 receipt terminal certainty.
-5. Only then evaluate whether public protocol consumers need structured error detail or a new status.
+1. Complete #134 cancellation and transport evidence.
+2. Apply this behavior-neutral internal type cleanly on current owned Codex `main`.
+3. Map typed execution evidence into #83 receipt terminal certainty.
+4. Only then evaluate whether public consumers need structured error detail or another status.
 
 ## Stop condition
 
-Stop this lane when compiled owned-fork tests prove that local MCP timeouts remain outcome-unknown internally while existing public/model output stays compatible, and the resulting type can be consumed by receipt logic without string parsing or unsafe replay.
+Stop when compiled owned-fork tests prove that local MCP tool-call deadlines remain outcome-unknown internally while existing public and model output stays compatible, and receipt logic can consume that state without string parsing or unsafe replay.
