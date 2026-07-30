@@ -50,6 +50,22 @@ GIT binary patch
 """
         )
 
+    def test_complete_payload_cannot_hide_second_bare_marker(self) -> None:
+        with self.assertRaisesRegex(
+            PatchSyntaxError,
+            "duplicate GIT binary patch marker",
+        ):
+            validate_patch_text(
+                """diff --git a/image.png b/image.png
+index 1111111..2222222 100644
+GIT binary patch
+literal 1
+Ic${Nk000310RR91
+GIT binary patch
+""",
+                "candidate.patch",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
