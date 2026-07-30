@@ -45,7 +45,6 @@ jobs:
           steps = {
               'Restack historical source and preserve current source work': '/tmp/restack.sh',
               'Verify source fence and format': '/tmp/format.sh',
-              'Execute focused codex-core target gate': '/tmp/focused.sh',
           }
           for name, destination in steps.items():
               step = workflow.index(f'      - name: {name}')
@@ -168,7 +167,7 @@ jobs:
 
       - name: Execute focused codex-core gate
         working-directory: codex/codex-rs
-        run: bash /tmp/focused.sh
+        run: just test -p codex-core
 
       - name: Export exact source commit and files
         working-directory: codex
