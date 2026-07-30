@@ -6,32 +6,46 @@ Scout issue: [#209](https://github.com/teamleaderleo/fieldwork/issues/209)
 
 ## In simple words
 
-Compiler diagnostics and standard-library boundary cases produce compact contributions when the issue already carries a source fixture, expected result, and localized owner. This round found a strong Rust diagnostic queue and a CPython queue rich in current bugs, while also showing why linked-pull-request checks must happen before implementation.
+Compiler diagnostics and standard-library boundary cases produce compact contributions when the issue already carries a source fixture, expected result, and localized owner. This round found excellent Rust diagnostic examples, but deeper assignment checks showed the sampled issues were already claimed. The CPython queue still contains uncovered synchronization and parser candidates.
 
-## Rust first wave
+## Rust reference wave
 
 Repository: `rust-lang/rust`
 
-### Ranked candidates
+### Claimed candidates
 
-1. [#159745](https://github.com/rust-lang/rust/issues/159745) — nested generic parameters missing a turbofish produce only `expected expression, found ','`. The issue supplies a tiny source case and desired `::<...>` suggestion. No matching active pull request was found.
-2. [#159686](https://github.com/rust-lang/rust/issues/159686) — a missing match arm receives tuple and alternative-pattern suggestions. The desired output is an `=> {}` arm suggestion. No matching active pull request was found.
-3. [#159492](https://github.com/rust-lang/rust/issues/159492) — explain why receiver-less associated functions prevent dyn compatibility and suggest `where Self: Sized` when appropriate.
-4. [#157184](https://github.com/rust-lang/rust/issues/157184) — validate `ignore-tidy-cr` entries against `.gitattributes` and existing files.
-5. [#157260](https://github.com/rust-lang/rust/issues/157260) — reject `#[path]` attributes that have no effect.
+1. [#159745](https://github.com/rust-lang/rust/issues/159745) — nested generic parameters missing a turbofish produce only `expected expression, found ','`. The issue is assigned after rustbot claim comments.
+2. [#159686](https://github.com/rust-lang/rust/issues/159686) — a missing match arm receives tuple and alternative-pattern suggestions. The issue is assigned.
+3. [#159492](https://github.com/rust-lang/rust/issues/159492) — pedagogic dyn-compatibility wording. The issue is assigned and mentored.
+4. [#157184](https://github.com/rust-lang/rust/issues/157184) — validate `ignore-tidy-cr` entries against `.gitattributes`. The issue is assigned.
+5. [#157260](https://github.com/rust-lang/rust/issues/157260) — reject ineffective `#[path]` attributes. The issue is assigned and mentored.
 
-### First executable path
+No matching active pull requests were found in the sampled searches, but assignee and claim state are sufficient to stop independent implementation. Retain these issues as code-reading and test-packet examples. Reopen only if a claim is released or collaboration is explicitly requested.
 
-Start with #159745:
+### Diagnostic reference path
+
+#159745 remains a useful model:
 
 1. add the issue input to the closest parser/suggestion UI test;
 2. confirm current stderr exactly;
 3. trace the parse recovery that interprets `<` as comparison syntax;
-4. add a guarded suggestion only when the surrounding path and generic argument sequence support a turbofish;
+4. guard the suggestion so ordinary comparison expressions remain unaffected;
 5. run the focused UI test and bless output;
-6. add neighboring negative cases so comparison expressions do not receive the suggestion.
+6. add neighboring negative cases.
 
-#159686 can run independently because it belongs to pattern/match recovery rather than nested generic parsing.
+This describes where to look while respecting the active claim.
+
+### Search correction
+
+For Rust, an open issue with no pull request can still be owned. Check:
+
+- assignee field;
+- triagebot assignment block;
+- `@rustbot claim` comments;
+- issue text requesting subdirectory-level coordination;
+- Zulip/mentor guidance when an `E-mentor` label exists.
+
+The search `label:E-easy no:assignee` found #159751, but that issue coordinates many independently claimed subdirectories and explicitly asks contributors to claim a subdirectory in comments. Treat it as a coordinated batch, not a free whole-issue task.
 
 ## CPython first wave
 
@@ -76,8 +90,8 @@ Disposition: issue-first or a tightly scoped patch after confirming the preferre
 ### Other CPython candidates
 
 - [#151464](https://github.com/python/cpython/issues/151464) — tokenizer emits `<>` even when the grammar rejects it. Retain as a parser/token contract candidate.
-- [#154848](https://github.com/python/cpython/issues/154848) — `_pickle.c` and `pickletools` diverge around FRAME boundaries. The issue body now links PRs #154893 and #154909, so stop independent implementation and study the buffering fix.
-- [#154701](https://github.com/python/cpython/issues/154701) — JIT hang in Hypothesis has a reliable suite-level reproduction but lacks a reduced case. Retain as a reduction campaign, not a first patch.
+- [#154848](https://github.com/python/cpython/issues/154848) — `_pickle.c` and `pickletools` diverge around FRAME boundaries. The issue body links PRs #154893 and #154909, so stop independent implementation and study the buffering fix.
+- [#154701](https://github.com/python/cpython/issues/154701) — JIT hang in Hypothesis has a reliable suite-level reproduction but lacks a reduced case. Retain as a reduction campaign.
 - [#154763](https://github.com/python/cpython/issues/154763) — Azure stack-protection test flake. Retain for Windows CI access.
 
 ## Duplicate stops discovered
@@ -93,14 +107,10 @@ The following current bugs already had focused pull requests:
 
 These are retained as examples of strong packets: a short reproducer, direct code explanation, failing test, and explicit control cases.
 
-## Search lesson
-
-Direct PR search missed some linked work. For CPython, inspect the issue body's `Linked PRs` block and comments every time. For Rust, check triagebot assignment state and issue comments before claiming a diagnostic.
-
 ## Return
 
-- **Promote:** Rust #159745 and #159686 as independent UI-diagnostic probes.
+- **Claimed references:** Rust #159745, #159686, #159492, #157184, and #157260.
 - **Issue-first/deep probe:** CPython #154916.
 - **Retain:** CPython #151464 and #154701.
 - **Stop duplicate implementation:** the six CPython issues with active PRs listed above.
-- **Next expansion:** Go and Node.js after the first two Rust fixtures and one CPython synchronization packet are retained.
+- **Next expansion:** search unassigned Rust work with claim-state checks, then add Go and Node.js candidates.
