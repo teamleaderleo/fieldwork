@@ -19,7 +19,11 @@ jobs:
         run: node scripts/test_interaction_references.js
       - name: Test retained patch syntax validator
         run: python3 -m unittest -v scripts/test_validate_patch_syntax.py
+      - name: Test native Git retained patch parser
+        run: python3 -m unittest -v scripts/test_validate_patch_with_git.py
       - name: Validate retained patch syntax
         run: python3 scripts/validate_patch_syntax.py
+      - name: Parse retained patches with native Git
+        run: python3 scripts/validate_patch_with_git.py
       - name: Validate batch contracts
         run: python3 scripts/check_fieldwork_integrity.py
