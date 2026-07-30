@@ -1,0 +1,128 @@
+{
+  "version": 2,
+  "lane": "L04-timeout-outcome-model",
+  "fieldwork_issue": 162,
+  "active_codex_implementation": null,
+  "closed_codex_evidence_prs": [28, 29],
+  "inspected_owned_codex_base": "f7265553ea1510304f3091833dcbce65ef21f10c",
+  "clean_reapplication_required": true,
+  "public_schema_changed": false,
+  "automatic_retry_authorized": false,
+  "cases": [
+    {
+      "id": "invalid-local-arguments",
+      "dispatch": "not_started",
+      "internal_state": "NotDispatched",
+      "remote_result_received": false,
+      "effect_certainty": "not_executed_by_this_call_path",
+      "automatic_retry_authorized": false,
+      "required_proof": "local validation failed before handler or request dispatch"
+    },
+    {
+      "id": "unavailable-or-policy-blocked",
+      "dispatch": "not_started",
+      "internal_state": "NotDispatched",
+      "remote_result_received": false,
+      "effect_certainty": "not_executed_by_this_call_path",
+      "automatic_retry_authorized": false,
+      "required_proof": "local availability or policy gate exited before handler or request dispatch"
+    },
+    {
+      "id": "approval-declined-before-execution",
+      "dispatch": "not_started",
+      "internal_state": "NotDispatched",
+      "remote_result_received": false,
+      "effect_certainty": "not_executed_by_this_call_path",
+      "automatic_retry_authorized": false,
+      "required_proof": "approval owner exited before execution began"
+    },
+    {
+      "id": "catalog-revision-mismatch-before-call",
+      "dispatch": "not_started",
+      "internal_state": "NotDispatched",
+      "remote_result_received": false,
+      "effect_certainty": "not_executed_by_this_call_path",
+      "automatic_retry_authorized": false,
+      "required_proof": "catalog generation check failed before client.call_tool"
+    },
+    {
+      "id": "local-preparation-failure-before-call",
+      "dispatch": "not_started",
+      "internal_state": "NotDispatched",
+      "remote_result_received": false,
+      "effect_certainty": "not_executed_by_this_call_path",
+      "automatic_retry_authorized": false,
+      "required_proof": "typed preparation phase failed before client.call_tool"
+    },
+    {
+      "id": "remote-success-result",
+      "dispatch": "started",
+      "internal_state": "RemoteResultReceived",
+      "remote_result_received": true,
+      "effect_certainty": "remote_response_received",
+      "automatic_retry_authorized": false,
+      "required_proof": "PreparedMcpCall returned a remote CallToolResult"
+    },
+    {
+      "id": "remote-application-error-result",
+      "dispatch": "started",
+      "internal_state": "RemoteResultReceived",
+      "remote_result_received": true,
+      "effect_certainty": "remote_response_received_application_outcome_reported",
+      "automatic_retry_authorized": false,
+      "required_proof": "remote CallToolResult received even when isError is true"
+    },
+    {
+      "id": "local-tools-call-timeout",
+      "dispatch": "possibly_started",
+      "internal_state": "LocalTimeoutOutcomeUnknown",
+      "remote_result_received": false,
+      "effect_certainty": "may_still_run_or_may_have_committed",
+      "automatic_retry_authorized": false,
+      "required_proof": "typed ClientOperationError timeout with operation label tools/call"
+    },
+    {
+      "id": "context-wrapped-non-tools-call-timeout",
+      "dispatch": "unknown",
+      "internal_state": "LocalFailureUnclassified",
+      "remote_result_received": false,
+      "effect_certainty": "unknown_fail_closed",
+      "automatic_retry_authorized": false,
+      "required_proof": "timeout cause exists but operation label is outside tools/call"
+    },
+    {
+      "id": "connection-loss-after-request-write",
+      "dispatch": "started_or_partially_written",
+      "internal_state": "LocalFailureUnclassified",
+      "remote_result_received": false,
+      "effect_certainty": "remote_execution_or_commit_unknown",
+      "automatic_retry_authorized": false,
+      "required_proof": "transport failed after request dispatch could have begun"
+    },
+    {
+      "id": "other-local-or-transport-failure",
+      "dispatch": "unknown",
+      "internal_state": "LocalFailureUnclassified",
+      "remote_result_received": false,
+      "effect_certainty": "unknown_fail_closed",
+      "automatic_retry_authorized": false,
+      "required_proof": "lower layer supplied no terminal dispatch or settlement fact"
+    },
+    {
+      "id": "cancellation-delivered-no-terminal-receipt",
+      "dispatch": "started",
+      "internal_state": "FutureTransportEvidenceRequired",
+      "remote_result_received": false,
+      "effect_certainty": "unknown_for_potential_mutation",
+      "automatic_retry_authorized": false,
+      "required_proof": "cancellation delivery alone; no remote terminal result or reconciliation"
+    }
+  ],
+  "required_handoff_regression": [
+    "typed tools/call timeout",
+    "MCP handler",
+    "registry result envelope",
+    "receipt or lifecycle observer reads outcome unknown",
+    "direct and Code Mode public output unchanged"
+  ]
+}
