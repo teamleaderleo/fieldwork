@@ -162,11 +162,14 @@ def _binary_section_is_valid(section: FileSection) -> bool:
 
 
 def _finish_binary_payload(path: str, section: FileSection) -> None:
-    if (
-        section.has_git_binary_marker
-        and section.binary_payload_header_line is not None
-        and not section.binary_payload_has_data
-    ):
+    if not section.has_git_binary_marker:
+        return
+    if section.binary_payload_header_line is None:
+        raise PatchSyntaxError(
+            f"{path}:{section.start_line}: "
+            "GIT binary patch marker has no payload header"
+        )
+    if not section.binary_payload_has_data:
         raise PatchSyntaxError(
             f"{path}:{section.binary_payload_header_line}: "
             "binary payload block contains no encoded data"
