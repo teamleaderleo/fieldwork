@@ -6,7 +6,7 @@ Fieldwork lane: #235
 Evidence PR: #228  
 Playground: `EXP-20260730-jotai-json-key-isolation`  
 Canonical candidate branch: `lane/235-jotai-json-storage-key-isolation-restack`  
-Superseded carrier: PR #236  
+Superseded carriers: PR #236 and PR #242  
 Target repository: `pmndrs/jotai`  
 Released package: `jotai@2.20.2`  
 Exact source under candidate test: `56a9cc51de8a5dd762b95a145820f12589cc47c9`  
@@ -16,7 +16,7 @@ Upstream contact authorized: `false`
 
 Jotai's released JSON storage adapter keeps one remembered JSON string and parsed value for the entire adapter. Two independent storage keys containing the same JSON therefore receive the same object instance. Mutating the object returned for one key changes the object already returned for the other key without a write or notification for that second key.
 
-The candidate keeps the historical same-key identity behavior but scopes the cache by storage key.
+The candidate keeps the historical same-key identity behavior, scopes the cache by storage key, and changes removal invalidation only after the underlying storage operation succeeds.
 
 ## Confirmed released behavior
 
@@ -68,7 +68,10 @@ For each key:
 - unchanged JSON returns that key's cached object;
 - equal JSON from another key is parsed separately;
 - parse failure still returns the supplied initial value;
-- `removeItem(key)` deletes only that key's cached entry before delegating.
+- `removeItem(key)` resolves one string-storage owner, delegates removal, and deletes only that key's cache after normal synchronous return or promise fulfillment;
+- synchronous throw and asynchronous rejection preserve the existing cached identity;
+- reads while asynchronous removal remains pending continue to use the existing cached object;
+- absent string storage performs no cache invalidation because no removal occurred.
 
 The patch does not change atom construction, subscription wiring, replacer/reviver APIs, storage write ordering, or public types.
 
@@ -85,8 +88,12 @@ It covers:
 3. mutation isolation;
 4. sequential asynchronous storage reads;
 5. reviver execution once per key plus later same-key identity;
-6. invalidation of only the removed key;
-7. the existing `atomWithStorage.test.tsx` suite, including the original mount behavior.
+6. invalidation of only the removed key after successful synchronous removal;
+7. cache preservation after synchronous removal throw;
+8. cache preservation after asynchronous removal rejection;
+9. cache reuse while asynchronous removal remains pending;
+10. affected-key-only invalidation after asynchronous fulfillment;
+11. the existing `atomWithStorage.test.tsx` suite, including the original mount behavior.
 
 The interleaved control rejects a weaker one-entry key cache that would lose same-key identity whenever another atom reads between two reads of the first key.
 
@@ -102,23 +109,28 @@ PR #236 did not execute a candidate result:
 - a corrected patch was later re-corrupted by guessed hunk metadata;
 - the final corrected head became non-mergeable and received no new workflow dispatch.
 
-This restack copies only the workflow, generated diff, native regression, and updated report onto current `main`. The PR-open event owns the fresh exact-source matrix. No result transfers from PR #236.
+PR #242 correctly identified that early cache deletion changed public identity after failed or pending removal. Its branch was stacked on the superseded PR #236 carrier and became non-mergeable. The four removal-settlement controls and the successful-settlement source rule are now incorporated directly into this current-main restack.
+
+No execution result transfers from either predecessor carrier.
 
 ## Cache-lifecycle and concurrency limits
 
-A per-key `Map` can retain entries for dynamic keys until the adapter is discarded or `removeItem(key)` is called. That memory tradeoff requires an explicit production decision.
+A per-key `Map` can retain entries for dynamic keys until the adapter is discarded or a successful `removeItem(key)` settles. That memory tradeoff requires an explicit production decision.
 
 The candidate also does not establish universal same-key identity under out-of-order asynchronous reads. A late older read can replace the per-key cache entry after a newer read resolves, causing a later current read to parse again. That race predates the candidate; it limits the claim rather than automatically rejecting the narrow cross-key repair.
+
+Concurrent `setItem` and `removeItem` authority remains unchanged. This candidate owns parsed-object identity and successful-removal invalidation, not a general storage-operation generation protocol.
 
 ## Claim-scoped evidence
 
 - released cross-key alias: `target-executed`;
 - source history and original intent: `source-read`;
-- key-scoped candidate: `target-test-prepared`;
-- repository-native regression: prepared, not yet executed on the restack;
+- key-scoped and removal-settlement candidate: `target-test-prepared`;
+- repository-native regression: prepared, not yet executed on this exact head;
 - full repository test/build: absent;
 - dynamic-key retention policy: unresolved;
-- asynchronous completion ordering: unchanged and unresolved;
+- asynchronous read completion ordering: unchanged and unresolved;
+- concurrent set/remove ordering: unchanged and unresolved;
 - ecosystem frequency and production impact: unmeasured;
 - upstream acceptance: absent.
 
