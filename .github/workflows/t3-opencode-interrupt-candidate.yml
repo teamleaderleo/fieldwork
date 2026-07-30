@@ -48,6 +48,8 @@ jobs:
       matrix:
         include:
           - name: Interrupt settlement candidate
+            # Delayed old-idle correlation belongs to held slice C and is not
+            # evidence for the independently accepted interrupt-ownership slice.
             command: >-
               vp test run
               apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
@@ -55,7 +57,7 @@ jobs:
               apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-owner-cancellation.test.ts
               apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-projection.test.ts
               apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-generation.test.ts
-              -t "^(settles|rejects|coalesces|preserves|continues|classifies|reuses|emits|does)"
+              -t "^(settles|rejects|coalesces|preserves|continues|classifies|reuses|emits|does not let session replacement)"
           - name: Runtime ingestion compatibility
             command: vp test run apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.test.ts
           - name: Existing OpenCode adapter suite
