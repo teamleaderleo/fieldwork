@@ -1,0 +1,120 @@
+name: Repair receipt schema version booleans
+
+on:
+  push:
+    branches:
+      - repair/receipt-schema-version-bool
+    paths:
+      - '.github/workflows/repair-receipt-schema-version-bool.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-receipt-schema-version-bool
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: repair/receipt-schema-version-bool
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply exact repair
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('campaigns/0002-tool-surface-continuity/lanes/L06-effective-surface-diagnostics/artifacts')
+          classifier = root / 'classify_receipts.py'
+          tests = root / 'test_classify_receipts.py'
+
+          text = classifier.read_text(encoding='utf-8')
+          old_document = '''    if document.get("schema_version") != SCHEMA_VERSION:
+              raise ValueError(
+                  f"document schema_version must be {SCHEMA_VERSION}, got "
+                  f"{document.get('schema_version')!r}"
+              )
+          '''
+          new_document = '''    document_schema_version = document.get("schema_version")
+              if (
+                  type(document_schema_version) is not int
+                  or document_schema_version != SCHEMA_VERSION
+              ):
+                  raise ValueError(
+                      f"document schema_version must be {SCHEMA_VERSION}, got "
+                      f"{document_schema_version!r}"
+                  )
+          '''
+          if text.count(old_document) != 1:
+              raise SystemExit('document schema-version anchor moved')
+          text = text.replace(old_document, new_document, 1)
+
+          old_receipt = '''    if receipt["schema_version"] != SCHEMA_VERSION:
+              raise ValueError(f"unsupported schema_version: {receipt['schema_version']!r}")
+          '''
+          new_receipt = '''    receipt_schema_version = receipt["schema_version"]
+              if (
+                  type(receipt_schema_version) is not int
+                  or receipt_schema_version != SCHEMA_VERSION
+              ):
+                  raise ValueError(f"unsupported schema_version: {receipt_schema_version!r}")
+          '''
+          if text.count(old_receipt) != 1:
+              raise SystemExit('receipt schema-version anchor moved')
+          classifier.write_text(text.replace(old_receipt, new_receipt, 1), encoding='utf-8')
+
+          test_text = tests.read_text(encoding='utf-8')
+          anchor = '''    def test_schema_rejects_empty_observation_set(self):
+          '''
+          addition = '''    def test_schema_rejects_boolean_schema_versions(self):
+              document = json.loads(json.dumps(self.document))
+              document["schema_version"] = True
+              with self.assertRaisesRegex(ValueError, "document schema_version must be"):
+                  validate_document(document)
+
+              receipt = json.loads(json.dumps(self.document["receipts"][0]))
+              receipt["schema_version"] = True
+              with self.assertRaisesRegex(ValueError, "unsupported schema_version"):
+                  validate_receipt_schema(receipt)
+
+          '''
+          if test_text.count(anchor) != 1:
+              raise SystemExit('schema test insertion anchor moved')
+          tests.write_text(test_text.replace(anchor, addition + anchor, 1), encoding='utf-8')
+          PY
+          git diff --check
+
+      - name: Run focused receipt tests
+        working-directory: campaigns/0002-tool-surface-continuity/lanes/L06-effective-surface-diagnostics/artifacts
+        run: |
+          python3 -m py_compile classify_receipts.py test_classify_receipts.py
+          python3 -m unittest -v test_classify_receipts.py
+          python3 classify_receipts.py fixtures.json /tmp/receipt-results.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          expected = json.loads(Path('results/latest.json').read_text(encoding='utf-8'))
+          actual = json.loads(Path('/tmp/receipt-results.json').read_text(encoding='utf-8'))
+          if actual != expected:
+              raise SystemExit('semantic receipt output changed')
+          PY
+
+      - name: Publish source-only repair
+        run: |
+          rm .github/workflows/repair-receipt-schema-version-bool.yml
+          git diff --check
+          git config user.name fieldwork-ci
+          git config user.email fieldwork-ci@users.noreply.github.com
+          git add campaigns/0002-tool-surface-continuity/lanes/L06-effective-surface-diagnostics/artifacts/classify_receipts.py \
+            campaigns/0002-tool-surface-continuity/lanes/L06-effective-surface-diagnostics/artifacts/test_classify_receipts.py \
+            .github/workflows/repair-receipt-schema-version-bool.yml
+          git commit -m 'diagnostics: reject boolean schema versions'
+          git push origin HEAD:repair/receipt-schema-version-bool
