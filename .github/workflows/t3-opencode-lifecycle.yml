@@ -53,6 +53,8 @@ jobs:
             test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
           - name: Interrupt projection settlement
             test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-projection.test.ts
+          - name: Interrupt generation fence
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-generation.test.ts
           - name: Interrupt error race
             test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-error.test.ts
           - name: Delayed interrupt error ordering
