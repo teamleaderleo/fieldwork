@@ -1,6 +1,6 @@
 # Candidate Queue — Broad-Spectrum Round 001
 
-Snapshot: 2026-07-30. Rankings combine consequence, reproducibility, owning-boundary clarity, environment cost, review size, active pull requests, assignees, and project-specific claim state.
+Snapshot: 2026-07-30. Rankings combine consequence, reproducibility, owning-boundary clarity, environment cost, review size, active pull requests, assignees, and project-specific claim state. Live overlap state was refreshed before review; a later pull request or claim expires the corresponding promotion.
 
 | Rank | Target | Candidate | Consequence | Environment | Overlap | Next probe | Disposition |
 |---:|---|---|---|---|---|---|---|
@@ -11,7 +11,7 @@ Snapshot: 2026-07-30. Rankings combine consequence, reproducibility, owning-boun
 | 5 | DuckDB | [DECIMAL median issue](https://redirect.github.com/duckdb/duckdb/issues/24314) | incorrect analytical result | current CI | no matching PR found | compare integer interpolation paths and add two-value precision fixture | promote after the partition collision |
 | 6 | Ruff | [B006 multiline-string fix issue](https://redirect.github.com/astral-sh/ruff/issues/27022) | automatic fix changes runtime value | current CI | issue blocks an active patch stack | preserve literal source value in fixture and identify indentation rewrite owner | promote or coordinate |
 | 7 | Ruff | [RUF055 buffer-behavior issue](https://redirect.github.com/astral-sh/ruff/issues/27024) | a safe fix changes accepted inputs | current CI | no matching PR found in sampled search | compare pre/post execution for bytes regex and buffer objects; reassess fix safety | promote |
-| 8 | libarchive | [PPMd small-buffer issue](https://redirect.github.com/libarchive/libarchive/issues/3337) | valid archive decode depends on caller buffer size | current CI | no matching PR checked in round | retain minimal 7z fixture; vary read chunk size; trace PPMd refill boundary | promote |
+| 8 | libarchive | [PPMd small-buffer issue](https://redirect.github.com/libarchive/libarchive/issues/3337) | valid archive decode depends on caller buffer size | current CI | [PR 3340](https://redirect.github.com/libarchive/libarchive/pull/3340) fixes the same issue with a focused fixture | inspect as a parser-state and test-design reference; do not create a competing implementation | stop independent implementation |
 | 9 | systemd | [oomd reload-registration issue](https://redirect.github.com/systemd/systemd/issues/43174) | silent loss of a memory-pressure guardrail | VM | no matching PR found | capture ManagedOOM notifications around user reload; add `TEST-55-OOMD.sh` scenario | promote through Linux Fieldwork, VM queue |
 | 10 | CPython | [`GenericAlias` iterator race issue](https://redirect.github.com/python/cpython/issues/154916) | free-threaded data race | free-threaded TSAN | no matching PR found; follows merged change 154108 | design atomic read/strong-reference path; use a bounded test accepted by maintainers | issue-first or focused patch |
 | 11 | CPython | [`<>` tokenizer issue](https://redirect.github.com/python/cpython/issues/151464) | token stream and parser language disagree | current CI | related syntax-suggestion work exists, exact issue uncovered | specify token behavior with and without `barry_as_FLUFL`; add tokenizer regression | retain |
@@ -39,6 +39,7 @@ Stop independent implementation unless a claim is released or the contributor/ma
 
 | Target | Issue | Existing work | Retained value |
 |---|---|---|---|
+| libarchive | [PPMd small-buffer issue](https://redirect.github.com/libarchive/libarchive/issues/3337) | [PR 3340](https://redirect.github.com/libarchive/libarchive/pull/3340) | input-consumption accounting across parser refill blocks and a compact 1000-byte-read regression fixture |
 | Nixpkgs | [pandoc Lua feature issue](https://redirect.github.com/NixOS/nixpkgs/issues/540900) | [package PR 540913](https://redirect.github.com/NixOS/nixpkgs/pull/540913) | converting a silently disabled feature into a hard build contract |
 | Nixpkgs | [Darwin libffi issue](https://redirect.github.com/NixOS/nixpkgs/issues/541367) | [package PR 541990](https://redirect.github.com/NixOS/nixpkgs/pull/541990) | platform-transition diagnosis and focused workaround |
 | CPython | [zip repack/live-reader issue](https://redirect.github.com/python/cpython/issues/154842) | [PR 154843](https://redirect.github.com/python/cpython/pull/154843) | guard mutable archive operations against live readers |
@@ -51,4 +52,4 @@ Stop independent implementation unless a claim is released or the contributor/ma
 
 ## Active implementation limit
 
-Keep at most three newly implemented candidates awaiting first review. The preferred first three are Ruff's annotation/runtime boundary, DuckDB's partition collision, and libarchive's short-read boundary. The Nixpkgs package diagnosis can run independently because it begins with an override and test restoration rather than an upstream code branch.
+Keep at most three newly implemented candidates awaiting first review. The preferred first three are Ruff's annotation/runtime boundary, DuckDB's partition collision, and the Nixpkgs `gomarkdoc` test restoration through Linux Fieldwork. Recheck issue comments, linked work, assignees, claims, and pull requests immediately before creating each branch.
