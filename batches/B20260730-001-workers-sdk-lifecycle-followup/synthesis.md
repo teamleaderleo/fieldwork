@@ -1,6 +1,6 @@
 # Workers SDK lifecycle follow-up synthesis
 
-State: `ready-for-synthesis`
+State: `complete`
 
 Batch: `B20260730-001`
 
@@ -54,7 +54,7 @@ Browser and proxy cleanup run before `Runtime.dispose()`. A rejection can skip r
 
 Disposition: **accept behavior-preserving protocol direction; hold default changes**
 
-The matrix covers extension precedence, upward versus root-only search, redirect policy, and explicit-path convergence, including farther parent JSON against nearer JSONC/TOML.
+The source trace distinguishes extension precedence, upward versus root-only search, redirect policy, and explicit-path convergence, including farther parent JSON against nearer JSONC/TOML. The prepared package matrix is designed to verify those dimensions across supported layouts and platforms.
 
 ### A003 — post-activation deployment state
 
@@ -129,7 +129,7 @@ Import can therefore replace a host application's custom dispatcher and reroute 
 - #165, #179, #183, #186, #187, and #190 are separate filterable candidates.
 - #112 retains this synthesis and durable notes.
 - #87 owns generated coordination and stale-state validation.
-- PR #105 is a dated projection and does not override live issue state.
+- Closed PR #105 remains a dated design sample and does not override live issue state.
 
 ## Recommended execution order
 
