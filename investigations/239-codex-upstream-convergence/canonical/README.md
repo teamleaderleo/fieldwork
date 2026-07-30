@@ -2,7 +2,7 @@
 
 Parent workspace: [`../README.md`](../README.md)  
 Decision owner: Fieldwork #239 coordinator  
-Current upstream pin: `745603a5a1eb48b6f343633d622eeb72dd549d7b`  
+Current upstream pin: `a01a2d91461a57809e944de7758477b92617ab01`  
 Last reviewed for this index: 2026-07-31
 
 ## In simple words
@@ -16,7 +16,7 @@ The findings remain the evidence trail. Canonical outputs select and explain tha
 | Output | Audience and purpose | Status | Evidence inputs | Current limit |
 | --- | --- | --- | --- | --- |
 | [`convergence-model.md`](convergence-model.md) | Any reader who needs to understand what #239 is doing and why | `accepted` for internal orientation | problem map, drift ledger, alternatives, precedent | system explanation; no source proposal acceptance |
-| [`../findings/upstream-drift-and-overlap.md`](../findings/upstream-drift-and-overlap.md) | Workers and reviewers deciding whether a historical Codex candidate survives current upstream | `candidate` | exact source pins, current file overlap, carrier state | refresh after relevant upstream drift or carrier publication |
+| [`../findings/upstream-drift-and-overlap.md`](../findings/upstream-drift-and-overlap.md) plus [`../evidence/upstream-snapshot-2026-07-31.md`](../evidence/upstream-snapshot-2026-07-31.md) | Workers and reviewers deciding whether a historical Codex candidate survives current upstream | `candidate` | exact source pins through `a01a2d...`, current file overlap, carrier state | refresh after relevant upstream drift or carrier publication |
 | Append acknowledgement proposal packet | Codex source reviewer | `pending` | owned Codex #51/#52 and persistence prior art | waits for exact current-head source publication and review |
 | Terminal producer-retention proposal packet | Codex source reviewer | `pending` | owned Codex #49/#53 and current unified-exec prior art | waits for exact carrier result and source-only diff review |
 | MCP refresh generation proposal packet | Codex runtime reviewer | `pending` | owned Codex #46/#48 plus current upstream reconnect work | current overlap with upstream #34952/#35151 requires exact comparison |
@@ -67,7 +67,8 @@ Inputs:
 - [`../findings/problem-map.md`](../findings/problem-map.md);
 - [`../findings/upstream-drift-and-overlap.md`](../findings/upstream-drift-and-overlap.md);
 - [`../alternatives/approach-selection.md`](../alternatives/approach-selection.md);
-- [`../precedent/fieldwork-and-upstream-prior-art.md`](../precedent/fieldwork-and-upstream-prior-art.md).
+- [`../precedent/fieldwork-and-upstream-prior-art.md`](../precedent/fieldwork-and-upstream-prior-art.md);
+- [`../evidence/upstream-snapshot-2026-07-31.md`](../evidence/upstream-snapshot-2026-07-31.md).
 
 Limits:
 
