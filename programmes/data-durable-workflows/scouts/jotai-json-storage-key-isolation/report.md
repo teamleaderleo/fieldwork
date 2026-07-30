@@ -1,6 +1,6 @@
 # Jotai JSON storage key isolation
 
-State: `candidate-prepared`
+State: `candidate-executed`
 
 Fieldwork lane: #235  
 Evidence PR: #228  
@@ -10,13 +10,15 @@ Superseded carriers: PR #236 and PR #242
 Target repository: `pmndrs/jotai`  
 Released package: `jotai@2.20.2`  
 Exact source under candidate test: `56a9cc51de8a5dd762b95a145820f12589cc47c9`  
+Candidate execution run: `30569068795`  
+Fieldwork integrity run: `30569068778`  
 Upstream contact authorized: `false`
 
 ## In simple words
 
 Jotai's released JSON storage adapter keeps one remembered JSON string and parsed value for the entire adapter. Two independent storage keys containing the same JSON therefore receive the same object instance. Mutating the object returned for one key changes the object already returned for the other key without a write or notification for that second key.
 
-The candidate keeps the historical same-key identity behavior, scopes the cache by storage key, and changes removal invalidation only after the underlying storage operation succeeds.
+The executed candidate keeps the historical same-key identity behavior, scopes the cache by storage key, and changes removal invalidation only after the underlying storage operation succeeds.
 
 ## Confirmed released behavior
 
@@ -53,7 +55,7 @@ It must add isolation between different keys whose serialized JSON is equal.
 
 ## Candidate source change
 
-Prepared generated diff:
+Executed generated diff:
 
 `candidate.patch`
 
@@ -77,7 +79,7 @@ The patch does not change atom construction, subscription wiring, replacer/reviv
 
 ## Native regression
 
-Prepared test:
+Executed test:
 
 `atomWithStorageKeyIsolation.test.ts`
 
@@ -97,9 +99,17 @@ It covers:
 
 The interleaved control rejects a weaker one-entry key cache that would lose same-key identity whenever another atom reads between two reads of the first key.
 
-## Exact-source workflow
+## Exact-source execution
 
-The workflow checks out exact Jotai source `56a9cc51...`, applies the generated diff with `git apply --check`, stages the native regression, installs the exact lockfile with pnpm 11.3.0, runs the new and existing storage suites, then runs ESLint, Prettier, and TypeScript on Node 22, 24, and 26.
+Run `30569068795` checked out exact Jotai source `56a9cc51...`, applied the generated diff with `git apply --check`, staged the native regression, installed the exact lockfile with pnpm 11.3.0, and passed on Node 22, 24, and 26:
+
+- candidate key-isolation and removal-settlement tests;
+- the existing `atomWithStorage.test.tsx` suite;
+- ESLint on the changed source and test;
+- Prettier on the changed source and test;
+- `tsc --noEmit`.
+
+Fieldwork integrity run `30569068778` also passed on the same head.
 
 ## Carrier history
 
@@ -109,7 +119,7 @@ PR #236 did not execute a candidate result:
 - a corrected patch was later re-corrupted by guessed hunk metadata;
 - the final corrected head became non-mergeable and received no new workflow dispatch.
 
-PR #242 correctly identified that early cache deletion changed public identity after failed or pending removal. Its branch was stacked on the superseded PR #236 carrier and became non-mergeable. The four removal-settlement controls and the successful-settlement source rule are now incorporated directly into this current-main restack.
+PR #242 correctly identified that early cache deletion changed public identity after failed or pending removal. Its branch was stacked on the superseded PR #236 carrier and became non-mergeable. The four removal-settlement controls and the successful-settlement source rule are incorporated directly into this current-main restack.
 
 No execution result transfers from either predecessor carrier.
 
@@ -117,7 +127,7 @@ No execution result transfers from either predecessor carrier.
 
 A per-key `Map` can retain entries for dynamic keys until the adapter is discarded or a successful `removeItem(key)` settles. That memory tradeoff requires an explicit production decision.
 
-The candidate also does not establish universal same-key identity under out-of-order asynchronous reads. A late older read can replace the per-key cache entry after a newer read resolves, causing a later current read to parse again. That race predates the candidate; it limits the claim rather than automatically rejecting the narrow cross-key repair.
+The candidate does not establish universal same-key identity under out-of-order asynchronous reads. A late older read can replace the per-key cache entry after a newer read resolves, causing a later current read to parse again. That race predates the candidate; it limits the claim without invalidating the narrow cross-key repair.
 
 Concurrent `setItem` and `removeItem` authority remains unchanged. This candidate owns parsed-object identity and successful-removal invalidation, not a general storage-operation generation protocol.
 
@@ -125,8 +135,9 @@ Concurrent `setItem` and `removeItem` authority remains unchanged. This candidat
 
 - released cross-key alias: `target-executed`;
 - source history and original intent: `source-read`;
-- key-scoped and removal-settlement candidate: `target-test-prepared`;
-- repository-native regression: prepared, not yet executed on this exact head;
+- key-scoped and removal-settlement candidate: `target-executed`;
+- repository-native focused regression: `target-executed` on Node 22, 24, and 26;
+- changed-file lint, formatting, and type checks: `target-executed`;
 - full repository test/build: absent;
 - dynamic-key retention policy: unresolved;
 - asynchronous read completion ordering: unchanged and unresolved;
@@ -136,15 +147,14 @@ Concurrent `setItem` and `removeItem` authority remains unchanged. This candidat
 
 ## Current disposition
 
-**ACCEPT the bounded released finding. EXECUTE the restacked exact-source candidate matrix. HOLD implementation acceptance until exact tests, complete-diff review, and cache-lifecycle policy settle.**
+**ACCEPT the bounded released finding and the exact-source candidate execution. HOLD production implementation acceptance until the per-key map lifecycle is accepted, a direct owned-fork source branch passes ordinary repository gates, and the complete source diff receives independent review.**
 
-After a focused pass:
+Next promotion requirements:
 
-1. retain exact job receipts;
-2. review the applied source and test diff;
-3. decide whether the per-key map lifecycle is acceptable;
-4. prepare an owned-fork direct source branch rather than leaving the candidate only as a Fieldwork patch;
-5. run Jotai's ordinary format, types, lint, specs, and build on that direct head;
-6. refresh duplicate/history search before any upstream packet.
+1. decide whether the per-key map retention lifecycle is acceptable or needs explicit eviction;
+2. prepare an owned-fork direct source branch instead of leaving the candidate only as a Fieldwork patch;
+3. run Jotai's ordinary format, types, lint, specs, and build on that direct head;
+4. inspect the complete applied source and test diff;
+5. refresh duplicate/history search before any upstream packet.
 
 No public upstream interaction occurred.
