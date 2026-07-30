@@ -161,14 +161,21 @@ def _binary_section_is_valid(section: FileSection) -> bool:
 
 
 
-def _finish_binary_payload(path: str, section: FileSection) -> None:
+def _finish_binary_payload(
+    path: str,
+    section: FileSection,
+    *,
+    require_header: bool = False,
+) -> None:
     if not section.has_git_binary_marker:
         return
     if section.binary_payload_header_line is None:
-        raise PatchSyntaxError(
-            f"{path}:{section.start_line}: "
-            "GIT binary patch marker has no payload header"
-        )
+        if require_header:
+            raise PatchSyntaxError(
+                f"{path}:{section.start_line}: "
+                "GIT binary patch marker has no payload header"
+            )
+        return
     if not section.binary_payload_has_data:
         raise PatchSyntaxError(
             f"{path}:{section.binary_payload_header_line}: "
@@ -178,7 +185,7 @@ def _finish_binary_payload(path: str, section: FileSection) -> None:
 
 
 def _finish_section(path: str, section: FileSection) -> None:
-    _finish_binary_payload(path, section)
+    _finish_binary_payload(path, section, require_header=True)
     if (
         section.has_hunk
         or _binary_section_is_valid(section)
