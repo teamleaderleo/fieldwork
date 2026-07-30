@@ -1,0 +1,92 @@
+{
+  "direct_recursion": {
+    "outer": {
+      "state": "fulfilled",
+      "value": "direct-contained"
+    },
+    "nested": {
+      "state": "fulfilled",
+      "value": "direct-contained"
+    },
+    "samePromise": false
+  },
+  "delayed_same_owner_recursion": {
+    "outer": {
+      "state": "pending"
+    },
+    "nested": {
+      "state": "pending"
+    },
+    "childResultSameAsOuter": true,
+    "nestedSameAsOuter": true
+  },
+  "unrelated_external_join": {
+    "samePromise": true,
+    "first": {
+      "state": "fulfilled",
+      "value": "done"
+    },
+    "second": {
+      "state": "fulfilled",
+      "value": "done"
+    }
+  },
+  "cross_owner_nesting": {
+    "first": {
+      "state": "fulfilled",
+      "value": "first-owner-done"
+    },
+    "second": {
+      "state": "fulfilled",
+      "value": "second-owner-done"
+    }
+  },
+  "promise_identity_check": {
+    "childPromiseSameAsOuter": false,
+    "outer": {
+      "state": "pending"
+    },
+    "child": {
+      "state": "pending"
+    }
+  },
+  "caller_local_deadline": {
+    "caller": "caller-timeout",
+    "ownerAfterTimeout": {
+      "state": "pending"
+    }
+  },
+  "operation_wide_watchdog": {
+    "samePromise": true,
+    "first": {
+      "state": "rejected",
+      "error": "Error: operation-timeout"
+    },
+    "second": {
+      "state": "rejected",
+      "error": "Error: operation-timeout"
+    }
+  },
+  "explicit_owner_token": {
+    "samePromise": true,
+    "first": {
+      "state": "rejected",
+      "error": "Error: same-owner-lifecycle-reentry"
+    },
+    "external": {
+      "state": "rejected",
+      "error": "Error: same-owner-lifecycle-reentry"
+    }
+  },
+  "suppress_all_inflight_calls": {
+    "outer": {
+      "state": "fulfilled",
+      "value": "done"
+    },
+    "external": {
+      "state": "fulfilled",
+      "value": "inflight-suppressed"
+    },
+    "samePromise": false
+  }
+}
