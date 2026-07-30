@@ -82,6 +82,7 @@ class ReceiptClassifierTests(unittest.TestCase):
             validate_receipt_schema(receipt)
 
     def test_schema_rejects_boolean_schema_versions(self):
+        # JSON booleans compare equal to Python integers, so type is part of v1.
         document = json.loads(json.dumps(self.document))
         document["schema_version"] = True
         with self.assertRaisesRegex(ValueError, "document schema_version must be"):
