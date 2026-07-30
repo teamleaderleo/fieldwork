@@ -104,7 +104,7 @@ describe('createJSONStorage key isolation', () => {
     expect(beta).not.toBe(alpha)
   })
 
-  it('invalidates only the removed key cache', () => {
+  it('invalidates only the synchronously removed key cache', () => {
     const values = new Map([
       ['alpha', encoded(1)],
       ['beta', encoded(1)],
@@ -128,7 +128,7 @@ describe('createJSONStorage key isolation', () => {
     expect(secondBeta).toBe(firstBeta)
   })
 
-  it('preserves cached identity when synchronous removal throws', () => {
+  it('invalidates cached identity when synchronous removal throws', () => {
     const values = new Map([['alpha', encoded(1)]])
     const removalError = new Error('remove failed')
     const storage = createJSONStorage<StoredValue>(() => ({
@@ -142,10 +142,12 @@ describe('createJSONStorage key isolation', () => {
     const firstAlpha = storage.getItem('alpha', { nested: { count: -1 } })
 
     expect(() => storage.removeItem('alpha')).toThrow(removalError)
-    expect(storage.getItem('alpha', { nested: { count: -2 } })).toBe(firstAlpha)
+    expect(storage.getItem('alpha', { nested: { count: -2 } })).not.toBe(
+      firstAlpha,
+    )
   })
 
-  it('preserves cached identity when asynchronous removal rejects', async () => {
+  it('invalidates cached identity when asynchronous removal rejects', async () => {
     const values = new Map([['alpha', encoded(1)]])
     const removalError = new Error('remove failed')
     const storage = createJSONStorage<StoredValue>(() => ({
@@ -163,12 +165,12 @@ describe('createJSONStorage key isolation', () => {
     })
 
     await expect(storage.removeItem('alpha')).rejects.toThrow(removalError)
-    expect(await storage.getItem('alpha', { nested: { count: -2 } })).toBe(
+    expect(await storage.getItem('alpha', { nested: { count: -2 } })).not.toBe(
       firstAlpha,
     )
   })
 
-  it('preserves cached identity while asynchronous removal is pending', async () => {
+  it('preserves identity while async removal is pending, then invalidates', async () => {
     const values = new Map([['alpha', encoded(1)]])
     let finishRemoval: (() => void) | undefined
     const removal = new Promise<void>((resolve) => {
@@ -196,9 +198,62 @@ describe('createJSONStorage key isolation', () => {
 
     finishRemoval?.()
     await pendingRemoval
+    values.set('alpha', encoded(1))
+
+    expect(await storage.getItem('alpha', { nested: { count: -3 } })).not.toBe(
+      firstAlpha,
+    )
   })
 
-  it('clears only the successfully removed key after async settlement', async () => {
+  it('does not resurrect identity after commit-then-reject removal', async () => {
+    const values = new Map([['alpha', encoded(1)]])
+    const removalError = new Error('acknowledgement lost')
+    const storage = createJSONStorage<StoredValue>(() => ({
+      getItem: async (key) => values.get(key) ?? null,
+      setItem: async (key, value) => {
+        values.set(key, value)
+      },
+      removeItem: async (key) => {
+        values.delete(key)
+        throw removalError
+      },
+    }))
+
+    const firstAlpha = await storage.getItem('alpha', {
+      nested: { count: -1 },
+    })
+
+    await expect(storage.removeItem('alpha')).rejects.toThrow(removalError)
+    values.set('alpha', encoded(1))
+
+    expect(await storage.getItem('alpha', { nested: { count: -2 } })).not.toBe(
+      firstAlpha,
+    )
+  })
+
+  it('invalidates the cache when the storage owner disappears', () => {
+    const values = new Map([['alpha', encoded(1)]])
+    const stringStorage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    }
+    let available = true
+    const storage = createJSONStorage<StoredValue>(() =>
+      available ? stringStorage : undefined,
+    )
+
+    const firstAlpha = storage.getItem('alpha', { nested: { count: -1 } })
+    available = false
+    storage.removeItem('alpha')
+    available = true
+
+    expect(storage.getItem('alpha', { nested: { count: -2 } })).not.toBe(
+      firstAlpha,
+    )
+  })
+
+  it('clears only the settled asynchronous removal key', async () => {
     const values = new Map([
       ['alpha', encoded(1)],
       ['beta', encoded(1)],
