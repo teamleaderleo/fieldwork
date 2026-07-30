@@ -178,6 +178,28 @@ class CasePackPrimitiveFieldTests(unittest.TestCase):
         self.assertEqual(len(failures), 1)
         self.assertIn("stdout_json expected True, got 1", failures[0])
 
+    def test_stdout_json_does_not_conflate_nested_booleans_and_numbers(self) -> None:
+        controls = (
+            (
+                {"items": [{"enabled": True}]},
+                '{"items":[{"enabled":1}]}',
+            ),
+            (
+                {"items": [{"enabled": 1}]},
+                '{"items":[{"enabled":true}]}',
+            ),
+        )
+        for expected, stdout in controls:
+            with self.subTest(expected=expected, stdout=stdout):
+                failures = check_expectations(
+                    {"expect": {"stdout_json": expected}},
+                    exit_code=0,
+                    stdout=stdout,
+                    stderr="",
+                    timed_out=False,
+                )
+                self.assertEqual(len(failures), 1)
+
     def test_stdout_json_preserves_json_numeric_equivalence(self) -> None:
         failures = check_expectations(
             {"expect": {"stdout_json": {"value": 1}}},
