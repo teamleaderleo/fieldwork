@@ -18,17 +18,15 @@ Upstream contact authorized: false
 - [HDR/browser-surface merge](https://redirect.github.com/gfx-rs/wgpu/commit/3fb225a9c6240bd7e9db3d202410db6d894368ec)
 - [WebGPU editor-draft source](https://redirect.github.com/gpuweb/gpuweb/commit/d390da5f80f18e82d9535a40c6f2f1f65e6884ae)
 - [WebGPU CTS source](https://redirect.github.com/gpuweb/cts/commit/dc20b8682aa71ff31f135de6ae7f8acaa2e16383)
-- owned fork test head: `teamleaderleo/wgpu@77c46ce89efab608b1d377b3d6cecf18b006fb72`
+- owned fork test head: `teamleaderleo/wgpu@455a8711984b0166533fa3441d65a9e58777d9ca`
 
-### Pin correction
+An earlier WebGPU specification SHA did not resolve and has been removed. The CTS pin remains valid.
 
-An earlier draft named `134c29d8ac3e4fb20c96028de95cf1e92d1a5192` as the WebGPU specification revision. GitHub does not resolve that value as a commit in the specification repository. It has been replaced with the verified editor-draft source commit above. The CTS pin was independently verified and remains valid.
+No compile, browser, native GPU, Playwright, or target test execution is claimed. Evidence is `source-read` or `target-test-prepared` unless stated otherwise.
 
-No released binary, browser, native GPU, Playwright, or repository test execution is claimed below. Evidence is explicitly scoped as `source-read` or `target-test-prepared`.
+## Core question
 
-## In simple words
-
-The main seam is no longer merely “browser configuration can fail.” It is that one public operation crosses several different pieces of state without an acceptance receipt:
+One public operation crosses several independently meaningful states:
 
 ```text
 caller request
@@ -36,26 +34,12 @@ caller request
 → canvas/window mutation
 → raw backend configuration
 → public configuration cache
-→ typed acquisition outcome
+→ acquisition object/status
+→ separately delivered validation/error
 → recovery guidance
 ```
 
-`Surface::configure` calls a dispatch method returning `()`, then caches the request. Native and browser implementations can return after not applying the complete request. The public wrapper cannot tell accepted state from rejected or partially applied state.
-
-## Claim-scoped status
-
-| Claim | Evidence class | Important exclusion |
-| --- | --- | --- |
-| Public configuration caching is not tied to backend acceptance | source-read | no executed reproduction |
-| Browser unsupported color-space mapping returns before raw canvas configuration | source-read plus target-test-prepared | browser test not executed |
-| Browser configuration mutates canvas width and height before later rejection | source-read plus target-test-prepared | raw runtime state not observed yet |
-| Browser unconfigured acquisition maps raw invalid state to `Lost` | source-read plus target-test-prepared | browser test not executed |
-| Browser raw acquisition exceptions are all collapsed to `Lost` | source-read | exception families not injected |
-| Native validation can preserve an earlier presentation while public cache changes | source-read | no core-backed runtime control |
-| Public surface-texture metadata can follow rejected cache values | source-read risk | wrapper and core controls not executed |
-| Ordinary wasm runtime initialization selects WebGL rather than browser WebGPU | source-read | actual headless adapter availability unmeasured |
-
-No claim is `target-executed`, `integration-executed`, or `full-gate`.
+Public `Surface::configure` calls backend dispatch returning `()`, then caches the request. The wrapper cannot know whether the request was accepted, rejected, partially applied, or applied with a diagnostic.
 
 ## Architecture
 
@@ -66,171 +50,233 @@ public Rust API (`wgpu`)
 → Vulkan / Metal / DX12 / GLES
 ```
 
-On WebAssembly, the same public API can dispatch directly to the browser WebGPU implementation instead of `wgpu-core`. Naga owns shader parsing, validation, and translation. This split is intentional; the goal is truthful cross-layer state and recovery, not identical backend mechanics.
+On WebAssembly, the public crate can dispatch directly to browser WebGPU. The goal is truthful public state and recovery across these paths, not identical mechanics.
 
-## Public surface wrapper
+## Claim-scoped status
 
-`Surface` stores:
+| Claim | Evidence class | Exclusion |
+| --- | --- | --- |
+| Public cache is not acceptance-bound | source-read | no executed reproduction |
+| Unsupported browser color space rejects before raw configure | source-read plus target-test-prepared | test unexecuted |
+| Canvas extent mutates before later rejection | source-read plus target-test-prepared | test unexecuted |
+| Unconfigured browser acquisition maps invalid state to `Lost` | source-read plus target-test-prepared | test unexecuted |
+| Zero-sized browser configure is applied with validation | CTS/source-read plus target-test-prepared | test unexecuted |
+| Public `Success` may carry a zero-sized error texture | source prediction plus target-test-prepared | exact variant unexecuted |
+| Native validation can preserve an earlier presentation | source-read | no core-backed control |
+| Public texture metadata can follow rejected cache | source-read risk | wrapper/core controls unexecuted |
+| Ordinary wasm initializer does not execute browser WebGPU | source-read | headless adapter unmeasured |
 
-- a dispatched backend surface;
-- a mutex-protected configuration cache;
-- an optional source handle retained for backend lifetime.
+No claim is `target-executed`, `integration-executed`, or `full-gate`.
 
-Public `Surface::configure`:
+## Public wrapper state
 
-1. invokes backend `configure`;
-2. receives no acceptance result;
-3. stores a clone of the requested configuration.
+`Surface` stores a dispatched backend surface and a mutex-protected `SurfaceConfiguration` cache. Public `configure`:
 
-`get_configuration()` therefore returns last published request state, not demonstrably accepted backend state.
+1. invokes backend configure;
+2. receives no disposition;
+3. stores the request.
 
-A successful or suboptimal acquisition constructs the public `Texture` descriptor from this cache. Width, height, format, and usage can therefore be wrong if the cache and accepted backend state diverge.
+`get_configuration()` is therefore last published request state, not demonstrably accepted state.
 
-## Browser WebGPU configuration ordering
+Successful or suboptimal acquisition constructs the public texture descriptor from this cache. Width, height, format, and usage can diverge from the actual backend texture when accepted state differs.
 
-The browser backend performs operations in this order:
+## Browser configure ordering
 
-1. set HTML or offscreen canvas width and height from the request;
-2. validate web-only present mode;
-3. validate web-only alpha mode;
-4. map format, usage, color space, and view formats;
-5. reject locally unrepresentable color spaces or call raw `GPUCanvasContext.configure`;
-6. set or clear `configure_failed`.
+Browser WebGPU performs:
 
-This ordering creates a new partial-state case.
+1. write requested width and height to HTML/offscreen canvas;
+2. validate present mode and alpha mode;
+3. map format, usage, color space, and view formats;
+4. reject locally unrepresentable values or invoke raw `GPUCanvasContext.configure`;
+5. set or clear `configure_failed`.
 
-### Rejected request after an accepted baseline
+The canvas can therefore mutate before rejection or panic.
 
-For `ExtendedSrgbLinear`, wgpu rejects locally before raw `GPUCanvasContext.configure`. However, canvas dimensions were already changed.
+## Browser state A — unconfigured acquisition
 
-Source predicts:
+Raw WebGPU throws `InvalidStateError` when `getCurrentTexture` is called before configure. The browser backend catches the exception and returns `CurrentSurfaceTexture::Lost`.
+
+Public `Lost` guidance says surface recreation, although configuration is the missing operation.
+
+Native core differs:
+
+- configured surfaces route acquisition errors to their retained device error sink and return `Validation`;
+- before successful configuration, no surface error sink exists and the error is fatal by default.
+
+This is a source-confirmed backend difference in public recovery semantics.
+
+## Browser state B — applied with diagnostic
+
+The WebGPU CTS treats zero canvas size as validation, not synchronous rejection.
+
+Raw sequence:
 
 ```text
-raw GPUCanvasContext configuration = earlier accepted configuration
-canvas width/height = rejected request
-public Surface cache = rejected request
-wgpu configure_failed = true
-wgpu acquisition = Lost
-raw acquisition = potentially usable at resized canvas extent
+canvas extent has zero dimension
+→ configure emits validation
+→ configuration dictionary remains installed
+→ repair canvas extent without another raw configure
+→ getCurrentTexture can work
 ```
 
-This is not simply “the previous configuration remains.” Configuration ownership is split: raw WebGPU configuration can remain old while the drawing-buffer extent and Rust cache already reflect the rejected request.
+A zero-sized acquisition returns an error texture and emits validation.
 
-The owned-fork characterization now changes a 2×2 baseline to a rejected 7×5 request and checks the canvas and raw texture dimensions separately.
+Current wgpu source predicts:
 
-## Browser acquisition classification
+```text
+Surface::configure returns
+validation error scope captures configure error
+public cache = zero-sized request
+raw context = configured
+public acquisition = Success or Suboptimal(error texture)
+public texture descriptor = zero-sized request
+validation error scope captures acquisition error
+```
 
-### Before any successful configuration
+This contradicts the public documentation's unconditional “zero width or height panics” description on the browser path.
 
-Raw WebGPU reports invalid state when `getCurrentTexture` is called on an unconfigured context. The browser wgpu backend catches the exception and returns `CurrentSurfaceTexture::Lost`.
+It also proves why validation cannot be equated with rejection: configuration may be installed and later become usable when extent is repaired.
 
-The public `Lost` documentation says to recreate the surface, or device and resources when device loss is involved. For an unconfigured context, the missing action is configuration, not recreation.
+## Browser state C — rejected after partial mutation
 
-Native core does not use the same classification:
+For unsupported `ExtendedSrgbLinear`, wgpu rejects locally before raw configure, but only after applying canvas dimensions.
 
-- after a successful configuration, acquisition errors are routed to the retained device error sink and returned as `Validation`;
-- before any successful configuration, no retained error sink exists and the core path treats the error as fatal by default.
+After an accepted 2×2 baseline, a rejected 7×5 request can produce:
 
-This is a source-confirmed backend difference in public recovery semantics. It may be acceptable, but it must be documented or refined rather than treated as one uniform notion of surface loss.
+```text
+raw WebGPU configuration = earlier accepted baseline
+canvas extent = 7×5 rejected request
+public cache = 7×5 rejected request
+configure_failed = true
+public acquisition = Lost
+raw acquisition = usable at 7×5 extent
+```
 
-### Raw acquisition exceptions after configuration
+The prior state is not fully preserved. Configuration dictionary, drawable extent, public cache, and typed status disagree.
 
-Any JavaScript exception from `GPUCanvasContext.getCurrentTexture` is logged and mapped to `Lost`. The typed result does not preserve whether the raw exception represented:
+A supported same-surface configure clears the failure flag and realigns state. Recreating the surface while retrying the same unsupported request fails again.
+
+## Browser acquisition exceptions
+
+Every thrown raw `getCurrentTexture` exception is logged and mapped to `Lost`. The typed result does not preserve whether the exception represented:
 
 - invalid state;
 - device loss;
 - out-of-memory or internal failure;
-- an implementation-specific transient failure;
+- transient implementation failure;
 - another browser exception.
 
-A focused injection or browser matrix is needed before proposing new public variants.
+An exception matrix is required before proposing new public variants.
 
-## Browser output cleanup
+## Native/core state
 
-`SurfaceTexture` calls backend discard when dropped normally without presentation and release during Rust unwinding.
-
-Browser WebGPU implements both operations as no-ops because it cannot explicitly discard the browser canvas texture. Native backends can perform real cleanup.
-
-This is likely platform-owned behavior, not a defect. It does mean tests and applications must not infer native discard semantics from the public drop path on web.
-
-## Native/core configuration state
-
-Core validates a proposed configuration before removing an existing `Presentation`.
+Core validates before removing an existing `Presentation`.
 
 ### Validation rejection
 
-A validation failure can preserve the earlier accepted presentation. The outer Rust wrapper still caches the rejected request.
-
-Possible state:
+A rejected second configuration can preserve the earlier presentation while the public wrapper caches the request:
 
 ```text
 core presentation = accepted baseline
-public configuration cache = rejected request
-core acquisition = baseline presentation
+public cache = rejected request
+core acquisition = baseline
 public Texture descriptor = rejected request
 ```
 
-This can affect observable width, height, format, and usage.
+This can corrupt observable metadata without losing the underlying presentation.
 
 ### HAL configuration failure
 
-Later in the core path, the previous presentation is removed before calling HAL configure. If HAL fails, the previous presentation is not restored.
+The old presentation is removed before HAL configure. If HAL fails, the prior presentation is not restored.
 
-Thus two rejected configure calls can leave different backend states:
+Thus rejected configure can mean either:
 
-- rejection preserving previous accepted presentation;
-- rejection leaving the surface unconfigured.
+- previous accepted state remains;
+- no accepted state remains.
 
-Both currently look like a returned `()` to the public wrapper and publish the request. A future internal result cannot safely be only a success boolean if recovery needs to distinguish these states.
+Both look like returned `()` to the public wrapper.
 
-## Presentation and frame ownership
+## Provisional configure taxonomy
 
-`Queue::present` marks the public `SurfaceTexture` as presented before calling backend present. Backend present also returns `()` at the dispatch boundary; native present errors are routed to the error sink.
+Execution may revise the names, but the source already requires more than a boolean:
 
-Consequently, a present failure does not cause the public texture drop path to discard or release the frame—the public object has already transferred ownership. This appears intentional, but it is another lifecycle point where operation outcome and public ownership state are separate.
+- `Applied`;
+- `AppliedWithDiagnostic`;
+- `RejectedUnconfigured`;
+- `RejectedPreservingPrevious`;
+- `RejectedAfterPartialMutation`.
 
-Future tests should distinguish:
+A public `Result` is not the first step. First measure and choose the smallest internal truth needed by cache, texture metadata, examples, and recovery.
 
-- successful present;
-- present error routed to an error scope;
-- ordinary unpresented drop;
-- panic-unwind release;
-- reconfigure with a live frame;
-- surface or device loss after acquisition.
+## Frame ownership
 
-## WebGPU and CTS comparison
+Unpresented `SurfaceTexture` drop:
 
-The verified CTS source distinguishes:
+- calls discard normally;
+- calls release during Rust unwinding.
 
-- unconfigured context: `getConfiguration()` is null and `getCurrentTexture()` throws;
-- successful configuration: configuration and texture are observable;
-- synchronous type rejection from an initially unconfigured context: configuration remains null;
-- validation-error configuration where a context can still become configured.
+Browser discard and release are no-ops. Native backends can perform real cleanup.
 
-The inspected canvas configure suite does not cover this sequence:
+`Queue::present` marks the public frame presented before backend present. Native present errors are routed to the error sink instead of returned. Backend outcome and public ownership transfer are therefore separate lifecycle states.
+
+## Shared example framework
+
+The feature-example framework stores its local configuration immediately after `surface.configure` and mutates it before resize configure. It has no accepted-state record.
+
+Outcome policy:
+
+- `Timeout`/`Occluded`: skip;
+- `Suboptimal(texture)`: drop usable texture, reconfigure stored request, retry once;
+- `Outdated`: reconfigure stored request, retry once;
+- `Validation`: unreachable assumption;
+- `Lost`: recreate surface, apply stored request, retry once, panic if retry is not success/suboptimal.
+
+Rejected-configuration loop:
+
+```text
+configure request is rejected nonfatally
+→ example stores request
+→ acquisition reports Lost
+→ example recreates surface
+→ reapplies same request
+→ rejection repeats
+→ example panics
+```
+
+See `artifacts/example-recovery-outcome-audit.md`.
+
+## WebGPU and CTS gaps
+
+Verified CTS covers:
+
+- unconfigured context;
+- successful configure;
+- synchronous initial rejection;
+- validation-error configuration;
+- zero-size before and after configure;
+- resize invalidating current texture.
+
+The inspected suite does not cover:
 
 ```text
 valid accepted configuration
-→ synchronously rejected reconfiguration
+→ synchronous rejected reconfiguration
 → inspect retained configuration
+→ inspect canvas extent
 → inspect acquired texture
 ```
 
-It also lists color-space and tone-mapping coverage as unfinished. The wgpu raw-context controls therefore answer wrapper and prior-state questions rather than duplicating a settled CTS case.
+Color-space and tone-mapping canvas coverage is also listed as unfinished in the inspected configure suite.
 
 ## Wasm test infrastructure
 
-The ordinary wasm runtime job builds the GPU test binary with `webgl,exhaust`. The shared initializer removes `BROWSER_WEBGPU` when `webgl` is enabled.
+The ordinary wasm runtime job builds with `webgl,exhaust`. The shared initializer removes `BROWSER_WEBGPU` when WebGL is enabled.
 
-Before this branch:
+The owned-fork cases remain in the normal wasm binary but create an explicit browser-WebGPU instance and assert the adapter backend. Actual execution must prove headless adapter availability.
 
-- browser-WebGPU source received wasm build and clippy coverage;
-- runtime initialization selected WebGL;
-- no ordinary shared-initializer path executed browser WebGPU through the public Rust backend.
+## Owned-fork cases
 
-The owned-fork tests remain registered in the ordinary wasm binary but construct a separate explicit `BROWSER_WEBGPU` instance and assert the selected adapter backend. Actual execution must still prove that the Playwright/SwiftShader environment supplies a suitable adapter.
-
-## Owned-fork characterization
+Current head: `455a8711984b0166533fa3441d65a9e58777d9ca`
 
 File:
 
@@ -238,121 +284,68 @@ File:
 tests/tests/wgpu-gpu/create_surface_error.rs
 ```
 
-Current head: `77c46ce89efab608b1d377b3d6cecf18b006fb72`
-
 Prepared cases:
 
-1. existing unusable-canvas surface-creation error;
-2. unconfigured browser surface acquisition returns `Lost` while raw context stays unconfigured;
-3. accepted 2×2 baseline presents;
-4. rejected 7×5 unsupported color-space request is published publicly;
-5. canvas extent mutates to 7×5 before rejection;
-6. wgpu reports `Lost`;
-7. raw context remains configured and raw acquisition follows resized extent;
-8. supported same-surface reconfiguration restores 2×2 and presents;
-9. recreated surface plus the same rejected request remains `Lost`;
-10. supported configuration on the recreated surface presents.
+1. existing unusable-canvas creation error;
+2. unconfigured acquisition maps to `Lost`;
+3. zero-sized configure/acquire emits validation while returning configuration/error texture;
+4. accepted 2×2 baseline followed by rejected 7×5 partial-mutation path;
+5. same-surface supported recovery;
+6. recreated-surface invalid retry negative control;
+7. recreated-surface supported recovery.
 
-These assertions characterize source-predicted current behavior. They are not desired permanent regression semantics yet.
+These are characterization assertions, not selected permanent regression semantics.
 
-## Candidate internal contracts
+## Durable artifacts
 
-### Accepted-state disposition
-
-```text
-SurfaceInterface::configure(...) -> ConfigureDisposition
-```
-
-Potential states:
-
-- `Applied`;
-- `AppliedWithDiagnostic`;
-- `RejectedPreservingPrevious`;
-- `RejectedUnconfigured`.
-
-### Backend-owned accepted configuration
-
-The wrapper could query accepted state instead of publishing an unconditional request cache. This is closer to backend truth but complicates requested-versus-resolved semantics and custom backends.
-
-### Explicit requested and accepted state
-
-Retain a clearly named last-requested value but use separately retained accepted state for texture metadata and recovery. This avoids corrupting descriptors without pretending the request vanished.
-
-### Browser-only typed failure reason
-
-Replace `configure_failed: bool` with a private typed reason. This can improve browser recovery but does not solve native cache divergence by itself.
-
-Do not begin with a public `Surface::configure -> Result` redesign. Browser and core-backed execution should select the smallest viable contract.
+- `surface-config-rejection-test-plan.md`
+- `fork-characterization-log.md`
+- `surface-lifecycle-contract-matrix.md`
+- `native-public-cache-characterization-plan.md`
+- `protocol-aligned-status-and-next-probes.md`
+- `example-recovery-outcome-audit.md`
+- `zero-size-applied-with-validation.md`
 
 ## Next probes
 
-### P1 — execute browser tests
+### P1
 
-Required receipts:
+Execute the three browser cases with exact test identities, error scopes, adapter/browser receipts, raw/public state, and recovery controls.
 
-- exact fork head and test identity;
-- format and clippy commands;
-- browser and adapter information;
-- raw and public state before and after each operation;
-- same-surface and recreated-surface controls.
+### P1
 
-### P1 — public-wrapper metadata test
+Add private public-wrapper metadata characterization using noop device and minimal custom surface/texture/output detail through a safe complete-file edit.
 
-Add a private `surface.rs` unit characterization using a noop device and minimal custom surface, texture, and output-detail implementations. Prove backend accepted state, public cache, and public texture metadata separately.
+### P1
 
-Do not replace the large source file from truncated content. Use a safe checkout or complete tree/commit edit path.
+Build real core-backed validation control for retained presentation, cache, metadata, acquisition, and recovery.
 
-### P1 — core-backed validation control
+### P2
 
-Prove with a real core path:
+Measure raw valid-baseline followed by synchronous rejection and separate it from both local pre-rejection and validation-error configuration.
 
-- accepted baseline;
-- invalid second request;
-- error-scope result;
-- retained or cleared presentation;
-- acquisition result;
-- public metadata;
-- later valid recovery.
+### P2
 
-### P2 — raw rejected reconfiguration
+Inject acquisition exception classes and audit example recovery for every outcome and error texture.
 
-Measure valid baseline followed by raw synchronous rejection. Record whether prior configuration survives and whether resizing or other dictionary processing mutates related state first.
+### P3
 
-### P2 — acquisition exception matrix
-
-Separate unconfigured invalid state, device loss, out-of-memory/internal errors, and transient implementation exceptions before changing public status variants.
-
-### P2 — examples
-
-Audit `Success`, `Suboptimal`, `Timeout`, `Occluded`, `Outdated`, `Lost`, and `Validation`. Ensure examples do not retry an invalid configuration merely because the typed outcome is `Lost`.
-
-### P3 — cleanup and custom backends
-
-Map discard, release, present failure, unwinding, and custom-backend compatibility before changing dispatch contracts.
+Measure frame discard/release, present errors, live-frame reconfiguration, and custom-backend compatibility.
 
 ## Protocol position
 
-This lane remains outside Delivery Desk #160.
-
-There is no target-executed receipt, selected repair, canonical source-only implementation, accepted disposition, or bounded final gate. Issue #116, Fieldwork PR #126, and owned-fork PR #1 remain the canonical exploration records.
+This lane remains outside Delivery Desk #160. There is no target-executed receipt, selected repair, canonical source-only implementation, accepted disposition, or bounded final gate.
 
 ## Promotion gate
 
-Promote only after:
-
-- an executed contradiction or precise documentation/example mismatch;
-- exact source and execution receipts;
-- at least one negative control;
-- one selected owning subsystem and desired contract;
-- a source-only candidate branch;
-- independent exact-head review tied to issue/input generation;
-- explicit authority before upstream contact.
+Promote only after an executed contradiction or precise documentation mismatch, exact receipts, a negative control, selected owner and desired contract, source-only candidate, independent exact-head review tied to input generation, and explicit upstream authority.
 
 ## Stops
 
-- Do not call raw browser conformance failure where wgpu rejected before calling the browser.
-- Do not describe the browser state as complete preservation when canvas extent already mutated.
+- Do not call validation synchronous rejection.
+- Do not call an error texture usable merely because public acquisition says `Success`.
+- Do not describe prior state as fully preserved when extent mutated.
 - Do not upgrade authored tests to executed evidence.
-- Do not treat a custom wrapper test as proof of native core behavior.
-- Do not add a public API compatibility burden before measuring the state benefit.
+- Do not use a custom wrapper test as native proof.
+- Do not begin with a breaking public API redesign.
 - Do not contact upstream without explicit authorization.
