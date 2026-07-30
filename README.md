@@ -21,6 +21,7 @@ Fieldwork investigates external systems seriously before asking their maintainer
 - [`BATCHES.md`](BATCHES.md) — controlled temporary fan-out for many repositories, questions, and methods.
 - [`WORKBOARD.md`](WORKBOARD.md) — issue types, labels, states, and useful queue views.
 - [`COORDINATION.md`](COORDINATION.md) — programme scouts, campaign lanes, ownership, handoffs, synthesis, and completion signals.
+- [`REVIEWING.md`](REVIEWING.md) — evidence classes, exact-head review, canonical branches, promotion, and stale-state rules.
 - [Open Fieldwork issues](https://github.com/teamleaderleo/fieldwork/issues) — canonical live queue.
 
 ## Operating principle
@@ -74,7 +75,9 @@ Hubs are indexes, not giant task lists. Related issues are discovered through th
 
 **Repository research files are durable evidence.** They hold exact revisions, reproductions, reports, synthesis, and closeout records.
 
-Do not use one surface as a poor substitute for another. A scout is not complete after a code tour, a disposable test should not require campaign bureaucracy, a durable finding should not exist only in an issue comment, a testbed should not be presented as proof of ecosystem demand, and a toy reproduction should not be presented as proof of production impact.
+**Reviews are exact-head promotion decisions.** They classify the work, preserve the evidence class, name the canonical branch, and expire when the reviewed head or inputs change.
+
+Do not use one surface as a poor substitute for another. A scout is not complete after a code tour, a disposable test should not require campaign bureaucracy, a durable finding should not exist only in an issue comment, a testbed should not be presented as proof of ecosystem demand, a toy reproduction should not be presented as proof of production impact, and an execution carrier should not be presented as the canonical implementation.
 
 ## What Fieldwork prioritizes
 
@@ -116,6 +119,7 @@ Any public repository may be observed quietly when a user or coordinator assigns
 - [`METHOD.md`](METHOD.md) — campaign lifecycle and evidence method.
 - [`OPERATIONS.md`](OPERATIONS.md) — intake, triage, states, and stopping rules.
 - [`REFERENCE_POLICY.md`](REFERENCE_POLICY.md) — quiet external references and intentional contact.
+- [`REVIEWING.md`](REVIEWING.md) — review classes, evidence classes, exact heads, promotion, and staleness.
 - [`LABELS.md`](LABELS.md) — type, state, programme, target, testbed, coordination, and policy labels.
 - [`programmes/`](programmes/) — active portfolio and future scout reports.
 - [`targets/`](targets/) — target registry, hubs, and deeper ecosystem maps.
