@@ -238,6 +238,32 @@ HcmV?d00001
 """
         )
 
+    def test_accepts_two_binary_payload_blocks(self) -> None:
+        validate_patch_text(
+            """diff --git a/image.png b/image.png
+index 1111111..2222222 100644
+GIT binary patch
+literal 1
+Ic${Nk000310RR91
+
+literal 0
+HcmV?d00001
+"""
+        )
+
+    def test_rejects_truncated_second_binary_payload_block(self) -> None:
+        self.assert_invalid(
+            """diff --git a/image.png b/image.png
+index 1111111..2222222 100644
+GIT binary patch
+literal 1
+Ic${Nk000310RR91
+
+literal 1
+""",
+            "binary payload block contains no encoded data",
+        )
+
     def test_accepts_binary_files_summary(self) -> None:
         validate_patch_text(
             """diff --git a/image.png b/image.png
@@ -260,7 +286,7 @@ GIT binary patch
 GIT binary patch
 literal 10
 """,
-            "complete binary payload",
+            "binary payload block contains no encoded data",
         )
 
     def test_rejects_bare_diff_header(self) -> None:
