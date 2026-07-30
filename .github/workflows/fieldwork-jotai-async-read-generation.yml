@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/fieldwork-jotai-async-read-generation.yml'
       - 'programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation/candidate.patch'
+      - 'programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation/atomWithStorageKeyIsolation.test.ts'
+      - 'programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation/atomWithStorageReadInvalidation.test.ts'
       - 'programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation/atomWithStorageAsyncReadGeneration.test.ts'
   workflow_dispatch:
 
@@ -46,13 +48,20 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Apply selected key-scoped cache candidate
+      - name: Apply selected key-scoped cache candidate and native tests
         run: |
           cd jotai
-          git apply --check ../fieldwork/programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation/candidate.patch
-          git apply ../fieldwork/programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation/candidate.patch
-          cp ../fieldwork/programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation/atomWithStorageAsyncReadGeneration.test.ts \
-            tests/react/vanilla-utils/atomWithStorageAsyncReadGeneration.test.ts
+          source_dir=../fieldwork/programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation
+          target_dir=tests/react/vanilla-utils
+          git apply --check "$source_dir/candidate.patch"
+          git apply "$source_dir/candidate.patch"
+          for test_file in \
+            atomWithStorageKeyIsolation.test.ts \
+            atomWithStorageReadInvalidation.test.ts \
+            atomWithStorageAsyncReadGeneration.test.ts
+          do
+            cp "$source_dir/$test_file" "$target_dir/$test_file"
+          done
           git diff --check
 
       - name: Install exact repository dependencies
@@ -73,6 +82,8 @@ jobs:
         run: |
           changed_files=(
             src/vanilla/utils/atomWithStorage.ts
+            tests/react/vanilla-utils/atomWithStorageKeyIsolation.test.ts
+            tests/react/vanilla-utils/atomWithStorageReadInvalidation.test.ts
             tests/react/vanilla-utils/atomWithStorageAsyncReadGeneration.test.ts
           )
           pnpm eslint "${changed_files[@]}"
