@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import sys
 from pathlib import Path
 from typing import Any, Callable, Final
 
@@ -52,6 +53,7 @@ def load_fallback_classifier() -> Callable[[dict[str, Any]], Any]:
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot load fallback classifier from {path}")
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     classify = getattr(module, "classify", None)
     if not callable(classify):
