@@ -81,7 +81,7 @@ Model head `140e8bfbe6a6cd7e0d287d3e654f251c6f9917e3` passed:
 - Fieldwork integrity;
 - External reference policy.
 
-Current PR #221 head `9d8ba210a25df84214ae42886ffe40f02cf97713` adds review-queue notes. No current-head repository receipt is claimed for that later head.
+PR #221 was clean-restacked onto then-current `main` at `a1175fe70636ab0ea8d1734cdffc5bb2ab6e3d0e`. This report refresh creates a later exact head whose repository checks must settle independently before merge.
 
 The model establishes:
 
@@ -159,7 +159,7 @@ Prepared controls:
 - each case preserves one child shutdown invocation;
 - unrelated callers join the canonical promise.
 
-Unit, Lint, E2E, CodeQL, Bundler, W3C, API peer-dependency, and workflow-security runs are queued for all three exact heads. Evidence remains `target-test-prepared` until each matrix settles.
+Unit, Lint, E2E, CodeQL, Bundler, W3C, API peer-dependency, and workflow-security runs are active or queued for all three exact heads. Evidence remains `target-test-prepared` until each matrix settles.
 
 ## Contract comparison
 
@@ -218,7 +218,7 @@ After OTel PRs #10–#12 settle, decide whether the first durable contract is:
 
 Promote separately only when each has an owner and distinguishing test:
 
-1. timeout aftermath and later child failure observation;
+1. timeout aftermath and later child failure observation — opened as #226;
 2. cross-signal provider dependency cycles;
 3. provider shutdown versus global API unregistration;
 4. context-manager teardown ordering;
