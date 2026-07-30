@@ -157,6 +157,23 @@ new mode 100755
 """
         )
 
+    def test_accepts_rename_only_patch(self) -> None:
+        validate_patch_text(
+            """diff --git a/old.txt b/new.txt
+similarity index 100%
+rename from old.txt
+rename to new.txt
+"""
+        )
+
+    def test_accepts_empty_file_creation(self) -> None:
+        validate_patch_text(
+            """diff --git a/empty.txt b/empty.txt
+new file mode 100644
+index 0000000..e69de29
+"""
+        )
+
     def test_accepts_binary_patch_policy(self) -> None:
         validate_patch_text(
             """diff --git a/image.png b/image.png
@@ -168,8 +185,38 @@ HcmV?d00001
 """
         )
 
+    def test_rejects_bare_diff_header(self) -> None:
+        self.assert_invalid(
+            "diff --git a/a.txt b/a.txt\n",
+            "file section contains no hunks",
+        )
+
+    def test_rejects_file_headers_without_hunk(self) -> None:
+        self.assert_invalid(
+            """diff --git a/a.txt b/a.txt
+--- a/a.txt
++++ b/a.txt
+""",
+            "file section contains no hunks",
+        )
+
+    def test_rejects_valid_first_file_and_header_only_second_file(self) -> None:
+        self.assert_invalid(
+            """diff --git a/a.txt b/a.txt
+--- a/a.txt
++++ b/a.txt
+@@ -1 +1 @@
+-old
++new
+diff --git a/b.txt b/b.txt
+--- a/b.txt
++++ b/b.txt
+""",
+            "file section contains no hunks",
+        )
+
     def test_rejects_non_patch_text(self) -> None:
-        self.assert_invalid("not a patch\n", "contains no unified-diff hunks")
+        self.assert_invalid("not a patch\n", "contains no patch file sections")
 
 
 if __name__ == "__main__":
