@@ -7,6 +7,7 @@ const {
 
 const current = 'teamleaderleo/fieldwork';
 const ownedOwners = new Set(['teamleaderleo']);
+const thirdPartyCommit = 'example/project@0123456789abcdef0123456789abcdef01234567';
 
 assert.equal(scan('', current, ownedOwners).length, 0);
 assert.equal(
@@ -46,20 +47,67 @@ assert.equal(shorthandFailures.length, 1);
 assert.equal(scan(shorthandFailures.join('\n'), current, ownedOwners).length, 0);
 assert.equal(shorthandFailures[0].includes('example/project#12'), false);
 
-const commitFailures = scan(
-  'example/project@0123456789abcdef0123456789abcdef01234567',
-  current,
-  ownedOwners,
-);
+const commitFailures = scan(thirdPartyCommit, current, ownedOwners);
 assert.equal(commitFailures.length, 1);
 assert.equal(scan(commitFailures.join('\n'), current, ownedOwners).length, 0);
-assert.equal(
-  commitFailures[0].includes('example/project@0123456789abcdef0123456789abcdef01234567'),
-  false,
-);
+assert.equal(commitFailures[0].includes(thirdPartyCommit), false);
 
 assert.equal(scan('@biomejs/biome@2.5.6', current, ownedOwners).length, 0);
 assert.equal(scan('package/name@2.5.6', current, ownedOwners).length, 0);
+
+assert.equal(scan(`\`${thirdPartyCommit}\``, current, ownedOwners).length, 0);
+assert.equal(
+  scan('`https://github.com/example/project/issues/12`', current, ownedOwners).length,
+  0,
+);
+assert.equal(
+  scan(`Evidence: \`${thirdPartyCommit}\`; contact: example/project#12`, current, ownedOwners)
+    .length,
+  1,
+);
+assert.equal(
+  scan(`Evidence: \`\`${thirdPartyCommit}\`\``, current, ownedOwners).length,
+  0,
+);
+assert.equal(
+  scan(`Evidence: \`${thirdPartyCommit}\ncontinued\``, current, ownedOwners).length,
+  0,
+);
+assert.equal(
+  scan('Escaped delimiter: \\`' + thirdPartyCommit, current, ownedOwners).length,
+  1,
+);
+
+const fenced = [
+  '```text',
+  thirdPartyCommit,
+  'https://github.com/example/project/issues/12',
+  'example/project#12',
+  '```',
+].join('\n');
+assert.equal(scan(fenced, current, ownedOwners).length, 0);
+
+const tildeFenced = [
+  '~~~text',
+  thirdPartyCommit,
+  '~~~',
+].join('\n');
+assert.equal(scan(tildeFenced, current, ownedOwners).length, 0);
+
+const afterFence = [
+  '```text',
+  thirdPartyCommit,
+  '```',
+  'example/project#12',
+].join('\n');
+const afterFenceFailures = scan(afterFence, current, ownedOwners);
+assert.equal(afterFenceFailures.length, 1);
+assert.match(afterFenceFailures[0], /^Line 4:/);
+
+assert.equal(
+  scan('[upstream](https://github.com/example/project/issues/12)', current, ownedOwners).length,
+  1,
+);
 
 const marked = [
   '<!-- fieldwork: intentional-upstream-reference -->',
@@ -69,7 +117,7 @@ assert.equal(scan(marked, current, ownedOwners).length, 0);
 
 const markedCommit = [
   '<!-- fieldwork: intentional-upstream-reference -->',
-  'example/project@0123456789abcdef0123456789abcdef01234567',
+  thirdPartyCommit,
 ].join('\n');
 assert.equal(scan(markedCommit, current, ownedOwners).length, 0);
 
@@ -95,7 +143,7 @@ const entryFailures = scanEntries(
     { source: 'issue #1 body', text: 'example/project#12' },
     {
       source: 'comment 2',
-      text: 'example/project@0123456789abcdef0123456789abcdef01234567',
+      text: thirdPartyCommit,
     },
   ],
   current,
@@ -109,9 +157,6 @@ const body = policyCommentBody(entryFailures);
 assert.equal(scan(body, current, ownedOwners).length, 0);
 assert.equal(body.includes('github.com'), true);
 assert.equal(body.includes('example/project#12'), false);
-assert.equal(
-  body.includes('example/project@0123456789abcdef0123456789abcdef01234567'),
-  false,
-);
+assert.equal(body.includes(thirdPartyCommit), false);
 
 console.log('Interaction reference tests passed.');

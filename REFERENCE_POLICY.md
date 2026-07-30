@@ -34,7 +34,9 @@ https://redirect.github.com/OWNER/REPOSITORY/commit/SHA
 
 Use descriptive link text. Preserve owner, repository, item number, retrieval date, and source revision where relevant.
 
-Do not use third-party issue or pull-request shorthand. Do not use third-party commit shorthand. Do not use closing keywords against third-party work.
+Do not use bare third-party issue or pull-request shorthand. Do not use bare third-party commit shorthand. Do not use closing keywords against third-party work.
+
+Inline code spans and fenced code blocks are inert evidence text. The interaction scanner ignores third-party references inside those code regions while continuing to scan prose and Markdown link destinations.
 
 ## Preflight before GitHub receives text
 
