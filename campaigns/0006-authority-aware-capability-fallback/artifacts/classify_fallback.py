@@ -75,7 +75,7 @@ def normalize_deltas(case: dict[str, Any]) -> list[dict[str, str]]:
     if not isinstance(raw, list):
         raise ValueError("authority_deltas must be a list")
 
-    normalized: list[dict[str, str]] = []
+    relations_by_field: dict[str, str] = {}
     for item in raw:
         if not isinstance(item, dict):
             raise ValueError("each authority delta must be an object")
@@ -85,10 +85,20 @@ def normalize_deltas(case: dict[str, Any]) -> list[dict[str, str]]:
             raise ValueError("authority delta field must be a non-empty string")
         if relation not in ALLOWED_RELATIONS:
             raise ValueError(f"unsupported relation for {field}: {relation!r}")
-        normalized.append({"field": field, "relation": relation})
+        existing = relations_by_field.get(field)
+        if existing is not None:
+            if existing == relation:
+                continue
+            raise ValueError(
+                f"conflicting authority relations for {field}: "
+                f"{existing!r} and {relation!r}"
+            )
+        relations_by_field[field] = relation
 
-    normalized.sort(key=lambda item: (item["field"], item["relation"]))
-    return normalized
+    return [
+        {"field": field, "relation": relation}
+        for field, relation in sorted(relations_by_field.items())
+    ]
 
 
 def classify(case: dict[str, Any]) -> Classification:
