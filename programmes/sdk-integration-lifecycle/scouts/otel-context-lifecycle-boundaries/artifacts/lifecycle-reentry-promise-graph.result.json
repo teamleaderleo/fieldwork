@@ -1,0 +1,44 @@
+{
+  "model": "one-shot provider with synchronous invocation guard",
+  "watchdogMs": 25,
+  "runtime": {
+    "name": "node",
+    "version": "v22.16.0"
+  },
+  "cases": {
+    "directSyncSelfReentry": {
+      "state": "fulfilled",
+      "value": "direct:direct-reentry-contained"
+    },
+    "delayedSelfReentry": {
+      "state": "watchdog-timeout"
+    },
+    "delayedForceFlushSelfReentry": {
+      "state": "watchdog-timeout"
+    },
+    "healthyConcurrentJoin": {
+      "samePromise": true,
+      "ownerResult": {
+        "state": "fulfilled",
+        "value": "child-finished"
+      },
+      "joinerResult": {
+        "state": "fulfilled",
+        "value": "child-finished"
+      }
+    },
+    "concurrentJoinDuringSelfCycle": {
+      "samePromise": true,
+      "ownerResult": {
+        "state": "watchdog-timeout"
+      },
+      "joinerResult": {
+        "state": "watchdog-timeout"
+      }
+    },
+    "crossOwnerNestedShutdown": {
+      "state": "fulfilled",
+      "value": "provider-b-finished"
+    }
+  }
+}
