@@ -4,9 +4,9 @@
 
 Jotai can save atom values as JSON. One `createJSONStorage()` object may be reused by several atoms with different storage keys. The implementation remembers the last JSON string it parsed so repeated reads can reuse the same object.
 
-A source-equivalent Node 22 control confirms that this memory crosses key boundaries: two different keys containing identical JSON receive the exact same object instance. Mutating the object returned for key A also changes the object previously returned for key B, even though B's storage entry was never written.
+Exact released `jotai@2.20.2` now confirms that this memory crosses key boundaries: two different keys containing identical JSON receive the exact same object instance. Mutating the object returned for key A also changes the object previously returned for key B, even though B's storage entry was never written.
 
-Current state: `model-executed`; exact released-package Node 22/24/26 execution remains queued. This is a mechanism finding, not yet a target-executed defect or an ecosystem-impact claim.
+Current state: `target-executed` and promoted to Fieldwork lane #235. This is a bounded key-isolation finding, not an ecosystem-impact or security claim.
 
 ## Where this sits
 
@@ -36,7 +36,7 @@ The repair re-read storage after subscribing. Because `JSON.parse()` creates a n
 
 The retained regression used only the `count` key. It did not exercise two independent keys through one adapter. The original intent therefore supports preserving identity **within one key**, but it does not establish that identity should be shared **between keys**.
 
-The cache has remained present from Jotai 1.x through release `2.20.2`. The `2.20.2` release commit `5c4ca26b0db5571114be58393e17854a771f7790` and current reviewed main both contain the same adapter-wide cache blob.
+The cache has remained present from Jotai 1.x through release `2.20.2`. The `2.20.2` release commit `5c4ca26b0db5571114be58393e17854a771f7790` and current reviewed main both contain the same adapter-wide cache shape.
 
 ## Duplicate and test search
 
@@ -50,17 +50,17 @@ Current source tests cover:
 
 No retained test was found for two storage keys containing identical JSON through one `createJSONStorage()` adapter. Targeted issue and pull-request searches found no report specifically about cross-key parsed-object identity or mutation aliasing.
 
-## Model execution
+## Exact released-package execution
 
-Environment:
+Workflow `30548784323` passed on:
 
-- Node.js `v22.16.0`;
-- Linux `6.12.13 x86_64`;
-- exact `createJSONStorage()` cache and parse logic transcribed from source revision `56a9cc51de8a5dd762b95a145820f12589cc47c9`;
-- synthetic in-memory string storage;
-- no network access.
+- Node `v22.23.1`;
+- Node `v24.18.0`;
+- Node `v26.5.1`.
 
-Observed:
+Each job imported exact `jotai@2.20.2`, which reported no runtime dependencies.
+
+Observed in every job:
 
 ```text
 same adapter + same key + same JSON: same object
@@ -70,54 +70,48 @@ separate adapters + same JSON: different objects
 mutate key A object: key B object changes in memory
 ```
 
-The machine-readable receipt is `model-result.json`.
+Receipts:
 
-## Hypotheses
-
-### H1 — adapter-wide identity sharing
-
-Two different keys containing the same JSON text return the exact same object reference. The model execution supports this hypothesis.
-
-### H2 — key isolation survives
-
-The package or runtime creates distinct objects per key despite the source-level cache shape. The source-equivalent control does not support this hypothesis, but the released package still needs to run before H2 is rejected at the target boundary.
-
-## Controls
-
-The released-package probe compares:
-
-1. the same adapter, same key, same JSON — repeated reads may intentionally preserve identity;
-2. the same adapter, different keys, same JSON — the disputed boundary;
-3. the same adapter, different keys, different JSON — should not share identity;
-4. separate adapters, different keys, same JSON — should not share identity;
-5. mutation of the first returned object — records whether the second returned object aliases it.
+- `result.json` — exact released-package matrix;
+- `model-result.json` — earlier source-equivalent Node 22 control.
 
 ## Why this could matter
 
 Jotai does not require atom values to be deeply immutable. Applications may store objects for preferences, drafts, filters, sessions, or cached UI state. Independent storage keys normally imply independent stored values.
 
-Cross-key object aliasing would make an atom's in-memory value depend on read order and on whether another key happened to contain byte-for-byte identical JSON. It can create a change in one atom without a write, subscription event, or storage change for the other key.
+Cross-key object aliasing makes an atom's in-memory value depend on read order and on whether another key happened to contain byte-for-byte identical JSON. It can create a change in one atom without a write, subscription event, or storage change for the other key.
 
-This experiment supports only a mechanism claim. It does not establish how often applications reuse one adapter, mutate stored objects, or experience production failures.
+This evidence supports a mechanism claim. It does not establish how often applications reuse one adapter, mutate stored objects, or experience production failures.
 
 ## Candidate repair boundary
 
 Do not remove the unchanged-JSON identity cache. The history shows that it protects the single-key subscription/mount sequence.
 
-The narrow direction is to scope the cache by key, for example one cached string/value pair per storage key, while preserving repeated-read identity for the same key.
+The narrow direction is to scope the cache by key while preserving repeated-read identity for the same key.
 
-A target-native regression should prove:
+A repository-native regression and candidate should prove:
 
 - unchanged repeated reads for one key preserve the #1079 behavior;
 - different keys never share a parsed object solely because their serialized text is equal;
 - asynchronous string storage follows the same key-isolation rule;
 - subscriptions and revivers remain compatible;
-- cache entries do not leak indefinitely for unbounded dynamic keys, or the implementation uses an appropriate bounded/key-lifecycle strategy.
+- reset/remove invalidates the right key;
+- cache entries have a deliberate lifecycle or bound for dynamic keys.
 
-No patch is selected until released-package execution completes.
+## Fieldwork promotion
+
+Promoted lane:
+
+`teamleaderleo/fieldwork#235`
+
+Durable report:
+
+`programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation/report.md`
+
+The earlier playground validator failure was metadata-only: unsupported custom `state` and `network_policy` strings. The record now uses supported values and must pass fresh repository validation on the promoted head.
 
 ## Stop condition
 
-Stop after the released package answers the identity question and the controls establish whether the behavior comes from one shared adapter cache. Promote only if a target-native regression can express both the original single-key identity contract and the new key-isolation contract.
+Stop the next implementation pass when one key-aware cache design preserves the original same-key behavior, prevents cross-key aliasing, defines cache lifecycle, and passes synchronous, asynchronous, subscription, reviver, and reset controls.
 
 Upstream contact authorized: `false`.
