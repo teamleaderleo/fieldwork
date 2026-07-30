@@ -14,6 +14,7 @@ That issue is the canonical ordered list of work needing human judgment. It stat
 6. [PR #182](https://github.com/teamleaderleo/fieldwork/pull/182) — Tantivy worker-generation fencing.
 7. [PR #163](https://github.com/teamleaderleo/fieldwork/pull/163) — Codex MCP cancellation packet.
 8. [PR #91](https://github.com/teamleaderleo/fieldwork/pull/91) — Supabase refresh notification ownership.
+9. [PR #221](https://github.com/teamleaderleo/fieldwork/pull/221) — OpenTelemetry delayed lifecycle reentry and timeout/provenance contract.
 
 The detailed asks live in issue #213. Keep this file readable, preserve the complete ordered set, and update it when a card enters, moves, is disposed, or returns for re-examination.
 

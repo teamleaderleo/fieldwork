@@ -1,0 +1,30 @@
+name: OpenTelemetry delayed lifecycle reentry
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/otel-delayed-lifecycle-reentry.yml'
+      - 'programmes/sdk-integration-lifecycle/scouts/otel-context-lifecycle-boundaries/delayed-reentry/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - name: Execute promise graph
+        run: |
+          node programmes/sdk-integration-lifecycle/scouts/otel-context-lifecycle-boundaries/delayed-reentry/promise-graph.mjs > /tmp/otel-delayed-lifecycle-latest.json
+      - name: Compare retained result
+        run: |
+          diff -u \
+            programmes/sdk-integration-lifecycle/scouts/otel-context-lifecycle-boundaries/delayed-reentry/results/latest.json \
+            /tmp/otel-delayed-lifecycle-latest.json
+      - name: Check diff hygiene
+        run: git diff --check
