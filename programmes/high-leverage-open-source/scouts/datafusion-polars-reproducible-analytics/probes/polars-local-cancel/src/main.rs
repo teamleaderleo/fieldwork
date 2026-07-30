@@ -33,7 +33,7 @@ fn build_frame(rows: usize) -> PolarsResult<DataFrame> {
     let values = (0..rows)
         .map(|i| format!("{i:08}-{}-{i:08}", "x".repeat(224)))
         .collect::<Vec<_>>();
-    DataFrame::new(vec![Series::new("payload".into(), values).into()])
+    DataFrame::new(rows, vec![Series::new("payload".into(), values).into()])
 }
 
 fn sink_plan(df: DataFrame, path: &Path) -> PolarsResult<LazyFrame> {
