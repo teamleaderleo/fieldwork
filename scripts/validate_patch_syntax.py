@@ -70,8 +70,8 @@ class FileSection:
     has_hunk: bool = False
     has_binary_summary: bool = False
     has_git_binary_marker: bool = False
-    has_binary_payload_header: bool = False
-    has_binary_payload_data: bool = False
+    binary_payload_header_line: int | None = None
+    binary_payload_has_data: bool = False
     file_headers_seen: bool = False
     metadata: set[str] = field(default_factory=set)
     index_old: str | None = None
@@ -155,13 +155,27 @@ def _binary_section_is_valid(section: FileSection) -> bool:
         return True
     return (
         section.has_git_binary_marker
-        and section.has_binary_payload_header
-        and section.has_binary_payload_data
+        and section.binary_payload_header_line is not None
+        and section.binary_payload_has_data
     )
 
 
 
+def _finish_binary_payload(path: str, section: FileSection) -> None:
+    if (
+        section.has_git_binary_marker
+        and section.binary_payload_header_line is not None
+        and not section.binary_payload_has_data
+    ):
+        raise PatchSyntaxError(
+            f"{path}:{section.binary_payload_header_line}: "
+            "binary payload block contains no encoded data"
+        )
+
+
+
 def _finish_section(path: str, section: FileSection) -> None:
+    _finish_binary_payload(path, section)
     if (
         section.has_hunk
         or _binary_section_is_valid(section)
@@ -313,10 +327,12 @@ def validate_patch_text(text: str, path: str = "<patch>") -> None:
 
         if section is not None and section.has_git_binary_marker:
             if BINARY_PAYLOAD_HEADER.match(line):
-                section.has_binary_payload_header = True
+                _finish_binary_payload(path, section)
+                section.binary_payload_header_line = line_number
+                section.binary_payload_has_data = False
                 continue
-            if section.has_binary_payload_header and line:
-                section.has_binary_payload_data = True
+            if section.binary_payload_header_line is not None and line:
+                section.binary_payload_has_data = True
                 continue
 
         if section is not None:
