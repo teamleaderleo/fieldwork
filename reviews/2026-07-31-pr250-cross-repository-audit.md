@@ -38,7 +38,6 @@ PR #250 creates a useful broad inventory, but several entries describe earlier b
 | Vite post-transform research has a green repair carrier | `full-gate` | research PR #2 head `6d76f791e6ded43dcef3744fe8fb08e691e8a104`; repair PR #5 head `1a5b6b5327efa43fc4a33ed5ad51553b6d9c37ba`; CI `30487475188` and Zizmor `30487475253` passed | compatibility review remains before any proposal |
 | Vite watchChange research has a separate repair carrier | `target-executed` | research PR #1 head `882e62169e2cc4a8ac91d63aca2337fda4f69e1e`; repair PR #4 head `8b5d1ae237bf61031a7436ed8fb0fc1e436b6d78`; standard workflows `30486590733`, `30486590736`, `30486590708` are `action_required` | focused bootstrap passed; ordinary exact-head repository workflows and add/unlink controls remain |
 | Playwright MCP execution carrier remains open after producing the receipt | `target-executed` | evidence PR #1 head `a934c22ede5d000c8d97579fa54f23969ed3d1db`; execution PR #2 head `95c376ffaf91d58c79e23804209d75166659471a`; run `30493907347` | retain-or-close decision and later carrier-removal proof remain |
-| Stacked audit repair passes its repository gate | `full-gate` | PR #256 head `209a9a266d3cbf7886cff11ddb7a60ff7172de4f`; Fieldwork integrity `30579586338` passed | repairs routing pages and retains this audit; broad inventory corrections remain |
 
 ## Complete-diff findings
 
@@ -114,7 +113,7 @@ The deep map is broadly accurate, while current carrier detail belongs in its ma
 - `QUEUE.md`: live signoff transitions for #238/#231; #232 repair gate; Linux issue #194 and composed-carrier routing.
 - this review: complete cross-repository findings for the inventory, target maps, carriers, supersession, and composed-state receipts.
 
-PR #256 exact head `209a9a266d3cbf7886cff11ddb7a60ff7172de4f` passed Fieldwork integrity run `30579586338`. This gate applies to the three-file stacked repair before this review extension; the new exact head requires a fresh run.
+The live stacked-branch exact head and repository-gate receipt belong in PR #256 and the coordinating issue handoff. Keeping them outside this committed review prevents a self-expiring head reference on every audit edit.
 
 ## Remaining repair before PR #250 promotion
 
