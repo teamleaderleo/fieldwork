@@ -1,6 +1,6 @@
 # HTTPX async response close settlement
 
-State: `source-and-release-confirmed`
+State: `candidate-validating`
 
 Fieldwork issue: #171
 
@@ -12,6 +12,10 @@ Pinned current source: `b5addb64f0161ff6bfe94c124ef76f6a1fba5254`
 
 Pinned released package: `httpx==0.28.1`
 
+Owned fork candidate: `teamleaderleo/httpx#1`
+
+Owned fork head: `e822bebb882aacc37928b3bd2c17eb7aa974831d`
+
 Upstream contact authorized: `false`
 
 ## In simple words
@@ -19,6 +23,8 @@ Upstream contact authorized: `false`
 HTTPX says an asynchronous response is closed as soon as close starts, not when connection-release cleanup finishes.
 
 If that cleanup is cancelled or raises, later callers see the closed flag and return without retrying. A concurrent caller can also return successfully while the first close is still blocked. The public state and the transport lifecycle therefore disagree.
+
+The owned fork now contains a draft experiment where one caller owns each close attempt, other callers wait for that attempt, cancellation leaves retry ownership, and only successful underlying cleanup publishes `is_closed == True`.
 
 ## Source map
 
@@ -49,7 +55,7 @@ Command:
 python3 probe.py
 ```
 
-The probe covers three cases.
+The retained output is `probe.output.json`.
 
 ### Caller cancellation
 
@@ -63,8 +69,6 @@ The stream's first close raises a concrete error. The error is observable, but t
 
 The first caller blocks inside stream cleanup. A second `response.aclose()` returns successfully while the first operation is still pending and the stream is not cleaned.
 
-The retained output is `probe.output.json`.
-
 ## Strongest supported conclusion
 
 For both the released package and current pinned source, `is_closed` means that response close was entered. It does not reliably mean that underlying stream close completed.
@@ -75,7 +79,7 @@ This creates three observable lifecycle gaps:
 2. a close error is non-retryable through the response API;
 3. concurrent callers do not join authoritative close completion.
 
-The probe does not yet prove a real HTTPCore connection remains permanently leased. That requires target integration against the default transport and pool.
+The release probe does not prove a real HTTPCore connection remains permanently leased. That requires target integration against the default transport and pool.
 
 ## Historical context and duplicate check
 
@@ -85,95 +89,92 @@ Historical [PR #1465](https://redirect.github.com/encode/httpx/pull/1465) delibe
 
 Historical [PR #1355](https://redirect.github.com/encode/httpx/pull/1355) explored removing response close-state tracking as part of a larger breaking request-context redesign. It is not a current repair candidate.
 
-## Candidate invariants
+## Selected fork experiment
 
-A completed close call should provide one of two explicit contracts:
+Draft fork PR: `teamleaderleo/httpx#1`
 
-- **completion contract:** return only after the authoritative underlying close operation settles; or
-- **attempt contract:** cancellation or failure leaves the response observably retryable.
+Branch: `fieldwork/171-async-response-close-settlement`
 
-In either contract, `is_closed == True` should mean cleanup completed, not merely that one caller entered close.
+Exact head: `e822bebb882aacc37928b3bd2c17eb7aa974831d`
 
-Concurrent callers should not return success while authoritative cleanup is still pending.
+The branch stages an exact source patch rather than replacing the large core files through the connected editor. Its workflow is read-only: it applies the patch to a clean checkout, copies the focused regression into the repository test tree, and runs the matrix without committing or pushing.
 
-## Design options
+### Per-attempt join point
 
-### Set closed after successful cleanup
+The candidate uses an AnyIO event for one close attempt rather than an `asyncio.Task`.
 
-Await the stream first, then set `is_closed = True`.
+- the first caller owns `stream.aclose()`;
+- concurrent callers wait on that attempt;
+- successful cleanup sets `is_closed` and releases waiters;
+- ordinary close failure is shared with callers already waiting;
+- a later explicit caller may retry after failure;
+- owner cancellation clears attempt ownership without publishing completion, allowing a waiting or later caller to retry;
+- cancelling a waiter does not cancel the owner.
 
-Advantages:
+This keeps the candidate backend-neutral for asyncio and Trio and avoids a detached background task whose failure could become unobserved.
 
-- small change;
-- failure and cancellation naturally leave retry ownership;
-- public flag reflects completion.
+### Close-started read barrier
 
-Risks:
+Moving `is_closed` to completion time would otherwise create a window where body iteration could begin while close is already in progress.
 
-- two concurrent callers can invoke underlying close concurrently;
-- a non-idempotent transport close may race;
-- elapsed time publication still needs completion ordering.
+The candidate therefore retains a separate private `close started` barrier. Once asynchronous close begins, new body iteration raises `StreamClosed` even if public `is_closed` remains false because cleanup has not completed. After cancellation or failure, the response is retryable for close but not reopened for body consumption.
 
-### Shared close task
+### Elapsed completion ordering
 
-Create one authoritative close task and let every caller await it, potentially through cancellation shielding.
+The current `BoundAsyncStream` publishes `response.elapsed` before awaiting the underlying close. The candidate moves elapsed publication after successful underlying cleanup so elapsed does not describe a completed request/response lifecycle while close remains pending or has failed.
 
-Advantages:
+## Focused regression matrix
 
-- one underlying close operation;
-- concurrent and later callers share success or failure;
-- caller cancellation can be separated from cleanup cancellation.
+The owned fork test covers:
 
-Risks:
+1. cancelled owner followed by successful retry;
+2. ordinary close failure followed by successful retry;
+3. two concurrent close callers sharing one underlying attempt;
+4. cancelling one waiter without cancelling the owner;
+5. one ordinary failure being shared with current waiters;
+6. body iteration remaining blocked after close starts and after a cancelled attempt;
+7. elapsed remaining unavailable until underlying close completes.
 
-- background failure must remain observable when the initiating caller is cancelled;
-- task creation binds behavior to an active event loop;
-- policy is needed for whether a failed shared task is retryable or permanently retained.
+The workflow runs Python `3.9` and `3.13`. Every `pytest.mark.anyio` test runs through the repository's asyncio and Trio backends. It also runs adjacent response/client streaming controls, Ruff, Mypy, and `git diff --check` after applying the exact patch.
 
-### Explicit close state machine
+## Current validation state
 
-Track open, closing, closed, and failed/retryable states.
+Fork workflow `30501516185` and the repository `Test Suite` run `30501516237` are queued on exact head `e822bebb882aacc37928b3bd2c17eb7aa974831d`.
 
-Advantages:
+No candidate pass is claimed yet.
 
-- clearest lifecycle contract;
-- can distinguish caller cancellation from transport failure;
-- can support controlled retry.
+## Remaining target controls
 
-Risks:
-
-- largest internal change;
-- compatibility implications for `is_closed` and repeated close calls.
-
-## Required target controls
-
-1. cancellation during stream close followed by retry;
-2. transport close error followed by retry;
-3. two concurrent close callers;
-4. cancellation of one waiter while another remains;
-5. `AsyncClient.stream()` context exit;
-6. read-to-completion automatic close;
-7. default HTTPCore connection release and subsequent reuse;
-8. repeated successful close;
-9. elapsed time publication only after authoritative close completion;
-10. sync `Response.close()` exception ordering review.
+1. patch applies cleanly on the pinned fork base;
+2. focused asyncio and Trio matrix passes on Python 3.9 and 3.13;
+3. adjacent existing response/client streaming controls pass;
+4. `AsyncClient.stream()` context exit preserves cancellation and error ownership;
+5. read-to-completion automatic close remains correct;
+6. default HTTPCore connection release and subsequent reuse are exercised after interrupted close;
+7. repeated successful close remains idempotent;
+8. sync `Response.close()` exception ordering is characterized separately;
+9. the final candidate is applied directly or retained explicitly as a patch experiment before any landing decision.
 
 ## Current disposition
 
-Promote as a distinct lifecycle candidate and prepare target-native tests before selecting an implementation.
+Retain the per-attempt AnyIO join design as the leading fork experiment, not as an accepted fix.
 
-The smallest source change—setting `is_closed` after the await—fixes retry state but does not solve concurrent close ownership. A complete decision should compare it against a shared operation rather than assuming one boolean reorder is sufficient.
+A boolean reorder alone fixes retry state but allows duplicate underlying close calls. A permanent shared task provides stronger single-operation ownership but introduces backend/task-lifetime and unobserved-failure questions. The per-attempt event is the narrowest current design that serializes close, preserves caller cancellation, shares current-attempt outcomes, and permits controlled retry.
+
+Promotion requires successful target execution and a real HTTPCore pool/reuse control.
 
 ## Evidence classification
 
 - current source and history: `source-read`;
 - installed released public API probe: `target-executed` for response-state semantics;
-- default transport and connection-pool consequence: unexecuted integration gate;
-- candidate implementation: none.
+- owned fork implementation: `target-test-prepared`;
+- fork execution: queued, not yet established;
+- default transport and connection-pool consequence: unexecuted integration gate.
 
 ## Boundaries
 
 - no public upstream write or contact;
-- no live network or credential use;
+- no live network or credential use in the release probe;
 - no claim that every interrupted close leaks a socket;
-- no fix is described as upstream-ready.
+- no fix is described as upstream-ready;
+- the owned fork PR remains draft.
