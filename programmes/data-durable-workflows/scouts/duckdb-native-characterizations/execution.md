@@ -7,39 +7,45 @@ Owned DuckDB PRs: `teamleaderleo/duckdb#7` and `teamleaderleo/duckdb#8`
 Immutable public source: `duckdb/duckdb@de477da7606fc2d857f81117f0140d0550a5c42c`  
 Exact Hive test head: `520052d13b567cd5546289b9e4f31c4cb4ca99cc`  
 Exact window test head: `cac295334e56fd816aaefb13d09dc2716795aa2c`  
-Exact execution source head: `b0b0e757c864e8f5bfd153749d318663bcd0ea47`  
-Native execution run: `30579081717`  
-Fieldwork integrity run: `30579081580`  
+Exact Fieldwork execution source head: `908a9b55aaa506368b0480366d4e39ad7d59a183`  
+Workflow merge revision: `6ac984c6eda13877b0cad7994c9e7348fd7de967`  
+Native execution run: `30580996108`  
+Fieldwork integrity run: `30580996072`  
+Artifact: `8775602128`, digest `sha256:1a5643009c07488c685ce498bf5203ec72286ae742edbc44c472c2f495749d5c`  
 Upstream contact authorized: `false`
 
-## Why this runner exists
+## In simple words
 
-The owned DuckDB pull requests are intentionally one-file native SQLLogic characterizations over an immutable historical source commit.
+Two small DuckDB tests now execute against one immutable source revision. Ordinary bounded window framing and ordinary SQL-NULL Hive marker behavior pass. The extreme window bound expands later rows to the whole partition, and a literal partition value equal to DuckDB's reserved Hive marker disappears when it collides with SQL NULL. These are accepted target findings; source repairs remain separate work.
 
-DuckDB's current repository workflow resolves external extensions from moving revisions. On the immutable core pin, the current `test_utils` extension no longer compiles because its `Load(DuckDB&)` override targets a newer extension API. The public-style PR runs therefore failed before either native test executed.
+## Why this runner existed
 
-That failure is dependency drift in the broad CI harness, not evidence for or against either target behavior.
+The owned DuckDB pull requests are intentionally one-file SQLLogic characterizations over an immutable historical source commit.
+
+DuckDB's current broad repository workflow resolves external extensions from moving revisions. On the immutable core pin, the current `test_utils` extension no longer compiles because its `Load(DuckDB&)` override targets a newer extension API. Those broad runs stopped before either target test executed, so they provide dependency-drift evidence only.
+
+The Fieldwork carrier excluded floating external extensions and built the exact source with the in-tree Parquet extension.
 
 ## Pinned execution
 
-The Fieldwork workflow:
+Run `30580996108`:
 
-1. checks out exact public core `de477da...`;
-2. stages the exact one-file tests from owned commits;
-3. configures a minimal Debug build with only the in-tree Parquet extension;
-4. builds DuckDB's native `unittest` runner;
-5. invokes tests through the repository `build/*/test/run` wrapper;
-6. proves independent ordinary FOLLOWING and raw Hive-marker controls pass;
-7. requires both defect characterizations to fail without parser, catalog, internal, or unknown-command errors;
-8. retains both logs as one workflow artifact.
+1. checked out exact public core `de477da...`;
+2. staged the exact one-file tests from owned commits;
+3. configured a Debug build with only the in-tree Parquet extension;
+4. built DuckDB's native `unittest` runner;
+5. invoked tests through the repository `build/*/test/run` wrapper;
+6. ran independent ordinary FOLLOWING and raw Hive-marker controls;
+7. required both characterizations to fail without parser, catalog, internal, or unknown-command errors;
+8. retained both logs in artifact `8775602128`.
 
-Run `30579081717` passed this complete gate. Both independent controls passed. Both characterizations failed at the intended result boundary on every retry.
+Both controls passed 1/1. Both characterizations failed at the intended result boundary on the initial run and both configured retries.
 
 ## Executed target outcomes
 
 ### FOLLOWING overflow
 
-The exact `INT64_MAX FOLLOWING` query should produce empty frames for every row because each requested frame lies beyond the partition.
+The exact `INT64_MAX FOLLOWING` query requests frames beyond the partition and expects every frame to be empty.
 
 Observed result:
 
@@ -53,36 +59,38 @@ Row zero remains empty. Later rows overflow the frame-start addition and expand 
 
 Evidence class: `target-executed`.
 
-Leading bounded repair direction: on overflow of an `EXPR_FOLLOWING_ROWS` frame start, saturate to the current partition end. Keep RANGE and GROUPS behavior outside this source slice.
+Leading bounded repair direction: saturate overflow of an `EXPR_FOLLOWING_ROWS` frame start to the current partition end. RANGE and GROUPS behavior remain outside this source slice.
 
 ### Hive marker collision
 
-The exact partitioned write contains two logical values:
+The partitioned write contains two logical values:
 
 - literal string `__HIVE_DEFAULT_PARTITION__` with row id 1;
 - SQL NULL with row id 2.
 
-The native scan should return both rows with distinct logical identities. It returned only:
+The native scan should return both rows with distinct identities. It returned only:
 
 ```text
 1  NULL  2
 ```
 
-The literal-marker row disappeared because both logical values map to the same partition directory. The independent NULL compatibility control proved that SQL NULL still writes the raw Hive marker and reconstructs as SQL NULL.
+The literal-marker row disappeared because both values map to the same partition directory. The independent compatibility control proved that SQL NULL still writes the raw Hive marker and reconstructs as SQL NULL.
 
 Evidence class: `target-executed`.
 
-Leading bounded repair direction: encode or escape literal partition values that equal the reserved Hive default marker while preserving the current raw marker for SQL NULL and compatibility reads.
+Leading bounded repair direction: encode or escape literal partition values equal to the reserved Hive default marker while preserving the current raw marker for SQL NULL and compatibility reads.
 
 ## Evidence boundary
 
-- broad DuckDB PR workflow failures: invalid for target behavior;
-- minimal pinned native controls and characterizations: `target-executed`;
-- exact behavioral receipts: retained by run `30579081717`;
+- broad historical-source workflow failures: invalid for target behavior;
+- minimal pinned controls and characterizations: `target-executed`;
+- exact raw logs: artifact `8775602128` retained for 30 days;
 - production source repairs: absent;
-- performance and compatibility impact of either repair: unmeasured;
-- public issue or pull-request interaction: absent.
+- repair compatibility and performance: unmeasured;
+- public upstream interaction: absent.
 
 ## Current disposition
 
-**ACCEPT both bounded target findings. HOLD production repair acceptance until each issue receives a direct owned source patch, focused native regression, ordinary affected-suite gates, and complete-diff review.**
+**ACCEPT both bounded target findings. HOLD source-repair acceptance until each issue receives a direct owned patch, focused native regression, ordinary affected-suite gates, and complete-diff review.**
+
+The temporary execution workflow is removed after this receipt transfer. The durable review surface is this file.
