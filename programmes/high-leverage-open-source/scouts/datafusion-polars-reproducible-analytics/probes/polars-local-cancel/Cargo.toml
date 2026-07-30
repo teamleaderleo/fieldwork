@@ -1,0 +1,11 @@
+[package]
+name = "fieldwork-polars-local-cancel"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+polars = { path = "../../../../../../.fieldwork/polars/crates/polars", default-features = false, features = ["lazy", "parquet"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
