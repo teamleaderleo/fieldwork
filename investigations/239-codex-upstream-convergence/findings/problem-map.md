@@ -1,171 +1,174 @@
 # Codex convergence problem map
 
 Owner: coordinator synthesis for Fieldwork #239  
+Parent canonical finding: [`F239`](../../../findings/F239-codex-upstream-convergence/finding.md)  
 Claim scope: system map with bounded source-read and executed findings linked elsewhere  
-Current upstream pin: `a01a2d91461a57809e944de7758477b92617ab01`  
-Upstream contact authorized: `false`
+Current upstream pin: `3016671bb077c43448b8fa88f3edfa9772e17058`  
+Upstream contact authorized: `no`
 
 ## In simple words
 
-Imagine a restaurant run by several ledgers:
+Imagine a restaurant with several ledgers:
 
 - the menu says which meals exist;
 - the kitchen roster says which cook can make each meal;
-- the order ticket identifies the customer's request;
-- the kitchen may finish, cancel, or keep cooking after the waiter gives up waiting;
+- the order ticket identifies one request;
+- the kitchen may finish, cancel, or keep cooking after the waiter stops waiting;
 - the waiter tells the customer what happened;
 - the register records the result;
 - the closing book lets tomorrow's staff resume from the same truth.
 
-Codex has the same kind of chain for tools. The difficult bugs appear when two ledgers disagree. The tool list can describe one runtime while another handles the call. A timeout can describe the waiter's deadline while the kitchen continues. The live conversation can contain a result that the durable rollout failed to store. A subprocess can produce bytes that a later listener never receives.
+Codex has a similar chain for tools. Difficult bugs appear when two ledgers disagree. The model can see a tool whose executable authority moved. A timeout can describe the caller's deadline while a remote mutation remains possible. Live conversation can contain a result that durable history missed. A subprocess can produce bytes before a live listener subscribes.
 
-Issue #239 studies those disagreements as separate invariants and then decides which bounded repairs belong together.
+Issue #239 studies those disagreements as separate invariants and decides which bounded repairs or stopped records belong together.
 
-## The end-to-end chain
+## End-to-end chain
 
 ```text
 model and turn configuration
 → capability manifest and tool catalogue
 → runtime generation and binding
 → operation identity and dispatch
-→ remote or local execution
-→ cancellation, timeout, and terminal outcome
-→ local result item
+→ local or remote execution
+→ cancellation, timeout, transport, and remote-effect settlement
+→ model-visible result
 → durable append acknowledgement
 → history projection, compaction, resume, fork, and replay
 → reviewable source and retained evidence
 ```
 
-Every arrow is an ownership boundary. The same user-visible failure can originate at different arrows and require different evidence.
+Every arrow is an ownership boundary. The same user-visible symptom can originate at different arrows and require different evidence.
 
-## 1. Capability manifest
+## Capability manifest
 
-The request tells the model which tools exist and how to call them. For Responses Lite, tool information can live in input items rather than the top-level tools array. Startup prewarm and incremental websocket reuse can compress later requests.
+The request tells the model which tools exist and how to call them. Responses Lite can carry tool information in input items rather than the top-level tools array. Startup prewarm and websocket reuse can compress later requests.
 
 Questions:
 
 - Did the first generated turn receive the complete model-visible capability prefix?
 - Did an untraced prewarm response become an unsafe parent for a generated request?
 - Can a deferred tool become direct without an executable loader or host authority?
-- Does the manifest identity match the runtime that will execute the call?
+- Does manifest identity match the runtime that executes the call?
 
-Current Fieldwork owner: #85 and owned Codex #45.
+Current owners: Fieldwork #85, historical owned Codex #45, and the standalone Code Mode host boundary.
 
-## 2. Runtime generation and publication
+## Runtime generation and publication
 
-MCP refresh can build a new connection set and catalogue while an older refresh is still running. The runtime manager decides which candidate becomes visible.
+MCP refresh can build a new connection set while an older refresh is still running. The manager decides which candidate becomes visible.
 
 Questions:
 
 - Which refresh generation may publish?
-- Does explicit host reload force fresh connections?
+- Does explicit host reload force fresh connections while ordinary refresh reuses healthy clients?
 - Can a late older refresh replace a newer catalogue?
-- Does an accepted result return its own catalogue or whichever generation is current later?
-- Does reconnect freshness survive overlapping refresh attempts?
+- Does an accepted refresh return its own catalogue or a later global snapshot?
+- Does reconnect intent survive cancelled replacement?
 
-Current Fieldwork owner: #84 and owned Codex #46/#48.
+Current owners: Fieldwork #84, owned Codex #46/#48, and current upstream reconnect/reconciliation work.
 
-## 3. Prepared and active call authority
+## Prepared and active call authority
 
-Publication controls future visibility. A call already prepared or running may still belong to an earlier runtime generation.
+Publication controls future visibility. A prepared or running call may still belong to an earlier runtime generation.
 
 Questions:
 
 - Which runtime identity authorized and received the call?
-- Can a refreshed catalogue silently redirect a prepared call?
-- Does the result preserve the original operation lineage?
-- What happens to active calls when a generation is retired?
+- Can a refresh silently redirect a prepared call?
+- Does the result preserve original operation lineage?
+- What happens to active calls when a generation retires?
 
-This boundary needs captured runtime identity and typed invalidation. It should not be inferred from whichever catalogue is visible when the call completes.
+The call should retain captured identity unless an explicit invalidation contract says otherwise.
 
-## 4. Dispatch and operation identity
+## Dispatch and operation identity
 
-A result is meaningful only when it can be tied to the logical operation that produced it.
+A result is useful only when tied to the logical operation that produced it.
 
 Questions:
 
 - Was the operation dispatched?
-- Can a retry create a second side effect?
-- Can begin and result items be duplicated, reordered, or separated by compaction?
-- Does resume or fork preserve the same operation identity?
+- Can retry create a second effect?
+- Can begin and result items duplicate, reorder, or separate through compaction?
+- Do resume and fork preserve the same operation identity?
 
-Current Fieldwork owner: #83 and adjacent receipt work.
+Current owner: Fieldwork #83 and adjacent receipt work.
 
-## 5. Timeout, cancellation, and remote effect
+## Timeout, cancellation, and remote effect
 
-The caller may stop waiting before the remote operation reaches a terminal state.
+The caller may stop waiting before remote execution reaches a terminal state.
 
-Facts that require separate representation:
+Separate facts include:
 
 1. caller deadline reached;
 2. request dispatched or withheld;
 3. cancellation requested;
 4. cancellation delivery completed, failed, or timed out;
-5. server observed cancellation where the fixture can prove it;
+5. server observed cancellation where a fixture can prove it;
 6. transport remained live, closed, or became unknown;
 7. external effect committed, was prevented, was reconciled absent, or remains unknown.
 
 A delivered cancellation can coexist with a later committed mutation. A timeout result therefore describes local observation until stronger settlement evidence exists.
 
-Current Fieldwork owner: #134 and #162.
+Current owners: Fieldwork #134 and #162.
 
-## 6. Local result formation
+## Local result formation
 
-Codex turns an execution outcome into a model-visible response item and live conversation history.
+Codex turns an execution outcome into a model-visible item and live conversation history.
 
 Questions:
 
-- Did the result item preserve the correct tool call identity?
+- Did the item preserve the correct tool-call identity?
 - Did error wording collapse distinct terminal states?
-- Did malformed or partial output become a misleading success?
-- Did local conversation retain the result when durable persistence failed?
+- Did malformed or partial output become misleading success?
+- Did live conversation retain the item when durable append failed?
 
 This is the bridge between execution facts and persistence facts.
 
-## 7. Durable append acknowledgement
+## Durable append acknowledgement
 
-The live result can be added to memory before `LiveThread::append_items` succeeds. Current Codex logs append errors at the session boundary and returns no outcome to the caller.
+Live result insertion can precede `LiveThread::append_items`. Current session code can log an append error without returning an outcome to the caller.
 
 Questions:
 
 - Did the append fail before writing?
-- Did the append commit and then lose acknowledgement?
-- Can the caller distinguish `Persisted` from `Ambiguous`?
+- Did it commit and then lose acknowledgement?
+- Can the caller distinguish persisted, absent, and ambiguous?
 - Which state permits compaction, retry, resume, or cleanup?
 
-Owned Codex #51 exposes the bounded append acknowledgement prerequisite. Typed result-persistence state remains a later slice.
+Current current-pin carrier: owned Codex #80 at `401c2e5e6a37730aae3e8da95591cc6f56655cfc`, workflow `30583967538` queued at the workspace refresh.
 
-## 8. History projection, compaction, and replay
+## History projection, compaction, and replay
 
-Canonical rollout items feed reconstructed conversation history, thread metadata, compaction, resume, fork, and traces. Upstream continues to change these paths, including passthrough-metadata normalization in the current ancestry. The latest commit also preserves executor paths in read-command action records, adding adjacent execution-provenance context.
+Canonical rollout items feed reconstructed conversation history, metadata, compaction, resume, fork, and traces. Current upstream normalizes passthrough metadata and preserves executor paths in read-command actions.
 
 Questions:
 
 - Do live memory and durable history describe the same logical items?
-- Can metadata-only differences create duplicate or divergent replay items?
+- Can metadata-only differences create duplicate replay items?
 - Does compaction preserve operation and persistence identity?
-- Can resume or fork select the wrong writer generation or history prefix?
+- Can resume or fork select the wrong writer generation or prefix?
 - Which append outcome is sufficient for projection or compaction?
 
-Current upstream prior art owns substantial writer, projection, and reconciliation behavior. It leaves the caller-facing append outcome and operation settlement questions open.
+Upstream owns substantial writer, projection, and reconciliation behavior. Caller-visible append acknowledgement and remote-effect settlement remain separate.
 
-## 9. Subprocess and terminal output
+## Subprocess and terminal output
 
-Local and remote execution paths publish live deltas and later construct a completion transcript.
+Execution paths publish live deltas and later construct a completion transcript.
 
 Questions:
 
 - Is output retained before best-effort broadcast?
-- Can a lagging or late subscriber lose bytes that the producer already received?
+- Can a late or lagging subscriber miss bytes the producer received?
 - Does close/drain capture trailing bytes?
 - Does cancellation terminate the full process tree?
 - Can restart recover a process or only its retained transcript?
 
-Owned Codex #49/#53 covers producer-owned bounded transcript retention. Hard termination, Windows containment, remote settlement, and restart reattachment remain separate.
+Current terminal carrier: owned Codex #53 at `c4e0de2e54d804d1054afb90c30b7150a774151c`, workflow `30585540688` pending at refresh.
 
-## 10. Evidence and canonical source
+Producer-owned retention, hard termination, Windows containment, remote settlement, and restart reattachment remain separate findings.
 
-Fieldwork also has a delivery chain:
+## Evidence and canonical source
+
+Fieldwork has a delivery chain of its own:
 
 ```text
 historical finding
@@ -174,33 +177,33 @@ historical finding
 → target-native execution
 → complete-diff review
 → canonical source branch
-→ proposal packet or stopped record
+→ bounded proposal or stopped record
 → carrier retirement
 ```
 
-Execution workflow files can prove behavior while remaining unsuitable as the final source. The canonical source head and the evidence-producing carrier therefore require separate identities.
+Execution workflows can prove behavior while remaining unsuitable as delivery source. Canonical source and evidence-producing carrier require separate identities.
 
-## Why the Codex portfolio expanded
+## Why the portfolio expanded
 
-The initial findings shared words such as tool, timeout, history, reconnect, and result. Source reading showed several distinct state owners:
+The initial findings shared words such as tool, timeout, history, reconnect, and result. Current source showed distinct owners:
 
 - request construction;
-- Code Mode host;
+- standalone Code Mode host;
 - MCP runtime manager;
-- operation and call lifecycle;
+- operation lifecycle;
 - session live memory;
-- thread-store append;
+- ThreadStore append and writer generation;
 - rollout reconstruction;
-- unified execution process and transcript handling.
+- unified-execution process and transcript handling.
 
-Combining them too early would create a patch whose tests and authority claims could not be reviewed independently. The expansion reflects discovered ownership boundaries rather than one vague mega-problem.
+Combining them too early would create a patch whose tests and authority claims cannot be reviewed independently. The expansion reflects discovered ownership boundaries, not one vague mega-problem.
 
-## Independent invariants currently retained
+## Retained independent invariants
 
-1. The model-visible capability manifest must match an executable authority path.
-2. Only the newest eligible MCP refresh generation may publish its own accepted result.
+1. Model-visible capability must match an executable authority path.
+2. Only an eligible MCP refresh generation may publish its own accepted result.
 3. Prepared and active calls retain captured runtime and operation identity.
-4. Caller timeout, cancellation delivery, transport state, and remote-effect certainty remain separate facts.
+4. Caller timeout, cancellation delivery, transport, and remote-effect certainty remain separate.
 5. Model-visible results receive an explicit durable append outcome.
 6. Compaction, retry, resume, and fork consume persistence and operation facts conservatively.
 7. Terminal transcript retention begins at the non-lossy producer boundary.
@@ -208,13 +211,6 @@ Combining them too early would create a patch whose tests and authority claims c
 
 ## Main synthesis question
 
-The portfolio should produce the smallest set of independently reviewable proposals that covers the surviving invariants without pretending that one layer proves another.
+What is the smallest set of independently reviewable findings and proposals that covers the surviving invariants without pretending one layer proves another?
 
-That likely means several canonical outputs rather than one patch:
-
-- capability and deferred-loader authority;
-- MCP refresh generation publication;
-- MCP timeout and operation outcome;
-- append acknowledgement and typed persistence outcome;
-- terminal producer-owned retention;
-- carrier retirement and exact-head evidence policy.
+The current answer in F239 is one shared lifecycle model plus bounded findings for capability authority, MCP publication, operation outcome, append acknowledgement, terminal retention, and carrier hygiene.
