@@ -34,7 +34,7 @@ index 73c23b7..0000000 100644
 +    )(function* (
 +      context: OpenCodeSessionContext,
 +      turnId: TurnId | undefined,
-+      reason: "turn_interrupted" | "session_error",
++      reason: "turn_interrupted" | "session_error" | "provider_exited",
 +    ) {
 +      const resolution = {
 +        status: "expired" as const,
@@ -79,7 +79,15 @@ index 73c23b7..0000000 100644
      const writeNativeEvent = (
        threadId: ThreadId,
        event: {
-@@ -1079,6 +1135,7 @@ export function makeOpenCodeAdapter(
+@@ -680,6 +736,7 @@ export function makeOpenCodeAdapter(
+         return;
+       }
+       const turnId = context.activeTurnId;
++      yield* expirePendingInteractiveRequests(context, turnId, "provider_exited");
+       sessions.delete(context.session.threadId);
+       // Emit lifecycle events BEFORE tearing down the scope. Both call sites
+       // run this inside a fiber forked via `Effect.forkIn(context.sessionScope)`;
+@@ -1079,6 +1136,7 @@ export function makeOpenCodeAdapter(
            const message = sessionErrorMessage(event.properties.error);
            const activeTurnId = context.activeTurnId;
            context.activeTurnId = undefined;
@@ -87,7 +95,7 @@ index 73c23b7..0000000 100644
            yield* updateProviderSession(
              context,
              {
-@@ -1544,11 +1601,13 @@ export function makeOpenCodeAdapter(
+@@ -1544,11 +1602,13 @@ export function makeOpenCodeAdapter(
        function* (threadId, turnId) {
          const context = yield* ensureSessionContext(sessions, threadId);
 +        const interruptedTurnId = turnId ?? context.activeTurnId;
