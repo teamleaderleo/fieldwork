@@ -1,6 +1,6 @@
 # Metrics final collection ownership
 
-Status: exact-head executed  
+Status: exact-head executed and complete-diff reviewed  
 Target: `teamleaderleo/opentelemetry-js`  
 Base trial: fork PR #5  
 Composition and repair: fork PR #9  
@@ -17,7 +17,8 @@ The public and teardown authorities must remain distinct:
 
 - an external caller receives `MetricReader is shutdown` once shutdown begins;
 - the reader-owned shutdown operation still waits for an active export, collects final metrics, flushes the exporter, and shuts the exporter down;
-- a caller timeout does not silently revoke an underlying cleanup operation that the API documents as able to continue.
+- a caller timeout does not silently revoke an underlying cleanup operation that the API documents as able to continue;
+- an unbound reader preserves the released `MetricReader is not bound to a MetricProducer` diagnostic ordering.
 
 ## Base-trial failure
 
@@ -70,7 +71,7 @@ Fork PR #9 separates public and teardown collection paths.
 
 ### Public path
 
-`MetricReader.collect()` checks the shared shutdown state. Once shutdown starts, it rejects immediately and does not reach producers.
+`MetricReader.collect()` first preserves the existing binding diagnostic. For a bound reader, it checks the shared shutdown state. Once shutdown starts, it rejects immediately and does not reach producers.
 
 ### Teardown path
 
@@ -86,9 +87,9 @@ The teardown authorization follows the underlying `onShutdown()` promise, not th
 
 The same stacked branch applies attempt-all safe calls to `MeterProvider.shutdown()` and `forceFlush()`. A synchronous reader throw becomes a rejected promise while later readers are still invoked. The outward aggregate remains fail-first rather than collecting every error.
 
-## Focused regression
+## Focused regressions
 
-The target-native control creates a real meter and periodic reader, then:
+The target-native final-collection control creates a real meter and periodic reader, then:
 
 1. begins one force flush;
 2. holds the first export open;
@@ -99,10 +100,27 @@ The target-native control creates a real meter and periodic reader, then:
 
 This exercises the asynchronous wait boundary that a synchronous-only authorization flag would miss.
 
-## Exact repaired head
+Complete-diff review also added an unbound-reader control:
+
+1. construct an unbound reader;
+2. shut it down;
+3. call public `collect()`;
+4. preserve `MetricReader is not bound to a MetricProducer` rather than reporting shutdown first.
+
+## Review sequence
+
+The first repaired head:
 
 ```text
 5bb520f141759ce003dc002196c43cda4fe96551
+```
+
+passed the full named repository matrix and restored final metrics export. Complete-diff review then found the narrower diagnostic-order drift described above.
+
+The final exact head is:
+
+```text
+f3740eb9bda8ec22ae81941adcdaf0de0aa3c764
 ```
 
 Exact-head results:
@@ -116,13 +134,13 @@ Exact-head results:
 - API peer dependency: passed;
 - workflow security analysis: passed.
 
-The E2E gate that failed on the predecessor now passes on every supported runtime, confirming that the final metric collection is restored while terminal public collection remains enforced.
+The E2E gate that failed on the predecessor passes on every supported runtime, confirming that final metric collection is restored while terminal public collection remains enforced. The final unit matrix includes the diagnostic-order regression.
 
 Evidence class:
 
 - base failure: target-executed product-contract evidence;
-- repair mechanism and complete seven-file diff: source-reviewed;
-- focused regression and repository matrix: target-executed on the exact repaired head;
+- repair mechanism, complete seven-file diff, and review correction: source-reviewed;
+- focused regressions and repository matrix: target-executed on the final exact head;
 - compatibility choices below: held for an explicit review decision.
 
 ## Remaining compatibility decisions
@@ -144,6 +162,6 @@ Before any production or upstream packet:
 1. receive an independent exact-head disposition on the complete PR #9 contract;
 2. keep PR #5 classified as the isolated compatibility-sensitive base;
 3. keep PR #9 as the active composition carrier;
-4. synchronize #4, #19, #32, #194, and Archive #192 to this exact head and evidence class;
+4. synchronize #4, #19, #32, #194, and Archive #192 to the final head and evidence class;
 5. decide the remaining compatibility questions without importing #216;
 6. no upstream contact occurs without a separate authorization decision.
