@@ -21,15 +21,17 @@ Run a wide discovery portfolio while keeping implementation and review bounded.
 
 ## Retained rounds
 
-- [`2026-07-30 broad-spectrum round`](rounds/2026-07-30-broad-spectrum/README.md) — live issue scan, ranked queue, code-level deep dives, active-PR and claim-state stops, environment gates, and recurring search playbook.
+- [`2026-07-30 broad-spectrum round`](rounds/2026-07-30-broad-spectrum/README.md) — live issue scan, ranked queue, code-level deep dives, active-PR, assignment, contributor-intent, and claim-state stops, environment gates, and recurring search playbook.
 
-Current first probes from that round:
+Current first independent probes from that round:
 
-1. Ruff #27026 — constrain RUF038 to valid annotation contexts and preserve unsupported members;
-2. DuckDB #24308 — distinguish SQL NULL from the literal Hive default-partition marker;
-3. Nixpkgs #516481 — restore `gomarkdoc` package tests through Linux Fieldwork;
+1. DuckDB #24308 — distinguish SQL NULL from the literal Hive default-partition marker;
+2. Nixpkgs #516481 — restore `gomarkdoc` package tests through Linux Fieldwork;
+3. DuckDB #24307 — reduce the large FOLLOWING-frame boundary and add a SQL regression;
 4. systemd #43174 — VM trace of oomd registration loss;
 5. CPython #154916 — free-threaded/TSAN design for a safe `GenericAlias` iterator snapshot.
+
+Ruff #27026 is retained as a coordination/reference packet. The issue now has contributor intent and its discussion separates runtime-fix policy from the dropped-member correctness bug. Do not create a competing branch while that intent remains active.
 
 libarchive #3337 is retained as a parser-state and regression-design reference after active PR #3340 appeared. Independent implementation is stopped.
 
@@ -64,7 +66,7 @@ Rust diagnostics #159745, #159686, #159492, #157184, and #157260 are retained as
 - Keep at most three new implementation branches awaiting first review at once.
 - Each promoted contribution has one canonical branch, one owner, an exact source revision, and explicit remaining gates.
 - Park stale work with the blocker, preserved evidence, and the condition that would reopen it.
-- Treat assignees, claim-bot comments, coordinated subdirectory claims, linked work, and matching pull requests as ownership signals.
+- Treat assignees, contributor-intent comments, claim-bot comments, coordinated subdirectory claims, linked work, and matching pull requests as ownership signals.
 - Recheck overlap immediately before branch creation; a dated scan does not reserve a candidate.
 
 ## First outputs
@@ -78,4 +80,4 @@ Rust diagnostics #159745, #159686, #159492, #157184, and #157260 are retained as
 
 ## Current decision
 
-Begin executable probes for Ruff #27026, DuckDB #24308, and Nixpkgs #516481. Keep systemd #43174 and CPython #154916 as environment-gated deep lanes. Retain libarchive #3337 as an active-fix reference rather than creating a competing branch. Continue broad reconnaissance, requiring pull-request, linked-work, assignee, and claim-comment checks immediately before code changes.
+Begin executable probes for DuckDB #24308, Nixpkgs #516481, and DuckDB #24307. Keep Ruff #27026 in coordination-only state while the contributor request remains unresolved. Keep systemd #43174 and CPython #154916 as environment-gated deep lanes. Retain libarchive #3337 as an active-fix reference rather than creating a competing branch. Continue broad reconnaissance, requiring pull-request, linked-work, assignee, contributor-intent, and claim-comment checks immediately before code changes.
