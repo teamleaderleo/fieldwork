@@ -56,7 +56,7 @@ FALLBACK_STRING_KEYS: Final = {
 }
 AUTHORITY_DELTA_KEYS: Final = {"field", "relation"}
 AUTHORITY_RELATIONS: Final = {"equal", "narrower", "changed", "broader", "weaker"}
-EQUIVALENT_AUTHORITY_FIELDS: Final = {
+REQUIRED_AUTHORITY_FIELDS: Final = {
     "account_binding",
     "provider",
     "approval_subject",
@@ -214,6 +214,14 @@ def validate_fallback_input(
             raise ValueError(f"{label} duplicates authority field {field}")
         seen_fields.add(field)
 
+    if seen_fields != REQUIRED_AUTHORITY_FIELDS:
+        missing = sorted(REQUIRED_AUTHORITY_FIELDS - seen_fields)
+        unknown = sorted(seen_fields - REQUIRED_AUTHORITY_FIELDS)
+        raise ValueError(
+            f"fallback {capability_id} authority comparison differs; "
+            f"missing={missing}, unknown={unknown}"
+        )
+
 
 def parse_fallbacks(raw: Any) -> dict[str, dict[str, Any]]:
     if not isinstance(raw, list):
@@ -247,20 +255,6 @@ def absence_reason(observation: dict[str, Any] | None) -> str | None:
         if value == "unknown":
             return f"{phase}_unknown"
     return None
-
-
-def require_complete_equivalent_authority(
-    fallback_input: dict[str, Any],
-    capability_id: str,
-) -> None:
-    fields = {item["field"] for item in fallback_input["authority_deltas"]}
-    if fields != EQUIVALENT_AUTHORITY_FIELDS:
-        missing = sorted(EQUIVALENT_AUTHORITY_FIELDS - fields)
-        unknown = sorted(fields - EQUIVALENT_AUTHORITY_FIELDS)
-        raise ValueError(
-            f"fallback {capability_id} equivalent authority comparison differs; "
-            f"missing={missing}, unknown={unknown}"
-        )
 
 
 def evaluate(request: dict[str, Any]) -> dict[str, Any]:
@@ -330,12 +324,7 @@ def evaluate(request: dict[str, Any]) -> dict[str, Any]:
                 blocked.append(f"{capability_id}:{classification.reason}")
             elif classification.decision == "require_explicit_approval":
                 approvals.append(capability_id)
-            elif classification.decision == "allow_equivalent":
-                require_complete_equivalent_authority(
-                    fallback_input,
-                    capability_id,
-                )
-            else:
+            elif classification.decision != "allow_equivalent":
                 raise ValueError(
                     f"fallback {capability_id} returned unknown decision "
                     f"{classification.decision!r}"
