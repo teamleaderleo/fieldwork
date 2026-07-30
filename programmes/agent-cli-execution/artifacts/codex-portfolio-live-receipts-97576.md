@@ -1,140 +1,260 @@
-# Codex portfolio live receipts at `97576b1794872e342450ebd577123e052ab57626`
+# Codex portfolio live receipts from `97576b1794872e342450ebd577123e052ab57626`
 
-Authority: this file supersedes carrier-head and live-run fields in `codex-portfolio-convergence-97576.md`. The larger dossier remains the portfolio analysis and proposal packet; this file owns changed-head receipts and final disposition.
+Authority: this file supersedes carrier-head, live-run, and current-upstream fields in `codex-portfolio-convergence-97576.md`. The larger dossier remains the portfolio analysis and proposal packet. This ledger owns changed-head receipts, current drift, and final disposition.
 
 Fieldwork command: #239  
 Proposal owner: #260  
 Dossier PR: #258  
 Public upstream interaction authorized: `false`
 
+## Current public head
+
+The portfolio execution pin remains:
+
+```text
+97576b1794872e342450ebd577123e052ab57626
+```
+
+The latest public Codex head inspected during this pass is:
+
+```text
+a01a2d91461a57809e944de7758477b92617ab01
+```
+
+Exact relation:
+
+```text
+97576b1794872e342450ebd577123e052ab57626..a01a2d91461a57809e944de7758477b92617ab01
+status: ahead
+commits: 3
+merge base: 97576b1794872e342450ebd577123e052ab57626
+changed files: 39
+```
+
+The three commits are:
+
+1. `e6cfd40c3f444aadd6017c9eeab01db70f48961a` — external-agent connector detection protocol;
+2. `745603a5a1eb48b6f343633d622eeb72dd549d7b` — rollout-trace normalization of top-level passthrough metadata;
+3. `a01a2d91461a57809e944de7758477b92617ab01` — executor-native read-action path preservation.
+
+The delta has no direct file overlap with the deferred-discovery, MCP publication/reconnect, append-acknowledgement, terminal-retention, Responses Lite, receipt-foundation, or typed-identity source fences. It is semantically adjacent to:
+
+- receipt identity and Responses Lite through rollout replay normalization;
+- terminal delivery through app-server command-action notifications;
+- MCP work through external-agent connector protocol.
+
+Every proposal-ready/current claim at `97576b...` therefore expires. Successful `97576b...` receipts remain immutable execution evidence and require a fresh `a01a2d...` relation plus the lane-specific current-head gate before promotion.
+
 ## Complete-diff review of PR #258
 
-The PR changes documentation only. The first commit added one 369-line dossier. Complete-diff review found one blocking freshness defect: the initial convergence table named carrier heads that moved during concurrent repairs.
+PR #258 changes documentation only. The initial convergence table captured carrier heads that later moved during concurrent repairs. This ledger records the authoritative replacements.
 
-The initial snapshot recorded:
-
-- #52 at `ec78830e3d6f67454b56900427c683a2da7bc29b`;
-- #53 at `600bba1f556d63a75f4fdecd6217c2bab9f458ec`;
-- #55 at `0f50a5612a2b4d471de2be35512540222d6673b3`.
-
-Those heads are historical phase receipts. The following exact heads now own execution:
-
-- append acknowledgement #52: `2cf5f5aabb6f4d8f3e1120d9a621396f85d916df`;
-- terminal retention #53: `0f2f56d3bb758649ade3fe8cdc1e8840da44af0a`;
-- deferred discovery receipt #55: `f27b14dddbb0a24ee4eab17b59f76bf8dd26e6b0`.
-
-No other blocking contradiction was found in the complete documentation diff. Proposal boundaries, historical receipts, source relations, cross-lane constraints, and retirement classes remain coherent.
+No source or proposal contract contradiction was found in the complete documentation diff. The stale fields are historical snapshots only.
 
 ## Deferred discovery
 
-Source PR #54 remains exact current source:
+Reviewed source #54:
 
 ```text
-2b9fd0fc597965341a1a9c61559b67135ed0a49d
+head: 2b9fd0fc597965341a1a9c61559b67135ed0a49d
 parent: 97576b1794872e342450ebd577123e052ab57626
 files: codex-rs/core/src/tools/spec_plan.rs
        codex-rs/core/src/tools/spec_plan_tests.rs
 ```
 
-Receipt carrier #55 first current run:
+Completed receipt #55:
 
 ```text
-run: 30580196749
-job: 90998234427
+carrier head: f27b14dddbb0a24ee4eab17b59f76bf8dd26e6b0
+run: 30580836079
+job: 91000366783
 source fence: passed
 format: passed
 planner exact controls: 4/4 passed
-standalone-host fallback: default worker stack overflow, exit 101
+FIELDWORK_DEFERRED_EXACT=4/4
+FIELDWORK_CODE_MODE_FALLBACK=default:101;large:0
 ```
 
-The fallback test was:
+The exact fallback control was:
 
 ```text
 suite::code_mode::missing_process_host_falls_back_to_direct_tools_and_warns_once
 ```
 
-Carrier #55 head `f27b14dddbb0a24ee4eab17b59f76bf8dd26e6b0` now runs the unchanged fallback control on the default stack and at `RUST_MIN_STACK=16777216`, requires the large-stack control to pass, requires a stack-overflow signature when the default execution fails, and emits:
+Default execution reached the shared worker-stack overflow. The unchanged test passed 1/1 at `RUST_MIN_STACK=16777216`. Stack enlargement remains diagnostic evidence.
+
+Mixed-catalogue successor carrier #64:
 
 ```text
-FIELDWORK_CODE_MODE_FALLBACK=default:<status>;large:<status>
+head: cf7e32ed4b0e8841680001a39a364c9b8396f3b9
+run: 30582147570
+status at ledger revision: queued
+source target: fieldwork/239-deferred-loader-97576-v2
 ```
 
-Current run: `30580836079`, executing at this ledger revision.
+#64 adds one same-request catalogue containing a searchable deferred extension runtime and a deferred core runtime without search metadata. It resolves five unique exact planner controls, reruns fallback classification, runs the focused spec-plan gate, and publishes a two-file source-only successor after success.
+
+Current classification: `cleanly portable from 97576b to a01a2d; exact-current execution pending`.
 
 ## Append acknowledgement
 
-Historical source #51 remains:
+Historical reviewed source #51:
 
 ```text
 30a0a9b50da5fd2f7d58ee81315e0311e84e221e
 ```
 
-Carrier #52 head `2cf5f5aabb6f4d8f3e1120d9a621396f85d916df`:
+Authoritative carrier #52:
 
-- applies the reviewed three-file binary diff with `git apply --3way` onto exact upstream `97576b...`;
-- lists current `codex-core` library tests;
-- requires exactly one full-name match for each of four append-outcome suffixes;
-- runs every resolved name with `--exact --nocapture`;
-- runs the complete `codex-thread-store` package;
-- verifies the three-file source fence;
-- publishes `fieldwork/83-append-outcome-upstream-97576b`.
+```text
+head: 324ddccba14b2b0934e2c56cc0cda7ca04a56e6d
+run: 30582576317
+status at ledger revision: queued
+source target: fieldwork/83-append-outcome-upstream-97576b
+```
 
-Current run: `30581101002`, queued at this ledger revision.
+The carrier checks out the triggering event head, applies the reviewed three-file patch, resolves exactly one full name for each append-outcome control, runs four controls with `--exact`, runs complete `codex-thread-store`, verifies the source fence, and publishes only after success.
 
-Earlier run `30560746088` / job `90932794178` failed during stale source transformation before tests and executed zero source controls. Later attempts were cancelled during setup as the carrier head advanced.
+Earlier run `30560746088` / job `90932794178` failed during stale source transformation and executed zero source controls.
+
+Current classification: `file-disjoint from a01a2d drift; mechanically portable; exact-current execution pending`.
+
+## Receipt foundation
+
+Authoritative carrier #56:
+
+```text
+head: f776a6483fe9fed2dd216c0ca6d00c7740e7f049
+run: 30582540059
+status at ledger revision: queued
+source target: fieldwork/83-receipt-foundation-upstream-97576b
+source fence: 19 files
+```
+
+The repaired carrier checks out the triggering event head, lists immutable library tests, resolves every full name in five owned groups, rejects duplicate package/name execution, runs each with `--exact`, and emits per-group plus total counts.
+
+Current classification: `file-disjoint, semantically adjacent to rollout-trace replay normalization; fresh current-head receipt review required`.
+
+## Typed operation identity
+
+Authoritative carrier #61:
+
+```text
+head: d44040ef24ac972713c4e0b1922586dfb1b4dcc1
+run: 30582772729
+status at ledger revision: queued
+source target: fieldwork/83-typed-identity-upstream-97576b
+source fence: 20 files
+```
+
+The repaired carrier checks out the triggering event head, applies the receipt foundation and reviewed typed-identity generator, adapts current `DirectPlaintextMessage`, resolves full names for receipt-state, Code Mode identity, lifecycle, and direct-persistence groups, rejects duplicate execution, and runs every selected control with `--exact`.
+
+Current classification: `file-disjoint, semantically adjacent to rollout-trace replay normalization; exact-current identity review required`.
 
 ## Terminal retention
 
-Historical source #49 remains:
+Historical reviewed source #49:
 
 ```text
 7db66fe3f235df77c36a9db521677e23379bcac5
 ```
 
-Carrier #53 head `0f2f56d3bb758649ade3fe8cdc1e8840da44af0a` is based on exact branch `fieldwork/upstream-97576-base` at `97576b...`.
+Authoritative carrier #53:
 
-The authoritative workflow `fieldwork-terminal-97576-shallow`:
+```text
+head: d5028fc9771407aa7a9bafbceb7eba051b91de36
+run: 30582012412
+status at ledger revision: queued
+source target: fieldwork/23-terminal-97576-source
+```
 
-- checks out the exact carrier head;
-- fetches only exact upstream and historical source refs;
-- reconstructs the reviewed source with the two known conflict resolutions;
-- preserves upstream `VecDeque` and invalid-UTF-8 progress behavior;
-- removes test-only visibility widening;
-- verifies the exact four-file source fence;
-- resolves nine unique terminal/deque names and runs them with `--exact`;
-- runs focused `codex-core`;
-- publishes `fieldwork/23-terminal-97576-source`.
-
-Current run: `30581285698`, queued at this ledger revision.
+The workflow reconstructs the reviewed source, resolves the two known conflicts, preserves current VecDeque and invalid-UTF-8 behavior, verifies the exact four-file source fence, runs nine unique nextest names through the repository test entrypoint, runs focused `codex-core`, and publishes only after success.
 
 Historical phase receipts:
 
-- run `30579629635` / job `90996353540`: failed during cherry-pick on the two expected conflicts; zero tests;
-- run `30579942527` / job `90997384432`: conflict repair and exact four-file fence passed; execution stopped because `just` was absent.
+- `30579629635` / `90996353540`: conflict before tests; zero tests;
+- `30579942527` / `90997384432`: reconstruction and four-file fence passed; execution stopped because `just` was absent.
 
-## Retirement gate
+Current classification: `file-disjoint from a01a2d drift, with adjacent app-server command-action work; fresh current-head terminal review required`.
 
-Refresh every PR head immediately before closure.
+## Responses Lite
 
-- Close #45 and #55 only after the final #55 receipt transfers to #239, #260, and this ledger.
-- Close #51 and #52 only after a published source-only head is independently compared with `97576b...` and its exact receipt transfers.
-- Close #49 and #53 only after a published source-only head is independently compared with `97576b...` and its exact receipt transfers.
-- Keep #46 and #48 open until exact-current source successors exist.
-- Keep #23 and #32 as historical evidence until clean successor source heads absorb their remaining residue.
+Execution-and-publication carrier #58:
 
-Execution carriers remain outside R2/R3 and Delivery Desk D0.
+```text
+head: b3727359801f033f247d5b04561c022608d5cba9
+run: 30581975601
+status at ledger revision: queued
+source target: fieldwork/239-lite-source-97576
+source fence: client.rs, agent_websocket.rs, client_websockets.rs
+```
 
-## Final handoff fields
+The carrier proves full first generated request after untraced startup prewarm, ordinary generated-response continuation reuse, and full retry after failed first generation. The full agent control remains classified on default and 16 MiB stacks.
 
-For every completed or blocked lane, record:
+Current classification: `file-disjoint, semantically adjacent to rollout-trace replay normalization; published source requires independent a01a2d review`.
 
-1. public upstream head;
-2. source branch and exact head;
-3. source parent and complete file list;
-4. carrier head, workflow run, and job;
-5. exact test names and count;
-6. focused package gate outcome;
-7. publication outcome and source branch;
-8. absorption/conflict classification;
-9. retired carrier list;
+## MCP publication and reconnect
+
+Current-pin source #59:
+
+```text
+head: 84b191c66d00ee95a840fb389df0b06f3558f615
+file: codex-rs/codex-mcp/src/runtime.rs
+v8 run: 30580767150 success
+blocking run: 30580767387 in progress at ledger revision
+```
+
+Complete-diff disposition: `EXECUTE TARGET TEST`. Required residue includes slow-A/fast-B publication, superseded fresh-result identity, cancellation/progress behavior, and composition with reconnect freshness.
+
+Current-pin source #63:
+
+```text
+head: bd6fc6634f03efffb7590b6c1954acb198cf900c
+files: codex-rs/core/src/codex_thread.rs
+       codex-rs/core/tests/suite/mcp_tool_exposure.rs
+runs: 30581303040 and 30581303301 queued at ledger revision
+```
+
+Complete-diff disposition: `EXECUTE TARGET TEST`. Required residue is a real app-server `mcpServer/refresh` request-path control proving healthy-thread reconnect completion and strict planning failure with zero reconnect attempts.
+
+The public drift is file-disjoint from both source fences and adds adjacent external-agent connector protocol. Both packets require refreshed prior-art and current-head execution before promotion.
+
+## Retirement ledger
+
+Retired in this convergence pass:
+
+- #5, #6, #33, #34: superseded source lineages;
+- #43: completed boxed-future diagnostic;
+- #44: superseded append execution predecessor;
+- #47: completed deferred exact-review carrier;
+- #55: completed deferred receipt carrier after transfer.
+
+Keep open until replacement source and receipts transfer:
+
+- #45 historical deferred source;
+- #46 historical reconnect source;
+- #48 historical publication source;
+- #49 historical terminal source;
+- #51 historical append source;
+- #52, #53, #56, #58, #61, #64 active execution carriers;
+- #54, #59, #63 current-pin source candidates;
+- #23 and #32 historical mixed evidence until clean successors absorb residue.
+
+Refresh every PR head immediately before any closure. Execution carriers remain outside promotion and Delivery Desk D0.
+
+## Blocked exact-head handoff fields
+
+At this ledger revision, source publication and exact execution are blocked on the shared GitHub Actions queue. The exact blockers are queued or executing run IDs recorded above, plus public head movement from `97576b...` to `a01a2d...`.
+
+For every completed or blocked lane, the final command handoff must record:
+
+1. latest public upstream head inspected;
+2. source branch, exact head, parent, and complete file list;
+3. carrier head, workflow run, and job;
+4. exact test names and count;
+5. focused package gate outcome;
+6. publication outcome and source branch;
+7. absorption/conflict classification against `a01a2d...` or a later freshly inspected head;
+8. retired carrier list;
+9. proposal packet disposition;
 10. public upstream interaction performed: `false`.
