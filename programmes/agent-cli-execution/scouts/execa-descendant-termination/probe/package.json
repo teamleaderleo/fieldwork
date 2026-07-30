@@ -1,0 +1,11 @@
+{
+  "name": "fieldwork-execa-descendant-signal-probe",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node probe.mjs"
+  },
+  "dependencies": {
+    "execa": "10.0.0"
+  }
+}
