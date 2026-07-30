@@ -40,8 +40,9 @@ findings/F<issue>-<slug>/
 - review disposition and reviewed head;
 - freshness;
 - writer lease;
-- authority;
-- blocker and next transition.
+- authority and its exact authority record;
+- blocker and next transition;
+- terminal record for stopped or closed work.
 
 Issue and PR comments remain routing events. They do not become another canonical state store.
 
@@ -59,6 +60,8 @@ Issue and PR comments remain routing events. They do not become another canonica
 - `closed`.
 
 Phase answers where the finding is in its lifecycle. It does not state evidence strength, review outcome, or authority.
+
+`stopped` and `closed` records require a `terminal_record` pointing to the retained stop reason, reopening trigger, merge, archive, or closeout.
 
 ### Work class
 
@@ -103,7 +106,7 @@ Authority is explicit and never inferred from technical readiness:
 - private or production data;
 - material spending.
 
-A `land-ready` finding may still have every authority value set to `false`.
+A `land-ready` finding may still have every authority value set to `false`. Any authority value set to `true` requires a non-empty `authority_record` naming the exact user instruction, approval, or other valid authority source.
 
 ## Canonical source and active carrier
 
@@ -177,6 +180,7 @@ The validator checks at least:
 
 - required fields and allowed values;
 - authority values are explicit booleans;
+- enabled authority has an exact `authority_record`;
 - unfinished phases have a next transition;
 - review-ready and later active phases identify a canonical finding;
 - accepted and land-ready states identify an exact reviewed head;
@@ -184,8 +188,8 @@ The validator checks at least:
 - active carriers identify a canonical source and purpose;
 - no more than one active carrier exists per invariant;
 - no more than one active writer lease exists per artifact;
-- every evidence claim has a non-empty receipt;
-- stopped or closed findings retain a reopening or closeout statement in the finding;
+- every evidence claim has a non-empty receipt and limit;
+- stopped or closed findings have a terminal record;
 - technical state never toggles authority implicitly.
 
 The first validator is intentionally local and deterministic. Generated GitHub-state reconciliation belongs to #304.
