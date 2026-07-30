@@ -10,7 +10,9 @@ Fieldwork investigates external systems seriously before asking their maintainer
 
 ## Enter here
 
-- [`QUEUE.md`](QUEUE.md) — the actual ordered human review queue; start here when deciding what to review.
+- [`CURRENT.md`](CURRENT.md) — current publication-readiness pass: what can land, what is active, and what needs another pass.
+- [`QUEUE.md`](QUEUE.md) — the short ordered human review and delivery queue.
+- [`REPOSITORIES.md`](REPOSITORIES.md) — account-level map of coordination repos, public testbeds, target working copies, and unclassified public repositories.
 - [`START_HERE.md`](START_HERE.md) — exact runbook for a person or agent sent to Fieldwork.
 - [`ADAPTIVE_COORDINATION.md`](ADAPTIVE_COORDINATION.md) — the lightweight working agreement for ownership, dispatch, review, branching, and protocol improvement.
 - [`WHY_FIELDWORK.md`](WHY_FIELDWORK.md) — plain-language explanation of what Fieldwork does, why the evidence workflow exists, and what current examples prove.
@@ -125,7 +127,9 @@ Any public repository may be observed quietly when a user or coordinator assigns
 
 ## Repository map
 
-- [`QUEUE.md`](QUEUE.md) — actual ordered human review queue and routing entry point.
+- [`CURRENT.md`](CURRENT.md) — current publication-readiness snapshot and editorial inventory.
+- [`QUEUE.md`](QUEUE.md) — short ordered human review and delivery queue.
+- [`REPOSITORIES.md`](REPOSITORIES.md) — account-level repository inventory and classification boundary.
 - [`ADAPTIVE_COORDINATION.md`](ADAPTIVE_COORDINATION.md) — the working agreement for adapting detailed protocols without losing responsibility or evidence.
 - [`CHARTER.md`](CHARTER.md) — purpose, boundaries, and standards.
 - [`METHOD.md`](METHOD.md) — campaign lifecycle and evidence method.
