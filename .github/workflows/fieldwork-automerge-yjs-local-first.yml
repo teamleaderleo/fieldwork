@@ -1,0 +1,33 @@
+name: Fieldwork Automerge Yjs local-first corpus
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-automerge-yjs-local-first.yml"
+      - "programmes/high-leverage-open-source/scouts/automerge-yjs-local-first-comparison/**"
+
+permissions:
+  contents: read
+
+jobs:
+  recovery-corpus:
+    name: Node ${{ matrix.node }} recovery corpus
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install exact released packages
+        run: >-
+          npm install --no-save --package-lock=false --ignore-scripts
+          --no-audit --no-fund
+          @automerge/automerge@3.3.2 yjs@13.6.31
+      - name: Run shared identity and recovery corpus
+        run: node programmes/high-leverage-open-source/scouts/automerge-yjs-local-first-comparison/run_cases.mjs
+      - name: Check patch hygiene
+        run: git diff --check
