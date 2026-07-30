@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "batch_id": "B20260730-001",
+  "title": "Workers SDK lifecycle follow-up and cross-review",
+  "state": "complete",
+  "coordinator": "teamleaderleo",
+  "created_at": "2026-07-30",
+  "purpose": "Convert the Workers SDK lifecycle scout into three bounded, reviewable investigations without duplicate edits or unauthorized upstream contact.",
+  "intended_claim_scope": "mechanism-and-integration",
+  "synthesis_context_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/synthesis.md",
+  "exclusions": [
+    "No upstream issues, pull requests, comments, reviews, reactions, or other contact.",
+    "No live production deployment or rollback without separate authorization.",
+    "No broad refactor that is not justified by a failing reproduction or bounded contract decision.",
+    "No worker edits to shared batch status, manifest, or synthesis files."
+  ],
+  "constraints": {
+    "upstream_contact_authorized": false,
+    "max_parallel": 2,
+    "default_time_boundary": "Return a bounded finding, negative result, or explicit blocker; stop before speculative expansion."
+  },
+  "dimensions": {
+    "targets": [
+      "teamleaderleo/workers-sdk",
+      "teamleaderleo/fieldwork",
+      "cloudflare/workers-sdk (quiet reference only)",
+      "cloudflare/workerd (quiet reference only)"
+    ],
+    "questions": [
+      "Can cleanup failure skip or delay workerd termination?",
+      "When do Wrangler and Vite select different configuration?",
+      "What deployment state changes before a later failure?"
+    ],
+    "methods": [
+      "source-map",
+      "failure-injection",
+      "package-regression-test",
+      "compatibility-analysis",
+      "prior-art-review",
+      "coordinator-cross-review"
+    ],
+    "context_lenses": [
+      "mechanism",
+      "contract",
+      "operations",
+      "adversarial",
+      "synthesis"
+    ]
+  },
+  "assignments": [
+    {
+      "id": "A001",
+      "kind": "lane",
+      "owner": "external-agent-A001",
+      "target": "teamleaderleo/workers-sdk",
+      "source_revision": "161443215fba3ac77407ba30f6996aa9963a0276",
+      "result_revision": "fa39841a98d71edd2df7561beb877f4dacbc6b7c",
+      "fork_pr": "teamleaderleo/workers-sdk#1",
+      "fieldwork_pr": "teamleaderleo/fieldwork#98",
+      "question": "Can an early rejection or unresolved cleanup operation prevent Runtime.dispose() from terminating workerd, especially under parallel Vitest execution?",
+      "method": "source trace, failure injection, package-level regression testing, adversarial test review, and adjacent Vite lifecycle exploration",
+      "claim_scope": "mechanism",
+      "claim_to_support_or_falsify": "Miniflare cleanup ordering contains a sufficient path for a hidden live workerd child after an otherwise passing Vitest run.",
+      "preferred_primary_sources": [
+        "Workers SDK source at exact revisions",
+        "Workers SDK package tests",
+        "workerd process lifecycle source when needed",
+        "public upstream issues and pull requests as quiet references"
+      ],
+      "evidence_labels_allowed": [
+        "Documented",
+        "Observed",
+        "Inferred",
+        "Unknown",
+        "Contradicted"
+      ],
+      "integration_context_path": null,
+      "deliverable": "A focused Fieldwork result and PR with a real failing test or a precise feasibility limit, rejected alternatives, and a bounded repair direction.",
+      "owned_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/results/A001.md",
+      "dependencies": [
+        "Package execution remains required before source integration.",
+        "Candidate #165 requires mocked Vite container-cleanup tests.",
+        "Candidate #179 requires Vite 6/7/8 logical-owner, runtime, tunnel, metadata, warning, and stale-generation tests.",
+        "Candidate #183 requires Vite 6/7/8 programmatic build/preview operation-scope tests.",
+        "Candidate #186 requires mocked remote-session lifecycle, connection-identity, disposed-entry, and logger-ownership tests.",
+        "Candidate #187 requires mocked concurrent container-registry account/token authority tests."
+      ],
+      "state": "complete",
+      "stop_condition": "Stop when the lifecycle claim is reproduced, falsified, or blocked by a specific unavailable test dependency; do not generalize every teardown hang to this cause.",
+      "review_disposition": "Mechanism accepted; kill assertions bind to the workerd child. Extracted Vite candidates #165, #179, #183, #186, and #187 remain separate from the first child-ownership patch and from primary-error aggregation, each with its own exact evidence head and execution gate.",
+      "upstream_contact_authorized": false
+    },
+    {
+      "id": "A002",
+      "kind": "lane",
+      "owner": "coordinator",
+      "target": "teamleaderleo/workers-sdk",
+      "source_revision": "0497e9e30e191f2b7e337b01e32855c4cb6cf5fe",
+      "result_revision": "82ffab5d51abf7b5311891f31c6aa77f42bec41f",
+      "fork_pr": "teamleaderleo/workers-sdk#2",
+      "question": "Under which layouts and invocation modes do Wrangler, wrangler dev, Vite, and redirected deployment configuration select different files?",
+      "method": "source trace, tightened prepared behaviour matrix, compatibility analysis, prior-art review, and formal cross-review",
+      "claim_scope": "contract",
+      "claim_to_support_or_falsify": "Configuration selection differs across Wrangler and Vite in consequential but insufficiently explicit ways involving precedence, search boundaries, explicit paths, and deploy-config redirects.",
+      "preferred_primary_sources": [
+        "Workers SDK source at exact revisions",
+        "Wrangler and Vite-plugin tests",
+        "framework config integration tests",
+        "public upstream issues and pull requests as quiet references"
+      ],
+      "evidence_labels_allowed": [
+        "Documented",
+        "Observed",
+        "Inferred",
+        "Unknown",
+        "Contradicted"
+      ],
+      "integration_context_path": null,
+      "deliverable": "A Fieldwork result and PR with a prepared executable selection matrix, intentional-versus-accidental classification, and the smallest coherent shared-policy API direction.",
+      "owned_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/results/A002.md",
+      "dependencies": [
+        "Package execution and compatibility decision remain required before changing defaults."
+      ],
+      "state": "complete",
+      "stop_condition": "Stop after the source dimensions and compatibility boundary are recorded and the package matrix is prepared; do not silently choose new defaults without execution and migration analysis.",
+      "review_disposition": "Characterization accepted after direct JSONC/TOML and relative explicit-path controls; prefer shared policy disclosure before default alignment.",
+      "upstream_contact_authorized": false
+    },
+    {
+      "id": "A003",
+      "kind": "lane",
+      "owner": "coordinator",
+      "target": "teamleaderleo/workers-sdk",
+      "source_revision": "609623ba8552a016f3c67cee7259e38d8431bd91",
+      "result_revision": "bc0dc5b064f3f4fd684b9ca8afa0b34de8489376",
+      "fork_pr": "teamleaderleo/workers-sdk#3",
+      "question": "Which deployment mutations can succeed before Wrangler reports a later failure, and what state can be reported safely afterward?",
+      "method": "mutation-order map, executed dependency-free failure and reporting-guard model, prepared package regression tests, state-reporting design, and formal cross-review",
+      "claim_scope": "operations",
+      "claim_to_support_or_falsify": "Wrangler can fail after Worker activation or other mutations, while current output does not consistently identify the changed state, failed phase, or safe recovery actions.",
+      "preferred_primary_sources": [
+        "Workers SDK deploy source at exact revisions",
+        "Wrangler deploy and versions tests",
+        "Cloudflare API response handling in source",
+        "public upstream reports as quiet references"
+      ],
+      "evidence_labels_allowed": [
+        "Documented",
+        "Observed",
+        "Inferred",
+        "Illustrative",
+        "Unknown",
+        "Contradicted"
+      ],
+      "integration_context_path": null,
+      "deliverable": "A Fieldwork result and PR with a deployment mutation table, post-activation failure tests or models, and a bounded journal/state-reporting proposal.",
+      "owned_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/results/A003.md",
+      "dependencies": [
+        "Package execution and output-contract review remain required before applying the integration patch."
+      ],
+      "state": "complete",
+      "stop_condition": "Stop at accurate guarded state reporting and recovery guidance; do not add automatic rollback unless resource-specific safety is demonstrated.",
+      "review_disposition": "Guarded state-reporting direction accepted; reporting is best-effort, original error identity is authoritative, the refreshed model executed from retained identical content, and automatic rollback remains out of scope.",
+      "upstream_contact_authorized": false
+    },
+    {
+      "id": "A004",
+      "kind": "lane",
+      "owner": null,
+      "target": "teamleaderleo/fieldwork and teamleaderleo/workers-sdk",
+      "source_revision": "original batch dispatch",
+      "question": "Which claims and proposed tests from A001-A003 survive independent reproduction, source review, and prior-art analysis?",
+      "method": "independent reproduction, adversarial review, and prior-art audit",
+      "claim_scope": "synthesis",
+      "claim_to_support_or_falsify": "The three candidate campaigns are distinct, reproducible, not already resolved, and bounded enough to justify implementation work.",
+      "preferred_primary_sources": [
+        "A001-A003 final branches and result files",
+        "Workers SDK and workerd source at exact revisions",
+        "upstream issues, pull requests, commits, and changelogs as quiet references"
+      ],
+      "evidence_labels_allowed": [
+        "Documented",
+        "Observed",
+        "Inferred",
+        "Unknown",
+        "Contradicted"
+      ],
+      "integration_context_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/synthesis.md",
+      "deliverable": "Originally planned independent review lane; duties redistributed to coordinator and peer review.",
+      "owned_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/results/A004.md",
+      "dependencies": [],
+      "state": "complete",
+      "stop_condition": "Withdrawn at user direction after the active batch was reduced.",
+      "review_disposition": "Assignment withdrawn before execution; review duties redistributed; package execution remains an explicit shared gate.",
+      "upstream_contact_authorized": false
+    }
+  ]
+}
