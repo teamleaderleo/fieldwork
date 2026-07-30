@@ -191,7 +191,10 @@ struct ScenarioReceipt {
 
 fn make_context(store: Arc<TrackingStore>) -> SessionContext {
     let mut config = SessionConfig::new().with_target_partitions(1);
-    config.options_mut().execution.objectstore_writer_buffer_size = 8;
+    config
+        .options_mut()
+        .execution
+        .objectstore_writer_buffer_size = 8;
     let ctx = SessionContext::new_with_config(config);
     let url = Url::parse("fieldwork://bucket").unwrap();
     let store: Arc<dyn ObjectStore> = store;
