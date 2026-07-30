@@ -6,7 +6,7 @@ Canonical Fieldwork finding: `<findings/F<issue>-<slug>/finding.md | parent find
 Exact question: <one bounded question>  
 Claim scope: `<mechanism | interface | integration | operational | ecosystem>`  
 Source or retrieval boundary: `<revision, version, and date>`  
-Canonical transition state: `<research-active | review-ready | design-decision-ready | delivery-gate-ready | land-ready | stopped | closed>`  
+Canonical transition state: `<research-active | comparative-evaluation-active | review-ready | design-decision-ready | delivery-gate-ready | land-ready | stopped | closed>`  
 Workspace-note status: `<draft | active | retained | superseded>`  
 Upstream contact authorized: `<no | yes with exact authority>`
 
@@ -24,6 +24,8 @@ State whether this file:
 - preserves a superseded or negative result.
 
 A workspace note never replaces the canonical finding for a retained investigation. Link the canonical file and keep transition state, desk routing, and current disposition there.
+
+Use `comparative-evaluation-active` when several technical explanations or implementations still need executable comparison. Do not use `design-decision-ready` merely because alternatives exist.
 
 ## Boundary examined
 
