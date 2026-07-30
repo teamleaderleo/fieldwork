@@ -1,0 +1,33 @@
+name: Receipt classifier
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/receipt-classifier.yml'
+      - 'campaigns/0002-tool-surface-continuity/lanes/L06-effective-surface-diagnostics/artifacts/classify_receipts.py'
+      - 'campaigns/0002-tool-surface-continuity/lanes/L06-effective-surface-diagnostics/artifacts/test_classify_receipts.py'
+      - 'campaigns/0002-tool-surface-continuity/lanes/L06-effective-surface-diagnostics/artifacts/fixtures.json'
+      - 'campaigns/0002-tool-surface-continuity/lanes/L06-effective-surface-diagnostics/artifacts/results/latest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  focused:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: campaigns/0002-tool-surface-continuity/lanes/L06-effective-surface-diagnostics/artifacts
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Compile and test receipt schema
+        run: |
+          python3 -m py_compile classify_receipts.py test_classify_receipts.py
+          python3 test_classify_receipts.py
+          python3 classify_receipts.py fixtures.json --output /tmp/receipt-classifier-latest.json
+          cmp /tmp/receipt-classifier-latest.json results/latest.json
+      - name: Check diff
+        working-directory: .
+        run: git diff --check
