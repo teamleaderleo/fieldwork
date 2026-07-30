@@ -8,6 +8,8 @@ This round surveyed live contribution queues across package collections, runtime
 
 Research was performed on 2026-07-30 against public GitHub issue, pull-request, assignment, comment, and source views. Exact issue and source revisions are recorded in the scout reports. This is reconnaissance and local planning only; no upstream contact was authorized or made.
 
+Promotion state is perishable. A live review refresh found that libarchive #3337 gained PR #3340 after the original scan, so the round now retains that case as a reference and stops independent implementation. Every candidate must be rechecked immediately before a branch is created.
+
 ## First result
 
 The portfolio can sustain broad parallel discovery. The highest-yield surfaces share three properties:
@@ -21,13 +23,14 @@ The portfolio can sustain broad parallel discovery. The highest-yield surfaces s
 1. **Ruff #27026 — RUF038 changes runtime expressions and drops `Literal` members.** The rule claims annotation scope but receives a general expression and can replace an entire runtime `Literal` expression. The owning rule file is compact and the issue includes a playground reproducer.
 2. **DuckDB #24308 — partitioned COPY can lose data.** SQL NULL and the literal string `__HIVE_DEFAULT_PARTITION__` map to the same directory. The writer and adjacent test file are identified, and the reproducer is a small SQL fixture.
 3. **Nixpkgs #516481 — restore `gomarkdoc` tests.** The package currently disables `checkPhase`. The failure is pinned to a nixpkgs revision window and points toward `buildGoModule`, `GOFLAGS`, working-directory behavior, or an upstream test assumption.
-4. **DuckDB #24307 and #24314 — window-frame and high-precision median errors.** Both are pure SQL reproducers with no matching pull request found.
+4. **DuckDB #24307 and #24314 — window-frame and high-precision median errors.** Both are pure SQL reproducers with no matching pull request found in the round.
 5. **Ruff #27022 and #27024 — automatic fixes change string or buffer behavior.** Both carry compact before/after fixtures and clear fix-safety consequences.
-6. **libarchive #3337 — PPMd decompression depends on caller read-buffer size.** This offers a compact archive fixture and current-CI parser/refill investigation.
 
-## Claimed reference candidates
+## Claimed and active-work reference candidates
 
 Rust #159745, #159686, #159492, #157184, and #157260 are already assigned or claimed. They remain valuable diagnostic and contribution-packet references, while independent implementation is stopped unless their claims are released or coordination explicitly invites help.
+
+libarchive #3337 now has active PR #3340 with the same small-buffer reproducer and a focused PPMd input-accounting fix. It remains useful as a parser-refill and regression-fixture reference, but it is removed from the implementation queue.
 
 ## Environment-gated candidates
 
@@ -40,6 +43,7 @@ Rust #159745, #159686, #159492, #157184, and #157260 are already assigned or cla
 
 Several attractive issues already had focused fixes in flight:
 
+- libarchive #3337 → PR #3340;
 - Nixpkgs #540900 → PR #540913;
 - Nixpkgs #541367 → PR #541990;
 - CPython #154842 → PR #154843;
@@ -63,4 +67,4 @@ These remain useful as contribution-packet examples, test-design references, and
 
 ## Current decision
 
-Promote Ruff #27026, DuckDB #24308, Nixpkgs #516481, and libarchive #3337 into executable probes first. Keep one VM lane and one free-threaded/TSAN lane ready behind them. Treat claimed Rust diagnostics as references and continue searching for unassigned compiler work. Run pull-request, linked-work, assignee, and claim-comment checks before code work begins.
+Promote Ruff #27026, DuckDB #24308, and Nixpkgs #516481 into executable probes first. Keep one VM lane and one free-threaded/TSAN lane ready behind them. Retain libarchive #3337 as an active-fix reference. Treat claimed Rust diagnostics as references and continue searching for unassigned compiler work. Run pull-request, linked-work, assignee, and claim-comment checks immediately before code work begins.
