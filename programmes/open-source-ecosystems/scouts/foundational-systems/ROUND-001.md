@@ -14,7 +14,7 @@ Repository: `duckdb/duckdb`
 
 ### Deep dive — reserved Hive partition collision
 
-Issue: [#24308](https://github.com/duckdb/duckdb/issues/24308)  
+Issue: [partitioned COPY collision issue](https://redirect.github.com/duckdb/duckdb/issues/24308)  
 Owning code: `src/execution/operator/persistent/physical_copy_to_file.cpp`  
 Adjacent test: `test/sql/copy/parquet/parquet_hive_null.test`
 
@@ -54,7 +54,7 @@ Then assert:
 - two rows survive a globbed read;
 - one row remains SQL NULL;
 - one row remains the exact literal string;
-- the output paths are distinct;
+- output paths are distinct;
 - existing Hive-compatible reads still recognize the default marker.
 
 ### Design questions
@@ -69,12 +69,12 @@ The read side must preserve existing Hive datasets. A writer-only escaping rule 
 
 ### Other DuckDB candidates
 
-- [#24307](https://github.com/duckdb/duckdb/issues/24307) — huge `ROWS ... FOLLOWING` offsets produce non-empty frames and full-table members.
-- [#24314](https://github.com/duckdb/duckdb/issues/24314) — `quantile_cont` and `median` miscompute two DECIMAL(38,0) values.
-- [#24306](https://github.com/duckdb/duckdb/issues/24306), [#24303](https://github.com/duckdb/duckdb/issues/24303), and [#24302](https://github.com/duckdb/duckdb/issues/24302) — optimizer-disabled queries return different results.
-- [#24282](https://github.com/duckdb/duckdb/issues/24282) — `equi_width_bins()` can loop indefinitely when integer division yields a zero step.
+- [large FOLLOWING-frame issue](https://redirect.github.com/duckdb/duckdb/issues/24307) — huge offsets produce non-empty frames and full-table members.
+- [high-precision median issue](https://redirect.github.com/duckdb/duckdb/issues/24314) — `quantile_cont` and `median` miscompute two DECIMAL(38,0) values.
+- [optimizer divergence A](https://redirect.github.com/duckdb/duckdb/issues/24306), [B](https://redirect.github.com/duckdb/duckdb/issues/24303), and [C](https://redirect.github.com/duckdb/duckdb/issues/24302) — optimizer-disabled queries return different results.
+- [`equi_width_bins()` loop issue](https://redirect.github.com/duckdb/duckdb/issues/24282) — integer division can yield a zero step.
 
-All are pure-SQL candidates. Run #24308 first because its storage consequence and owning code are already clear.
+All are pure-SQL candidates. Run the partition collision first because its storage consequence and owning code are already clear.
 
 ## libarchive first wave
 
@@ -82,16 +82,16 @@ Repository: `libarchive/libarchive`
 
 ### Candidate queue
 
-1. [#3337](https://github.com/libarchive/libarchive/issues/3337) — 7z PPMd decompression fails when callers use small read buffers. This is a strong current-CI parser/refill candidate.
-2. [#3283](https://github.com/libarchive/libarchive/issues/3283) — signed left shift in Windows file-information conversion reaches undefined behavior under CLANG64 UBSan. Requires a Windows environment and an explicit policy for values above `INT64_MAX`.
-3. [#3338](https://github.com/libarchive/libarchive/issues/3338) — `locale_charset` is used without a declaration in one CMake configuration. Investigate feature detection and header ownership.
-4. [#3314](https://github.com/libarchive/libarchive/issues/3314) — cpio tests fail intermittently on filesystems with inode numbers wider than the archive format fields. Good portability/test-fixture candidate.
+1. [PPMd small-buffer issue](https://redirect.github.com/libarchive/libarchive/issues/3337) — valid 7z decompression depends on caller read-buffer size.
+2. [Windows signed-shift issue](https://redirect.github.com/libarchive/libarchive/issues/3283) — file-information conversion reaches undefined behavior under CLANG64 UBSan.
+3. [`locale_charset` declaration issue](https://redirect.github.com/libarchive/libarchive/issues/3338) — one CMake configuration misses the declaration.
+4. [wide-inode cpio test issue](https://redirect.github.com/libarchive/libarchive/issues/3314) — tests fail intermittently on filesystems whose inode numbers exceed archive fields.
 
 ### Duplicate stop — standalone AppleDouble entries
 
-Issue [#3310](https://github.com/libarchive/libarchive/issues/3310) already has [PR #3334](https://github.com/libarchive/libarchive/pull/3334).
+The [standalone AppleDouble issue](https://redirect.github.com/libarchive/libarchive/issues/3310) already has [a focused fix PR](https://redirect.github.com/libarchive/libarchive/pull/3334).
 
-The source itself documents the filename-only `._` detection as brittle. `is_mac_metadata_entry()` checks only whether the final path component begins with `._`; the reader then consumes it as metadata for a following entry. PR #3334 validates the following ordinary tar header and preserves standalone files.
+The source itself documents the filename-only `._` detection as brittle. `is_mac_metadata_entry()` checks only whether the final path component begins with `._`; the reader then consumes it as metadata for a following entry. The active fix validates the following ordinary tar header and preserves standalone files.
 
 Retain this as a model for ambiguous-parser fixes:
 
@@ -106,7 +106,7 @@ Repository: `systemd/systemd`
 
 ### Deep dive — oomd registration loss
 
-Issue: [#43174](https://github.com/systemd/systemd/issues/43174)  
+Issue: [oomd reload-registration issue](https://redirect.github.com/systemd/systemd/issues/43174)  
 Subscriber: `src/oom/oomd-manager.c`  
 Publisher: `src/core/varlink.c`  
 Test area: `test/units/TEST-55-OOMD.sh`
@@ -137,28 +137,28 @@ The key question is whether reload transiently reports AUTO from PID 1, clears c
 
 ### Other systemd candidates
 
-- [#43205](https://github.com/systemd/systemd/issues/43205) — a lifetime-zero router advertisement cancels the pending initial solicitation even though networkd discards the advertisement. Route through a network namespace.
-- [#43210](https://github.com/systemd/systemd/issues/43210) — TPM device renumbering race during switchroot. Route through a TPM-enabled VM.
-- [#43168](https://github.com/systemd/systemd/issues/43168) — journald crash after resume. Requires suspend/resume reproduction or a virtualized equivalent.
+- [router-advertisement solicitation issue](https://redirect.github.com/systemd/systemd/issues/43205) — a discarded lifetime-zero advertisement cancels pending solicitation.
+- [TPM renumbering issue](https://redirect.github.com/systemd/systemd/issues/43210) — device numbering races during switchroot.
+- [journald resume crash](https://redirect.github.com/systemd/systemd/issues/43168) — requires suspend/resume reproduction or a virtualized equivalent.
 
 ## Environment map
 
 | Candidate | Current CI | Privileged | VM | Windows | Kernel/device |
 |---|---:|---:|---:|---:|---:|
-| DuckDB #24308 | yes | | | | |
-| DuckDB #24307/#24314 | yes | | | | |
-| libarchive #3337/#3338/#3314 | yes | | | | |
-| libarchive #3283 | | | | yes | |
-| systemd #43174 | | likely | yes | | cgroup v2/PSI |
-| systemd #43205 | | yes | optional | | network namespace |
-| systemd #43210 | | | yes | | TPM/vtpm |
+| DuckDB partition collision | yes | | | | |
+| DuckDB window/median cases | yes | | | | |
+| libarchive PPMd/CMake/inode cases | yes | | | | |
+| libarchive signed shift | | | | yes | |
+| systemd oomd reload | | likely | yes | | cgroup v2/PSI |
+| systemd router advertisement | | yes | optional | | network namespace |
+| systemd TPM renumbering | | | yes | | TPM/vtpm |
 
 ## Return
 
-- **Promote first:** DuckDB #24308.
-- **Parallel pure-SQL queue:** DuckDB #24307 and #24314.
-- **Current-CI library probe:** libarchive #3337.
-- **VM promotion:** systemd #43174 through Linux Fieldwork.
-- **Capability queues:** libarchive #3283 and systemd #43210.
-- **Stop duplicate implementation:** libarchive #3310.
+- **Promote first:** DuckDB partition-path collision.
+- **Parallel pure-SQL queue:** DuckDB window frame and high-precision median.
+- **Current-CI library probe:** libarchive PPMd short reads.
+- **VM promotion:** systemd oomd registration through Linux Fieldwork.
+- **Capability queues:** libarchive Windows signed shift and systemd TPM renumbering.
+- **Stop duplicate implementation:** standalone AppleDouble parsing.
 - **Next expansion:** curl/HTTP parsing and container lifecycle after these first fixtures are executable.
