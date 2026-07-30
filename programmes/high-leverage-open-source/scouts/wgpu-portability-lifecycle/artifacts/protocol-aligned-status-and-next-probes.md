@@ -1,6 +1,6 @@
 # Protocol-aligned wgpu status and next probes
 
-State: active exploration; source-read and target-test-prepared evidence only
+State: active exploration; `source-read` and `target-test-prepared` evidence only
 
 Fieldwork issue: #116
 
@@ -13,24 +13,30 @@ Upstream contact authorized: false
 ## Current exact records
 
 - released baseline: `wgpu v30.0.0`
-- pinned source revision: [wgpu source revision](https://redirect.github.com/gfx-rs/wgpu/commit/2eddc8c7b2fedd4267f5004745a8bc42974e17a0)
-- owned fork test head: `38c9498bdae8f0ddfdc6a04c6d763ce889f3f5ad`
+- [wgpu source revision](https://redirect.github.com/gfx-rs/wgpu/commit/2eddc8c7b2fedd4267f5004745a8bc42974e17a0)
+- [WebGPU editor-draft source](https://redirect.github.com/gpuweb/gpuweb/commit/d390da5f80f18e82d9535a40c6f2f1f65e6884ae)
+- [WebGPU CTS source](https://redirect.github.com/gpuweb/cts/commit/dc20b8682aa71ff31f135de6ae7f8acaa2e16383)
+- owned fork test head: `77c46ce89efab608b1d377b3d6cecf18b006fb72`
 - review-contract head: Fieldwork PR #143 at `dd7f0364d5dc195b3fa651f95192cf6078810a6e`
 - Delivery Desk protocol head: Fieldwork PR #161 at `b1e402ee47aa2e2842d52e8f0ab42d4ab0501916`
 
-Both protocol heads have passed Fieldwork integrity and external-reference policy checks. They remain draft because process acceptance requires independent review, not only green CI.
+Both protocol heads passed Fieldwork integrity and external-reference policy. They remain draft because process acceptance requires independent review, not only green CI.
+
+An earlier invalid WebGPU specification SHA has been removed from the canonical report and replaced with the verified editor-draft commit above.
 
 ## Claim-scoped evidence
 
 | Claim | Evidence class | Current receipt | Important exclusion |
 | --- | --- | --- | --- |
-| Browser-only `ExtendedSrgbLinear` mapping rejection occurs before raw `GPUCanvasContext.configure` | source-read | pinned browser backend source and fork characterization | browser test has not executed |
-| The raw browser canvas should retain the earlier accepted baseline after that local rejection | source-read plus target-test-prepared | raw-context assertions authored in owned fork PR #1 | no Playwright/browser receipt |
-| Public `Surface::get_configuration()` publishes the rejected request | source-read plus target-test-prepared | public wrapper source and fork characterization | no executed target result |
-| wgpu reports `Lost` for the local rejection while a supported same-surface reconfiguration should recover | source-read plus target-test-prepared | browser failure flag and authored recovery controls | no browser adapter receipt |
-| Native/core validation can preserve the earlier accepted presentation | source-read | core configure ordering | no core-backed runtime control |
-| Public texture metadata can follow rejected cache values while acquisition uses earlier accepted state | source-read risk | wrapper descriptor construction plus core ordering | wrapper unit test and core-backed control are not implemented |
-| Ordinary wasm runtime initialization does not exercise browser WebGPU | source-read | test runner feature and initializer paths | availability under the actual Playwright image remains unmeasured |
+| Browser-only unsupported color-space mapping returns before raw `GPUCanvasContext.configure` | source-read | pinned browser backend | browser test not executed |
+| Browser configure mutates canvas extent before later rejection | source-read plus target-test-prepared | fork 2×2 → rejected 7×5 assertions | no browser receipt |
+| Public configuration cache publishes the rejected request | source-read plus target-test-prepared | wrapper source and fork test | no executed target result |
+| Raw browser configuration can remain accepted while canvas extent and public cache change | source-read plus target-test-prepared | raw-context and dimension controls | no runtime confirmation |
+| Unconfigured browser acquisition maps raw invalid state to `Lost` | source-read plus target-test-prepared | new fork characterization | no browser receipt |
+| Native unconfigured/error acquisition uses validation or fatal handling instead of browser `Lost` | source-read | native core dispatch path | no cross-backend execution |
+| Native validation can preserve an earlier accepted presentation | source-read | core configure ordering | no core-backed runtime control |
+| Public texture metadata can follow rejected cache values | source-read risk | wrapper descriptor construction plus core ordering | wrapper and core controls unexecuted |
+| Ordinary wasm runtime initialization does not exercise browser WebGPU | source-read | runner features and initializer | actual Playwright adapter unavailable/unmeasured |
 
 No claim is `target-executed`, `integration-executed`, or `full-gate`.
 
@@ -38,130 +44,122 @@ No claim is `target-executed`, `integration-executed`, or `full-gate`.
 
 This lane does not belong on Delivery Desk #160 yet.
 
-The Delivery Desk is for selected implementations, bounded final gates, clean application, receipt transfer, merge, or closeout. This lane still has:
+The desk is for selected implementations, bounded final gates, clean application, receipt transfer, merge, or closeout. This lane still has:
 
-- more than one plausible repair boundary;
+- multiple plausible repair boundaries;
 - no executed browser characterization;
 - no native/core runtime control;
 - no accepted implementation disposition;
-- no canonical direct repair branch;
+- no canonical source-only repair branch;
 - no named full repository gate for a selected candidate.
 
-The correct routing is to keep #116 and PR #126 as the canonical exploration record. A future desk entry becomes appropriate only after the browser and native controls select one bounded implementation or documentation/example correction.
+Issue #116, Fieldwork PR #126, and owned-fork PR #1 remain the canonical exploration records.
 
-## Protocol lessons from this lane
+## Protocol lessons
 
-This case supports the current protocol repairs:
-
-1. **Evidence must be claim-scoped.** The browser source mechanism, authored target test, native source risk, and unexecuted integration implications are different evidence classes.
-2. **A disposition needs identity.** Any acceptance must name the reviewed head, reviewed issue/input generation, and durable receipt.
-3. **The clearing condition is a bundle.** Browser execution, native control, source-only candidate publication, exact-head review, and carrier cleanup may be inseparable but must remain explicit.
-4. **Green CI is not acceptance.** Fieldwork protocol checks validate repository hygiene; they do not execute the wgpu browser test.
-5. **Execution carriers are not canonical repairs.** The owned fork PR is currently a characterization carrier, not a landing-ready source fix.
-6. **Theory revision is mandatory.** A real browser result that contradicts the source prediction must rewrite the candidate rather than be explained away.
+1. **Evidence must be claim-scoped.** Browser source behavior, authored tests, native source risk, and unexecuted integration implications are different evidence classes.
+2. **A disposition needs identity.** Acceptance must name reviewed head, reviewed issue/input generation, and durable receipt.
+3. **The clearing condition is a bundle.** Browser execution, native control, candidate publication, exact-head review, and carrier cleanup may be inseparable but must remain explicit.
+4. **Green CI is not acceptance.** Fieldwork protocol checks do not execute wgpu’s browser tests.
+5. **Execution carriers are not canonical repairs.** The fork PR is a characterization carrier.
+6. **Theory revision is mandatory.** Contradictory browser execution must rewrite the model.
+7. **Exact pins must resolve.** A syntactically plausible commit value is not a receipt until the source host resolves it.
 
 ## Next probe queue
 
-### P1 — Execute the browser characterization
+### P1 — Execute browser characterizations
 
 Required receipts:
 
-- exact fork head;
-- listed test identity from the repository runner;
-- build and lint commands actually executed;
-- Chromium/WebGPU adapter information;
-- raw canvas configuration before and after rejection;
-- raw texture acquisition after rejection;
-- wgpu typed acquisition result;
-- same-surface valid recovery;
+- exact fork head and generated test identities;
+- format and clippy commands;
+- Chromium and browser-WebGPU adapter information;
+- unconfigured raw/public acquisition state;
+- accepted baseline state;
+- rejected request, canvas extent, raw configuration, raw texture dimensions, and typed status;
+- same-surface recovery;
 - recreated-surface invalid retry control.
 
-Stop or revise if browser WebGPU is unavailable in the runner, the selected color space is unexpectedly supported, or raw context access changes the surface ownership assumptions.
+Stop or revise if browser WebGPU is unavailable, the selected color space is supported, raw texture properties are unavailable, or direct raw acquisition violates browser ownership assumptions.
 
-### P1 — Add the public-wrapper characterization safely
+### P1 — Add public-wrapper characterization safely
 
 Preferred location: a private unit-test module beside `wgpu/src/api/surface.rs`.
 
-Use a noop device and a minimal custom surface/texture/output-detail implementation. The fake accepts a baseline, ignores a second request, and returns a texture. Assert separately:
+Use a noop device and minimal custom surface, texture, and output-detail implementations. Assert independently:
 
 - backend accepted state;
 - public configuration cache;
 - public texture width, height, format, and usage.
 
-Do not replace a large source file from truncated connector content. Use a safe checkout, complete-file edit, or tree/commit patch path.
+Use a safe checkout or complete tree/commit edit. Do not replace the large source file from truncated connector content.
 
-### P1 — Build a core-backed validation control
+### P1 — Build core-backed validation control
 
-After the wrapper characterization compiles, prove the real core ordering with the smallest available fixture:
+Prove:
 
 - accepted baseline presentation;
-- intentionally invalid second configuration;
+- intentionally invalid second request;
 - captured validation error;
-- old presentation retained;
+- retained or cleared presentation;
 - subsequent acquisition outcome;
-- public metadata compared with actual accepted configuration;
+- public metadata versus accepted state;
 - later valid recovery.
 
 ### P2 — Measure raw rejected reconfiguration semantics
 
-The current WebGPU CTS covers synchronous rejection from an initially unconfigured context but not:
+The inspected CTS covers initial rejection but not:
 
 ```text
 valid accepted configuration
-→ rejected reconfiguration
+→ synchronously rejected reconfiguration
 → inspect retained configuration
+→ inspect canvas extent
 → inspect texture acquisition
 ```
 
-Measure this separately from wgpu's local color-space pre-rejection. A browser-thrown rejection may preserve, clear, or otherwise alter prior state differently.
+Measure separately from wgpu’s local pre-rejection.
 
-### P2 — Split acquisition exceptions from configuration rejection
+### P2 — Split acquisition exceptions
 
-Trace and test the browser path where raw `getCurrentTexture` throws. Determine whether every exception should become `Lost`, or whether validation, out-of-memory, device loss, and transient acquisition failures can be preserved more truthfully.
+Distinguish unconfigured invalid state, device loss, out-of-memory/internal failure, and transient browser exceptions before changing public status variants.
 
-### P2 — Audit example recovery by outcome
+### P2 — Audit recovery examples
 
-Build an outcome table for `Success`, `Suboptimal`, `Timeout`, `Occluded`, `Outdated`, `Lost`, and `Validation` across shared examples. Check that examples:
+Build an outcome table for `Success`, `Suboptimal`, `Timeout`, `Occluded`, `Outdated`, `Lost`, and `Validation`. Verify that examples do not retry an invalid configuration merely because the typed result is `Lost`.
 
-- present usable `Suboptimal` textures before reconfiguration when appropriate;
-- do not recreate for configuration rejection while retrying the same invalid request;
-- distinguish device loss from surface-only loss;
-- avoid dropping useful diagnostics.
+### P3 — Frame cleanup and presentation
 
-### P3 — Surface-texture release and discard
+Compare:
 
-Compare browser and native ownership when a frame is:
-
-- presented;
-- dropped without presentation;
-- released during unwinding;
-- invalidated by reconfiguration;
-- retained across device or surface loss.
-
-Look for duplicate release, missing discard, stale output detail, and backend-specific cleanup assumptions.
+- present success and error;
+- ordinary unpresented discard;
+- panic-unwind release;
+- browser no-op cleanup;
+- reconfiguration with a live frame;
+- device/surface loss after acquisition.
 
 ### P3 — Custom-backend compatibility
 
-Before changing `SurfaceInterface::configure`, inventory custom implementations and downstream construction patterns. A private disposition should not become a public compatibility tax until the measured state benefit is clear.
+Inventory custom implementations before changing `SurfaceInterface::configure`. Do not create a compatibility tax without measured public-state benefit.
 
 ## Promotion gate
 
-A repair candidate may be promoted only when it has:
+Promote only with:
 
-- one reproduced contradiction or one precise documentation/example mismatch;
+- one executed contradiction or precise documentation/example mismatch;
 - exact source and execution receipts;
 - at least one negative control;
-- a selected owning subsystem;
-- one narrow desired contract;
-- a source-only candidate branch;
-- independent exact-head review;
-- no upstream contact without explicit authority.
+- selected owning subsystem and desired contract;
+- source-only candidate branch;
+- independent exact-head review tied to input generation;
+- explicit authority before upstream contact.
 
 ## Stops
 
-- Do not put this lane on the Delivery Desk merely because the source map is extensive.
+- Do not enter Delivery Desk because the source map is large.
 - Do not upgrade authored tests to executed evidence.
-- Do not call the raw browser surface lost when wgpu rejected before calling the browser.
-- Do not treat a wrapper-level custom test alone as proof of native core behavior.
-- Do not begin with a breaking public `Surface::configure -> Result` redesign.
-- Do not manufacture a production integration to justify the work.
+- Do not call the raw browser surface lost when rejection occurred before the raw configure call.
+- Do not describe prior state as fully preserved when canvas extent already mutated.
+- Do not treat a wrapper custom test as proof of native core behavior.
+- Do not begin with a breaking public API redesign.
