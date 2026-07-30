@@ -1,0 +1,12 @@
+{
+  "name": "fieldwork-jotai-json-key-isolation",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "scripts": {
+    "probe": "node probe.mjs"
+  },
+  "dependencies": {
+    "jotai": "2.20.2"
+  }
+}

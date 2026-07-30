@@ -1,0 +1,49 @@
+{
+  "evidence_class": "target-executed",
+  "repository": "teamleaderleo/fieldwork",
+  "head": "118d428122efe8b7aa2d3fef505f904e4976760a",
+  "workflow": {
+    "name": "Fieldwork Jotai JSON key isolation",
+    "run_id": 30548784323,
+    "conclusion": "success"
+  },
+  "target": {
+    "package": "jotai",
+    "version": "2.20.2",
+    "release_source": "5c4ca26b0db5571114be58393e17854a771f7790",
+    "runtime_dependencies": {}
+  },
+  "matrix": [
+    {
+      "job_id": 90891718906,
+      "node": "v22.23.1",
+      "conclusion": "success"
+    },
+    {
+      "job_id": 90891719038,
+      "node": "v24.18.0",
+      "conclusion": "success"
+    },
+    {
+      "job_id": 90891719348,
+      "node": "v26.5.1",
+      "conclusion": "success"
+    }
+  ],
+  "controls": {
+    "same_key_same_json_preserves_identity": true,
+    "different_json_is_distinct": true,
+    "separate_adapters_are_distinct": true
+  },
+  "finding": {
+    "same_adapter_different_keys_same_json_share_identity": true,
+    "mutation_crossed_key_boundary": true,
+    "second_key_count_after_first_key_mutation": 99
+  },
+  "claim_scope": "Released createJSONStorage adapter mechanism with synthetic synchronous string storage.",
+  "limits": [
+    "No React component or atom mount was used.",
+    "No asynchronous storage, subscription, reviver, browser, or React Native control was executed.",
+    "No ecosystem frequency, production impact, or security consequence was measured."
+  ]
+}
