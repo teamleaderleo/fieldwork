@@ -1,6 +1,6 @@
 # wgpu presentation attempt, status, and ownership audit
 
-State: source-read plus target-test-prepared; not compiled or executed
+State: source-read plus target-test-prepared; focused execution queued
 
 Fieldwork issue: #116
 
@@ -12,319 +12,223 @@ Upstream contact authorized: false
 
 ## Exact records
 
-- pinned source tree: [gfx-rs/wgpu@2eddc8c7b2fedd4267f5004745a8bc42974e17a0](https://redirect.github.com/gfx-rs/wgpu/commit/2eddc8c7b2fedd4267f5004745a8bc42974e17a0)
-- current upstream tree checked: [gfx-rs/wgpu@c079e55f534d713a60aef145f6df0255b7ddcdc4](https://redirect.github.com/gfx-rs/wgpu/commit/c079e55f534d713a60aef145f6df0255b7ddcdc4)
-- current upstream distance from the pin: seven commits
-- owned-fork characterization head: `teamleaderleo/wgpu@3d076485509f6b3f8381de8074bfbdef17bc4133`
-- historical presentation rewrite: [gfx-rs/wgpu#9222](https://redirect.github.com/gfx-rs/wgpu/pull/9222)
+- pinned source tree: [pinned wgpu source](https://redirect.github.com/gfx-rs/wgpu/commit/2eddc8c7b2fedd4267f5004745a8bc42974e17a0)
+- current upstream tree checked: [current wgpu source checked](https://redirect.github.com/gfx-rs/wgpu/commit/c079e55f534d713a60aef145f6df0255b7ddcdc4)
+- owned-fork characterization head: `teamleaderleo/wgpu@33d307cbe7acea21d23d561c72d270404a47bde4`
+- focused workflow: `.github/workflows/fieldwork-characterization.yml`
+- historical presentation rewrite: [wgpu queue-owned presentation rewrite](https://redirect.github.com/gfx-rs/wgpu/pull/9222)
 
-The current upstream changes between the pinned and checked trees do not alter the public queue/surface-texture API, browser surface adapter, core presentation implementation, HAL presentation contract, or shared example recovery framework. The source questions below therefore remain live on the checked current tree. The existing wasm test file has unrelated test-macro churn, so the fork patch still needs rebasing and execution before it can be called current-target evidence.
+The checked upstream tree is seven commits ahead of the pin. The relevant public queue and surface-texture API, browser surface backend, core presentation implementation, HAL presentation contract, and shared example recovery framework remain unchanged. The fork still requires current-target reconciliation and executed receipts.
 
-## In simple words
+## State machine under investigation
 
-Presentation is not one event.
-
-The current path crosses at least these boundaries:
+Presentation is not one event:
 
 ```text
 application gives SurfaceTexture to Queue::present
-→ public wrapper marks the value as presented
+→ public wrapper marks the value presented
 → backend dispatch begins
-→ core removes the acquired texture from Surface presentation state
-→ core may clear an unused texture and transition it to PRESENT
-→ HAL queue consumes the raw surface texture
-→ HAL returns success or a surface/device failure
-→ core classifies the result
-→ public backend wrapper reports errors through an error sink and discards non-error statuses
+→ core removes the acquired texture from surface state
+→ core may clear and transition the texture
+→ HAL consumes the raw surface texture
+→ HAL returns a status or error
+→ core classifies the outcome
+→ public backend reports errors separately and discards non-error statuses
 ```
 
-The important question is not merely whether `present` can fail. It is:
+The central question is:
 
-> At which boundary is ownership irreversibly transferred, which later outcomes remain observable, and which cleanup path owns a frame when failure occurs between boundaries?
+> At which boundary is ownership irreversibly transferred, and which cleanup path owns the frame when failure occurs between boundaries?
 
 ## Public ownership commit
 
-Public `Queue::present` currently:
-
-1. takes a `SurfaceTexture` by value;
-2. sets its internal `presented` flag to `true`;
-3. calls backend `QueueInterface::present`;
-4. returns `()`.
+Public `Queue::present` takes a `SurfaceTexture` by value, marks it presented, calls backend dispatch, and returns `()`.
 
 `SurfaceTexture::drop` calls:
 
 - `texture_discard` for an ordinary unpresented drop;
-- `texture_release` during unwinding;
-- neither path once `presented` is true.
+- `texture_release` while unwinding;
+- neither after the internal presented flag is set.
 
-The public API therefore commits ownership before backend dispatch. This is not automatically wrong: the HAL queue contract also consumes the raw surface texture by value even when HAL presentation returns an error. A failed presentation attempt may still consume the platform image.
-
-The observable public consequence is stricter:
-
-- the caller cannot retry or inspect the same frame;
-- the caller receives no presentation result;
-- drop cleanup is suppressed even if custom dispatch panics;
-- any recovery information must arrive through a separate error or device/surface channel.
+The public API therefore commits ownership before backend dispatch. That is not automatically wrong: the HAL contract also consumes the raw surface image by value. The observable consequence is that the caller cannot retry or inspect the frame and receives no immediate presentation result.
 
 ## Prepared public-wrapper characterization
 
-The owned fork now adds two private unit tests beside `wgpu/src/api/surface_texture.rs`.
+The owned fork contains two private custom-backend unit tests beside `wgpu/src/api/surface_texture.rs`.
 
 ### Ordinary drop control
 
 ```text
 construct custom SurfaceTexture
 → drop without present
-→ custom texture_discard count = 1
-→ custom texture_release count = 0
+→ texture_discard = 1
+→ texture_release = 0
 ```
 
-### Injected present panic
+### Injected backend panic
 
 ```text
 construct custom Queue and SurfaceTexture
 → Queue::present marks frame presented
-→ custom QueueInterface::present records one call and panics
+→ custom backend records one call and panics
 → catch unwind outside Queue::present
-→ texture_discard count = 0
-→ texture_release count = 0
+→ texture_discard = 0
+→ texture_release = 0
 ```
 
-This test characterizes the public ownership boundary. It does not prove a native leak or establish that ownership should be rolled back after dispatch begins.
+This characterizes the public ownership boundary. It does not prove a native leak or establish that ownership should be rolled back after dispatch begins.
 
-Execution status: authored and source-self-reviewed only. No `cargo test`, rustfmt, clippy, or compile receipt exists.
+## Core detachment before HAL consumption
 
-## Core ownership transition
-
-Native core has an additional transition before HAL consumption.
-
-`Queue::present` in core:
+Native core has another transition. Its presentation path:
 
 1. locks surface presentation state;
 2. removes `acquired_texture` with `take()`;
 3. calls `prepare_surface_texture_for_present`;
-4. snatches the raw surface texture handle;
-5. passes the raw texture by value to HAL `present`.
+4. snatches the raw surface-texture handle;
+5. passes that handle by value to HAL presentation.
 
-The acquired texture is therefore no longer attached to the surface before preparation begins.
-
-That matters because preparation can fail before HAL receives the frame.
-
-## Pre-HAL failure classes
-
-`prepare_surface_texture_for_present` can fail while:
+Preparation can fail while:
 
 - allocating a submission;
-- encoding the automatic clear for a never-used frame;
+- encoding an automatic clear;
 - translating a clear failure into device loss;
 - retrieving the raw texture handle;
-- submitting the clear/transition mini-submission.
+- submitting the clear and transition work.
 
-In those paths:
+The resulting source-supported state is:
 
 ```text
-surface acquired_texture = already removed
-HAL present = not called yet
-public SurfaceTexture = already consumed
+surface acquired_texture = removed
+public SurfaceTexture = consumed
 public presented flag = true
-ordinary discard/release = suppressed
+HAL present = not called
+ordinary discard and unwind release = suppressed
 ```
 
-The core `Texture` drop implementation destroys the internal clear view for a surface texture, but only calls ordinary `destroy_texture` for native non-surface textures. Surface discard is a distinct operation on the `Surface`, not a generic `TextureInner::Surface` drop action.
+The generic core texture destructor cleans up the internal clear view but does not itself invoke the surface-specific discard operation.
 
-This creates a source-supported cleanup question:
+This creates the executable question:
 
-> When preparation fails after the surface's acquired texture has been taken but before HAL consumes it, which operation returns or discards the platform surface image?
+> When preparation fails after detachment but before HAL consumption, is the platform surface image correctly returned, and can the surface acquire again without teardown?
 
-This is not yet a leak claim. A backend-owned raw texture destructor, pending-write ownership, device-loss teardown, or platform contract may still make the state safe. The current source path needs an executable fault-injection control.
+No leak or defect is claimed until that path is executed.
 
-## HAL and core result classification
+## Backend-specific consequences
 
-HAL presentation can return:
+### DX12
 
-- success;
-- timeout;
-- occluded;
-- lost;
-- outdated;
-- device error;
-- another backend-specific failure.
-
-Core preserves those distinctions initially:
-
-- success becomes `Good`;
-- timeout, occluded, lost, and outdated remain typed statuses;
-- device failure becomes an error;
-- an unclassified backend failure is logged and becomes `SurfaceError::Invalid`.
-
-The public core backend then discards every successful status from `surface_present` and returns `()` from `QueueInterface::present`. Only errors are routed into the device error sink.
-
-Consequences:
+Acquisition increments internal `acquired_count`. Both explicit discard and presentation decrement it. A pre-HAL failure appears to skip both operations, creating a precise bookkeeping hypothesis:
 
 ```text
-HAL timeout / occluded / lost / outdated at present
-→ core knows the status
-→ public Queue::present returns ()
-→ application receives no typed presentation outcome
+successful acquisitions
+- successful presents
+- explicit discards
+= acquired_count
 ```
 
-This differs from acquisition, where the public API gives explicit `Timeout`, `Occluded`, `Outdated`, and `Lost` variants with recovery instructions.
+The first DX12 experiment should inject preparation failure and then measure the counter and later back-buffer selection.
 
-The status loss may be intentional because WebGPU presentation itself is fire-and-forget and browser presentation dispatch is effectively a no-op. The question is whether native-only status information should remain internal, enter diagnostics, or inform a later acquisition result. Do not infer that `Queue::present` must immediately return `Result`.
+### Vulkan
+
+The raw surface texture carries a swapchain-image index and semaphore metadata. Native discard is currently a no-op. The decisive experiment is repeated bounded acquisition after a pre-HAL failure using a known swapchain image count.
+
+### Metal
+
+Discard is a no-op, but the surface texture retains a `CAMetalDrawable`; dropping the retained handle may return drawable-pool ownership. This requires a control rather than inference.
+
+### WebGL
+
+Acquisition wraps a reusable surface-owned backing texture rather than reserving a distinct platform swapchain image. Its ownership model should not be generalized to native swapchains.
+
+## Presentation status loss
+
+HAL and core initially preserve presentation outcomes including timeout, occlusion, lost, and outdated. The public core backend discards those non-error statuses and returns `()`; only errors reach the separate error sink.
+
+This may intentionally align with WebGPU fire-and-forget presentation. A public `Queue::present -> Result` redesign is not justified without an application-actionable consequence.
 
 ## Historical evidence
 
-Presentation and surface-image ownership have caused real failures before.
+- [unpresented-frame cleanup report](https://redirect.github.com/gfx-rs/wgpu/issues/4056)
+- [presentation without submitted work report](https://redirect.github.com/gfx-rs/wgpu/issues/2635)
+- [unused-frame synchronization report](https://redirect.github.com/gfx-rs/wgpu/issues/6748)
+- [panic-unwind release report](https://redirect.github.com/gfx-rs/wgpu/issues/8243)
+- [backend presentation failure report](https://redirect.github.com/gfx-rs/wgpu/issues/5259)
+- [queue-owned presentation rewrite](https://redirect.github.com/gfx-rs/wgpu/pull/9222)
 
-### Unpresented-frame cleanup
+The queue-owned rewrite and its review show that presentation completion is not equivalent to an ordinary fence-signaled submission. Naive lifetime indices can produce impossible waits or retained frames.
 
-[wgpu issue 4056](https://redirect.github.com/gfx-rs/wgpu/issues/4056) reported Vulkan resources surviving device destruction when a surface frame was dropped without presentation. That issue was completed after cleanup changes.
+## Provisional states
 
-### Presenting with no submitted work
+- `Acquired`: surface still records the acquired texture.
+- `PresentationAttemptCommitted`: public frame consumed and drop cleanup suppressed.
+- `DetachedForPreparation`: core removed the acquired texture; HAL has not consumed it.
+- `PreparedForPresentation`: required clear and transition work succeeded.
+- `HalConsumed`: raw texture passed to HAL.
+- `Presented`: HAL accepted presentation.
+- `ConsumedWithStatus`: HAL consumed the frame and returned timeout, occlusion, lost, or outdated.
+- `PreparationFailedDetached`: core detached the frame and failed before HAL consumption.
+- `ConsumedWithError`: HAL or device processing consumed ownership and returned an error.
 
-[wgpu issue 2635](https://redirect.github.com/gfx-rs/wgpu/issues/2635) reported swapchain exhaustion after presenting frames without rendering work.
+The names are provisional. The required distinction is failure before versus after HAL consumes the raw image.
 
-[wgpu issue 6748](https://redirect.github.com/gfx-rs/wgpu/issues/6748) later reported Vulkan synchronization hazards when presenting an acquired-but-unused image.
+## Execution programme
 
-### Panic cleanup
+### Focused public and browser checks
 
-[wgpu issue 8243](https://redirect.github.com/gfx-rs/wgpu/issues/8243) motivated the current release-during-unwind path so panic cleanup would not trigger a second panic while destroying an in-use acquire semaphore.
+Exact owned-fork head `33d307cbe7acea21d23d561c72d270404a47bde4` queues:
 
-### Driver/backend presentation failure
+- formatting;
+- minimal-feature custom-backend unit tests;
+- wasm characterization compilation and clippy.
 
-[wgpu issue 5259](https://redirect.github.com/gfx-rs/wgpu/issues/5259) records a GL presentation failure when a window is hidden or minimized.
+The inherited repository CI also contains a browser Playwright runner. Results must be reported per job and exact head rather than as one undifferentiated CI verdict.
 
-### Queue-owned presentation redesign
+### Core preparation-failure probe
 
-[wgpu pull request 9222](https://redirect.github.com/gfx-rs/wgpu/pull/9222) moved presentation onto `Queue`, added automatic clear/transition for unused frames, and attempted to retain surface textures until presentation completion.
+The preferred first deterministic trigger is:
 
-Its review exposed a key fact: presentation completion cannot be modeled naively as an ordinary fence-signaled submission. Review found risks around synthetic presentation indices, waits that could target fence values never signaled by a submission, multiple pending presents, and failure to drain retained frames after queue-idle waits.
+```text
+configure surface
+→ acquire frame
+→ destroy device
+→ present consumed frame
+```
 
-That history argues for exact state and lifetime tests before changing the public API.
+This should force submission allocation or preparation to fail before HAL presentation. A controlled HAL or instrumented noop surface must record:
 
-## Current state model
+- acquisition count;
+- discard count;
+- HAL presentation count;
+- outstanding image count;
+- subsequent acquisition behavior.
 
-Presentation now needs its own state vocabulary, separate from configuration disposition.
-
-Provisional states:
-
-### `Acquired`
-
-The surface still owns an acquired texture record and the public frame has not entered presentation.
-
-### `PresentationAttemptCommitted`
-
-The public frame has been consumed and drop cleanup is suppressed. Backend dispatch may not yet have completed.
-
-### `DetachedForPreparation`
-
-Core has removed the acquired texture from surface state, but HAL has not yet consumed it.
-
-### `PreparedForPresentation`
-
-Automatic clear and PRESENT transition, if needed, have succeeded.
-
-### `HalConsumed`
-
-The raw texture has been passed by value to HAL presentation.
-
-### `Presented`
-
-HAL accepted the present operation.
-
-### `ConsumedWithStatus`
-
-HAL consumed the frame but returned timeout, occlusion, lost, or outdated.
-
-### `PreparationFailedDetached`
-
-Core detached the frame, then failed before HAL consumption.
-
-### `ConsumedWithError`
-
-HAL or device processing consumed ownership and returned an error routed to the error sink.
-
-The names are provisional. The key distinction is between failure before and after HAL consumes the raw image.
-
-## Core-level executable probe
-
-A useful test must inject failure at the exact preparation boundary rather than only panic a custom public backend.
-
-### Required controls
-
-1. Configure a fake or controlled core surface and acquire one frame.
-2. Prove the surface records one acquired texture.
-3. Trigger a selected preparation failure after core takes `acquired_texture`.
-4. Record whether HAL `present` was called.
-5. Record whether HAL surface discard was called.
-6. Record whether a later acquisition succeeds, returns `AlreadyAcquired`, times out, or exposes another state.
-7. Record clear-view and raw surface-texture destruction.
-8. Repeat with successful preparation plus injected HAL statuses.
-
-### Failure injection priority
-
-Prefer, in order:
-
-1. an existing fake/dynamic HAL surface and queue fixture;
-2. a narrow test-only hook around `prepare_surface_texture_for_present`;
-3. a custom core backend fixture with counters;
-4. a real backend fault only when deterministic injection is impossible.
-
-Do not broaden the noop backend into a full presentation simulator unless several independent tests need it.
-
-### Matrix
-
-| Injection point | HAL present called | Expected ownership question |
-| --- | --- | --- |
-| submission allocation failure | no | who releases the acquired platform image? |
-| automatic clear failure | no | does pending-write or texture drop release it? |
-| raw texture lookup failure | no | is the surface left reusable? |
-| mini-submit failure | no | is partially prepared work retained safely? |
-| HAL timeout | yes | is status intentionally discarded publicly? |
-| HAL occluded | yes | does next acquisition reveal recovery state? |
-| HAL lost/outdated | yes | is the later typed acquisition sufficient? |
-| HAL device error | yes | does the device-loss channel fully explain ownership? |
-| backend panic | unknown/custom | public wrapper suppresses discard/release after commit |
-
-## Public/API questions after execution
-
-Only after the core control runs:
-
-- Is public fire-and-forget presentation intentional across native and browser backends?
-- Should native presentation status influence the next acquisition result rather than the immediate call?
-- Should error-sink delivery name that a frame was consumed?
-- Does preparation failure need a dedicated cleanup guard before `acquired_texture.take()` becomes irreversible?
-- Should the internal dispatch method return a presentation disposition while public `Queue::present` stays `()`?
-- Can custom backends preserve compatibility without implementing a new public status contract?
+A separate experiment branch, `fieldwork/pre-hal-present-failure-noop`, exists to investigate a deterministic instrumented-noop carrier without contaminating the browser characterization branch.
 
 ## Promotion gate
 
 Do not promote a presentation finding until it has:
 
-- one compiled public-wrapper characterization;
-- one executed core preparation-failure control;
-- one successful-present negative control;
-- explicit proof of whether HAL present and surface discard were called;
+- a compiled and executed public-wrapper characterization;
+- an executed core preparation-failure control;
+- a successful-presentation negative control;
+- proof of whether HAL present and surface discard ran;
 - subsequent acquisition behavior;
 - exact pinned and current-source receipts;
-- a narrow owner in public wrapper, core preparation, HAL contract, diagnostics, or documentation;
+- a narrow repair owner;
 - independent exact-head review;
-- explicit authorization before any upstream contact.
+- explicit upstream authority.
 
 ## Stops
 
-- Do not call consume-on-attempt semantics a defect merely because `present` returns no result.
-- Do not assume every HAL presentation error leaves the platform image retryable.
+- Do not call consume-on-attempt semantics defective merely because presentation returns no result.
+- Do not assume every HAL error leaves the platform image retryable.
 - Do not infer a resource leak from source lifetime alone.
-- Do not conflate pre-HAL preparation failure with a HAL-consumed present status.
-- Do not add a public `Queue::present -> Result` API before proving an application-actionable consequence.
-- Do not claim the wrapper unit test is a native/core reproduction.
+- Do not conflate pre-HAL preparation failure with a HAL-consumed status.
+- Do not treat noop behavior as platform ownership proof.
+- Do not begin with a breaking public API redesign.
 - Do not contact upstream without authorization.
 
 ## Current decision
 
-Retain the new wrapper tests as a characterization carrier and build the next probe around `PreparationFailedDetached`.
-
-The most valuable executable question is:
-
-> After core removes an acquired surface texture and preparation fails before HAL presentation, does the backend surface image receive a correct release/discard operation, and can the surface acquire again without teardown?
+Keep the browser and wrapper branch characterization-only. Use the separate noop experiment to answer `PreparationFailedDetached` deterministically, then validate the surviving hypothesis on DX12 and Vulkan.
