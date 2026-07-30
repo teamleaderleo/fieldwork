@@ -28,7 +28,15 @@ jobs:
       - name: Preserve retained classification output
         run: |
           python3 classify_receipts.py fixtures.json --output /tmp/effective-surface-latest.json
-          cmp /tmp/effective-surface-latest.json results/latest.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          generated = json.loads(Path('/tmp/effective-surface-latest.json').read_text())
+          retained = json.loads(Path('results/latest.json').read_text())
+          if generated != retained:
+              raise SystemExit('generated classification output changed')
+          PY
       - name: Check diff hygiene
         working-directory: ${{ github.workspace }}
         run: git diff --check
