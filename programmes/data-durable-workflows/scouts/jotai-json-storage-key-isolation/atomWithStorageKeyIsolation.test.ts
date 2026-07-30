@@ -142,9 +142,9 @@ describe('createJSONStorage key isolation', () => {
     const firstAlpha = storage.getItem('alpha', { nested: { count: -1 } })
 
     expect(() => storage.removeItem('alpha')).toThrow(removalError)
-    expect(storage.getItem('alpha', { nested: { count: -2 } })).toBe(
-      firstAlpha,
-    )
+    expect(
+      storage.getItem('alpha', { nested: { count: -2 } }),
+    ).toBe(firstAlpha)
   })
 
   it('preserves cached identity when asynchronous removal rejects', async () => {
