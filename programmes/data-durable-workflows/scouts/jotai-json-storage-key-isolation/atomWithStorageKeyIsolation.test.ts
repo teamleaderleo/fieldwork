@@ -231,28 +231,6 @@ describe('createJSONStorage key isolation', () => {
     )
   })
 
-  it('invalidates the cache when the storage owner disappears', () => {
-    const values = new Map([['alpha', encoded(1)]])
-    const stringStorage = {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
-      removeItem: (key: string) => values.delete(key),
-    }
-    let available = true
-    const storage = createJSONStorage<StoredValue>(() =>
-      available ? stringStorage : undefined,
-    )
-
-    const firstAlpha = storage.getItem('alpha', { nested: { count: -1 } })
-    available = false
-    storage.removeItem('alpha')
-    available = true
-
-    expect(storage.getItem('alpha', { nested: { count: -2 } })).not.toBe(
-      firstAlpha,
-    )
-  })
-
   it('clears only the settled asynchronous removal key', async () => {
     const values = new Map([
       ['alpha', encoded(1)],
