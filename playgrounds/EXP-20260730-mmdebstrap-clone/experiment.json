@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260730-mmdebstrap-clone",
+  "question": "Can a GitHub-hosted runner reproducibly clone the official Debian mmdebstrap repository at tag debian/1.5.7-3, verify the resolved commit, and retain a compact manifest without copying the upstream repository into Fieldwork?",
+  "owner": "openai-chatgpt-github-worker",
+  "created_at": "2026-07-30",
+  "state": "running",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "Debian mmdebstrap Salsa repository",
+      "url": "https://salsa.debian.org/debian/mmdebstrap",
+      "revision": "debian/1.5.7-3",
+      "retrieved_at": "2026-07-30",
+      "claim": "This is the official Debian Salsa repository and the requested Debian release tag exists.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "bash playgrounds/EXP-20260730-mmdebstrap-clone/run.sh",
+  "environment": {
+    "runtime": "bash and git",
+    "platform": "GitHub-hosted Ubuntu 24.04 runner",
+    "dependencies": [
+      "git"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "The requested tag resolves, HEAD matches its peeled commit, and a source manifest is produced.",
+      "interpretation": "The GitHub-based lab can retrieve this exact public Debian source boundary reproducibly."
+    },
+    {
+      "observation": "The fetch, checkout, or revision verification fails.",
+      "interpretation": "The logs identify the access, revision, or runner boundary that blocks the lab."
+    }
+  ],
+  "stop_condition": "Stop after one GitHub Actions run produces a verified full commit SHA and uploaded source manifest, or fails with enough logs to identify the blocking boundary.",
+  "network_policy": "public-source-checkout-only",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260730-mmdebstrap-clone/results/source-manifest.txt"
+  ],
+  "promoted_to": null
+}
