@@ -1,95 +1,26 @@
 # Jotai JSON storage key isolation
 
-State: `target-confirmed`
+State: `candidate-prepared`
 
-Fieldwork lane: #235
-
-Programme: data-durable-workflows
-
-Evidence PR: #228
-
-Playground: `EXP-20260730-jotai-json-key-isolation`
-
-Target repository: `pmndrs/jotai`
-
-Released package: `jotai@2.20.2`
-
-Release source: `5c4ca26b0db5571114be58393e17854a771f7790`
-
-Current reviewed source: `56a9cc51de8a5dd762b95a145820f12589cc47c9`
-
+Fieldwork lane: #235  
+Evidence PR: #228  
+Playground: `EXP-20260730-jotai-json-key-isolation`  
+Canonical candidate branch: `lane/235-jotai-json-storage-key-isolation-restack`  
+Superseded carrier: PR #236  
+Target repository: `pmndrs/jotai`  
+Released package: `jotai@2.20.2`  
+Exact source under candidate test: `56a9cc51de8a5dd762b95a145820f12589cc47c9`  
 Upstream contact authorized: `false`
 
 ## In simple words
 
-Jotai's `createJSONStorage()` converts string storage into JavaScript values. It remembers the last JSON string it parsed so reading unchanged storage can return the same object again.
+Jotai's released JSON storage adapter keeps one remembered JSON string and parsed value for the entire adapter. Two independent storage keys containing the same JSON therefore receive the same object instance. Mutating the object returned for one key changes the object already returned for the other key without a write or notification for that second key.
 
-That memory belongs to the entire storage adapter, not one key.
+The candidate keeps the historical same-key identity behavior but scopes the cache by storage key.
 
-When two independent keys contain the same JSON text, exact released `jotai@2.20.2` returns the same object instance for both. Mutating the object returned for key A therefore also changes the in-memory object already returned for key B, even though key B was not written and no key-B subscription ran.
+## Confirmed released behavior
 
-This is a bounded object-identity and key-isolation defect. It is not evidence of remote code execution, data exfiltration, or broad ecosystem impact.
-
-## Source mechanism
-
-The adapter owns one cache pair:
-
-```ts
-let lastStr: string | undefined
-let lastValue: Value
-```
-
-`getItem(key, initialValue)` reads the selected key but compares the returned string with the adapter-wide `lastStr`:
-
-```ts
-const str = getStringStorage()?.getItem(key) ?? null
-if (isPromiseLike(str)) {
-  return str.then(parse)
-}
-return parse(str)
-```
-
-The parser returns `lastValue` whenever the new string equals `lastStr`, regardless of which key produced that string.
-
-The same cache shape exists in release source `5c4ca26...` and current reviewed source `56a9cc51...`.
-
-## Why the cache exists
-
-The cache was added by Jotai PR #1080 / commit `9e336c6bd2bebf257ffca957b0af18f97444323c` to repair issue #1079.
-
-That issue involved one atom and one `count` key:
-
-1. storage supplied one object value during atom creation;
-2. storage changed before the atom mounted;
-3. mount subscribed and then reread storage;
-4. repeated `JSON.parse()` calls could create distinct object identities and leave the atom at the wrong pre-mount value.
-
-PR #1080 deliberately preserved identity for the repeated same-key read. Its retained regression used only one key. It did not test multiple keys through one adapter.
-
-The compatibility requirement is therefore:
-
-- preserve unchanged repeated-read identity for one key;
-- do not share parsed object identity across independent keys solely because their serialized bytes are equal.
-
-## Exact released-package execution
-
-Workflow:
-
-`30548784323`
-
-Exact Fieldwork head under test:
-
-`118d428122efe8b7aa2d3fef505f904e4976760a`
-
-All jobs passed:
-
-| Node | Job | Result |
-| --- | --- | --- |
-| `v22.23.1` | `90891718906` | success |
-| `v24.18.0` | `90891719038` | success |
-| `v26.5.1` | `90891719348` | success |
-
-The probe imported exact `jotai@2.20.2`. The installed package reported no runtime dependencies.
+Workflow `30548784323` passed against exact `jotai@2.20.2` on Node 22, 24, and 26.
 
 Every job observed:
 
@@ -105,109 +36,103 @@ The exact machine-readable receipt is:
 
 `playgrounds/EXP-20260730-jotai-json-key-isolation/result.json`
 
-## Source-equivalent control
+## Historical compatibility requirement
 
-Before the package matrix, Node `v22.16.0` executed the exact cache and parse logic transcribed from source.
+The JSON identity cache was introduced by Jotai PR #1080 / commit `9e336c6bd2bebf257ffca957b0af18f97444323c` to repair issue #1079.
 
-That model produced the same result and is retained separately in:
+That issue involved one atom and one storage key. Subscription setup and the mount-time reread could parse equal JSON twice and produce different references.
 
-`playgrounds/EXP-20260730-jotai-json-key-isolation/model-result.json`
+A repair must preserve:
 
-The package execution supersedes the model for the released-behavior claim. The model remains useful as a minimal mechanism receipt.
+- stable identity for repeated unchanged reads of one key;
+- the original subscription/mount regression;
+- synchronous and asynchronous storage behavior;
+- custom reviver behavior.
 
-## Why this can matter
+It must add isolation between different keys whose serialized JSON is equal.
 
-One `createJSONStorage()` adapter is commonly intended to serve multiple atom keys. Independent keys ordinarily imply independent stored values and independent update histories.
+## Candidate source change
 
-Cross-key aliasing makes the in-memory value depend on read order and byte-for-byte JSON equality:
+Prepared generated diff:
 
-```text
-key A contains {"nested":{"count":1}}
-key B contains {"nested":{"count":1}}
-read A
-read B
-mutate object returned for A
-object already returned for B changes too
+`candidate.patch`
+
+The patch replaces one adapter-wide string/value pair with:
+
+```ts
+const cachedValues = new Map<string, { str: string; value: Value }>()
 ```
 
-No storage write, subscription event, or key-B update explains that change.
+For each key:
 
-The consequence requires mutable object use. Primitive values do not expose object aliasing, and immutable application discipline can reduce practical impact. The experiment does not measure how frequently applications share one adapter or mutate returned stored objects.
+- unchanged JSON returns that key's cached object;
+- equal JSON from another key is parsed separately;
+- parse failure still returns the supplied initial value;
+- `removeItem(key)` deletes only that key's cached entry before delegating.
 
-## Duplicate and history review
+The patch does not change atom construction, subscription wiring, replacer/reviver APIs, storage write ordering, or public types.
 
-Targeted current and historical searches found:
+## Native regression
 
-- the original one-key identity issue #1079;
-- the implementing PR #1080;
-- no retained test for two keys containing equal JSON through one adapter;
-- no matching current issue or pull request specifically about cross-key parsed-object identity or mutation aliasing.
+Prepared test:
 
-Refresh this search before preparing any public packet.
+`atomWithStorageKeyIsolation.test.ts`
 
-## Narrow repair direction
+It covers:
 
-Do not remove JSON memoization.
+1. same-key identity across interleaved other-key reads;
+2. distinct objects for equal JSON under different keys;
+3. mutation isolation;
+4. sequential asynchronous storage reads;
+5. reviver execution once per key plus later same-key identity;
+6. invalidation of only the removed key;
+7. the existing `atomWithStorage.test.tsx` suite, including the original mount behavior.
 
-The first candidate should scope cached parsed identity by storage key while retaining the same-key behavior from #1079.
+The interleaved control rejects a weaker one-entry key cache that would lose same-key identity whenever another atom reads between two reads of the first key.
 
-Possible forms include:
+## Exact-source workflow
 
-- a `Map<string, { lastStr, lastValue }>`;
-- a bounded key-aware cache;
-- storage-key lifecycle cleanup tied to remove/reset behavior.
+The workflow checks out exact Jotai source `56a9cc51...`, applies the generated diff with `git apply --check`, stages the native regression, installs the exact lockfile with pnpm 11.3.0, runs the new and existing storage suites, then runs ESLint, Prettier, and TypeScript on Node 22, 24, and 26.
 
-The simplest map may retain entries indefinitely for unbounded dynamic keys. Memory lifecycle is therefore part of the repair contract, not an afterthought.
+## Carrier history
 
-## Required target-native matrix
+PR #236 did not execute a candidate result:
 
-Before retaining a patch, add repository-native tests for:
+- its first matrix stopped at `git apply` because the retained patch was syntactically corrupt;
+- a corrected patch was later re-corrupted by guessed hunk metadata;
+- the final corrected head became non-mergeable and received no new workflow dispatch.
 
-1. synchronous storage, same key, unchanged object JSON preserves identity;
-2. synchronous storage, different keys, equal object JSON returns distinct objects;
-3. mutating one returned object does not affect another key's returned object;
-4. asynchronous string storage follows the same rule;
-5. subscription-delivered equal JSON is isolated by key;
-6. custom reviver output is isolated by key;
-7. reset/remove invalidates only the affected key cache;
-8. dynamic-key use has a deliberate memory-retention policy;
-9. the original #1079 pre-mount subscription regression remains fixed;
-10. primitive values remain behaviorally unchanged.
+This restack copies only the workflow, generated diff, native regression, and updated report onto current `main`. The PR-open event owns the fresh exact-source matrix. No result transfers from PR #236.
 
-## Evidence classification
+## Cache-lifecycle and concurrency limits
 
-- cache source shape and history: `source-read`;
-- source-equivalent mechanism: `model-executed`;
-- exact released package on Node 22/24/26: `target-executed`;
-- repository-native regression: absent;
-- repair candidate: absent;
-- integration or ecosystem impact: unmeasured;
-- security impact: not claimed.
+A per-key `Map` can retain entries for dynamic keys until the adapter is discarded or `removeItem(key)` is called. That memory tradeoff requires an explicit production decision.
 
-## Harness note
+The candidate also does not establish universal same-key identity under out-of-order asynchronous reads. A late older read can replace the per-key cache entry after a newer read resolves, causing a later current read to parse again. That race predates the candidate; it limits the claim rather than automatically rejecting the narrow cross-key repair.
 
-The package workflow, Fieldwork integrity, and external-reference policy passed on the executed head.
+## Claim-scoped evidence
 
-The separate playground/context validator failed because the experiment used unsupported custom metadata values:
-
-```text
-state = model-confirmed-package-pending
-network_policy = dependency-install-only; ...
-```
-
-That was a Fieldwork metadata defect, not a target-probe failure. The experiment has been repaired to supported values and promoted to lane #235. Fresh repository validation must settle on the repaired head.
+- released cross-key alias: `target-executed`;
+- source history and original intent: `source-read`;
+- key-scoped candidate: `target-test-prepared`;
+- repository-native regression: prepared, not yet executed on the restack;
+- full repository test/build: absent;
+- dynamic-key retention policy: unresolved;
+- asynchronous completion ordering: unchanged and unresolved;
+- ecosystem frequency and production impact: unmeasured;
+- upstream acceptance: absent.
 
 ## Current disposition
 
-**ACCEPT the bounded key-isolation finding. PREPARE a repository-native regression and key-scoped cache experiment. HOLD impact claims, upstream wording, and public contact.**
+**ACCEPT the bounded released finding. EXECUTE the restacked exact-source candidate matrix. HOLD implementation acceptance until exact tests, complete-diff review, and cache-lifecycle policy settle.**
 
-## Stop condition
+After a focused pass:
 
-Stop the next implementation pass when one key-aware cache design simultaneously:
-
-- preserves the #1079 same-key identity behavior;
-- prevents cross-key object aliasing;
-- defines cache cleanup or bounds;
-- passes synchronous, asynchronous, subscription, reviver, and reset controls.
+1. retain exact job receipts;
+2. review the applied source and test diff;
+3. decide whether the per-key map lifecycle is acceptable;
+4. prepare an owned-fork direct source branch rather than leaving the candidate only as a Fieldwork patch;
+5. run Jotai's ordinary format, types, lint, specs, and build on that direct head;
+6. refresh duplicate/history search before any upstream packet.
 
 No public upstream interaction occurred.
