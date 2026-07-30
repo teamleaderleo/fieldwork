@@ -1,13 +1,13 @@
 # Candidate Queue — Broad-Spectrum Round 001
 
-Snapshot: 2026-07-30. Rankings combine consequence, reproducibility, owning-boundary clarity, environment cost, review size, active pull requests, assignees, and project-specific claim state. Live overlap state was refreshed before review; a later pull request or claim expires the corresponding promotion.
+Snapshot: 2026-07-30. Rankings combine consequence, reproducibility, owning-boundary clarity, environment cost, review size, active pull requests, assignees, and project-specific claim state. Live overlap state was refreshed before review; a later pull request, assignment, or contributor claim intent expires the corresponding independent promotion.
 
 | Rank | Target | Candidate | Consequence | Environment | Overlap | Next probe | Disposition |
 |---:|---|---|---|---|---|---|---|
-| 1 | Ruff | [RUF038 runtime/fix issue](https://redirect.github.com/astral-sh/ruff/issues/27026) | runtime behavior and evaluation can change under an automatic fix | current CI | no matching fix PR found; stabilization PR 26919 is exposed to the bug | add runtime-context and mixed-member fixtures; trace invocation from expression analysis | promote |
-| 2 | DuckDB | [partitioned COPY data-loss issue](https://redirect.github.com/duckdb/duckdb/issues/24308) | two distinct partition values collide on disk | current CI | no matching PR found | add reserved-token collision case to `parquet_hive_null.test`; inspect reversible path encoding | promote |
-| 3 | Nixpkgs | [`gomarkdoc` test-regression issue](https://redirect.github.com/NixOS/nixpkgs/issues/516481) | package ships with its tests disabled | current CI | no matching PR found | re-enable checks in an override, isolate `GOFLAGS` and working-directory effects, bisect build hooks | promote through Linux Fieldwork LF-35 |
-| 4 | DuckDB | [large FOLLOWING-frame issue](https://redirect.github.com/duckdb/duckdb/issues/24307) | incorrect SQL result | current CI | no matching PR found | reduce numeric boundary and add window-frame regression test | promote after the partition collision |
+| 1 | Ruff | [RUF038 runtime/fix issue](https://redirect.github.com/astral-sh/ruff/issues/27026) | runtime behavior and evaluation can change under an automatic fix | current CI | no matching fix PR or assignee, but a contributor has publicly asked to work on it; discussion separates runtime-safety policy from the dropped-member correctness bug | retain the split diagnosis; coordinate before any branch and do not compete while contributor intent is unresolved | coordinate / hold independent implementation |
+| 2 | DuckDB | [partitioned COPY data-loss issue](https://redirect.github.com/duckdb/duckdb/issues/24308) | two distinct partition values collide on disk | current CI | open, reproduced, unassigned, no comments, and no matching PR found in the review refresh | add reserved-token collision case to `parquet_hive_null.test`; inspect reversible path encoding | promote |
+| 3 | Nixpkgs | [`gomarkdoc` test-regression issue](https://redirect.github.com/NixOS/nixpkgs/issues/516481) | package ships with its tests disabled | current CI | open, unassigned, no comments, and no matching PR found in the review refresh | re-enable checks in an override, isolate `GOFLAGS` and working-directory effects, bisect build hooks | promote through Linux Fieldwork LF-35 |
+| 4 | DuckDB | [large FOLLOWING-frame issue](https://redirect.github.com/duckdb/duckdb/issues/24307) | incorrect SQL result | current CI | open, reproduced, unassigned, no comments, and no matching PR found in the review refresh | reduce numeric boundary and add window-frame regression test | promote after or alongside the partition collision |
 | 5 | DuckDB | [DECIMAL median issue](https://redirect.github.com/duckdb/duckdb/issues/24314) | incorrect analytical result | current CI | no matching PR found | compare integer interpolation paths and add two-value precision fixture | promote after the partition collision |
 | 6 | Ruff | [B006 multiline-string fix issue](https://redirect.github.com/astral-sh/ruff/issues/27022) | automatic fix changes runtime value | current CI | issue blocks an active patch stack | preserve literal source value in fixture and identify indentation rewrite owner | promote or coordinate |
 | 7 | Ruff | [RUF055 buffer-behavior issue](https://redirect.github.com/astral-sh/ruff/issues/27024) | a safe fix changes accepted inputs | current CI | no matching PR found in sampled search | compare pre/post execution for bytes regex and buffer objects; reassess fix safety | promote |
@@ -27,13 +27,14 @@ Snapshot: 2026-07-30. Rankings combine consequence, reproducibility, owning-boun
 
 | Target | Issue | Claim state | Retained value |
 |---|---|---|---|
+| Ruff | [RUF038 runtime/fix issue](https://redirect.github.com/astral-sh/ruff/issues/27026) | contributor publicly requested the work; no maintainer assignment yet | split runtime-fix policy from the dropped-member correctness bug; preserve runtime and mixed-member fixtures |
 | Rust | [nested-turbofish diagnostic](https://redirect.github.com/rust-lang/rust/issues/159745) | assigned after rustbot claims | compact UI diagnostic packet |
 | Rust | [missing-match-arm diagnostic](https://redirect.github.com/rust-lang/rust/issues/159686) | assigned | match-arm recovery and suggestion design |
 | Rust | [dyn-compatibility wording](https://redirect.github.com/rust-lang/rust/issues/159492) | assigned and mentored | pedagogic diagnostic wording |
 | Rust | [tidy/attributes validation](https://redirect.github.com/rust-lang/rust/issues/157184) | assigned | validation across registry and `.gitattributes` |
 | Rust | [ineffective `#[path]` attributes](https://redirect.github.com/rust-lang/rust/issues/157260) | assigned and mentored | attribute validation |
 
-Stop independent implementation unless a claim is released or the contributor/maintainers explicitly invite collaboration.
+Stop independent implementation unless a claim is released or the contributor and maintainers explicitly invite collaboration. A public request to take an issue is an overlap signal even before formal assignment.
 
 ## Removed from active implementation
 
@@ -52,4 +53,4 @@ Stop independent implementation unless a claim is released or the contributor/ma
 
 ## Active implementation limit
 
-Keep at most three newly implemented candidates awaiting first review. The preferred first three are Ruff's annotation/runtime boundary, DuckDB's partition collision, and the Nixpkgs `gomarkdoc` test restoration through Linux Fieldwork. Recheck issue comments, linked work, assignees, claims, and pull requests immediately before creating each branch.
+Keep at most three newly implemented candidates awaiting first review. The preferred first three independent probes are DuckDB's partition collision, the Nixpkgs `gomarkdoc` test restoration through Linux Fieldwork, and DuckDB's FOLLOWING-frame boundary. Keep Ruff #27026 as a coordination/reference packet until its contributor intent is resolved. Recheck issue comments, linked work, assignees, claims, and pull requests immediately before creating each branch.
