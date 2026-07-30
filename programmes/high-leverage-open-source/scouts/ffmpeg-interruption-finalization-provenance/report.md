@@ -1,8 +1,12 @@
 # FFmpeg interruption, finalization, and media provenance
 
+State: `target-executed`
+
 ## In simple words
 
-FFmpeg writes media packets while a command is running and usually writes container metadata when the command finishes. This first probe asks what an application sees when ordinary MP4 output is interrupted: a graceful signal may still produce a parseable partial file at the requested final pathname, while a hard kill may leave an unusable file. The immediate goal is to measure those states and test whether writing to a temporary pathname gives the application a clean publication decision.
+FFmpeg can report that an encode was interrupted while still leaving a valid, shorter MP4 at the requested output pathname. A hard kill leaves an existing file that the matching `ffprobe` cannot parse.
+
+An application that owns publication should therefore separate “FFmpeg produced bytes” from “the application accepted this output.” Writing to a temporary pathname and renaming only after status `0` keeps the final pathname absent after interruption while preserving the partial file for inspection or cleanup.
 
 ## Identity
 
@@ -10,15 +14,20 @@ FFmpeg writes media packets while a command is running and usually writes contai
 - Programme: #114, high-leverage open source
 - Worker: `chatgpt:gpt-5.6-thinking`
 - Fieldwork branch: `scout/125-ffmpeg-interruption-finalization`
+- Executed Fieldwork head: `2abc0ce4e61a05792f42e081a76eccdcb26b4348`
 - Fieldwork base: `896a617c4b4dd8dd9fb9493d05f801c7baf9ade3`
 - Owned path: `programmes/high-leverage-open-source/scouts/ffmpeg-interruption-finalization-provenance/`
 - Stable target: FFmpeg 8.1.2, tag commit `38b88335f99e76ed89ff3c93f877fdefce736c13`
 - Development retrieval fence: `86940d45aff7d59810794df3ab2b39b7b83b478c`
 - Retrieval date: 2026-07-31
+- Native execution run: `30584720219`
+- Executed-head Fieldwork integrity: `30584720190`
+- Artifact: `8777658832`
+- Artifact digest: `sha256:cbb23ce99d6c1f37470dc37d4f242d83cec303f08dc2939403bccd2536ef656a`
 - Upstream contact authorized: `no`
 - Upstream interaction performed: `none`
 
-## Bounded first question
+## Bounded question
 
 When an ordinary MP4 encode is interrupted after packets have reached the output:
 
@@ -28,92 +37,133 @@ When an ordinary MP4 encode is interrupted after packets have reached the output
 4. how does that compare with `SIGKILL`, which bypasses cleanup;
 5. does application-level temporary-path staging keep the final pathname absent unless the process completes successfully?
 
-Claim scope begins at `mechanism/interface`. Any production or ecosystem consequence remains provisional.
-
 ## Source map
-
-### Signal intake and scheduler stop
 
 At development head `86940d45aff7d59810794df3ab2b39b7b83b478c`, `fftools/ffmpeg.c` records the received signal and increments `received_nb_signals`. The transcode loop observes that count, breaks, stops the scheduler, and continues into output trailer writing.
 
 Relevant paths:
 
-- `fftools/ffmpeg.c`: `sigterm_handler()`, `decode_interrupt_cb()`, `transcode()`, `main()`;
+- `fftools/ffmpeg.c`: signal intake, transcode loop, and final process status;
 - `fftools/ffmpeg_sched.c`: scheduler stop and worker settlement;
-- `fftools/ffmpeg_mux.c`: output trailer, close, and final stats;
+- `fftools/ffmpeg_mux.c`: output trailer, close, and final statistics;
 - `libavformat/mux.c`: generic trailer dispatch;
 - `libavformat/movenc.c`: MP4/MOV trailer and index metadata.
 
-### Trailer and exit result
+`transcode()` calls `of_write_trailer()` after `sch_stop()`. `of_write_trailer()` calls `av_write_trailer()`, closes the output IO context, and checks whether anything was written. `main()` returns `255` when a signal was received even when graceful cleanup completed.
 
-`transcode()` calls `of_write_trailer()` for every output after `sch_stop()`. `of_write_trailer()` calls `av_write_trailer()`, closes the output IO context, and checks whether anything was written. `main()` then returns `255` when any signal was received, even when the graceful cleanup path completed.
+This creates the observed application boundary: process status reports interruption while the requested pathname contains a parseable partial artifact.
 
-This creates an important application boundary: process status reports interruption, while the requested output pathname may contain a parseable partial artifact.
-
-## Competing hypotheses
-
-### H1 — graceful partial file
-
-A single `SIGINT` stops work, writes the MP4 trailer, closes the file, leaves a parseable shorter media file at the final pathname, logs normal signal exit, and returns `255`.
-
-### H2 — unusable interrupted file
-
-The output exists but lacks enough final metadata for `ffprobe` to parse it, so graceful interruption resembles hard process death from the consumer's perspective.
-
-### H3 — timing-dependent mixed state
-
-Whether the output is parseable depends on whether a header and packets were written before interruption. The experiment waits for file growth before signalling so it tests the trailer boundary rather than the empty-output boundary.
-
-### H4 — staging supplies publication authority
-
-Writing to `name.tmp.mp4` and renaming only after exit status `0` leaves the final pathname absent after graceful interruption, while retaining the partial temporary artifact for explicit inspection or cleanup.
-
-## Experiment
+## Executed experiment
 
 Experiment ID: `EXP-20260731-ffmpeg-mp4-interrupt-publication`.
 
-The owned execution carrier builds FFmpeg 8.1.2 from the exact tag commit with a minimal native configuration, generates synthetic video, and runs four cases:
+The exact stable target was built with a minimal native configuration. Synthetic video was encoded in four cases after the runner waited for packet-sized output growth.
 
-1. completed MP4 encode;
-2. direct-to-final-path `SIGINT`;
-3. direct-to-final-path `SIGKILL`;
-4. temporary-path `SIGINT` with rename only on status `0`.
+### Completed control
 
-The runner retains command logs, process statuses, file sizes, `ffprobe` JSON or errors, and an assertion summary.
+```text
+process status: 0
+ffprobe status: 0
+duration: 2.0 seconds
+file exists: yes
+file size: 223346 bytes
+```
+
+Disposition: ordinary successful publication control passed.
+
+### Direct graceful interruption
+
+```text
+process status: 255
+ffprobe status: 0
+duration: 3.533333 seconds
+file exists: yes
+file size: 419217 bytes
+```
+
+Disposition: `SIGINT` followed the graceful finalization path. The producer reported interruption while the matching consumer parsed the partial MP4 successfully.
+
+The interrupted file is larger than the completed control because the cases use different intended timing boundaries; size is evidence of packet progress, not a quality comparison.
+
+### Direct hard kill
+
+```text
+process status: 137
+ffprobe status: 1
+duration: unavailable
+file exists: yes
+file size: 262188 bytes
+```
+
+Disposition: `SIGKILL` bypassed cleanup. Pathname existence did not imply a parseable MP4.
+
+### Staged graceful interruption
+
+```text
+process status: 255
+temporary ffprobe status: 0
+temporary duration: 3.533333 seconds
+temporary file exists: yes
+temporary file size: 419217 bytes
+final file exists: no
+```
+
+Disposition: temporary-path staging preserved the recoverable partial artifact while withholding final publication because rename authority required status `0`.
+
+## Accepted findings
+
+1. **Process outcome and media usability are separate facts.** Status `255` can accompany a valid, parseable partial MP4.
+2. **Pathname existence is not an acceptance receipt.** It occurs in both graceful and hard-kill cases, with different consumer outcomes.
+3. **Graceful interruption is observably different from hard death.** The graceful path writes enough final container metadata for parsing in this fixture.
+4. **Application staging supplies publication authority.** Rename-on-success makes final-path visibility depend on the application's acceptance rule rather than FFmpeg's first write.
+5. **Recoverable partial output is not itself a core defect.** It can be useful for inspection or recovery; applications decide whether to publish, retain, or delete it.
+
+Evidence class: `target-executed` for exact FFmpeg 8.1.2 under the named synthetic fixture.
+
+## Application contract
+
+For consequential media generation, retain a receipt with at least:
+
+- exact input and tool identity;
+- process status and terminating signal;
+- temporary and final pathname identities;
+- consumer parse status;
+- observed duration or stream metadata;
+- application acceptance decision;
+- rename, cleanup, or quarantine outcome.
+
+Recommended publication sequence:
+
+1. choose a unique temporary pathname in the destination filesystem;
+2. run FFmpeg against that temporary pathname;
+3. retain process and probe receipts;
+4. accept only under the application's explicit policy;
+5. rename atomically to the final pathname on acceptance;
+6. otherwise retain, quarantine, or delete the temporary artifact explicitly.
 
 ## Evidence boundary
 
-Before the workflow runs, the source ordering is `source-read` and the shell case is `target-test-prepared`. No result is described as executed yet.
+The fixture preserves:
 
-The synthetic fixture preserves:
-
-- ordinary file protocol output;
+- ordinary file-protocol output;
 - MP4 trailer dependence;
-- real process signals;
+- real `SIGINT` and `SIGKILL` process behavior;
 - final-path visibility;
 - consumer classification through the matching `ffprobe` build.
 
-It omits:
+It does not establish:
 
-- large or multi-stream production inputs;
-- network protocols;
-- hardware encoders;
-- Windows control events;
-- disk-full and injected write errors;
-- application-specific acceptance rules;
-- current-development execution.
+- behavior for every format, muxer, protocol, encoder, or signal;
+- Windows control-event behavior;
+- disk-full or write-error settlement;
+- application-specific quality or completeness thresholds;
+- current-development runtime parity;
+- production performance or large-input behavior.
 
-## Initial change thesis
+## Current disposition
 
-- **Current behaviour:** source inspection indicates graceful signal handling proceeds through trailer writing and returns interrupted status `255`.
-- **Consequence:** an application that treats pathname existence as publication may expose a partial artifact even though the producer reports interruption.
-- **Proposed improvement:** likely application-level staging and explicit acceptance, unless execution reveals an FFmpeg contract or diagnostic defect.
-- **Evidence required:** exact stable-target execution, completed and hard-kill controls, consumer parse results, and raw logs.
-- **Boundary:** recoverable partial output can be intentional and useful; the experiment does not presume a core FFmpeg bug.
+**ACCEPT the bounded mechanism and retain application-level staging as the publication pattern. STOP the core-defect search on this evidence.**
 
-## Next actions
+A new lane is justified only for a distinct contract: format-specific finalization, write-error settlement, Windows interruption, network output, or an application that intentionally publishes graceful partial media.
 
-1. Execute the exact stable target in the Fieldwork carrier.
-2. Classify each output as absent, parseable partial, or unparseable.
-3. Inspect current-development source for any divergence from the stable tag.
-4. Decide whether to retain an application publication pattern, open a narrower diagnostic question, or stop with expected behavior.
+The one-off execution workflow is retired after this receipt transfer. The retained carrier consists of the report, experiment definition, and deterministic runner.
