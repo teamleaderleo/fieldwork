@@ -6,9 +6,14 @@ results_dir="${RESULTS_DIR:-$case_dir/results/latest}"
 ffmpeg_bin="${FFMPEG_BIN:-ffmpeg}"
 ffprobe_bin="${FFPROBE_BIN:-ffprobe}"
 source_dir="${FFMPEG_SOURCE_DIR:-}"
+preserve_existing_results="${PRESERVE_EXISTING_RESULTS:-0}"
 
-rm -rf "$results_dir"
-mkdir -p "$results_dir"
+if [[ "$preserve_existing_results" == "1" ]]; then
+  mkdir -p "$results_dir"
+else
+  rm -rf "$results_dir"
+  mkdir -p "$results_dir"
+fi
 
 "$ffmpeg_bin" -version >"$results_dir/ffmpeg-version.txt" 2>&1
 "$ffprobe_bin" -version >"$results_dir/ffprobe-version.txt" 2>&1
@@ -176,6 +181,51 @@ expect_file staged_temporary_output "$staged_tmp"
 expect_absent staged_final_output "$staged_final"
 
 export RESULTS_DIR="$results_dir"
+python3 - <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+root = Path(os.environ["RESULTS_DIR"])
+errors = []
+observed = {}
+
+for key, filename in {
+    "completed": "completed-probe.json",
+    "direct_sigint": "direct-sigint-probe.json",
+    "staged_sigint": "staged-sigint-probe.json",
+}.items():
+    try:
+        data = json.loads((root / filename).read_text())
+        duration = float(data["format"]["duration"])
+        observed[key] = duration
+    except Exception as error:
+        errors.append(f"{key}: cannot read format duration: {error}")
+
+completed = observed.get("completed")
+if completed is not None and not 1.5 <= completed <= 2.5:
+    errors.append(f"completed duration outside 1.5..2.5 seconds: {completed}")
+
+for key in ("direct_sigint", "staged_sigint"):
+    duration = observed.get(key)
+    if duration is not None and not 0.0 < duration < 19.0:
+        errors.append(f"{key} duration does not prove a partial 20-second output: {duration}")
+
+record = {"durations": observed, "errors": errors}
+(root / "duration-validation.json").write_text(json.dumps(record, indent=2) + "\n")
+print(json.dumps(record, indent=2))
+if errors:
+    sys.exit(1)
+PY
+duration_validation_status=$?
+if [[ "$duration_validation_status" -ne 0 ]]; then
+  printf 'ASSERTION FAILED: duration validation failed status=%s\n' "$duration_validation_status" >&2
+  failures=$((failures + 1))
+else
+  printf 'assertion passed: completed and interrupted durations match their intended boundaries\n'
+fi
+
 export COMPLETED_STATUS="$completed_status"
 export COMPLETED_PROBE_STATUS="$completed_probe_status"
 export SIGINT_STATUS="$sigint_status"
@@ -199,26 +249,39 @@ def file_record(name: str) -> dict:
         "size": path.stat().st_size if path.exists() else None,
     }
 
+def duration(prefix: str):
+    path = root / f"{prefix}-probe.json"
+    if not path.exists():
+        return None
+    try:
+        return float(json.loads(path.read_text())["format"]["duration"])
+    except Exception:
+        return None
+
 summary = {
     "experiment": "EXP-20260731-ffmpeg-mp4-interrupt-publication",
     "completed": {
         "process_status": int(os.environ["COMPLETED_STATUS"]),
         "probe_status": int(os.environ["COMPLETED_PROBE_STATUS"]),
+        "duration": duration("completed"),
         "file": file_record("completed.mp4"),
     },
     "direct_sigint": {
         "process_status": int(os.environ["SIGINT_STATUS"]),
         "probe_status": int(os.environ["SIGINT_PROBE_STATUS"]),
+        "duration": duration("direct-sigint"),
         "file": file_record("direct-sigint.mp4"),
     },
     "direct_sigkill": {
         "process_status": int(os.environ["SIGKILL_STATUS"]),
         "probe_status": int(os.environ["SIGKILL_PROBE_STATUS"]),
+        "duration": duration("direct-sigkill"),
         "file": file_record("direct-sigkill.mp4"),
     },
     "staged_sigint": {
         "process_status": int(os.environ["STAGED_STATUS"]),
         "probe_status": int(os.environ["STAGED_PROBE_STATUS"]),
+        "duration": duration("staged-sigint"),
         "temporary_file": file_record("staged.tmp.mp4"),
         "final_file": file_record("staged-final.mp4"),
     },
