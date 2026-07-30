@@ -4,7 +4,7 @@
   "question": "Does one Jotai createJSONStorage adapter return the same parsed object instance for different storage keys whose JSON text is equal?",
   "owner": "chatgpt:gpt-5.6-thinking",
   "created_at": "2026-07-30",
-  "state": "model-confirmed-package-pending",
+  "state": "promoted",
   "claim_scope": "mechanism",
   "integration_context": null,
   "sources": [
@@ -21,14 +21,14 @@
       "url": "https://www.npmjs.com/package/jotai/v/2.20.2",
       "revision": "2.20.2",
       "retrieved_at": "2026-07-30",
-      "claim": "The exact released package used by the pending runtime probe.",
+      "claim": "The exact released package used by workflow 30548784323.",
       "evidence_label": "Observed"
     }
   ],
   "command": "npm install --ignore-scripts --no-audit --no-fund && node probe.mjs",
   "environment": {
     "runtime": "Node.js 22, 24, and 26",
-    "platform": "GitHub-hosted Ubuntu",
+    "platform": "GitHub-hosted Ubuntu 24.04",
     "dependencies": [
       "jotai@2.20.2"
     ]
@@ -51,13 +51,24 @@
     "receipt": "playgrounds/EXP-20260730-jotai-json-key-isolation/model-result.json",
     "limit": "Exact source logic was transcribed; the released package was not imported."
   },
+  "target_execution": {
+    "workflow_run": 30548784323,
+    "evidence_class": "target-executed",
+    "nodes": [
+      "v22.23.1",
+      "v24.18.0",
+      "v26.5.1"
+    ],
+    "result": "Exact jotai@2.20.2 returned one parsed object for different keys with equal JSON, and mutation crossed the key boundary.",
+    "receipt": "playgrounds/EXP-20260730-jotai-json-key-isolation/result.json"
+  },
   "stop_condition": "Stop after the released package establishes whether parsed object identity is isolated by storage key and the controls distinguish adapter-wide caching from ordinary repeated reads.",
-  "network_policy": "dependency-install-only; the probe itself performs no network access",
+  "network_policy": "explicit",
   "upstream_contact_authorized": false,
   "result_paths": [
     "playgrounds/EXP-20260730-jotai-json-key-isolation/README.md",
     "playgrounds/EXP-20260730-jotai-json-key-isolation/model-result.json",
     "playgrounds/EXP-20260730-jotai-json-key-isolation/result.json"
   ],
-  "promoted_to": null
+  "promoted_to": "https://github.com/teamleaderleo/fieldwork/issues/235"
 }
