@@ -1,0 +1,44 @@
+{
+  "probe": "gemini-cli deterministic lifecycle source-equivalent probe",
+  "targetRevision": "3499c84f7b8e70c86600e7cd2c67a7c65a667f5e",
+  "cases": {
+    "discoveredToolAbortOwnership": {
+      "abortObservedByInvocation": false,
+      "childAliveAtCancellation": true,
+      "childAliveAfterNaturalClose": false,
+      "reproduced": true,
+      "consequence": "scheduler cancellation does not terminate the discovered-tool subprocess"
+    },
+    "parallelConfirmationAffinity": {
+      "targetCallId": "call-b",
+      "selectedCallId": "call-a",
+      "reproduced": true,
+      "consequence": "modification input is sourced from another active approval"
+    },
+    "waitingCallbackAbort": {
+      "transitions": [
+        true
+      ],
+      "reproduced": true,
+      "consequence": "consumer remains marked as waiting after cancellation"
+    },
+    "asyncKillAcknowledgement": {
+      "observationAtAcknowledgement": {
+        "terminationStarted": true,
+        "lifecycleActive": false,
+        "operatingSystemProcessAlive": true
+      },
+      "eventualOperatingSystemProcessAlive": false,
+      "reproduced": true,
+      "consequence": "lifecycle reports termination before the process tree has exited"
+    },
+    "interruptedSessionRecovery": {
+      "parsedRecordCount": 2,
+      "ignoredTrailingPartialLine": true,
+      "unresolvedCallId": "call-1",
+      "recoveredError": "The tool execution result was lost due to context management truncation.",
+      "reproduced": true,
+      "consequence": "resume assigns a context-truncation cause without a durable execution outcome"
+    }
+  }
+}
