@@ -2,7 +2,7 @@
 
 Batch issue: #88
 
-State: `ready-for-synthesis`
+State: `complete`
 
 Coordinator-owned file. Workers must not edit this file directly.
 
@@ -127,6 +127,6 @@ Prepared but unexecuted:
 - #165, #179, #183, #186, #187, and #190 are separate filterable candidates.
 - #112 retains synthesis and durable notes.
 - #87 owns generated coordination and stale-state validation.
-- PR #105 is a dated projection, not canonical live state.
+- Closed PR #105 is a dated design sample, not canonical live state.
 
 No live deployment, proxy, tunnel, remote binding, account access, credential use, Docker operation, browser multi-server run, or upstream interaction occurred.
