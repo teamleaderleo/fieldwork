@@ -1,0 +1,94 @@
+{
+  "evidence_class": "target-executed",
+  "candidate": {
+    "repository": "teamleaderleo/zustand",
+    "pull_request": 2,
+    "head": "9eb5e57318d765ceb0343944992551385a0aeb55",
+    "base": "beca84e600e4e250f6b244d22878e72948f331c7"
+  },
+  "focused": {
+    "run_id": 30548049634,
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 90889203224,
+        "node": 22,
+        "conclusion": "success",
+        "gates": [
+          "direct diff hygiene",
+          "formatting",
+          "candidate and existing persist suites",
+          "eslint",
+          "prettier",
+          "typescript"
+        ]
+      },
+      {
+        "id": 90889203354,
+        "node": 24,
+        "conclusion": "success",
+        "gates": [
+          "direct diff hygiene",
+          "formatting",
+          "candidate and existing persist suites",
+          "eslint",
+          "prettier",
+          "typescript"
+        ]
+      },
+      {
+        "id": 90889203340,
+        "node": 26,
+        "conclusion": "success",
+        "gates": [
+          "direct diff hygiene",
+          "formatting",
+          "candidate and existing persist suites",
+          "eslint",
+          "prettier",
+          "typescript"
+        ]
+      }
+    ]
+  },
+  "ordinary_test": {
+    "run_id": 30548052302,
+    "job_id": 90889211792,
+    "conclusion": "success",
+    "gates": [
+      "test:format",
+      "test:types",
+      "test:lint",
+      "test:spec",
+      "build"
+    ]
+  },
+  "adjacent": {
+    "multiple_builds": {
+      "run_id": 30548050329,
+      "conclusion": "success"
+    },
+    "multiple_versions": {
+      "run_id": 30548049523,
+      "conclusion": "success"
+    },
+    "old_typescript": {
+      "run_id": 30548049441,
+      "conclusion": "success"
+    },
+    "compressed_size": {
+      "run_id": 30548048680,
+      "conclusion": "success"
+    },
+    "preview_release": {
+      "run_id": 30548053498,
+      "conclusion": "failure",
+      "classification": "optional fork publishing configuration; not product evidence"
+    }
+  },
+  "review": {
+    "complete_diff_reviewed": true,
+    "carrier_files_absent": true,
+    "disposition": "validated-candidate"
+  }
+}
