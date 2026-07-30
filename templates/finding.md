@@ -1,6 +1,6 @@
 # F<issue>-<slug>: <finding title>
 
-Finding state: `research-active | review-ready | design-decision-ready | delivery-gate-ready | land-ready | stopped | closed`
+Finding state: `research-active | comparative-evaluation-active | review-ready | design-decision-ready | delivery-gate-ready | land-ready | stopped | closed`
 
 Workstream: `<A-I or programme>`  
 Canonical Fieldwork issue: `#<number>`  
@@ -84,6 +84,8 @@ When no close match exists, state the repositories, terms, and date range search
 
 ## Approaches considered
 
+Use this section for serious alternatives. When two or more technical directions still need executable comparison, use `comparative-evaluation-active` and identify the control that can make each option lose. Do not use `design-decision-ready` until autonomous technical work can no longer settle the remaining choice.
+
 ### Retained approach: <name>
 
 Explain why this direction best matches the invariant and evidence.
@@ -147,7 +149,8 @@ Recommendation: `<one option and why>`
 - Exact next transition: `<one transition>`
 - Clearing condition: `<one named condition>`
 - Required subgates: `<list or none>`
-- User decision requested: `<one explicit question or none>`
+- Autonomous work remaining: `<technical work or none>`
+- Non-delegable human decision: `<one explicit question or none>`
 
 ## Changes to the canonical conclusion
 
