@@ -126,7 +126,7 @@ index 73c23b7..0000000 100644
        // A sendTurn while a turn is active is a steer: OpenCode queues the
        // prompt into the busy session and the work continues as one turn, so
        // the active turn id is reused instead of opening a new turn.
-@@ -1538,21 +1586,97 @@ export function makeOpenCodeAdapter(
+@@ -1538,21 +1586,98 @@ export function makeOpenCodeAdapter(
  
      const interruptTurn: OpenCodeAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
        function* (threadId, turnId) {
@@ -191,9 +191,9 @@ index 73c23b7..0000000 100644
 +
 +          yield* Effect.gen(function* () {
 +            const exit = yield* Effect.exit(operationBody);
-+            yield* clearOwnedInterrupt;
 +            if (Exit.isSuccess(exit)) {
 +              yield* Deferred.succeed(claim.result, undefined);
++              yield* clearOwnedInterrupt;
 +              return;
 +            }
 +
@@ -208,6 +208,7 @@ index 73c23b7..0000000 100644
 +                }),
 +            );
 +            yield* Deferred.fail(claim.result, error);
++            yield* clearOwnedInterrupt;
 +          }).pipe(Effect.forkIn(context.sessionScope));
 +        }
 +
