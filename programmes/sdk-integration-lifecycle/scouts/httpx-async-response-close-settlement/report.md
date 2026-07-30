@@ -14,7 +14,9 @@ Pinned released package: `httpx==0.28.1`
 
 Owned fork candidate: `teamleaderleo/httpx#1`
 
-Owned fork head: `e822bebb882aacc37928b3bd2c17eb7aa974831d`
+Owned fork head: `368431247a74f3768ef21993a9191eba85f8d6b6`
+
+Adjacent client-shutdown candidate: #177
 
 Upstream contact authorized: `false`
 
@@ -24,7 +26,7 @@ HTTPX says an asynchronous response is closed as soon as close starts, not when 
 
 If that cleanup is cancelled or raises, later callers see the closed flag and return without retrying. A concurrent caller can also return successfully while the first close is still blocked. The public state and the transport lifecycle therefore disagree.
 
-The owned fork now contains a draft experiment where one caller owns each close attempt, other callers wait for that attempt, cancellation leaves retry ownership, and only successful underlying cleanup publishes `is_closed == True`.
+The owned fork contains a draft experiment where one caller owns each close attempt, other callers wait for that attempt, cancellation leaves retry ownership, and only successful underlying cleanup publishes `is_closed == True`.
 
 ## Source map
 
@@ -39,6 +41,8 @@ if not self.is_closed:
 [`AsyncClient.stream()`](https://redirect.github.com/encode/httpx/blob/b5addb64f0161ff6bfe94c124ef76f6a1fba5254/httpx/_client.py#L1539-L1589) relies on `await response.aclose()` in its `finally` block.
 
 The bound response stream sets elapsed time before awaiting underlying close, and the [default async transport](https://redirect.github.com/encode/httpx/blob/b5addb64f0161ff6bfe94c124ef76f6a1fba5254/httpx/_transports/default.py#L257-L269) forwards close into HTTPCore. Closing is therefore part of transport and connection-pool ownership, not only local response bookkeeping.
+
+The adjacent audit also found that sync and async client shutdown mark `ClientState.CLOSED` before closing the main transport and every mounted transport. That multi-owner problem is separated into #177 rather than expanding the response candidate.
 
 ## Executed release probe
 
@@ -95,7 +99,7 @@ Draft fork PR: `teamleaderleo/httpx#1`
 
 Branch: `fieldwork/171-async-response-close-settlement`
 
-Exact head: `e822bebb882aacc37928b3bd2c17eb7aa974831d`
+Exact head: `368431247a74f3768ef21993a9191eba85f8d6b6`
 
 The branch stages an exact source patch rather than replacing the large core files through the connected editor. Its workflow is read-only: it applies the patch to a clean checkout, copies the focused regression into the repository test tree, and runs the matrix without committing or pushing.
 
@@ -108,7 +112,7 @@ The candidate uses an AnyIO event for one close attempt rather than an `asyncio.
 - successful cleanup sets `is_closed` and releases waiters;
 - ordinary close failure is shared with callers already waiting;
 - a later explicit caller may retry after failure;
-- owner cancellation clears attempt ownership without publishing completion, allowing a waiting or later caller to retry;
+- active or pre-existing owner cancellation clears attempt ownership without publishing completion;
 - cancelling a waiter does not cancel the owner.
 
 This keeps the candidate backend-neutral for asyncio and Trio and avoids a detached background task whose failure could become unobserved.
@@ -121,25 +125,29 @@ The candidate therefore retains a separate private `close started` barrier. Once
 
 ### Elapsed completion ordering
 
-The current `BoundAsyncStream` publishes `response.elapsed` before awaiting the underlying close. The candidate moves elapsed publication after successful underlying cleanup so elapsed does not describe a completed request/response lifecycle while close remains pending or has failed.
+The current `BoundAsyncStream` publishes `response.elapsed` before awaiting the underlying close. The candidate moves elapsed publication after successful underlying cleanup. Elapsed remains unavailable while close is pending and after a failed attempt, then becomes available after a successful retry.
 
 ## Focused regression matrix
 
 The owned fork test covers:
 
-1. cancelled owner followed by successful retry;
-2. ordinary close failure followed by successful retry;
-3. two concurrent close callers sharing one underlying attempt;
-4. cancelling one waiter without cancelling the owner;
-5. one ordinary failure being shared with current waiters;
-6. body iteration remaining blocked after close starts and after a cancelled attempt;
-7. elapsed remaining unavailable until underlying close completes.
+1. active cancellation followed by successful retry;
+2. already-cancelled entry followed by successful retry;
+3. ordinary close failure followed by successful retry;
+4. two concurrent close callers sharing one underlying attempt;
+5. cancelling one waiter without cancelling the owner;
+6. one ordinary failure being shared with current waiters;
+7. body iteration remaining blocked after close starts and after a cancelled attempt;
+8. repeated successful close remaining idempotent;
+9. cancelled `AsyncClient.stream()` context exit leaving the response retryable;
+10. elapsed remaining unavailable until underlying close completes;
+11. elapsed remaining unavailable after failure until retry succeeds.
 
 The workflow runs Python `3.9` and `3.13`. Every `pytest.mark.anyio` test runs through the repository's asyncio and Trio backends. It also runs adjacent response/client streaming controls, Ruff, Mypy, and `git diff --check` after applying the exact patch.
 
 ## Current validation state
 
-Fork workflow `30501516185` and the repository `Test Suite` run `30501516237` are queued on exact head `e822bebb882aacc37928b3bd2c17eb7aa974831d`.
+Fork workflow `30501982281` and repository `Test Suite` run `30501982293` are queued on exact head `368431247a74f3768ef21993a9191eba85f8d6b6`.
 
 No candidate pass is claimed yet.
 
@@ -148,12 +156,10 @@ No candidate pass is claimed yet.
 1. patch applies cleanly on the pinned fork base;
 2. focused asyncio and Trio matrix passes on Python 3.9 and 3.13;
 3. adjacent existing response/client streaming controls pass;
-4. `AsyncClient.stream()` context exit preserves cancellation and error ownership;
-5. read-to-completion automatic close remains correct;
-6. default HTTPCore connection release and subsequent reuse are exercised after interrupted close;
-7. repeated successful close remains idempotent;
-8. sync `Response.close()` exception ordering is characterized separately;
-9. the final candidate is applied directly or retained explicitly as a patch experiment before any landing decision.
+4. read-to-completion automatic close remains correct;
+5. default HTTPCore connection release and subsequent reuse are exercised after interrupted close;
+6. sync `Response.close()` exception ordering is characterized separately;
+7. the final candidate is applied directly or retained explicitly as a patch experiment before any landing decision.
 
 ## Current disposition
 
