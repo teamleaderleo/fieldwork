@@ -6,6 +6,7 @@
         "from": {
           "maxLength": 160,
           "minLength": 1,
+          "pattern": "\\S",
           "type": "string"
         },
         "kind": {
@@ -26,6 +27,7 @@
         "to": {
           "maxLength": 160,
           "minLength": 1,
+          "pattern": "\\S",
           "type": "string"
         }
       },
@@ -38,6 +40,20 @@
     },
     "node": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "exclusive_output"
+            ]
+          },
+          "then": {
+            "required": [
+              "output_key"
+            ]
+          }
+        }
+      ],
       "properties": {
         "authority": {
           "additionalProperties": false,
@@ -52,6 +68,7 @@
         "evaluator_revision": {
           "maxLength": 160,
           "minLength": 1,
+          "pattern": "\\S",
           "type": "string"
         },
         "exclusive_output": {
@@ -63,6 +80,7 @@
             {
               "maxLength": 160,
               "minLength": 1,
+              "pattern": "\\S",
               "type": "string"
             },
             {
@@ -73,11 +91,13 @@
         "id": {
           "maxLength": 160,
           "minLength": 1,
+          "pattern": "\\S",
           "type": "string"
         },
         "input_fingerprint": {
           "maxLength": 160,
           "minLength": 1,
+          "pattern": "\\S",
           "type": "string"
         },
         "kind": {
@@ -93,16 +113,19 @@
         "output_key": {
           "maxLength": 160,
           "minLength": 1,
+          "pattern": "\\S",
           "type": "string"
         },
         "policy_revision": {
           "maxLength": 160,
           "minLength": 1,
+          "pattern": "\\S",
           "type": "string"
         },
         "semantic_fingerprint": {
           "maxLength": 160,
           "minLength": 1,
+          "pattern": "\\S",
           "type": "string"
         },
         "semantic_state": {
