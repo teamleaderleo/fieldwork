@@ -25,13 +25,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 2
 
-      - name: Check candidate inputs
+      - name: Hold composed candidate unless dispatched
         id: filter
         shell: bash
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          elif git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(.github/workflows/t3-opencode-combined-candidate.yml|campaigns/t3-opencode-completion-reconciliation/candidates/0002-opencode-interrupt-settlement.patch|campaigns/t3-opencode-completion-reconciliation/candidates/0004-opencode-interrupt-and-request-expiry.patch|campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt)$'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
