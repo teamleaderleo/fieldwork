@@ -57,6 +57,7 @@ jobs:
               apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-generation.test.ts
               apps/server/src/provider/Layers/OpenCodeAdapter.pending-request.test.ts
               apps/server/src/provider/Layers/OpenCodeAdapter.pending-request-stop.test.ts
+              apps/server/src/provider/Layers/OpenCodeAdapter.pending-request-completion.test.ts
               -t "^(settles|rejects|coalesces|preserves|continues|classifies|reuses|emits|does|maps|expires)"
           - name: Runtime ingestion compatibility
             command: vp test run apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.test.ts
