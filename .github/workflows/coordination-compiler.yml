@@ -1,0 +1,32 @@
+name: Coordination compiler
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/coordination-compiler.yml'
+      - 'scripts/coordination_compiler.py'
+      - 'scripts/test_coordination_compiler.py'
+      - 'research/continuous-coordination/fixtures/**'
+      - 'research/continuous-coordination/schema/graph-v1.schema.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  focused:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Compile and run focused regressions
+        run: |
+          python3 -m py_compile scripts/coordination_compiler.py scripts/test_coordination_compiler.py
+          python3 scripts/test_coordination_compiler.py
+          python3 scripts/coordination_compiler.py \
+            research/continuous-coordination/fixtures/simple-chain.json \
+            --clean > /tmp/simple-chain.json
+          python3 scripts/coordination_compiler.py \
+            research/continuous-coordination/fixtures/blocked-chain.json \
+            --changed receipt > /tmp/blocked-chain.json
+          git diff --check
