@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use futures_util::future::{ready, FutureExt};
+use futures_util::future::{FutureExt, ready};
 use futures_util::stream::BoxStream;
 use object_store::buffered::BufWriter;
 use object_store::memory::InMemory;
@@ -98,11 +98,7 @@ impl ObjectStore for TrackingStore {
         self.inner.get_opts(location, options).await
     }
 
-    async fn get_ranges(
-        &self,
-        location: &Path,
-        ranges: &[Range<u64>],
-    ) -> StoreResult<Vec<Bytes>> {
+    async fn get_ranges(&self, location: &Path, ranges: &[Range<u64>]) -> StoreResult<Vec<Bytes>> {
         self.inner.get_ranges(location, ranges).await
     }
 
@@ -129,21 +125,11 @@ impl ObjectStore for TrackingStore {
         self.inner.list_with_delimiter(prefix).await
     }
 
-    async fn copy_opts(
-        &self,
-        from: &Path,
-        to: &Path,
-        options: CopyOptions,
-    ) -> StoreResult<()> {
+    async fn copy_opts(&self, from: &Path, to: &Path, options: CopyOptions) -> StoreResult<()> {
         self.inner.copy_opts(from, to, options).await
     }
 
-    async fn rename_opts(
-        &self,
-        from: &Path,
-        to: &Path,
-        options: RenameOptions,
-    ) -> StoreResult<()> {
+    async fn rename_opts(&self, from: &Path, to: &Path, options: RenameOptions) -> StoreResult<()> {
         self.inner.rename_opts(from, to, options).await
     }
 }
