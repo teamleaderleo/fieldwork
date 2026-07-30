@@ -1,0 +1,15 @@
+{
+  "after_first_failure": {
+    "close_calls": 1,
+    "error": "RuntimeError: sync close failed",
+    "response_is_closed": true,
+    "stream_cleaned": false
+  },
+  "after_retry": {
+    "close_calls": 1,
+    "response_is_closed": true,
+    "stream_cleaned": false
+  },
+  "httpx": "0.28.1",
+  "python": "3.13.5"
+}
