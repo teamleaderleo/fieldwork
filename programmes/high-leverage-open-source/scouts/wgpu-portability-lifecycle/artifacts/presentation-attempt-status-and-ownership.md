@@ -28,7 +28,8 @@ Presentation is not one event:
 application gives SurfaceTexture to Queue::present
 → public wrapper marks the value presented
 → backend dispatch begins
-→ core removes the acquired texture from surface state
+→ core public entry validates configured-device state
+→ core queue removes the acquired texture from surface state
 → core may clear and transition the texture
 → HAL consumes the raw surface texture
 → HAL returns a status or error
@@ -78,15 +79,38 @@ construct custom Queue and SurfaceTexture
 
 This characterizes the public ownership boundary. It does not prove a native leak or establish that ownership should be rolled back after dispatch begins.
 
+## Public pre-check versus core detachment
+
+The native public backend does not immediately call the queue-level detachment path. `Surface::present_inner` first:
+
+1. reads the configured presentation;
+2. calls `present.device.check_is_valid()`;
+3. obtains the configured device queue;
+4. only then calls the internal queue presentation method.
+
+Therefore this proposed public experiment is invalid for the target seam:
+
+```text
+configure surface
+→ acquire frame
+→ destroy device
+→ public Queue::present
+```
+
+It fails at the public device-validity check **before** core removes `acquired_texture`. That outcome would characterize only the pre-check, not `PreparationFailedDetached`.
+
+This is a useful theory correction: deterministic post-detachment failure must exercise core's internal queue presentation directly or use a narrower fault injection after the public pre-check.
+
 ## Core detachment before HAL consumption
 
-Native core has another transition. Its presentation path:
+After the pre-check, the internal queue presentation path:
 
 1. locks surface presentation state;
-2. removes `acquired_texture` with `take()`;
-3. calls `prepare_surface_texture_for_present`;
-4. snatches the raw surface-texture handle;
-5. passes that handle by value to HAL presentation.
+2. verifies queue and configured device identity;
+3. removes `acquired_texture` with `take()`;
+4. calls `prepare_surface_texture_for_present`;
+5. snatches the raw surface-texture handle;
+6. passes that handle by value to HAL presentation.
 
 Preparation can fail while:
 
@@ -162,6 +186,7 @@ The queue-owned rewrite and its review show that presentation completion is not 
 
 - `Acquired`: surface still records the acquired texture.
 - `PresentationAttemptCommitted`: public frame consumed and drop cleanup suppressed.
+- `RejectedBeforeDetachment`: native public entry rejects invalid configured-device state while the core surface still owns the acquired texture.
 - `DetachedForPreparation`: core removed the acquired texture; HAL has not consumed it.
 - `PreparedForPresentation`: required clear and transition work succeeded.
 - `HalConsumed`: raw texture passed to HAL.
@@ -170,7 +195,7 @@ The queue-owned rewrite and its review show that presentation completion is not 
 - `PreparationFailedDetached`: core detached the frame and failed before HAL consumption.
 - `ConsumedWithError`: HAL or device processing consumed ownership and returned an error.
 
-The names are provisional. The required distinction is failure before versus after HAL consumes the raw image.
+The names are provisional. The required distinction is failure before detachment, failure after detachment, and failure after HAL consumption.
 
 ## Execution programme
 
@@ -186,24 +211,24 @@ The inherited repository CI also contains a browser Playwright runner. Results m
 
 ### Core preparation-failure probe
 
-The preferred first deterministic trigger is:
+The deterministic probe must call or wrap core's internal queue presentation after an acquired texture exists. Acceptable designs, in preference order:
 
-```text
-configure surface
-→ acquire frame
-→ destroy device
-→ present consumed frame
-```
+1. an internal unit test that constructs a controlled surface, queue, and acquired texture, then calls core `Queue::present` directly;
+2. a test-only hook that fails immediately after `acquired_texture.take()`;
+3. an instrumented noop HAL carrier with distinct acquire, discard, and present counters plus a narrow internal call path;
+4. a real backend fault only after deterministic core behavior is known.
 
-This should force submission allocation or preparation to fail before HAL presentation. A controlled HAL or instrumented noop surface must record:
+The probe must record:
 
 - acquisition count;
+- whether the surface still stores `acquired_texture` before and after the call;
 - discard count;
 - HAL presentation count;
+- raw surface-texture destruction;
 - outstanding image count;
 - subsequent acquisition behavior.
 
-A separate experiment branch, `fieldwork/pre-hal-present-failure-noop`, exists to investigate a deterministic instrumented-noop carrier without contaminating the browser characterization branch.
+A separate experiment branch, `fieldwork/pre-hal-present-failure-noop`, exists to investigate this without contaminating the browser characterization branch.
 
 ## Promotion gate
 
@@ -224,6 +249,7 @@ Do not promote a presentation finding until it has:
 - Do not call consume-on-attempt semantics defective merely because presentation returns no result.
 - Do not assume every HAL error leaves the platform image retryable.
 - Do not infer a resource leak from source lifetime alone.
+- Do not claim a public destroyed-device test reaches the post-detachment seam.
 - Do not conflate pre-HAL preparation failure with a HAL-consumed status.
 - Do not treat noop behavior as platform ownership proof.
 - Do not begin with a breaking public API redesign.
@@ -231,4 +257,4 @@ Do not promote a presentation finding until it has:
 
 ## Current decision
 
-Keep the browser and wrapper branch characterization-only. Use the separate noop experiment to answer `PreparationFailedDetached` deterministically, then validate the surviving hypothesis on DX12 and Vulkan.
+Keep the browser and wrapper branch characterization-only. Use the separate noop experiment to answer `PreparationFailedDetached` through an internal core path, then validate the surviving hypothesis on DX12 and Vulkan.
