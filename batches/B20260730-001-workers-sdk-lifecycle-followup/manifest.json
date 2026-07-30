@@ -79,12 +79,15 @@
       "owned_path": "batches/B20260730-001-workers-sdk-lifecycle-followup/results/A001.md",
       "dependencies": [
         "Package execution remains required before source integration.",
-        "Adjacent Vite container cleanup candidate #165 requires separate mocked plugin tests.",
-        "Adjacent Vite logical runtime ownership candidate #179 requires restart and multi-server integration tests across Vite 6, 7, and 8."
+        "Candidate #165 requires mocked Vite container-cleanup tests.",
+        "Candidate #179 requires Vite 6/7/8 logical-owner, runtime, tunnel, metadata, warning, and stale-generation tests.",
+        "Candidate #183 requires Vite 6/7/8 programmatic build/preview operation-scope tests.",
+        "Candidate #186 requires mocked remote-session lifecycle, connection-identity, disposed-entry, and logger-ownership tests.",
+        "Candidate #187 requires mocked concurrent container-registry account/token authority tests."
       ],
       "state": "complete",
       "stop_condition": "Stop when the lifecycle claim is reproduced, falsified, or blocked by a specific unavailable test dependency; do not generalize every teardown hang to this cause.",
-      "review_disposition": "Mechanism accepted; kill assertions bind to the workerd child. Adjacent Vite container ownership is candidate #165 and process-wide runtime/restart/tunnel ownership is candidate #179; keep both separate from the first child-ownership patch and from primary-error aggregation.",
+      "review_disposition": "Mechanism accepted; kill assertions bind to the workerd child. Extracted Vite candidates #165, #179, #183, #186, and #187 remain separate from the first child-ownership patch and from primary-error aggregation, each with its own exact evidence head and execution gate.",
       "upstream_contact_authorized": false
     },
     {
