@@ -1,0 +1,56 @@
+{
+  "edges": [
+    {
+      "from": "evidence",
+      "kind": "consumes-evidence",
+      "to": "receipt"
+    },
+    {
+      "from": "receipt",
+      "kind": "produces",
+      "to": "queue"
+    }
+  ],
+  "nodes": [
+    {
+      "authority": {
+        "upstream_contact": false
+      },
+      "evaluator_revision": "coordination-compiler/v1",
+      "generation": 1,
+      "id": "evidence",
+      "input_fingerprint": "sha256:input-evidence-1",
+      "kind": "evidence",
+      "policy_revision": "fieldwork-review/v1",
+      "semantic_fingerprint": "sha256:semantic-evidence-1",
+      "semantic_state": "current"
+    },
+    {
+      "authority": {
+        "upstream_contact": false
+      },
+      "evaluator_revision": "coordination-compiler/v1",
+      "generation": 1,
+      "id": "receipt",
+      "input_fingerprint": "sha256:input-receipt-1",
+      "kind": "execution-receipt",
+      "policy_revision": "fieldwork-review/v1",
+      "semantic_fingerprint": "sha256:semantic-receipt-1",
+      "semantic_state": "missing-receipt"
+    },
+    {
+      "authority": {
+        "upstream_contact": false
+      },
+      "evaluator_revision": "coordination-compiler/v1",
+      "generation": 1,
+      "id": "queue",
+      "input_fingerprint": "sha256:input-queue-1",
+      "kind": "queue-entry",
+      "policy_revision": "fieldwork-review/v1",
+      "semantic_fingerprint": "sha256:semantic-queue-1",
+      "semantic_state": "current"
+    }
+  ],
+  "schema_version": "fieldwork.coordination/v1"
+}
