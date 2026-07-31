@@ -28,7 +28,7 @@ Identifiers must not contain credentials, tokens, private chat or session identi
 Every durable locator must be repository-qualified. Use forms equivalent to:
 
 ```text
-owner/repo#issue-comment-<id>
+owner/repo#issue-<number>-comment-<id>
 owner/repo@<commit-sha>
 owner/repo#pr-<number>@<head-sha>
 owner/repo/actions/runs/<run-id>/artifacts/<artifact-id>@sha256:<digest>
@@ -37,7 +37,7 @@ owner/repo#issue-<number>:lease-comment-<id>
 
 A bare numeric comment, artifact, issue, pull-request, or run ID is ambiguous and invalid for current routing.
 
-The same composite event key appears in the claim, completion, supersession, and any legacy reconciliation. Never recycle it for another bounded question or target generation.
+The same composite event key appears throughout one claim, completion, and supersession chain. A legacy reconciliation starts a new chain with a fresh composite key. Never recycle a composite key for another bounded question or target generation.
 
 ## Identity and ownership fields
 
@@ -45,7 +45,7 @@ The same composite event key appears in the claim, completion, supersession, and
 - Owning issue number:
 - Assistance ID:
 - Assistance state: `claimed | complete | superseded | legacy-reconciled`
-- Authoritative claim receipt: exact repository-qualified owning-issue comment; `not applicable` only while state is `claimed`
+- Authoritative claim receipt: exact repository-qualified owning-issue comment; required for `complete` and `superseded`, `not applicable` while `claimed`; a `legacy-reconciled` event uses its exact legacy locators instead
 - Optional claim mirrors: exact qualified commit or artifact locators, or `none`
 - Helper worker instance:
 - Owner worker instance: `unknown` when the earlier record did not preserve one
@@ -99,7 +99,7 @@ Owning repository: <same owner/repo as claim>
 Owning issue number: <same issue number as claim>
 Assistance ID: <same id as claim>
 State: complete
-Authoritative claim receipt: <owner/repo#issue-comment-id>
+Authoritative claim receipt: <owner/repo#issue-number-comment-id>
 Optional claim mirrors: <qualified commit/artifact locators or none>
 Helper worker instance: <same public-safe id as claim>
 Owner worker instance: <public-safe id or unknown>
@@ -130,9 +130,9 @@ Use an explicit supersession event rather than editing or deleting the old recei
 
 ```text
 FIELDWORK ASSISTANCE SUPERSESSION
-Owning repository: <owner/repo>
-Owning issue number: <number>
-Assistance ID: <same id as prior event, or replacement id when explicitly linked>
+Owning repository: <same owner/repo as prior event>
+Owning issue number: <same issue number as prior event>
+Assistance ID: <same id as prior event>
 State: superseded
 Prior receipt: <qualified exact completion or supersession locator>
 Authoritative claim receipt: <qualified owning-issue claim locator>
@@ -146,14 +146,14 @@ Supersession reason: <bounded reason>
 Evidence transferred: <qualified exact outputs/receipts or none>
 Evidence rejected: <qualified exact outputs/receipts and reason or none>
 Evidence retained: <qualified exact historical outputs/receipts or none>
-Replacement output or Assistance ID: <qualified output/composite key or none>
+Replacement output or Assistance ID: <qualified output or replacement composite key, or none>
 Ownership effect: none | transfer-proposed | transfer-recorded
 Replacement lease or transfer record: <qualified exact record or not applicable>
 Owner action: none | inspect | reconcile | compose | acknowledge | record transfer
 Upstream contact authorized: no | exact authority
 ```
 
-A conflicting duplicate, missing prior locator, or unlinked supersession remains unresolved rather than being silently selected.
+A conflicting duplicate, missing prior locator, changed chain ID, or unlinked supersession remains unresolved rather than being silently selected.
 
 ## Legacy pre-ID reconciliation
 
@@ -189,7 +189,7 @@ Legacy reconciliation never infers ownership transfer or independent-review elig
 
 A worker resuming an owned artifact should inspect the owning issue for assistance claims, completions, supersessions, and legacy reconciliations newer than the last assistance receipt or target generation they observed.
 
-Correlate events by the composite key `(owning repository, owning issue number, Assistance ID)` and the exact authoritative claim receipt. Do not correlate only by shared author, timestamp, issue number, target, or assistance type.
+Correlate current claim/completion/supersession events by the composite key `(owning repository, owning issue number, Assistance ID)` and the exact authoritative claim receipt. Correlate legacy reconciliation by its fresh composite key and exact legacy locators. Do not correlate only by shared author, timestamp, issue number, target, or assistance type.
 
 A coordinator or future router may index these blocks only after validating the observed grammar and fully qualified locators. It must reject duplicate composite keys with conflicting fields, unlinked events, inaccessible required records, and unknown currentness. It must not infer worker identity, ownership, review independence, or transfer from assistance activity.
 
@@ -207,6 +207,6 @@ When evidence changes another assignment's premise, post the completion or super
 
 ## Reconciliation and retirement
 
-When the owner composes the assistance output, record the consumed composite event key, authoritative claim receipt, output generation, reconciled target generation, and resulting canonical generation. Do not erase the helper receipt.
+When the owner composes the assistance output, record the consumed composite event key, authoritative claim receipt or exact legacy locators, output generation, reconciled target generation, and resulting canonical generation. Do not erase the helper receipt.
 
 Mark an obsolete assistance output superseded only after its evidence is transferred or deliberately rejected with a reason through the explicit supersession block. Historical and legacy evidence remains available with its limits.
