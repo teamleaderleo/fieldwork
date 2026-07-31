@@ -53,9 +53,10 @@ async def test_repair_control_preserves_nonterminal_status_after_request_failure
     run = AsyncRun(box, "agent", "run-3")
 
     await run.cancel()
-
-    assert run.status == "running"
+    status = run.status
     await box.aclose()
+
+    assert status == "running"
 
 
 @respx.mock
@@ -65,10 +66,13 @@ async def test_repair_control_preserves_nonterminal_status_after_request_failure
 )
 async def test_repair_control_concurrent_callers_share_one_request() -> None:
     box = await make_async_box(respx.mock)
-    route = respx.post(f"{BASE}/runs/run-4/cancel").mock(return_value=httpx.Response(200, json={}))
+    route = respx.post(f"{BASE}/runs/run-4/cancel").mock(
+        return_value=httpx.Response(200, json={})
+    )
     run = AsyncRun(box, "agent", "run-4")
 
     await asyncio.gather(run.cancel(), run.cancel())
-
-    assert route.call_count == 1
+    call_count = route.call_count
     await box.aclose()
+
+    assert call_count == 1
