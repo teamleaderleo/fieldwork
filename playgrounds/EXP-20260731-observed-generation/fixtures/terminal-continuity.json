@@ -1,0 +1,23 @@
+{
+  "id": "pilot-terminal-continuity",
+  "spec_generation": "terminal-spec-v1",
+  "invariant_id": "bounded-path-continuity",
+  "parent_issue": {"repository": "teamleaderleo/fieldwork", "number": 325},
+  "phase": "stopped",
+  "canonical_source": {
+    "repository": "teamleaderleo/fieldwork",
+    "branch": "experiment/325-observed-generation-pilot",
+    "head": "1111111111111111111111111111111111111111"
+  },
+  "review": {"disposition": "ACCEPT", "exact_head": "1111111111111111111111111111111111111111"},
+  "active_carriers": [],
+  "alternatives": [],
+  "authority": {},
+  "terminal": {
+    "reason": "The bounded path did not reproduce the proposed mechanism under the retained controls.",
+    "evidence_boundary": "target-executed@run-1",
+    "avenues": ["test a distinct ownership boundary", "revisit after source-generation movement"],
+    "reopening_triggers": ["new source path", "counterexample under target execution"],
+    "smallest_safe_next_probe": "Run one isolated ownership-boundary fixture."
+  }
+}
