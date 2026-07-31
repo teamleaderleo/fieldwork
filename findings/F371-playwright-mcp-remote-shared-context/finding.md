@@ -5,6 +5,10 @@ Finding state: `delivery-gate-ready`
 Canonical issue: `#371`  
 Initiative: `#254`  
 Workstream: `B/C — browser runtime and MCP authority boundaries`  
+Current renewal: Fieldwork PR `#399` at `aa8264a5d4c4d50936c9a2d1009f141896798dc6`  
+Current renewal base: `main@041d29ab9c5e5859cb69518a432354be71b67af8`  
+Current packaging run: `30648259077`, job `91214957545`, success  
+Current generated merge: `44b1de9e8a355cf2dd2a5002120a5650ac01cc61`  
 Exact package source: `microsoft/playwright-mcp@55679f5f3d4b4f3e2534ec0ce2fc5683ba2eaf3f`  
 Exact shared core source: `microsoft/playwright@368941457a82da112aa8610107e25f4bde94339a`  
 Behavior carrier: closed Fieldwork PR `#375` at `2a7b6c45179ac3f9e78b8540702e7e88f849b3fd`  
@@ -14,8 +18,9 @@ Help carrier: closed Fieldwork PR `#377` at `204b96c94dfd2fef3ea4981796b2cb98cea
 Help run: `30634831167`, job `91169666445`, success  
 Help artifact: `8794842941`, digest `sha256:d0347ff4a0ed8408f9c5d01b36b703d931bc5bab8e6ac79da373a6bfcb2d0683`  
 Canonical implementation: `evidence/0001-document-http-client-authority.patch`  
-Strongest evidence class: `target-executed`  
-Current disposition: `REVIEW READY — documentation/runtime-help candidate`  
+Evidence classes present: `source-read`, `upstream-test-executed`, `target-executed`, `not established`  
+Adjacent unresolved question: issue `#404` / workflow-free characterization PR `#405`  
+Current disposition: `REVIEW READY — current-main documentation/runtime-help candidate`  
 Upstream contact authorized: `no`
 
 ## In simple words
@@ -160,6 +165,25 @@ Every accepted client can observe and control the shared tabs, cookies, storage,
 
 The complete carrier history and claim boundary are retained in `evidence/20260731-help-candidate-receipt.md`.
 
+## Current-main renewal
+
+PR #399 renews the exact five workflow-free finding/evidence blobs directly on current `main` without changing their bytes.
+
+- exact renewal head: `aa8264a5d4c4d50936c9a2d1009f141896798dc6`;
+- exact base: `041d29ab9c5e5859cb69518a432354be71b67af8`;
+- generated merge: `44b1de9e8a355cf2dd2a5002120a5650ac01cc61`;
+- Fieldwork integrity `30648259077`, job `91214957545`: success;
+- interaction-reference and batch-contract checks: success;
+- every transferred blob is byte-identical to workflow-free PR #374 head `b33c4f73b98a19d2ac5a7f0a58260fd043d766b9`.
+
+This packaging receipt does not rerun Chromium or generated target help. Those claims remain bound to the exact target-executed heads above.
+
+## Adjacent shutdown-authority question
+
+Issue #404 records a separate source and target-executed finding: the fixed `POST /killkillkill` route follows configured HTTP reachability once Host policy accepts the caller. Its workflow-free characterization is retained in PR #405.
+
+That question is `comparative-evaluation-active`. It does not change the F371 behavior matrix or selected three-string help patch yet. Any later shutdown-route repair must retain its own target evidence and must not silently widen this finding into a transport-code change.
+
 ## Alternatives
 
 ### Built-in token gate — deferred
@@ -185,14 +209,18 @@ The selected wording recommends this boundary without hard-coding one authentica
 | Remaining client keeps shared authority after first-client disconnect. | `target-executed` | streamable HTTP sessions |
 | Final-client disconnect closes the shared browser. | `target-executed` | target debug lifecycle counters |
 | Three-string help patch applies, builds, and appears in runtime help. | `target-executed` | exact pinned target and generated-help surface |
+| Current-main package contains the exact reviewed five blobs. | `current-base merge-ref executed` | packaging/currentness only; no target rerun |
 | Public exploitability or deployment prevalence. | `not established` | no production deployment or external target |
 | Built-in authentication is the correct repair. | `not established` | deployment architecture comparison pending |
+| Remote shutdown authority changes the selected help patch. | `not established` | separate issue #404 comparison remains active |
 | Public upstream acceptance. | `not established` | no upstream contact authorized |
 
 ## Exact next transition
 
-1. let Fieldwork integrity settle on this workflow-free exact head;
-2. obtain one eligible complete-diff review of the five-file finding package;
-3. only separate public-upstream authority may permit submission.
+1. current-main Fieldwork integrity is complete at run `30648259077`;
+2. obtain one eligible complete-file review of this metadata-current successor and the unchanged four adjacent evidence blobs;
+3. compose the accepted metadata record into the PR #399 owner generation and renew exact packaging identity;
+4. keep issue #404 separate until its own comparison selects a compatible repair;
+5. only separate public-upstream authority may permit submission.
 
 No merge, release, deployment, real credential, private browser data, spending, or public upstream interaction is authorized.
