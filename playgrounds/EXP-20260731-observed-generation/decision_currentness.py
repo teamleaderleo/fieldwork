@@ -4,7 +4,7 @@
 Exact input identity and present decision usability are separate. A historically
 exact projection may remain useful evidence after one time-sensitive authority
 conclusion expires, while unrelated current authority remains independently
-usable.
+usable. Effective authority requires both dimensions to remain current.
 """
 
 from __future__ import annotations
@@ -12,9 +12,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from reconcile import projection_is_current
+
 
 DecisionCurrentness = dict[str, Any]
 ActionCurrentness = dict[str, dict[str, Any]]
+AuthorizationCurrentness = dict[str, Any]
 
 
 def _parse_time(value: object) -> datetime:
@@ -122,7 +125,8 @@ def decision_currentness(
     """Summarize whether time-dependent conclusions need fresh reconciliation.
 
     The projection-level status is a refresh signal. Per-action currentness remains
-    available in ``actions`` and controls effective authority independently.
+    available in ``actions`` and controls effective authority independently after
+    exact input currentness succeeds.
     """
 
     observed_value = projection.get("observed_at")
@@ -191,30 +195,87 @@ def decision_currentness(
     }
 
 
-def effective_authority_at(
-    projection: dict[str, Any], current_at: str
-) -> dict[str, str]:
-    """Return per-action authority at the requested observation boundary."""
+def _input_currentness(
+    projection: dict[str, Any],
+    current_record: dict[str, Any] | None,
+    current_live_facts: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if not isinstance(current_record, dict) or not isinstance(current_live_facts, dict):
+        return {
+            "status": "Unknown",
+            "reason": "MissingCurrentInputs",
+        }
+    if projection_is_current(projection, current_record, current_live_facts):
+        return {
+            "status": "True",
+            "reason": "ExactInputsCurrent",
+        }
+    return {
+        "status": "False",
+        "reason": "InputsMovedOrIncomplete",
+    }
 
+
+def authorization_currentness(
+    projection: dict[str, Any],
+    current_at: str,
+    current_record: dict[str, Any] | None,
+    current_live_facts: dict[str, Any] | None,
+) -> AuthorizationCurrentness:
+    """Expose exact-input and time/revocation currentness as separate dimensions."""
+
+    inputs_current = _input_currentness(
+        projection,
+        current_record,
+        current_live_facts,
+    )
+    decision = decision_currentness(projection, current_at)
     authority = projection.get("effective_authority")
     if not isinstance(authority, dict):
-        return {}
+        authority = {}
 
-    currentness = decision_currentness(projection, current_at)
-    if currentness["reason"] in {
-        "InvalidDecisionTime",
-        "ProjectionObservedInFuture",
-        "InvalidAuthorityCondition",
-    }:
-        return {str(action): "denied" for action in authority}
-
-    actions = currentness["actions"]
-    return {
-        str(action): (
+    actions: dict[str, dict[str, Any]] = {}
+    for raw_action, raw_state in authority.items():
+        action = str(raw_action)
+        decision_action = decision.get("actions", {}).get(action, {})
+        effective = (
             "authorized"
-            if state == "authorized"
-            and actions.get(str(action), {}).get("status") == "True"
+            if inputs_current["status"] == "True"
+            and raw_state == "authorized"
+            and decision_action.get("status") == "True"
             else "denied"
         )
-        for action, state in authority.items()
+        actions[action] = {
+            "inputs_current": inputs_current["status"],
+            "decision_current": decision_action.get("status", "Unknown"),
+            "decision_reason": decision_action.get(
+                "reason",
+                decision.get("reason", "UnknownDecisionState"),
+            ),
+            "effective": effective,
+        }
+
+    return {
+        "inputs_current": inputs_current,
+        "decision_currentness": decision,
+        "actions": actions,
+    }
+
+
+def effective_authority_at(
+    projection: dict[str, Any],
+    current_at: str,
+    current_record: dict[str, Any] | None,
+    current_live_facts: dict[str, Any] | None,
+) -> dict[str, str]:
+    """Return authority only when exact inputs and per-action decisions are current."""
+
+    return {
+        action: state["effective"]
+        for action, state in authorization_currentness(
+            projection,
+            current_at,
+            current_record,
+            current_live_facts,
+        )["actions"].items()
     }
