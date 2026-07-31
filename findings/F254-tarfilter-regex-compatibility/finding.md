@@ -126,7 +126,7 @@ Locale, collation, POSIX bracket classes, diagnostics, performance limits, and G
 ## Edge cases deferred or outside scope
 
 | Edge case | Why deferred | Owning next record or reopening trigger |
-| --- | --- | --- | --- |
+| --- | --- | --- |
 | POSIX bracket classes, collating elements, equivalence classes | not covered by the bounded translator | reopen with a differential matrix and source design |
 | locale-sensitive ranges and non-`C` locales | GNU/Python locale semantics differ | new locale compatibility finding |
 | GNU alphabetic escapes and word boundaries | unresolved translation semantics | reopen when a caller or test requires them |
