@@ -1,0 +1,141 @@
+name: Fieldwork Playwright remote shutdown authority
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-playwright-remote-shutdown.yml"
+      - "programmes/high-leverage-open-source/scouts/playwright-mcp-remote-shutdown/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shutdown-authority:
+    name: Exact Playwright MCP shutdown authority matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out exact Fieldwork carrier head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact Playwright source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: microsoft/playwright
+          ref: 368941457a82da112aa8610107e25f4bde94339a
+          path: playwright
+          persist-credentials: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+
+      - name: Verify exact inputs and install Fieldwork control
+        id: verify
+        run: |
+          set -euo pipefail
+          test "$(git -C playwright rev-parse HEAD)" = "368941457a82da112aa8610107e25f4bde94339a"
+          test "$(git -C fieldwork rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          cp \
+            fieldwork/programmes/high-leverage-open-source/scouts/playwright-mcp-remote-shutdown/fieldwork-remote-shutdown.spec.ts \
+            playwright/tests/mcp/fieldwork-remote-shutdown.spec.ts
+          mkdir -p fieldwork-receipts
+
+      - name: Install exact dependencies
+        id: install
+        working-directory: playwright
+        run: npm ci
+
+      - name: Build exact Playwright source
+        id: build
+        working-directory: playwright
+        run: npm run build
+
+      - name: Install Chromium and runner dependencies
+        id: browser
+        working-directory: playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run focused target-native shutdown controls
+        id: test
+        working-directory: playwright
+        env:
+          CI: "1"
+        run: |
+          set -o pipefail
+          npm run test-mcp \
+            tests/mcp/fieldwork-remote-shutdown.spec.ts \
+            -- --project=chromium \
+            2>&1 | tee ../fieldwork-receipts/playwright-mcp-remote-shutdown.log
+
+      - name: Assemble exact-head receipt
+        if: always()
+        env:
+          FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          BROWSER_OUTCOME: ${{ steps.browser.outcome }}
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const directory = path.join(process.cwd(), 'fieldwork-receipts');
+          fs.mkdirSync(directory, { recursive: true });
+          const reportPath = path.join(process.cwd(), 'playwright', 'test-results', 'report.json');
+          const outcomes = {
+            verify: process.env.VERIFY_OUTCOME || 'not-run',
+            install: process.env.INSTALL_OUTCOME || 'not-run',
+            build: process.env.BUILD_OUTCOME || 'not-run',
+            browser: process.env.BROWSER_OUTCOME || 'not-run',
+            test: process.env.TEST_OUTCOME || 'not-run',
+          };
+          const receipt = {
+            schemaVersion: 1,
+            generatedAt: new Date().toISOString(),
+            fieldworkHead: process.env.FIELDWORK_HEAD,
+            target: {
+              repository: 'microsoft/playwright',
+              head: '368941457a82da112aa8610107e25f4bde94339a',
+              project: 'chromium',
+              files: ['tests/mcp/fieldwork-remote-shutdown.spec.ts'],
+            },
+            workflowSteps: outcomes,
+            reusableTargetEvidence: Object.values(outcomes).every(value => value === 'success'),
+            reportPresent: fs.existsSync(reportPath),
+            claimClasses: {
+              ordinaryShutdownRoutePlacement: 'source-read',
+              nonLoopbackAcceptedShutdown: 'target-executed-when-test-passes',
+              methodAndHeaderReversingControls: 'target-executed-when-test-passes',
+              hostRejectionBeforeShutdown: 'target-executed-when-test-passes',
+              loopbackComparison: 'target-executed-when-test-passes',
+              deploymentPrevalence: 'not-claimed',
+              publicExploitability: 'not-claimed',
+              repairSelection: 'not-claimed',
+            },
+          };
+          fs.writeFileSync(
+            path.join(directory, 'playwright-remote-shutdown-receipt.json'),
+            `${JSON.stringify(receipt, null, 2)}\n`,
+          );
+          if (fs.existsSync(reportPath))
+            fs.copyFileSync(reportPath, path.join(directory, 'playwright-report.json'));
+          NODE
+
+      - name: Upload exact-head receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: playwright-remote-shutdown-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
