@@ -68,6 +68,32 @@ describe("Fieldwork MCP attempt admission repair", () => {
     expect(reads).toBe(0);
   });
 
+  test("rejects symbol array fields with fixed prose and zero getter invocation", () => {
+    const history = [accepted()];
+    const privateSymbol = Symbol("github_pat_private");
+    let reads = 0;
+    Object.defineProperty(history, privateSymbol, {
+      enumerable: true,
+      configurable: true,
+      get() {
+        reads += 1;
+        return "private";
+      },
+    });
+
+    let message = "";
+    try {
+      projectMcpAttemptObservations(history);
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toBe(
+      "MCP attempt observations contains unsupported fields",
+    );
+    expect(message).not.toContain("github_pat_private");
+    expect(reads).toBe(0);
+  });
+
   test("rejects namespaced credentials during creation", () => {
     for (const identity of secretShapedIds) {
       expect(() => accepted({ attemptId: identity })).toThrow(
