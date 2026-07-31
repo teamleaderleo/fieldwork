@@ -43,7 +43,7 @@ Parallel work is allowed under one investigation.
 - A worker may also propose an edit to `finding.md` in the same pull request.
 - Several pull requests may propose competing edits to `finding.md`.
 - Only one canonical edit merges at a time.
-- Later pull requests must rebase and reconcile the current `finding.md`; conflict resolution must preserve supported evidence and explicitly record rejected conclusions.
+- Later pull requests must reconcile against the exact current `finding.md`. Rebase or restack when current movement overlaps the proposed edit, changes governing protocol or mergeability, or a current-base promotion package is required. When movement is file-disjoint and the canonical bytes and reviewed claim fence are unchanged, record the newer exact generation and prove semantic identity within the reviewed fence instead of rebasing mechanically. An expired receipt remains expired until the affected review identity is renewed.
 - Never resolve a finding conflict by deleting another worker's evidence without explanation.
 
 This is the deliberate exception to the normal one-worker-per-output-path rule: workers still own unique evidence paths, while the canonical finding is a reviewed integration surface.
