@@ -7,12 +7,13 @@ Canonical Fieldwork issue: `#254`
 Canonical implementation: `teamleaderleo/linux-fieldwork#313`  
 Exact current implementation head: `dfc6d0503fb844f4c428ce16a567a9fdcd35280a`  
 Exact executed mechanism head: `e90fc438f530f7bd78ffd6fd1ba24c665bd96913`  
-Follow-up cleanup policy: `teamleaderleo/linux-fieldwork#341`  
+Follow-up cleanup policy: `teamleaderleo/linux-fieldwork#341` / PR `#347` at `3f52a1411a892fa5eb4fff503b8042169a36274d`  
 Imported source base: `782774b01002abf37878d834a54d0bbf8b226397`  
 Imported `coverage.py` blob: `9a522484aef05deae514a98e4b6adf5feb6c886d`  
 Imported `run_null.sh` blob: `e0a8c106f9d3d636baea286d2ab33834748dffc9`  
-Exact product gate: Linux Fieldwork CI `30632491641`, job `91161937871`, success  
-Current receipt-only gate: Linux Fieldwork CI `30633602052`, in progress  
+Exact mechanism gate: Linux Fieldwork CI `30632491641`, job `91161937871`, success  
+Exact narrowed-head gate: Linux Fieldwork CI `30633602052` / 943, success  
+Exact narrowed-head technical review: `4828885032`, content `ACCEPT`  
 Current review disposition: `REVIEW READY — eligible non-author acceptance pending`  
 Upstream contact authorized: `no`
 
@@ -42,11 +43,11 @@ raise SystemExit(130)
 
 The caller selects the backend and owns the stable place to establish a dedicated signal boundary before backend code runs.
 
-`proc.wait()` still waits only for the immediate wrapper. The no-survivor result comes from the executable controls for the responsive topologies, not from leader waiting alone.
+`proc.wait()` still waits only for the immediate wrapper. The no-survivor result comes from executable controls for responsive topologies, not from leader waiting alone.
 
 ## Executed three-way distinction
 
-Parent-only SIGINT to the Python coverage driver produced this exact distinction:
+Parent-only SIGINT to the Python coverage driver produced:
 
 | Variant | Final driver status | Backend state | Later work |
 | --- | ---: | --- | --- |
@@ -88,7 +89,7 @@ The exact `run_null.sh SUDO` path executes with actual passwordless sudo when av
 - the unsignaled candidate succeeds and cleans the group;
 - a hosted group escape fails the control.
 
-The module skips only when `sudo -n true` is unavailable.
+The module skips only when `sudo -n true` is unavailable; CI 931 executed rather than skipped it.
 
 ## Claim-scoped evidence
 
@@ -98,13 +99,13 @@ The module skips only when `sudo -n true` is unavailable.
 | Status-only PR #204 can report 130 while backend work survives. | `target-executed` | same models; survivors deliberately released after observation |
 | Candidate sends TERM to one dedicated backend group. | `target-executed` | exact patch and Linux/POSIX group semantics |
 | Candidate returns 130 with no live in-group work or later work. | `target-executed` | tested descendants remain in the group and respond to TERM |
-| Arbitrary TERM-resistant/group-escaping descendants are fully drained. | `not established` | owned by follow-up issue #341 |
-| Nine-file repository carrier applies, compiles, and passes the full suite. | `target-executed` | merge-ref CI 931; 359 tests |
+| Arbitrary TERM-resistant/group-escaping descendants are fully drained. | `not established` | owned by #341 / comparison PR #347 |
+| Nine-file repository carrier applies, compiles, and passes the full suite. | `target-executed` | mechanism CI 931; 359 tests; narrowed-head CI 943 |
 | Candidate is ready for merge/public submission. | `not established` | eligible acceptance and separate authority remain pending |
 
 ## Exact execution receipt
 
-Linux Fieldwork CI `30632491641`, job `91161937871`, executed mechanism head `e90fc438f530f7bd78ffd6fd1ba24c665bd96913` on the current PR merge ref.
+Mechanism CI `30632491641`, job `91161937871`, executed head `e90fc438f530f7bd78ffd6fd1ba24c665bd96913` on the current PR merge ref.
 
 It passed:
 
@@ -116,11 +117,11 @@ It passed:
 6. sudo baseline/status-only/candidate/unsignaled controls;
 7. shell syntax and command-help checks.
 
-The later implementation commits change only three evidence documents and the reusable process note. They narrow the claim and link follow-up issue #341. They do not change the product patch or executable controls.
+The later implementation commits changed only three evidence documents and the reusable process note. They narrowed the claim and linked follow-up #341. Current-head CI `30633602052` / 943 passed on exact head `dfc6d0503fb844f4c428ce16a567a9fdcd35280a`.
+
+Complete current-head review `4828885032` found no remaining source-visible repair. Same-account review does not satisfy eligible independence.
 
 ## Carrier repair history
-
-Earlier failures are retained because they explain the final evidence boundary:
 
 - CI 885: historical status fixture policy; no candidate lifecycle execution;
 - CI 906: malformed candidate hunk counts; no candidate lifecycle execution;
@@ -130,7 +131,7 @@ Earlier failures are retained because they explain the final evidence boundary:
 
 None contradicted the selected group-delivery mechanism.
 
-## Alternatives
+## Alternatives and separated policy
 
 ### Immediate-wrapper termination — rejected
 
@@ -144,24 +145,29 @@ It reports cancellation correctly without delivering cancellation to the complet
 
 It couples the caller to changing shell, pipeline, sudo, and QEMU details.
 
-### Same-session background group — rejected for terminal input
-
-The PTY comparison stopped the background group under job-control rules.
-
 ### Dedicated session/process group — selected
 
 It creates one caller-owned signal boundary before execution and retains inherited file-descriptor I/O in the focused model.
 
-### Group drain, repeated-signal handling, and TERM-to-KILL escalation — separate
+### TERM resistance, repeated SIGINT, diagnostics, and escalation — separate
 
-Issue `teamleaderleo/linux-fieldwork#341` owns TERM-resistant descendants, wrapper-before-descendant settlement, repeated SIGINT, timeout policy, survivor diagnostics, and optional escalation.
+Issue #341 / PR #347 proves that:
+
+- the current policy can return 130 while a TERM-resistant descendant survives after wrapper exit;
+- a second SIGINT can interrupt the cleanup wait and leave wrapper/descendant alive;
+- ignoring later SIGINT alone can wait indefinitely;
+- bounded diagnostics can return while survivors remain;
+- bounded TERM-to-KILL is the only compared synthetic policy that drains the in-group topology, but it remains unselected without real-backend necessity and compatibility evidence;
+- a descendant that calls `setsid()` remains outside the group boundary.
+
+Those findings narrow this claim; they do not reopen the green responsive-topology result.
 
 ## Exact next transition
 
-1. let current receipt-only CI `30633602052` settle on implementation head `dfc6d050...`;
-2. obtain one eligible non-author complete-diff acceptance for the narrowed nine-file generation;
-3. if the product patch, tests, or claim boundary moves, expire the corresponding receipt;
-4. only separate internal merge authority may move the candidate to `land-ready`;
+1. obtain one eligible non-author complete-diff acceptance for Linux PR #313 exact head `dfc6d050...`;
+2. if the product patch, tests, or claim boundary moves, expire the corresponding receipt;
+3. only separate internal merge authority may land the candidate;
+4. retain #341/#347 as the reopening matrix unless real TERM-resistant backend evidence justifies a separate policy candidate;
 5. public upstream submission remains prohibited unless explicitly authorized.
 
 No merge, release, deployment, credentials, private-data access, spending, or public upstream interaction is authorized.
@@ -172,4 +178,5 @@ No merge, release, deployment, credentials, private-data access, spending, or pu
 - `teamleaderleo/linux-fieldwork#306`
 - `teamleaderleo/linux-fieldwork#313`
 - `teamleaderleo/linux-fieldwork#341`
+- `teamleaderleo/linux-fieldwork#347`
 - `teamleaderleo/fieldwork#254`
