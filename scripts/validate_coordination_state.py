@@ -34,6 +34,7 @@ WORK_CLASSES = {
     "evidence-documentation",
     "blocked-sensitive",
 }
+PRIORITIES = {"P0", "P1", "P2", "P3", "none"}
 DISPOSITIONS = {"ACCEPT", "REPAIR", "HOLD", "EXECUTE", "REJECT", "none"}
 EVIDENCE_LEVELS = {
     "source-read",
@@ -52,9 +53,16 @@ AUTHORITY_KEYS = {
     "private_or_production_data",
     "material_spending",
 }
+SCOPE_KEYS = {"programme", "target", "workstream", "parent_issue"}
 TOP_LEVEL_KEYS = {
     "schema_version",
     "id",
+    "title",
+    "summary",
+    "impact",
+    "priority",
+    "scope",
+    "state_updated_at",
     "invariant_id",
     "canonical_finding",
     "phase",
@@ -112,6 +120,22 @@ def exact_keys(value: object, expected: set[str], location: str) -> list[str]:
         errors.append(f"{location}: missing keys: {sorted(missing)}")
     if extra:
         errors.append(f"{location}: unsupported keys: {sorted(extra)}")
+    return errors
+
+
+def validate_scope(path: Path, value: object) -> list[str]:
+    location = f"{path}: scope"
+    errors = exact_keys(value, SCOPE_KEYS, location)
+    if errors or not isinstance(value, dict):
+        return errors
+    for key in ("programme", "target", "workstream"):
+        if not nullable_string(value[key]):
+            errors.append(f"{location}: {key} must be a string or null")
+    parent_issue = value["parent_issue"]
+    if parent_issue is not None and (
+        not isinstance(parent_issue, int) or isinstance(parent_issue, bool) or parent_issue < 1
+    ):
+        errors.append(f"{location}: parent_issue must be a positive integer or null")
     return errors
 
 
@@ -181,7 +205,7 @@ def validate_carrier(path: Path, value: object) -> list[str]:
         return errors
     if not non_empty_string(value["repository"]) or "/" not in value["repository"]:
         errors.append(f"{location}: repository must be owner/name")
-    if not isinstance(value["pull_request"], int) or value["pull_request"] < 1:
+    if not isinstance(value["pull_request"], int) or isinstance(value["pull_request"], bool) or value["pull_request"] < 1:
         errors.append(f"{location}: pull_request must be a positive integer")
     if not non_empty_string(value["head"]) or len(value["head"]) < 7:
         errors.append(f"{location}: head must identify an exact revision")
@@ -247,6 +271,17 @@ def validate_state(path: Path, data: object) -> list[str]:
         errors.append(f"{path}: schema_version must be 1")
     if not non_empty_string(data["id"]):
         errors.append(f"{path}: id must be a non-empty string")
+    if not non_empty_string(data["title"]):
+        errors.append(f"{path}: title must be a non-empty string")
+    if not non_empty_string(data["summary"]):
+        errors.append(f"{path}: summary must be a non-empty string")
+    if not non_empty_string(data["impact"]):
+        errors.append(f"{path}: impact must be a non-empty string")
+    if data["priority"] not in PRIORITIES:
+        errors.append(f"{path}: unsupported priority {data['priority']!r}")
+    errors.extend(validate_scope(path, data["scope"]))
+    if not parse_timestamp(data["state_updated_at"]):
+        errors.append(f"{path}: state_updated_at must be an ISO-8601 timestamp")
     if not non_empty_string(data["invariant_id"]):
         errors.append(f"{path}: invariant_id must be a non-empty string")
     if not safe_relative_path(data["canonical_finding"]):
