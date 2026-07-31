@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "generated_at": "YYYY-MM-DDTHH:MM:SSZ",
+  "refs": [
+    {
+      "repository": "teamleaderleo/example",
+      "branch": "fieldwork/example-invariant",
+      "head": "0000000000000000000000000000000000000000",
+      "observed_at": "YYYY-MM-DDTHH:MM:SSZ"
+    }
+  ],
+  "pull_requests": [
+    {
+      "repository": "teamleaderleo/example",
+      "number": 1,
+      "state": "open",
+      "draft": true,
+      "head_branch": "fieldwork/example-carrier",
+      "head": "1111111111111111111111111111111111111111",
+      "base_branch": "fieldwork/example-invariant",
+      "base_head": "0000000000000000000000000000000000000000",
+      "updated_at": "YYYY-MM-DDTHH:MM:SSZ",
+      "checks": [
+        {
+          "name": "exact-review",
+          "status": "queued",
+          "conclusion": null,
+          "run_id": 1,
+          "job_id": 1
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "repository": "teamleaderleo/fieldwork",
+      "number": 300,
+      "state": "open",
+      "state_text": "claimed",
+      "labels": ["state:claimed", "target:fieldwork", "type:meta"],
+      "updated_at": "YYYY-MM-DDTHH:MM:SSZ"
+    }
+  ]
+}
