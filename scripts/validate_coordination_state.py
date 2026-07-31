@@ -3,12 +3,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 from pathlib import Path
 import re
 import sys
-from typing import Any
+from typing import Any, Iterable
 
 PHASES = {
     "research-active",
@@ -70,6 +70,7 @@ AUTHORITY_TARGET_KINDS = {
 AUTHORITY_SOURCE_KINDS = {"user-instruction", "approval-record", "none"}
 DATA_CLASSES = {"none", "public", "private", "production", "regulated"}
 BOUNDARY_KINDS = {"git-sha", "version", "retrieval"}
+
 SCOPE_KEYS = {"programme", "target", "workstream", "parent_issue"}
 REVIEW_KEYS = {"disposition", "exact_head", "reviewed_inputs"}
 EVIDENCE_KEYS = {"claim", "level", "receipt", "limit"}
@@ -150,8 +151,24 @@ def nonnegative_integer(value: object) -> bool:
     return type(value) is int and value >= 0
 
 
+def enum_string(value: object, allowed: set[str]) -> bool:
+    return isinstance(value, str) and value in allowed
+
+
 def exact_git_sha(value: object) -> bool:
     return isinstance(value, str) and GIT_SHA.fullmatch(value) is not None
+
+
+def exact_sha256(value: object) -> bool:
+    return isinstance(value, str) and SHA256.fullmatch(value) is not None
+
+
+def versioned_reference(value: object) -> bool:
+    return isinstance(value, str) and VERSIONED_INPUT.fullmatch(value) is not None
+
+
+def repository_name(value: object) -> bool:
+    return isinstance(value, str) and REPOSITORY.fullmatch(value) is not None
 
 
 def safe_relative_path(value: object) -> bool:
@@ -208,22 +225,18 @@ def validate_review(path: Path, value: object) -> list[str]:
     errors = exact_keys(value, REVIEW_KEYS, location)
     if errors or not isinstance(value, dict):
         return errors
-    if value["disposition"] not in DISPOSITIONS:
-        errors.append(f"{location}: unsupported disposition {value['disposition']!r}")
+    disposition = value["disposition"]
+    if not enum_string(disposition, DISPOSITIONS):
+        errors.append(f"{location}: unsupported disposition {disposition!r}")
     exact_head = value["exact_head"]
     if exact_head is not None and not exact_git_sha(exact_head):
         errors.append(f"{location}: exact_head must be a full lowercase Git SHA or null")
     inputs = value["reviewed_inputs"]
-    if not isinstance(inputs, list) or any(
-        not isinstance(item, str) or VERSIONED_INPUT.fullmatch(item) is None
-        for item in inputs
-    ):
-        errors.append(
-            f"{location}: reviewed_inputs must use unique record@generation strings"
-        )
+    if not isinstance(inputs, list) or any(not versioned_reference(item) for item in inputs):
+        errors.append(f"{location}: reviewed_inputs must use unique record@generation strings")
     elif len(inputs) != len(set(inputs)):
         errors.append(f"{location}: reviewed_inputs must be unique")
-    if value["disposition"] == "ACCEPT" and not exact_git_sha(exact_head):
+    if disposition == "ACCEPT" and not exact_git_sha(exact_head):
         errors.append(f"{location}: ACCEPT requires an exact Git head")
     return errors
 
@@ -241,7 +254,7 @@ def validate_evidence(path: Path, value: object) -> list[str]:
             continue
         if not non_empty_string(item["claim"]):
             errors.append(f"{item_location}: claim must be non-empty")
-        if item["level"] not in EVIDENCE_LEVELS:
+        if not enum_string(item["level"], EVIDENCE_LEVELS):
             errors.append(f"{item_location}: unsupported evidence level {item['level']!r}")
         if not non_empty_string(item["receipt"]):
             errors.append(f"{item_location}: receipt must be non-empty")
@@ -257,7 +270,7 @@ def validate_source(path: Path, value: object) -> list[str]:
     errors = exact_keys(value, SOURCE_KEYS, location)
     if errors or not isinstance(value, dict):
         return errors
-    if not isinstance(value["repository"], str) or REPOSITORY.fullmatch(value["repository"]) is None:
+    if not repository_name(value["repository"]):
         errors.append(f"{location}: repository must be owner/name")
     if not non_empty_string(value["branch"]):
         errors.append(f"{location}: branch must be non-empty")
@@ -273,7 +286,7 @@ def validate_carrier(path: Path, value: object) -> list[str]:
     errors = exact_keys(value, CARRIER_KEYS, location)
     if errors or not isinstance(value, dict):
         return errors
-    if not isinstance(value["repository"], str) or REPOSITORY.fullmatch(value["repository"]) is None:
+    if not repository_name(value["repository"]):
         errors.append(f"{location}: repository must be owner/name")
     if not positive_integer(value["pull_request"]):
         errors.append(f"{location}: pull_request must be a positive integer")
@@ -285,20 +298,23 @@ def validate_carrier(path: Path, value: object) -> list[str]:
 
 
 def validate_generation(kind: object, value: object, location: str) -> list[str]:
-    errors: list[str] = []
-    if kind not in GENERATION_TYPES:
+    if not enum_string(kind, GENERATION_TYPES):
         return [f"{location}: unsupported generation_type {kind!r}"]
     if kind == "git-sha" and not exact_git_sha(value):
-        errors.append(f"{location}: git-sha generation must be a full lowercase Git SHA")
-    elif kind == "sha256" and not isinstance(value, str) or (
-        kind == "sha256" and SHA256.fullmatch(value) is None
-    ):
-        errors.append(f"{location}: sha256 generation must be 64 lowercase hex characters")
-    elif kind == "record-version" and not non_empty_string(value):
-        errors.append(f"{location}: record-version generation must be non-empty")
-    elif kind == "none" and value is not None:
-        errors.append(f"{location}: none generation_type requires null generation")
-    return errors
+        return [f"{location}: git-sha generation must be a full lowercase Git SHA"]
+    if kind == "sha256" and not exact_sha256(value):
+        return [f"{location}: sha256 generation must be 64 lowercase hex characters"]
+    if kind == "record-version" and not non_empty_string(value):
+        return [f"{location}: record-version generation must be non-empty"]
+    if kind == "none" and value is not None:
+        return [f"{location}: none generation_type requires null generation"]
+    return []
+
+
+def validate_previous_generation(kind: object, value: object, location: str) -> list[str]:
+    if value is None:
+        return []
+    return validate_generation(kind, value, f"{location}.previous_generation")
 
 
 def validate_lease(path: Path, value: object) -> list[str]:
@@ -307,14 +323,13 @@ def validate_lease(path: Path, value: object) -> list[str]:
     if errors or not isinstance(value, dict):
         return errors
     state = value["state"]
-    if state not in LEASE_STATES:
-        errors.append(f"{location}: unsupported lease state {state!r}")
-        return errors
-    if value["resource_kind"] not in LEASE_RESOURCE_KINDS:
-        errors.append(f"{location}: unsupported resource_kind {value['resource_kind']!r}")
-    errors.extend(
-        validate_generation(value["generation_type"], value["generation"], location)
-    )
+    if not enum_string(state, LEASE_STATES):
+        return [f"{location}: unsupported lease state {state!r}"]
+    resource_kind = value["resource_kind"]
+    if not enum_string(resource_kind, LEASE_RESOURCE_KINDS):
+        errors.append(f"{location}: unsupported resource_kind {resource_kind!r}")
+    generation_type = value["generation_type"]
+    errors.extend(validate_generation(generation_type, value["generation"], location))
     if not nonnegative_integer(value["transition"]):
         errors.append(f"{location}: transition must be a nonnegative integer")
 
@@ -330,7 +345,7 @@ def validate_lease(path: Path, value: object) -> list[str]:
             "previous_generation",
             "transfer_record",
         )
-        if value["resource_kind"] != "none" or value["generation_type"] != "none":
+        if resource_kind != "none" or generation_type != "none":
             errors.append(f"{location}: none lease requires none resource/generation kinds")
         for field in null_fields:
             if value[field] is not None:
@@ -341,11 +356,13 @@ def validate_lease(path: Path, value: object) -> list[str]:
 
     if not non_empty_string(value["holder"]):
         errors.append(f"{location}: non-none lease requires holder")
-    if not isinstance(value["repository"], str) or REPOSITORY.fullmatch(value["repository"]) is None:
+    if not repository_name(value["repository"]):
         errors.append(f"{location}: non-none lease requires repository owner/name")
-    if value["resource_kind"] == "none" or not non_empty_string(value["resource"]):
+    if resource_kind == "none" or not non_empty_string(value["resource"]):
         errors.append(f"{location}: non-none lease requires typed resource identity")
-    if value["generation_type"] == "none":
+    elif resource_kind == "path" and not safe_relative_path(value["resource"]):
+        errors.append(f"{location}: path lease requires a safe relative resource")
+    if generation_type == "none":
         errors.append(f"{location}: non-none lease requires exact generation identity")
 
     acquired = parse_datetime(value["acquired_at"])
@@ -358,13 +375,24 @@ def validate_lease(path: Path, value: object) -> list[str]:
         errors.append(f"{location}: renewed_at cannot precede acquired_at")
     if not positive_integer(value["duration_seconds"]):
         errors.append(f"{location}: duration_seconds must be a positive integer")
-    if value["transition"] > 0:
-        if not non_empty_string(value["previous_generation"]):
+
+    transition = value["transition"]
+    previous = value["previous_generation"]
+    transfer = value["transfer_record"]
+    if positive_integer(transition):
+        if previous is None:
             errors.append(f"{location}: takeover transition requires previous_generation")
-        if not non_empty_string(value["transfer_record"]):
-            errors.append(f"{location}: takeover transition requires transfer_record")
-    elif value["previous_generation"] is not None:
-        errors.append(f"{location}: initial transition requires null previous_generation")
+        else:
+            errors.extend(validate_previous_generation(generation_type, previous, location))
+            if previous == value["generation"]:
+                errors.append(f"{location}: takeover must change generation")
+        if not versioned_reference(transfer):
+            errors.append(f"{location}: takeover transition requires versioned transfer_record")
+    else:
+        if previous is not None:
+            errors.append(f"{location}: initial transition requires null previous_generation")
+        if transfer is not None:
+            errors.append(f"{location}: initial transition requires null transfer_record")
     return errors
 
 
@@ -376,7 +404,7 @@ def validate_boundary(path: Path, value: object) -> list[str]:
     if errors or not isinstance(value, dict):
         return errors
     kind = value["kind"]
-    if kind not in BOUNDARY_KINDS:
+    if not enum_string(kind, BOUNDARY_KINDS):
         errors.append(f"{location}: unsupported boundary kind {kind!r}")
     elif kind == "git-sha" and not exact_git_sha(value["value"]):
         errors.append(f"{location}: git-sha boundary requires a full lowercase Git SHA")
@@ -404,9 +432,9 @@ def validate_authority_target(value: object, location: str) -> list[str]:
     errors = exact_keys(value, AUTHORITY_TARGET_KEYS, location)
     if errors or not isinstance(value, dict):
         return errors
-    if value["kind"] not in AUTHORITY_TARGET_KINDS:
+    if not enum_string(value["kind"], AUTHORITY_TARGET_KINDS):
         errors.append(f"{location}: unsupported target kind {value['kind']!r}")
-    if value["data_class"] not in DATA_CLASSES:
+    if not enum_string(value["data_class"], DATA_CLASSES):
         errors.append(f"{location}: unsupported data_class {value['data_class']!r}")
     return errors
 
@@ -415,7 +443,7 @@ def validate_authority_source(value: object, location: str) -> list[str]:
     errors = exact_keys(value, AUTHORITY_SOURCE_KEYS, location)
     if errors or not isinstance(value, dict):
         return errors
-    if value["kind"] not in AUTHORITY_SOURCE_KINDS:
+    if not enum_string(value["kind"], AUTHORITY_SOURCE_KINDS):
         errors.append(f"{location}: unsupported source kind {value['kind']!r}")
     return errors
 
@@ -425,8 +453,9 @@ def validate_authority_entry(path: Path, action: str, value: object) -> list[str
     errors = exact_keys(value, AUTHORITY_ENTRY_KEYS, location)
     if errors or not isinstance(value, dict):
         return errors
-    if value["state"] not in AUTHORITY_STATES:
-        errors.append(f"{location}: unsupported state {value['state']!r}")
+    state = value["state"]
+    if not enum_string(state, AUTHORITY_STATES):
+        errors.append(f"{location}: unsupported state {state!r}")
     if value["action"] != action:
         errors.append(f"{location}: action must equal {action!r}")
     errors.extend(validate_authority_target(value["target"], f"{location}.target"))
@@ -434,19 +463,36 @@ def validate_authority_entry(path: Path, action: str, value: object) -> list[str
     target = value["target"] if isinstance(value["target"], dict) else {}
     source = value["source"] if isinstance(value["source"], dict) else {}
 
-    if value["state"] == "denied":
-        if target.get("kind") != "none" or target.get("location") is not None or target.get("operation_id") is not None or target.get("data_class") != "none":
+    if state == "denied":
+        if (
+            target.get("kind") != "none"
+            or target.get("location") is not None
+            or target.get("operation_id") is not None
+            or target.get("data_class") != "none"
+        ):
             errors.append(f"{location}: denied authority requires an empty target")
-        if source.get("kind") != "none" or source.get("record") is not None or source.get("generation") is not None:
+        if (
+            source.get("kind") != "none"
+            or source.get("record") is not None
+            or source.get("generation") is not None
+        ):
             errors.append(f"{location}: denied authority requires an empty source")
         for field in ("issued_at", "expires_at", "revocation_record"):
             if value[field] is not None:
                 errors.append(f"{location}: denied authority requires null {field}")
         return errors
 
-    if target.get("kind") == "none" or not non_empty_string(target.get("location")) or not non_empty_string(target.get("operation_id")):
+    if (
+        target.get("kind") == "none"
+        or not non_empty_string(target.get("location"))
+        or not non_empty_string(target.get("operation_id"))
+    ):
         errors.append(f"{location}: authorized authority requires a typed target and operation_id")
-    if source.get("kind") == "none" or not non_empty_string(source.get("record")) or not non_empty_string(source.get("generation")):
+    if (
+        source.get("kind") == "none"
+        or not non_empty_string(source.get("record"))
+        or not non_empty_string(source.get("generation"))
+    ):
         errors.append(f"{location}: authorized authority requires a versioned source record")
     issued = parse_datetime(value["issued_at"])
     expires = parse_datetime(value["expires_at"]) if value["expires_at"] is not None else None
@@ -456,9 +502,16 @@ def validate_authority_entry(path: Path, action: str, value: object) -> list[str
         errors.append(f"{location}: expires_at must be timezone-aware ISO-8601 or null")
     if issued is not None and expires is not None and expires <= issued:
         errors.append(f"{location}: expires_at must follow issued_at")
-    if expires is None and not non_empty_string(value["revocation_record"]):
-        errors.append(f"{location}: authorized authority requires expires_at or revocation_record")
-    if action == "private_or_production_data" and target.get("data_class") not in {"private", "production", "regulated"}:
+    revocation = value["revocation_record"]
+    if expires is None and not versioned_reference(revocation):
+        errors.append(f"{location}: authorized authority requires expires_at or versioned revocation_record")
+    elif revocation is not None and not versioned_reference(revocation):
+        errors.append(f"{location}: revocation_record must be record@generation or null")
+    if action == "private_or_production_data" and target.get("data_class") not in {
+        "private",
+        "production",
+        "regulated",
+    }:
         errors.append(f"{location}: data authority requires private, production, or regulated data_class")
     return errors
 
@@ -483,7 +536,7 @@ def validate_state(path: Path, data: object) -> list[str]:
     for key in ("id", "title", "summary", "impact", "invariant_id"):
         if not non_empty_string(data[key]):
             errors.append(f"{path}: {key} must be non-empty")
-    if data["priority"] not in PRIORITIES:
+    if not enum_string(data["priority"], PRIORITIES):
         errors.append(f"{path}: unsupported priority {data['priority']!r}")
     errors.extend(validate_scope(path, data["scope"]))
     if not parse_timestamp(data["state_updated_at"]):
@@ -491,9 +544,9 @@ def validate_state(path: Path, data: object) -> list[str]:
     if not safe_relative_path(data["canonical_finding"]):
         errors.append(f"{path}: canonical_finding must be a safe relative path")
     phase = data["phase"]
-    if phase not in PHASES:
+    if not enum_string(phase, PHASES):
         errors.append(f"{path}: unsupported phase {phase!r}")
-    if data["work_class"] not in WORK_CLASSES:
+    if not enum_string(data["work_class"], WORK_CLASSES):
         errors.append(f"{path}: unsupported work_class {data['work_class']!r}")
 
     errors.extend(validate_review(path, data["review"]))
@@ -531,7 +584,11 @@ def validate_state(path: Path, data: object) -> list[str]:
             errors.append(f"{path}: review-facing technical phase requires canonical_source")
         if isinstance(source, dict) and review.get("exact_head") != source.get("head"):
             errors.append(f"{path}: reviewed head must match canonical source head")
-    if review.get("disposition") == "ACCEPT" and isinstance(source, dict) and review.get("exact_head") != source.get("head"):
+    if (
+        review.get("disposition") == "ACCEPT"
+        and isinstance(source, dict)
+        and review.get("exact_head") != source.get("head")
+    ):
         errors.append(f"{path}: ACCEPT head must match canonical source head")
     if carrier is not None and source is None:
         errors.append(f"{path}: active_carrier requires canonical_source")
