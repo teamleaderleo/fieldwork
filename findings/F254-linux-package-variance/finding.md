@@ -9,7 +9,6 @@ Investigation workspace: `investigations/254-linux-storage-archive-reproducibili
 Canonical implementation: none; retained corpus in `teamleaderleo/linux-fieldwork` PR #112  
 Exact implementation head: `7c67db4942ff9f5863a20af42c443f456783ddf5`  
 Exact base or source revision: `bcf67b818f98b6c7f6a5dac50d39f8a125485e4a`; generated native package `lf12-variance-probe` version `1.0`  
-Strongest evidence class: `target-executed`  
 Reviewed input generation: Debian 13 retained environment and ten-build matrix  
 Current review disposition: `REJECT`  
 Desk routing: `not-entered`  
