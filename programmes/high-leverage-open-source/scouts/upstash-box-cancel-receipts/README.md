@@ -22,7 +22,7 @@ Both SDKs:
 3. set local run status to `cancelled`;
 4. create one independent request for each concurrent caller.
 
-The TypeScript client also aborts the local stream controller before the remote request settles.
+The TypeScript `cancel()` method also aborts any `AbortController` already attached to the run before the remote request settles.
 
 ## Controls
 
@@ -32,9 +32,11 @@ Current-behavior controls assert:
 
 - HTTP 500/503 does not reject `cancel()`;
 - local status becomes `cancelled` after request failure;
-- TypeScript local stream observation is aborted;
+- an attached TypeScript observer controller is aborted before cancellation settlement;
 - concurrent callers send duplicate remote requests;
-- a later server event can replace the local cancelled state with natural completion.
+- the internal authoritative update path can later replace the local cancelled state with natural completion.
+
+The controller and later-completion controls call the target's internal `Run._update` helper directly. They establish ordering and mutable-state mechanics. They do not independently execute the complete streaming parser or prove that a real hosted server event arrives after cancellation.
 
 Strict reversing controls require a future repair to:
 
@@ -45,6 +47,6 @@ Vitest `it.fails` and strict pytest `xfail` keep those reversing controls execut
 
 ## Evidence boundary
 
-This probe uses repository-native mocks. It proves SDK request handling and local state transitions. It does not prove whether a real hosted Box run continues, stops, completes naturally, or incurs further cost after a cancellation request fails.
+This probe uses repository-native mocks. It proves SDK request handling, attached-controller ordering, and local state transitions. It does not prove whether a real hosted Box run continues, stops, emits a later event, completes naturally, or incurs further cost after a cancellation request fails.
 
 A hosted reproducer would require separate account, cost, and data authority. No credential, payment, private repository, hosted execution, or public upstream interaction is included here.
