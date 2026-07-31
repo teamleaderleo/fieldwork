@@ -6,215 +6,198 @@ Owning issue: #319
 Programme: #14  
 Target hub: #5  
 Exact target source: `google-gemini/gemini-cli@d55e366f6ab393e024c613d940fead3696d56eac`  
-Strongest evidence class: `source-read`  
-Current disposition: `REPAIR`  
+Strongest evidence class: `target-executed`  
+Current disposition: `ACCEPT child-process slice / continue bounded execution`  
 Non-delegable human decision: `none`  
 Upstream contact authorized: `no`
 
 ## In simple words
 
-The shell tool makes a temporary `gemini-shell-*` directory so an exit trap can record child process IDs. Foreground commands delete it. A request marked background deliberately skips that deletion because the file is still needed until the real shell exits.
+Gemini CLI creates a temporary `gemini-shell-*` directory so a shell exit trap can record child process IDs. Foreground commands delete it. Background requests used to skip cleanup because the file may still be needed after the shell tool returns its first background receipt.
 
-The component that later sees the real exit never receives the directory or a cleanup operation. The temporary resource therefore has no owner after the shell tool returns its initial background receipt.
+The process service that observes the real exit did not receive the directory or a cleanup operation. The selected repair transfers one idempotent cleanup operation only after the lifecycle service accepts ownership of a still-running background execution. The shell invocation keeps cleanup authority when that transfer never succeeds.
 
-The selected repair transfers one idempotent cleanup operation to the execution service after process start. The shell tool keeps cleanup authority whenever that transfer never succeeds.
+The current Linux child-process candidate has executed successfully. It also prevents the child `error` and later `close` events from finalizing or cleaning the same execution twice.
 
 ## Why this matters
 
-Repeated background commands can accumulate directories and inode usage in the system temporary area. The same missing ownership also makes cancellation, short-lived background requests, and spawn failure harder to reason about because the request flag—not the actual lifecycle transition—currently decides cleanup.
+Repeated background commands can accumulate temporary directories and inode usage. More importantly, request intent must not decide lifecycle ownership. Cleanup must follow the actual transition:
 
-This is a resource-lifecycle finding. It is separate from:
+- creator-owned before transfer;
+- process-owned after accepted background transfer;
+- exactly once after actual exit;
+- best-effort without replacing the execution result.
 
-- whether kill requests wait for confirmed termination;
-- background log retention;
-- child-process termination and escalation;
-- PID discovery correctness.
+This finding is separate from termination receipts, background-log retention, child-process escalation policy, and PID-discovery completeness.
 
 ## Governing invariant
 
 Every temporary execution resource has exactly one cleanup owner after each lifecycle transition.
 
-- The creator owns cleanup before process start.
-- A resource needed until actual exit transfers to the component that observes actual exit.
-- Transfer failure leaves cleanup with the creator.
-- Cleanup failure never replaces the primary execution outcome.
-- Repeated terminal callbacks do not repeat destructive cleanup.
+1. The creator owns cleanup before process registration.
+2. A resource needed until actual exit transfers only to the component that observes actual exit.
+3. Failed or declined transfer leaves cleanup with the creator.
+4. Cleanup failure never replaces the primary execution outcome.
+5. Repeated terminal callbacks never repeat destructive cleanup or terminal publication.
 
-## Current source map
+## Source and ownership map
 
-### Resource creation
+### Current base defect
 
-`packages/core/src/tools/shell.ts` creates a directory with:
+At `d55e366f...`:
 
-```ts
-fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-shell-'))
-```
+- `packages/core/src/tools/shell.ts` creates `gemini-shell-*` and `bgpids.tmp` before shell execution;
+- its cleanup follows the `is_background` request flag;
+- `ShellExecutionService.background()` receives process, session, and display identity without a temporary-resource owner;
+- PTY and child-process finalizers own actual-exit settlement for output, history, maps, logs, and lifecycle completion;
+- short commands requested as background can finish during the delay while the request flag still suppresses creator cleanup.
 
-It stores `bgpids.tmp` inside that directory and wraps POSIX commands with an exit trap that writes `jobs -p` to the file.
+Owned Gemini PR #9 retains the exact short-command base characterization.
 
-### Foreground ownership
+### Selected candidate
 
-The invocation `finally` block removes the file and directory only when `is_background` is false.
+The executed candidate changes five Gemini files:
 
-### Background transition
+- `packages/core/src/services/executionLifecycleService.ts`;
+- `packages/core/src/services/shellExecutionService.ts`;
+- `packages/core/src/tools/shell.ts`;
+- one lifecycle/child-process regression file;
+- one shell ownership-ordering regression file.
 
-For a background request, `ShellExecutionService.background(pid, sessionId, command)` receives process identity, session identity, and display command. It receives no temporary path or cleanup callback.
+The contract is:
 
-The initial execution result is settled when the process moves to background. It is not an actual-exit receipt, so attaching cleanup to that promise would delete the PID file too early.
+- `ExecutionLifecycleService.background()` acknowledges whether it claimed the still-pending execution;
+- the shell invocation transfers cleanup only after that acknowledgement;
+- exit observed before transfer does not delete the PID file before parsing finishes;
+- transfer observed before exit keeps the directory until actual exit;
+- foreground and failed-transfer paths remain creator-cleaned;
+- child finalization is guarded before command cleanup, terminal publication, and transferred cleanup;
+- cleanup rejection is logged and does not alter the execution result.
 
-### Actual exit owner
-
-PTY and child-process finalizers already own actual-exit work:
-
-- output settlement;
-- background history updates;
-- terminal/process map cleanup;
-- background log stream cleanup;
-- lifecycle completion.
-
-Those finalizers have no shell-tool temporary-resource input.
-
-### Short background requests
-
-A command requested with `is_background: true` can finish during the delay and avoid the early background return. Its invocation `finally` still skips cleanup based on the request flag. This means the problem is broader than long-running process backgrounding.
-
-### Windows boundary
-
-The PID wrapper returns the command unchanged on Windows, yet the directory and file path are still created. The selected implementation should avoid creating the unused resource on Windows when that can be done without widening the repair. Otherwise, Windows avoidance remains a named follow-up.
+The `canBackground()` preflight and final claim execute synchronously in one JavaScript turn, so a process-exit callback cannot interleave between them. Failed preflight creates no background history or log side effects.
 
 ## Evidence table
 
 | Claim | Evidence class | Exact support | Limit |
 | --- | --- | --- | --- |
-| shell invocation creates the temporary directory and PID path | `source-read` | `packages/core/src/tools/shell.ts` at `d55e366...` | no target execution yet |
-| background requests skip invocation cleanup | `source-read` | invocation `finally` guard | retained directory not yet measured in target test |
-| background transition receives no cleanup owner | `source-read` | `ShellExecutionService.background()` signature and body | another hidden owner could still exist; search found none |
-| actual exit finalizers clean other execution resources | `source-read` | PTY and child-process finalization paths | cleanup ordering still needs execution |
-| short background requests share the gap | `inferred from source ordering` | request-flag cleanup guard plus completion-during-delay path | target-native control required |
+| base creates the PID directory and lacks an exit owner | `source-read` | Gemini `d55e366f...` source map | no cross-version claim |
+| short background request retains the directory on the base | `target-executed` | Gemini PR #9, run `30596117032` | mocked execution, Linux path |
+| ownership transfer handles exit-before-claim and claim-before-exit | `target-executed` | Fieldwork PR #334, run `30623523324` | pinned Linux source |
+| foreground cleanup remains creator-owned | `target-executed` | shell ownership-transfer controls | one target runtime |
+| child actual exit invokes cleanup and cleanup rejection preserves result | `target-executed` | process-exit controls | child-process adapter |
+| child `error` followed by actual `close` finalizes exactly once | `target-executed` | deterministic close-barrier regression | PTY callback duplication remains separate |
+| package compatibility for the focused slice | `target-executed` | 121 tests, package build, explicit typecheck, Prettier | not the full repository preflight |
+
+## Exact execution receipt
+
+Canonical execution carrier: Fieldwork PR #334.  
+Exact Fieldwork head: `0c398748c8e961e9c09c7df4ec78fdd61a025a32`.  
+Exact target source: `d55e366f6ab393e024c613d940fead3696d56eac`.
+
+- Fieldwork integrity `30623523226`: success;
+- target run `30623523324`, job `91133338900`: success;
+- inherited candidate patch: `12/12` hunks applied;
+- target formatter: five files formatted and checked;
+- `executionLifecycleService.test.ts`: 26 passed;
+- process-exit cleanup controls: 4 passed;
+- shell ownership controls: 3 passed;
+- adjacent `shell.test.ts`: 89 passed, one existing skip;
+- total: 121 passed, one skipped;
+- package posttest build: passed;
+- explicit core typecheck: passed;
+- exact five-file fence and diff hygiene: passed;
+- artifact: `8790481698`;
+- artifact digest: `sha256:02a2251db89ab172861d2a88945602d2ada6a34dd8eec43c654a58dd361dcfa7`;
+- complete review `4827751443`: `ACCEPT` for the next execution-carrier transition.
 
 ## Alternatives compared
 
-### A — transfer one process-exit cleanup operation
+### A — explicit process-exit cleanup transfer
 
-**Selected.** Pass a narrow sync-or-async cleanup callback or equivalent owned resource through `ShellExecutionConfig` into the process finalizer.
+**Selected.** It matches actual-exit ownership, preserves foreground behavior, supports both completion orderings, and makes transfer success observable.
 
-Advantages:
+### B — cleanup on the initial background receipt
 
-- matches the component that observes actual exit;
-- supports PTY and child-process paths;
-- handles long and short background requests;
-- keeps foreground behavior stable;
-- makes transfer success testable;
-- avoids global deletion policy.
+**Rejected.** The receipt precedes actual exit, while the shell trap may still need the PID file.
 
-Cost:
+### C — shell-invocation polling
 
-- every terminal path must invoke best-effort cleanup exactly once;
-- the invocation needs an explicit transfer flag for pre-start failures.
+**Rejected.** It duplicates process ownership after the invocation has returned.
 
-### B — attach cleanup to the initial execution result
+### D — global sweeper or age-based deletion
 
-**Rejected.** `ExecutionLifecycleService.background()` resolves that promise before actual exit. The PID file may still be needed by the shell exit trap.
+**Rejected as the first repair.** It hides the ownership defect and introduces unrelated age and deletion policy.
 
-### C — let the shell invocation poll the process and clean later
+### E — immediate deletion after requesting background
 
-**Rejected.** The invocation has already returned and would duplicate process lifecycle ownership, error handling, and cancellation races.
+**Rejected.** Request intent is not accepted lifecycle ownership and may precede PID-file completion.
 
-### D — periodic global sweeper or age-based deletion
+## Executed and remaining controls
 
-**Rejected as the first repair.** It delays cleanup, hides ownership defects, introduces age and safety policy, and cannot distinguish a live PID file from an abandoned one without recreating lifecycle knowledge.
+### Executed
 
-### E — delete immediately after the background transition
+- base short-command retained-directory characterization;
+- foreground cleanup;
+- exit-before-claim;
+- claim-before-exit;
+- exact-once background claim;
+- failed-preflight side-effect avoidance;
+- child actual-exit cleanup;
+- cleanup rejection with result preservation;
+- child `error` followed by real `close` exactly once;
+- adjacent shell and lifecycle suites;
+- package build, typecheck, formatting, and five-file fence.
 
-**Rejected.** The shell may not have exited and written child PIDs yet.
+### Remaining before promotion
 
-## Selected implementation contract
+1. materialize the formatted artifact as one clean workflow-free Gemini source branch;
+2. execute or explicitly bound PTY finalization and duplicate-callback behavior;
+3. execute cancellation/escalation cleanup ordering;
+4. decide Windows PID-directory avoidance through source and platform evidence;
+5. compare the clean source against the current public Gemini head;
+6. obtain complete-diff review of the clean source branch;
+7. transfer receipts and prove temporary workflows absent before carrier retirement.
 
-1. Create one idempotent cleanup closure for the file and directory.
-2. Keep creator ownership initially.
-3. For background requests, provide the closure to the execution service before or during successful process registration.
-4. Mark transfer only when a process lifecycle owner exists.
-5. Invoke transferred cleanup after actual PTY or child-process exit processing.
-6. Invoke it on terminal setup/finalization failures after transfer.
-7. Creator cleanup covers validation, spawn, or registration failure before transfer.
-8. Catch and log cleanup failures without changing execution results.
-9. Preserve background log storage under its separate owner.
-10. Avoid allocating the PID directory on Windows when the complete diff proves that boundary is independent and compatible.
+## Edge cases outside the first source slice
 
-## Discriminating controls
+- abrupt CLI process death and old-version directory sweeping;
+- shared or externally supplied temporary roots;
+- malicious path replacement;
+- PID parsing completeness;
+- remote-agent executions that do not use the shell wrapper;
+- background-output log retention policy.
 
-### Current-behavior characterization
-
-- a background request returns its initial receipt;
-- simulated or real later exit occurs;
-- the created `gemini-shell-*` directory remains on the pinned base.
-
-### Candidate controls
-
-1. foreground success removes the directory exactly once;
-2. long-running background execution retains the directory until actual exit, then removes it;
-3. a short command requested as background removes it after its real exit;
-4. cancellation removes it after termination settlement;
-5. validation or spawn failure before transfer remains creator-cleaned;
-6. repeated or racing finalization invokes cleanup once;
-7. cleanup rejection leaves the original execution result unchanged and emits bounded diagnostics;
-8. PTY and child-process fallback both satisfy the contract;
-9. background log files remain readable after temporary PID-resource cleanup;
-10. Windows creates no unused PID directory, or the retained boundary is documented and tested.
-
-## Historical and architectural precedent
-
-The current process service already centralizes actual-exit cleanup for terminal buffers, process maps, background logs, and execution completion. Temporary PID-resource cleanup follows the same ownership rule while remaining a separate resource.
-
-The important difference is that the temporary directory originates in the shell tool because command wrapping needs its path before process creation. The repair therefore requires explicit ownership transfer rather than moving creation wholesale without preserving command construction.
-
-## Edge cases outside the first repair
-
-- crash recovery across abrupt CLI process death;
-- sweeping directories left by older versions;
-- shared or externally supplied temp roots;
-- malicious replacement of the temporary path after creation;
-- PID file parsing and child-process completeness;
-- retention policy for background output logs;
-- remote-agent executions that do not use this shell wrapper.
-
-These may reopen or split the finding when evidence shows a distinct consequence.
+These remain separate unless new evidence shows they share the same owner.
 
 ## Exact next transition
 
-1. prepare a target-native base characterization for long and short background requests;
-2. materialize Alternative A on a clean owned branch;
-3. execute focused shell/background tests and core typecheck;
-4. run at least one real short-lived background process control;
-5. obtain complete-diff review;
-6. move to `delivery-gate-ready` only after a workflow-free source head and retained exact receipt exist.
+Publish the executed five-file artifact as a clean owned Gemini source branch directly parented by `d55e366f...`. Re-run the exact target controls on that source generation, then add the smallest PTY, cancellation, and Windows discriminators needed to decide promotion. Retire PRs #321 and #334 only after the clean source owns the receipt and a later exact head proves temporary workflow absence.
 
 ## Reopening and stop conditions
 
 Reopen the selected architecture if:
 
-- a current source revision already owns the directory elsewhere;
-- process-exit cleanup cannot run reliably on one supported adapter;
-- the PID file is needed after process exit by a documented consumer;
-- cleanup transfer materially changes background log or cancellation behavior.
+- a newer source revision already owns the directory elsewhere;
+- one supported adapter cannot invoke cleanup reliably after transfer;
+- a documented consumer needs the PID file after actual exit;
+- cleanup transfer changes background-log or cancellation semantics;
+- current-upstream comparison conflicts materially with the pinned candidate.
 
-Stop or retain a negative result if target execution shows the directory is removed by an unobserved owner on the pinned base.
+Stop or narrow remaining platform work when target-native evidence shows a boundary is impossible, already handled, or lower consequence than its compatibility cost.
 
 ## Current disposition
 
 - Finding state: `research-active`
-- Review disposition: `REPAIR`
-- Selected direction: process-exit cleanup ownership transfer
-- Exact next gate: target-native characterization and clean source candidate
-- Clearing condition: exact PTY and child-process controls, workflow-free source, complete-diff review
+- Review disposition: `ACCEPT child-process slice / continue bounded execution`
+- Selected direction: explicit process-exit cleanup ownership transfer
+- Exact next gate: clean workflow-free source materialization and remaining adapter controls
+- Clearing condition: current-source relation, PTY/child/cancellation/Windows disposition, exact receipt transfer, complete source review
 - Non-delegable human decision: `none`
 - Upstream contact authorized: `no`
 
 ## References
 
-- Fieldwork #14, #22, #254, and #319.
+- Fieldwork #14, #22, #254, #319, PR #320, PR #321, and PR #334.
+- Gemini PR #9.
 - Gemini target source `d55e366f6ab393e024c613d940fead3696d56eac`.
-- `packages/core/src/tools/shell.ts`.
-- `packages/core/src/services/shellExecutionService.ts`.
-- `packages/core/src/services/executionLifecycleService.ts`.
-- Quiet external lead: https://github.com/google-gemini/gemini-cli/issues/28392.
+- Quiet external lead: `https://github.com/google-gemini/gemini-cli/issues/28392`.
