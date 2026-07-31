@@ -1,77 +1,82 @@
 # F254-make-mirror-signal-lifecycle: cancellation must own every proxy launch
 
-Finding state: `delivery-gate-ready`
+Finding state: `closed`
 
 Workstream: `G`  
 Canonical Fieldwork issue: `#254`  
 Canonical finding path: `findings/F254-make-mirror-signal-lifecycle/finding.md`  
-Canonical implementation: `teamleaderleo/linux-fieldwork#224`  
+Canonical implementation: merged `teamleaderleo/linux-fieldwork#224`  
 Exact implementation head: `13b3c529e983b3ad967725f99f4e31d867fa4742`  
-Exact base or source revision: Linux Fieldwork main `ed49c01a85e9d363626db5d2973a33b67209e13b`; imported `make_mirror.sh` blob `6c4be092edcf23b56b63a3befe238c099c45f590`  
-Strongest evidence class: `target-executed` locally; exact-head hosted gate pending  
-Reviewed input generation: Fieldwork #254 body as updated 2026-07-30; Linux issues #157 and #221; PR #224 complete five-file diff  
-Current review disposition: `EXECUTE`  
-Desk routing: `Delivery Desk #160 D2`  
+Merge commit: `386f5c8dbb01e5de1af45ac0eb325ee8567722e3`  
+Exact base or source revision: Linux Fieldwork `ed49c01a85e9d363626db5d2973a33b67209e13b`; imported `make_mirror.sh` blob `6c4be092edcf23b56b63a3befe238c099c45f590`  
+Strongest evidence class: lifecycle claims `target-executed`; named Linux Fieldwork CI gate `full-gate` within the repository paths described below  
+Reviewed input generation: Fieldwork #254 current protocol; Linux issues #157/#221; PR #224 complete five-file diff; reviews `4823593228`, `4823717630`  
+Current review disposition: `ACCEPT`  
+Desk routing: durable closeout; no active delivery lane  
 Upstream contact authorized: `no`
 
 ## In simple words
 
-`make_mirror.sh` builds a Debian package mirror and starts two cache-proxy helpers at different stages. A stop signal should make the owner stop, report the first cancellation reason, clean only resources it actually owns, and wait for the correct helper process.
+`make_mirror.sh` starts two caching-proxy helpers while building a Debian mirror. Cancellation must stop the correct helper, preserve the first stop reason, clean only state currently owned, and avoid damaging a cache that has already been published.
 
-The imported script had cleanup-only signal traps that could return to normal work. The first internal repair fixed termination, child waiting, and published-cache preservation. Review then found a smaller launch interval: a proxy could exist before `$!` was stored. Another review found that the test gave the first launch cache-deletion authority too early. A final review found that a later signal could overtake the first signal during trap handoff.
+The original internal candidate fixed cleanup-only traps but still had a window between child creation and PID registration. Review also found two proof defects: the first launch was granted cache-deletion authority too early, and a later signal could overtake the first signal during trap handoff.
 
-PR #224 at `13b3c529…` combines all three repairs and the corresponding controls. It is the canonical carrier. PR #226 was a temporary duplicate created from an older #224 head and is closed without merge after its useful review shape was absorbed.
+PR #224 combined the parent repair, both launch-window repairs, first-signal retention, launch-specific cleanup authority, published-cache preservation, and exact regression controls. The exact head passed Linux Fieldwork CI and was merged into the internal evidence repository as `386f5c8d…`. No public upstream interaction occurred.
 
 ## Why we care
 
-A leaked proxy can retain port 8080 and interfere with an immediate rerun. A cleanup-only trap can make a cancelled mirror build continue and report the wrong result. Deleting a cache before ownership begins can hide retained state. Letting a later signal replace the first makes cancellation reporting depend on a tiny timing interval.
+Without an explicit owner lifecycle, cancellation can report success, leak a proxy, kill or wait for the wrong PID, delete state before ownership begins, damage a published cache, or report a later signal instead of the first cancellation request. Those are correctness and recovery defects even when the full mirror workload is not executed.
 
-The observed failures are bounded process, status, and state-ownership defects. Real-world frequency is unknown because the proof uses reduced local shell harnesses rather than a complete mirror build.
+Observed frequency remains unknown. The retained proof uses reduced real-shell process and filesystem controls rather than a complete networked mirror build.
 
 ## What happens if we leave it alone
 
-Three failure layers remain without the combined candidate:
+The original top-level source used the same cleanup-only traps for normal exit and signals and launched each proxy in separate child-creation and `$!` assignment commands. A signal could therefore:
 
-1. Parent-only TERM can run cleanup and then resume later commands, eventually returning success or an unrelated failure.
-2. A signal between proxy creation and PID registration can leave cleanup with no owned child PID.
-3. Restoring ordinary terminating traps before dispatching a recorded signal can let a later signal replace the first cancellation status.
+1. run cleanup and return to later work;
+2. arrive after child creation but before PID ownership;
+3. let a second signal replace the first during trap restoration;
+4. invoke cache deletion at a lifecycle point that did not own it;
+5. leave an owned child unreaped or act on a stale PID.
 
-A test can also provide false confidence when it models both proxy launches with identical cache-cleanup authority. Before first readiness, the script owns the child but not private-cache deletion. During the later QEMU launch, it owns both.
+The merged internal candidate closes those bounded paths.
 
 ## Current finding
 
-The top-level mirror owner needs one explicit lifecycle:
+The top-level mirror process must remain the sole owner of proxy launch, PID registration, stopping, waiting, and cache/QEMU cleanup state.
+
+The accepted contract is:
 
 - ordinary EXIT cleanup is separate from signal termination;
-- `stop_proxy()` signals, waits for, and clears an owned PID;
-- `cleanup_owner()` cleans once and deletes only state currently owned;
-- a cache already published through `shared/cache` survives late cleanup;
-- every asynchronous proxy launch keeps a temporary first-signal handler active until the PID is stored;
-- a pending first signal is dispatched before ordinary terminating traps are restored;
-- a later signal cannot overtake the retained first signal;
-- launch-one retained state is handled by the next run's actual startup preflight.
+- `stop_proxy()` signals a live owned child, waits even if it already exited, and clears the PID;
+- `cleanup_owner()` is one idempotent owner cleanup;
+- private-cache deletion is enabled only after first readiness and disabled after publication;
+- a published cache survives late cleanup;
+- each asynchronous launch keeps a first-signal handler active until the new PID is stored;
+- pending cancellation is dispatched before ordinary terminating traps are restored;
+- the first signal remains authoritative;
+- an interrupted pre-readiness cache is handled by the next startup preflight.
 
 ### Claim table
 
 | Claim | Evidence class | Exact support | Limit |
 | --- | --- | --- | --- |
-| Cleanup-only TERM traps can resume later work and return 0. | `target-executed` | `tests/test_make_mirror_signal_exit.py` baseline; issue #157 | Reduced `/bin/sh` harness |
-| The parent repair exits 143, omits later work, waits for the proxy, cleans once, and preserves an active published cache. | `target-executed` | merged PR #205; CI `30579821292`; carrier `30579465025` | Signal after ordinary PID registration |
-| Both top-level proxy launches have a child-creation/PID-registration interval. | `source-read` plus executed seam | issue #221; PR #224 source ordering and stopped-owner controls | Top-level proxy launches only |
-| Launch one owns child cleanup but not cache deletion before readiness. | `target-executed` locally | `tests/test_make_mirror_proxy_launch_ownership.py`; source-order controls | Simulated retained cache represents actual startup-preflight contract |
-| Launch two owns child cleanup and private-cache deletion. | `target-executed` locally | same ownership regression | Reduced QEMU relaunch harness |
-| TERM recorded before PID assignment remains authoritative when INT arrives afterward. | `target-executed` locally | `test_first_recorded_signal_wins_during_registration_dispatch` | Two-signal control; not an arbitrary signal storm |
-| The exact combined five-file head passes hosted repository CI. | `target-test-prepared` | run `30586490855` | Pending at this revision of the finding |
+| Cleanup-only parent TERM can resume later work and return 0. | `target-executed` | baseline in `tests/test_make_mirror_signal_exit.py` | Reduced `/bin/sh` harness |
+| The candidate exits 143, omits later work, cleans once, stops and waits for the proxy, and preserves a published cache. | `target-executed` | merged PR #205 and PR #224 regressions | Pinned imported source, no real mirror |
+| Both proxy launches close child-creation/PID-registration windows. | `target-executed` | stopped-owner controls in PR #224 | Top-level launches only |
+| Launch one does not own cache deletion; launch two does. | `target-executed` | `tests/test_make_mirror_proxy_launch_ownership.py` | Reduced cache-state model |
+| TERM before registration remains authoritative over later INT. | `target-executed` | first-signal competing control | Two-signal case, not arbitrary storms |
+| The exact five-file head passed the repository-declared Linux Fieldwork CI gate. | `full-gate` | run `30586490855` | Gate ran compile, unit tests, shell syntax, and help; no APT/QEMU/network mirror integration |
+| The accepted exact head is retained on current main. | `source-read` | merge commit `386f5c8d…` | Internal evidence repository only |
 
 ## System and ownership map
 
 - Entrypoint: imported `upstream/mmdebstrap/make_mirror.sh`.
-- Process owner: the top-level shell owns two sequential caching-proxy children.
-- Filesystem owner: before first readiness it does not yet own failed-cache deletion; after readiness it owns the private new cache; after publication the active symlink protects the completed cache.
-- QEMU state: temporary cleanup is owned only while the QEMU phase is active.
-- Result owner: handled INT, QUIT, and TERM map to 130, 131, and 143 after cleanup.
-- Recovery: an interrupted pre-readiness cache is retained and the next run's preflight removes the inactive sibling cache before continuing.
-- Test boundary: exact patch application to the pinned source with disposable real `/bin/sh` processes, files, symlinks, and stop/continue signal controls.
+- Process owner: top-level shell owns two sequential caching-proxy children.
+- Result owner: handled INT/QUIT/TERM map to 130/131/143 after owner cleanup.
+- Filesystem owner: private cache only after first readiness; published cache protected by `shared/cache`; QEMU temporary state only while active.
+- Recovery: pre-readiness partial state is retained for the next run's existing preflight; published state remains.
+- Separate boundary: `update_cache()` is a pipeline subshell and is owned by finding `F254-make-mirror-update-cache-subshell`.
 
 ## Historical precedent
 
@@ -79,117 +84,95 @@ The top-level mirror owner needs one explicit lifecycle:
 
 - Source: https://github.com/teamleaderleo/linux-fieldwork/pull/196
 - Revision or date: merged 2026-07-30
-- Principle supported: temporary signal-recording traps can close child-launch/PID-registration intervals before normal forwarding or termination resumes.
-- Important difference: the gpgv wrapper owns verifier/filter children and status bytes; `make_mirror.sh` also owns cache publication and a second proxy launch.
+- Principle supported: temporary signal-recording handlers can close child-launch/PID-registration windows before normal handlers resume.
+- Important difference: `make_mirror.sh` owns cache publication and two proxy lifecycles.
 
-### Signal traps must terminate after cleanup
+### Parent signal cleanup repair
 
-- Source: https://github.com/teamleaderleo/linux-fieldwork/blob/ed49c01a85e9d363626db5d2973a33b67209e13b/notes/processes/signal-traps-must-terminate-after-cleanup.md
-- Revision or date: current Linux Fieldwork main reviewed 2026-07-30
-- Principle supported: cleanup-only traps resume work; child termination requires waiting; PID registration and resource ownership are separate boundaries.
-- Important difference: PR #224 adds exact first-signal and launch-specific cache-ownership controls.
-
-### First-event retention
-
-- Source: https://github.com/teamleaderleo/linux-fieldwork/blob/ed49c01a85e9d363626db5d2973a33b67209e13b/FIELD_GUIDE.md
-- Revision or date: blob `d1793c43d81b209a363744cf629807910b6b62da`
-- Principle supported: preserve the first meaningful failure or signal instead of letting a later event decide the result.
-- Important difference: the field guide is general; this finding applies it inside one shell launch handoff.
+- Source: https://github.com/teamleaderleo/linux-fieldwork/pull/205
+- Revision or date: merged 2026-07-30
+- Principle supported: signal handlers must terminate after cleanup and owned children must be waited for.
+- Important difference: the later #224 work adds launch registration, first-signal, and state-ownership controls.
 
 ## Approaches considered
 
 ### Retained: first-signal handler through PID registration
 
-The launch handler records only the first signal while the PID is empty. Once the PID exists, the handler or the normal launch path dispatches that retained status before restoring ordinary traps. Cleanup therefore has an owned child and a later signal cannot overtake the first.
+This gives cleanup an owned PID before dispatch and prevents a later signal from overtaking the first.
 
 ### Declined: restore ordinary traps before pending dispatch
 
-That ordering closed the one-signal orphan interval but retained a smaller race in which a second signal could replace the first.
+That ordering closes the orphan window but lets a second signal replace the retained first signal.
 
 ### Declined: identical cache ownership for both launches
 
-The source does not own cache deletion before first readiness. A harness that sets ownership to `yes` at both launches proves the wrong lifecycle and can hide retained-state behavior.
+The first launch occurs before private-cache deletion authority begins. Treating both launches alike proves a lifecycle the source does not have.
 
-### Deferred: signal masking or language rewrite
+### Deferred: process groups, escalation, and full mirror timing
 
-Portable `/bin/sh` has no direct signal-mask mechanism. Moving launch ownership to another language would enlarge the candidate beyond the demonstrated repair.
-
-### Deferred: TERM-to-KILL escalation
-
-A proxy that ignores TERM can make `wait` block. Timeout and escalation policy require a separate design choice.
-
-### Deferred: `update_cache()` subshell trap
-
-That trap runs in a different pipeline/subshell ownership topology and remains a separate investigation target.
+Those change cancellation policy or require expensive integration execution and remain separate findings.
 
 ## Edge cases covered
 
 | Edge case or control | Evidence | Result |
 | --- | --- | --- |
-| Baseline parent-only TERM | combined regression | Later work occurs; cleanup runs twice; result can be 0 |
-| Candidate parent-only TERM after readiness | combined regression | Status 143; no later marker; proxy gone; one owner cleanup |
-| Unsignaled rerun | combined regression | Status 0; later marker present; proxy reaped |
-| First proxy registration window | two focused regressions | Status 143; one proxy stop; zero signal-time cache deletion; retained state handled by rerun preflight |
-| Second proxy registration window | two focused regressions | Status 143; completed first proxy plus signaled second proxy stopped; private cache deleted once |
-| TERM then INT across registration | combined regression | Status remains 143; first signal wins |
-| Published cache followed by cleanup | combined regression | Published directory remains and private ownership flag clears |
-| Exact patch application and `/bin/sh -n` | both suites | Passed locally at exact combined tree |
-| Two consecutive focused-suite runs | PR #224 receipt | 10/10 passed twice locally |
+| Baseline parent-only TERM | combined regression | Later work and false success reproduced |
+| Candidate parent-only TERM | combined regression | Status 143, one cleanup, proxy gone |
+| First launch registration | ownership controls | Child reaped; no premature cache deletion |
+| Second launch registration | ownership controls | Child reaped; private cache deletion once |
+| TERM then INT | competing-signal control | First TERM remains status 143 |
+| Published-cache cleanup | focused control | Published directory preserved |
+| Immediate rerun | focused controls | Status 0 and no surviving proxy |
+| Patch and shell syntax | exact candidate tests | Passed |
+| Named repository CI | run `30586490855` | Passed on unchanged exact head |
 
 ## Edge cases deferred or outside scope
 
-| Edge case | Why deferred | Owning next record or reopening trigger |
+| Edge case | Why deferred | Owning record or trigger |
 | --- | --- | --- |
-| Proxy ignores TERM | Requires escalation policy | New design finding with timeout/grace-period options |
-| Full mirror, APT, QEMU, and network execution | Reduced harness proves mechanism | Integration gate before any external packet when justified |
-| `update_cache()` subshell trap | Different process owner | New issue after exact process map and distinguishing reproducer |
-| Process-group delivery | Current controls signal only the owner PID | Reopen if group behavior produces a different result |
-| Signal storm beyond two distinct signals | Two signals prove the overtaking class | Expand on evidence of another reachable state |
-| Cleanup failure observability | Candidate preserves primary cancellation status | Separate retained-state/reporting decision |
-| Current public upstream source | Pinned imported source only | Refresh before upstream preparation |
+| `update_cache()` subshell ownership | Different process owner and result path | `F254-make-mirror-update-cache-subshell`, Linux #231 |
+| Proxy ignores TERM | Requires timeout/escalation policy | Reopen as separate design finding |
+| Full APT/QEMU/network mirror execution | High-cost integration gate | Before any authorized external packet if justified |
+| Process-group delivery | Different caller topology | Reopen on contradictory group behavior |
+| Current public source | Imported source is pinned | Refresh before external preparation |
 
 ## Exact execution and receipts
 
-| Repository/head | Command or workflow | Platform/environment | Result | Evidence class |
-| --- | --- | --- | --- | --- |
-| `linux-fieldwork@ac2680e0dc92b497f6ada5622b50e7f41ebb56af` | CI `30579821292` | GitHub-hosted Ubuntu | Parent repair passed | `target-executed` |
-| carrier `#201@da0974a81419d6dc27cb89173bed821ced0e5c53` | run `30579465025`, four-test matrix twice | Ubuntu 24.04 | 8/8 parent-repair executions passed | `target-executed` |
-| `linux-fieldwork#224@13b3c529e983b3ad967725f99f4e31d867fa4742` | both focused suites twice | local Linux record in PR | 10/10 passed twice; patch dry-run, shell syntax, and diff check passed | `target-executed` locally |
-| same exact head | Linux Fieldwork CI `30586490855` | GitHub-hosted Ubuntu | queued/pending | `target-test-prepared` |
-
-The earlier #224 head `dc9222d8…` received two valid `REPAIR` reviews: first-signal trap handoff and launch-one cache-ownership fidelity. The current head addresses both. Closed PR #226 is a superseded duplicate and is not part of the canonical stack.
+| Repository/head | Command or workflow | Result | Evidence class |
+| --- | --- | --- | --- |
+| `linux-fieldwork@ac2680e0dc92b497f6ada5622b50e7f41ebb56af` | CI `30579821292` | Parent repair passed | `target-executed` |
+| carrier `#201@da0974a81419d6dc27cb89173bed821ced0e5c53` | four-test matrix twice | 8/8 executions passed | `target-executed` |
+| `linux-fieldwork#224@13b3c529e983b3ad967725f99f4e31d867fa4742` | both focused suites twice | 10/10 passed twice locally | `target-executed` |
+| same head | Linux Fieldwork CI `30586490855` | passed | `full-gate` within named limits |
+| merged main | commit `386f5c8dbb01e5de1af45ac0eb325ee8567722e3` | exact candidate retained | `source-read` |
 
 ## Complete-diff and compatibility review
 
-- Complete five-file fence: retained patch, combined investigation README, reusable process note, combined regression, independent ownership regression.
-- Base relationship: direct from Linux Fieldwork main `ed49c01a85e9d363626db5d2973a33b67209e13b`; GitHub reports mergeable.
-- Temporary carrier status: #226 closed without merge after evidence reconciliation; #224 is the sole canonical carrier.
-- Compatibility surfaces examined: status, first-signal identity, child PID ownership, child reaping, owner-cleanup count, state-specific cache deletion, retained-state preflight, published-cache preservation, unsignaled rerun, patch application, shell syntax.
-- Known routine repair remaining: none found in the complete current diff; hosted exact-head execution remains.
-- Reviewer eligibility: the user designated agent review as the operative last-mile review. No separate reviewer is a hard gate.
-- Exact-head disposition: `EXECUTE` until run `30586490855` completes without head movement.
+- Complete fence: retained patch, investigation README, reusable process note, combined regression, ownership regression.
+- Final source head: `13b3c529…`; merge commit: `386f5c8d…`.
+- Supersession: duplicate PR #226 closed without merge; historical PRs #159/#205 retain development history; #224 is the accepted combined unit.
+- Compatibility surfaces reviewed: status, first-signal identity, PID ownership, reaping, cleanup count, private/published cache authority, QEMU state, rerun, patch application, shell syntax.
+- Exact-head review found no remaining source-visible blocker; exact CI passed before merge.
 
 ## Current disposition and desk routing
 
-- Finding state: `delivery-gate-ready`
-- Review disposition: `EXECUTE`
-- Review Queue entry: none until the hosted result is classified
-- Delivery lane: `D2`
-- Exact next transition: if exact-head CI passes the intended tests, set this finding and PR #224 to `review-ready` / `ACCEPT` and mark #224 ready for review.
-- Clearing condition: successful Linux Fieldwork CI `30586490855` on exact head `13b3c529e983b3ad967725f99f4e31d867fa4742` plus final no-head-movement check.
-- Required subgates: intended jobs executed; both focused regressions passed; complete five-file diff unchanged; cleanup/rerun receipt retained.
-- User decision requested: none while the exact-head gate runs.
+- Finding state: `closed`
+- Review disposition: `ACCEPT`
+- Review Queue entry: no active entry; review is retained in the exact PR history
+- Delivery lane: closed after internal merge
+- Exact next transition: none
+- Clearing condition: already satisfied by exact-head review, CI `30586490855`, and merge commit `386f5c8d…`
+- Required subgates: none
+- User decision requested: none
 
 ## Changes to the canonical conclusion
 
-| Date | Pull request or commit | Change in conclusion |
+| Date | Record | Change in conclusion |
 | --- | --- | --- |
-| 2026-07-30 | PR #205 | Merged internal parent-repair evidence for termination, proxy waiting, and published-cache preservation |
-| 2026-07-30 | issue #221 / early PR #224 | Added deterministic controls for both launch/PID-registration intervals |
-| 2026-07-30 | reviews on `dc9222d8…` | Found first-signal handoff race and launch-one ownership overclaim |
-| 2026-07-30 | PR #224 head `13b3c529…` | Combined first-signal, ownership-state, retained-preflight, and existing parent repair into one five-file carrier |
-| 2026-07-30 | PR #226 | Closed as a superseded duplicate after useful review shape transferred to #224 |
-| 2026-07-30 | This finding PR | Records #224 as canonical and routes only its exact hosted gate |
+| 2026-07-30 | PR #205 | Parent termination, waiting, and published-cache evidence retained |
+| 2026-07-30 | early PR #224 reviews | Found launch ownership, cache-state fidelity, and first-signal handoff defects |
+| 2026-07-30 | PR #224 `13b3c529…` | Combined and repaired all top-level proxy lifecycle controls |
+| 2026-07-31 | CI `30586490855` and merge `386f5c8d…` | Exact gate passed and accepted internal evidence was merged; state changed to `closed` |
 
 ## References
 
@@ -200,7 +183,5 @@ The earlier #224 head `dc9222d8…` received two valid `REPAIR` reviews: first-s
 - https://github.com/teamleaderleo/linux-fieldwork/pull/226
 - https://github.com/teamleaderleo/linux-fieldwork/pull/196
 - https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30586490855
-- https://github.com/teamleaderleo/linux-fieldwork/blob/13b3c529e983b3ad967725f99f4e31d867fa4742/investigations/make-mirror-signal-exit/README.md
-- https://github.com/teamleaderleo/linux-fieldwork/blob/13b3c529e983b3ad967725f99f4e31d867fa4742/tests/test_make_mirror_signal_exit.py
-- https://github.com/teamleaderleo/linux-fieldwork/blob/13b3c529e983b3ad967725f99f4e31d867fa4742/tests/test_make_mirror_proxy_launch_ownership.py
+- https://github.com/teamleaderleo/linux-fieldwork/commit/386f5c8dbb01e5de1af45ac0eb325ee8567722e3
 - https://github.com/teamleaderleo/fieldwork/issues/254
