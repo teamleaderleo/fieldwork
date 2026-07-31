@@ -1,0 +1,14 @@
+diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core/src/services/shellExecutionService.ts
+--- a/packages/core/src/services/shellExecutionService.ts
++++ b/packages/core/src/services/shellExecutionService.ts
+@@ -733,6 +733,10 @@ export class ShellExecutionService {
+         code: number | null,
+         signal: NodeJS.Signals | null,
+       ) => {
++        if (exited) {
++          return;
++        }
++
+         cleanup();
+         cmdCleanup?.();
+ 
