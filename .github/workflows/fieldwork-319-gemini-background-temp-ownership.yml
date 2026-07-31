@@ -58,6 +58,7 @@ jobs:
           packages/core/src/tools/shell.ts
           EOF
           diff -u /tmp/expected-files /tmp/actual-files
+          echo 'FIELDWORK_PARENT_PATCH_HUNKS=12/12'
 
       - name: Use Node.js 22
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
