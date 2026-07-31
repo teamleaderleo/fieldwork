@@ -51,6 +51,7 @@
   "result_paths": [
     "playgrounds/EXP-20260731-observed-generation/README.md",
     "playgrounds/EXP-20260731-observed-generation/reconcile.py",
+    "playgrounds/EXP-20260731-observed-generation/lease_checks.py",
     "playgrounds/EXP-20260731-observed-generation/test_reconcile.py",
     "playgrounds/EXP-20260731-observed-generation/fixtures/terminal-continuity.json",
     "playgrounds/EXP-20260731-observed-generation/fixtures/comparative-alternatives.json",
