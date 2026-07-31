@@ -4,7 +4,7 @@ Workspace phase: `handoff`
 Parent initiative: #254  
 Protocol base: PR #283 at `23ef5d6e1d955eb7a8984a0491dc99a5e08a1d81`  
 Linux Fieldwork source boundary observed: `main` at `63e7bbff2d2dc6da4078f9f72d02cd4330b1a09a`  
-Linux durable-record repair: PR #249 at `fed2b03cb3a584f0e3f2f2db5c58e6a2f0102023`  
+Linux durable-record repair: PR #249 head `fed2b03cb3a584f0e3f2f2db5c58e6a2f0102023`, CI run 720 success, merged as `d7aebcf38459fd3f4791c1ce5da1ec446d6d3296`  
 Upstream contact authorized: no
 
 ## In simple words
@@ -17,7 +17,7 @@ This workspace records five practical lessons from Linux Fieldwork:
 4. a reproducibility probe can correctly end with no fix when all observed package variance follows a declared input;
 5. an active equivalent public repair is a reason to stop duplicate implementation while retaining the technical lesson and an exact reopening trigger.
 
-The consequential repairs are already merged locally in Linux Fieldwork. The remaining work is evidence synchronization: exact-head closeout records in Linux PR #249 and canonical findings in this Fieldwork stack.
+The consequential repairs and the four Linux closeout-record corrections are merged locally. The remaining transition is peer review and later composition of this canonical Fieldwork finding stack; no Linux product or record rerun remains pending.
 
 `closed` and `stopped` apply only to the bounded findings below. They do not declare the surrounding subjects dead. [`research-avenues.md`](research-avenues.md) preserves adjacent questions, smallest safe probes, blockers, and reopening triggers so interruption, missing capability, or an authority boundary cannot erase the research map.
 
@@ -70,6 +70,12 @@ The Debian package corpus stayed byte-identical across elapsed time, path, local
 
 The local PPMd refill-accounting candidate overlapped an active equivalent public fix. The current internal record keeps the mechanism, exact public head at the 2026-07-31 refresh, and the rule that promotion expires and must be rechecked before any future branch.
 
+## Exact closeout receipts
+
+- Linux Fieldwork PR #249 exact head `fed2b03cb3a584f0e3f2f2db5c58e6a2f0102023`: Linux Fieldwork CI `30592017920` / 720 success; merged as `d7aebcf38459fd3f4791c1ce5da1ec446d6d3296`.
+- Protocol PR #283 exact head `23ef5d6e1d955eb7a8984a0491dc99a5e08a1d81`: Fieldwork integrity `30591290799` / 1230 success.
+- This finding stack pre-synchronization head `81a38cd7cdfcac3448b61579a38ecc5fa6ad9a92`: Fieldwork integrity `30595659828` / 1282 success. This receipt remains historical after the current metadata-only synchronization; PR metadata owns the replacement exact-head receipt.
+
 ## Missing evidence and reopening triggers
 
 The compact list below is expanded into concrete questions, smallest safe probes, and continuity rules in [`research-avenues.md`](research-avenues.md).
@@ -86,15 +92,14 @@ The compact list below is expanded into concrete questions, smallest safe probes
 - canonical technical conclusions: the five root `findings/F254-*` files;
 - adjacent research and interruption continuity: [`research-avenues.md`](research-avenues.md);
 - Linux executable evidence: the linked Linux Fieldwork investigation and test paths;
-- Linux exact-state synchronization: PR #249;
+- Linux exact-state synchronization: merged PR #249;
 - initiative routing: issue #254 comments;
 - public proposal or contact: none.
 
 ## Current next actions
 
-1. Read Linux Fieldwork CI run 720 for PR #249 and classify any failure before editing.
-2. Keep this finding stack rebased on the current protocol branch if PR #283 moves.
-3. Run Fieldwork integrity on the exact finding head.
-4. Request independent review of the complete finding, avenues, and Linux-record diffs.
-5. When future work is interrupted, append the question, evidence, blocker, smallest safe probe, and reopening trigger before ending.
-6. Do not merge, release, deploy, or contact public upstream without separate authority.
+1. Run Fieldwork integrity on the exact post-synchronization finding head and classify any failure before editing.
+2. Confirm parent protocol PR #283 remains at `23ef5d6e1d955eb7a8984a0491dc99a5e08a1d81`; reconcile against current inputs if it moves, using rebase only when overlap or promotion requires it.
+3. Complete an adversarial review of all eight Markdown files and route the unchanged exact head to an eligible independent reviewer.
+4. Preserve every new avenue before stopping: question, consequence, source/environment boundary, evidence, blocker, smallest safe probe, reopening trigger, and authority state.
+5. Do not merge, release, deploy, or contact public upstream without separate authority.
