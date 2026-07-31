@@ -1,0 +1,102 @@
+name: Fieldwork filesystem capability generation lifecycle
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-406-capability-generation-lifecycle.yml"
+      - "findings/F406-mcp-filesystem-pathname-authority/evidence/capability-generation-lifecycle.test.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generation-lifecycle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact model head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+
+      - name: Verify exact inputs
+        id: verify
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test -r findings/F406-mcp-filesystem-pathname-authority/evidence/capability-generation-lifecycle.test.mjs
+          git diff --check
+          mkdir -p receipts
+
+      - name: Run generation lifecycle model
+        id: model
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          node --test \
+            findings/F406-mcp-filesystem-pathname-authority/evidence/capability-generation-lifecycle.test.mjs \
+            2>&1 | tee receipts/capability-generation-lifecycle.tap
+
+      - name: Assemble exact receipt
+        if: always()
+        env:
+          FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          MODEL_OUTCOME: ${{ steps.model.outcome }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const os = require('node:os');
+          fs.mkdirSync('receipts', { recursive: true });
+          const receipt = {
+            schemaVersion: 1,
+            generatedAt: new Date().toISOString(),
+            fieldworkHead: process.env.FIELDWORK_HEAD,
+            environment: {
+              platform: process.platform,
+              release: os.release(),
+              node: process.version,
+            },
+            model: 'retained filesystem capability generation lifecycle',
+            controls: [
+              'in-flight-old-lease-drains-after-swap',
+              'unused-old-generation-closes-immediately',
+              'newest-request-wins-over-late-older-build',
+              'failed-newest-preserves-current-and-expires-older-build',
+              'shutdown-closes-pending-and-drains-current-once',
+            ],
+            workflowSteps: {
+              verify: process.env.VERIFY_OUTCOME || 'not-run',
+              model: process.env.MODEL_OUTCOME || 'not-run',
+            },
+            evidenceClass: 'model-executed',
+            claims: {
+              atomicGenerationSwap: process.env.MODEL_OUTCOME === 'success',
+              leaseDrainBeforeClose: process.env.MODEL_OUTCOME === 'success',
+              asynchronousReplacementOrdering: process.env.MODEL_OUTCOME === 'success',
+              targetComposition: 'not-claimed',
+              descriptorImplementation: 'not-claimed',
+              handlerIntegration: 'not-claimed',
+            },
+          };
+          fs.writeFileSync(
+            'receipts/capability-generation-lifecycle-receipt.json',
+            `${JSON.stringify(receipt, null, 2)}\n`,
+          );
+          NODE
+
+      - name: Upload exact receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: capability-generation-lifecycle-${{ github.run_id }}-${{ github.run_attempt }}
+          path: receipts/
+          if-no-files-found: error
+          retention-days: 14
