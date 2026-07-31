@@ -3,24 +3,25 @@
 Date: 2026-07-31  
 Fieldwork owner: F239 portfolio synthesis  
 Base Fieldwork generation: `7c9a64b94dc50efe47816986b672323d1593f58c`  
-Latest public Codex generation inspected: `f0c30e528a54bdf0fa9a4d52ff74b34383434811`  
+Latest public Codex generation inspected: `5e8b22488f224a1c426f3bdcd41c8715894ef3b4`  
+Public-head observation boundary: 2026-07-31T11:01:47Z  
 Public upstream interaction: none
 
 ## Purpose
 
-This note records current public Codex implementation patterns that sharpen the review standard for the active terminal, MCP, receipt, replay, and coordination proposals. It is not a new implementation owner and does not broaden any existing finding.
+This note records current public Codex implementation patterns that sharpen the review standard for the active terminal, MCP, receipt, replay, and coordination proposals. It is evidence and synthesis, not a new implementation owner, and it does not promote any owned candidate beyond its existing evidence class.
 
-The recurring question is not whether one patch uses idiomatic syntax. It is whether the types, ownership boundaries, and transitions preserve the exact fact that a later decision depends on.
+The recurring question is not whether a patch uses clever or idiomatic syntax. It is whether types, ownership boundaries, and transitions preserve the exact fact that a later decision depends on.
 
 ## 1. Persisted facts outrank caller-supplied assertions
 
-Public Codex commit `f0c30e528a54bdf0fa9a4d52ff74b34383434811` derives report prompt metadata from the persisted rollout rather than accepting client tags.
+Public Codex commit `f0c30e528a54bdf0fa9a4d52ff74b34383434811` derives report prompt metadata from the persisted rollout rather than accepting reserved client tags.
 
 Relevant source:
 
-- `codex-rs/app-server/src/feedback.rs`.
+- `codex-rs/app-server/src/request_processors/feedback_processor.rs`.
 
-The implementation removes reserved `prompt_hash` and `prompt_version` tags before applying metadata. It restores `prompt_hash` only when it can derive the value from persisted `SessionMeta` base instructions. A missing or unmatched rollout does not preserve the caller's unverified value.
+The implementation removes client-provided `prompt_hash` and `prompt_version` authority and restores `prompt_hash` only when it can derive the value from persisted `SessionMeta` base instructions. Missing or unmatched rollout evidence does not preserve the caller's assertion.
 
 General rule:
 
@@ -31,32 +32,32 @@ untrusted projection input
 -> publish only derived facts
 ```
 
-This is the same rule required for Fieldwork projections, mutation receipts, and MCP callable authority: a UI, request, carrier, or dispatch packet may reference authoritative facts but may not assert them into existence.
+A UI, request, carrier, or dispatch packet may reference authoritative facts. It may not assert them into existence.
 
 ## 2. Normalize only fields proven non-semantic
 
-Public Codex commit `745603a5a1eb48b6f343633d622eeb72dd549d7b` removes top-level `internal_chat_message_metadata_passthrough` before rollout-trace item reconciliation, while retaining nested metadata as model-visible content.
+Public Codex commit `745603a5a1eb48b6f343633d622eeb72dd549d7b` removes top-level `internal_chat_message_metadata_passthrough` before rollout-trace item reconciliation while retaining nested occurrences as model-visible content.
 
 Relevant source:
 
 - `codex-rs/rollout-trace/src/reducer/conversation/normalize.rs`;
-- `codex-rs/rollout-trace/src/reducer/conversation_tests.rs`.
+- adjacent reducer controls.
 
-The boundary is intentionally narrow:
+The boundary is deliberately narrow:
 
-- one top-level field is classified as transport/passthrough metadata and excluded from semantic identity;
-- nested occurrences remain part of the item and conflicting reuse is rejected;
-- call-id reuse is allowed only after this declared normalization.
+- one top-level field is classified as transport metadata and excluded from semantic identity;
+- nested occurrences remain semantic;
+- conflicting call-ID reuse remains rejected.
 
 General rule:
 
 ```text
 semantic equality != whole serialized object equality
-semantic equality != remove every field with a familiar name
+semantic equality != delete every field with a familiar name
 semantic equality = typed or deliberately field-scoped canonicalization
 ```
 
-This directly informs the MCP authority proposal. Whole `ToolInfo` JSON equality is too broad, but an untyped ad hoc subset is too fragile. The durable form should be a named authority key whose routing, schema, capability, and execution fields are deliberately owned, while presentation and transport fields are explicitly excluded.
+For MCP callable authority, whole-`ToolInfo` JSON equality is too broad, while an unnamed ad hoc subset is too fragile. The durable form should be a named authority key whose routing, schema, capability, and execution fields are deliberately owned.
 
 ## 3. Coupled checkpoints advance together or not at all
 
@@ -66,14 +67,14 @@ Relevant source:
 
 - `codex-rs/thread-store/src/thread_history.rs`;
 - `codex-rs/thread-store/src/thread_history/materialize.rs`;
-- adjacent projection tests.
+- adjacent projection controls.
 
 The projection has two coupled coordinates:
 
 - durable byte offset;
 - logical rollout ordinal.
 
-Advancing the byte checkpoint past a rejected line without resolving whether that line consumed an ordinal can make later valid history unreachable. The repair introduces an explicit `RolloutProjectionStep` with either a projected line or a skipped ordinal range, and applies rows plus both checkpoints in one database transaction.
+Advancing one without resolving the other can make later valid history unreachable. The repair represents projection steps explicitly and applies rows plus both checkpoints in one database transaction.
 
 General rule:
 
@@ -82,13 +83,11 @@ one logical durable prefix
 = every coordinate describing that prefix
 ```
 
-If progress is described by `(byte_offset, ordinal)`, `(epoch, sequence)`, `(source_head, reviewed_head)`, or `(generation, publication winner)`, updating only one coordinate produces a state that is individually well-typed but collectively false.
-
-For receipt replay, checkpoint installation must therefore validate and install epoch, next sequence, coverage, operation state, and durable history boundary as one transition. For coordination, a projection must bind finding, spec, observed facts, and source/review generations rather than only one token.
+The same rule applies to `(epoch, sequence)`, `(source_head, reviewed_head)`, `(generation, publication_winner)`, and coordination projections that bind structured intent to live facts.
 
 ## 4. Preserve uncertainty until later evidence resolves it
 
-The same thread-history repair does not immediately classify every malformed line as consuming or not consuming an ordinal. It retains rejected or unknown lines until a later valid ordinal distinguishes a same-ordinal retry from a consumed range. Unexplained gaps remain errors.
+The thread-history repair does not immediately classify every malformed line as consuming or not consuming an ordinal. It retains uncertainty until a later valid ordinal distinguishes a same-ordinal retry from a consumed range. Unexplained gaps remain errors.
 
 General rule:
 
@@ -99,13 +98,11 @@ unknown now
 != safe to skip
 ```
 
-A later event may disambiguate an earlier acknowledgement loss, malformed record, cancellation request, or stale candidate. Good lifecycle logic retains that uncertainty explicitly instead of collapsing it into success or failure for control-flow convenience.
+This supports explicit ambiguous receipt states, but only after a replay/domain owner validates wire records. A permissive Serde DTO may preserve an observation; it must not directly grant compaction or retry authority.
 
-This supports the current receipt vocabulary's `Ambiguous` states, but only after wire records are validated by a replay/domain owner. A permissive Serde DTO should preserve the observation; it should not directly grant compaction or retry authority.
+## 5. Validate optional fallback data when it becomes authoritative
 
-## 5. Parse fallback data only when it becomes necessary
-
-The thread-history change prefers an item's event timestamp and parses the rollout timestamp only when the item needs it as a fallback. An invalid fallback timestamp therefore does not reject an item that already has authoritative event time.
+The thread-history change prefers an item's event timestamp and parses a rollout timestamp only when the item needs it as a fallback. An invalid unused fallback does not reject an item that already has authoritative event time.
 
 General rule:
 
@@ -114,54 +111,91 @@ validate required authority eagerly
 validate optional fallback when selected
 ```
 
-This avoids two opposite defects:
+This avoids both accepting an invalid value that later becomes authoritative and rejecting valid work because unused fallback data is malformed.
 
-- accepting an invalid value that becomes authoritative later;
-- rejecting valid work because an unused fallback is malformed.
+## 6. Credential authority follows execution-environment ownership
 
-The same distinction should guide MCP live fallback, cached definitions, compatibility fields, and older-peer defaults.
+Public Codex commit `bf4d3f51ea70ce70ab7fabce7a66f328fef49e57` prevents executor-owned MCP servers from inheriting host-owned ChatGPT actor credentials or host OAuth state.
 
-## 6. Producer-owned terminal state should be bounded and transferred
+Relevant source areas:
+
+- MCP connection startup and authentication;
+- effective server ownership/environment checks;
+- connection identity and authentication-status controls.
+
+The accepted boundary is fail closed:
+
+- host ChatGPT authentication is available only to local, host-owned MCP servers;
+- executor-owned servers do not receive hosted actor credentials;
+- executor-owned servers do not consult the host OAuth store;
+- environment-backed `Authorization` is rejected for this path so host secrets are not resolved into an executor-owned connection;
+- a non-local server using `auth = "chatgpt"` requires an acceptable explicit static authorization value;
+- unsupported authentication fails before connection.
+
+General rule:
+
+```text
+credential source authority
+follows execution-environment ownership
+not product-name resemblance or routing convenience
+```
+
+This is precedent and review criteria for the owned MCP proposals. It is not evidence that the current captured-call or reconnect candidates already enforce the credential boundary. Their future controls must prove the negative side effects directly: no hosted credential forwarding, no host OAuth lookup, no environment-secret resolution, and no connection before acceptable executor-owned credentials exist.
+
+## 7. Catalogue authority and executable-content authority may have different owners
+
+Public Codex commit `5e8b22488f224a1c426f3bdcd41c8715894ef3b4` loads and caches the host skill provider catalogue during world-state contribution, then reuses that catalogue for model-visible listings and shadow selection.
+
+The same change deliberately preserves Core-owned full prompt injection for a selected host skill. A provider entry can determine discovery metadata while Core's snapshot remains authoritative for the selected skill's full executable instructions.
+
+General rule:
+
+```text
+discovery catalogue authority
+may differ from
+selected executable-content authority
+```
+
+A single feature name does not imply a single source of truth for every field. The owner of names and descriptions may differ from the owner of full prompt contents, credentials, runtime clients, or durable results. Tests must prove both the positive source and the forbidden substitute source.
+
+This sharpens MCP and tool exposure review: advertised catalogue state, callable authority, selected runtime identity, and execution payload must be named separately rather than folded into one generic freshness object.
+
+## 8. Producer-owned terminal state should be bounded and transferred
 
 Owned Codex source PR #93 at `7f15307fd2c157d8a139310d2e8243f3f2b391a4` records terminal output into a producer-owned `HeadTailBuffer` before best-effort broadcast.
 
-The current design uses capped buffers and drains the authoritative completion buffer into the observer transcript at close. It does not retain an unbounded `Vec<u8>` or clone an unlimited transcript.
+The design uses capped buffers and drains the authoritative completion buffer into observer state at close. It does not retain an unbounded transcript or clone unlimited output.
 
 General rule:
 
 ```text
 producer state -> authoritative bounded completion
-broadcast -> notification/projection
+broadcast -> notification or projection
 close -> explicit ownership transfer or reconciliation
 ```
 
-Carrier #94 failed at formatting before target controls, so the source remains prepared rather than current-head executed.
+Carrier #94 failed formatting before target controls. The source remains prepared rather than current-head executed.
 
-## 7. Behavioral metadata must survive transparent wrappers
+## 9. Behavioral metadata must survive transparent wrappers
 
-Owned Codex source PR #99 at `860f6babd420587dccc9e0d414f18ed157690958` adds a conservative `ToolExecutor::operation_effect()` contract. Unclassified executors default to `PotentialMutation`.
+Owned Codex source PR #106 at `b76d46832f8426cb8acb4031b00f41069c7d7014` adds a conservative `ToolExecutor::operation_effect()` contract. Unknown executors default to `PotentialMutation`, and the exact trait-level source passed its focused controls and complete `codex-tools` package through carrier #107 run `30623517422`.
 
-Current source inspection found that `ExposureOverride` forwards `kind()` and `execute()` but not `operation_effect()`. An explicit read-only executor therefore becomes potentially mutating after wrapping.
+Current Core inspection found that `ExposureOverride` forwards execution, exposure, readiness, cancellation, hooks, telemetry, and diff behavior but does not forward `operation_effect()`. A wrapped explicitly read-only executor therefore falls back to potential mutation.
 
-That failure is conservative, not unsafe, but it proves a broader Rust rule:
+That fallback is conservative, not unsafe, but it proves a broader rule:
 
 ```text
 transparent wrapper
 => forward every behaviorally relevant capability
 ```
 
-A wrapper that changes authority may deliberately reclassify. A wrapper that only changes exposure should preserve effect identity. Focused tests must exercise the wrapped object graph, not only the base trait implementation.
+A wrapper that intentionally changes authority should reclassify explicitly. A wrapper that only changes exposure should preserve effect identity. Controls must exercise the selected object graph, not only the base trait implementation.
 
-## 8. Async side effects need cancellation ownership
+## 10. Async side effects need cancellation ownership
 
 Owned reconnect source PR #101 at `df954cf690e360771b3a2753eaee8a508da21d6c` establishes bounded exactly-one reconnect and malformed-config failure atomicity for ordinary completion.
 
-Its production method arms `reconnect_on_next_refresh()` before awaiting the refresh. If that future is cancelled after the arm but before consumption, a later unrelated refresh may inherit the request.
-
-The accepted bounded claim does not include this interval. The next lifecycle control should prove either:
-
-- the operation is owned to completion once armed; or
-- an RAII/transactional guard commits or clears the arm on every exit path.
+Its production method arms `reconnect_on_next_refresh()` before awaiting the refresh. Cancellation or future drop after the arm but before consumption can leave a latent reconnect request for a later unrelated refresh.
 
 General rule:
 
@@ -169,6 +203,23 @@ General rule:
 shared side effect before .await
 => explicit cancellation semantics
 ```
+
+The next lifecycle control should prove either that the operation is owned to completion once armed or that an RAII/transactional guard commits or clears the arm on every exit path. Successful reload also needs a post-publication tool call to prove the replacement runtime is usable, not merely initialized.
+
+## 11. Time-dependent decisions need a validity horizon
+
+The observed-generation coordination experiment correctly binds structured records, live facts, and carrier observations to exact digests and generation labels. A separate review found that exact input identity alone is insufficient for time-dependent authority.
+
+An authorization can be current at observation time and expire later without any record bytes changing. A historically exact projection must therefore not grant present authority indefinitely.
+
+General rule:
+
+```text
+exact historical inputs
+!= current decision authority
+```
+
+Time-sensitive projections should carry an observation boundary and the next derived invalidation horizon, or expose separate `inputs_current` and `decision_current` results.
 
 ## Review standard distilled
 
@@ -179,20 +230,26 @@ A strong Rust/lifecycle proposal should answer all of the following:
 3. Which fields determine semantic identity, and which are transport or presentation only?
 4. Which coordinates must advance atomically?
 5. How are unknown, absent, failed, stale, and ambiguous represented distinctly?
-6. Can a transparent wrapper drop or change behavioral metadata?
-7. What happens if an async future is cancelled between preparation and commit?
-8. Is retained state byte-, count-, time-, and lifecycle-bounded where required?
-9. Does a green test exercise the actual selected object graph and forbidden side effects?
-10. Can stale or caller-supplied data overwrite producer- or persistence-owned truth?
+6. Does credential authority match execution-environment ownership?
+7. Are catalogue metadata and selected executable contents owned separately where required?
+8. Can a transparent wrapper drop or change behavioral metadata?
+9. What happens if an async future is cancelled between preparation and commit?
+10. Is retained state bounded by bytes, count, time, and lifecycle where required?
+11. Does a green test exercise the actual selected object graph and forbidden side effects?
+12. Can stale, caller-supplied, or merely similar data overwrite producer- or persistence-owned truth?
+13. Can wall-clock movement invalidate a decision even when every content generation is unchanged?
 
 ## Exact next discriminators
 
-- Receipt wire: execute the formatted exact source, but keep compaction authority outside the permissive wire DTO until replay validation produces domain state.
-- Tool effect: format and execute the trait controls, then add wrapper-preservation coverage before dispatch integration.
-- MCP authority: replace generic serialized equality with a named authority key and prove mismatch causes zero pre-dispatch side effects.
-- Reconnect: retain the accepted 250 ms bounded claim and add cancellation-after-arm coverage separately.
-- Terminal: produce a formatting-clean current-public-head source and rerun the nine exact controls.
-- Replay: prefer direct typed source over repeated textual generator repair; install checkpoint plus tail only after complete validation.
+- Receipt wire: complete the one-file repair that removes compaction decisions from the permissive DTO; replay must validate version, identity, epoch, ordering, coverage, and legal state before producing domain authority.
+- Tool effect: preserve the executed trait source, then add wrapper-forwarding coverage before dispatch integration.
+- MCP authority: use a named callable-authority key and prove mismatch causes zero approval, hook, rewrite, credential, and dispatch side effects.
+- MCP credentials: prove executor-owned paths never consult or receive host-owned actor/OAuth/environment credentials.
+- Reconnect: retain the bounded exact-one claim; separately test cancellation after arm and successful post-reload tool use.
+- Terminal: publish a formatting-clean current-public-head source and rerun the nine exact controls.
+- Cancellation: distinguish cancellation requested, cleanup settled, and cleanup unconfirmed after a bounded deadline; do not manufacture ordinary abort certainty.
+- Replay: prefer typed direct source over repeated textual generator repair and install checkpoint plus tail only after complete validation.
+- Coordination: separate exact input currentness from time-dependent decision currentness.
 
 ## Boundary
 
