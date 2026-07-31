@@ -1,0 +1,196 @@
+name: Fieldwork Context7 default-key policy comparison
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-context7-default-key-policy.yml"
+      - "programmes/high-leverage-open-source/scouts/context7-http-boundary/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Candidate ${{ matrix.candidate }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        candidate:
+          - compatibility-retained
+          - explicit-key-only
+    steps:
+      - name: Check out exact Fieldwork comparison head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact Context7 source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: upstash/context7
+          ref: 594a73133e14631af8c915a1b4f2c8039c964fe1
+          path: context7
+          persist-credentials: false
+
+      - name: Select and apply exact candidate
+        id: apply
+        env:
+          CANDIDATE: ${{ matrix.candidate }}
+        run: |
+          set -euo pipefail
+          test "$(git -C fieldwork rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git -C context7 rev-parse HEAD)" = "594a73133e14631af8c915a1b4f2c8039c964fe1"
+
+          root="${GITHUB_WORKSPACE}/fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary"
+          compatibility_patch="${root}/malformed-key-omit-metadata.patch"
+          explicit_delta="${root}/explicit-key-only.delta.patch"
+          shared_test="${root}/default-key-policy.test.ts"
+
+          git -C context7 apply --check "${compatibility_patch}"
+          git -C context7 apply "${compatibility_patch}"
+          if [ "${CANDIDATE}" = "explicit-key-only" ]; then
+            git -C context7 apply --check "${explicit_delta}"
+            git -C context7 apply "${explicit_delta}"
+          elif [ "${CANDIDATE}" != "compatibility-retained" ]; then
+            echo "unknown candidate: ${CANDIDATE}" >&2
+            exit 2
+          fi
+
+          cp "${shared_test}" context7/packages/mcp/test/default-key-policy.test.ts
+          printf '\n' >> context7/packages/mcp/test/default-key-policy.test.ts
+          git -C context7 diff --check
+          mkdir -p receipts
+          git -C context7 diff --binary > "receipts/${CANDIDATE}-applied.diff"
+
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+        with:
+          version: 10
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: context7/pnpm-lock.yaml
+
+      - name: Install exact dependencies
+        id: install
+        working-directory: context7
+        run: pnpm install --frozen-lockfile
+
+      - name: Check target formatting
+        id: format
+        working-directory: context7/packages/mcp
+        run: |
+          pnpm exec prettier --check \
+            src/lib/encryption.ts \
+            test/encryption.test.ts \
+            test/default-key-policy.test.ts
+
+      - name: Run focused default-key controls
+        id: focused
+        working-directory: context7/packages/mcp
+        env:
+          FIELDWORK_CANDIDATE: ${{ matrix.candidate }}
+        run: |
+          pnpm exec vitest run \
+            test/encryption.test.ts \
+            test/default-key-policy.test.ts
+
+      - name: Run MCP typecheck and build
+        id: build
+        working-directory: context7/packages/mcp
+        run: |
+          pnpm run typecheck
+          pnpm run build
+
+      - name: Run complete MCP package suite
+        id: full_test
+        working-directory: context7/packages/mcp
+        env:
+          FIELDWORK_CANDIDATE: ${{ matrix.candidate }}
+        run: pnpm test
+
+      - name: Run MCP lint
+        id: lint
+        working-directory: context7/packages/mcp
+        run: pnpm run lint:check
+
+      - name: Recheck exact diff hygiene
+        id: diff
+        working-directory: context7
+        run: |
+          git diff --check
+          git status --short
+
+      - name: Assemble candidate receipt
+        if: always()
+        env:
+          FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          CANDIDATE: ${{ matrix.candidate }}
+          APPLY_OUTCOME: ${{ steps.apply.outcome }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          FORMAT_OUTCOME: ${{ steps.format.outcome }}
+          FOCUSED_OUTCOME: ${{ steps.focused.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          FULL_TEST_OUTCOME: ${{ steps.full_test.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          DIFF_OUTCOME: ${{ steps.diff.outcome }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const directory = path.join(process.cwd(), 'receipts');
+          fs.mkdirSync(directory, { recursive: true });
+          const outcomes = {
+            apply: process.env.APPLY_OUTCOME || 'not-run',
+            install: process.env.INSTALL_OUTCOME || 'not-run',
+            format: process.env.FORMAT_OUTCOME || 'not-run',
+            focused: process.env.FOCUSED_OUTCOME || 'not-run',
+            build: process.env.BUILD_OUTCOME || 'not-run',
+            fullTest: process.env.FULL_TEST_OUTCOME || 'not-run',
+            lint: process.env.LINT_OUTCOME || 'not-run',
+            diff: process.env.DIFF_OUTCOME || 'not-run',
+          };
+          const receipt = {
+            schemaVersion: 1,
+            generatedAt: new Date().toISOString(),
+            fieldworkHead: process.env.FIELDWORK_HEAD,
+            candidate: process.env.CANDIDATE,
+            target: {
+              repository: 'upstash/context7',
+              head: '594a73133e14631af8c915a1b4f2c8039c964fe1',
+              package: '@upstash/context7-mcp',
+              node: '22',
+              pnpm: '10',
+            },
+            workflowSteps: outcomes,
+            reusableCandidateEvidence: Object.values(outcomes).every(value => value === 'success'),
+            claims: {
+              absentAndEmptyConfiguration: 'target-executed-when-focused-passes',
+              publicDefaultDecryptability: 'target-executed-when-focused-passes',
+              explicitKeyCompatibility: 'target-executed-when-focused-passes',
+              completeMcpCompatibility: 'target-executed-when-fullTest-passes',
+              hostedApiReceipt: 'not-claimed',
+              ciphertextAuthenticity: 'not-claimed',
+              upstreamAcceptance: 'not-claimed',
+            },
+          };
+          fs.writeFileSync(
+            path.join(directory, `${process.env.CANDIDATE}-receipt.json`),
+            `${JSON.stringify(receipt, null, 2)}\n`,
+          );
+          NODE
+
+      - name: Upload candidate evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: context7-default-key-${{ matrix.candidate }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: receipts/
+          if-no-files-found: error
+          retention-days: 14
