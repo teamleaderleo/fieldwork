@@ -12,8 +12,8 @@ Use this receipt when one worker helps work owned by another worker, especially 
 - Helper worker instance:
 - Owner worker instance: `unknown` when the earlier record did not preserve one
 - Owning coordination record:
-- Target artifact or branch:
-- Exact observed input generation:
+- Claimed target artifact identity:
+- Claimed input generation:
 - Target generation at completion: `not applicable` while state is `claimed`
 - Input currentness at completion: `exact | moved | unknown | not applicable`
 - Assistance type: `review | reproduction | regression | repair-stack | evidence | synchronization | cleanup | other`
@@ -60,6 +60,25 @@ If the current owner identity is unknown, say so. Do not invent identity from th
 
 `transfer-recorded` is valid only when `Replacement lease or transfer record` names a separate authoritative coordination record that already assigns the replacement writer. The assistance claim is never that assigning record. Without exact separate authority, use `none` or `transfer-proposed`.
 
+## Immutable claim fields and permitted transitions
+
+The completion receipt must repeat these claim fields exactly:
+
+- Assistance ID;
+- Helper worker instance;
+- Owning coordination record;
+- Assistance type;
+- Target artifact;
+- Input generation.
+
+Target movement never rewrites the claimed target artifact or input generation. Record movement only through `Target generation at completion` and `Input currentness at completion`.
+
+The completion must repeat the claimed owner worker value, including `unknown`, unless `Ownership effect` is `transfer-recorded` and the cited separate lease or transfer record assigns the replacement writer named by the completion.
+
+The completion must repeat the claim's ownership effect except that `none` or `transfer-proposed` may advance to `transfer-recorded` when the exact separate assigning record already exists. `transfer-recorded` must repeat the same assigning record. No other ownership-effect transition is valid under the same Assistance ID.
+
+When the bounded question, helper, coordination record, assistance type, target identity, input generation, owner identity without exact transfer authority, or ownership transition changes outside these rules, supersede the claim and create a new Assistance ID. A mismatched completion remains unresolved and must not be treated as complete, current, accepted, composable, or ownership-changing.
+
 ## Assistance completion
 
 Post the completed receipt in the owning coordination record and retain the same information in the helper output or pull-request description.
@@ -69,19 +88,20 @@ FIELDWORK ASSISTANCE
 Assistance ID: <same id as claim>
 State: complete
 Claim receipt: <exact claim comment, commit, or artifact>
-Helper worker instance: <same public-safe id as claim>
-Owner worker instance: <public-safe id or unknown>
-Owning coordination record: <issue>
-Target input observed: <exact observed generation>
+Helper worker instance: <repeat claim exactly>
+Owner worker instance: <repeat claim exactly, or exact replacement writer assigned by the cited record>
+Owning coordination record: <repeat claim exactly>
+Claimed target artifact: <repeat Target artifact exactly>
+Claimed input generation: <repeat Input generation exactly>
 Target generation at completion: <exact current generation or unknown>
 Input currentness at completion: exact | moved | unknown
-Assistance type: <type>
+Assistance type: <repeat claim exactly>
 Output: <exact artifact, branch, PR, commit, test, review, or recipe>
 Output generation: <exact head, digest, or comment id>
 Finding or repair: <compact technical result>
 Validation: <exact runs, commands, or source-read boundary>
-Ownership effect: none | transfer-proposed | transfer-recorded
-Replacement lease or transfer record: <exact record or not applicable>
+Ownership effect: <repeat claim, or advance none/transfer-proposed to transfer-recorded with exact authority>
+Replacement lease or transfer record: <repeat exact assigning record or not applicable>
 Owner action: none | inspect | reconcile | compose | acknowledge | record transfer
 Supersedes: <none or exact assistance receipt>
 Upstream contact authorized: no | exact authority
@@ -89,13 +109,13 @@ Upstream contact authorized: no | exact authority
 
 A moved or unknown input remains useful historical evidence, but the owner or coordinator must reconcile it against the current target before composition. The completion receipt must not describe moved or unknown assistance as current, accepted, or directly composable.
 
-When `Ownership effect` is `transfer-recorded`, the completion must repeat the exact separate lease or transfer record. If that record is absent, inaccessible, stale, or does not assign the named replacement writer, effective ownership remains unchanged.
+When `Ownership effect` is `transfer-recorded`, the completion must repeat the exact separate lease or transfer record. If that record is absent, inaccessible, stale, does not assign the named replacement writer, or differs from a `transfer-recorded` claim, effective ownership remains unchanged and the completion is unresolved.
 
 ## Discovery rule
 
 A worker resuming an owned artifact should inspect the owning issue for assistance claims and completions newer than the last assistance receipt or target generation they observed. Correlate events by Assistance ID and exact Claim receipt, not only by shared author, timestamp, issue, target, or assistance type.
 
-The coordinator or a future router may index these blocks, but it must reject duplicate Assistance IDs with conflicting fields and must not infer a transfer from assistance activity.
+The coordinator or a future router may index these blocks, but it must reject duplicate Assistance IDs with conflicting fields, reject completions that violate the immutable-field or transition rules, and must not infer a transfer from assistance activity.
 
 When evidence changes another assignment's premise, post the completion receipt in both relevant coordination records, following `COORDINATION.md`.
 
@@ -113,4 +133,4 @@ When evidence changes another assignment's premise, post the completion receipt 
 
 When the owner composes the assistance output, record the consumed Assistance ID, claim receipt, output generation, reconciled target generation, and resulting canonical generation. Do not erase the helper receipt.
 
-Mark an obsolete assistance output `superseded` only after its evidence is transferred or deliberately rejected with a reason. The supersession record must repeat the Assistance ID and cite the exact completion or earlier supersession receipt it replaces. A conflicting duplicate or an unlinked completion remains unresolved rather than being silently selected.
+Mark an obsolete assistance output `superseded` only after its evidence is transferred or deliberately rejected with a reason. The supersession record must repeat the Assistance ID and cite the exact completion or earlier supersession receipt it replaces. A conflicting duplicate, invalid field transition, or unlinked completion remains unresolved rather than being silently selected.
