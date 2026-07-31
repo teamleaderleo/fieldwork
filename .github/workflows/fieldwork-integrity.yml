@@ -23,3 +23,7 @@ jobs:
         run: python3 scripts/test_coordination_state.py
       - name: Validate coordination state
         run: python3 scripts/validate_coordination_state.py
+      - name: Test coordination views
+        run: python3 scripts/test_coordination_views.py
+      - name: Render empty coordination views
+        run: python3 scripts/render_coordination_views.py --output-dir /tmp/coordination-views
