@@ -85,10 +85,37 @@ A workflow that intends to delete itself remains an active execution carrier unt
 
 ## Exact-head review receipt
 
+### Checkout identity is part of the receipt
+
+A pull-request workflow can execute two different Git objects:
+
+- a **head gate** checks out and executes `github.event.pull_request.head.sha`;
+- a **merge-ref gate** checks out and executes GitHub's generated pull-request merge commit for one exact base snapshot.
+
+Default `actions/checkout` behavior on a `pull_request` event normally selects the generated merge ref. Do not call that run a head gate merely because GitHub associates the check with the pull-request head.
+
+Both modes are useful and may be required together. Their claims and expiration rules differ:
+
+- a head-gate receipt remains tied to the unchanged proposed head and says nothing about integration with a newer base;
+- a merge-ref receipt is tied to both declared parents and expires when either the head or base generation moves.
+
+A checkout receipt should name:
+
+- tested checkout SHA;
+- declared pull-request head SHA;
+- declared base SHA;
+- event SHA;
+- ordered local parent SHAs;
+- classification `exact-head`, `synthetic-merge-ref`, or `other-checkout`;
+- workflow run and attempt.
+
+A generated merge is valid integration evidence. It must not be cited as literal-head execution. A review may require one mode or both, but it must say which mode actually ran.
+
 A promotion review should record:
 
 - repository and pull request;
 - canonical branch and exact head SHA;
+- tested checkout SHA and checkout classification for every disposition-relevant workflow;
 - exact base or current-main revision used for comparison;
 - changed-file fence or complete-diff scope;
 - work class;
@@ -103,7 +130,7 @@ A promotion review should record:
 
 A code head is not the only possible review input. When the invariant, review ask, state, clearing condition, authority boundary, or promotion request comes from an issue or decision record, the receipt must version that input too. GitHub `updated_at` may be recorded as an explicitly accepted coarse snapshot marker, but it is not a body-specific generation and can expire a receipt after unrelated activity.
 
-Any code-head movement or reviewed-input generation change expires the disposition unless the reviewer explicitly proves the new input is semantically identical within the reviewed fence.
+Any code-head movement or reviewed-input generation change expires the disposition unless the reviewer explicitly proves the new input is semantically identical within the reviewed fence. Any merge-ref base movement expires that integration receipt even when the proposed head is unchanged.
 
 ## Review dispositions
 
@@ -137,6 +164,7 @@ Every execution carrier must identify:
 
 - the canonical source branch and head it tested;
 - the exact workflow or command run;
+- the tested checkout SHA and whether it was a head gate or merge-ref gate;
 - the resulting receipt or artifact;
 - the canonical pull request that consumes the evidence.
 
@@ -146,7 +174,7 @@ After evidence transfer:
 - close disposable carrier pull requests;
 - update the canonical pull-request description with the retained result;
 - do not leave execution-only branches in the active merge queue;
-- do not cite a synthetic merge commit as the source revision without also naming the contained source head.
+- do not cite a synthetic merge commit as the source revision without also naming the contained source head and base snapshot.
 
 A carrier is retired only when a later exact head proves the temporary workflow or branch is gone and the canonical source diff plus retained receipt are independently reviewable.
 
@@ -161,6 +189,8 @@ Repair or remove wording that says:
 - a branch is current when it is behind or superseded;
 - a review is valid after the reviewed head changed;
 - a review is valid after its issue invariant, review ask, state, clearing condition, or authority input changed;
+- a merge-ref gate is a literal-head gate;
+- a merge-ref receipt is current after its declared base moved;
 - an execution carrier is the canonical implementation;
 - a full gate passed when only focused or model evidence ran;
 - a named full gate proves integrations or properties it did not exercise;
@@ -190,6 +220,7 @@ Before moving a pull request out of draft or advancing a Fieldwork issue:
 
 - [ ] work class is explicit;
 - [ ] canonical branch and exact head are named;
+- [ ] every disposition-relevant workflow names its tested checkout SHA and head/merge-ref classification;
 - [ ] reviewed issue or decision inputs are versioned when they affect the disposition;
 - [ ] self-review confirmed the intended assertion ran and classified harness failures separately;
 - [ ] each disposition-relevant claim has an accurate evidence class;
