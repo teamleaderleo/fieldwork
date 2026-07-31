@@ -21,6 +21,13 @@ async function loadGenerateHeaders(key: string | undefined) {
   return (await import("../src/lib/encryption.js")).generateHeaders;
 }
 
+function expectBaseHeaders(headers: Record<string, string>) {
+  expect(headers["X-Context7-Source"]).toBe("mcp-server");
+  expect(headers["X-Context7-Server-Version"]).toBe(
+    process.env.npm_package_version || "unknown",
+  );
+}
+
 afterEach(() => {
   delete process.env.CLIENT_IP_ENCRYPTION_KEY;
   vi.doUnmock("crypto");
@@ -39,6 +46,7 @@ describe.sequential("generateHeaders client IP encryption", () => {
       clientInfo: { ide: "test-ide", version: "1.2.3" },
     });
 
+    expectBaseHeaders(headers);
     expect(headers["mcp-client-ip"]).toMatch(/^[0-9a-f]{32}:[0-9a-f]+$/);
     expect(headers["mcp-client-ip"]).not.toBe(CLIENT_IP);
     expect(headers["mcp-session-id"]).toBe("session-1");
@@ -59,6 +67,7 @@ describe.sequential("generateHeaders client IP encryption", () => {
       transport: "http",
     });
 
+    expectBaseHeaders(headers);
     expect(headers).not.toHaveProperty("mcp-client-ip");
     expect(headers["mcp-session-id"]).toBe("session-2");
     expect(headers["X-Context7-Transport"]).toBe("http");
@@ -70,7 +79,7 @@ describe.sequential("generateHeaders client IP encryption", () => {
   });
 
   test("omits metadata after cipher failure", async () => {
-    const failureText = `sensitive cipher failure for ${CLIENT_IP}`;
+    const failureText = `failure for ${CLIENT_IP} using ${VALID_KEY}`;
     vi.doMock("crypto", async () => {
       const actual = await vi.importActual<CryptoModule>("crypto");
       return {
@@ -90,6 +99,7 @@ describe.sequential("generateHeaders client IP encryption", () => {
       transport: "stdio",
     });
 
+    expectBaseHeaders(headers);
     expect(headers).not.toHaveProperty("mcp-client-ip");
     expect(headers["Authorization"]).toBe("Bearer test-api-key");
     expect(headers["X-Context7-Transport"]).toBe("stdio");
@@ -97,6 +107,7 @@ describe.sequential("generateHeaders client IP encryption", () => {
 
     const retainedDiagnostic = diagnostic.mock.calls.flat().join(" ");
     expect(retainedDiagnostic).not.toContain(CLIENT_IP);
+    expect(retainedDiagnostic).not.toContain(VALID_KEY);
     expect(retainedDiagnostic).not.toContain(failureText);
   });
 });
