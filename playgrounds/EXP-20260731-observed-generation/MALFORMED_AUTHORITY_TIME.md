@@ -1,53 +1,53 @@
 # Malformed canonical authority timestamp repair
 
-Parent: PR #366 exact head `fa890d72589d36c6a0275c969183c9bf5bb3d37f`  
-Source blob: `reconcile.py@9e664220b3b024b92cbbc4444c15e87545cbd3cd`  
+Parent repair carrier: PR #376 exact head `7dec6db18de57d61bb903eeefeeb87774f0776b2`  
+Parent projection-integrity source: PR #366 exact head `fa890d72589d36c6a0275c969183c9bf5bb3d37f`  
+Original source blob: `reconcile.py@9e664220b3b024b92cbbc4444c15e87545cbd3cd`  
 Work class: deterministic mechanism repair  
 Upstream contact authorized: no
 
 ## Defect
 
-`_authority_conditions()` parses a canonical `expires_at` directly in the condition:
+`_authority_conditions()` parsed a canonical `expires_at` directly in the expiry condition. A malformed string, timezone-naive string, or non-string value raised before any projection was returned. One bad action therefore aborted reconciliation for every unrelated action, source condition, carrier condition, and continuity record.
 
-```python
-if expires_at is not None and _parse_time(expires_at) <= now:
-```
+PR #376 proved the bounded patch against the exact source blob with a disposable zero-fuzz patch workflow. That carrier passed:
 
-A malformed string, timezone-naive string, or non-string value raises before any projection is returned. One bad action therefore aborts reconciliation for every unrelated action, source condition, carrier condition, and continuity record.
+- malformed authority repair `30633755335`, job `91166095752`;
+- observed-generation parent matrix `30633755674`;
+- playground/context integrity `30633755432`;
+- Fieldwork integrity `30633756274`.
 
-The existing base control deliberately records this crash. PR #366 protects retained derived fields after a projection exists; it cannot reproduce or validate a projection that canonical reconciliation never produced.
+Those receipts remain historical evidence for the exact carrier generation.
 
-## Selected repair
+## Canonical composition
 
-Parse each non-null action expiry inside a bounded `try` block.
+The canonical `reconcile.py` now parses each non-null action expiry inside its own bounded guard.
 
-On `AttributeError`, `TypeError`, or `ValueError` from the current parser boundary:
+On `AttributeError`, `TypeError`, or `ValueError` from the current parser boundary it:
 
-- set only that action's effective authority to `denied`;
-- emit `AuthorityUsable = Unknown / InvalidAuthorityTime`;
-- preserve the exact malformed input in the condition receipt;
-- continue reconciling unrelated actions.
+- sets only that action's effective authority to `denied`;
+- emits `AuthorityUsable = Unknown / InvalidAuthorityTime`;
+- preserves the exact malformed input in the condition receipt;
+- continues reconciling unrelated actions.
 
-The explicit `AttributeError` fence is required because the current `_parse_time()` calls `.replace()` before type validation; a non-string object can therefore fail before `datetime.fromisoformat()` raises `TypeError` or `ValueError`.
+The explicit `AttributeError` fence remains necessary because `_parse_time()` calls `.replace()` before type validation. Valid expired, current, denied, absent, revocation-bounded, revoked, and unresolved paths are unchanged.
 
-Valid expired, current, denied, absent, revocation-bounded, revoked, and unresolved paths remain unchanged.
+## Native controls
 
-## Executable controls
+The canonical `test_reconcile.py` matrix now:
 
-The disposable regression:
+1. covers malformed text, timezone-naive text, and a non-string expiry;
+2. requires only the malformed action to become `Unknown / InvalidAuthorityTime` and denied;
+3. requires an unrelated bounded action to remain authorized;
+4. requires a current revocation-bounded action to remain authorized;
+5. composes the resulting projection through PR #366's derived-integrity/currentness helper;
+6. proves canonical record and live facts remain byte-for-byte unchanged;
+7. retains malformed global `observed_at` as a projection-wide invalid boundary.
 
-1. proves the exact parent source blob;
-2. proves the patch applies with `git apply --check` and zero fuzz;
-3. retains the baseline whole-reconciliation `ValueError` negative control;
-4. covers malformed text, timezone-naive text, and a non-string value;
-5. requires only the malformed action to become `Unknown / InvalidAuthorityTime` and denied;
-6. requires an unrelated bounded action to remain authorized;
-7. requires a current revocation-bounded action to remain authorized;
-8. composes the patched projection through PR #366's derived-integrity/currentness helper;
-9. proves canonical record and live facts remain byte-for-byte unchanged.
+The disposable patch, patch-application harness, and dedicated carrier workflow are removed after their evidence is transferred into this direct source/test generation.
 
 ## Boundary
 
-This repair treats malformed per-action canonical expiry as a fail-closed action fact. A malformed global `observed_at` remains a projection-wide invalid observation boundary and is not reclassified here. Schema admission that prevents malformed canonical records before reconciliation remains a complementary control.
+Malformed per-action canonical expiry is a fail-closed action fact. A malformed global observation boundary remains projection-wide invalid. Schema admission that prevents malformed canonical records before reconciliation remains a complementary control.
 
-This stack carries a patch and execution harness only. A later composition may apply the one-source hunk to the canonical reconciliation branch, update the parent crash expectation, and rerun the complete observed-generation suite. No merge, production mutation, lease change, credentials, private data, spending, deployment, or public upstream interaction is included.
+This is still a standard-library mechanism experiment. It does not establish PR #306 compatibility, production mutation safety, lease assignment, merge/release/deployment authority, credentials, private data, spending, or public upstream interaction.
