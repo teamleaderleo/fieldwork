@@ -58,7 +58,7 @@ Upstream contact authorized: no | exact authority
 
 If the current owner identity is unknown, say so. Do not invent identity from the shared GitHub author account.
 
-`transfer-recorded` is valid only when `Replacement lease or transfer record` names a separate authoritative coordination record that already assigns the replacement writer. The assistance claim is never that assigning record. Without exact separate authority, use `none` or `transfer-proposed`.
+`transfer-recorded` is valid only when `Replacement lease or transfer record` names a separate authoritative coordination record that already assigns the replacement writer. The assistance claim is never that assigning record. When a claim uses `transfer-recorded`, `Owner worker instance` must name the replacement writer assigned by that exact record. Without exact separate authority, use `none` or `transfer-proposed`.
 
 ## Immutable claim fields and permitted transitions
 
@@ -73,11 +73,11 @@ The completion receipt must repeat these claim fields exactly:
 
 Target movement never rewrites the claimed target artifact or input generation. Record movement only through `Target generation at completion` and `Input currentness at completion`.
 
-The completion must repeat the claimed owner worker value, including `unknown`, unless `Ownership effect` is `transfer-recorded` and the cited separate lease or transfer record assigns the replacement writer named by the completion.
+The completion must repeat the claimed owner worker value, including `unknown`. The only permitted owner change is when a claim with ownership effect `none` or `transfer-proposed` advances to `transfer-recorded`; the completion may then name only the replacement writer assigned by the cited exact separate record. A claim already marked `transfer-recorded` must repeat both the claimed owner and the assigning record exactly.
 
-The completion must repeat the claim's ownership effect except that `none` or `transfer-proposed` may advance to `transfer-recorded` when the exact separate assigning record already exists. `transfer-recorded` must repeat the same assigning record. No other ownership-effect transition is valid under the same Assistance ID.
+The completion must repeat the claim's ownership effect except that `none` or `transfer-proposed` may advance to `transfer-recorded` when the exact separate assigning record already exists. No other ownership-effect transition is valid under the same Assistance ID.
 
-When the bounded question, helper, coordination record, assistance type, target identity, input generation, owner identity without exact transfer authority, or ownership transition changes outside these rules, supersede the claim and create a new Assistance ID. A mismatched completion remains unresolved and must not be treated as complete, current, accepted, composable, or ownership-changing.
+When the bounded question, helper, coordination record, assistance type, target identity, input generation, owner identity without the permitted exact transfer advancement, or ownership transition changes outside these rules, supersede the claim and create a new Assistance ID. A mismatched completion remains unresolved and must not be treated as complete, current, accepted, composable, or ownership-changing.
 
 ## Assistance completion
 
@@ -89,7 +89,7 @@ Assistance ID: <same id as claim>
 State: complete
 Claim receipt: <exact claim comment, commit, or artifact>
 Helper worker instance: <repeat claim exactly>
-Owner worker instance: <repeat claim exactly, or exact replacement writer assigned by the cited record>
+Owner worker instance: <repeat claim exactly, or exact replacement writer under the permitted transfer-recorded advancement>
 Owning coordination record: <repeat claim exactly>
 Claimed target artifact: <repeat Target artifact exactly>
 Claimed input generation: <repeat Input generation exactly>
@@ -109,7 +109,7 @@ Upstream contact authorized: no | exact authority
 
 A moved or unknown input remains useful historical evidence, but the owner or coordinator must reconcile it against the current target before composition. The completion receipt must not describe moved or unknown assistance as current, accepted, or directly composable.
 
-When `Ownership effect` is `transfer-recorded`, the completion must repeat the exact separate lease or transfer record. If that record is absent, inaccessible, stale, does not assign the named replacement writer, or differs from a `transfer-recorded` claim, effective ownership remains unchanged and the completion is unresolved.
+When `Ownership effect` is `transfer-recorded`, the completion must cite the exact separate lease or transfer record. If the claim was already `transfer-recorded`, the completion must repeat that record exactly. If the record is absent, inaccessible, stale, does not assign the named replacement writer, or differs from a `transfer-recorded` claim, effective ownership remains unchanged and the completion is unresolved.
 
 ## Discovery rule
 
