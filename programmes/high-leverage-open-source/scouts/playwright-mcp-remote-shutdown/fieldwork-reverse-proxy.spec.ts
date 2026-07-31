@@ -167,13 +167,10 @@ test('local proxy reveals the candidate shutdown authority boundary', async ({ s
   const proxyPort = await listen(proxy);
 
   try {
-    const response = await fetch(
-      new URL(`http://${nonLoopbackIpv4()}:${proxyPort}/killkillkill`),
-      {
-        method: 'POST',
-        headers: { 'x-pw-mcp-kill': '1' },
-      },
-    );
+    const response = await fetch(new URL(`http://${nonLoopbackIpv4()}:${proxyPort}/killkillkill`), {
+      method: 'POST',
+      headers: { 'x-pw-mcp-kill': '1' },
+    });
 
     if (selected === 'loopback-only') {
       expect(response.status).toBe(200);
