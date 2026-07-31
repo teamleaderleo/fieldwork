@@ -1,7 +1,7 @@
 # F379 — Pull-request checkout evidence identity
 
 Issue: #379  
-State: `research-active`  
+State: `review-ready — final moved-head gate required`  
 Work class: evidence reliability / repository gate  
 Current main at claim: `c247681f80d3504045e5b34dd99aeda4907a2829`  
 Upstream contact authorized: `no`
@@ -116,6 +116,35 @@ The candidate branch adds:
 
 The existing interaction-reference and Fieldwork-integrity commands run in both pull-request jobs. The repair does not weaken the current integration check.
 
+## Executed dual-checkout result
+
+PR #380 predecessor head `dbfda40c072ab49621d20bce0f2313ce1ab56881` executed workflow `30636532630` successfully.
+
+### Literal-head job
+
+- job `91175428782`: success;
+- tested checkout: `dbfda40c072ab49621d20bce0f2313ce1ab56881`;
+- declared head: `dbfda40c072ab49621d20bce0f2313ce1ab56881`;
+- declared base: `c247681f80d3504045e5b34dd99aeda4907a2829`;
+- classification: `exact-head`;
+- artifact `8795551528`;
+- artifact digest: `sha256:3a2d3ed24cacd391e6566ccf52a5e6bff30bd3174204f6a60b8d1a709ba97c32`.
+
+### Merge-ref job
+
+- job `91175428722`: success;
+- tested checkout: `a98113611e0368351158c21045b2a7b880ad55c6`;
+- declared head: `dbfda40c072ab49621d20bce0f2313ce1ab56881`;
+- declared base: `c247681f80d3504045e5b34dd99aeda4907a2829`;
+- ordered parents: `[c247681f80d3504045e5b34dd99aeda4907a2829, dbfda40c072ab49621d20bce0f2313ce1ab56881]`;
+- classification: `synthetic-merge-ref`;
+- artifact `8795552208`;
+- artifact digest: `sha256:7159346c50f3afeac07a968c3314b190da83a4dc69408854c69185554b1a4f22`.
+
+Both jobs ran the interaction-reference scanner, Fieldwork integrity, and eight classifier controls. The push job was correctly skipped on the pull-request event.
+
+Evidence class: `target-executed` for both checkout modes, identity classification, integrity commands, and artifact upload at the predecessor head.
+
 ## Alternatives considered
 
 ### Keep only the default merge-ref gate
@@ -161,10 +190,10 @@ Deferred. This finding repairs Fieldwork's own integrity gate and terminology. T
 
 ## Uncertainty
 
-The first Fieldwork dual-checkout workflow must still execute. A green static review cannot prove that both live GitHub checkouts expose the expected parent topology or that artifact upload succeeds.
+The durable receipt transfer moved the candidate head after the successful dual-checkout run. The moved head must pass both gates before the exact current generation is review-ready. A later merge-ref result remains tied to its recorded base snapshot.
 
 ## Current transition
 
-`EXECUTE` the candidate pull request. Inspect both JSON artifacts and raw `rev-list` lines. If both classifications are internally consistent, update this finding and issue #379 to `review-ready`, then obtain one eligible complete-diff review.
+Execute both jobs on the moved exact head. If both remain internally consistent, obtain one eligible complete-diff review of the five-file fence. Merge authority remains separate.
 
 No merge, release, deployment, credential, spending, private-data, writer-transfer, or public-upstream authority follows from this finding.
