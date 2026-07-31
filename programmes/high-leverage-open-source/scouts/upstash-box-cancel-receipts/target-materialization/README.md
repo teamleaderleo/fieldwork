@@ -10,24 +10,28 @@ Upstream contact authorized: no
 
 Exact target execution confirms a compatibility-preserving cancellation receipt can be shared across TypeScript, async Python, and generated synchronous Python without publishing a false terminal run state.
 
-The selected repair keeps legacy `cancel()` return contracts, adds an explicit immutable request receipt, shares one at-most-once request across concurrent and later callers, and leaves `Run.status` unchanged until an authoritative server update arrives.
+The selected repair keeps legacy `cancel()` return contracts, adds an explicit immutable request receipt, shares one at-most-once remote request across concurrent and later callers, and leaves `Run.status` unchanged until an authoritative server update arrives.
+
+A complete-diff review found one compatibility edge after the first green generation: TypeScript aborted the current local observer only when it created the shared remote request. A later observer attached after settlement would receive the cached receipt without being aborted. The repaired target now aborts the currently attached local observer on every `requestCancel()` or `cancel()` call while still issuing the remote cancellation request at most once.
 
 All execution used mocked/local requests. No hosted Box API call, account, credential, payment, or private data was involved.
 
 ## Exact identities
 
-- exact target-executed Fieldwork head: `088ab886efad5fea2ac13df0cb5baa8e2776e550`;
+- exact target-executed Fieldwork head: `1e7909da440ab631fcea11d4d3777d2bce107277`;
 - exact target checkout: `b55d832d6e3ae0156e32d21ea3863e231dfff9cd`;
-- workflow run: `30641892410`;
-- job: `91193643138`;
-- Fieldwork integrity: `30641892400`, success;
-- artifact: `8797795255`;
-- artifact digest: `sha256:4cb0d91d25ba77472d260365df9c9a8786455b78d66bf3af9db8b78d71ed6fe0`;
-- exact target diff SHA-256: `7860396fc6a3706c3322e936896656a261900d2d91718405c7393a19052ef626`;
+- workflow run: `30642924979`;
+- job: `91197101877`;
+- Fieldwork integrity: `30642923423`, success;
+- artifact: `8798217638`;
+- artifact digest: `sha256:5629a4706772b989c0ed2a88689569572d8c231eb23a19f468ed101adff1c3b4`;
+- exact target diff SHA-256: `d30874c96f8e39350b9d725c58a6034554c561b073cb04969849ff2778c09e88`;
 - durable receipt: `upstash-box-cancel-receipt.json`;
 - checkout classification: `exact-head`.
 
 The uploaded receipt recorded actual and expected Fieldwork and target heads as equal, target checkout match `true`, technical gate status `success`, evidence class `target-executed-local-mocked`, hosted-provider call `false`, and credentials used `false`.
+
+The earlier green run `30641892410` and artifact `8797795255` remain historical evidence for the pre-review generation. They are superseded for promotion by the exact repaired generation above.
 
 ## Selected compatible API
 
@@ -48,15 +52,15 @@ Receipt state:
 - optional fixed diagnostic: `cancellation request failed`;
 - immutable/frozen;
 - shared across concurrent and later callers;
-- no automatic replay.
+- no automatic remote-request replay.
 
-`accepted` means the local request completed successfully. It does not claim the remote run reached a terminal cancelled state.
+`accepted` means the local HTTP request completed successfully. It does not claim the remote run reached a terminal cancelled state.
 
 ## Runtime ownership
 
 ### TypeScript
 
-One private Promise is assigned before request execution. Concurrent and later callers receive the same Promise and receipt object. Abandoning one wait does not cancel the shared request.
+One private Promise is assigned before remote request execution. Concurrent and later callers receive the same Promise and receipt object. Every call aborts the currently attached local observer, including observers attached after the shared receipt settled, without replaying the remote request.
 
 ### Async Python
 
@@ -74,7 +78,7 @@ One lock and shared `Future` select a single request owner. Other threads wait o
 - full SDK suite: 29 files, 385 tests passed;
 - TypeScript build: success;
 - repository package formatting/lint: success;
-- valid accepted receipt, fixed failure receipt, shared concurrent identity, no replay, no false terminal state, and later authoritative status replacement were all exercised.
+- valid accepted receipt, fixed failure receipt, shared concurrent identity, no remote replay, no false terminal state, later authoritative status replacement, and repeated local-observer cancellation after receipt settlement were exercised.
 
 ### Python
 
@@ -105,7 +109,8 @@ The transformation scripts require every source fragment to match exactly once b
 Established for exact public source and local mocked execution:
 
 - compatibility of the selected public API family;
-- one shared request and receipt across concurrent callers;
+- one shared remote request and receipt across concurrent callers;
+- repeated local observer abort without remote replay;
 - cancelled async waiter isolation;
 - fixed failure diagnostics without provider response detail;
 - no false terminal status;
