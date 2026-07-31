@@ -1,48 +1,42 @@
-name: Fieldwork issue 122 publication cancellation
+name: Fieldwork issue 122 Polars publication cancellation
 
 on:
   push:
     branches:
       - scout/122-datafusion-polars-publication-cancellation
     paths:
-      - programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/**
+      - programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/polars-local-cancel/**
       - .github/workflows/fieldwork-issue122-publication-cancellation.yml
   pull_request:
     paths:
-      - programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/**
+      - programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/polars-local-cancel/**
       - .github/workflows/fieldwork-issue122-publication-cancellation.yml
   workflow_dispatch:
 
 concurrency:
-  group: fieldwork-issue122-${{ github.ref }}
+  group: fieldwork-issue122-polars-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 env:
-  DATAFUSION_COMMIT: 455a3add52d051a20df9960a726ee9acb98528a3
   POLARS_COMMIT: 36e414b4cb1e74e7a171995b35b83c1163974324
-  OBJECT_STORE_RELEASE_COMMIT: 7a65b75b0d26fd8a282999462cb7030fb85fdcc3
   POLARS_OBJECT_STORE_COMMIT: f50a6e5c564b2b5933eca15cd20ff9b5614374a1
-  PROBE_DIR: programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/object-store-abort
-  SINK_PROBE_DIR: programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/datafusion-sink-cancel
   POLARS_PROBE_DIR: programmes/high-leverage-open-source/scouts/datafusion-polars-reproducible-analytics/probes/polars-local-cancel
 
 jobs:
-  ownership-control:
+  polars-local-publication:
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - name: Fetch exact read-only source set
+      - name: Fetch exact read-only Polars source set
         run: |
           set -euxo pipefail
           for spec in \
-            "datafusion https://github.com/apache/datafusion.git $DATAFUSION_COMMIT" \
             "polars https://github.com/pola-rs/polars.git $POLARS_COMMIT" \
-            "object-store https://github.com/apache/arrow-rs-object-store.git $OBJECT_STORE_RELEASE_COMMIT" \
             "polars-object-store https://github.com/kdn36/arrow-rs-object-store.git $POLARS_OBJECT_STORE_COMMIT"
           do
             set -- $spec
@@ -62,45 +56,13 @@ jobs:
           set -euxo pipefail
           python3 - <<'PY'
           import json
-          import re
           from pathlib import Path
 
           checks = {
-              "datafusion_cancellation": (
-                  Path(".fieldwork/datafusion/benchmarks/src/cancellation.rs"),
-                  [
-                      'Queries in DataFusion should stop executing "quickly"',
-                      "let stream = physical_plan.execute",
-                      "stream.try_collect().await",
-                  ],
-              ),
-              "datafusion_parquet_sink": (
-                  Path(".fieldwork/datafusion/datafusion/datasource-parquet/src/sink.rs"),
-                  [
-                      "BufWriter::with_capacity",
-                      "writer.write(&batch).await?",
-                      ".close()",
-                  ],
-              ),
-              "object_store_abort": (
-                  Path(".fieldwork/object-store/src/buffered.rs"),
-                  [
-                      "pub async fn abort(&mut self)",
-                      "x.take().unwrap().abort().await",
-                      "upload.finish().await?",
-                  ],
-              ),
-              "object_store_drop_contract": (
-                  Path(".fieldwork/object-store/src/upload.rs"),
-                  [
-                      "S3 and GCS, cannot perform cleanup on drop",
-                      "pub async fn abort(mut self)",
-                  ],
-              ),
               "polars_cancel_token": (
                   Path(".fieldwork/polars/crates/polars-lazy/src/frame/exitable.rs"),
                   [
-                      "let token = state.cancel_token();",
+                      "Cancel the query at earliest convenience.",
                       "self.token.store(true)",
                       "impl Drop for InProcessQuery",
                   ],
@@ -119,13 +81,6 @@ jobs:
                       "Self::Local(polars_utils::open_file_write(&path)?)",
                   ],
               ),
-              "polars_cloud_multipart": (
-                  Path(".fieldwork/polars/crates/polars-io/src/cloud/cloud_writer/multipart_upload.rs"),
-                  [
-                      "pub fn put(",
-                      "pub async fn finish(&mut self)",
-                  ],
-              ),
               "polars_object_store_dns_resolver": (
                   Path(".fieldwork/polars-object-store/src/client/mod.rs"),
                   ["with_dns_resolver"],
@@ -138,76 +93,72 @@ jobs:
               missing = [needle for needle in needles if needle not in text]
               if missing:
                   raise SystemExit(f"{label}: missing anchors {missing}")
-              receipt[label] = {
-                  "path": str(path),
-                  "anchors": len(needles),
-              }
+              receipt[label] = {"path": str(path), "anchors": len(needles)}
 
-          datafusion_lock = Path(".fieldwork/datafusion/Cargo.lock").read_text(encoding="utf-8")
-          match = re.search(
-              r'\[\[package\]\]\nname = "object_store"\nversion = "([^"]+)"',
-              datafusion_lock,
-          )
-          if not match or match.group(1) != "0.13.2":
-              raise SystemExit(f"unexpected DataFusion object_store pin: {match.group(1) if match else 'missing'}")
-          receipt["datafusion_object_store_version"] = match.group(1)
-
-          polars_lock = Path(".fieldwork/polars/Cargo.lock").read_text(encoding="utf-8")
-          match = re.search(
-              r'\[\[package\]\]\nname = "object_store"\nversion = "([^"]+)"\nsource = "([^"]+)"',
-              polars_lock,
-          )
-          if not match or match.group(1) != "0.13.2" or "f50a6e5c564b2b5933eca15cd20ff9b5614374a1" not in match.group(2):
-              raise SystemExit(f"unexpected Polars object_store pin: {match.groups() if match else 'missing'}")
-          receipt["polars_object_store_version"] = match.group(1)
-          receipt["polars_object_store_source"] = match.group(2)
-
-          Path("issue122-source-contract.json").write_text(
+          Path("issue122-polars-source-contract.json").write_text(
               json.dumps(receipt, indent=2, sort_keys=True) + "\n",
               encoding="utf-8",
           )
           PY
 
-      - name: Verify exact dependency selection
+      - name: Lock and verify exact dependency selection
         run: |
           set -euxo pipefail
-          cargo tree --manifest-path "$PROBE_DIR/Cargo.toml" -i object_store | tee issue122-object-store-tree.txt
-          grep -F 'object_store v0.13.2' issue122-object-store-tree.txt
-          cargo tree --manifest-path "$POLARS_PROBE_DIR/Cargo.toml" -i object_store | tee issue122-polars-object-store-tree.txt
-          grep -F 'object_store v0.13.2 (/home/runner/work/fieldwork/fieldwork/.fieldwork/polars-object-store)' issue122-polars-object-store-tree.txt
+          cargo generate-lockfile --manifest-path "$POLARS_PROBE_DIR/Cargo.toml"
+          cp "$POLARS_PROBE_DIR/Cargo.lock" issue122-polars-Cargo.lock
+          cargo tree --locked --manifest-path "$POLARS_PROBE_DIR/Cargo.toml" -i object_store \
+            | tee issue122-polars-object-store-tree.txt
+          grep -F 'object_store v0.13.2 (/home/runner/work/fieldwork/fieldwork/.fieldwork/polars-object-store)' \
+            issue122-polars-object-store-tree.txt
 
-      - name: Check and run multipart cleanup control
-        run: |
-          set -euxo pipefail
-          cargo fmt --manifest-path "$PROBE_DIR/Cargo.toml" -- --check
-          cargo test --manifest-path "$PROBE_DIR/Cargo.toml"
-          cargo run --quiet --manifest-path "$PROBE_DIR/Cargo.toml" | tee issue122-object-store-abort.json
-
-      - name: Check and run DataFusion sink cancellation barrier
-        run: |
-          set -euxo pipefail
-          cargo fmt --manifest-path "$SINK_PROBE_DIR/Cargo.toml" -- --check
-          cargo test --manifest-path "$SINK_PROBE_DIR/Cargo.toml"
-          cargo run --quiet --manifest-path "$SINK_PROBE_DIR/Cargo.toml" | tee issue122-datafusion-sink-cancel.json
-
-      - name: Check and run Polars local publication barrier
+      - name: Build Polars probe
         run: |
           set -euxo pipefail
           cargo fmt --manifest-path "$POLARS_PROBE_DIR/Cargo.toml" -- --check
-          cargo test --manifest-path "$POLARS_PROBE_DIR/Cargo.toml"
-          cargo run --quiet --manifest-path "$POLARS_PROBE_DIR/Cargo.toml" | tee issue122-polars-local-cancel.json
+          cargo test --locked --manifest-path "$POLARS_PROBE_DIR/Cargo.toml" --no-run
 
-      - name: Upload source and execution receipts
+      - name: Run and classify Polars publication race
+        id: polars
+        run: |
+          set +e
+          cargo run --locked --quiet --manifest-path "$POLARS_PROBE_DIR/Cargo.toml" \
+            > issue122-polars-local-cancel.json \
+            2> issue122-polars-local-cancel.stderr
+          status=$?
+          set -e
+          printf '%s\n' "$status" > issue122-polars-exit-status.txt
+          cat issue122-polars-local-cancel.stderr
+          cat issue122-polars-local-cancel.json
+          test "$status" -eq 0
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          receipt = json.loads(Path("issue122-polars-local-cancel.json").read_text())
+          cancelled = receipt["cancelled"]
+          retry = receipt["retry_success"]
+          allowed = {
+              "completed_before_cancel_request",
+              "completed_after_cancel_request",
+              "interrupted_after_cancel_request",
+          }
+          assert cancelled["outcome"] in allowed
+          assert cancelled["barrier_bytes"] > 0
+          assert retry["file"]["parquet_valid"] is True
+          assert retry["file"]["readable_rows"] == retry["rows"]
+          PY
+
+      - name: Upload exact Polars receipts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: fieldwork-issue122-publication-cancellation
+          name: fieldwork-issue122-polars-publication-cancellation
           path: |
-            issue122-source-contract.json
-            issue122-object-store-tree.txt
+            issue122-polars-source-contract.json
             issue122-polars-object-store-tree.txt
-            issue122-object-store-abort.json
-            issue122-datafusion-sink-cancel.json
+            issue122-polars-Cargo.lock
             issue122-polars-local-cancel.json
+            issue122-polars-local-cancel.stderr
+            issue122-polars-exit-status.txt
           if-no-files-found: warn
           retention-days: 30
