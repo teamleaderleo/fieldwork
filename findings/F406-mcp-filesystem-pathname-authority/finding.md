@@ -1,7 +1,7 @@
 # F406 — MCP filesystem pathname authority after validation
 
-State: `research-active`  
-Evidence class: `source-read / target-test-prepared`  
+State: `comparative-evaluation-active`  
+Evidence class: `source-read / target-executed-local`  
 Owning issue: #406  
 Initiative: #254  
 Target: `modelcontextprotocol/servers@76d64c822f5125032f89eb71dbdb94e42b434821`  
@@ -9,94 +9,115 @@ Upstream contact authorized: no
 
 ## In simple words
 
-The filesystem server checks a pathname, resolves symlinks, and confirms the result is inside an allowed directory. It then performs the actual filesystem operation later using the pathname again.
+The filesystem server validates a pathname and its current symlink target, then later performs the mutation through the pathname again.
 
-A directory can change between those two moments. If a validated parent is replaced with a symlink to an outside directory, a later pathname-based write can follow the new ancestor even though that ancestor was never validated.
+Exact Linux execution proves the parent directory can change between those moments. After a nonexistent child was validated inside the allowed root, the test renamed its parent aside and replaced the original parent pathname with a symlink to an outside temporary directory. The repository's real `writeFileContent()` helper followed the new ancestor and created the file outside.
 
-The first target-native control uses temporary directories only and forces that ordering with no timing race.
+Static symlink rejection still worked when the outside link existed before validation.
 
 ## Consequence
 
-A static symlink check can be correct while mutation authority still belongs to a pathname whose ancestors are mutable after validation. Final-component exclusivity and atomic rename do not pin ancestor directory identity.
+The current boundary protects against path traversal and static symlink selection. It does not retain the ancestor directory authority observed during validation when a concurrent local actor can replace that ancestor before the final pathname syscall.
 
-The immediate claim is narrow: exact Linux/Node source composition for nonexistent-file creation through the repository's exported `validatePath()` and `writeFileContent()` functions. Create-directory, move, edit, dynamic roots, other platforms, production prevalence, and exploitability remain separate controls.
+Final-component `wx` creation and sibling temporary-file rename do not pin ancestor identity.
 
 ## Governing invariant
 
-A mutation described as limited to allowed directories must act through the same directory authority that was validated. Re-resolving mutable ancestors after validation must not silently widen the operation beyond the allowed roots.
+A mutation described as limited to allowed directories should act through the same directory authority that was validated. Re-resolving mutable ancestors after validation must not silently widen the operation beyond the allowed roots.
 
 ## Exact source map
 
 Pinned source: `modelcontextprotocol/servers@76d64c822f5125032f89eb71dbdb94e42b434821`.
 
-- `src/filesystem/lib.ts::validatePath()` performs a lexical allowed-root check.
-- Existing targets are resolved with `fs.realpath()` and checked again.
-- A nonexistent target validates the current real parent and then returns the original absolute child pathname.
-- `src/filesystem/lib.ts::writeFileContent()` later calls `fs.writeFile(path, ..., { flag: "wx" })`.
-- Existing targets use a sibling temporary pathname followed by `fs.rename(tempPath, filePath)`.
-- `src/filesystem/index.ts` composes `validatePath()` with later `fs.mkdir()` and `fs.rename()` calls for create and move operations.
-- MCP roots may replace the global allowed-directory set while the process remains active.
+- `src/filesystem/lib.ts::validatePath()` performs lexical and resolved-path checks.
+- A nonexistent target validates the current real parent and returns the original absolute child pathname.
+- `writeFileContent()` later calls `fs.writeFile(path, ..., { flag: "wx" })` or creates and renames a sibling temporary pathname.
+- `src/filesystem/index.ts` uses the same validate-then-pathname pattern for create and move operations.
+- MCP roots can replace the process-global allowed-directory set while the server remains active.
 
-Existing path-validation tests cover traversal, prefix confusion, static symlinks, null bytes, Unicode, and platform syntax. No control was found for ancestor replacement after validation.
+See `evidence/source-map.md` for the auditable source boundary.
 
-## First exact comparison
+## Exact execution receipt
 
-The prepared Linux test has three cases:
+Fieldwork executed head: `7bf4ac314f95b2d60c9383dd512191dcb0311f09`.
 
-1. **Stable parent:** validation plus `writeFileContent()` creates the file inside the allowed directory.
-2. **Static outside symlink:** validation rejects a parent already linked outside the allowed directory.
-3. **Post-validation ancestor swap:** validation succeeds while the parent is inside; the test renames that directory aside, installs an outside-pointing directory symlink at the original pathname, calls the real write helper, and records whether the bytes appear outside.
+- target workflow `30650186407`, job `91221247782`: success;
+- Fieldwork integrity `30650186303`: success;
+- focused Fieldwork controls: 3/3;
+- focused controls plus existing path-validation suite: 56/56;
+- complete filesystem package: 8 files, 155 tests, all passed;
+- TypeScript build: success;
+- exact untracked-test carrier boundary: success;
+- artifact `8801058697`;
+- artifact digest `sha256:3f0c6a036fc449deae03f4382fcafb5c463a14b5172b434ae0c5f6e3cfcdab68`.
 
-The test uses one temporary root, no external files, no credentials, and deterministic cleanup.
+Detailed receipt: `evidence/linux-write-characterization.md`.
 
-## Alternatives to compare after characterization
+The temporary execution workflow is removed from the canonical head. The exact target test remains as durable evidence.
+
+## Executed comparison
+
+### Stable allowed parent
+
+Validation plus the real write helper created the file inside the allowed root. No outside file appeared.
+
+### Pre-existing outside symlink
+
+Validation rejected the parent before mutation. No outside file appeared.
+
+### Post-validation ancestor swap
+
+Validation succeeded while the parent was a real allowed directory. After the deterministic swap, the real write helper created the asserted bytes in the outside directory. No file appeared under the parked inside parent.
+
+## Repair families
 
 ### A — descriptor-relative ownership
 
-Open and retain a directory capability, then perform final-component operations relative to that descriptor using an `openat`-style primitive. This best preserves the validated ancestor identity, but ordinary Node APIs may not expose a portable complete implementation.
+Retain a directory capability and perform the final operation relative to it using an `openat` or `openat2`-style primitive. This best preserves the validated identity. Ordinary portable Node APIs do not expose a complete descriptor-relative filesystem surface.
 
-### B — native helper boundary
+### B — native or platform-specific helper
 
-Use a small native or platform-specific helper for descriptor-relative mutation. This can close the primitive gap at the cost of packaging, portability, and maintenance.
+Introduce a small helper for descriptor-relative mutation and confinement flags. This can close the primitive gap on supported platforms, with packaging, portability, and maintenance cost.
 
 ### C — bounded revalidation
 
-Revalidate immediately before and after mutation and roll back or fail on movement. This reduces exposure but cannot fully eliminate the race between the final check and pathname syscall.
+Revalidate immediately before and after mutation and fail or roll back on movement. This detects many changes but leaves a residual race between the final check and pathname syscall. It cannot support a claim of complete confinement against concurrent ancestor replacement.
 
-### D — explicit threat-model limit
+### D — explicit threat-model boundary plus external sandboxing
 
-Document that allowed roots protect against static path/symlink selection but do not defend against a concurrent local actor that can replace ancestors. This may be honest when the runtime cannot provide stronger primitives, but it changes the meaning operators can safely assign to the boundary.
+State that allowed directories defend against request-path and static-symlink selection, while concurrent local namespace mutation requires an OS/container sandbox or stronger native primitive. This is the smallest truthful portable change, but it narrows the operator-facing meaning of “only works within allowed directories.”
 
 ## Current decision
 
-Execute the deterministic write characterization before selecting a repair family. A target result showing outside creation establishes a real ancestor-identity gap for that exact composition. A denial or inside-only result rejects the current hypothesis and stops expansion unless another operation supplies different evidence.
+The ancestor-identity gap is established for exact Linux write composition. A pure additional pathname recheck cannot restore the strong invariant, so it is rejected as a complete repair.
+
+The next comparison is between:
+
+1. a portable documentation/threat-model repair that names the residual local-actor boundary and recommends OS-level isolation; and
+2. a platform-specific descriptor-relative proof showing whether a native helper can close the tested Linux case without changing ordinary callers.
+
+Create-directory, move, and dynamic-root controls should be added only when they distinguish repair scope or authority semantics; they are no longer needed to prove the basic pathname race.
 
 ## Claim boundary
 
-Established now:
+Established:
 
-- source uses check-then-pathname-operation composition;
-- final-component `wx` protection does not visibly bind ancestor identity in source;
-- existing tests do not cover the prepared ordering.
+- exact Linux/Node nonexistent-file creation can escape the validated ancestor after a deterministic parent swap;
+- static outside symlink rejection works for the tested pre-validation case;
+- stable-parent ordinary behavior remains intact;
+- full target package and build remain green with the characterization.
 
-Pending execution:
+Not established:
 
-- actual outside-file creation under the forced Linux ancestor swap;
-- stable and static-symlink controls;
-- package build and existing focused regression.
-
-Not claimed:
-
-- public exploitability;
-- production prevalence or impact;
-- cross-platform behavior;
-- create/move/edit escape behavior;
-- dynamic-root revocation semantics;
+- public exploitability, attacker reachability, production prevalence, or impact;
+- MCP transport invocation of the tool handler;
+- create-directory, move, edit, existing-file replacement, or roots-revocation behavior;
+- Windows or macOS behavior;
 - a portable complete repair;
 - upstream acceptance.
 
 ## Exact next transition
 
-Run the one-workflow exact-source carrier. On success, retain the log and receipt, remove the workflow from the canonical finding generation, then decide whether create/move/root-currentness controls add distinct evidence.
+Prepare two bounded candidates: one documentation-only threat-model patch and one Linux descriptor-relative feasibility probe. Apply the same criteria—truthful confinement claim, compatibility, portability, rollback, maintenance, and residual race—and choose autonomously from executed evidence.
 
 No merge, release, deployment, credential, private-data access, spending, or public-upstream interaction is authorized.
