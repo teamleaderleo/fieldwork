@@ -1,4 +1,4 @@
-name: Fieldwork Playwright direct shutdown platforms
+name: Fieldwork Playwright direct shutdown Windows repair
 
 on:
   pull_request:
@@ -11,16 +11,9 @@ permissions:
 
 jobs:
   direct-source:
-    name: Direct source on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: Direct source on windows-2025
+    runs-on: windows-2025
     timeout-minutes: 50
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-24.04
-          - macos-15
-          - windows-2025
     steps:
       - name: Check out exact Fieldwork carrier head
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -57,7 +50,7 @@ jobs:
           test "$(git -C playwright merge-base HEAD "$base")" = "$base"
           test "$(git -C playwright diff --name-only "$base"...HEAD)" = "$expected"
           mkdir -p fieldwork-receipts
-          git -C playwright diff --binary "$base"...HEAD > "fieldwork-receipts/direct-source-${{ matrix.os }}.diff"
+          git -C playwright diff --binary "$base"...HEAD > "fieldwork-receipts/direct-source-windows-2025.diff"
 
       - name: Install exact dependencies
         id: install
@@ -69,15 +62,8 @@ jobs:
         working-directory: playwright
         run: npm run build
 
-      - name: Install Chromium and Linux dependencies
-        id: browser_linux
-        if: runner.os == 'Linux'
-        working-directory: playwright
-        run: npx playwright install --with-deps chromium
-
       - name: Install Chromium
-        id: browser_other
-        if: runner.os != 'Linux'
+        id: browser
         working-directory: playwright
         run: npx playwright install chromium
 
@@ -93,12 +79,14 @@ jobs:
             tests/mcp/http.spec.ts \
             tests/mcp/remote-shutdown-authority.spec.ts \
             -- --project=chromium \
-            2>&1 | tee "../fieldwork-receipts/direct-source-${{ matrix.os }}-test.log"
+            2>&1 | tee "../fieldwork-receipts/direct-source-windows-2025-test.log"
 
-      - name: Run focused ESLint
+      - name: Run focused ESLint through Bash
         id: lint
+        shell: bash
         working-directory: playwright
         run: |
+          set -euo pipefail
           npx eslint \
             packages/playwright-core/src/tools/utils/mcp/http.ts \
             tests/mcp/http.spec.ts \
@@ -117,19 +105,17 @@ jobs:
           printf '%s\n' "$files"
           test "$files" = "$expected"
 
-      - name: Assemble direct-source platform receipt
+      - name: Assemble direct-source Windows repair receipt
         if: always()
         shell: bash
         env:
           FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           RUNNER_OS: ${{ runner.os }}
           RUNNER_ARCH: ${{ runner.arch }}
-          MATRIX_OS: ${{ matrix.os }}
           VERIFY_OUTCOME: ${{ steps.verify.outcome }}
           INSTALL_OUTCOME: ${{ steps.install.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
-          BROWSER_LINUX_OUTCOME: ${{ steps.browser_linux.outcome }}
-          BROWSER_OTHER_OUTCOME: ${{ steps.browser_other.outcome }}
+          BROWSER_OUTCOME: ${{ steps.browser.outcome }}
           TEST_OUTCOME: ${{ steps.test.outcome }}
           LINT_OUTCOME: ${{ steps.lint.outcome }}
           DIFF_OUTCOME: ${{ steps.diff.outcome }}
@@ -139,23 +125,28 @@ jobs:
           const path = require('node:path');
           const directory = path.join(process.cwd(), 'fieldwork-receipts');
           fs.mkdirSync(directory, { recursive: true });
-          const browserOutcome = process.env.RUNNER_OS === 'Linux'
-            ? process.env.BROWSER_LINUX_OUTCOME
-            : process.env.BROWSER_OTHER_OUTCOME;
           const outcomes = {
             verify: process.env.VERIFY_OUTCOME || 'not-run',
             install: process.env.INSTALL_OUTCOME || 'not-run',
             build: process.env.BUILD_OUTCOME || 'not-run',
-            browser: browserOutcome || 'not-run',
+            browser: process.env.BROWSER_OUTCOME || 'not-run',
             test: process.env.TEST_OUTCOME || 'not-run',
             lint: process.env.LINT_OUTCOME || 'not-run',
             diff: process.env.DIFF_OUTCOME || 'not-run',
           };
           const receipt = {
-            schemaVersion: 1,
+            schemaVersion: 2,
             generatedAt: new Date().toISOString(),
             fieldworkHead: process.env.FIELDWORK_HEAD,
             executionIdentity: 'literal-owned-source-head',
+            repairScope: 'windows-eslint-shell-and-diff-completion',
+            predecessorRun: '30652703660',
+            predecessorWindowsResult: {
+              build: 'success',
+              test: 'success-19-of-19',
+              lint: 'carrier-shell-failure',
+              diff: 'skipped',
+            },
             source: {
               repository: 'teamleaderleo/playwright',
               pullRequest: 37,
@@ -167,7 +158,7 @@ jobs:
               ],
             },
             platform: {
-              matrixLabel: process.env.MATRIX_OS,
+              matrixLabel: 'windows-2025',
               runnerOS: process.env.RUNNER_OS,
               runnerArch: process.env.RUNNER_ARCH,
               node: process.version,
@@ -186,16 +177,16 @@ jobs:
             },
           };
           fs.writeFileSync(
-            path.join(directory, `direct-source-${process.env.MATRIX_OS}-receipt.json`),
+            path.join(directory, 'direct-source-windows-2025-repair-receipt.json'),
             `${JSON.stringify(receipt, null, 2)}\n`,
           );
           NODE
 
-      - name: Upload direct-source platform receipt
+      - name: Upload direct-source Windows repair receipt
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: playwright-direct-shutdown-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: playwright-direct-shutdown-windows-repair-${{ github.run_id }}-${{ github.run_attempt }}
           path: fieldwork-receipts/
           if-no-files-found: error
           retention-days: 14
