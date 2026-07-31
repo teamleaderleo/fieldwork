@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { SERVER_VERSION } from "../src/lib/constants.js";
 
 const CLIENT_IP = "198.51.100.77";
 const VALID_KEY =
@@ -23,9 +24,7 @@ async function loadGenerateHeaders(key: string | undefined) {
 
 function expectBaseHeaders(headers: Record<string, string>) {
   expect(headers["X-Context7-Source"]).toBe("mcp-server");
-  expect(headers["X-Context7-Server-Version"]).toBe(
-    process.env.npm_package_version || "unknown",
-  );
+  expect(headers["X-Context7-Server-Version"]).toBe(SERVER_VERSION);
 }
 
 afterEach(() => {
