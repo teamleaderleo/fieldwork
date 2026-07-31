@@ -42,6 +42,8 @@ jobs:
           cd gemini
           git apply --check "$source_dir/background-temp-ownership-candidate.patch"
           git apply "$source_dir/background-temp-ownership-candidate.patch"
+          git apply --check "$source_dir/process-exit-finalization-once.patch"
+          git apply "$source_dir/process-exit-finalization-once.patch"
           cp "$source_dir/shell-background-temp-ownership-repair.test.ts" \
             packages/core/src/tools/shell-background-temp-ownership-repair.test.ts
           cp "$source_dir/shell-execution-process-exit-cleanup.test.ts" \
@@ -88,6 +90,7 @@ jobs:
           npm run typecheck --workspace @google/gemini-cli-core
           git diff --check
           echo 'FIELDWORK_BACKGROUND_TEMP_OWNERSHIP_CANDIDATE=5/5-files'
+          echo 'FIELDWORK_PROCESS_EXIT_FINALIZATION_ONCE=1/1'
 
       - name: Export exact candidate evidence
         run: |
