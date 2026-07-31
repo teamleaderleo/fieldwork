@@ -1,0 +1,121 @@
+diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core/src/services/shellExecutionService.ts
+--- a/packages/core/src/services/shellExecutionService.ts
++++ b/packages/core/src/services/shellExecutionService.ts
+@@ -124,6 +124,9 @@ export interface ShellExecutionConfig {
+   backgroundCompletionBehavior?: 'inject' | 'notify' | 'silent';
+   originalCommand?: string;
+   sessionId?: string;
++  /** Best-effort cleanup for resources that remain owned until actual exit. */
++  onProcessExit?: () => void | Promise<void>;
+   env?: Record<string, string>;
+ }
+@@ -282,6 +285,18 @@ export class ShellExecutionService {
+ 
+     this.backgroundLogPids.delete(pid);
+   }
++
++  private static async runProcessExitCleanup(
++    shellExecutionConfig: ShellExecutionConfig,
++  ): Promise<void> {
++    try {
++      await shellExecutionConfig.onProcessExit?.();
++    } catch (error) {
++      debugLogger.warn('Shell process-exit cleanup failed:', error);
++    }
++  }
+ 
+   /**
+    * Executes a shell command using `node-pty`, capturing all output and lifecycle events.
+@@ -779,6 +794,9 @@ export class ShellExecutionService {
+           });
+ 
+           ExecutionLifecycleService.completeWithResult(pid, resultPayload);
++          void ShellExecutionService.runProcessExitCleanup(
++            shellExecutionConfig,
++          );
+         } else {
+           resolveWithoutPid?.(resultPayload);
+         }
+@@ -1287,6 +1305,9 @@ export class ShellExecutionService {
+               executionMethod: ptyInfo?.name ?? 'node-pty',
+             });
++
++            void ShellExecutionService.runProcessExitCleanup(
++              shellExecutionConfig,
++            );
+           };
+ 
+           if (abortSignal.aborted) {
+diff --git a/packages/core/src/tools/shell.ts b/packages/core/src/tools/shell.ts
+--- a/packages/core/src/tools/shell.ts
++++ b/packages/core/src/tools/shell.ts
+@@ -489,6 +489,31 @@ export class ShellToolInvocation extends BaseToolInvocation<
+     const isWindows = os.platform() === 'win32';
+     let tempFilePath = '';
+     let tempDir = '';
++    let tempCleanupTransferred = false;
++    let tempCleanupPromise: Promise<void> | undefined;
++
++    const cleanupTemporaryResources = (): Promise<void> => {
++      tempCleanupPromise ??= (async () => {
++        if (tempFilePath) {
++          try {
++            await fsPromises.unlink(tempFilePath);
++          } catch {
++            // Ignore errors during unlink.
++          }
++        }
++        if (tempDir) {
++          try {
++            await fsPromises.rm(tempDir, { recursive: true, force: true });
++          } catch {
++            // Ignore errors during directory cleanup.
++          }
++        }
++      })();
++      return tempCleanupPromise;
++    };
+ 
+     const timeoutMs = this.context.config.getShellToolInactivityTimeout();
+     const timeoutController = new AbortController();
+@@ -657,6 +682,10 @@ export class ShellToolInvocation extends BaseToolInvocation<
+             backgroundCompletionBehavior:
+               this.context.config.getShellBackgroundCompletionBehavior(),
+             originalCommand: strippedCommand,
++            onProcessExit: this.params.is_background
++              ? cleanupTemporaryResources
++              : undefined,
+           },
+         );
++
++      tempCleanupTransferred = Boolean(this.params.is_background && pid);
+ 
+       if (pid) {
+         if (setExecutionIdCallback) {
+@@ -1065,23 +1094,8 @@ export class ShellToolInvocation extends BaseToolInvocation<
+       signal.removeEventListener('abort', onAbort);
+       timeoutController.signal.removeEventListener('abort', onAbort);
+ 
+-      // Only clean up if NOT running in background.
+-      // Background processes need the temp directory and PID file to remain
+-      // available until they exit.
+-      if (!this.params.is_background) {
+-        if (tempFilePath) {
+-          try {
+-            await fsPromises.unlink(tempFilePath);
+-          } catch {
+-            // Ignore errors during unlink
+-          }
+-        }
+-        if (tempDir) {
+-          try {
+-            await fsPromises.rm(tempDir, { recursive: true, force: true });
+-          } catch {
+-            // Ignore errors during rm
+-          }
+-        }
++      if (!tempCleanupTransferred) {
++        await cleanupTemporaryResources();
+       }
+     }
+   }
