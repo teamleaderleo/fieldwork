@@ -542,19 +542,35 @@ def _authority_conditions(
             )
             continue
 
-        if expires_at is not None and _parse_time(expires_at) <= now:
-            effective[action] = "denied"
-            conditions.append(
-                _condition(
-                    "AuthorityUsable",
-                    "False",
-                    "AuthorityExpired",
-                    "The recorded authorization expired before the observation boundary.",
-                    inputs,
-                    observed_at,
+        if expires_at is not None:
+            try:
+                expiry = _parse_time(expires_at)
+            except (AttributeError, TypeError, ValueError):
+                effective[action] = "denied"
+                conditions.append(
+                    _condition(
+                        "AuthorityUsable",
+                        "Unknown",
+                        "InvalidAuthorityTime",
+                        "The authorization expiry is malformed, so the action remains unusable.",
+                        inputs,
+                        observed_at,
+                    )
                 )
-            )
-            continue
+                continue
+            if expiry <= now:
+                effective[action] = "denied"
+                conditions.append(
+                    _condition(
+                        "AuthorityUsable",
+                        "False",
+                        "AuthorityExpired",
+                        "The recorded authorization expired before the observation boundary.",
+                        inputs,
+                        observed_at,
+                    )
+                )
+                continue
 
         if revocation_record is not None:
             revoked = revocations.get(revocation_record)
