@@ -123,13 +123,31 @@ The builder may perform and document self-review, but should not be the sole fin
 
 Independent review should examine the complete current diff, not only the latest commit or the pull-request summary.
 
+## Review-ready is peer-facing
+
+`review-ready` means one exact current case is prepared for an eligible independent technical reviewer. It does not mean that the user must review it, that every worker must review it, or that the work is accepted, land-ready, merged, or ready for public upstream submission.
+
+Routine review-ready work should enter the peer review system. It should appear in the human-facing decision surface only when it materially changes priority, exposes risk, becomes stale, or requires non-delegable authority.
+
+A worker who marks one item review-ready should continue useful autonomous work rather than treating that label as a terminal personal state. Suitable continuation includes:
+
+- independently reviewing another exact head;
+- producing a bounded non-conflicting repair for a concrete defect;
+- checking composition and current-main drift;
+- synchronizing findings, receipts, and live descriptions;
+- retiring obsolete carriers after evidence transfer;
+- preparing a blocked lane's smallest safe next probe;
+- opening a fresh investigation when local debt is controlled or the new work has clearly higher marginal value.
+
 ## Bounded continuation and review throughput
 
-An explicit user assignment or instruction to continue authorizes bounded work in the same lane. Continue through source reading, local probes, review repairs, and ordinary repository writes without repeatedly asking for permission.
+An explicit user assignment or instruction to continue authorizes bounded work in the same lane. Continue through source reading, local probes, review repairs, ordinary repository writes, cleanup, synchronization, and adjacent peer review without repeatedly asking for permission.
+
+When a review finds a concrete defect, prefer repairing it in the same pass when the repair is bounded, validation is available, and the writer lease is owned, transferred, expired, or respected through a separate stacked branch. Do not silently rewrite another active worker's artifact. When direct repair would conflict, retain an exact repair recipe, focused regression, or non-conflicting stack.
 
 Seek new authorization when the work would widen scope, change authority, use private or production data, create a new external interaction, incur material cost, or cross another explicit boundary.
 
-When review debt grows faster than dispositions, pause creation of new review surfaces and finish, consolidate, supersede, or close existing work. Reopen promotion only when new execution, consequence, novelty, or a narrow correction materially improves the decision.
+When review debt grows faster than dispositions, pause creation of new review surfaces and finish, consolidate, supersede, or close existing work. Prefer concrete nearby repair, composition, exact-head execution, evidence transfer, state synchronization, carrier retirement, and independent disposition before distant exploration. Reopen promotion or create a new surface only when new execution, consequence, novelty, or a narrow correction materially improves the decision.
 
 ## Canonical branch and execution-carrier rules
 
