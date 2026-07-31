@@ -20,7 +20,6 @@ if __package__:
     from .validate_patch_syntax import (
         HUNK_HEADER,
         PatchSyntaxError,
-        discover_tracked_patches,
         validate_patch_text,
     )
     from .validate_patch_with_git import (
@@ -31,7 +30,6 @@ else:
     from validate_patch_syntax import (
         HUNK_HEADER,
         PatchSyntaxError,
-        discover_tracked_patches,
         validate_patch_text,
     )
     from validate_patch_with_git import (
@@ -42,6 +40,7 @@ else:
 SCHEMA_VERSION = 1
 BINARY_SUMMARY = "binary-summary-nonmaterializing"
 EVIDENCE_ONLY_SUFFIX = ".diff-summary"
+TRACKED_ARTIFACT_PATTERNS = ("*.patch", "*.diff", "*.diff-summary")
 MATERIALIZABLE_KINDS = frozenset(
     {"textual-hunks", "git-binary-payload", "metadata-only"}
 )
@@ -71,6 +70,35 @@ class _SectionState:
     has_hunk: bool = False
     has_git_binary_payload: bool = False
     has_binary_summary: bool = False
+
+
+@dataclass
+class _HunkRemainder:
+    old: int
+    new: int
+
+    @property
+    def complete(self) -> bool:
+        return self.old == 0 and self.new == 0
+
+
+def discover_tracked_materialization_artifacts(root: Path = Path(".")) -> list[Path]:
+    """Return every tracked artifact governed by materialization policy.
+
+    Structural and native patch validators may deliberately retain their
+    narrower ``*.patch`` contract. Materialization policy owns a wider naming
+    boundary because ``*.diff`` must fail closed and ``*.diff-summary`` must
+    remain explicitly visible as evidence-only.
+    """
+
+    completed = subprocess.run(
+        ["git", "ls-files", "-z", "--", *TRACKED_ARTIFACT_PATTERNS],
+        cwd=root,
+        check=True,
+        stdout=subprocess.PIPE,
+    )
+    names = completed.stdout.decode("utf-8", errors="surrogateescape").split("\0")
+    return sorted(root / name for name in names if name)
 
 
 def _is_file_header_boundary(lines: list[str], index: int) -> bool:
@@ -104,6 +132,23 @@ def _finish_section(
     )
 
 
+def _consume_hunk_line(remainder: _HunkRemainder, line: str) -> None:
+    if line.startswith(" "):
+        remainder.old -= 1
+        remainder.new -= 1
+    elif line.startswith("-"):
+        remainder.old -= 1
+    elif line.startswith("+"):
+        remainder.new -= 1
+    elif line == r"\ No newline at end of file":
+        return
+    else:
+        raise AssertionError("validated hunk contains an unsupported body line")
+
+    if remainder.old < 0 or remainder.new < 0:
+        raise AssertionError("validated hunk exceeded its declared line counts")
+
+
 def classify_patch_text(text: str, path: str = "<patch>") -> tuple[SectionReceipt, ...]:
     """Return section classifications after structural validation succeeds."""
 
@@ -112,9 +157,34 @@ def classify_patch_text(text: str, path: str = "<patch>") -> tuple[SectionReceip
     sections: list[SectionReceipt] = []
     current: _SectionState | None = None
     file_headers_seen = False
+    hunk: _HunkRemainder | None = None
 
     for index, line in enumerate(lines):
         line_number = index + 1
+
+        # Hunk body content is data, even when a deleted line starts ``-- ``
+        # and the next added line starts ``++ ``. In raw unified-diff text those
+        # lines look like ``--- `` / ``+++ `` file headers, so they must be
+        # consumed under the declared hunk counts before boundary detection.
+        if hunk is not None:
+            _consume_hunk_line(hunk, line)
+            if hunk.complete:
+                hunk = None
+            continue
+
+        hunk_match = HUNK_HEADER.match(line)
+        if hunk_match:
+            if current is None:
+                raise AssertionError("validated hunk has no section")
+            current.has_hunk = True
+            hunk = _HunkRemainder(
+                old=int(hunk_match.group("old_count") or "1"),
+                new=int(hunk_match.group("new_count") or "1"),
+            )
+            if hunk.complete:
+                hunk = None
+            continue
+
         diff_boundary = line.startswith("diff --git ") or line.startswith("Index: ")
         file_header_boundary = _is_file_header_boundary(lines, index)
 
@@ -130,11 +200,7 @@ def classify_patch_text(text: str, path: str = "<patch>") -> tuple[SectionReceip
                 current = _SectionState(start_line=line_number)
             file_headers_seen = True
 
-        if HUNK_HEADER.match(line):
-            if current is None:
-                raise AssertionError("validated hunk has no section")
-            current.has_hunk = True
-        elif line == "GIT binary patch":
+        if line == "GIT binary patch":
             if current is None:
                 current = _SectionState(start_line=line_number)
             current.has_git_binary_payload = True
@@ -143,6 +209,8 @@ def classify_patch_text(text: str, path: str = "<patch>") -> tuple[SectionReceip
                 current = _SectionState(start_line=line_number)
             current.has_binary_summary = True
 
+    if hunk is not None:
+        raise AssertionError("validated patch ended inside a hunk")
     _finish_section(sections, current)
     if not sections:
         raise AssertionError("validated patch produced no section classification")
@@ -219,7 +287,10 @@ def parse_args() -> argparse.Namespace:
         "paths",
         nargs="*",
         type=Path,
-        help="artifacts to inspect; defaults to every tracked *.patch file",
+        help=(
+            "artifacts to inspect; defaults to every tracked *.patch, *.diff, "
+            "and *.diff-summary file"
+        ),
     )
     parser.add_argument(
         "--output",
@@ -232,9 +303,9 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
-        paths = args.paths or discover_tracked_patches()
+        paths = args.paths or discover_tracked_materialization_artifacts()
     except (OSError, subprocess.CalledProcessError) as exc:
-        print(f"unable to discover tracked patches: {exc}", file=sys.stderr)
+        print(f"unable to discover tracked retained artifacts: {exc}", file=sys.stderr)
         return 1
 
     document, violations = build_receipt(paths)
