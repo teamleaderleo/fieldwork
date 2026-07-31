@@ -141,9 +141,12 @@ Label searches are discovery views; they cannot encode exact heads, reviewed inp
 
 - One worker claims one primary scout or coordinated lane at a time unless assignments are explicitly coupled.
 - One mutable branch, canonical finding edit, or shared workspace front door has one active writer lease.
+- Tiny independent probes may run concurrently when each has an immutable output path.
 - Unique evidence paths may be produced in parallel.
 - One integration trial branch has one owner.
+- A programme may have many active scouts when each question is distinct and synthesis capacity exists.
 - A campaign should have no more active lanes than a coordinator can review and synthesise.
+- A batch should declare a maximum useful concurrency.
 - New scouts or lanes require a distinct question, deliverable, or evidence type.
 - Duplicate reconnaissance should be merged or stopped quickly.
 - Do not create a second delivery candidate when one canonical clean implementation already owns the invariant.
