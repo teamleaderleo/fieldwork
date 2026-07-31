@@ -36,9 +36,13 @@ jobs:
           set -euo pipefail
           test "$(git -C box rev-parse HEAD)" = "b55d832d6e3ae0156e32d21ea3863e231dfff9cd"
           python3 -m py_compile \
-            fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/apply_target_repair.py
+            fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/apply_target_repair.py \
+            fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/apply_sync_test_repair.py
           python3 \
             fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/apply_target_repair.py \
+            box
+          python3 \
+            fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/apply_sync_test_repair.py \
             box
           cp \
             fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/fieldwork-cancel-receipt-repair.test.ts \
@@ -110,15 +114,18 @@ jobs:
           ruff check \
             upstash_box \
             tests/_async/test_run.py \
+            tests/_sync/test_sync_client.py \
             tests/test_cancel_receipt_repair.py \
             scripts/generate_sync.py
           ruff format --check \
             upstash_box \
             tests/_async/test_run.py \
+            tests/_sync/test_sync_client.py \
             tests/test_cancel_receipt_repair.py \
             scripts/generate_sync.py
           mypy \
             upstash_box/_async/client.py \
+            upstash_box/_sync/client.py \
             upstash_box/_cancellation.py \
             upstash_box/types.py
 
