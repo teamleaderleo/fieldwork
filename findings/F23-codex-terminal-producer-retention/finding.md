@@ -1,60 +1,102 @@
 # F23-codex-terminal-producer-retention: Retain bounded terminal output before best-effort broadcast
 
-Finding state: `delivery-gate-ready`
+Finding state: `comparative-evaluation-active`
 
 Workstream: `J/N/O — Codex process output and current-source evidence`  
 Canonical Fieldwork issue: `#23`  
 Canonical finding path: `findings/F23-codex-terminal-producer-retention/finding.md`  
-Canonical implementation: `pending owned Codex source PR after artifact materialization`  
-Exact implementation head: `8c7ea38419d790032db459816980e6b4dd38f574` retained in artifact; owned branch is not yet materialized  
-Exact base or source revision: `openai/codex@97576b1794872e342450ebd577123e052ab57626`  
-Strongest evidence class: `target-executed`  
-Reviewed input generation: `Fieldwork #268 run 30587866332; artifact 8777460316; artifact digest and checksum review`  
-Current review disposition: `HOLD source review until exact tree materialization`  
+Canonical implementation: `teamleaderleo/codex#93`, pending latest-public-head successor  
+Exact implementation head: `7f15307fd2c157d8a139310d2e8243f3f2b391a4` on base `4642370542739d5dd080b0c87a9de06a6435d3db`  
+Latest public source reviewed: `openai/codex@3d1d26915a303c3b4765828f973f5464f8c28c5c`  
+Strongest evidence class: `target-executed` for the nine candidate controls; mixed for the broad package gate  
+Reviewed input generation: `run 30587866332; artifact 8777460316; source #91/#93; current-source carrier #94 run 30597355839; complete public overlap review`  
+Current review disposition: `RESTACK AND EXECUTE on latest public head`  
 Desk routing: `not-entered`  
 Upstream contact authorized: `no`
 
 ## In simple words
 
-A running process produces bytes. Codex keeps a bounded transcript and also broadcasts live output to listeners. The live broadcast is intentionally best-effort: a listener can arrive late or fall behind.
+A process produces stdout and stderr. Codex retains a bounded transcript and broadcasts live output to listeners. The broadcast is deliberately best-effort: a listener can subscribe late or fall behind.
 
-Terminal completion should therefore use the bytes retained by the producer, not ask a lossy listener to reconstruct the final transcript. The current candidate retains output before broadcast and reconciles completion with that producer-owned bounded transcript.
+Terminal completion should use the bytes retained by the producer rather than asking a lossy listener to reconstruct the final transcript.
 
-The behavior has passed exact current-source controls. The remaining defect is bookkeeping: the verified source tree exists in a retained artifact, while the intended owned Codex source branch still points at the untouched base.
+The four-file source candidate is materialized and its nine focused controls passed. The prior broad package gate encountered stack exhaustion in an unrelated test. Public Codex has moved again, although the complete public delta remains file-disjoint from the terminal source fence. The remaining work is a direct latest-head restack and a broad package run under the raised-stack condition already used for this class of repository test.
 
 ## Why we care
 
-A command can finish successfully while its completion item omits bytes the producer received. The model or user can then see an incomplete result even though Codex observed the output.
+A command can finish while its completion item omits bytes Codex received. The model or user then receives an incomplete result even though the process producer observed the output.
 
-This is distinct from unbounded logging. The retained transcript follows Codex's existing bounded head/tail policy and preserves explicit omission behavior.
+This finding preserves Codex's existing bounded head/tail policy. It changes the owner of the retained completion transcript, not the retention limit.
 
-## What happens if we leave it alone
+## Governing invariant
 
-A late or lagging broadcast subscriber can define the completion transcript. Output that existed before subscription or while the subscriber lagged can be absent from the final item.
+Producer-received output must enter the bounded authoritative transcript before best-effort live broadcast. Terminal completion reconciles partial streamed output against that producer-owned transcript.
 
-Observed controls cover ordinary close, delayed subscription, partial stream replacement, and invalid UTF-8 progress. Hard termination, process-tree containment, and restart reattachment remain separate.
+Success at adjacent boundaries proves less:
 
-## Current finding
+- process exit does not prove the subscriber received every byte;
+- broadcast delivery does not prove the final transcript;
+- bounded retention does not prove hard-kill drain or process-tree settlement;
+- a focused behavior pass does not prove the complete current package gate.
 
-Unified-exec output should be retained at the non-lossy producer boundary before best-effort broadcast. Completion should reconcile partial streamed output with that authoritative bounded producer transcript.
+## Current source and evidence
 
-The retained source preserves upstream improvements:
+### Historical behavior receipt
 
-- bounded output collection;
-- `VecDeque` pending decode bytes;
-- progress across invalid UTF-8;
-- close/drain ordering before completion;
-- explicit omission semantics.
+Fieldwork run `30587866332` established:
 
-### Claim table
+- exact controls `9/9`;
+- repository formatting;
+- exact four-file source fence;
+- focused `codex-core` library gate;
+- integration target compilation;
+- source export and artifact upload.
 
-| Claim | Evidence class | Exact support | Limit |
-| --- | --- | --- | --- |
-| Producer-owned retention prevents late-subscriber loss for normal close | `target-executed` | exact local-output and completion controls in run `30587866332` | Linux normal-close path |
-| Invalid UTF-8 bytes remain retained when live broadcast lags | `target-executed` | exact invalid-UTF-8 producer control | Bounded transcript policy still applies |
-| Partial stream output can be replaced by authoritative completion output | `target-executed` | exact reconciliation control | Does not settle remote process identity |
-| Current deque behavior remains intact | `target-executed` | five exact split/progress controls | Source base is `97576b...` |
-| Retained source artifact is internally exact | `source-read` | artifact metadata, five checksum records, four-file archive, resolved names | Owned Git branch still lacks the commit |
+Artifact `8777460316` retained:
+
+- digest `sha256:9c6c4f6741ee2514e995849ca2bed9caf0f80b80fdbb3a9ea31565df3ebda2dd`;
+- source archive SHA-256 `dca7808534f03a576a3b1d11f312393a8861c7c5f268cea2b3d6ac442f1122f5`;
+- source tree `563f90f55c0ebd9454171d24697d796cba1388d4`;
+- source parent `97576b1794872e342450ebd577123e052ab57626`.
+
+### Materialized source
+
+Owned source PR #93 is a real four-file source candidate:
+
+- base `4642370542739d5dd080b0c87a9de06a6435d3db`;
+- head `7f15307fd2c157d8a139310d2e8243f3f2b391a4`;
+- exactly four files;
+- 294 additions and 57 deletions.
+
+It reuses the independently verified blobs from predecessor source #91:
+
+| File | Blob |
+| --- | --- |
+| `codex-rs/core/src/unified_exec/async_watcher.rs` | `a0427969dec77d57f6bc3037108cd4be26125cd0` |
+| `codex-rs/core/src/unified_exec/async_watcher_tests.rs` | `57002ea930169d2815aed51e42bbb37f27faedc8` |
+| `codex-rs/core/src/unified_exec/process.rs` | `ca47e90159328921a3f469fd0dad72c91ef5f86a` |
+| `codex-rs/core/src/unified_exec/process_tests.rs` | `b76c9151eb9b5a42e6e6cdfe4ef4b1c0c1686f58` |
+
+### Prior current-source carrier
+
+Execution carrier #94 checked out exact source head `7f15307...` and ran the nine declared controls through the repository `just test` entrypoint.
+
+Run `30597355839` reached the broad `codex-core` package gate after the candidate-specific controls passed. The broad package gate then hit stack exhaustion in a test outside the four-file candidate fence.
+
+This is a mixed receipt:
+
+- candidate behavior: supported at the old pin;
+- broad default-stack package gate: failed outside the candidate fence;
+- raised-stack broad gate: still required;
+- latest-public-head behavior: still required.
+
+## Current public compatibility
+
+The complete public compare from `464237054...` to `3d1d26915...` is eleven commits ahead and zero behind.
+
+The delta changes release packaging, MCP, tool planning/registration, skills, external-agent connector detection, and associated tests. It does not touch any of the four terminal candidate files.
+
+That file-disjoint result supports direct restacking. It does not substitute for target execution because dependencies, shared test code, and crate-level behavior can still change outside the source fence.
 
 ## System and ownership map
 
@@ -71,128 +113,104 @@ process stdout/stderr producer
 - The bounded buffer owns retained completion content and omission metadata.
 - Broadcast owns responsive live delivery and may lose subscriber delivery.
 - The completion path owns final reconciliation.
-- Process termination, sandbox denial, and restart recovery have adjacent owners.
+- Process termination, containment, and restart recovery have separate owners.
 
-## Historical precedent
+## Claim table
 
-### Bounded unified-exec output collection
-
-- Source: openai/codex PR #31802.
-- Principle supported: retain bounded head/tail output, continue draining, and mark omissions.
-- Important difference: a bounded buffer can still be populated from a lossy subscriber instead of the producer.
-
-### Lifecycle event ordering
-
-- Source: openai/codex PR #34713.
-- Principle supported: wait for output-task closure, drain trailing chunks, and publish terminal events in order.
-- Important difference: ordering does not by itself give completion a producer-owned transcript.
-
-### `VecDeque` streaming decode
-
-- Source: openai/codex PR #36194.
-- Principle supported: avoid front-shifting bytes and make progress around invalid UTF-8.
-- Important difference: the historical Fieldwork source touched the same files and had to be reconstructed while preserving this current behavior.
-
-### Windows containment
-
-- Sources: openai/codex PRs #29981 and #29982.
-- Principle supported: process-tree containment and output-reader ordering are explicit platform contracts.
-- Important difference: containment and transcript retention are adjacent but independently testable.
+| Claim | Evidence class | Exact support | Current limit |
+| --- | --- | --- | --- |
+| Producer-owned retention prevents late-subscriber loss on normal close | `target-executed` | exact controls in run `30587866332` and prior-pin carrier | Linux normal-close path |
+| Invalid UTF-8 bytes remain retained while a subscriber lags | `target-executed` | focused producer/decoder controls | bounded policy still applies |
+| Authoritative completion can replace a partial streamed transcript | `target-executed` | reconciliation control | does not establish process settlement |
+| Current deque/progress behavior was preserved in the source candidate | artifact and source review | exact four blobs and nine controls | latest-head execution remains |
+| Public drift is file-disjoint from the source fence | `source-read` | complete `464237... → 3d1d269...` compare | shared dependencies can still affect behavior |
+| Broad default-stack failure is outside the source fence | mixed execution receipt | #94 reached broad package gate after focused controls | exact raised-stack receipt remains |
 
 ## Approaches considered
 
-### Retained approach: producer-owned bounded transcript
+### Retained: producer-owned bounded transcript
 
-This uses the first non-lossy owner, preserves live streaming, and retains current memory limits.
+This uses the first non-lossy owner, preserves live streaming, and keeps the existing memory bound and omission semantics.
 
 ### Declined: completion from broadcast subscription
 
-Broadcast is allowed to drop delivery. A late or lagging subscriber cannot define an authoritative final transcript.
+Broadcast can drop delivery by design. A late or lagging subscriber cannot own an authoritative final transcript.
 
-### Declined: unbounded output retention
+### Declined: unbounded retention
 
-The invariant concerns ownership, not unlimited storage. Existing bounded head/tail and omission semantics remain.
+The issue is ownership rather than unlimited storage. The existing bounded policy remains.
 
-### Declined: cherry-pick historical source mechanically
+### Declined: treat the old current pin as current
 
-Current upstream changed the same decoder files. A mechanical conflict choice would discard `VecDeque` and invalid-byte progress improvements.
+Public source moved through eleven commits. File-disjointness permits restacking but does not preserve a present-tense delivery claim without execution.
 
-### Deferred: hard-termination and restart recovery
+### Deferred: hard termination and restart recovery
 
-Those require process settlement and durable reattachment contracts beyond normal-close transcript ownership.
+Those need process settlement, containment, and durable reattachment contracts beyond normal-close transcript ownership.
 
 ## Edge cases covered
 
-| Edge case or control | Evidence | Result |
-| --- | --- | --- |
-| Output arrives before listener subscribes | exact completion control | final item includes retained output |
-| Live broadcast deliberately lags | real driver-backed `SpawnedProcess` control | producer transcript remains complete within bound |
-| Invalid UTF-8 during lag | exact producer control | bytes retained and decoder progresses |
-| Partial live transcript | reconciliation control | authoritative completion replaces partial stream |
-| ASCII and multibyte max-byte split | exact deque controls | no codepoint split |
-| Invalid byte between valid prefixes | exact deque controls | valid prefix consumed and remaining bytes advance |
-| Full library compatibility | bounded carrier gate | `codex-core --lib` passed |
-| Integration compile compatibility | bounded carrier gate | all integration targets compiled |
+| Edge case | Result |
+| --- | --- |
+| output before listener subscription | final completion includes retained output |
+| deliberately lagging live subscriber | producer transcript remains complete within the bound |
+| invalid UTF-8 during lag | bytes remain retained and decoder progresses |
+| partial live transcript | authoritative completion replaces partial stream |
+| ASCII and multibyte max-byte split | no codepoint split |
+| invalid byte between valid prefixes | valid prefix consumed and remaining bytes advance |
+| exact source fence | four files only |
 
-## Edge cases deferred or outside scope
+## Edge cases deferred
 
-| Edge case | Why deferred | Owning next record or reopening trigger |
-| --- | --- | --- |
-| Hard-kill trailing bytes | Producer may terminate before close/drain | process settlement finding |
-| Windows process tree | Platform containment owner | dedicated Windows process finding |
-| Remote executor reattachment | Requires durable remote identity | restart/recovery finding |
-| Durable tool-result persistence | Separate Session/ThreadStore owner | F83 and receipt findings |
-| Entire unbounded stream | Conflicts with declared retention policy | reopen only if product policy changes |
+| Edge case | Owner or trigger |
+| --- | --- |
+| hard-kill trailing bytes | process settlement finding |
+| Windows process-tree containment | Windows process finding |
+| remote executor reattachment | restart/recovery finding |
+| durable tool-result persistence | F83 and replay findings |
+| entire unbounded output stream | product-policy change |
 
-## Exact execution and receipts
+## Exact next controls
 
-| Repository/head | Command or workflow | Platform/environment | Result | Evidence class |
-| --- | --- | --- | --- | --- |
-| `teamleaderleo/fieldwork#268@58c0d027e2acf80fb9e16d89d0daba65de0dc563` | run `30587866332` | Linux hosted carrier | nine exact controls, full library gate, integration compilation passed | `target-executed` |
-| artifact `8777460316` | checksum and archive inspection | retained workflow artifact | five payload checksums verified; exact four files and nine names retained | `source-read` artifact review |
-
-Artifact metadata:
-
-- source head `8c7ea38419d790032db459816980e6b4dd38f574`;
-- source tree `563f90f55c0ebd9454171d24697d796cba1388d4`;
-- source parent `97576b1794872e342450ebd577123e052ab57626`;
-- artifact digest `sha256:9c6c4f6741ee2514e995849ca2bed9caf0f80b80fdbb3a9ea31565df3ebda2dd`.
-
-## Complete-diff and compatibility review
-
-- Declared source fence: exactly four unified-exec process/watcher files.
-- Historical source was reconstructed against `97576b...` while preserving current deque behavior.
-- The retained patch and source archive are available and checksum-verified.
-- The intended owned branch `fieldwork/23-terminal-97576-source` currently compares identical to untouched base with zero commits.
-- An attempted source PR correctly failed because no source commit exists on the branch.
-- Public Codex has advanced substantially; after artifact materialization, current overlap must be refreshed before proposal packaging.
-- Execution carriers #53 and Fieldwork #268 remain non-canonical and should retire only after source and receipts transfer.
+1. Materialize the identical four verified blobs on public head `3d1d26915...`.
+2. Verify the latest source branch changes exactly the four declared files.
+3. Run repository formatting and require a clean tree.
+4. Resolve and run the same nine exact controls.
+5. Run the focused `codex-core` package with the raised stack condition.
+6. Preserve an ordinary-stack diagnostic only as separate environment evidence.
+7. Review the complete four-file diff on the exact latest source head.
+8. Transfer receipts into #23, #239, this finding, and the source PR.
+9. Retire execution carriers after source and receipts are durable.
 
 ## Current disposition and desk routing
 
-- Finding state: `delivery-gate-ready`
-- Review disposition: `HOLD source review until exact tree materialization`
+- Finding state: `comparative-evaluation-active`
+- Review disposition: `RESTACK AND EXECUTE on latest public head`
 - Review Queue entry: none
 - Delivery lane: `not-entered`
-- Exact next transition: create the retained tree as one commit parented by `97576b...`, move the intended branch to exact head `8c7ea384...` or a proven equivalent commit, verify tree and file identities, then open the four-file source PR.
-- Clearing condition: owned source branch and retained artifact agree on parent, tree, files, and patch.
-- Required subgates: Git materialization, source PR, current drift classification, complete-diff review, carrier retirement.
-- Autonomous work remaining: source materialization and review.
-- Non-delegable human decision: none.
+- Exact next transition: latest-head source materialization followed by the nine exact controls and raised-stack package gate.
+- Clearing condition: exact latest source head, clean four-file diff, focused controls, raised-stack package result, complete-diff review, and carrier retirement agree.
+- Required subgates: public overlap, source identity, target-native formatting/testing, broad package gate, review, and cleanup.
+- Autonomous work remaining: source restack, execution, review, synthesis, and carrier retirement.
+- Non-delegable human decision: merge, release, deployment, credentials, or public upstream contact.
 
 ## Changes to the canonical conclusion
 
-| Date | Pull request or commit | Change in conclusion |
+| Date | Record | Change |
 | --- | --- | --- |
-| 2026-07-31 | historical #49/#53 | Retained producer-ownership invariant and reconstructed current deque-compatible source |
-| 2026-07-31 | Fieldwork #268 run `30587866332` | Bounded terminal behavior and package gates passed |
-| 2026-07-31 | artifact review | Target evidence accepted; branch materialization identified as the sole source-review blocker |
+| 2026-07-31 | historical source and carrier | retained producer-ownership invariant and current deque-compatible source |
+| 2026-07-31 | run `30587866332` | nine controls and bounded package/compile gates passed |
+| 2026-07-31 | artifact review | verified exact source tree and blobs |
+| 2026-07-31 | source #93 | materialized the four-file candidate on public pin `464237054...` |
+| 2026-07-31 | carrier #94 | focused controls passed; unrelated default-stack broad test failed |
+| 2026-07-31 | public compare through `3d1d26915...` | source fence remains file-disjoint; latest-head execution required |
 
 ## References
 
 - Fieldwork issues #23 and #239.
-- Fieldwork PR #268.
-- Owned Codex PRs #49 and #53.
+- Owned Codex PRs #91, #93, and #94.
 - `findings/F239-codex-upstream-convergence/finding.md`.
-- Artifact `8777460316` and run `30587866332`.
+- `findings/F239-codex-upstream-convergence/evidence/20260731-terminal-materialization-verification.md`.
+- `findings/F239-codex-upstream-convergence/evidence/20260731-terminal-current-source-restack.md`.
+- Public Codex source through `3d1d26915a303c3b4765828f973f5464f8c28c5c`, read-only.
 - Public upstream interaction: none.
