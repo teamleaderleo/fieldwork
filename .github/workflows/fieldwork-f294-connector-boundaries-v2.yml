@@ -1,0 +1,116 @@
+name: Fieldwork F294 connector boundary model v2
+
+on:
+  pull_request:
+    branches:
+      - finding/294-connector-call-stall
+    paths:
+      - .github/workflows/fieldwork-f294-connector-boundaries-v2.yml
+      - findings/F294-connector-call-stall/evidence/run_boundary_matrix.mjs
+      - findings/F294-connector-call-stall/evidence/20260731-boundary-model.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  boundary-matrix:
+    name: Node ${{ matrix.node }} repaired boundary matrix
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - 22
+          - 24
+
+    steps:
+      - name: Check out exact execution carrier
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Verify exact source and carrier fence
+        env:
+          CANONICAL_SOURCE_HEAD: 3a0cf7b1b6eb579277ed8749fd5dd6f0d514a709
+        run: |
+          set -euo pipefail
+          test "$(git merge-base HEAD "$CANONICAL_SOURCE_HEAD")" = "$CANONICAL_SOURCE_HEAD"
+          actual="$(git diff --name-only "$CANONICAL_SOURCE_HEAD"...HEAD)"
+          expected='.github/workflows/fieldwork-f294-connector-boundaries-v2.yml'
+          printf 'carrier files:\n%s\n' "$actual"
+          test "$actual" = "$expected"
+          echo "FIELDWORK_F294_V2_SOURCE_HEAD=$CANONICAL_SOURCE_HEAD"
+          echo "FIELDWORK_F294_V2_CARRIER_HEAD=$(git rev-parse HEAD)"
+
+      - name: Run repaired presentation and settlement model
+        env:
+          RESULTS_DIR: ${{ runner.temp }}/f294-v2-node-${{ matrix.node }}
+        run: |
+          set -euo pipefail
+          node findings/F294-connector-call-stall/evidence/run_boundary_matrix.mjs
+
+      - name: Verify retained schema, controls, and privacy fence
+        env:
+          RESULTS_DIR: ${{ runner.temp }}/f294-v2-node-${{ matrix.node }}
+        run: |
+          set -euo pipefail
+          report="$RESULTS_DIR/boundary-matrix.json"
+          test -s "$report"
+          node - <<'NODE'
+          const fs = require("node:fs")
+          const path = require("node:path")
+          const reportPath = path.join(process.env.RESULTS_DIR, "boundary-matrix.json")
+          const text = fs.readFileSync(reportPath, "utf8")
+          const report = JSON.parse(text)
+          const expectedNames = [
+            "partial arguments never render or dispatch",
+            "unknown internal event is quarantined",
+            "completed call dispatches exactly once",
+            "cooperative runtime explicitly acknowledges cancellation",
+            "natural late completion does not become cancelled",
+            "late failure stays causal-unknown and content-minimized",
+            "non-settling runtime returns bounded outcome-unknown",
+            "late completion cannot rewrite emitted terminal receipt",
+            "failed-control diagnostics omit source text",
+          ]
+          if (report.schemaVersion !== 2) throw new Error("expected schema version 2")
+          if (report.evidenceClass !== "model-executed") throw new Error("wrong evidence class")
+          if (report.cases.length !== expectedNames.length) throw new Error("wrong case count")
+          if (report.cases.some(testCase => testCase.status !== "passed")) {
+            throw new Error("one or more controls failed")
+          }
+          const names = report.cases.map(testCase => testCase.name)
+          if (JSON.stringify(names) !== JSON.stringify(expectedNames)) {
+            throw new Error("control identity mismatch")
+          }
+          for (const forbidden of [
+            "sk-proj-fieldwork-secret-shaped-value",
+            "ghp_fieldwork_secret_shaped_value",
+            "provider failure",
+            "assertion contained",
+          ]) {
+            if (text.includes(forbidden)) throw new Error(`retained forbidden text: ${forbidden}`)
+          }
+          NODE
+          echo 'FIELDWORK_F294_BOUNDARY_V2_EXACT=9/9'
+
+      - name: Check tracked diff hygiene
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          test -z "$(git status --short --untracked-files=all)"
+
+      - name: Upload exact repaired model result
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: f294-connector-boundary-v2-node-${{ matrix.node }}
+          path: ${{ runner.temp }}/f294-v2-node-${{ matrix.node }}/boundary-matrix.json
+          if-no-files-found: error
+          retention-days: 30
