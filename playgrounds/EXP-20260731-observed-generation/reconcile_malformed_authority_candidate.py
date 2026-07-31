@@ -91,7 +91,7 @@ def _authority_conditions(
         if expires_at is not None:
             try:
                 expires = base._parse_time(expires_at)
-            except (TypeError, ValueError):
+            except (AttributeError, TypeError, ValueError):
                 effective[action] = "denied"
                 conditions.append(
                     base._condition(
