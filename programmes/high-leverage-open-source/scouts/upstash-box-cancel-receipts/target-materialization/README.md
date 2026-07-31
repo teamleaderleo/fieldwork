@@ -3,136 +3,130 @@
 Issue: #388  
 Parent comparison: PR #372  
 Exact target: `upstash/box@b55d832d6e3ae0156e32d21ea3863e231dfff9cd`  
-State: `target-materialization-active`  
+State: `target-executed / workflow-retirement`  
 Upstream contact authorized: no
 
 ## In simple words
 
-The current TypeScript and Python SDKs both suppress cancellation endpoint errors and then set the public run status to `cancelled`. That turns a local request attempt into a confirmed remote outcome. Concurrent TypeScript and async Python callers also have no shared request owner.
+Exact target execution confirms a compatibility-preserving cancellation receipt can be shared across TypeScript, async Python, and generated synchronous Python without publishing a false terminal run state.
 
-This carrier tests a compatibility-preserving source repair across all three public clients:
+The selected repair keeps legacy `cancel()` return contracts, adds an explicit immutable request receipt, shares one at-most-once request across concurrent and later callers, and leaves `Run.status` unchanged until an authoritative server update arrives.
 
-- TypeScript;
-- async Python, which is the Python source of truth;
-- generated synchronous Python.
+All execution used mocked/local requests. No hosted Box API call, account, credential, payment, or private data was involved.
 
-It uses mocked/local requests only. It never calls the hosted Box API.
+## Exact identities
 
-## Exact source findings
+- exact target-executed Fieldwork head: `088ab886efad5fea2ac13df0cb5baa8e2776e550`;
+- exact target checkout: `b55d832d6e3ae0156e32d21ea3863e231dfff9cd`;
+- workflow run: `30641892410`;
+- job: `91193643138`;
+- Fieldwork integrity: `30641892400`, success;
+- artifact: `8797795255`;
+- artifact digest: `sha256:4cb0d91d25ba77472d260365df9c9a8786455b78d66bf3af9db8b78d71ed6fe0`;
+- exact target diff SHA-256: `7860396fc6a3706c3322e936896656a261900d2d91718405c7393a19052ef626`;
+- durable receipt: `upstash-box-cancel-receipt.json`;
+- checkout classification: `exact-head`.
 
-### TypeScript
+The uploaded receipt recorded actual and expected Fieldwork and target heads as equal, target checkout match `true`, technical gate status `success`, evidence class `target-executed-local-mocked`, hosted-provider call `false`, and credentials used `false`.
 
-`Run.cancel()`:
+## Selected compatible API
 
-1. aborts the local controller;
-2. sends `POST /runs/<id>/cancel`;
-3. suppresses every request failure;
-4. assigns `status = "cancelled"`.
+Legacy contracts remain:
 
-The method returns `Promise<void>`, and existing unit coverage expects the terminal assignment.
+- TypeScript `cancel(): Promise<void>`;
+- Python async/sync `cancel() -> None`.
 
-### Python
+New explicit receipt APIs:
 
-`AsyncRun.cancel()` performs the same request suppression and terminal assignment. `Run.cancel()` is mechanically generated from that async source.
+- TypeScript `requestCancel(): Promise<RunCancellationReceipt>`;
+- Python `request_cancel() -> RunCancellationReceipt`.
 
-The sync generator strips `async`/`await` and performs configured symbol replacements. It cannot mechanically convert `asyncio.Task` ownership into thread-safe sync ownership. The repository explicitly permits shared or fallback code for constructs that do not generate cleanly.
+Receipt state:
 
-### Public parity
+- request state: `accepted | failed`;
+- outcome state: always `unknown` locally;
+- optional fixed diagnostic: `cancellation request failed`;
+- immutable/frozen;
+- shared across concurrent and later callers;
+- no automatic replay.
 
-`PARITY.md` currently lists the false-terminal behavior as a mirrored quirk. Any source repair must update that contract and the old tests rather than leaving them as contradictory precedent.
-
-## API comparison
-
-### Shape 1 — change `cancel()` to return a receipt
-
-Advantage: smallest public surface.
-
-Declined for the candidate. TypeScript callers that store or implement `() => Promise<void>` can reject a `Promise<Receipt>` signature even though ordinary callers ignore returned values. Python type contracts also change from `None`.
-
-### Shape 2 — keep `cancel()` void and expose only a settled property
-
-Advantage: preserves the method signature.
-
-Declined as the sole API. A property gives later observation but does not provide one obvious awaitable/requesting operation for concurrent callers.
-
-### Shape 3 — add `requestCancel()` / `request_cancel()` and retain legacy `cancel()`
-
-Selected for execution.
-
-- `requestCancel()` / `request_cancel()` returns the immutable shared receipt;
-- legacy `cancel()` delegates and discards it;
-- existing return signatures remain unchanged;
-- later callers join the settled attempt without replay;
-- `Run.status` stays authoritative and unchanged until a server update arrives.
-
-## Receipt contract
-
-TypeScript:
-
-```ts
-type RunCancellationReceipt = Readonly<{
-  requestState: "accepted" | "failed";
-  outcomeState: "unknown";
-  diagnostic?: "cancellation request failed";
-}>;
-```
-
-Python uses a frozen dataclass with equivalent snake-case fields.
-
-`accepted` means the local HTTP request completed successfully. It does not mean the remote run reached a terminal cancelled state. A failed request retains fixed diagnostic prose and no provider response text.
+`accepted` means the local request completed successfully. It does not claim the remote run reached a terminal cancelled state.
 
 ## Runtime ownership
 
 ### TypeScript
 
-One private Promise is assigned before the request begins. Every caller receives the same Promise and receipt object. Promise consumers cannot cancel the shared request by abandoning their own wait.
+One private Promise is assigned before request execution. Concurrent and later callers receive the same Promise and receipt object. Abandoning one wait does not cancel the shared request.
 
 ### Async Python
 
-One private `asyncio.Task` owns the request. Every waiter uses `asyncio.shield`, so cancelling one waiter does not cancel the shared task or another waiter.
+One private `asyncio.Task` owns the request. Every waiter joins through `asyncio.shield`, so cancelling one waiter does not cancel the shared operation or prevent another waiter from receiving the receipt.
 
-### Sync Python
+### Generated sync Python
 
-One thread-safe `Future` and lock select a single request owner. Other threads wait on the same result. The generated client references the sync coordinator through one generator symbol replacement.
+One lock and shared `Future` select a single request owner. Other threads wait on the same result. The generator maps `AsyncCancellationCoordinator` to `SyncCancellationCoordinator` while continuing to generate the synchronous client from async source.
 
-## Controls
+## Exact target results
 
-The carrier injects target-native tests for:
+### TypeScript
 
-- one request under concurrent TypeScript callers;
-- one request under concurrent async Python callers;
-- survival after one async waiter is cancelled;
-- one request under concurrent sync threads;
-- immutable/frozen receipt identity;
-- fixed failure prose without provider detail;
-- no false terminal status;
-- later authoritative status replacement;
-- no replay for later callers;
-- legacy void/None return behavior;
-- deterministic sync generation;
-- JavaScript build, formatting, focused and full tests;
-- Python focused/full tests, parity, Ruff, MyPy, and generated-sync diff.
+- focused existing plus Fieldwork controls: 21/21 passed;
+- full SDK suite: 29 files, 385 tests passed;
+- TypeScript build: success;
+- repository package formatting/lint: success;
+- valid accepted receipt, fixed failure receipt, shared concurrent identity, no replay, no false terminal state, and later authoritative status replacement were all exercised.
 
-## Candidate files in exact target
+### Python
 
-The transformation is expected to touch:
+- focused async and cancellation-repair controls: 7/7 passed;
+- full SDK suite: 185 passed, 12 deselected;
+- sync generation executed twice and produced byte-identical non-empty diffs;
+- JS/Python public parity: success;
+- Ruff lint: success;
+- Ruff format: success;
+- MyPy: success on async client, generated sync client, cancellation coordinator, and public types;
+- async shared request, cancelled-waiter survival, fixed failure prose, sync thread sharing, immutable frozen receipt, no replay, legacy `None`, and later authoritative status replacement were exercised.
 
-- `packages/sdk/src/client.ts`;
-- `packages/sdk/src/types.ts`;
-- `packages/sdk/src/index.ts`;
-- `packages/sdk/src/__tests__/run.test.ts`;
-- `packages/python-sdk/upstash_box/types.py`;
-- `packages/python-sdk/upstash_box/_cancellation.py`;
-- `packages/python-sdk/upstash_box/_async/client.py`;
-- generated `packages/python-sdk/upstash_box/_sync/client.py`;
-- `packages/python-sdk/upstash_box/__init__.py`;
-- `packages/python-sdk/scripts/generate_sync.py`;
-- `packages/python-sdk/tests/_async/test_run.py`;
-- `packages/python-sdk/PARITY.md`;
-- injected Fieldwork target controls.
+## Target source shape
+
+The generated target diff changes the TypeScript SDK, async Python source of truth, generated sync Python, public exports/types, parity documentation, and target-native tests.
+
+The durable Fieldwork carrier retains:
+
+- fail-closed transformation scripts;
+- TypeScript target-native controls;
+- Python async/sync target-native controls;
+- this exact receipt and report.
+
+The transformation scripts require every source fragment to match exactly once before writing and therefore fail closed on target drift.
 
 ## Evidence boundary
 
-A passing carrier would be target-executed evidence for exact public source, mocked request behavior, TypeScript/Python API compatibility, and repository-declared local gates. It would not establish hosted endpoint semantics, provider idempotency, server-side outcome truth, billing, production concurrency, or public maintainer acceptance.
+Established for exact public source and local mocked execution:
 
-The retained candidate diff is internal research. No public upstream pull request, issue comment, review, reaction, or backlink is authorized.
+- compatibility of the selected public API family;
+- one shared request and receipt across concurrent callers;
+- cancelled async waiter isolation;
+- fixed failure diagnostics without provider response detail;
+- no false terminal status;
+- later authoritative status replacement;
+- no replay for later callers;
+- deterministic generated sync output;
+- repository-declared TypeScript and Python tests, formatting, lint, typecheck, build, and parity gates.
+
+Not established:
+
+- hosted endpoint semantics or provider idempotency;
+- whether a real remote run stops, continues, or completes naturally;
+- server-side terminal outcome truth;
+- billing or production concurrency behavior;
+- public maintainer acceptance;
+- merge or release readiness.
+
+## Final transition
+
+Retain the scripts, controls, durable receipt, exact run/artifact identities, and target-diff hash. Remove the temporary execution workflow, run workflow-free Fieldwork integrity, then perform complete-diff review from compatibility, concurrency/cancellation, privacy/diagnostics, generator parity, and evidence-currentness perspectives.
+
+The connected author account may provide technical self-review from those perspectives but cannot satisfy eligible independent acceptance.
+
+No merge, release, deployment, account, credential, payment, private-data access, spending, or public-upstream interaction is authorized.
