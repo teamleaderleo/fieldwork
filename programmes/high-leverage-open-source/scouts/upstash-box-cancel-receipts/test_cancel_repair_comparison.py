@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import FrozenInstanceError
 import unittest
 
@@ -18,11 +19,11 @@ class CancellationRepairComparisonTests(unittest.IsolatedAsyncioTestCase):
         remote = RemoteCancelProbe(succeeds=False)
         run = RunModel(Candidate.SHARED_TERMINAL, remote)
 
-        first = self._asyncio_create_task(run.cancel())
-        second = self._asyncio_create_task(run.cancel())
+        first = asyncio.create_task(run.cancel())
+        second = asyncio.create_task(run.cancel())
         await wait_for_calls(remote, 1)
         remote.release.set()
-        receipts = await self._gather(first, second)
+        receipts = await asyncio.gather(first, second)
 
         self.assertEqual(1, remote.calls)
         self.assertEqual(receipts[0], receipts[1])
@@ -33,11 +34,11 @@ class CancellationRepairComparisonTests(unittest.IsolatedAsyncioTestCase):
         remote = RemoteCancelProbe(succeeds=False)
         run = RunModel(Candidate.PUBLIC_CANCELLING, remote)
 
-        first = self._asyncio_create_task(run.cancel())
-        second = self._asyncio_create_task(run.cancel())
+        first = asyncio.create_task(run.cancel())
+        second = asyncio.create_task(run.cancel())
         await wait_for_calls(remote, 2)
         remote.release.set()
-        await self._gather(first, second)
+        await asyncio.gather(first, second)
 
         self.assertEqual(2, remote.calls)
         self.assertEqual("cancelling", run.status)
@@ -46,11 +47,11 @@ class CancellationRepairComparisonTests(unittest.IsolatedAsyncioTestCase):
         remote = RemoteCancelProbe(succeeds=True)
         run = RunModel(Candidate.SEPARATE_RECEIPT, remote)
 
-        first = self._asyncio_create_task(run.cancel())
-        second = self._asyncio_create_task(run.cancel())
+        first = asyncio.create_task(run.cancel())
+        second = asyncio.create_task(run.cancel())
         await wait_for_calls(remote, 1)
         remote.release.set()
-        receipts = await self._gather(first, second)
+        receipts = await asyncio.gather(first, second)
 
         self.assertEqual(1, remote.calls)
         self.assertIs(receipts[0], receipts[1])
@@ -58,11 +59,33 @@ class CancellationRepairComparisonTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("unknown", receipts[0].outcome_state)
         self.assertEqual("running", run.status)
 
+    async def test_cancelled_waiter_does_not_cancel_shared_request(self) -> None:
+        remote = RemoteCancelProbe(succeeds=True)
+        run = RunModel(Candidate.SEPARATE_RECEIPT, remote)
+
+        cancelled_waiter = asyncio.create_task(run.cancel())
+        surviving_waiter = asyncio.create_task(run.cancel())
+        await wait_for_calls(remote, 1)
+
+        cancelled_waiter.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await cancelled_waiter
+
+        self.assertEqual(1, remote.calls)
+        self.assertEqual("running", run.status)
+        remote.release.set()
+        receipt = await surviving_waiter
+
+        self.assertEqual("accepted", receipt.request_state)
+        self.assertEqual("unknown", receipt.outcome_state)
+        self.assertEqual(1, remote.calls)
+        self.assertEqual("running", run.status)
+
     async def test_option_c_failure_is_fixed_prose_and_not_replayed(self) -> None:
         remote = RemoteCancelProbe(succeeds=False)
         run = RunModel(Candidate.SEPARATE_RECEIPT, remote)
 
-        pending = self._asyncio_create_task(run.cancel())
+        pending = asyncio.create_task(run.cancel())
         await wait_for_calls(remote, 1)
         remote.release.set()
         first = await pending
@@ -79,7 +102,7 @@ class CancellationRepairComparisonTests(unittest.IsolatedAsyncioTestCase):
         remote = RemoteCancelProbe(succeeds=True)
         run = RunModel(Candidate.SEPARATE_RECEIPT, remote)
 
-        pending = self._asyncio_create_task(run.cancel())
+        pending = asyncio.create_task(run.cancel())
         await wait_for_calls(remote, 1)
         remote.release.set()
         await pending
@@ -92,7 +115,7 @@ class CancellationRepairComparisonTests(unittest.IsolatedAsyncioTestCase):
         remote = RemoteCancelProbe(succeeds=False)
         run = RunModel(Candidate.SEPARATE_RECEIPT, remote)
 
-        pending = self._asyncio_create_task(run.cancel())
+        pending = asyncio.create_task(run.cancel())
         await wait_for_calls(remote, 1)
         remote.release.set()
         await pending
@@ -106,25 +129,13 @@ class CancellationRepairComparisonTests(unittest.IsolatedAsyncioTestCase):
         remote = RemoteCancelProbe(succeeds=True)
         run = RunModel(Candidate.SEPARATE_RECEIPT, remote)
 
-        pending = self._asyncio_create_task(run.cancel())
+        pending = asyncio.create_task(run.cancel())
         await wait_for_calls(remote, 1)
         remote.release.set()
         receipt = await pending
 
         with self.assertRaises(FrozenInstanceError):
             receipt.request_state = "failed"  # type: ignore[misc]
-
-    @staticmethod
-    def _asyncio_create_task(awaitable):
-        import asyncio
-
-        return asyncio.create_task(awaitable)
-
-    @staticmethod
-    async def _gather(*awaitables):
-        import asyncio
-
-        return await asyncio.gather(*awaitables)
 
 
 if __name__ == "__main__":
