@@ -5,6 +5,7 @@ Parent finding: `F371-playwright-mcp-remote-shared-context`
 Exact target: `microsoft/playwright@368941457a82da112aa8610107e25f4bde94339a`  
 Evidence state: `target-executed / comparative-evaluation-active`  
 Target-executed Fieldwork head: `69b8390fe4db742043de2615e4a06c0760415963`  
+Workflow-free receipt head: `217fe99cfd4d419f2eb044781684fe8c1a03c4dd`  
 Exact workflow/job: `30649849111` / `91220131763`  
 Artifact: `8800945684`, digest `sha256:ce7c9a2d02affa71367c2f1fdc56a0a338b2afcb5d50d72d72a0f6a50310cf8b`  
 Upstream contact authorized: `no`
