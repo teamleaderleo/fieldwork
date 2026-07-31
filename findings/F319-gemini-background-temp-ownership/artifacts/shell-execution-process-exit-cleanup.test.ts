@@ -32,6 +32,24 @@ describe('ShellExecutionService process-exit cleanup', () => {
     ExecutionLifecycleService.resetForTest();
   });
 
+  it('acknowledges background ownership exactly once', async () => {
+    const handle = ExecutionLifecycleService.createExecution(
+      '',
+      undefined,
+      'child_process',
+    );
+    const executionId = handle.pid!;
+
+    expect(ExecutionLifecycleService.background(executionId)).toBe(true);
+    expect(ExecutionLifecycleService.background(executionId)).toBe(false);
+    await expect(handle.result).resolves.toMatchObject({
+      pid: executionId,
+      backgrounded: true,
+    });
+
+    ExecutionLifecycleService.completeExecution(executionId, { exitCode: 0 });
+  });
+
   it('invokes transferred cleanup after child-process exit', async () => {
     const cleanup = vi.fn().mockResolvedValue(undefined);
 
