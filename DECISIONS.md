@@ -155,8 +155,7 @@ Apply these steps in order and record the first step that resolves the choice.
 2. **Call rough consensus on the objections, not on vote count.** A worker who did not author the competing candidates reviews the frozen packet and determines whether every material objection has been answered. Dissent may remain after its technical concern is addressed. The consensus caller records the objections, answers, unresolved limits, and selected direction.
 3. **Advance multiple options when coexistence is safe.** When no single interoperable answer is required, retain both behind an experiment, read-only shadow path, feature flag, compatibility adapter, or separately owned deployment-neutral probe. Define the observation that will later choose or retire an option.
 4. **Use ordered engineering defaults when one option is required.** Prefer, in order: satisfaction of the governing invariant; preservation of public compatibility; least authority and smallest irreversible effect; best rollback, observability, and failure containment; strongest target precedent; lower operational and maintenance burden; then the smaller reviewable diff. Do not reorder these criteria after seeing the result.
-5. **Use a neutral arbiter for a residual material tie.** Select one reviewer who did not author the candidates and has no affected writer lease. The arbiter reads the complete frozen packet, may request one final discriminator, and publishes a short reasoned selection plus reopening trigger. The arbiter cannot grant merge, release, deployment, spending, credential, data, or upstream-contact authority.
-6. **Use a precommitted deterministic selector only for materially equivalent reversible options.** Before candidate execution, record the decision ID, comparison-base SHA, protocol revision `fieldwork-tiebreak-v1`, complete option set, and stable option IDs. After equivalence is established, sort the IDs and compute `sha256("fieldwork-tiebreak-v1\n" + decision_id + "\n" + comparison_base_sha + "\n" + comma_joined_sorted_ids)`. Interpret the digest as an unsigned integer and select `digest mod option_count`. The selector must not include candidate content, results, timestamps, retryable workflow IDs, or chooser-controlled prose. An independent reviewer verifies that the inputs were precommitted, the option set did not change, and the calculation is exact. Arbitrary selection is forbidden when a material technical, compatibility, safety, authority, cost, or irreversibility difference remains.
+5. **Use a neutral arbiter for a residual unresolved tie.** Select one eligible reviewer who did not author any candidate and holds no affected writer lease. Freeze the complete comparison packet before selection. The arbiter reads that exact generation and may request one final discriminator. A requested discriminator produces new evidence: add it to the packet, freeze a new exact generation, and restart this step before any selection. Only a frozen packet that proves the remaining options materially equivalent and reversible permits the arbiter to make an explicitly arbitrary choice rather than inventing a technical distinction. The arbiter publishes the selected option, the equivalence and reversibility basis, retained limits, and reopening trigger. The choice is recorded once for that frozen generation and is not retried merely to obtain another option. Any later packet change expires the choice and returns the work to the applicable earlier ladder step. The receipt records a public-safe worker-instance identity and eligibility basis; a shared GitHub login alone is insufficient. The arbiter cannot grant merge, release, deployment, spending, credential, data, or upstream-contact authority.
 
 For low-risk internal work that is reversible and has an explicit rollback, the active owner may proceed under lazy execution after recording the candidate, controls, and absence of a live unanswered technical objection. A later objection may reopen or reverse the choice with new evidence; it does not erase the exact evidence already produced.
 
@@ -170,7 +169,7 @@ A settled technical choice reopens only for:
 - target, dependency, or compatibility movement that changes the comparison;
 - failure of an assumption named in the decision record.
 
-Restating a preference, changing reviewer identity, or disliking a verified arbitrary-equivalence selector is not a reopening trigger.
+Restating a preference, changing reviewer identity, or disliking an explicitly arbitrary choice between verified materially equivalent reversible options is not a reopening trigger.
 
 ### 9. Escalate only a non-delegable decision
 
@@ -196,7 +195,7 @@ This protocol adapts established project-governance patterns rather than treatin
 - Apache uses do-ocracy and lazy consensus for ordinary progress while requiring a technically justified negative vote and an explanation or alternative: https://www.apache.org/foundation/how-it-works/ and https://www.apache.org/foundation/voting.html
 - Python PEP 13 prefers consensus and standard processes, keeps a steering council as a final appeal mechanism, and permits random resolution for a residual election tie: https://peps.python.org/pep-0013/
 
-Fieldwork differs because workers can cheaply instantiate several technical alternatives. Therefore prototype-and-control evidence comes before neutral arbitration. For a residual materially equivalent choice, Fieldwork uses a precommitted deterministic selector rather than chooser discretion or retryable randomness.
+Fieldwork differs because workers can cheaply instantiate several technical alternatives. Therefore prototype-and-control evidence comes before neutral arbitration. For a residual materially equivalent and reversible choice, Fieldwork records one neutral non-author arbiter's explicitly arbitrary selection instead of pretending chooser-controlled hashing creates neutrality.
 
 ## States and routing
 
@@ -226,7 +225,7 @@ Competing implementations may exist concurrently.
 
 - Keep each implementation on a separate owned branch or clearly separated commit series.
 - Keep evidence in unique paths under the canonical finding directory.
-- Give every option a stable identifier such as `A`, `B`, or `C` before executing the comparison.
+- Give every option a descriptive stable identifier such as `A`, `B`, or `C` before executing the comparison.
 - Use one comparison file or section to apply the same criteria to all options.
 - Do not merge several alternatives into one ambiguous implementation PR.
 - Close or archive losing carriers only after their evidence and rejection reason are retained.
@@ -238,21 +237,21 @@ A design comparison must include:
 
 ```text
 Question: <bounded choice>
-Decision ID: <stable identifier fixed before candidate execution>
+Decision record generation: <exact file head or issue body revision>
 Comparison base: <exact SHA fixed before candidate execution>
 Governing invariant: <what must remain true>
 Project goals and contracts: <sources>
 Options instantiated: <branches, commits, artifacts, or reason paper-only>
-Stable option IDs and complete option set fixed before execution: <IDs>
+Stable option IDs and complete option set in the frozen packet: <IDs>
 Decision criteria: <ordered list fixed before results>
 Discriminating controls: <tests, benchmarks, adversarial cases>
 Results by option: <exact receipts>
 Historical precedent: <primary sources and differences>
 Blocking objections: <objection, evidence, reversing control, alternative>
 Independent criticism: <reviews and counterexamples>
-Rough-consensus caller or neutral arbiter: <identity and non-authorship check>
+Rough-consensus caller or neutral arbiter: <public-safe worker identity, eligibility, non-authorship, no affected lease>
 Tiebreak ladder step used: <none or exact step>
-Precommitted selector inputs and calculation: <not applicable or exact revision/inputs/digest/index>
+Residual-equivalence selection: <not applicable or frozen generation, equivalence/reversibility finding, arbiter, one recorded choice>
 Selected direction: <winner or all rejected>
 Retained dissent: <answered concern that did not block>
 Reopening trigger: <new evidence that changes the result>
