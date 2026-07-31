@@ -150,7 +150,7 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
         self.assertEqual(receipt.classification, "exact-head")
 
     def test_push_event_metadata_fails_closed(self) -> None:
-        coherent = {
+        coherent: dict[str, object] = {
             "event_name": "push",
             "ref": "refs/heads/main",
             "checkout_sha": HEAD,
@@ -158,18 +158,20 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
             "head_ref": "",
             "base_ref": "",
         }
-        cases = (
-            self.receipt(**coherent, ref="refs/pull/42/merge"),
-            self.receipt(**coherent, ref="refs/tags/v1"),
-            self.receipt(**coherent, ref="refs/heads/main branch"),
-            self.receipt(**coherent, head_ref="feature/example"),
-            self.receipt(**coherent, base_ref="main"),
-            self.receipt(**coherent, event_sha=OTHER),
+        contradictions = (
+            {"ref": "refs/pull/42/merge"},
+            {"ref": "refs/tags/v1"},
+            {"ref": "refs/heads/main branch"},
+            {"head_ref": "feature/example"},
+            {"base_ref": "main"},
+            {"event_sha": OTHER},
         )
-        for data in cases:
+        for contradiction in contradictions:
+            data = dict(coherent)
+            data.update(contradiction)
             with self.subTest(data=data):
                 with self.assertRaises(IdentityError):
-                    build_receipt(data)
+                    build_receipt(self.receipt(**data))
 
     def test_cli_output_and_optimizer_status_match(self) -> None:
         root = Path(__file__).resolve().parents[1]
