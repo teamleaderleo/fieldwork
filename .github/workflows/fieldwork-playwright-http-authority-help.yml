@@ -1,0 +1,125 @@
+name: Fieldwork Playwright HTTP authority help
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-playwright-http-authority-help.yml"
+      - "findings/F371-playwright-mcp-remote-shared-context/evidence/0001-document-http-client-authority.patch"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Exact Playwright MCP help boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact Fieldwork carrier head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact Playwright source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: microsoft/playwright
+          ref: 368941457a82da112aa8610107e25f4bde94339a
+          path: playwright
+          persist-credentials: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+
+      - name: Verify exact inputs and apply documentation patch
+        id: verify
+        run: |
+          set -euo pipefail
+          test "$(git -C fieldwork rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git -C playwright rev-parse HEAD)" = "368941457a82da112aa8610107e25f4bde94339a"
+          patch_path="$GITHUB_WORKSPACE/fieldwork/findings/F371-playwright-mcp-remote-shared-context/evidence/0001-document-http-client-authority.patch"
+          git -C playwright apply --check --whitespace=error-all "$patch_path"
+          git -C playwright apply --whitespace=error-all "$patch_path"
+          test "$(git -C playwright diff --name-only | tr -d '\r')" = "packages/playwright-core/src/tools/mcp/program.ts"
+          mkdir -p fieldwork-receipts
+
+      - name: Install exact dependencies
+        id: install
+        working-directory: playwright
+        run: npm ci
+
+      - name: Build exact Playwright source
+        id: build
+        working-directory: playwright
+        run: npm run build
+
+      - name: Inspect generated MCP help
+        id: help
+        working-directory: playwright
+        run: |
+          set -euo pipefail
+          node packages/playwright-core/lib/entry/mcp.js --help \
+            | tee ../fieldwork-receipts/playwright-mcp-help.txt
+          grep -F "does not authenticate clients" ../fieldwork-receipts/playwright-mcp-help.txt
+          grep -F "trusted authenticated network boundary or reverse proxy" ../fieldwork-receipts/playwright-mcp-help.txt
+          grep -F "shared tabs, cookies, storage, and page state" ../fieldwork-receipts/playwright-mcp-help.txt
+          git diff --check
+
+      - name: Assemble exact-head receipt
+        if: always()
+        env:
+          FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          HELP_OUTCOME: ${{ steps.help.outcome }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const directory = path.join(process.cwd(), 'fieldwork-receipts');
+          fs.mkdirSync(directory, { recursive: true });
+          const receipt = {
+            schemaVersion: 1,
+            generatedAt: new Date().toISOString(),
+            fieldworkHead: process.env.FIELDWORK_HEAD,
+            target: {
+              repository: 'microsoft/playwright',
+              head: '368941457a82da112aa8610107e25f4bde94339a',
+              changedFile: 'packages/playwright-core/src/tools/mcp/program.ts',
+            },
+            workflowSteps: {
+              verify: process.env.VERIFY_OUTCOME || 'not-run',
+              install: process.env.INSTALL_OUTCOME || 'not-run',
+              build: process.env.BUILD_OUTCOME || 'not-run',
+              help: process.env.HELP_OUTCOME || 'not-run',
+            },
+            claimClasses: {
+              zeroFuzzApplication: 'target-executed-when-verify-passes',
+              targetBuild: 'target-executed-when-build-passes',
+              generatedRuntimeHelp: 'target-executed-when-help-passes',
+              productBehaviorChange: 'none',
+              publicUpstreamCompatibility: 'not-claimed',
+            },
+          };
+          fs.writeFileSync(
+            path.join(directory, 'playwright-http-authority-help-receipt.json'),
+            `${JSON.stringify(receipt, null, 2)}\n`,
+          );
+          NODE
+
+      - name: Upload exact-head receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: playwright-http-authority-help-receipt
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
