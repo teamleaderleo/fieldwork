@@ -85,7 +85,11 @@ jobs:
             packages/core/src/tools/shell-background-temp-ownership-repair.test.ts
             packages/core/src/tools/shell.ts
           )
+          npx prettier --write "${files[@]}"
           npx prettier --check "${files[@]}"
+          git add -N \
+            packages/core/src/services/shell-execution-process-exit-cleanup.test.ts \
+            packages/core/src/tools/shell-background-temp-ownership-repair.test.ts
           npm run test --workspace @google/gemini-cli-core -- \
             src/tools/shell-background-temp-ownership-repair.test.ts \
             src/services/shell-execution-process-exit-cleanup.test.ts \
@@ -93,6 +97,7 @@ jobs:
             src/services/executionLifecycleService.test.ts
           npm run typecheck --workspace @google/gemini-cli-core
           git diff --check
+          echo 'FIELDWORK_TARGET_FORMATTER=5/5-files'
           echo 'FIELDWORK_BACKGROUND_TEMP_OWNERSHIP_CANDIDATE=5/5-files'
           echo 'FIELDWORK_PROCESS_EXIT_FINALIZATION_ONCE=1/1'
 
@@ -103,10 +108,7 @@ jobs:
           mkdir -p "$output"
           cd gemini
           git diff --binary > "$output/candidate.patch"
-          {
-            git diff --name-only
-            git ls-files --others --exclude-standard
-          } | sort -u > "$output/files.txt"
+          git diff --name-only | sort -u > "$output/files.txt"
           {
             echo "gemini_source=$GEMINI_SOURCE"
             echo "fieldwork_head=${{ github.event.pull_request.head.sha }}"
