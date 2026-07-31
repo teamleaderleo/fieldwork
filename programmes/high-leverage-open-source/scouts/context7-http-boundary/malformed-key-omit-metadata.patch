@@ -1,7 +1,7 @@
 diff --git a/packages/mcp/src/lib/encryption.ts b/packages/mcp/src/lib/encryption.ts
 --- a/packages/mcp/src/lib/encryption.ts
 +++ b/packages/mcp/src/lib/encryption.ts
-@@ -11,10 +11,12 @@
+@@ -11,10 +11,10 @@
    return /^[0-9a-fA-F]{64}$/.test(key);
  }
  
@@ -10,14 +10,12 @@ diff --git a/packages/mcp/src/lib/encryption.ts b/packages/mcp/src/lib/encryptio
    if (!validateEncryptionKey(ENCRYPTION_KEY)) {
 -    console.error("Invalid encryption key format. Must be 64 hex characters.");
 -    return clientIp; // Fallback to unencrypted
-+    console.error(
-+      "Invalid encryption key format; omitting mcp-client-ip metadata.",
-+    );
++    console.error("Invalid encryption key format; omitting mcp-client-ip metadata.");
 +    return undefined;
    }
  
    try {
-@@ -23,9 +25,11 @@
+@@ -23,9 +23,9 @@
      let encrypted = cipher.update(clientIp, "utf8", "hex");
      encrypted += cipher.final("hex");
      return iv.toString("hex") + ":" + encrypted;
@@ -25,14 +23,12 @@ diff --git a/packages/mcp/src/lib/encryption.ts b/packages/mcp/src/lib/encryptio
 -    console.error("Error encrypting client IP:", error);
 -    return clientIp; // Fallback to unencrypted
 +  } catch {
-+    console.error(
-+      "Unable to encrypt client IP; omitting mcp-client-ip metadata.",
-+    );
++    console.error("Unable to encrypt client IP; omitting mcp-client-ip metadata.");
 +    return undefined;
    }
  }
  
-@@ -40,7 +44,10 @@
+@@ -40,7 +40,10 @@
    };
  
    if (context.clientIp) {
@@ -48,17 +44,14 @@ diff --git a/packages/mcp/test/encryption.test.ts b/packages/mcp/test/encryption
 new file mode 100644
 --- /dev/null
 +++ b/packages/mcp/test/encryption.test.ts
-@@ -0,0 +1,112 @@
+@@ -0,0 +1,109 @@
 +import { afterEach, describe, expect, test, vi } from "vitest";
 +import { SERVER_VERSION } from "../src/lib/constants.js";
 +
 +const CLIENT_IP = "198.51.100.77";
-+const VALID_KEY =
-+  "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
-+const INVALID_KEY_MESSAGE =
-+  "Invalid encryption key format; omitting mcp-client-ip metadata.";
-+const CIPHER_FAILURE_MESSAGE =
-+  "Unable to encrypt client IP; omitting mcp-client-ip metadata.";
++const VALID_KEY = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
++const INVALID_KEY_MESSAGE = "Invalid encryption key format; omitting mcp-client-ip metadata.";
++const CIPHER_FAILURE_MESSAGE = "Unable to encrypt client IP; omitting mcp-client-ip metadata.";
 +
 +type CryptoModule = typeof import("crypto");
 +
