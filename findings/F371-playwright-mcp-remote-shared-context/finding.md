@@ -7,32 +7,41 @@ Initiative: `#254`
 Workstream: `B/C — browser runtime and MCP authority boundaries`  
 Exact package source: `microsoft/playwright-mcp@55679f5f3d4b4f3e2534ec0ce2fc5683ba2eaf3f`  
 Exact shared core source: `microsoft/playwright@368941457a82da112aa8610107e25f4bde94339a`  
-Canonical implementation: `none`  
-Strongest evidence class: `source-read / upstream-test-read`  
-Current disposition: `EXECUTE bounded local matrix`  
+Exact executed carrier: Fieldwork PR `#375` at `2a7b6c45179ac3f9e78b8540702e7e88f849b3fd`  
+Exact target run: `30633739476`, job `91166043729`, success  
+Artifact: `8794430468`, digest `sha256:e53fc07dbfb1dfecd98e5e4a4227c50e8774fe5fb4bc05f880f3f56c73403235`  
+Canonical implementation: documentation patch `evidence/0001-document-http-client-authority.patch`  
+Strongest evidence class: `target-executed`  
+Current disposition: `EXECUTE documentation candidate`  
 Upstream contact authorized: `no`
 
 ## In simple words
 
-Playwright MCP is careful about accidental HTTP exposure. It uses standard input/output by default. HTTP requires a port. The default HTTP host is localhost. All-interface binding requires an explicit host option, and requests must pass a Host-header check.
+Playwright MCP is careful about accidental HTTP exposure:
 
-That is stronger than a server that silently listens on every interface.
+- standard input/output is the default;
+- HTTP is optional;
+- HTTP binds to localhost by default;
+- all-interface binding requires an explicit host option;
+- requests must pass a Host-header check.
 
-A different question appears when an operator deliberately enables remote HTTP and shared browser state. The Host check prevents DNS rebinding; it does not authenticate the client. `--shared-browser-context` intentionally lets several HTTP clients use one browser context.
+Those are strong defaults.
 
-The investigation asks whether that authority boundary is sufficiently explicit and whether disconnect/cleanup behavior can accidentally transfer control of sensitive shared state between unrelated clients.
+When an operator deliberately enables remote-equivalent HTTP and `--shared-browser-context`, a separate authority boundary appears. Host validation prevents DNS rebinding; it does not authenticate a client. Every accepted HTTP session shares one browser context and can observe and control the same tabs, cookies, storage, and page state.
 
-## Current source map
+Exact target execution confirms that composition and also confirms bounded final cleanup.
 
-### Package wrapper
+## Five separate controls
 
-`microsoft/playwright-mcp` delegates CLI and transport behavior to `playwright-core`:
+1. **Bind authority** — which interfaces accept connections.
+2. **Host validation** — which HTTP Host values pass DNS-rebinding defense.
+3. **Client authentication** — which principal may create a session.
+4. **Session identity** — which actions and resources belong to one client.
+5. **Browser-context sharing** — whether separate sessions intentionally share browser state.
 
-- `cli.js` calls `tools.decorateMCPCommand()`;
-- `index.js` exports the shared-core connection factory;
-- the package adds no separate HTTP authorization layer.
+Passing one control does not establish the others.
 
-### Listener policy
+## Source map
 
 At shared core head `3689414...`:
 
@@ -41,123 +50,121 @@ At shared core head `3689414...`:
 - `--host=0.0.0.0` explicitly requests all-interface binding;
 - `--allowed-hosts` defaults to the normalized listener Host;
 - `--allowed-hosts=*` disables the Host check;
-- the HTTP request handler rejects missing or unlisted Host values before routing.
+- accepted requests can create streamable HTTP or legacy SSE sessions;
+- no bearer token, client certificate, user identity, or equivalent client-authentication decision is visible in the inspected handler;
+- `--shared-browser-context` reuses one browser context across clients.
 
-Current target tests retain a negative control in which a request addressed through localhost's resolved IP returns 403 under default allowed Hosts.
+The upstream suite already tests default Host rejection and loopback shared-context behavior. Fieldwork added the missing explicit remote-equivalent composition.
 
-### Session policy
+## Exact target matrix
 
-Requests that pass the Host check can create streamable HTTP or legacy SSE sessions. No bearer token, client certificate, user identity, or other client-authentication decision is visible in the inspected HTTP handler.
+Fieldwork PR #375 executed exact Playwright source on Ubuntu 24.04, Node 22, and Chromium.
 
-This is a source observation, not a claim that remote deployment is unsafe by default. Loopback remains the default.
+The workflow:
 
-### Shared browser state
+- verified exact Fieldwork and target heads;
+- installed 638 target dependencies;
+- built exact Playwright source;
+- installed Chromium and runner dependencies;
+- ran the complete upstream `tests/mcp/http.spec.ts` file;
+- ran two target-native Fieldwork controls through the same fixtures;
+- uploaded logs, a target report, and an exact-head receipt.
 
-`--shared-browser-context` makes the browser factory reuse one browser context across connected HTTP clients.
+Result:
 
-The target test suite demonstrates this intended composition:
+```text
+Running 19 tests using 1 worker
+19 passed (30.4s)
+```
 
-1. client 1 connects and opens a page;
-2. client 2 connects separately;
-3. client 2 lists tabs and sees the page created by client 1;
-4. client 1 disconnects;
-5. client 2 continues using the shared context.
+### Isolated negative control
 
-That test runs on loopback. It does not establish the remote-network or authentication boundary.
+With explicit `--host=0.0.0.0`, `--allowed-hosts=*`, and connection through the runner's non-loopback IPv4:
 
-## Invariant
+- client 1 opened a disposable local page;
+- client 2 did not see client 1's page;
+- both HTTP sessions were deleted;
+- the browser closed after the final client.
 
-Five controls must remain distinct:
+### Shared-context positive control
 
-1. **Bind authority** — which interfaces accept connections.
-2. **Host validation** — which HTTP Host values pass DNS-rebinding defense.
-3. **Client authentication** — which remote principal may create a session.
-4. **Session identity** — which actions and resources belong to one client.
-5. **Browser-context sharing** — whether separate sessions intentionally share cookies, tabs, storage, and page authority.
+With the same remote-equivalent transport plus `--shared-browser-context`:
 
-Passing one control must not be described as passing the others.
+- client 1 opened a disposable local page;
+- client 2 saw that page in its own tab list;
+- client 1 disconnected;
+- client 2 continued using the shared browser successfully;
+- both HTTP sessions were deleted;
+- the shared browser closed after the final client.
 
-## Current evidence table
+No credential, account, private page, or external website was used.
 
-| Claim | Evidence class | Limit |
-| --- | --- | --- |
-| Standard I/O is the default transport. | `source-read` | exact pinned package/core heads |
-| HTTP bind defaults to localhost. | `source-read` | executable confirmation pending |
-| All-interface bind requires explicit `--host=0.0.0.0`. | `source-read` | executable confirmation pending |
-| Default Host validation rejects an IP-address request. | `upstream-test-read` | target test not rerun by Fieldwork |
-| Allowed Hosts are checked before MCP/SSE routing. | `source-read` | no reverse-proxy execution |
-| No client authentication check is visible in the inspected handler. | `source-read` | external auth layers remain possible |
-| Shared mode lets client 2 observe/use client 1's tab. | `upstream-test-read` | loopback target test, not Fieldwork-executed |
-| Remote unauthenticated clients can share real browser state. | `unproven` | requires bounded target-native matrix |
+## Current conclusion
+
+The behavior is intentional and internally coherent:
+
+- safe local defaults remain intact;
+- explicit remote and wildcard-Host choices are required;
+- isolated mode preserves per-client browser state;
+- shared mode intentionally creates one browser authority domain;
+- first-client disconnect does not revoke the remaining client's shared authority;
+- final-client disconnect closes the shared browser.
+
+The actionable gap is guidance rather than transport behavior. Current help describes Host validation as DNS-rebinding defense and says shared context is reused across clients. It does not state plainly that Host validation is not authentication or that every accepted client shares browser authority.
+
+## Selected repair
+
+### Documentation/runtime-help boundary — selected
+
+Retained patch:
+
+`evidence/0001-document-http-client-authority.patch`
+
+It changes only three CLI help strings:
+
+- `--allowed-hosts`: explicitly says the check does not authenticate clients;
+- `--host`: recommends a trusted authenticated network boundary or reverse proxy for non-loopback HTTP;
+- `--shared-browser-context`: explicitly names shared tabs, cookies, storage, and page control.
+
+This preserves current behavior and safe defaults while making the composed authority model difficult to mistake.
 
 ## Alternatives
 
-### A — documentation-only boundary
+### Built-in token gate — deferred
 
-Keep current behavior and state plainly that Host validation is not authentication. Warn that every reachable accepted client shares common browser authority in shared-context mode.
+The target matrix does not establish that Playwright MCP should own a credential protocol rather than rely on deployment infrastructure.
 
-**Wins when:** executable behavior is intentional and the only defect is ambiguous operator guidance.
+### Fail closed for remote shared mode — rejected for now
 
-### B — optional built-in token gate
+Remote binding and shared context are both explicit operator choices. The executed behavior matches those choices and cleans up correctly.
 
-Allow a configured bearer or equivalent token before HTTP/SSE session creation.
+### External authenticated proxy contract — compatible
 
-**Wins when:** remote HTTP is a supported direct deployment and a small built-in gate composes cleanly with clients.
+The selected help wording can recommend this boundary without hard-coding a particular authentication mechanism.
 
-### C — fail closed for remote shared mode without authentication
+## Evidence table
 
-Require an authentication option or explicit dangerous acknowledgement when non-loopback HTTP and shared context are combined.
+| Claim | Evidence class | Limit |
+| --- | --- | --- |
+| Stdio and loopback HTTP are the defaults. | `source-read / upstream-test-executed` | exact pinned source and suite |
+| Default Host validation rejects unlisted address forms. | `target-executed` | upstream HTTP suite on one Linux/Chromium runner |
+| Explicit remote-equivalent isolated clients keep browser state separate. | `target-executed` | runner non-loopback IPv4, wildcard Host opt-in |
+| Explicit remote-equivalent shared clients use one browser authority domain. | `target-executed` | same runner and disposable local page |
+| Remaining client keeps shared authority after first-client disconnect. | `target-executed` | streamable HTTP sessions |
+| Final-client disconnect closes the shared browser. | `target-executed` | target debug lifecycle counters |
+| Public exploitability or deployment prevalence. | `not established` | no production deployment or external target |
+| Built-in authentication is the correct repair. | `not established` | deployment architecture comparison pending |
 
-**Wins when:** the composition is unusually easy to enable accidentally and shared state carries materially broader authority than ordinary isolated sessions.
+## Carrier history
 
-### D — external authenticated proxy contract
+The first execution run `30633035608` failed before target installation because the carrier checked the synthetic PR merge ref while expecting the branch head. Head `2a7b6c4...` pinned the checkout to the exact PR head. That first run is carrier-failure evidence only.
 
-Keep the server authentication-free and document an authenticated reverse proxy as the required remote deployment boundary.
+## Exact next transition
 
-**Wins when:** maintaining credential protocols in the MCP server would duplicate established infrastructure.
-
-No alternative is selected yet.
-
-## First executable matrix
-
-Use exact current package/core source and disposable local pages only.
-
-1. Start default HTTP mode and record the actual listener/startup URL.
-2. Address the listener through the resolved non-loopback or alternate Host value; require default rejection.
-3. Explicitly enable all-interface/accepted-Host access.
-4. Create two independent MCP sessions without credentials.
-5. Run isolated mode; require client 2 to lack client 1's browser state.
-6. Run shared-context mode; determine whether client 2 sees and controls client 1's page.
-7. Disconnect client 1; verify client 2 continuity and browser/context cleanup ownership.
-8. Terminate the final client; require bounded browser and context cleanup.
-9. Inspect emitted help/startup text for a clear statement that Host checks do not authenticate clients.
-
-No external website, account, secret, private page, or usable credential is needed.
-
-## Promotion and stop conditions
-
-### Continue to comparison
-
-Continue when the matrix proves that separately reachable clients share browser authority and current help/docs do not make that consequence explicit enough for a reasonable operator.
-
-### Stop as no-action
-
-Stop when current documentation already states the authentication boundary clearly and the executable matrix reveals no surprising cross-client authority or cleanup behavior beyond the explicitly selected shared mode.
-
-### Reopen trigger
-
-Reopen after any change to HTTP authentication, allowed-host semantics, shared-context defaults, session cleanup, or remote deployment guidance.
-
-## Boundaries
-
-This investigation does not claim:
-
-- public exploitability;
-- production deployment prevalence;
-- behavior behind an authenticated reverse proxy;
-- vulnerability of the default loopback configuration;
-- isolation across operating-system users or containers;
-- safety of real logged-in browser data;
-- any right to contact Microsoft or publish upstream.
+1. apply the retained documentation patch to exact shared core source;
+2. require zero-fuzz application, build, generated CLI help, and focused help-text assertions;
+3. transfer the receipt into this finding;
+4. retire the temporary workflow carrier;
+5. obtain one eligible review before any delivery or upstream-submission claim.
 
 No merge, release, deployment, real credential, private browsing data, spending, or public upstream interaction is authorized.
