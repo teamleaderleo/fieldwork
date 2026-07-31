@@ -140,10 +140,14 @@ def _require_string(value: Any, label: str, *, nonempty: bool = False) -> str:
 def validate_document(document: Any) -> dict[str, Any]:
     document = _require_object(document, "document")
     _reject_unknown_keys(document, DOCUMENT_KEYS, "document")
-    if document.get("schema_version") != SCHEMA_VERSION:
+    document_schema_version = document.get("schema_version")
+    if (
+        type(document_schema_version) is not int
+        or document_schema_version != SCHEMA_VERSION
+    ):
         raise ValueError(
             f"document schema_version must be {SCHEMA_VERSION}, got "
-            f"{document.get('schema_version')!r}"
+            f"{document_schema_version!r}"
         )
     receipts = document.get("receipts")
     if not isinstance(receipts, list):
@@ -169,8 +173,12 @@ def validate_receipt_schema(receipt: Any) -> dict[str, Any]:
     missing = sorted(REQUIRED_RECEIPT_KEYS - set(receipt))
     if missing:
         raise ValueError(f"receipt is missing required field {missing[0]!r}")
-    if receipt["schema_version"] != SCHEMA_VERSION:
-        raise ValueError(f"unsupported schema_version: {receipt['schema_version']!r}")
+    receipt_schema_version = receipt["schema_version"]
+    if (
+        type(receipt_schema_version) is not int
+        or receipt_schema_version != SCHEMA_VERSION
+    ):
+        raise ValueError(f"unsupported schema_version: {receipt_schema_version!r}")
 
     receipt_id = _require_string(
         receipt["receipt_id"], "receipt.receipt_id", nonempty=True
