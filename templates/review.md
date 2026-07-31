@@ -32,18 +32,33 @@ A legacy issue-body `State:` value is issue coordination state only. It never su
 
 Complete this section whenever a prior disposition or execution receipt is proposed for carry-forward after any head, base, dependency, issue, finding, policy, generated input, or reviewed-input movement.
 
-- Prior reviewed generation: exact head plus every governing input generation named by the prior receipt
-- Current generation: exact head plus every current governing input generation
+- Prior reviewed generation: exact head plus prior reviewed-input manifest identity
+- Current generation: exact head plus current reviewed-input manifest identity
 - Disposition-relevant reviewed paths:
 - Old/new blob identity for every reviewed path:
-- Governing input generations unchanged: yes | no
+- Prior governing-input manifest identity:
+- Prior governing-input manifest complete for this disposition: `True | False | Unknown`
+- Prior completeness evidence:
+- Current governing-input manifest identity:
+- Current governing-input manifest complete for this disposition: `True | False | Unknown`
+- Current completeness evidence:
+- Prior governing-input name set:
+- Current governing-input name set:
+- Governing-input names added:
+- Governing-input names removed:
+- Exact old/current generation for every input-name-set member:
+- Unknown transitive or indirect dependency coverage: none | exact unknown coverage
 - Changed reviewed paths: none | exact paths
 - Material configuration, generated input, indirect dependency, policy, or mergeability change: none | exact change
 - Carry-forward without fresh review allowed: yes | no
 - Fresh review receipt required: yes | no
 - Exact reason:
 
-A prior disposition may carry forward without fresh review only when every disposition-relevant reviewed path is byte-identical across the named generations and every governing-input generation named by the prior receipt is unchanged. Record `changed reviewed paths: none`; file-disjoint base movement alone is not sufficient.
+A prior disposition may carry forward without fresh review only when every disposition-relevant reviewed path is byte-identical, both the prior and current governing-input manifests are complete (`True`) for the disposition, the exact governing-input name sets are equal, and every member has the same exact generation. File-disjoint base movement and equality over only the previously named subset are insufficient.
+
+`False` or `Unknown` completeness, any added or removed input name, a newly discovered previously unnamed disposition-relevant input, or inability to establish transitive or indirect dependency coverage requires fresh review. Never let an incomplete prior receipt define its own universe of governing inputs.
+
+Reversing example: the prior receipt names source and governing protocol but silently omits generated configuration. The generated configuration moves while all named generations remain equal. Carry-forward is denied and fresh review is required.
 
 Any changed reviewed byte or changed governing input is a new review input. A reviewer may conclude the new input is semantically equivalent, but that conclusion is a fresh review receipt. It does not retroactively make the prior disposition current.
 
@@ -108,4 +123,6 @@ State the remaining technical, operational, compatibility, impact, or policy unc
 
 ## Expiry
 
-This review applies only to the exact head and reviewed input generations named above. Any head movement, issue-body generation change, issue-state label change, finding-state change, dependency change, policy change, material configuration or generated-input change, indirect dependency change, or contradictory evidence expires the disposition unless the Review-identity reconciliation section proves every disposition-relevant reviewed path byte-identical and every governing input generation unchanged. Any changed reviewed byte or governing input requires a fresh review receipt.
+This review applies only to the exact head and reviewed input generations named above. Any head movement, issue-body generation change, issue-state label change, finding-state change, dependency change, policy change, material configuration or generated-input change, indirect dependency change, contradictory evidence, governing-input name-set change, or governing-input manifest completeness that is `False` or `Unknown` expires the disposition.
+
+Carry-forward without fresh review requires byte-identical disposition-relevant reviewed paths, prior and current governing-input manifest completeness `True`, equal exact governing-input name sets, and equal exact generations for every member. Any changed reviewed byte, changed governing input, newly discovered previously unnamed input, or unknown indirect coverage requires a fresh review receipt.
