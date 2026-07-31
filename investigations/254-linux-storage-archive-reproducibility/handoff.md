@@ -2,6 +2,7 @@
 
 Workspace phase: `handoff`  
 Canonical finding states: cache `closed`; output-root safety `closed`; tarfilter compatibility `closed`; package variance `stopped`; ecosystem overlap `stopped`  
+Research continuity: adjacent avenues retained in `research-avenues.md`; `closed` and `stopped` do not erase nearby questions  
 Upstream contact authorized: no
 
 ## Source and branch heads
@@ -30,11 +31,13 @@ Upstream contact authorized: no
 
 ## Review and disposition
 
-- Cache, LF-23, and tarfilter product/proof work are locally merged and technically closed within their bounded claims.
-- The package-variance defect premise is rejected for the retained fixture; the negative result is stopped and reusable.
-- The PPMd implementation is stopped because an equivalent active public fix existed at the exact 2026-07-31 refresh boundary.
+- Cache, LF-23, and tarfilter product/proof work are locally merged and technically closed only within their bounded claims.
+- The package-variance defect premise is rejected for the retained fixture; the negative result is stopped and reusable, while broader package/toolchain questions remain in the avenues ledger.
+- The PPMd implementation is stopped because an equivalent active public fix existed at the exact 2026-07-31 refresh boundary; release adoption, downstream retirement, and semantic divergence remain retained avenues.
+- `research-avenues.md` records concrete adjacent questions, why they may matter, existing evidence, smallest safe probes, and reopening triggers across cache races/durability, destructive-path capabilities, archive language/metadata, broader reproducibility, public-state expiry, and evidence automation.
+- A skipped job, missing privilege, unavailable environment, safety restriction, policy boundary, or prohibited public interaction must be preserved as a blocker or evidence limit, not converted into a technical negative result.
 - Linux PR #249 is a four-file durable-state repair only. It requires exact-head CI and complete-diff review; no product execution claim depends on it.
-- This Fieldwork stack adds one workspace, one handoff, and five canonical findings on top of PR #283. It requires exact-head Fieldwork integrity and independent complete-diff review.
+- This Fieldwork stack adds one workspace, one handoff, five canonical findings, and one research-avenues ledger on top of PR #283. It requires exact-head Fieldwork integrity and independent complete-diff review.
 
 ## Blockers and smallest next actions
 
@@ -42,7 +45,8 @@ Upstream contact authorized: no
 2. Read protocol run 1230 and confirm PR #283 has not moved. Rebase this branch only if the parent head changes.
 3. Run and retain the Fieldwork integrity receipt for the exact finding head.
 4. Repair any stale cross-links or schema failures found by integrity.
-5. Do not merge either pull request without explicit authority.
+5. During future exploration, append any new avenue before stopping: question, consequence, source/environment boundary, evidence, blocker, smallest safe probe, reopening trigger, and authority state.
+6. Do not merge either pull request without explicit authority.
 
 ## Expiry conditions
 
@@ -50,6 +54,7 @@ Upstream contact authorized: no
 - Public overlap state for libarchive expires immediately when the public head or status changes.
 - A new source candidate, implementation, or broader claim must update the relevant finding before promotion.
 - A skipped workflow is not product evidence; the LF-23 cancellation probe remained skipped on the harness-safety composition head.
+- An interruption does not expire a retained avenue if the blocker and continuation point are recorded precisely.
 
 ## Public interaction
 
