@@ -34,10 +34,11 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git -C stensibly rev-parse HEAD)" = "7a5146da52139dec062575baa512eb2c97531060"
-          git -C stensibly apply --check \
-            ../fieldwork/programmes/high-leverage-open-source/scouts/stensibly-mcp-attempt-admission/0001-close-attempt-admission-and-privacy.patch
-          git -C stensibly apply \
-            ../fieldwork/programmes/high-leverage-open-source/scouts/stensibly-mcp-attempt-admission/0001-close-attempt-admission-and-privacy.patch
+          python3 -m py_compile \
+            fieldwork/programmes/high-leverage-open-source/scouts/stensibly-mcp-attempt-admission/apply_repair.py
+          python3 \
+            fieldwork/programmes/high-leverage-open-source/scouts/stensibly-mcp-attempt-admission/apply_repair.py \
+            stensibly
           cp \
             fieldwork/programmes/high-leverage-open-source/scouts/stensibly-mcp-attempt-admission/fieldwork-mcp-attempt-admission.test.ts \
             stensibly/test/fieldwork-mcp-attempt-admission.test.ts
@@ -46,8 +47,6 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: stensibly/package.json
 
       - name: Install exact Bun runtime
         run: |
