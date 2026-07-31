@@ -27,8 +27,23 @@ const executeChild = async (onProcessExit: () => void | Promise<void>) => {
   return handle.result;
 };
 
+type ActiveChildProcessForTest = {
+  process: {
+    emit(event: string, ...args: unknown[]): boolean;
+    kill(signal?: NodeJS.Signals): boolean;
+  };
+};
+
+const activeChildProcess = (pid: number): ActiveChildProcessForTest | undefined =>
+  (
+    ShellExecutionService as unknown as {
+      activeChildProcesses: Map<number, ActiveChildProcessForTest>;
+    }
+  ).activeChildProcesses.get(pid);
+
 describe('ShellExecutionService process-exit cleanup', () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     ExecutionLifecycleService.resetForTest();
   });
 
@@ -73,5 +88,38 @@ describe('ShellExecutionService process-exit cleanup', () => {
     await vi.waitFor(() => {
       expect(cleanup).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('finalizes process-exit cleanup once when error is followed by close', async () => {
+    const cleanup = vi.fn().mockResolvedValue(undefined);
+    const handle = await ShellExecutionService.execute(
+      'exec sleep 10',
+      process.cwd(),
+      vi.fn(),
+      new AbortController().signal,
+      false,
+      {
+        sanitizationConfig: {},
+        sandboxManager: new NoopSandboxManager(),
+        sessionId: 'fieldwork-process-exit-cleanup-once',
+        onProcessExit: cleanup,
+      },
+    );
+
+    expect(handle.pid).toBeTypeOf('number');
+    const child = activeChildProcess(handle.pid!);
+    expect(child).toBeDefined();
+
+    child!.process.emit('error', new Error('synthetic child error'));
+    child!.process.kill('SIGTERM');
+
+    const result = await handle.result;
+    expect(result.error?.message).toBe('synthetic child error');
+
+    await vi.waitFor(() => {
+      expect(cleanup).toHaveBeenCalledTimes(1);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(cleanup).toHaveBeenCalledTimes(1);
   });
 });
