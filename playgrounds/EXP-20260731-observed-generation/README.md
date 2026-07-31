@@ -1,6 +1,6 @@
 # Observed-generation reconciliation pilot
 
-State: `target-test-prepared — repaired generation contract pending execution`  
+State: `target-test-prepared`  
 Owning issue: #325  
 Parent proposal: #300  
 Parent experiment: PR #327 at `60ba3d2c5d7cff88411ec27a9fb51e9d6ffe223f`  
