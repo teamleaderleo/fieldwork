@@ -9,7 +9,6 @@ Investigation workspace: `investigations/254-linux-storage-archive-reproducibili
 Canonical implementation: none; overlap record in `teamleaderleo/linux-fieldwork` PRs #214 and #219  
 Exact implementation head: overlap record `d9c09cb81c1258612dda601b5bf5f6b703833b8a`  
 Exact base or source revision: public equivalent fix observed 2026-07-31 at `78b75ec7c9bca13870cecb5cd4f60272bed86fc9`  
-Strongest evidence class: `source-read`  
 Reviewed input generation: 2026-07-31 read-only public-state refresh  
 Current review disposition: `HOLD`  
 Desk routing: `not-entered`  
