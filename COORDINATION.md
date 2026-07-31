@@ -83,9 +83,11 @@ Problem ownership is non-exclusive. Any worker may inspect, review, reproduce, o
 When a worker encounters a concrete nearby defect, stale claim, weak assertion, missing regression, untransferred receipt, obsolete temporary workflow, or duplicate carrier, the default is to repair it in the same pass when:
 
 - the repair is bounded and technically understood;
-- the worker owns the artifact, the lease has transferred or expired, or the repair is made through a separate stacked branch or evidence record;
+- the worker owns the artifact, an explicit release or transfer has been recorded, or the repair is made through a separate stacked branch or evidence record;
 - validation is available without widening authority, using prohibited data, or erasing another worker's evidence;
 - the repair materially improves the next transition.
+
+Lease expiry or takeover is actionable only when the coordination owner or controller records a versioned stale-and-transfer decision. Missing recent activity, elapsed wall-clock time, or a worker-local inference does not transfer mutation authority.
 
 A review comment alone is not the preferred endpoint when the reviewer can safely produce the bounded repair without violating the writer lease. When direct repair would conflict with an active writer, retain an exact repair recipe, focused regression, or non-conflicting stack instead of silently rewriting that worker's branch.
 
@@ -131,7 +133,7 @@ Promote a probe when scope expands, another worker depends on it, it needs a sus
 
 ## Claim protocol
 
-Before substantial coordinated work, the worker records:
+Before creating or changing a substantive branch, mutable path, or durable output, the worker records:
 
 - worker identity;
 - state `claimed`;
@@ -144,7 +146,9 @@ Before substantial coordinated work, the worker records:
 - stop condition;
 - upstream-contact authorization, normally `false`.
 
-A claim is a coordination lease, not ownership of the broader programme, campaign, or batch. If the worker disappears or the premise changes, the coordinator may release or replace it.
+Tiny issue-only repair recipes, review notes, and evidence pointers that do not create or mutate a substantive branch or durable output may use a lighter record, but must still name the exact affected head or input and the proposed next transition.
+
+A claim is a coordination lease, not ownership of the broader programme, campaign, or batch. If the worker disappears or the premise changes, the coordinator may release or replace it through an explicit versioned transfer record.
 
 ## Communication protocol
 
@@ -154,7 +158,7 @@ Do not rely on ephemeral chat history as the only location of a decision or resu
 
 When new evidence changes another assignment's premise, post a concise cross-assignment note in both relevant Fieldwork records. Same-repository references may be direct; external references remain wrapped.
 
-Routine peer-review routing, safe bounded repair, cleanup, source synchronization, and ordinary technical comparison are autonomous work. Do not turn them into user tasks merely because several agents, repositories, or alternatives are involved. Escalate only when the next transition requires human authority, private or regulated context, credentials, material spending, acceptable irreversible risk, or product values unavailable from repository evidence.
+Routine peer-review routing, safe bounded repair, cleanup, source synchronization, and ordinary technical comparison are autonomous work. Until generated routing exists, place `review-ready` work in Review Queue #213 or the named owning review issue. Do not turn routine review into a user task merely because several agents, repositories, or alternatives are involved. Escalate only when the next transition requires human authority, private or regulated context, credentials, material spending, acceptable irreversible risk, or product values unavailable from repository evidence.
 
 ## Handoff protocol
 
