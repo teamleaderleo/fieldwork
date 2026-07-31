@@ -1,0 +1,79 @@
+name: Fieldwork Stensibly MCP attempt admission repair
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-stensibly-mcp-attempt-admission.yml"
+      - "programmes/high-leverage-open-source/scouts/stensibly-mcp-attempt-admission/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    name: Bun 1.3.10 exact-source admission repair
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out Fieldwork carrier
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact Stensibly source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/stensibly
+          ref: 7a5146da52139dec062575baa512eb2c97531060
+          path: stensibly
+          persist-credentials: false
+
+      - name: Verify exact source and apply repair
+        run: |
+          set -euo pipefail
+          test "$(git -C stensibly rev-parse HEAD)" = "7a5146da52139dec062575baa512eb2c97531060"
+          git -C stensibly apply --check \
+            ../fieldwork/programmes/high-leverage-open-source/scouts/stensibly-mcp-attempt-admission/0001-close-attempt-admission-and-privacy.patch
+          git -C stensibly apply \
+            ../fieldwork/programmes/high-leverage-open-source/scouts/stensibly-mcp-attempt-admission/0001-close-attempt-admission-and-privacy.patch
+          cp \
+            fieldwork/programmes/high-leverage-open-source/scouts/stensibly-mcp-attempt-admission/fieldwork-mcp-attempt-admission.test.ts \
+            stensibly/test/fieldwork-mcp-attempt-admission.test.ts
+
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: stensibly/package.json
+
+      - name: Install exact Bun runtime
+        run: |
+          npm install --global bun@1.3.10
+          test "$(bun --version)" = "1.3.10"
+
+      - name: Install committed dependencies
+        working-directory: stensibly
+        run: bun install --frozen-lockfile
+
+      - name: Run focused attempt-observation controls
+        working-directory: stensibly
+        run: >-
+          bun test
+          test/mcp-attempt-observation.test.ts
+          test/mcp-attempt-observation-single-failure.test.ts
+          test/fieldwork-mcp-attempt-admission.test.ts
+
+      - name: Run typecheck and runtime parity
+        working-directory: stensibly
+        run: |
+          bun run typecheck
+          bun run test:runtime-parity
+
+      - name: Check repaired diff and clean carrier boundary
+        working-directory: stensibly
+        run: |
+          git diff --check
+          test -z "$(git status --short --untracked-files=no | sed -n '/^ M \|^M  /p' | grep -v -E '^( M|M ) (src/mcp-attempt-observation.ts|test/mcp-attempt-observation.test.ts)$' || true)"
