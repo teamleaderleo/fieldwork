@@ -1,8 +1,22 @@
 diff --git a/pkgs/by-name/go/gomarkdoc/package.nix b/pkgs/by-name/go/gomarkdoc/package.nix
-index 149e1cf1908f..2c37e08f181c 100644
 --- a/pkgs/by-name/go/gomarkdoc/package.nix
 +++ b/pkgs/by-name/go/gomarkdoc/package.nix
-@@ -23,10 +23,13 @@ buildGoModule (finalAttrs: {
+@@ -1,12 +1,12 @@
+ {
+   lib,
+-  buildGoModule,
++  buildGo125Module,
+   fetchFromGitHub,
+   testers,
+   gomarkdoc,
+ }:
+ 
+-buildGoModule (finalAttrs: {
++buildGo125Module (finalAttrs: {
+   pname = "gomarkdoc";
+   version = "1.1.0";
+ 
+@@ -21,10 +21,15 @@ buildGoModule (finalAttrs: {
  
    vendorHash = "sha256-gCuYqk9agH86wfGd7k6QwLUiG3Mv6TrEd9tdyj8AYPs=";
  
@@ -12,10 +26,12 @@ index 149e1cf1908f..2c37e08f181c 100644
 -  doCheck = false;
 +  doCheck = true;
 +
-+  # gomarkdoc's command tests parse GOFLAGS as application flags. Keep the
-+  # materialized vendor tree while hiding buildGoModule's package-manager flag.
++  # v1.1.0's docs golden still expects the Go 1.25 symbol-resolution output.
++  # Its command tests also parse GOFLAGS as application flags and reference an
++  # empty config fixture omitted from the release tag.
 +  preCheck = ''
 +    export GOFLAGS="''${GOFLAGS//-mod=vendor/}"
++    touch .gomarkdoc-empty.yml
 +  '';
  
    ldflags = [
