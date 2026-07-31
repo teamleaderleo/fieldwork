@@ -127,7 +127,7 @@ Independent review should examine the complete current diff, not only the latest
 
 `review-ready` means one exact current case is prepared for an eligible independent technical reviewer. It does not mean that the user must review it, that every worker must review it, or that the work is accepted, land-ready, merged, or ready for public upstream submission.
 
-Routine review-ready work should enter the peer review system. It should appear in the human-facing decision surface only when it materially changes priority, exposes risk, becomes stale, or requires non-delegable authority.
+Routine review-ready work should enter Review Queue #213 or the owning issue's designated peer-review surface until an accepted generated router replaces that route. A second agent using the same GitHub author account does not by itself make a review independent; the receipt must record reviewer eligibility and the exact reviewed generation. Review-ready work should appear in the human-facing decision surface only when it materially changes priority, exposes risk, becomes stale, or requires non-delegable authority.
 
 A worker who marks one item review-ready should continue useful autonomous work rather than treating that label as a terminal personal state. Suitable continuation includes:
 
@@ -143,7 +143,9 @@ A worker who marks one item review-ready should continue useful autonomous work 
 
 An explicit user assignment or instruction to continue authorizes bounded work in the same lane. Continue through source reading, local probes, review repairs, ordinary repository writes, cleanup, synchronization, and adjacent peer review without repeatedly asking for permission.
 
-When a review finds a concrete defect, prefer repairing it in the same pass when the repair is bounded, validation is available, and the writer lease is owned, transferred, expired, or respected through a separate stacked branch. Do not silently rewrite another active worker's artifact. When direct repair would conflict, retain an exact repair recipe, focused regression, or non-conflicting stack.
+When a review finds a concrete defect, prefer repairing it in the same pass when the repair is bounded, validation is available, and the worker owns the current recorded lease, an explicit release, transfer, or takeover is recorded, or the repair is made through a separate non-conflicting stacked branch. Observed expiry, silence, or inactivity alone never grants write authority. Do not silently rewrite another active worker's artifact. When direct repair would conflict, retain an exact repair recipe, focused regression, or non-conflicting stack.
+
+Before substantive source or branch writes, record the bounded claim required by `COORDINATION.md`. Tiny issue-only repair recipes, review comments, and focused evidence notes may remain lighter when they create no new mutable ownership.
 
 Seek new authorization when the work would widen scope, change authority, use private or production data, create a new external interaction, incur material cost, or cross another explicit boundary.
 
