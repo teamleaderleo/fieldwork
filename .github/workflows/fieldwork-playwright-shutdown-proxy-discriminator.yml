@@ -80,7 +80,6 @@ jobs:
           cp "$ROOT/$TEST_FILE" "playwright/tests/mcp/$TEST_FILE"
           cp "$ROOT/fieldwork-reverse-proxy.spec.ts" "playwright/tests/mcp/fieldwork-reverse-proxy.spec.ts"
           printf '\n' >> "playwright/tests/mcp/$TEST_FILE"
-          printf '\n' >> "playwright/tests/mcp/fieldwork-reverse-proxy.spec.ts"
           git -C playwright diff --check
           mkdir -p fieldwork-receipts
           git -C playwright diff --binary > "fieldwork-receipts/${{ matrix.candidate }}-applied.diff"
