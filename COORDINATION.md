@@ -76,6 +76,30 @@ campaigns/<campaign-id>-<slug>/
 
 Workers edit only their owned scout, result, experiment, or lane paths unless a handoff explicitly changes ownership. Never have several workers push shared files directly to `main`.
 
+## Local improvement default
+
+Problem ownership is non-exclusive. Any worker may inspect, review, reproduce, or improve work across programmes while one active writer lease remains authoritative for each mutable branch or output path.
+
+When a worker encounters a concrete nearby defect, stale claim, weak assertion, missing regression, untransferred receipt, obsolete temporary workflow, or duplicate carrier, the default is to repair it in the same pass when:
+
+- the repair is bounded and technically understood;
+- the worker owns the artifact, the lease has transferred or expired, or the repair is made through a separate stacked branch or evidence record;
+- validation is available without widening authority, using prohibited data, or erasing another worker's evidence;
+- the repair materially improves the next transition.
+
+A review comment alone is not the preferred endpoint when the reviewer can safely produce the bounded repair without violating the writer lease. When direct repair would conflict with an active writer, retain an exact repair recipe, focused regression, or non-conflicting stack instead of silently rewriting that worker's branch.
+
+Service nearby work before creating distant coordination surfaces unless the marginal value of exploration is clearly higher. The normal order is:
+
+1. repair concrete defects already in reach;
+2. compose overlapping work and finish exact-head gates;
+3. synchronize findings, receipts, descriptions, and state;
+4. retire superseded carriers and temporary machinery;
+5. obtain or perform independent complete-diff review;
+6. explore new questions when nearby work is stable, genuinely blocked, or lower value.
+
+This is a throughput heuristic, not a ban on exploration. A fresh investigation is appropriate when it can expose a high-consequence mechanism, unblock several lanes, or progress without consuming a saturated shared bottleneck.
+
 ## Good lane boundaries
 
 Split work by independently answerable question or evidence type, for example:
@@ -129,6 +153,8 @@ Use the relevant Fieldwork issue for short state changes, blockers, questions, a
 Do not rely on ephemeral chat history as the only location of a decision or result.
 
 When new evidence changes another assignment's premise, post a concise cross-assignment note in both relevant Fieldwork records. Same-repository references may be direct; external references remain wrapped.
+
+Routine peer-review routing, safe bounded repair, cleanup, source synchronization, and ordinary technical comparison are autonomous work. Do not turn them into user tasks merely because several agents, repositories, or alternatives are involved. Escalate only when the next transition requires human authority, private or regulated context, credentials, material spending, acceptable irreversible risk, or product values unavailable from repository evidence.
 
 ## Handoff protocol
 
