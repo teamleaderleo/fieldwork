@@ -77,17 +77,37 @@ That receipt proves the old model was executable on Node 22 and 24. It does **no
 
 The old evidence therefore remains `model-executed / superseded-generation`. It must not be attributed to the repaired source.
 
-## Repaired generation
+## Exact repaired execution receipt
 
-- Previous canonical model head: `9fe73ef41ab8a9f56e430190a22d3b9017dc8b64`.
-- Repair source commit: `82908b7a1660c111525db161175ea7a86aea6736`.
-- Receipt-document composition commit: `9c8823901d778f7855877e9c4f2b4f93200fb79e`.
-- Repair reason: preserve cancellation causality and remove arbitrary runtime/control failure text from durable artifacts.
-- Current evidence class: `target-test-prepared` for the repaired nine-case generation until exact Node 22 and 24 receipts exist.
+- Canonical source head: `3a0cf7b1b6eb579277ed8749fd5dd6f0d514a709`.
+- Execution-only carrier: PR #351 at `bb5e8a7ccaa51ae68181a2b8845d9ba1f63b96f4`.
+- Repaired model workflow: `30626853243`, success.
+- Exact-head Fieldwork integrity: `30626853359`, success.
+- Platform: `ubuntu-24.04`.
+- Source/carrier fence: the carrier differed from the canonical source by `.github/workflows/fieldwork-f294-connector-boundaries-v2.yml` only.
 
-## What a repaired execution can establish
+| Runtime | Job | Result | Artifact | Artifact digest | JSON SHA-256 |
+| --- | --- | --- | --- | --- | --- |
+| Node 22.23.1 | `91144004050` | schema v2, exact `9/9` passed | `8792117981` | `sha256:db925d945281dbe8ed6dcebed9d357f6f2108156b1736fc047e0a8d74819d127` | `f1ebbce9d5532e4023dfd2dfed99315d62d5e48165efe5de9fbf58b5d27d8385` |
+| Node 24.18.0 | `91144003927` | schema v2, exact `9/9` passed | `8792114882` | `sha256:0966d9ac21dac9e04ca1bba4f092ab8a46b50a981e75abc0dfe619d92c38ef28` | `dc24e185ffc0d7d0ae7eebf6afeb77ed78d70e0f7c17d7062ee3ee35040edb63` |
 
-At the exact repaired source, a green matrix can establish only the synthetic contract:
+Both inspected artifacts contain:
+
+- `schemaVersion: 2`;
+- `evidenceClass: model-executed`;
+- the same nine uniquely ordered passing cases;
+- an explicit synthetic-model claim limit;
+- no secret-shaped runtime text, provider failure message, failed-control source text, or stack;
+- bounded non-settlement after approximately 41 ms in the synthetic control;
+- an immutable terminal `outcome_unknown` receipt after late completion.
+
+The runtime-version field accounts for the expected JSON byte difference. The semantic case names, statuses, receipt kinds, and fixed codes agree across Node 22 and 24.
+
+Current evidence class: `model-executed` for the repaired schema-version-2 synthetic contract.
+
+## What the repaired execution establishes
+
+At the exact repaired source, the green matrix establishes only the synthetic contract:
 
 - incomplete function-call argument fragments remain non-rendered and non-dispatched;
 - unknown internal event payloads are quarantined without retained payload content;
@@ -97,8 +117,6 @@ At the exact repaired source, a green matrix can establish only the synthetic co
 - non-settling runtime work produces bounded `outcome_unknown`;
 - late completion cannot rewrite an emitted receipt;
 - secret-shaped runtime and failed-control text is absent from the retained JSON.
-
-Evidence class after exact execution: `model-executed`.
 
 ## What execution cannot establish
 
@@ -125,12 +143,14 @@ This model does not claim every production diagnostic must omit every message. I
 
 ## Carrier disposition
 
-PR #344 completed the old generation and is now stale relative to the repaired canonical source. Even if its old receipts are green, it cannot promote the repaired model. A fresh workflow-only carrier must pin the repaired exact head, require schema version 2 and nine cases, run Node 22 and 24, inspect retained artifacts, and remain excluded from delivery.
+PR #351 completed the exact repaired generation and is now execution-only history. Its workflow must not become a delivery surface. The exact receipts are retained above; closing the carrier does not merge the workflow or upgrade the evidence beyond `model-executed`.
+
+PR #344 remains the superseded six-case execution history.
 
 ## Next transition
 
-Create one fresh execution carrier over the repaired canonical head, retain and inspect both schema-version-2 artifacts, and transfer only those receipts to PR #296. In parallel, settle the target-native public Codex characterization in source PR #110 through execution carrier #111. Compare the synthetic and target-native settlement evidence without claiming either locates the proprietary presentation owner.
+Settle the target-native public Codex non-settling characterization through its current source and carrier, then compare the target-native settlement boundary with this synthetic contract. A host-visible fixture is still required to locate or exclude the proprietary presentation owner.
 
-Keep the finding `comparative-evaluation-active` until a target-native or host-visible fixture locates or excludes the real owner.
+Keep the finding `comparative-evaluation-active` until target-native or host-visible evidence locates or excludes the real owner. No additional unchanged synthetic execution is warranted.
 
 Upstream contact authorized: `no`.
