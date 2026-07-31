@@ -129,13 +129,33 @@ A disposition names the exact next transition. Accepting a research reproduction
 
 The builder may document self-review, but should not be the sole final accepter of a consequential implementation, authority change, security boundary, or upstream packet. Independent review examines the complete current diff, not only the latest commit or PR summary.
 
-## Bounded continuation and throughput
+## Review-ready is peer-facing
 
-An explicit instruction to continue authorizes bounded work in the same lane through source reading, local probes, review repairs, and ordinary repository writes.
+`review-ready` means one exact current case is prepared for an eligible independent technical reviewer. It does not mean the user must review it, every worker must review it, the work is accepted, land-ready, merged, or ready for public upstream submission.
+
+Routine review-ready work enters Review Queue #213 or the owning issue's designated peer-review surface until an accepted generated router replaces that route. A second agent using the same GitHub author account does not by itself make a review independent; the receipt records reviewer eligibility and the exact reviewed generation. Review-ready work appears in the human-facing decision surface only when it materially changes priority, exposes risk, becomes stale, or requires non-delegable authority.
+
+A worker who marks one item review-ready continues useful autonomous work rather than treating that label as a terminal personal state. Suitable continuation includes:
+
+- independently reviewing another exact head;
+- producing a bounded non-conflicting repair for a concrete defect;
+- checking composition and current-main drift;
+- synchronizing findings, receipts, and live descriptions;
+- retiring obsolete carriers after evidence transfer;
+- preparing a blocked lane's smallest safe next probe;
+- opening a fresh investigation when local debt is controlled or the new work has clearly higher marginal value.
+
+## Bounded continuation and review throughput
+
+An explicit user assignment or instruction to continue authorizes bounded work in the same lane. Continue through source reading, local probes, review repairs, ordinary repository writes, cleanup, synchronization, and adjacent peer review without repeatedly asking for permission.
+
+When a review finds a concrete defect, prefer repairing it in the same pass when the repair is bounded, validation is available, and the worker owns the current recorded lease, an explicit release, transfer, or takeover is recorded, or the repair uses a separate non-conflicting stacked branch. Observed expiry, silence, or inactivity alone never grants write authority. Do not silently rewrite another active worker's artifact. When direct repair would conflict, retain an exact repair recipe, focused regression, or non-conflicting stack.
+
+Before substantive source or branch writes, record the bounded claim required by `COORDINATION.md`. Tiny issue-only repair recipes, review comments, and focused evidence notes may remain lighter when they create no new mutable ownership.
 
 Seek new authorization when work would widen scope, change authority, use private or production data, create external interaction, incur material cost, or cross another explicit boundary.
 
-When review debt grows faster than dispositions, pause creation of new review surfaces and finish, consolidate, supersede, or close existing work. Reopen only when execution, consequence, novelty, or a narrow correction materially improves the decision.
+When review debt grows faster than dispositions, pause creation of new review surfaces and finish, consolidate, supersede, or close existing work. Prefer concrete nearby repair, composition, exact-head execution, evidence transfer, state synchronization, carrier retirement, and independent disposition before distant exploration. Reopen promotion or create a new surface only when new execution, consequence, novelty, or a narrow correction materially improves the decision.
 
 ## Canonical branch and carrier rules
 
