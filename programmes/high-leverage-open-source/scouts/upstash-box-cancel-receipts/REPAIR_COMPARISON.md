@@ -24,7 +24,8 @@ These defects are orthogonal. Treating request sharing and outcome truth as comp
 - `Run.status` remains an authoritative run-state field;
 - later authoritative completion or cancellation may replace earlier local request observations;
 - no untrusted provider error text is retained or published;
-- later callers do not silently replay an outcome-unknown request.
+- later callers do not silently replay an outcome-unknown request;
+- cancelling one caller's wait does not cancel the shared provider request for other callers.
 
 ## Stable options
 
@@ -66,6 +67,7 @@ Advantages:
 - preserves the existing run-status vocabulary;
 - allows later `completed` or `cancelled` observations to remain authoritative;
 - gives all concurrent and later callers one stable receipt;
+- isolates the shared request from one caller cancelling its own wait;
 - does not automatically replay an ambiguous provider request.
 
 Cost: adds a small receipt type/property or changes `cancel()` to return a receipt. Exact target API compatibility remains to be tested.
@@ -77,7 +79,8 @@ Cost: adds a small receipt type/property or changes `cancel()` to return a recei
 3. preserve the existing public run-status contract;
 4. retain later authoritative reconciliation;
 5. minimize retained untrusted detail;
-6. minimize implementation and generation complexity across TypeScript, async Python, and generated sync Python.
+6. preserve shared-operation settlement when one waiter is cancelled;
+7. minimize implementation and generation complexity across TypeScript, async Python, and generated sync Python.
 
 ## Executable discriminator
 
@@ -88,6 +91,7 @@ Required controls:
 - A shares one request but still overclaims terminal cancellation;
 - B preserves outcome uncertainty but sends two requests;
 - C shares one request and leaves authoritative status unchanged;
+- cancelling one C waiter does not cancel the shared request or surviving waiter;
 - C publishes fixed failure prose and does not auto-replay;
 - accepted request remains outcome-unknown until authoritative cancellation;
 - failed request can later reconcile to natural completion;
