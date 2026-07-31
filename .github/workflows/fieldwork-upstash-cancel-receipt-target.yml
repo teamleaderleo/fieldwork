@@ -65,6 +65,12 @@ jobs:
       - name: Run TypeScript cancellation controls and package gates
         working-directory: box
         run: |
+          pnpm --filter @upstash/box exec prettier --write \
+            src/client.ts \
+            src/types.ts \
+            src/index.ts \
+            src/__tests__/run.test.ts \
+            src/__tests__/fieldwork-cancel-receipt-repair.test.ts
           pnpm --filter @upstash/box exec vitest run \
             src/__tests__/run.test.ts \
             src/__tests__/fieldwork-cancel-receipt-repair.test.ts
