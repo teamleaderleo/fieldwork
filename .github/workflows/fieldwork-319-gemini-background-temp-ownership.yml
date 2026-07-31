@@ -49,6 +49,7 @@ jobs:
           git diff --check
           git diff --name-only | sort > /tmp/actual-files
           cat > /tmp/expected-files <<'EOF'
+          packages/core/src/services/executionLifecycleService.ts
           packages/core/src/services/shell-execution-process-exit-cleanup.test.ts
           packages/core/src/services/shellExecutionService.ts
           packages/core/src/tools/shell-background-temp-ownership-repair.test.ts
@@ -72,6 +73,7 @@ jobs:
         run: |
           set -euo pipefail
           files=(
+            packages/core/src/services/executionLifecycleService.ts
             packages/core/src/services/shell-execution-process-exit-cleanup.test.ts
             packages/core/src/services/shellExecutionService.ts
             packages/core/src/tools/shell-background-temp-ownership-repair.test.ts
@@ -81,10 +83,11 @@ jobs:
           npm run test --workspace @google/gemini-cli-core -- \
             src/tools/shell-background-temp-ownership-repair.test.ts \
             src/services/shell-execution-process-exit-cleanup.test.ts \
-            src/tools/shell.test.ts
+            src/tools/shell.test.ts \
+            src/services/executionLifecycleService.test.ts
           npm run typecheck --workspace @google/gemini-cli-core
           git diff --check
-          echo 'FIELDWORK_BACKGROUND_TEMP_OWNERSHIP_CANDIDATE=4/4-files'
+          echo 'FIELDWORK_BACKGROUND_TEMP_OWNERSHIP_CANDIDATE=5/5-files'
 
       - name: Export exact candidate evidence
         run: |
