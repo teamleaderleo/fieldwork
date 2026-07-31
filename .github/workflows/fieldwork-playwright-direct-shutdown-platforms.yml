@@ -97,6 +97,7 @@ jobs:
 
       - name: Run focused ESLint
         id: lint
+        shell: bash
         working-directory: playwright
         run: |
           npx eslint \
@@ -151,6 +152,7 @@ jobs:
             lint: process.env.LINT_OUTCOME || 'not-run',
             diff: process.env.DIFF_OUTCOME || 'not-run',
           };
+          const allSucceeded = Object.values(outcomes).every(value => value === 'success');
           const receipt = {
             schemaVersion: 1,
             generatedAt: new Date().toISOString(),
@@ -174,15 +176,35 @@ jobs:
               project: 'chromium',
             },
             workflowSteps: outcomes,
-            reusableDirectSourceEvidence: Object.values(outcomes).every(value => value === 'success'),
-            claims: {
-              exactSourceIdentity: 'source-read-and-executed',
-              upstreamHttpSuite: 'target-executed-when-test-passes',
-              directSourceRegression: 'target-executed-when-test-passes',
-              focusedLint: 'target-executed-when-lint-passes',
-              diffHygiene: 'target-executed-when-diff-passes',
-              fullRepositoryGate: 'not-claimed',
-              upstreamAcceptance: 'not-claimed',
+            reusableDirectSourceEvidence: allSucceeded,
+            claimReceipts: {
+              exactSourceIdentity: {
+                evidenceClass: 'source-read',
+                executionProvenance: 'literal-owned-source-head',
+                status: outcomes.verify,
+              },
+              upstreamHttpSuite: {
+                evidenceClass: 'target-executed',
+                status: outcomes.test,
+              },
+              directSourceRegression: {
+                evidenceClass: 'target-executed',
+                status: outcomes.test,
+              },
+              focusedLint: {
+                evidenceClass: 'target-executed',
+                status: outcomes.lint,
+              },
+              diffHygiene: {
+                evidenceClass: 'target-executed',
+                status: outcomes.diff,
+              },
+              fullRepositoryGate: {
+                status: 'not-claimed',
+              },
+              upstreamAcceptance: {
+                status: 'not-claimed',
+              },
             },
           };
           fs.writeFileSync(
