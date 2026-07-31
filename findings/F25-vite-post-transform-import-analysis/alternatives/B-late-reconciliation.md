@@ -21,8 +21,8 @@ Every surviving model must:
 - keep dynamic imports outside `staticImportedUrls`;
 - emit no prune for unchanged final state;
 - emit exactly the real prune set once for removal or replacement;
+- preserve the previous committed accepted-HMR view while the next user post hook runs;
 - preserve prior committed graph state on parse, resolution, cancellation, or stale-request failure;
-- define the graph view visible to user post hooks on a later transform;
 - preserve partial accept, bindings, self accept, exports, normalization, and diagnostics;
 - keep temporary execution machinery outside any promoted source diff.
 
@@ -55,14 +55,19 @@ Carrier: Vite #9, current head `38547370decd7328c50244596a580fe207fb3655`.
 - final pass can parse late imports and HMR state;
 - focused repaired head demonstrated add, retain, and remove behavior.
 
-### Loses and criticism
+### Executed losses
 
-- the first implementation emitted a false prune on unchanged repeat state;
-- previous accepted-HMR state may disappear before a later user post hook reads the graph;
-- current head ordinary CI failed formatting and unit jobs and needs exact failure classification;
-- retained state needs lifecycle, rollback, and stale-request fences.
+1. At old head `7132850…`, CI `30587631101`, macOS job `91022769607`, unchanged second-transform state emitted a false prune.
+2. At current head `3854737…`, CI `30588826788` failed the same accepted-state visibility assertion across Node 20, 22, 24, 26, Windows 24.15, and macOS 24.
+3. Inspected Ubuntu Node 24 job `91026466344` had 895 passing tests, 3 skipped, and one failure: the second user post hook did not see the previously committed late accepted dependency.
+4. Formatting failed independently in job `91026379219`; only two line-wrap changes were requested. Formatting repair does not change the product disposition.
+5. Zizmor `30588826793` passed.
 
-Disposition: mechanism and negative evidence retained; current branch is not the preferred source.
+### Consequence
+
+Preserving previous late file imports alone does not preserve a coherent previous final graph view. Accepted dependencies and related HMR metadata are removed before the user post hook. A complete overlay must carry the full committed state or graph mutation must be staged.
+
+Disposition: `HOLD / RETAIN AS EXECUTED NEGATIVE COMPARISON`. Do not repair formatting as a standalone work item.
 
 ## B2 — current-public-base snapshot plus final reconciler
 
@@ -89,7 +94,7 @@ Vite #14 at `4de42376d3bd34e2b559e68e721f698a62b62a96`:
 
 ### Remaining loss
 
-Ordinary analysis still commits and may dispatch prune before the final pass. Post-only code cannot retract an already sent prune.
+Ordinary analysis still commits and may dispatch prune before the final pass. Post-only code cannot retract an already sent prune. The executed B1 accepted-state loss also requires the ownership model to preserve accepted HMR state before user post hooks.
 
 Disposition: preferred source basis, `REPAIR + EXECUTE`.
 
@@ -106,6 +111,7 @@ Source: Vite #12 at `63a26854bfcd44de66286ffdd3cf04ff0066fe9f`.
 ### Wins
 
 - makes prior graph visibility an explicit stage;
+- directly targets the now-executed B1 accepted-state loss;
 - is executable rather than paper-only;
 - Zizmor passed; ordinary CI is in progress.
 
@@ -127,17 +133,18 @@ Persist the previous committed final-source overlay per module/environment. Ordi
 ### Wins
 
 - prevents ordinary analysis from temporarily pruning prior late edges;
-- preserves prior graph view for user post hooks;
+- can preserve prior accepted-HMR view for user post hooks;
 - smaller change than a general graph transaction.
 
 ### Risks
 
 - overlay must include imports, accepted deps, static URLs, bindings, exports, self-accept state, and relevant graph-only facts;
+- the B1 execution proves a file-import-only overlay is insufficient;
 - partial overlay creates mixed old/new state;
 - generation fencing and cleanup are mandatory;
 - ordinary analysis becomes aware of final-reconciliation state.
 
-Disposition: preferred next implementation direction if #14 passes.
+Disposition: preferred next implementation direction only as a complete state overlay, after #14 passes.
 
 ## B5 — transform-scoped graph transaction
 
@@ -148,6 +155,7 @@ Stage ordinary and final graph/HMR calculations during one transform request. Co
 ### Wins
 
 - clearest one-transition model;
+- prior committed graph remains visible until commit;
 - rollback is natural before commit;
 - stale request can be rejected before publication;
 - ordinary and final responsibilities remain distinguishable inside one transaction.
@@ -158,7 +166,7 @@ Stage ordinary and final graph/HMR calculations during one transform request. Co
 - current consumers may depend on graph mutation during the transform chain;
 - requires composed controls across import analysis, HMR, CSS/watch facts, and transform request caching.
 
-Disposition: preferred architectural fallback when direct overlay becomes distributed or incomplete.
+Disposition: preferred architectural fallback when complete overlay becomes distributed or incomplete.
 
 ## Adversarial controls
 
@@ -169,13 +177,12 @@ PR #13 at `b139c1be0965158970bd4353ac05eee5d51793bb` retains four criticisms:
 3. env-like string versus real late `import.meta.env`;
 4. late dynamic edge absent from static invalidation state.
 
-PR #9 retains lifecycle criticism:
+PR #9 retains executed lifecycle criticism:
 
-- no false prune on unchanged repeat;
-- one real prune on removal/replacement;
-- prior accepted-state visibility.
+- false prune on unchanged repeat;
+- previous accepted-HMR state missing during the next user post hook.
 
-Future controls must add rollback, stale-request publication, bindings/partial accepts, workers, aliases, virtual IDs, and cleanup.
+The repaired #9 head `bf18a77…` retains the positive add/retain/removal unit evidence. Future controls must add exact removal publication, rollback, stale-request publication, bindings/partial accepts, workers, aliases, virtual IDs, and cleanup.
 
 ## Selection rule
 
@@ -183,10 +190,10 @@ Use the smallest model that satisfies the complete graph-publication invariant w
 
 Current ranking:
 
-1. B2 source basis plus B4 direct overlay;
-2. B5 transaction if overlay state becomes incomplete or distributed;
-3. B3 staged restoration as executable comparison;
-4. B1 retained for mechanism and failure evidence;
+1. B2 source basis plus a complete B4 state overlay;
+2. B5 transaction if complete overlay becomes distributed or incomplete;
+3. B3 staged restoration as executable accepted-state comparison;
+4. B1 retained solely for mechanism and executed failure evidence;
 5. A retained as compatibility-negative proof.
 
 Reopen Option A only if the first-party post-analysis raw-import contract is removed or an explicit migration accepts the break.
@@ -195,6 +202,7 @@ Reopen Option A only if the first-party post-analysis raw-import contract is rem
 
 1. inspect #14 publisher `30592816438`;
 2. transfer passing current-fact repairs to clean source;
-3. instantiate no-false-prune ownership on that source family;
-4. execute unchanged, removal, accepted-state visibility, rollback, and stale-request controls;
-5. complete independent exact-head review and retire temporary carriers.
+3. use the B1 accepted-state failure as a mandatory control for B3/B4/B5;
+4. instantiate no-false-prune ownership on the preferred source family;
+5. execute unchanged, removal, accepted-state visibility, rollback, and stale-request controls;
+6. complete independent exact-head review and retire temporary carriers.
