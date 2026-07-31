@@ -27,14 +27,17 @@ The admitted `failureStages` array duplicates the keys of the exhaustive `failur
 
 ## Selected repair
 
-The exact-source patch:
+The exact-source transformer:
 
+- requires every old source block to occur exactly once before replacement;
 - admits only `length` plus exact canonical indices `0..length-1` for arrays;
 - rejects every extra string or symbol field with fixed label-only prose;
 - uses fixed label-only prose for unknown record fields;
 - adopts the landed delimiter-aware credential detector used by delegated GitHub authority receipts;
 - derives the admitted failure-stage vocabulary directly from `failureStageWindows` and freezes the exported list;
 - updates the existing unknown-field expectation to the fixed diagnostic.
+
+The first carrier generation used a hand-authored unified patch. It failed before target setup because two minimal-context hunks did not apply to the exact source. That result was carrier-only. The current transformer replaces exact complete source blocks and aborts unless each preimage is unique, avoiding line-number and hunk-count ambiguity while retaining a reviewable resulting target diff.
 
 ## Hostile-input controls
 
@@ -49,7 +52,7 @@ The focused target-native test requires:
 
 ## Exact execution boundary
 
-The carrier checks out the exact target head, applies the patch in a disposable worktree, copies only the focused test, installs Bun `1.3.10`, and runs:
+The carrier checks out the exact target head, compiles and executes `apply_repair.py` in a disposable worktree, copies only the focused test, installs Bun `1.3.10`, and runs:
 
 - existing attempt-observation tests;
 - existing single-failure regression;
