@@ -36,25 +36,85 @@
   },
   "active_carrier": null,
   "writer_lease": {
-    "worker": "worker-id",
-    "artifact": "findings/F000-example/finding.md",
-    "state": "active",
+    "state": "none",
+    "holder": null,
+    "repository": null,
+    "resource_kind": "none",
+    "resource": null,
+    "generation_type": "none",
+    "generation": null,
+    "acquired_at": null,
+    "renewed_at": null,
+    "duration_seconds": null,
+    "transition": 0,
+    "previous_generation": null,
     "transfer_record": null
   },
   "freshness": {
     "base_head": "0000000000000000000000000000000000000000",
-    "upstream_valid_through": "0000000000000000000000000000000000000000",
+    "external_boundary": {
+      "kind": "git-sha",
+      "value": "0000000000000000000000000000000000000000",
+      "source": "public example repository main"
+    },
     "checked_at": "1970-01-01T00:00:00Z"
   },
   "authority": {
-    "merge": false,
-    "release": false,
-    "deploy": false,
-    "upstream_contact": false,
-    "private_or_production_data": false,
-    "material_spending": false
+    "merge": {
+      "state": "denied",
+      "action": "merge",
+      "target": {"kind": "none", "location": null, "operation_id": null, "data_class": "none"},
+      "source": {"kind": "none", "record": null, "generation": null},
+      "issued_at": null,
+      "expires_at": null,
+      "revocation_record": null
+    },
+    "release": {
+      "state": "denied",
+      "action": "release",
+      "target": {"kind": "none", "location": null, "operation_id": null, "data_class": "none"},
+      "source": {"kind": "none", "record": null, "generation": null},
+      "issued_at": null,
+      "expires_at": null,
+      "revocation_record": null
+    },
+    "deploy": {
+      "state": "denied",
+      "action": "deploy",
+      "target": {"kind": "none", "location": null, "operation_id": null, "data_class": "none"},
+      "source": {"kind": "none", "record": null, "generation": null},
+      "issued_at": null,
+      "expires_at": null,
+      "revocation_record": null
+    },
+    "upstream_contact": {
+      "state": "denied",
+      "action": "upstream_contact",
+      "target": {"kind": "none", "location": null, "operation_id": null, "data_class": "none"},
+      "source": {"kind": "none", "record": null, "generation": null},
+      "issued_at": null,
+      "expires_at": null,
+      "revocation_record": null
+    },
+    "private_or_production_data": {
+      "state": "denied",
+      "action": "private_or_production_data",
+      "target": {"kind": "none", "location": null, "operation_id": null, "data_class": "none"},
+      "source": {"kind": "none", "record": null, "generation": null},
+      "issued_at": null,
+      "expires_at": null,
+      "revocation_record": null
+    },
+    "material_spending": {
+      "state": "denied",
+      "action": "material_spending",
+      "target": {"kind": "none", "location": null, "operation_id": null, "data_class": "none"},
+      "source": {"kind": "none", "record": null, "generation": null},
+      "issued_at": null,
+      "expires_at": null,
+      "revocation_record": null
+    }
   },
-  "authority_record": null,
   "blocker": null,
   "next_transition": "Run one bounded discriminating source or execution step.",
   "terminal_record": null
