@@ -44,7 +44,7 @@ The canonical `test_reconcile.py` matrix now:
 6. proves canonical record and live facts remain byte-for-byte unchanged;
 7. retains malformed global `observed_at` as a projection-wide invalid boundary.
 
-The disposable patch, patch-application harness, and dedicated carrier workflow are removed after their evidence is transferred into this direct source/test generation.
+The dedicated patch-application workflow is removed after receipt transfer. A safety boundary prevented deletion of the exact patch artifact, so the patch remains as historical evidence rather than being misclassified as a failed cleanup. The former patch harness is reduced to a transfer assertion that points to the native controls and no longer preserves the obsolete baseline-crash expectation.
 
 ## Boundary
 
