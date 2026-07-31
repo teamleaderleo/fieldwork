@@ -126,6 +126,8 @@ The probe establishes local bind, presentation, CORS, parser, and parser-to-head
 
 ## Carrier retirement
 
-The one-off workflow was removed after this receipt transfer. Its removal does not mean target behavior reran on the later cleanup head. The durable carrier is this report plus the exact network script and identity test.
+The one-off workflow was removed after receipt transfer. Its removal does not mean target behavior reran on the later cleanup head.
 
-The workflow-free branch still requires current-main packaging and exact-head Fieldwork integrity. No source repair, merge, deployment, real credential use, or public upstream interaction is authorized.
+The workflow-free evidence package contains this report, the exact executed network script, and the exact executed identity test directly on the current-main parent. Repository integrity and independent complete-diff review apply to that three-file package; the target claims remain bound to the earlier executed head and receipt.
+
+No source repair, merge, deployment, real credential use, or public upstream interaction is authorized.
