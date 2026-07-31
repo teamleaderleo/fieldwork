@@ -29,7 +29,6 @@ jobs:
         env:
           CHECKOUT_MODE: synthetic-merge-ref
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           EVENT_SHA: ${{ github.sha }}
           EVENT_NAME: ${{ github.event_name }}
           EVENT_REF: ${{ github.ref }}
@@ -41,7 +40,10 @@ jobs:
           set -euo pipefail
           mkdir -p fieldwork-receipts
           checkout_line=$(git rev-list --parents -n 1 HEAD)
-          export CHECKOUT_LINE="$checkout_line"
+          current_base_sha=$(git ls-remote --exit-code origin "refs/heads/${BASE_REF}" | awk 'NR == 1 { print $1 }')
+          test -n "${current_base_sha}"
+          export CHECKOUT_LINE="${checkout_line}"
+          export CURRENT_BASE_SHA="${current_base_sha}"
           python3 <<'PY'
           import json
           import os
@@ -51,7 +53,7 @@ jobs:
           data = {
               "checkout_sha": fields[0],
               "head_sha": os.environ["PR_HEAD_SHA"],
-              "base_sha": os.environ["PR_BASE_SHA"],
+              "base_sha": os.environ["CURRENT_BASE_SHA"],
               "event_sha": os.environ["EVENT_SHA"],
               "parents": fields[1:],
               "event_name": os.environ["EVENT_NAME"],
@@ -70,7 +72,7 @@ jobs:
           python3 scripts/audit_pr_evidence_identity.py \
             fieldwork-receipts/merge-ref-input.json \
             --output fieldwork-receipts/merge-ref-receipt.json
-          printf '%s\n' "$checkout_line" \
+          printf '%s\n' "${checkout_line}" \
             > fieldwork-receipts/merge-ref-rev-list.txt
       - name: Upload merge-ref receipt
         if: always()
@@ -101,7 +103,6 @@ jobs:
         env:
           CHECKOUT_MODE: exact-head
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           EVENT_SHA: ${{ github.sha }}
           EVENT_NAME: ${{ github.event_name }}
           EVENT_REF: ${{ github.ref }}
@@ -113,7 +114,10 @@ jobs:
           set -euo pipefail
           mkdir -p fieldwork-receipts
           checkout_line=$(git rev-list --parents -n 1 HEAD)
-          export CHECKOUT_LINE="$checkout_line"
+          current_base_sha=$(git ls-remote --exit-code origin "refs/heads/${BASE_REF}" | awk 'NR == 1 { print $1 }')
+          test -n "${current_base_sha}"
+          export CHECKOUT_LINE="${checkout_line}"
+          export CURRENT_BASE_SHA="${current_base_sha}"
           python3 <<'PY'
           import json
           import os
@@ -123,7 +127,7 @@ jobs:
           data = {
               "checkout_sha": fields[0],
               "head_sha": os.environ["PR_HEAD_SHA"],
-              "base_sha": os.environ["PR_BASE_SHA"],
+              "base_sha": os.environ["CURRENT_BASE_SHA"],
               "event_sha": os.environ["EVENT_SHA"],
               "parents": fields[1:],
               "event_name": os.environ["EVENT_NAME"],
@@ -142,7 +146,7 @@ jobs:
           python3 scripts/audit_pr_evidence_identity.py \
             fieldwork-receipts/head-input.json \
             --output fieldwork-receipts/head-receipt.json
-          printf '%s\n' "$checkout_line" \
+          printf '%s\n' "${checkout_line}" \
             > fieldwork-receipts/head-rev-list.txt
       - name: Upload literal-head receipt
         if: always()
@@ -183,7 +187,7 @@ jobs:
           set -euo pipefail
           mkdir -p fieldwork-receipts
           checkout_line=$(git rev-list --parents -n 1 HEAD)
-          export CHECKOUT_LINE="$checkout_line"
+          export CHECKOUT_LINE="${checkout_line}"
           python3 <<'PY'
           import json
           import os
@@ -212,7 +216,7 @@ jobs:
           python3 scripts/audit_pr_evidence_identity.py \
             fieldwork-receipts/push-input.json \
             --output fieldwork-receipts/push-receipt.json
-          printf '%s\n' "$checkout_line" \
+          printf '%s\n' "${checkout_line}" \
             > fieldwork-receipts/push-rev-list.txt
       - name: Upload push receipt
         if: always()
