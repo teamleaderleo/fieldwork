@@ -14,7 +14,9 @@ These instructions apply to every AI system and automated worker operating in th
 
 - Every long-lived cross-target direction carries `programme:<slug>` and links to the programme hub recorded in `programmes/registry.yml`.
 - Every issue about a recurring repository, project, protocol, or system carries the appropriate `target:<slug>` label and links the stable target hub when one exists.
+- Create a target hub only when recurring work justifies one; do not turn every registry entry into an issue.
 - Apply `testbed:<slug>` only after a real owned-repository trial begins and follow `TESTBEDS.md`.
+- If the owned repository itself is under investigation, use it as the target rather than the testbed.
 - Programme, target, testbed, finding, workspace, review, and desk indexes are discovery surfaces, not automatic permission to work, merge, or contact upstream.
 
 ## Issue state, finding state, workspace phase, and output status
@@ -61,19 +63,22 @@ Use `comparative-evaluation-active` while autonomous technical work can still di
 ## Scout lanes
 
 - A scout maps the lay of the land without assuming a specific bug, mechanism, patch, or failure class already exists.
+- A programme thesis defines broad responsibility; it is not a checklist of expected findings.
 - Pin the target revision at claim time and use the exact programme, target hub, question, owned path, and stop condition from the issue.
 - Read implementation, tests, call sites, configuration, generated boundaries, recent changes, and relevant issue context.
 - Map architecture, public contracts, control and data flow, state ownership, side effects, tests, and actual or representative use before selecting a narrow hypothesis.
+- A worked example, context pattern, canonical case pack, previous campaign, or familiar bug class must not become the default lens for unrelated research.
 - Reusable fixtures are tools for testing a discovered question, not a method for choosing the question.
-- Produce at least one runnable probe, adversarial case, realistic testbed scenario, or explicit reason none is feasible.
-- Return ranked branch candidates with consequence, likely owner, evidence needed, and a recommendation to stop, retain a finding, open a campaign, or run another scout.
+- Produce at least one runnable probe, adversarial case, realistic testbed scenario, or explicit reason none is feasible after the map identifies a useful property.
+- Return ranked branch candidates with consequence, likely owning boundary, evidence needed, and a recommendation to stop, retain a finding, open a campaign, or run another scout.
 - A code tour or repository summary alone is not a completed scout.
+- Do not create child campaigns without a concrete current behavior or missing capability, consequence, likely code boundary, falsifiable evidence path, and bounded next question.
 
 ## Plain-language check
 
 Begin every durable programme hub, target hub, scout report, canonical finding, workspace front door, campaign, lane report, retained experiment, integration trial, context dossier, synthesis, and review packet with `## In simple words`.
 
-State what the system is, where it sits, what is wrong or uncertain, why the result could be useful, and the current answer or next step. Do not omit a caveat that changes the meaning.
+State what the system is, where it sits, what is wrong or uncertain, why the result could be useful, and the current answer or next step. Keep the block short enough to reveal whether the model is understood, update it when the conclusion changes, and do not omit a caveat that changes the meaning.
 
 ## Code-first investigation
 
@@ -81,8 +86,10 @@ State what the system is, where it sits, what is wrong or uncertain, why the res
 - Map entrypoints, control and data flow, state ownership, side effects, cleanup, public contracts, invariants, and test blind spots.
 - Use recent issues and pull requests for context, not as a substitute for source understanding or as a menu of work.
 - Before promoting work, state a change thesis: current behaviour, consequence, proposed improvement, evidence, and boundary.
-- Prefer correctness, security, data integrity, lifecycle, recovery, performance, compatibility, interoperability, and demonstrated ergonomics work.
-- Do not actively hunt wording, style-only cleanup, generic lint rules, speculative abstractions, or unmeasured micro-optimizations.
+- Prefer correctness, security, data integrity, lifecycle, recovery, performance, compatibility, interoperability, and demonstrated ergonomics work. This is a value filter, not a preset checklist.
+- A refactor must simplify or protect a consequential path, make an invariant testable, enable a demonstrated fix, or produce a measurable benefit.
+- Do not actively hunt documentation edits, wording, spelling, style-only cleanup, generic lint rules, speculative abstractions, or unmeasured micro-optimizations.
+- Documentation may accompany substantive work or resolve confusion that blocks correct use.
 - A deep investigation may correctly end with no proposed change. Retain the negative result.
 
 ## External-reference rule
@@ -97,19 +104,30 @@ Tracked repository notes, findings, reports, maps, JSON records, and other files
 
 - Small one-worker experiments may be created under `playgrounds/` with a stable `EXP-YYYYMMDD-short-name` directory and `templates/experiment.json`.
 - State one bounded question, exact command, environment, source revisions, claim scope, stop condition, and upstream-contact authorization.
+- Reuse `playgrounds/cases/` only when those inputs distinguish hypotheses already grounded in the assignment. Do not select a research topic merely because a case pack exists.
 - Default to synthetic inputs and no network access.
-- Promote a disposable experiment when another worker, finding, decision, or regression depends on it.
-- Use an owned repository when realistic lifecycle, cross-component behaviour, or API ergonomics cannot be judged from a toy model.
-- Record exact target and testbed revisions, baseline, candidate, recovery, and limitations. Keep trials reversible and off production systems.
+- One experiment has one owner; parallel variants use separate directories.
+- Retain a human-readable result when another worker, finding, report, or decision may rely on it.
+- Promote a disposable experiment to a finding, probe, lane, regression fixture, integration trial, or context dossier when another record depends on it.
+- A playground never authorizes upstream contact.
+- Use an owned repository when realistic lifecycle, cross-component behaviour, or API ergonomics cannot be judged from a toy model. Choose a testbed that naturally exercises the target; do not manufacture an unrelated integration.
+- Work on a dedicated branch with one owner and record exact target and testbed revisions, baseline, candidate, correctness, ergonomics, failure recovery, and measured performance where relevant.
+- Keep trials reversible and off production systems. Do not publish private repository names or content by default; use neutral identifiers and redacted evidence.
+- A useful trial may become an owned-project feature even when no upstream work follows.
 - One model or one testbed does not prove ecosystem demand or an upstream contract.
+- Use `templates/integration-trial.md`.
 
 ## Integration context and citations
 
 - Name the widest claim supported: `mechanism`, `interface`, `integration`, `operational`, or `ecosystem`.
 - Do not describe a toy model or one owned testbed as proof of general adoption, production impact, or ecosystem need.
 - When claiming wider consequence or importance, create or link an integration-context dossier under `contexts/`.
+- Label consequential statements as `Normative`, `Documented`, `Observed`, `Inferred`, `Illustrative`, or `Unknown`.
 - Prefer primary sources and record title, stable URL, version or revision, retrieval date, exact supported claim, section or path, and limitations.
 - Distinguish actual callers and deployments from plausible examples.
+- State what the small model or testbed preserves and what it omits.
+- A context pattern is optional support, never an automatic hypothesis for a target.
+- When warranted, split broader context into mechanism, usage, contract, operations, and adversarial lanes rather than blurring them together.
 
 ## Review, evidence, and promotion
 
@@ -130,23 +148,39 @@ Tracked repository notes, findings, reports, maps, JSON records, and other files
 - Treat external observation as quiet research.
 - Never open, comment on, react to, or modify upstream work without an explicit user instruction for that interaction.
 - Never manufacture contribution volume, low-value cleanup, or speculative patches.
-- Do not claim a reproduction, test result, benchmark, policy, use case, or consequence without evidence.
+- Do not claim a reproduction, test result, benchmark, policy, maintainer position, use case, or consequence without evidence.
 - Preserve exact source revisions, retrieval dates, environments, commands, uncertainty, contradictions, alternative architectures, and negative results.
 - Do not rely on chat history as the only record of work.
+- A target map is not required before quietly examining an assigned public repository.
 
 ## Batch, parallel work, and write modes
 
 - Read the programme, batch, campaign, parent issue, finding, and workspace before beginning.
-- Use the exact assignment ID, labels, deliverable, owned path, dependencies, source revision, claim scope, and stop condition.
-- One mutable branch or shared output path has one active writer. Parallel variants use separate branches or unique evidence paths.
+- Use the exact assignment ID, programme label, target label, deliverable, owned path, dependencies, source revision, claim scope, and stop condition.
+- One scout, lane, probe, experiment, integration trial, mutable branch, or shared output path has one owner. Parallel variants use separate branches or unique evidence paths.
 - Do not edit another worker's result, testbed branch, registry, manifest, status, synthesis, decision, workspace front door, or closeout without an explicit ownership handoff.
+- For one-shot probes, write only the assigned result file or post a complete handoff marked `needs:materialization`.
+- Claim coordinated work before substantial investigation.
 - When evidence changes another assignment's premise, report the dependency in both records.
+- Finish with the handoff protocol in `START_HERE.md` and `COORDINATION.md`.
 
-Preferred write modes are Fieldwork PR, issue-only handoff with `needs:materialization`, coordinator materialization, playground experiment, integration trial, context dossier, canonical finding, investigation workspace, and execution carrier. Never have multiple workers push shared files directly to `main`.
+Write modes:
+
+1. **Fieldwork PR** — preferred for a durable scout, lane, finding, workspace, or coherent result set.
+2. **Issue handoff** — use when repository writes are unavailable; include the complete result and apply `needs:materialization`.
+3. **Coordinator materialization** — combine accepted issue-only handoffs without changing their evidence class.
+4. **Playground experiment** — bounded local test with no shared coordination or upstream modification.
+5. **Integration trial** — owned repository used for realistic lifecycle or integration evidence.
+6. **Context dossier** — sourced integration, operational, or ecosystem interpretation.
+7. **Canonical finding** — current retained technical answer and transition.
+8. **Investigation workspace** — orientation across several findings or outputs.
+9. **Execution carrier** — temporary evidence-producing branch or PR that identifies the canonical source, returns a receipt, and then closes.
+
+Never have multiple workers push shared files directly to `main`.
 
 ## AI-assisted implementation and safety
 
-Generated code is a candidate until tested and reviewed. Follow each target project's current contribution and AI-disclosure policy. Keep changes bounded and do not rewrite unrelated files for convenience.
+Generated code is a candidate until tested and reviewed. A human remains responsible for every upstream claim and submitted line. Follow each target project's current contribution and AI-disclosure policy. Keep changes bounded and do not rewrite unrelated files for convenience.
 
 Do not retain secrets, access tokens, private repository content, personal data, or production payloads. Use synthetic fixtures or redacted evidence whenever possible.
 
