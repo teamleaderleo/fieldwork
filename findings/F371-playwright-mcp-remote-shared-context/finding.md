@@ -10,8 +10,8 @@ Exact shared core source: `microsoft/playwright@368941457a82da112aa8610107e25f4b
 Behavior carrier: closed Fieldwork PR `#375` at `2a7b6c45179ac3f9e78b8540702e7e88f849b3fd`  
 Behavior run: `30633739476`, job `91166043729`, success  
 Behavior artifact: `8794430468`, digest `sha256:e53fc07dbfb1dfecd98e5e4a4227c50e8774fe5fb4bc05f880f3f56c73403235`  
-Help candidate carrier: Fieldwork PR `#377` at `204b96c94dfd2fef3ea4981796b2cb98ceae09a9`  
-Help candidate run: `30634831167`, job `91169666445`, success  
+Help carrier: closed Fieldwork PR `#377` at `204b96c94dfd2fef3ea4981796b2cb98ceae09a9`  
+Help run: `30634831167`, job `91169666445`, success  
 Help artifact: `8794842941`, digest `sha256:d0347ff4a0ed8408f9c5d01b36b703d931bc5bab8e6ac79da373a6bfcb2d0683`  
 Canonical implementation: `evidence/0001-document-http-client-authority.patch`  
 Strongest evidence class: `target-executed`  
@@ -42,7 +42,7 @@ Exact target execution confirms that composition and confirms bounded final clea
 
 One passing control does not establish the others.
 
-## Exact source map
+## Exact source result
 
 At shared core head `3689414...`:
 
@@ -55,7 +55,7 @@ At shared core head `3689414...`:
 - no bearer token, client certificate, user identity, or equivalent authentication decision is visible in the inspected HTTP handler;
 - `--shared-browser-context` reuses one browser context across clients.
 
-The upstream suite already covers default Host rejection and loopback shared-context behavior. Fieldwork executed the missing explicit remote-equivalent composition.
+The complete source map and target paths are retained in `evidence/20260731-source-map.md`.
 
 ## Exact behavior matrix
 
@@ -98,7 +98,7 @@ With the same transport plus `--shared-browser-context`:
 - both HTTP sessions were deleted;
 - the shared browser closed after the final client.
 
-No credential, account, private page, or external website was used.
+No credential, account, private page, or external website was used. The complete receipt is retained in `evidence/20260731-target-matrix.md`.
 
 ## Current conclusion
 
@@ -139,7 +139,7 @@ Final run `30634831167`, job `91169666445`, passed:
 - exact dependency installation;
 - complete target build;
 - generated `Playwright MCP --help` execution;
-- whitespace-normalized semantic assertions for all three authority statements;
+- semantic assertions for all three authority statements after whitespace normalization;
 - `git diff --check`;
 - JSON receipt and raw-help artifact upload;
 - Fieldwork integrity `30634831152`, job `91169666324`.
@@ -158,21 +158,7 @@ Non-loopback HTTP should be protected by a trusted authenticated network boundar
 Every accepted client can observe and control the shared tabs, cookies, storage, and page state.
 ```
 
-## Carrier repair history
-
-### Behavior carrier first run
-
-Run `30633035608` stopped before target installation because the workflow checked the synthetic PR merge ref while expecting the branch head. The exact-head checkout repair was the only carrier change.
-
-### Help candidate first run
-
-Run `30634283260` stopped before target installation because the retained patch used zero-context one-line hunks. The artifact was repaired with exact surrounding source context rather than weakening Git's application gate.
-
-### Help candidate second run
-
-Run `30634703157` applied the patch and built exact source. Generated help contained all required text, while literal line-based assertions failed because Commander wrapped two phrases. The final carrier retained the raw help and normalized whitespace for semantic assertions.
-
-These are carrier/harness failures and do not contradict the selected candidate.
+The complete carrier history and claim boundary are retained in `evidence/20260731-help-candidate-receipt.md`.
 
 ## Alternatives
 
@@ -182,7 +168,7 @@ The target matrix does not establish that Playwright MCP should own a credential
 
 ### Fail closed for remote shared mode — rejected for now
 
-Remote binding and shared context are both explicit operator choices. The executed behavior matches those choices and cleans up correctly.
+Remote binding and shared context are explicit operator choices. The executed behavior matches those choices and cleans up correctly.
 
 ### External authenticated proxy contract — compatible
 
@@ -198,16 +184,15 @@ The selected wording recommends this boundary without hard-coding one authentica
 | Explicit remote-equivalent shared clients use one browser authority domain. | `target-executed` | same runner and disposable local page |
 | Remaining client keeps shared authority after first-client disconnect. | `target-executed` | streamable HTTP sessions |
 | Final-client disconnect closes the shared browser. | `target-executed` | target debug lifecycle counters |
-| Three-string help patch applies, builds, and appears in runtime help. | `target-executed` | exact pinned target and one generated-help surface |
+| Three-string help patch applies, builds, and appears in runtime help. | `target-executed` | exact pinned target and generated-help surface |
 | Public exploitability or deployment prevalence. | `not established` | no production deployment or external target |
 | Built-in authentication is the correct repair. | `not established` | deployment architecture comparison pending |
 | Public upstream acceptance. | `not established` | no upstream contact authorized |
 
 ## Exact next transition
 
-1. close the temporary help workflow carrier after receipt transfer;
-2. run Fieldwork integrity on this workflow-free finding generation;
-3. obtain one eligible complete-diff review of the finding, evidence, and retained patch;
-4. only separate public-upstream authority may permit submission.
+1. let Fieldwork integrity settle on this workflow-free exact head;
+2. obtain one eligible complete-diff review of the five-file finding package;
+3. only separate public-upstream authority may permit submission.
 
 No merge, release, deployment, real credential, private browser data, spending, or public upstream interaction is authorized.
