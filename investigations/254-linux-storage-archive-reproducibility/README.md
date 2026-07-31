@@ -52,7 +52,7 @@ The request path, origin request, origin response, downstream response, cache wr
 
 ### Archive regex compatibility
 
-Python `re` and GNU tar assign different meanings to punctuation. The merged translator selects GNU basic syntax by default, extended syntax under `x`, rejects unproved Python-only groups, and keeps accepted-neighbor controls. Product head `4555c5c250c1afedb3947fd1a7b5a0323bd9d262` passed run 576; control head `bb0a79dec47958c6b865d4b382a44baff17ab736` passed run 634.
+Python `re` and GNU tar assign different meanings to punctuation. The merged translator selects GNU basic syntax by default, extended syntax under `x`, rejects unproved Python-only groups, and keeps accepted-neighbor controls. Product head `4555c5c250c1afedb3947fd1a7b5a0323bd9d262` passed run 577; control head `bb0a79dec47958c6b865d4b382a44baff17ab736` passed run 634.
 
 ### Reproducibility stop
 
