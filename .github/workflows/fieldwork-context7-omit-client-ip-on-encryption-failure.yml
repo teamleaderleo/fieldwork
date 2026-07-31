@@ -46,14 +46,21 @@ jobs:
       - name: Verify target and apply exact candidate
         run: |
           test "$(git -C context7 rev-parse HEAD)" = "594a73133e14631af8c915a1b4f2c8039c964fe1"
+          printf '%s\n' "FIELDWORK_CONTEXT7_TARGET_IDENTITY=passed"
           patch_path="${GITHUB_WORKSPACE}/fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/malformed-key-omit-metadata.patch"
-          test "$(sha256sum "${patch_path}" | cut -d' ' -f1)" = "7c7834b3e6515107bd85a1fcc3d46e6d340eb9ae68de9bbed458fe867d422d83"
+          actual_patch_sha=$(sha256sum "${patch_path}" | cut -d' ' -f1)
+          printf '%s\n' "FIELDWORK_CONTEXT7_PATCH_SHA256=${actual_patch_sha}"
+          test "${actual_patch_sha}" = "7c7834b3e6515107bd85a1fcc3d46e6d340eb9ae68de9bbed458fe867d422d83"
           git -C context7 apply --check "${patch_path}"
+          printf '%s\n' "FIELDWORK_CONTEXT7_PATCH_CHECK=passed"
           git -C context7 apply --index "${patch_path}"
+          printf '%s\n' "FIELDWORK_CONTEXT7_PATCH_APPLY=passed"
           cmp \
             fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/malformed-key-omit-metadata.test.ts \
             context7/packages/mcp/test/encryption.test.ts
+          printf '%s\n' "FIELDWORK_CONTEXT7_MIRRORED_TEST=passed"
           git -C context7 diff --check --cached
+          printf '%s\n' "FIELDWORK_CONTEXT7_APPLIED_DIFF_HYGIENE=passed"
 
       - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
         with:
