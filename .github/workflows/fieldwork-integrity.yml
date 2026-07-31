@@ -25,6 +25,7 @@ jobs:
           python3 scripts/check_fieldwork_integrity.py
           python3 -m unittest -v scripts.test_pr_evidence_identity
       - name: Record merge-ref identity
+        if: always()
         env:
           CHECKOUT_MODE: synthetic-merge-ref
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -96,6 +97,7 @@ jobs:
           python3 scripts/check_fieldwork_integrity.py
           python3 -m unittest -v scripts.test_pr_evidence_identity
       - name: Record literal-head identity
+        if: always()
         env:
           CHECKOUT_MODE: exact-head
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -167,6 +169,7 @@ jobs:
           python3 scripts/check_fieldwork_integrity.py
           python3 -m unittest -v scripts.test_pr_evidence_identity
       - name: Record push identity
+        if: always()
         env:
           CHECKOUT_MODE: exact-head
           PUSH_HEAD_SHA: ${{ github.sha }}
