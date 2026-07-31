@@ -2,7 +2,7 @@
 
 Issue: #122
 
-State: active executed dependency control and engine-level barrier design
+State: dual-engine target execution complete for the first bounded cancellation controls
 
 Worker: Archive
 
@@ -12,7 +12,7 @@ Upstream contact authorized: false
 
 When a Parquet-producing query is cancelled after output work starts, what becomes visible, what retained upload state remains, how quickly does execution stop, and which component owns cleanup?
 
-The investigation treats cancellation, output publication, multipart cleanup, commit status, and cleanup latency as separate observable events. It does not infer cleanup from a returned query error.
+The investigation treats cancellation request, computation stop, writer stop, publication, multipart cleanup, commit status, and cleanup latency as separate observable events. It does not infer cleanup from a returned query error.
 
 ## Exact source set
 
@@ -33,13 +33,13 @@ The cancellation benchmark states that execution should stop quickly after the o
 
 The Parquet sink owns writer tasks in DataFusion's Tokio-backed `JoinSet`. Tokio aborts every tracked task when the set is dropped. The sequential Parquet writer creates an `object_store::buffered::BufWriter` and reaches `writer.close().await` only on the normal writer-task path.
 
-The inspected sink path does not explicitly call `BufWriter::abort()` on cancellation or writer-task error. This produces a precise engine-level hypothesis, not a defect claim: cancellation after multipart work begins may abort the writer task and drop the writer without invoking remote cleanup.
+The inspected sink path does not explicitly call `BufWriter::abort()` on cancellation or writer-task error. This produced the executed engine-level hypothesis below.
 
 ### Polars
 
-`LazyFrame.collect(background=True)` produces an `InProcessQuery`. Explicit cancellation and dropping that handle set a shared cancellation token, documented as cancellation at the earliest convenient point.
+`LazyFrame.collect_concurrently()` produces an `InProcessQuery`. `cancel()` sets the shared `ExecutionState` stop token. `ExecutionState::should_stop()` raises `query interrupted` only where an executor or sink calls it.
 
-The streaming Parquet I/O writer consumes encoded row groups, finishes the Parquet writer, drops its buffered writer, and closes the file on the normal path. The first execution must locate cancellation observation relative to row-group encoding, footer finalization, temporary-file visibility, final-path visibility, and close.
+The streaming Parquet I/O writer consumes encoded row groups, finishes the Parquet writer, drops its buffered writer, and closes the file on the normal path. The first local execution therefore classifies the cancellation-observation horizon rather than assuming that setting the token interrupts every writer phase.
 
 ## Executed dependency control
 
@@ -55,7 +55,52 @@ All three cases crossed the multipart threshold and submitted three parts:
 | drop only | 1 | 3 | 0 | 0 |
 | successful shutdown | 1 | 3 | 1 | 0 |
 
-Dropping the pinned writer is therefore observably distinct from both successful publication and explicit cleanup.
+Dropping the pinned writer is observably distinct from both successful publication and explicit cleanup.
+
+## DataFusion target execution
+
+Exact executed source head `f45f7d793b3aa94b83c719c1131ceedaabe54644`, run `30579974405`:
+
+- one multipart upload began;
+- 1,605 parts were submitted;
+- complete calls: `0`;
+- abort calls: `0`;
+- upload object dropped: `1`;
+- final object visible through the tracking store: `false`.
+
+The success control completed exactly once and exposed the final object.
+
+This is `target-executed` for the bounded tracking-store behavior. It proves that dropping the outer DataFusion sink future can drop upload ownership without invoking explicit abort. Whether a real provider retains billable multipart parts remains an inference until a provider-faithful store exposes that state.
+
+## Polars local target execution
+
+Exact head `fe24af28d966e9459ff5a268bffd6b44b768251c`, Polars revision `36e414b4cb1e74e7a171995b35b83c1163974324`, run `30623286118`, job `91132573948`, artifact `8790351996`, artifact digest `sha256:fc233e0f31d1b7c6cc74d2c1da9e96dbb4d782ab399a34ff4266cc73ce1b2abb`.
+
+The focused control generated one million uncompressed rows and waited until the requested final path exposed nonzero bytes.
+
+### Cancellation after first visible bytes
+
+- first observed final-path bytes: `8,192`;
+- barrier reached after `58 ms`;
+- cancellation request issued: `true`;
+- query outcome: `completed_after_cancel_request`;
+- query error: none;
+- total elapsed time: `1,546 ms`;
+- final file size: `246,101,878` bytes;
+- Parquet valid: `true`;
+- readable rows: `1,000,000`.
+
+### Same-path retry control
+
+- outcome: completed successfully;
+- elapsed time: `1,448 ms`;
+- final file size: `246,101,878` bytes;
+- Parquet valid: `true`;
+- readable rows: `1,000,000`.
+
+This is `target-executed` for the bounded local publication behavior. The cancellation request did not interrupt the active sink after final-path bytes became visible. The sink completed normally and published the full file. The result does not show partial-file corruption, a failed query reported as success, or a retry failure.
+
+The remaining question is cancellation responsiveness and publication semantics: where is the last observation point at which the shared stop token can still prevent or interrupt local Parquet publication?
 
 ## Authoritative publication contract
 
@@ -72,53 +117,45 @@ Core rules:
 7. cleanup errors remain secondary to the initiating error;
 8. cleanup latency and retained state must be observable.
 
-The guidance is grounded in Amazon S3 multipart and lifecycle documentation, Google Cloud Storage multipart abort documentation, Azure committed/uncommitted block semantics, Hadoop's S3A output-commit model, Iceberg's atomic metadata commit and unknown-state contract, and the Rust `object_store` multipart contract.
+## Current comparative result
 
-## Shared publication matrix
+The two first controls expose different ownership risks:
 
-For each engine:
+- DataFusion outer-task cancellation can terminate publication without explicit multipart abort in the bounded tracking-store harness.
+- Polars local cancellation after final-path visibility can allow the writer to finish and publish a complete file after the cancellation request.
 
-1. successful single-file Parquet publication;
-2. cancellation before the first output write;
-3. cancellation after at least one part or buffered segment is accepted;
-4. cancellation during finalization where a deterministic barrier is possible;
-5. ordinary writer failure after output begins;
-6. retry to the same destination and to a fresh destination.
+Neither result should be summarized as generic “cancellation is broken.” They identify separate questions:
 
-Capture exact source and runtime configuration, plans, trigger timing, computation-stop latency, writer-stop latency, cleanup latency, file or request order, visible outputs, multipart state, Parquet footer validity, row counts, schema, hashes, cleanup errors, and commit status.
+- **DataFusion:** who owns provider cleanup after the writer task is dropped?
+- **Polars:** which writer and pipeline phases observe the cancellation token, and what completion semantics are promised after the request?
 
-## Next engine-level barriers
+## Next controls
 
 ### DataFusion
 
-Use a registered tracking object store and a deterministic first-part barrier:
-
-1. begin Parquet publication through the actual sink;
-2. block after the first multipart part is accepted;
-3. drop the `DataSinkExec` result stream;
-4. settle in-flight work;
-5. record writer-task termination, abort, complete, final visibility, retained parts, and latency;
-6. retry to the same destination.
-
-A strong success requires no final object, explicit cleanup, zero retained parts, a preserved cancellation result, and bounded cleanup. A no-object result with retained parts is degraded and must be explicitly reported rather than treated as clean cancellation.
+1. use a provider-faithful multipart store that exposes retained parts;
+2. block after the first accepted part;
+3. cancel the outer sink;
+4. settle all tasks;
+5. record abort, complete, retained-part state, final visibility, and cleanup latency;
+6. retry with a unique attempt identity and the same logical destination.
 
 ### Polars
 
-Start with a local temporary destination so execution cancellation is separated from a remote client implementation:
+1. cancel immediately after `collect_concurrently()` returns, before final-path visibility;
+2. cancel after input execution begins but before any final-path bytes appear;
+3. cancel at first final-path visibility;
+4. request cancellation during finalization/close through a deterministic writer barrier;
+5. compare explicit `cancel()` with dropping the `InProcessQuery` handle;
+6. repeat with a temporary-path-plus-atomic-replace publication strategy;
+7. retain query outcome, stop latency, file-operation order, final-path visibility, footer validity, row count, and same-path retry behavior for every case.
 
-1. use deterministic generated input large enough to begin row-group output;
-2. cancel after output starts;
-3. inspect temporary and final paths;
-4. test Parquet footer readability and row count;
-5. measure cancellation and close timing;
-6. retry the same and a fresh destination.
-
-Add a remote writer only after the local publication boundary is classified.
+A repair candidate becomes justified only after the last effective token-observation point and the intended completion contract are explicit.
 
 ## Promotion gate
 
 Promote a target-specific child only after exact reproduction, a deterministic timing barrier, a classified visible or retained side effect, a likely owning subsystem, and an equivalent negative control.
 
-Promotion triggers include publication after reported failure, silent retained multipart state, unbounded cleanup, commit-state ambiguity reported as definite, or materially incomplete cancellation documentation.
+Promotion triggers include publication after a reported interruption, silent retained multipart state, unbounded cleanup, commit-state ambiguity reported as definite, or materially incomplete cancellation documentation.
 
 Healthy negative results remain valid. No upstream contact occurred.
