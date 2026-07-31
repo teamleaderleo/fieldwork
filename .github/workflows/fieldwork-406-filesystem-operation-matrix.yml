@@ -1,0 +1,152 @@
+name: Fieldwork MCP filesystem operation authority matrix
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-406-filesystem-operation-matrix.yml"
+      - "findings/F406-mcp-filesystem-pathname-authority/evidence/fieldwork-operation-authority-matrix.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  operation-matrix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact Fieldwork experiment head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact MCP servers target
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: modelcontextprotocol/servers
+          ref: 76d64c822f5125032f89eb71dbdb94e42b434821
+          path: servers
+          persist-credentials: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: servers/package-lock.json
+
+      - name: Verify exact heads and install target-native matrix
+        id: verify
+        run: |
+          set -euo pipefail
+          test "$(git -C fieldwork rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git -C servers rev-parse HEAD)" = "76d64c822f5125032f89eb71dbdb94e42b434821"
+          SOURCE="fieldwork/findings/F406-mcp-filesystem-pathname-authority/evidence/fieldwork-operation-authority-matrix.test.ts"
+          DESTINATION="servers/src/filesystem/__tests__/fieldwork-operation-authority-matrix.test.ts"
+          test ! -e "$DESTINATION"
+          cp "$SOURCE" "$DESTINATION"
+          git -C servers diff --check
+          test "$(git -C servers diff --name-only)" = "src/filesystem/__tests__/fieldwork-operation-authority-matrix.test.ts"
+          mkdir -p fieldwork-receipts
+          git -C servers diff --binary > fieldwork-receipts/operation-matrix.diff
+
+      - name: Install exact locked dependencies
+        id: install
+        working-directory: servers
+        run: npm ci
+
+      - name: Build filesystem package
+        id: build
+        working-directory: servers
+        run: npm run build -w @modelcontextprotocol/server-filesystem
+
+      - name: Run five focused authority controls
+        id: focused
+        working-directory: servers/src/filesystem
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          npx vitest run __tests__/fieldwork-operation-authority-matrix.test.ts --coverage=false \
+            2>&1 | tee ../../../fieldwork-receipts/operation-matrix-focused.log
+
+      - name: Run complete filesystem package suite
+        id: full
+        working-directory: servers
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          npm test -w @modelcontextprotocol/server-filesystem \
+            2>&1 | tee ../fieldwork-receipts/operation-matrix-full.log
+
+      - name: Recheck exact diff hygiene
+        id: diff
+        working-directory: servers
+        run: |
+          git diff --check
+          test "$(git diff --name-only)" = "src/filesystem/__tests__/fieldwork-operation-authority-matrix.test.ts"
+          git status --short
+
+      - name: Assemble exact receipt
+        if: always()
+        env:
+          FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          FOCUSED_OUTCOME: ${{ steps.focused.outcome }}
+          FULL_OUTCOME: ${{ steps.full.outcome }}
+          DIFF_OUTCOME: ${{ steps.diff.outcome }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          fs.mkdirSync('fieldwork-receipts', { recursive: true });
+          const steps = {
+            verify: process.env.VERIFY_OUTCOME || 'not-run',
+            install: process.env.INSTALL_OUTCOME || 'not-run',
+            build: process.env.BUILD_OUTCOME || 'not-run',
+            focused: process.env.FOCUSED_OUTCOME || 'not-run',
+            full: process.env.FULL_OUTCOME || 'not-run',
+            diff: process.env.DIFF_OUTCOME || 'not-run',
+          };
+          const receipt = {
+            schemaVersion: 1,
+            generatedAt: new Date().toISOString(),
+            fieldworkHead: process.env.FIELDWORK_HEAD,
+            target: {
+              repository: 'modelcontextprotocol/servers',
+              head: '76d64c822f5125032f89eb71dbdb94e42b434821',
+              package: '@modelcontextprotocol/server-filesystem',
+              platform: 'ubuntu-24.04',
+              node: '22',
+            },
+            test: 'src/filesystem/__tests__/fieldwork-operation-authority-matrix.test.ts',
+            controls: [
+              'outside-read-after-ancestor-swap',
+              'outside-edit-after-ancestor-swap',
+              'outside-recursive-mkdir-after-ancestor-swap',
+              'move-export-through-swapped-destination',
+              'move-import-through-swapped-source',
+            ],
+            workflowSteps: steps,
+            reusableTargetEvidence: Object.values(steps).every(value => value === 'success'),
+            claims: {
+              operationEffects: 'target-executed-when-focused-passes',
+              completePackageCompatibility: 'target-executed-when-full-passes',
+              repairSelection: 'not-claimed',
+              nonLinuxBehavior: 'not-claimed',
+              exploitability: 'not-claimed',
+            },
+          };
+          fs.writeFileSync('fieldwork-receipts/operation-matrix-receipt.json', `${JSON.stringify(receipt, null, 2)}\n`);
+          NODE
+
+      - name: Upload exact receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: mcp-filesystem-operation-matrix-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
