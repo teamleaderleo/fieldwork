@@ -1,0 +1,174 @@
+name: Fieldwork MCP filesystem Linux parent capabilities
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-406-linux-parent-capabilities.yml"
+      - "findings/F406-mcp-filesystem-pathname-authority/prototype/linux-capabilities.ts"
+      - "findings/F406-mcp-filesystem-pathname-authority/prototype/linux-capabilities.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-capabilities:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact Fieldwork prototype head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact MCP servers target
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: modelcontextprotocol/servers
+          ref: 76d64c822f5125032f89eb71dbdb94e42b434821
+          path: servers
+          persist-credentials: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: servers/package-lock.json
+
+      - name: Verify exact heads and install two-file prototype
+        id: verify
+        run: |
+          set -euo pipefail
+          test "$(git -C fieldwork rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git -C servers rev-parse HEAD)" = "76d64c822f5125032f89eb71dbdb94e42b434821"
+          test -d /proc/self/fd
+
+          SOURCE_IMPL="fieldwork/findings/F406-mcp-filesystem-pathname-authority/prototype/linux-capabilities.ts"
+          SOURCE_TEST="fieldwork/findings/F406-mcp-filesystem-pathname-authority/prototype/linux-capabilities.test.ts"
+          TARGET_IMPL="servers/src/filesystem/linux-capabilities.ts"
+          TARGET_TEST="servers/src/filesystem/__tests__/fieldwork-linux-capabilities.test.ts"
+          test ! -e "$TARGET_IMPL"
+          test ! -e "$TARGET_TEST"
+          cp "$SOURCE_IMPL" "$TARGET_IMPL"
+          cp "$SOURCE_TEST" "$TARGET_TEST"
+          cmp "$SOURCE_IMPL" "$TARGET_IMPL"
+          cmp "$SOURCE_TEST" "$TARGET_TEST"
+
+          expected=$'src/filesystem/__tests__/fieldwork-linux-capabilities.test.ts\nsrc/filesystem/linux-capabilities.ts'
+          test "$(git -C servers ls-files --others --exclude-standard | sort)" = "$expected"
+          test -z "$(git -C servers diff --name-only)"
+          mkdir -p fieldwork-receipts
+          cp "$TARGET_IMPL" fieldwork-receipts/linux-capabilities.ts
+          cp "$TARGET_TEST" fieldwork-receipts/fieldwork-linux-capabilities.test.ts
+
+      - name: Install exact locked dependencies
+        id: install
+        working-directory: servers
+        run: npm ci
+
+      - name: Build filesystem package
+        id: build
+        working-directory: servers
+        run: npm run build -w @modelcontextprotocol/server-filesystem
+
+      - name: Run focused parent-capability controls
+        id: focused
+        working-directory: servers/src/filesystem
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          npx vitest run __tests__/fieldwork-linux-capabilities.test.ts --coverage=false \
+            2>&1 | tee ../../../fieldwork-receipts/linux-capabilities-focused.log
+
+      - name: Run complete filesystem package suite
+        id: full
+        working-directory: servers
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          npm test -w @modelcontextprotocol/server-filesystem \
+            2>&1 | tee ../fieldwork-receipts/linux-capabilities-full.log
+
+      - name: Recheck exact prototype hygiene
+        id: diff
+        working-directory: servers
+        run: |
+          set -euo pipefail
+          expected=$'src/filesystem/__tests__/fieldwork-linux-capabilities.test.ts\nsrc/filesystem/linux-capabilities.ts'
+          test "$(git ls-files --others --exclude-standard | sort)" = "$expected"
+          test -z "$(git diff --name-only)"
+          cmp src/filesystem/linux-capabilities.ts ../fieldwork/findings/F406-mcp-filesystem-pathname-authority/prototype/linux-capabilities.ts
+          cmp src/filesystem/__tests__/fieldwork-linux-capabilities.test.ts ../fieldwork/findings/F406-mcp-filesystem-pathname-authority/prototype/linux-capabilities.test.ts
+          git status --short
+
+      - name: Assemble exact receipt
+        if: always()
+        env:
+          FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          FOCUSED_OUTCOME: ${{ steps.focused.outcome }}
+          FULL_OUTCOME: ${{ steps.full.outcome }}
+          DIFF_OUTCOME: ${{ steps.diff.outcome }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const os = require('node:os');
+          fs.mkdirSync('fieldwork-receipts', { recursive: true });
+          const steps = {
+            verify: process.env.VERIFY_OUTCOME || 'not-run',
+            install: process.env.INSTALL_OUTCOME || 'not-run',
+            build: process.env.BUILD_OUTCOME || 'not-run',
+            focused: process.env.FOCUSED_OUTCOME || 'not-run',
+            full: process.env.FULL_OUTCOME || 'not-run',
+            diff: process.env.DIFF_OUTCOME || 'not-run',
+          };
+          const receipt = {
+            schemaVersion: 1,
+            generatedAt: new Date().toISOString(),
+            fieldworkHead: process.env.FIELDWORK_HEAD,
+            target: {
+              repository: 'modelcontextprotocol/servers',
+              head: '76d64c822f5125032f89eb71dbdb94e42b434821',
+              package: '@modelcontextprotocol/server-filesystem',
+            },
+            environment: {
+              platform: process.platform,
+              release: os.release(),
+              node: process.version,
+              procfdMounted: fs.existsSync('/proc/self/fd'),
+            },
+            prototypeFiles: [
+              'src/filesystem/linux-capabilities.ts',
+              'src/filesystem/__tests__/fieldwork-linux-capabilities.test.ts',
+            ],
+            workflowSteps: steps,
+            reusableTargetPrototypeEvidence: Object.values(steps).every(value => value === 'success'),
+            claims: {
+              packageCompilation: steps.build,
+              focusedLinuxCapabilityBehavior: steps.focused,
+              completeFilesystemCompatibility: steps.full,
+              handlerIntegration: 'not-claimed',
+              openat2Equivalence: 'not-claimed',
+              nonLinuxBehavior: 'not-claimed',
+              exactFinalEntryIdentity: 'not-claimed',
+            },
+          };
+          fs.writeFileSync(
+            'fieldwork-receipts/linux-capabilities-receipt.json',
+            `${JSON.stringify(receipt, null, 2)}\n`,
+          );
+          NODE
+
+      - name: Upload exact receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: mcp-linux-capabilities-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
