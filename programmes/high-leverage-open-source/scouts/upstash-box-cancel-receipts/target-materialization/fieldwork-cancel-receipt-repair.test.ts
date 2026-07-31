@@ -21,7 +21,7 @@ describe("Fieldwork shared cancellation receipt repair", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it("shares one accepted request and one immutable receipt", async () => {
+  it("shares one accepted request and aborts every current observer", async () => {
     const { box, fetchMock } = await createTestBox();
     const response = deferred<Response>();
     fetchMock.mockReturnValueOnce(response.promise);
@@ -51,6 +51,12 @@ describe("Fieldwork shared cancellation receipt repair", () => {
 
     const laterReceipt = await run.requestCancel();
     expect(laterReceipt).toBe(firstReceipt);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const laterAbortController = new AbortController();
+    Run._update(run, { abortController: laterAbortController });
+    await expect(run.cancel()).resolves.toBeUndefined();
+    expect(laterAbortController.signal.aborted).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     Run._update(run, { status: "completed", result: "natural completion" });
