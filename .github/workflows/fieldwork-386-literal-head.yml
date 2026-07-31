@@ -1,0 +1,74 @@
+name: Fieldwork 386 literal-head integrity
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-386-literal-head.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  literal-head:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact PR 386 source head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: 33cc2f944030e50d8d08525fdeb876dac17670d2
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Verify literal source identity
+        run: test "$(git rev-parse HEAD)" = "33cc2f944030e50d8d08525fdeb876dac17670d2"
+
+      - name: Run exact-head Fieldwork integrity
+        run: |
+          node scripts/test_interaction_references.js
+          python3 scripts/check_fieldwork_integrity.py
+
+      - name: Record exact-head receipt
+        if: always()
+        env:
+          EXPECTED_HEAD: 33cc2f944030e50d8d08525fdeb876dac17670d2
+          RUN_ID_VALUE: ${{ github.run_id }}
+          RUN_ATTEMPT_VALUE: ${{ github.run_attempt }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          mkdir -p fieldwork-receipts
+          actual_head=$(git rev-parse HEAD 2>/dev/null || true)
+          export ACTUAL_HEAD="${actual_head}"
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          expected = os.environ["EXPECTED_HEAD"]
+          actual = os.environ["ACTUAL_HEAD"]
+          receipt = {
+              "schema_version": 1,
+              "candidate_pull_request": 386,
+              "expected_head": expected,
+              "actual_checkout": actual,
+              "classification": "exact-head" if actual == expected else "other-checkout",
+              "run_id": os.environ["RUN_ID_VALUE"],
+              "run_attempt": os.environ["RUN_ATTEMPT_VALUE"],
+              "technical_gate_status": os.environ["JOB_STATUS"],
+          }
+          Path("fieldwork-receipts/pr-386-literal-head.json").write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          test "${actual_head}" = "${EXPECTED_HEAD}"
+
+      - name: Upload exact-head receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: fieldwork-386-literal-head-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
