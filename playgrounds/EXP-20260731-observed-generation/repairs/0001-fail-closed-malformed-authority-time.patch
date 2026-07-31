@@ -1,7 +1,7 @@
 diff --git a/playgrounds/EXP-20260731-observed-generation/reconcile.py b/playgrounds/EXP-20260731-observed-generation/reconcile.py
 --- a/playgrounds/EXP-20260731-observed-generation/reconcile.py
 +++ b/playgrounds/EXP-20260731-observed-generation/reconcile.py
-@@ -541,20 +541,39 @@ def _authority_conditions(
+@@ -541,19 +541,35 @@ def _authority_conditions(
              )
              continue
  
