@@ -17,5 +17,9 @@ jobs:
         uses: actions/checkout@v4
       - name: Test interaction reference scanner
         run: node scripts/test_interaction_references.js
+      - name: Test retained patch syntax validator
+        run: python3 -m unittest -v scripts/test_validate_patch_syntax.py
+      - name: Validate retained patch syntax
+        run: python3 scripts/validate_patch_syntax.py
       - name: Validate batch contracts
         run: python3 scripts/check_fieldwork_integrity.py
