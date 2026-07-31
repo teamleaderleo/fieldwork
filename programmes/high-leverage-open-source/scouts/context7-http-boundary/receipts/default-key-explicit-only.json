@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "candidate": "explicit-key-only",
+  "fieldworkHead": "8a1d2ae75d4fe0dc73c9178ba05a31abff72abee",
+  "target": {
+    "repository": "upstash/context7",
+    "head": "594a73133e14631af8c915a1b4f2c8039c964fe1",
+    "package": "@upstash/context7-mcp",
+    "node": "22",
+    "pnpm": "10"
+  },
+  "workflow": {
+    "runId": "30658005611",
+    "runAttempt": "1",
+    "jobId": "91247126050",
+    "status": "success"
+  },
+  "workflowSteps": {
+    "apply": "success",
+    "install": "success",
+    "format": "success",
+    "focused": "success",
+    "build": "success",
+    "fullTest": "success",
+    "lint": "success",
+    "diff": "success"
+  },
+  "focusedTests": 6,
+  "fullPackageTests": 52,
+  "artifact": {
+    "id": "8804022360",
+    "digest": "sha256:3a98a54d3d162dc9d96126a323042b75f5537f16ac64d38de1d0525b0de2aa4c",
+    "appliedDiffSha256": "4b6d6ce3ef8ba4cd7a02bce79e5dcc5e5219331215c3bbee9d767ee4d7aac550"
+  },
+  "reusableCandidateEvidence": true,
+  "observed": {
+    "absentKey": "metadata-omitted-fixed-diagnostic",
+    "emptyKey": "metadata-omitted-fixed-diagnostic",
+    "noClientIpProducesKeyDiagnostic": false,
+    "explicitValidKeyPreserved": true,
+    "publicFallbackDecryptsExactSyntheticIp": false,
+    "malformedOrRuntimeFailureLeaksRawInputs": false,
+    "completeMcpCompatibility": true
+  },
+  "claimsNotMade": [
+    "hosted-provider-behavior",
+    "ciphertext-authenticity",
+    "production-prevalence",
+    "upstream-acceptance"
+  ],
+  "hostedProviderCall": false,
+  "credentialsUsed": false,
+  "selected": true,
+  "selectionReason": "satisfies the predeclared confidentiality and compatibility criteria while limiting the behavior change to optional metadata publication under missing configuration"
+}
