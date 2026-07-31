@@ -104,14 +104,24 @@ jobs:
         working-directory: playwright
         env:
           CI: "1"
+          CANDIDATE: ${{ matrix.candidate }}
           TEST_FILE: ${{ steps.select.outputs.test }}
         run: |
+          set -euo pipefail
           set -o pipefail
-          npm run test-mcp \
-            tests/mcp/http.spec.ts \
-            "tests/mcp/$TEST_FILE" \
-            -- --project=chromium \
-            2>&1 | tee "../fieldwork-receipts/${{ matrix.candidate }}-test.log"
+          if [ "$CANDIDATE" = "test-capability" ]; then
+            PLAYWRIGHT_MCP_ALLOW_PROCESS_SHUTDOWN=1 \
+              npm run test-mcp tests/mcp/http.spec.ts -- --project=chromium \
+              2>&1 | tee "../fieldwork-receipts/${CANDIDATE}-upstream-http.log"
+            npm run test-mcp "tests/mcp/$TEST_FILE" -- --project=chromium \
+              2>&1 | tee "../fieldwork-receipts/${CANDIDATE}-fieldwork.log"
+          else
+            npm run test-mcp \
+              tests/mcp/http.spec.ts \
+              "tests/mcp/$TEST_FILE" \
+              -- --project=chromium \
+              2>&1 | tee "../fieldwork-receipts/${CANDIDATE}-test.log"
+          fi
 
       - name: Run focused ESLint
         id: lint
