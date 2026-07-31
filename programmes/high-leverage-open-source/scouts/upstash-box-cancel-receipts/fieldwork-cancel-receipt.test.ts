@@ -37,7 +37,7 @@ describe("Fieldwork cancellation receipt characterization", () => {
     expect(run.status).toBe("cancelled");
   });
 
-  it("allows a later server event to replace the local cancelled status", async () => {
+  it("allows a later authoritative update to replace local cancelled status", async () => {
     const { box, fetchMock } = await createTestBox();
     fetchMock.mockResolvedValueOnce(mockResponse({ error: "cancel unavailable" }, 500));
 
@@ -45,6 +45,8 @@ describe("Fieldwork cancellation receipt characterization", () => {
     await run.cancel();
     expect(run.status).toBe("cancelled");
 
+    // This directly exercises the target's internal update path. It does not
+    // independently claim that a complete streamed server-event path ran here.
     Run._update(run, { status: "completed", result: "natural completion" });
     expect(run.status).toBe("completed");
     expect(run.result).toBe("natural completion");
