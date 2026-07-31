@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type express from "express";
 
-import { getClientIp } from "../../packages/mcp/src/lib/client-ip.js";
+import { getClientIp } from "../src/lib/client-ip.js";
 
 function makeRequest(
   headers: Record<string, string | string[]>,
