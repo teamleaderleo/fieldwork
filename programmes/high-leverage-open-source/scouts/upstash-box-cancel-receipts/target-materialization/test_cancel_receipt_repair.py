@@ -81,6 +81,9 @@ async def test_async_callers_share_one_accepted_receipt() -> None:
     run._status = "completed"
     assert run.status == "completed"
     assert await run.request_cancel() is first_receipt
+    run._status = "cancelled"
+    assert run.status == "cancelled"
+    assert await run.request_cancel() is first_receipt
     assert box.calls == 1
 
 
@@ -143,6 +146,12 @@ def test_sync_threads_share_one_accepted_receipt() -> None:
     assert first_receipt is second_receipt
     assert first_receipt.request_state == "accepted"
     assert first_receipt.outcome_state == "unknown"
+    assert run.request_cancel() is first_receipt
+    run._status = "completed"
+    assert run.status == "completed"
+    assert run.request_cancel() is first_receipt
+    run._status = "cancelled"
+    assert run.status == "cancelled"
     assert run.request_cancel() is first_receipt
     assert box.calls == 1
 
