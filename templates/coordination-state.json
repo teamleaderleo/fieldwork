@@ -11,7 +11,7 @@
     "workstream": "example-workstream",
     "parent_issue": 300
   },
-  "state_updated_at": "YYYY-MM-DDTHH:MM:SSZ",
+  "state_updated_at": "1970-01-01T00:00:00Z",
   "invariant_id": "example-invariant",
   "canonical_finding": "findings/F000-example/finding.md",
   "phase": "research-active",
@@ -25,7 +25,7 @@
     {
       "claim": "The current source path was inspected at the recorded revision.",
       "level": "source-read",
-      "receipt": "findings/F000-example/evidence/YYYYMMDD-worker-source-map.md",
+      "receipt": "findings/F000-example/evidence/19700101-worker-source-map.md",
       "limit": "No target execution has run."
     }
   ],
@@ -44,7 +44,7 @@
   "freshness": {
     "base_head": "0000000000000000000000000000000000000000",
     "upstream_valid_through": "0000000000000000000000000000000000000000",
-    "checked_at": "YYYY-MM-DDTHH:MM:SSZ"
+    "checked_at": "1970-01-01T00:00:00Z"
   },
   "authority": {
     "merge": false,
