@@ -14,10 +14,10 @@ Upstream contact authorized: `no`
 ### Source alternatives
 
 - Option A, full analysis moved later: `teamleaderleo/vite#5@1a5b6b5327efa43fc4a33ed5ad51553b6d9c37ba`
-- Option B1, retained-state prototype: `#9@38547370decd7328c50244596a580fe207fb3655`
+- Option B1, simple retained-state prototype: `#9@38547370decd7328c50244596a580fe207fb3655`
 - Option B2, current-public-base reconciler: `#11@ff92d9b4d933d23edfaefa908cb0e1d143bce546`
-- Option B3, staged restoration comparison: `#12@63a26854bfcd44de66286ffdd3cf04ff0066fe9f`
-- Option B2 bounded current-facts repair: `#14@4de42376d3bd34e2b559e68e721f698a62b62a96`
+- Option B3, staged restoration comparison: `#12@2eb0500310fee42327000e8e97c5ed658d6ba506`
+- Option B2 bounded watch-fact repair: `#14@eb6ea755b1fea3f5260ec6cd926bf0dafdb530ab`
 
 ### Execution and criticism surfaces
 
@@ -25,10 +25,10 @@ Upstream contact authorized: `no`
 - Option A stage/raw-import probe: `#7@e169bafdcfc0c25b3f77cadb41aebf762458586b`
 - desired combined contract: `#8@5d9a0ca545cd7763a7d8bfffd3a646ecb6c4a076`
 - CSS sibling watch-file probe: `#10@81719c925a53040135e6bb8bfcbabd24365bcd51`
-- adversarial current-public-base controls: `#13@b139c1be0965158970bd4353ac05eee5d51793bb`
+- current-public-base edge controls: `#13@3e588a2292a3c7fc2c32c5726c4bcdfcefe2ba9a`
 
-Strongest evidence class: Candidate A `full-gate`; Option B lifecycle `target-executed` negative and repaired targeted controls; current-public-base repairs remain queued.  
-Current review disposition: `REPAIR + EXECUTE Option B2; retain direct overlay or graph transaction as the publication model; HOLD Option A promotion`.  
+Strongest evidence class: Candidate A `full-gate`; B1 lifecycle and accepted-state losses `target-executed`; B3 accepted-dependency restoration `target-executed`; current B2 watch-fact repair queued.  
+Current review disposition: `REPAIR + EXECUTE Option B2; compare complete state overlay against a transform-scoped graph transaction; HOLD Option A promotion`.  
 Non-delegable human decision: `none`.  
 Desk routing: `not-entered`.
 
@@ -38,24 +38,23 @@ Vite rewrites development imports, records module dependencies, and stores hot-u
 
 Moving the whole analysis pass later fixes final graph truth, but it changes what user post transforms observe. Current first-party React RSC code deliberately inserts a raw dynamic import after normal rewriting so Vite does not add `?import`.
 
-The selected repair family therefore keeps ordinary rewriting where it is and performs bounded final reconciliation for graph and HMR facts. The unresolved ownership question is how one transform request publishes one coherent graph transition without a temporary prune or temporary loss of prior accepted state.
+The selected repair family keeps ordinary rewriting where it is and performs bounded final reconciliation for graph and HMR facts. The unresolved ownership question is how one transform request publishes one coherent final state while the previous committed state remains visible until replacement succeeds.
 
 ## Why we care
 
 Without a repair, served code and the development graph can disagree. That can produce stale edges, full reloads, missing accepted HMR dependencies, and dev/build divergence.
 
-A careless repair can create a different set of defects:
+A careless repair can:
 
 - rewrite a deliberately raw first-party import;
 - emit a false client prune on every unchanged repeat transform;
-- mark a dynamic import as static and permit the wrong soft-invalidation path;
 - miss a late `addWatchFile()` because source text did not change;
-- hide the previous accepted HMR boundary while a later plugin reads the graph;
-- publish partial state after parse, resolution, or stale-request failure.
+- hide previous accepted dependency, self-accept, accepted-export, or binding state while a later plugin reads the graph;
+- publish partial state after parse, resolution, cancellation, or stale-request failure.
 
 ## Governing invariant
 
-**Final development graph and HMR metadata must describe the final transform result and graph-only plugin facts while ordinary source rewriting and current post-hook compatibility remain intact. One request publishes one coherent transition: unchanged final state emits no prune, and a real removal emits the exact prune set once.**
+**Final development graph and HMR metadata must describe the final transform result and graph-only plugin facts while ordinary source rewriting and current post-hook compatibility remain intact. The previous committed final state remains coherent until one successful replacement commit; unchanged final state emits no prune, and a real removal emits the exact prune set once.**
 
 ## Governing contracts
 
@@ -64,9 +63,10 @@ A careless repair can create a different set of defects:
 | final graph and HMR truth | original reproduction and Candidate A regression | late imports and accepts must enter final state |
 | current post-hook source | hook ordering, #6/#7, current first-party source | ordinary rewrite output remains visible to user post hooks |
 | raw-import escape | React RSC `rsc:vite-client-raw-import` | final graph work must not rerun incompatible URL rewriting |
-| atomic transition | #9 false-prune execution | ordinary and final analysis cannot dispatch two contradictory transitions |
+| atomic transition | #9 false-prune execution | ordinary and final analysis cannot dispatch contradictory transitions |
 | graph-only facts | transform-context `_addedImports` | source equality cannot imply graph equality |
-| static/dynamic distinction | `EnvironmentModuleGraph.staticImportedUrls` contract | only static source imports may enable ordinary soft invalidation |
+| timestamp invalidation set | ordinary `importAnalysis.ts` | analyzable static and dynamic imports are included; plugin watch-file edges are excluded |
+| complete previous HMR view | #9 loss and #12 controls | accepted deps, self accept, exports, bindings, and related metadata move together |
 | parsed identity | current #11 snapshot parser and collision controls | matching text is not proof that an import or env access was analyzed |
 | exact-head review | Fieldwork protocol | every source or reviewed-input movement expires disposition |
 
@@ -84,34 +84,43 @@ PR #11 is the strongest current source basis. At `ff92d9b…` it now:
 - rejects changed nonliteral dynamic expressions and browser/graph URL disagreement;
 - parses final HMR state and injects hot context when required.
 
-The earlier snapshot-order and raw-substring objections are repaired on the current head. Three disposition-bearing defects remain:
+The earlier snapshot-order and raw-substring objections are repaired on the current head. Three disposition-bearing boundaries remain:
 
 1. equal-source early return skips a source-preserving late `addWatchFile()`;
-2. every resolved final import currently enters `staticImportedUrls`, including dynamic imports;
-3. ordinary analysis can dispatch a transient prune before final reconciliation re-adds an unchanged late edge.
+2. the previous committed full HMR/binding state is not yet proven coherent during a later user post hook;
+3. ordinary and final analysis do not yet publish through one rollback-safe, stale-request-fenced commit.
 
-PR #14 instantiates bounded repairs for the first two current defects. It snapshots the ordinary-analysis watch set, reconciles later graph-only additions, and adds only non-dynamic imports to static state. Publisher `30592816438` is queued at exact carrier head `4de4237…`.
+PR #14 instantiates the bounded repair for the first boundary. It snapshots the ordinary-analysis watch set and reconciles later graph-only additions even when source text is unchanged. Publisher `30593631027` is queued at exact carrier head `eb6ea75…`.
 
-The third defect requires ownership before prune dispatch. The leading models are:
+The second and third boundaries require ownership before or around ordinary graph mutation. The leading models are:
 
-- integrate a retained previous-final overlay into ordinary analysis; or
+- integrate a complete previous-final overlay into ordinary analysis; or
 - stage ordinary and final graph changes in a transform-scoped transaction and commit once.
 
-PR #12 remains an executable distributed restoration comparison. Even if it passes, three jointly ordered hooks are a higher reasoning and integration cost than one graph commit boundary.
+PR #12 is the executable distributed restoration comparison. At prior head `63a2685…`, all platform unit jobs passed the accepted-dependency visibility, unchanged no-prune, and real-removal contract. Current head `2eb0500…` adds self-acceptance, accepted-export, and imported-binding controls because complete-diff review shows its stored state currently contains only imported IDs/URLs, accepted dependency URLs, and timestamp-invalidation URLs.
+
+## Self-review correction
+
+An earlier review and finding revision claimed that analyzable dynamic imports should be absent from `staticImportedUrls`. That was wrong.
+
+Ordinary Vite import analysis intentionally places analyzable static and dynamic imports in that timestamp-invalidation set; plugin watch-file edges are the excluded class. The incorrect #13 assertion and #14 source hunk were removed. PR #11 correction review `4824349528` records the narrowed disposition.
+
+This correction does not change the selected repair family. It removes one false defect and narrows #14 to the real graph-only watch-fact boundary.
 
 ## Claim table
 
 | Claim | Evidence class | Exact support | Limit |
 | --- | --- | --- | --- |
 | post transforms can add imports/HMR facts after ordinary analysis | `target-executed` | original reproduction and #5 regression | focused client-dev path |
-| moving full analysis later repairs the reproduced graph mismatch | `full-gate` | #5; CI `30487475188`; Zizmor `30487475253` | compatibility loss remains |
+| moving full analysis later repairs the reproduced mismatch | `full-gate` | #5; CI `30487475188`; Zizmor `30487475253` | compatibility loss remains |
 | first-party RSC intentionally inserts a raw dynamic import after analysis | `source-read` | `vite-plugin-react@9db4976…` | broader frequency unmeasured |
 | naïve post-only reconciliation emits a false prune on unchanged repeat | `target-executed` | #9 old head `7132850…`; CI `30587631101`; macOS job `91022769607` | one discriminating platform receipt |
-| repaired #9 add/retain/remove targeted unit passed Windows and macOS | `target-executed` | #9 head `bf18a77…`; CI `30588034626` | later unrelated suites failed; head moved |
+| file-import-only overlay loses previous accepted dependency before the next post hook | `target-executed` | #9 current CI `30588826788`; Ubuntu job `91026466344`; same failure across unit matrix | complete metadata not exercised there |
+| staged restoration repairs previous accepted dependency visibility | `target-executed` | #12 prior CI `30589150453`; unit success on Linux/macOS/Windows | three-hook test-only placement |
+| staged state currently omits self-accept, accepted exports, and imported bindings | `source-read`; `target-test-prepared` | #12 current diff and head `2eb0500…` | current CI `30593863720` queued |
 | current #11 repairs snapshot timing and parsed identity | `source-read` | #11 current diff at `ff92d9b…` | current focused/full runs queued |
 | equal source can still contain new graph-only watch facts | `source-read`; `target-test-prepared` | #13/#14 watch control | execution queued |
-| a dynamic late import must remain outside static invalidation state | `source-read`; `target-test-prepared` | moduleGraph contract and #13/#14 control | execution queued |
-| staged restoration is executable | `target-test-prepared` | #12 at `63a2685…` | CI still running |
+| analyzable dynamic imports remain in ordinary timestamp-invalidation state | `source-read`; `target-test-prepared` | ordinary `importAnalysis.ts`; corrected #13/#14 control | current corrected runs queued |
 
 ## Alternatives
 
@@ -123,42 +132,47 @@ Preserves current hook behavior and raw imports. Loses final graph/HMR truth. Re
 
 Smallest one-pass source change and full named gate passed. Loses current post-hook input and first-party raw-import compatibility. Retained as an executed negative comparison.
 
-### Option B1 — retained overlay prototype
+### Option B1 — simple retained overlay
 
-PR #9 proved the combined mechanism, then exposed the false-prune lifecycle. A later head passed focused add, retain, and remove transitions. Current head `3854737…` adds prior accepted-state visibility but ordinary CI `30588826788` failed formatting and unit jobs across the matrix; that head needs exact failure classification before reuse.
+PR #9 proved the combined mechanism, then exposed false-prune and accepted-state losses. Current head `3854737…` is `HOLD / RETAIN AS EXECUTED NEGATIVE COMPARISON`; formatting alone must not revive it.
 
 ### Option B2 — current-public-base final reconciler
 
-PR #11 is the preferred source basis. PR #14 repairs late watch facts and static/dynamic classification on top of it. Atomic publication remains required.
+PR #11 is the preferred source basis. PR #14 repairs only late graph-only watch facts. Complete prior HMR state, atomic publication, rollback, and stale-request fencing remain required.
 
 ### Option B3 — staged restoration
 
-PR #12 restores previous graph view before the user post hook and reconciles final source after it. Zizmor `30589150450` passed; CI `30589150453` is in progress. Retained as a concrete comparison, not the default winner.
+PR #12 restored prior accepted dependency visibility and passed the focused lifecycle across the unit matrix at `63a2685…`. The current head tests whether the staged state can carry self accept, accepted exports, and bindings. Three jointly ordered hooks remain higher-cost ownership than one commit boundary.
 
-### Option B4 — direct overlay or transform-scoped graph transaction
+### Option B4 — complete direct overlay
 
-Direct overlay integrates prior final state into ordinary analysis. A transaction stages both views and calls graph update/prune once. This is the preferred ownership family if bounded #14 repairs pass.
+A complete previous-final overlay integrates prior imports, accepted deps, self accept, accepted exports, imported bindings, timestamp URLs, and graph-only facts into ordinary analysis. The B1 execution proves a file-only overlay is insufficient.
+
+### Option B5 — transform-scoped graph transaction
+
+A transaction preserves previous committed state while ordinary/final calculations are staged, then commits graph/HMR state and dispatches prunes once. It is the preferred fallback when complete overlay becomes distributed or incomplete.
 
 ## Current execution
 
 | Surface/head | Receipt | Current state | Meaning |
 | --- | --- | --- | --- |
-| `#11@ff92d9b…` | focused `30590723703`; CI `30590723653`; Zizmor `30590723690` | queued/pending | current source basis awaiting execution |
-| `#12@63a2685…` | CI `30589150453`; Zizmor `30589150450` | CI in progress; Zizmor success | staged comparison active |
-| `#13@b139c1b…` | focused `30592606208`; CI `30592606321`; Zizmor `30592606239` | queued/pending | four adversarial controls |
-| `#14@4de4237…` | publisher `30592816438`; CI `30592816370`; Zizmor `30592816378` | queued | bounded current-facts repair |
-| `#9@3854737…` | CI `30588826788`; Zizmor `30588826793` | CI failed; Zizmor success | accepted-state comparison requires failure classification |
+| `#11@ff92d9b…` | focused `30590723703`; CI `30590723653`; Zizmor `30590723690` | queued/pending | preferred source basis awaiting execution |
+| `#12@2eb0500…` | CI `30593863720`; Zizmor `30593863689` | queued/pending | complete staged-metadata controls |
+| `#12@63a2685…` | CI `30589150453`; Zizmor `30589150450` | unit matrix passed; overall red from one format delta and Windows worker exit; Zizmor success | accepted-dependency restoration target-executed |
+| `#13@3e588a2…` | focused `30593583611`; CI `30593583624`; Zizmor `30593583604` | queued | watch negative plus three compatibility controls |
+| `#14@eb6ea75…` | publisher `30593631027`; CI `30593631043`; Zizmor `30593631035` | queued/pending | bounded watch-fact repair |
+| `#9@3854737…` | CI `30588826788`; Zizmor `30588826793` | product control failed across unit matrix; Zizmor success | executed negative overlay comparison |
 
 ## Required next controls
 
 Priority order:
 
 1. execute #14 and inspect the first material failure;
-2. retain no false prune on unchanged repeat and one exact prune on removal/replacement;
-3. define prior accepted-HMR graph state visible to the next user post hook;
+2. execute #12 complete-metadata controls and classify each state component;
+3. retain no false prune on unchanged repeat and one exact prune on removal/replacement;
 4. preserve prior committed state on final parse/resolve failure;
 5. fence stale or superseded transform publication;
-6. cover binding, partial-accept, self-accept, and `acceptExports` transitions;
+6. cover partial-accept, self-accept, accepted exports, imported bindings, and normalization on the preferred source family;
 7. cover classic workers, aliases, virtual IDs, optimized dependencies, and query imports;
 8. measure final parse cost and source-map behavior after correctness ownership settles.
 
@@ -170,9 +184,10 @@ CSS post-transform watch files remain a sibling ownership question under PR #10.
 - Review disposition: `REPAIR + EXECUTE Option B2; HOLD Option A promotion`
 - Preferred source: PR #11 current-public-base reconciler
 - Active bounded repair carrier: PR #14
-- Clearing condition: current-fact controls pass and one ownership model prevents transient prune publication
-- Exact next transition: inspect #14 publisher, then integrate no-false-prune lifecycle into the preferred source family
-- Autonomous work remaining: source review, execution, rollback/stale-request controls, comparison, carrier cleanup, independent exact-head review
+- Active ownership comparison: PR #12
+- Clearing condition: graph-only watch facts pass and one ownership model preserves complete prior HMR state with one rollback-safe publication
+- Exact next transition: inspect #14 and #12 current-head executions, then integrate the surviving ownership model into the preferred source family
+- Autonomous work remaining: execution, rollback/stale-request controls, comparison, carrier cleanup, independent exact-head review
 - Non-delegable human decision: none
 
 ## Changes to the canonical conclusion
@@ -181,9 +196,11 @@ CSS post-transform watch files remain a sibling ownership question under PR #10.
 | --- | --- | --- |
 | 2026-07-29 | #2/#5 | reproduced mismatch; Option A passed named gates |
 | 2026-07-31 | first-party RSC source and #6/#7 | Option A lost preferred status |
-| 2026-07-31 | #9 executed repeat control | post-only two-pass publication shown non-atomic |
+| 2026-07-31 | #9 repeat and accepted-state controls | simple overlay shown non-atomic and incomplete |
+| 2026-07-31 | #12 prior CI | staged restoration proved previous accepted-dependency visibility can be restored |
 | 2026-07-31 | #11 current head | snapshot order and parsed identity repaired on current public base |
-| 2026-07-31 | #13/#14 | graph-only watch and dynamic/static facts made executable |
+| 2026-07-31 | self-review correction | analyzable dynamic imports confirmed inside ordinary timestamp-invalidation state; false criticism removed |
+| 2026-07-31 | #13/#14 corrected | graph-only watch fact isolated as bounded current repair |
 
 ## References
 
