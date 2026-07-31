@@ -1,6 +1,7 @@
 {
   "id": "pilot-comparative-alternatives",
   "spec_generation": "comparison-spec-v1",
+  "finding_generation": "finding-comparison-v1",
   "invariant_id": "one-finding-multiple-surfaces",
   "parent_issue": {"repository": "teamleaderleo/fieldwork", "number": 325},
   "phase": "comparative-evaluation-active",
@@ -16,6 +17,7 @@
       "repository": "teamleaderleo/fieldwork",
       "pull_request": 900,
       "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "checks_generation": "checks-bounded-repair-v1",
       "state": "active",
       "purpose": "Execute the preferred source and bounded repair controls."
     }
