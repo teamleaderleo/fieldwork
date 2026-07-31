@@ -35,7 +35,7 @@ diff --git a/packages/core/src/services/executionLifecycleService.ts b/packages/
 diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core/src/services/shellExecutionService.ts
 --- a/packages/core/src/services/shellExecutionService.ts
 +++ b/packages/core/src/services/shellExecutionService.ts
-@@ -124,5 +124,8 @@ export interface ShellExecutionConfig {
+@@ -124,5 +124,7 @@ export interface ShellExecutionConfig {
    backgroundCompletionBehavior?: 'inject' | 'notify' | 'silent';
    originalCommand?: string;
    sessionId?: string;
@@ -43,7 +43,7 @@ diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core
 +  onProcessExit?: () => void | Promise<void>;
    env?: Record<string, string>;
  }
-@@ -282,6 +285,18 @@ export class ShellExecutionService {
+@@ -282,6 +284,16 @@ export class ShellExecutionService {
  
      this.backgroundLogPids.delete(pid);
    }
@@ -60,7 +60,7 @@ diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core
  
    /**
     * Executes a shell command using `node-pty`, capturing all output and lifecycle events.
-@@ -779,6 +794,9 @@ export class ShellExecutionService {
+@@ -779,6 +791,9 @@ export class ShellExecutionService {
            });
  
            ExecutionLifecycleService.completeWithResult(pid, resultPayload);
@@ -70,7 +70,7 @@ diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core
          } else {
            resolveWithoutPid?.(resultPayload);
          }
-@@ -1287,5 +1305,9 @@ export class ShellExecutionService {
+@@ -1287,5 +1302,9 @@ export class ShellExecutionService {
                executionMethod: ptyInfo?.name ?? 'node-pty',
              });
 +
@@ -80,7 +80,7 @@ diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core
            };
  
            if (abortSignal.aborted) {
-@@ -1413,9 +1434,17 @@ export class ShellExecutionService {
+@@ -1413,9 +1432,17 @@ export class ShellExecutionService {
     *
     * @param pid The process ID of the target PTY.
     */
@@ -99,7 +99,7 @@ diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core
 +
      const resolvedSessionId =
        sessionId ?? activePty?.sessionId ?? activeChild?.sessionId;
-@@ -1490,7 +1519,7 @@ export class ShellExecutionService {
+@@ -1490,7 +1517,7 @@ export class ShellExecutionService {
  
      this.backgroundLogPids.add(pid);
  
@@ -111,7 +111,7 @@ diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core
 diff --git a/packages/core/src/tools/shell.ts b/packages/core/src/tools/shell.ts
 --- a/packages/core/src/tools/shell.ts
 +++ b/packages/core/src/tools/shell.ts
-@@ -489,4 +489,34 @@ export class ShellToolInvocation extends BaseToolInvocation<
+@@ -489,5 +489,35 @@ export class ShellToolInvocation extends BaseToolInvocation<
      const isWindows = os.platform() === 'win32';
      let tempFilePath = '';
      let tempDir = '';
@@ -172,7 +172,7 @@ diff --git a/packages/core/src/tools/shell.ts b/packages/core/src/tools/shell.ts
            }, delay);
  
            // Wait for the delay amount to see if command returns quickly
-@@ -1065,23 +1105,8 @@ export class ShellToolInvocation extends BaseToolInvocation<
+@@ -1065,24 +1105,8 @@ export class ShellToolInvocation extends BaseToolInvocation<
        signal.removeEventListener('abort', onAbort);
        timeoutController.signal.removeEventListener('abort', onAbort);
  
