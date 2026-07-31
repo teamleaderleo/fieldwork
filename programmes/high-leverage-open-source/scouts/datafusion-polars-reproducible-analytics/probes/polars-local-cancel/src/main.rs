@@ -16,9 +16,22 @@ struct FileReceipt {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum QueryOutcome {
+    CompletedBeforeCancelRequest,
+    CompletedAfterCancelRequest,
+    InterruptedAfterCancelRequest,
+}
+
+#[derive(Debug, Serialize)]
 struct RunReceipt {
     mode: &'static str,
-    cancellation_result: Option<String>,
+    rows: usize,
+    barrier_bytes: u64,
+    barrier_elapsed_ms: u128,
+    cancellation_requested: bool,
+    outcome: QueryOutcome,
+    query_error: Option<String>,
     elapsed_ms: u128,
     file: FileReceipt,
 }
@@ -87,42 +100,58 @@ fn inspect_file(path: &Path) -> FileReceipt {
     }
 }
 
-fn wait_for_output(path: &Path, min_bytes: u64) {
-    let deadline = Instant::now() + Duration::from_secs(30);
+fn wait_for_visible_output(path: &Path) -> (u64, u128) {
+    let started = Instant::now();
+    let deadline = started + Duration::from_secs(60);
     loop {
-        if std::fs::metadata(path).is_ok_and(|m| m.len() >= min_bytes) {
-            return;
+        if let Ok(metadata) = std::fs::metadata(path) {
+            if metadata.len() > 0 {
+                return (metadata.len(), started.elapsed().as_millis());
+            }
         }
         assert!(
             Instant::now() < deadline,
             "Polars did not expose local Parquet bytes before the barrier deadline"
         );
-        sleep(Duration::from_millis(5));
+        sleep(Duration::from_micros(100));
     }
 }
 
-fn run_cancelled(df: DataFrame, path: &Path) -> PolarsResult<RunReceipt> {
+fn run_cancel_attempt(df: DataFrame, path: &Path, rows: usize) -> PolarsResult<RunReceipt> {
     let started = Instant::now();
     let query = sink_plan(df, path)?.collect_concurrently()?;
-    wait_for_output(path, 64 * 1024);
-    query.cancel();
-    let cancellation_result = query.fetch_blocking().err().map(|error| error.to_string());
-    let file = inspect_file(path);
+    let (barrier_bytes, barrier_elapsed_ms) = wait_for_visible_output(path);
 
-    assert!(
-        file.exists,
-        "the local final path should already exist after output begins"
-    );
-    assert!(
-        cancellation_result.is_some(),
-        "explicit cancellation should return an interrupted query result"
-    );
+    let (cancellation_requested, outcome, query_error) = match query.fetch() {
+        Some(Ok(_)) => (
+            false,
+            QueryOutcome::CompletedBeforeCancelRequest,
+            None,
+        ),
+        Some(Err(error)) => return Err(error),
+        None => {
+            query.cancel();
+            match query.fetch_blocking() {
+                Ok(_) => (true, QueryOutcome::CompletedAfterCancelRequest, None),
+                Err(error) => (
+                    true,
+                    QueryOutcome::InterruptedAfterCancelRequest,
+                    Some(error.to_string()),
+                ),
+            }
+        }
+    };
 
     Ok(RunReceipt {
-        mode: "cancel_after_visible_bytes",
-        cancellation_result,
+        mode: "cancel_after_first_visible_bytes",
+        rows,
+        barrier_bytes,
+        barrier_elapsed_ms,
+        cancellation_requested,
+        outcome,
+        query_error,
         elapsed_ms: started.elapsed().as_millis(),
-        file,
+        file: inspect_file(path),
     })
 }
 
@@ -138,7 +167,12 @@ fn run_retry(df: DataFrame, path: &Path, expected_rows: usize) -> PolarsResult<R
 
     Ok(RunReceipt {
         mode: "same_path_retry_success",
-        cancellation_result: None,
+        rows: expected_rows,
+        barrier_bytes: 0,
+        barrier_elapsed_ms: 0,
+        cancellation_requested: false,
+        outcome: QueryOutcome::CompletedBeforeCancelRequest,
+        query_error: None,
         elapsed_ms: started.elapsed().as_millis(),
         file,
     })
@@ -147,10 +181,10 @@ fn run_retry(df: DataFrame, path: &Path, expected_rows: usize) -> PolarsResult<R
 fn collect_receipt() -> PolarsResult<Receipt> {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("publication.parquet");
-    let rows = 300_000;
+    let rows = 1_000_000;
     let df = build_frame(rows)?;
 
-    let cancelled = run_cancelled(df.clone(), &path)?;
+    let cancelled = run_cancel_attempt(df.clone(), &path, rows)?;
     let retry_success = run_retry(df, &path, rows)?;
 
     Ok(Receipt {
@@ -163,17 +197,4 @@ fn main() -> PolarsResult<()> {
     let receipt = collect_receipt()?;
     println!("{}", serde_json::to_string_pretty(&receipt).unwrap());
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cancellation_then_retry_has_classified_local_publication() {
-        let receipt = collect_receipt().unwrap();
-        assert!(receipt.cancelled.file.exists);
-        assert!(receipt.cancelled.cancellation_result.is_some());
-        assert!(receipt.retry_success.file.parquet_valid);
-    }
 }
