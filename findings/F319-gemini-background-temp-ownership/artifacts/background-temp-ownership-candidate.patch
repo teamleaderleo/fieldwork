@@ -24,7 +24,7 @@ diff --git a/packages/core/src/services/executionLifecycleService.ts b/packages/
      }
  
      const output = execution.getBackgroundOutput?.() ?? execution.output;
-@@ -514,4 +521,5 @@ export class ExecutionLifecycleService {
+@@ -514,6 +521,7 @@ export class ExecutionLifecycleService {
      for (const listener of this.backgroundStartListeners) {
        listener(info);
      }
@@ -35,7 +35,7 @@ diff --git a/packages/core/src/services/executionLifecycleService.ts b/packages/
 diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core/src/services/shellExecutionService.ts
 --- a/packages/core/src/services/shellExecutionService.ts
 +++ b/packages/core/src/services/shellExecutionService.ts
-@@ -124,6 +124,9 @@ export interface ShellExecutionConfig {
+@@ -124,5 +124,8 @@ export interface ShellExecutionConfig {
    backgroundCompletionBehavior?: 'inject' | 'notify' | 'silent';
    originalCommand?: string;
    sessionId?: string;
@@ -70,7 +70,7 @@ diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core
          } else {
            resolveWithoutPid?.(resultPayload);
          }
-@@ -1287,6 +1305,9 @@ export class ShellExecutionService {
+@@ -1287,5 +1305,9 @@ export class ShellExecutionService {
                executionMethod: ptyInfo?.name ?? 'node-pty',
              });
 +
@@ -80,7 +80,7 @@ diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core
            };
  
            if (abortSignal.aborted) {
-@@ -1413,10 +1434,18 @@ export class ShellExecutionService {
+@@ -1413,9 +1434,17 @@ export class ShellExecutionService {
     *
     * @param pid The process ID of the target PTY.
     */
