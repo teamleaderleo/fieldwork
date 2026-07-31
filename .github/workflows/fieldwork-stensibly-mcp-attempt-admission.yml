@@ -1,4 +1,4 @@
-name: Fieldwork Stensibly MCP attempt admission repair
+name: Fieldwork Stensibly MCP attempt final-source verification
 
 on:
   pull_request:
@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  repair:
-    name: Bun 1.3.10 exact-source admission repair
+  verify:
+    name: Bun 1.3.10 exact final-source verification
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -23,25 +23,20 @@ jobs:
           path: fieldwork
           persist-credentials: false
 
-      - name: Check out exact Stensibly source
+      - name: Check out exact final Stensibly source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: teamleaderleo/stensibly
-          ref: 7a5146da52139dec062575baa512eb2c97531060
+          ref: 8f48b586f87b5619066cceb8e43a99e22cbb5e3a
           path: stensibly
           persist-credentials: false
 
-      - name: Verify exact inputs and apply repair
+      - name: Verify exact inputs and install hostile controls
         id: verify
         run: |
           set -euo pipefail
           test "$(git -C fieldwork rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
-          test "$(git -C stensibly rev-parse HEAD)" = "7a5146da52139dec062575baa512eb2c97531060"
-          python3 -m py_compile \
-            fieldwork/programmes/high-leverage-open-source/scouts/stensibly-mcp-attempt-admission/apply_repair.py
-          python3 \
-            fieldwork/programmes/high-leverage-open-source/scouts/stensibly-mcp-attempt-admission/apply_repair.py \
-            stensibly
+          test "$(git -C stensibly rev-parse HEAD)" = "8f48b586f87b5619066cceb8e43a99e22cbb5e3a"
           cp \
             fieldwork/programmes/high-leverage-open-source/scouts/stensibly-mcp-attempt-admission/fieldwork-mcp-attempt-admission.test.ts \
             stensibly/test/fieldwork-mcp-attempt-admission.test.ts
@@ -63,7 +58,7 @@ jobs:
         working-directory: stensibly
         run: bun install --frozen-lockfile
 
-      - name: Run focused attempt-observation controls
+      - name: Run final-source attempt-observation controls
         id: test
         working-directory: stensibly
         run: |
@@ -72,7 +67,7 @@ jobs:
             test/mcp-attempt-observation.test.ts \
             test/mcp-attempt-observation-single-failure.test.ts \
             test/fieldwork-mcp-attempt-admission.test.ts \
-            2>&1 | tee ../fieldwork-receipts/stensibly-mcp-attempt-admission-tests.log
+            2>&1 | tee ../fieldwork-receipts/stensibly-mcp-attempt-final-source-tests.log
 
       - name: Run typecheck and runtime parity
         id: parity
@@ -82,19 +77,15 @@ jobs:
           {
             bun run typecheck
             bun run test:runtime-parity
-          } 2>&1 | tee ../fieldwork-receipts/stensibly-mcp-attempt-parity.log
+          } 2>&1 | tee ../fieldwork-receipts/stensibly-mcp-attempt-final-source-parity.log
 
-      - name: Check repaired diff and clean carrier boundary
+      - name: Require clean final source
         id: diff
         working-directory: stensibly
         run: |
           set -euo pipefail
           git diff --check
-          test -z "$(git status --short --untracked-files=no | sed -n '/^ M \|^M  /p' | grep -v -E '^( M|M ) (src/mcp-attempt-observation.ts|test/mcp-attempt-observation.test.ts)$' || true)"
-          git diff --binary -- \
-            src/mcp-attempt-observation.ts \
-            test/mcp-attempt-observation.test.ts \
-            > ../fieldwork-receipts/stensibly-mcp-attempt-admission.patch
+          test -z "$(git status --short --untracked-files=no)"
 
       - name: Assemble exact-head receipt
         if: always()
@@ -118,10 +109,13 @@ jobs:
             fieldworkHead: process.env.FIELDWORK_HEAD,
             target: {
               repository: 'teamleaderleo/stensibly',
-              head: '7a5146da52139dec062575baa512eb2c97531060',
-              changedFiles: [
+              head: '8f48b586f87b5619066cceb8e43a99e22cbb5e3a',
+              mergedByPullRequest: 691,
+              mergeCommit: '03627c362cedd86445a917a0e5fcdde5a6d5b0c4',
+              sourceFiles: [
                 'src/mcp-attempt-observation.ts',
                 'test/mcp-attempt-observation.test.ts',
+                'test/mcp-attempt-observation-single-failure.test.ts',
               ],
             },
             workflowSteps: {
@@ -130,18 +124,19 @@ jobs:
               install: process.env.INSTALL_OUTCOME || 'not-run',
               tests: process.env.TEST_OUTCOME || 'not-run',
               typecheckAndRuntimeParity: process.env.PARITY_OUTCOME || 'not-run',
-              diff: process.env.DIFF_OUTCOME || 'not-run',
+              cleanFinalSource: process.env.DIFF_OUTCOME || 'not-run',
             },
             claimClasses: {
               arrayKeyAdmission: 'target-executed-when-tests-pass',
               fixedDiagnosticPrivacy: 'target-executed-when-tests-pass',
               secretShapedIdentityAdmission: 'target-executed-when-tests-pass',
               derivedFailureStageVocabulary: 'target-executed-when-tests-pass',
-              publicUpstreamCompatibility: 'not-claimed',
+              finalMergedSourceIdentity: 'target-executed-when-verify-passes',
+              publicUpstreamAction: 'already-merged-by-separate-authority',
             },
           };
           fs.writeFileSync(
-            path.join(directory, 'stensibly-mcp-attempt-admission-receipt.json'),
+            path.join(directory, 'stensibly-mcp-attempt-final-source-receipt.json'),
             `${JSON.stringify(receipt, null, 2)}\n`,
           );
           NODE
@@ -150,7 +145,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: stensibly-mcp-attempt-admission-receipt
+          name: stensibly-mcp-attempt-final-source-receipt
           path: fieldwork-receipts/
           if-no-files-found: error
           retention-days: 14
