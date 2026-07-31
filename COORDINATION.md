@@ -83,11 +83,15 @@ Problem ownership is non-exclusive. Any worker may inspect, review, reproduce, o
 When a worker encounters a concrete nearby defect, stale claim, weak assertion, missing regression, untransferred receipt, obsolete temporary workflow, or duplicate carrier, the default is to repair it in the same pass when:
 
 - the repair is bounded and technically understood;
-- the worker owns the artifact, the lease has transferred or expired, or the repair is made through a separate stacked branch or evidence record;
+- the worker owns the current recorded lease, an explicit release, transfer, or takeover is recorded in the owning coordination record, or the repair is made through a separate non-conflicting stacked branch or evidence record;
 - validation is available without widening authority, using prohibited data, or erasing another worker's evidence;
 - the repair materially improves the next transition.
 
+Observed expiry, silence, or inactivity alone never grants write authority. A stale or expired lease may make takeover eligible only after the applicable coordinator or controller records the replacement lease or transfer in a durable coordination record.
+
 A review comment alone is not the preferred endpoint when the reviewer can safely produce the bounded repair without violating the writer lease. When direct repair would conflict with an active writer, retain an exact repair recipe, focused regression, or non-conflicting stack instead of silently rewriting that worker's branch.
+
+Before creating or changing a substantive repair branch or owned path, record the bounded claim required by the Claim protocol. Tiny issue-only repair recipes, review comments, and focused evidence notes may remain lighter when they create no mutable source ownership.
 
 Service nearby work before creating distant coordination surfaces unless the marginal value of exploration is clearly higher. The normal order is:
 
