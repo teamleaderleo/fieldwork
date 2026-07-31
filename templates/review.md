@@ -9,9 +9,10 @@ State what is being reviewed, what transition is requested, the best-supported c
 - Repository:
 - Pull request or issue:
 - Reviewed issue-body generation: issue number plus body digest, explicit body revision marker, or not applicable
+- Legacy issue `State:` input present: yes | no | not applicable
 - Reviewed live issue-state generation: exact `state:*` label plus accepted metadata snapshot marker, or not applicable
 - Reviewed canonical finding generation: path, branch, and exact head, or not applicable
-- Reviewed finding state: exact `FINDINGS.md` transition, or not applicable
+- Reviewed finding state: exact `FINDINGS.md` transition, absent because legacy issue is not migrated, or not applicable
 - Reviewed other decision input generation: path, digest, revision marker, or not applicable
 - Work class: owned product delivery | upstream-fork research | execution carrier | evidence/documentation | blocked/security-sensitive
 - Canonical branch:
@@ -24,6 +25,8 @@ State what is being reviewed, what transition is requested, the best-supported c
 `updated_at` may be recorded as an explicitly accepted coarse snapshot marker. It is not a body-specific generation and can change after unrelated activity.
 
 Issue state and finding state are independent review inputs. The issue-body `Issue state:` field must agree with the live `state:*` label. The issue-body `Finding state:` field must agree with the canonical finding when one exists.
+
+A legacy issue-body `State:` value is issue coordination state only. It never supplies a finding state. A new review-ready, design-decision-ready, delivery-gate-ready, or land-ready transition requires migration to the two-field form before acceptance.
 
 ## Claim-scoped evidence
 
@@ -68,6 +71,7 @@ Allowed evidence classes: `source-read` | `model-executed` | `target-test-prepar
 - Supersedes:
 - Superseded by:
 - Execution carriers to close:
+- Legacy issue body migrated before requested promotion: yes | no | not applicable
 - Issue `Issue state:` agrees with live label: yes | no | not applicable
 - Issue `Finding state:` agrees with canonical finding: yes | no | not applicable
 - Pull-request description is current for this head: yes | no | not applicable
