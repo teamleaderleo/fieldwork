@@ -121,13 +121,13 @@ A disposition must name the exact next transition. Accepting a research reproduc
 
 The builder may perform and document self-review, but should not be the sole final accepter of a consequential implementation, authority change, security boundary, or upstream packet. The final handoff must state whether the author is eligible to accept or merge the work.
 
-Independent review should examine the complete current diff, not only the latest commit or the pull-request summary.
+Independent review should examine the complete current diff, not only the latest commit or the pull-request summary. A second agent operating through the same GitHub author account is not independently attributable acceptance unless the review record carries a distinct eligible reviewer identity and the project can verify that identity separately from the shared account.
 
 ## Review-ready is peer-facing
 
 `review-ready` means one exact current case is prepared for an eligible independent technical reviewer. It does not mean that the user must review it, that every worker must review it, or that the work is accepted, land-ready, merged, or ready for public upstream submission.
 
-Routine review-ready work should enter the peer review system. It should appear in the human-facing decision surface only when it materially changes priority, exposes risk, becomes stale, or requires non-delegable authority.
+Until generated routing exists, routine `review-ready` work should enter Review Queue #213 or the named owning review issue. It should appear in the human-facing decision surface only when it materially changes priority, exposes risk, becomes stale, or requires non-delegable authority.
 
 A worker who marks one item review-ready should continue useful autonomous work rather than treating that label as a terminal personal state. Suitable continuation includes:
 
@@ -143,7 +143,7 @@ A worker who marks one item review-ready should continue useful autonomous work 
 
 An explicit user assignment or instruction to continue authorizes bounded work in the same lane. Continue through source reading, local probes, review repairs, ordinary repository writes, cleanup, synchronization, and adjacent peer review without repeatedly asking for permission.
 
-When a review finds a concrete defect, prefer repairing it in the same pass when the repair is bounded, validation is available, and the writer lease is owned, transferred, expired, or respected through a separate stacked branch. Do not silently rewrite another active worker's artifact. When direct repair would conflict, retain an exact repair recipe, focused regression, or non-conflicting stack.
+When a review finds a concrete defect, prefer repairing it in the same pass when the repair is bounded, validation is available, and the writer lease is owned, explicitly released or transferred, or respected through a separate stacked branch. Do not silently rewrite another active worker's artifact. When direct repair would conflict, retain an exact repair recipe, focused regression, or non-conflicting stack.
 
 Seek new authorization when the work would widen scope, change authority, use private or production data, create a new external interaction, incur material cost, or cross another explicit boundary.
 
