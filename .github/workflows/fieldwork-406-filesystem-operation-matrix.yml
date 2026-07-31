@@ -45,12 +45,14 @@ jobs:
           test "$(git -C servers rev-parse HEAD)" = "76d64c822f5125032f89eb71dbdb94e42b434821"
           SOURCE="fieldwork/findings/F406-mcp-filesystem-pathname-authority/evidence/fieldwork-operation-authority-matrix.test.ts"
           DESTINATION="servers/src/filesystem/__tests__/fieldwork-operation-authority-matrix.test.ts"
+          TARGET_PATH="src/filesystem/__tests__/fieldwork-operation-authority-matrix.test.ts"
           test ! -e "$DESTINATION"
           cp "$SOURCE" "$DESTINATION"
-          git -C servers diff --check
-          test "$(git -C servers diff --name-only)" = "src/filesystem/__tests__/fieldwork-operation-authority-matrix.test.ts"
+          cmp "$SOURCE" "$DESTINATION"
+          test "$(git -C servers ls-files --others --exclude-standard)" = "$TARGET_PATH"
+          test -z "$(git -C servers diff --name-only)"
           mkdir -p fieldwork-receipts
-          git -C servers diff --binary > fieldwork-receipts/operation-matrix.diff
+          cp "$DESTINATION" fieldwork-receipts/operation-matrix.test.ts
 
       - name: Install exact locked dependencies
         id: install
@@ -80,12 +82,15 @@ jobs:
           npm test -w @modelcontextprotocol/server-filesystem \
             2>&1 | tee ../fieldwork-receipts/operation-matrix-full.log
 
-      - name: Recheck exact diff hygiene
+      - name: Recheck exact carrier hygiene
         id: diff
         working-directory: servers
         run: |
-          git diff --check
-          test "$(git diff --name-only)" = "src/filesystem/__tests__/fieldwork-operation-authority-matrix.test.ts"
+          set -euo pipefail
+          TARGET_PATH="src/filesystem/__tests__/fieldwork-operation-authority-matrix.test.ts"
+          test "$(git ls-files --others --exclude-standard)" = "$TARGET_PATH"
+          test -z "$(git diff --name-only)"
+          cmp "$TARGET_PATH" ../fieldwork/findings/F406-mcp-filesystem-pathname-authority/evidence/fieldwork-operation-authority-matrix.test.ts
           git status --short
 
       - name: Assemble exact receipt
