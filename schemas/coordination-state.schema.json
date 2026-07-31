@@ -7,6 +7,12 @@
   "required": [
     "schema_version",
     "id",
+    "title",
+    "summary",
+    "impact",
+    "priority",
+    "scope",
+    "state_updated_at",
     "invariant_id",
     "canonical_finding",
     "phase",
@@ -26,6 +32,22 @@
   "properties": {
     "schema_version": { "const": 1 },
     "id": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "impact": { "type": "string", "minLength": 1 },
+    "priority": { "enum": ["P0", "P1", "P2", "P3", "none"] },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["programme", "target", "workstream", "parent_issue"],
+      "properties": {
+        "programme": { "type": ["string", "null"] },
+        "target": { "type": ["string", "null"] },
+        "workstream": { "type": ["string", "null"] },
+        "parent_issue": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "state_updated_at": { "type": "string", "minLength": 1 },
     "invariant_id": { "type": "string", "minLength": 1 },
     "canonical_finding": { "type": "string", "minLength": 1 },
     "phase": {
