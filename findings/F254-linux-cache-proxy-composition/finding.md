@@ -9,7 +9,6 @@ Investigation workspace: `investigations/254-linux-storage-archive-reproducibili
 Canonical implementation: `teamleaderleo/linux-fieldwork` PR #198  
 Exact implementation head: `5e69cd25e62d0e86364459d97c9df8568ff84187`  
 Exact base or source revision: base `a0ec62f64fd6a9ff2cc20b28142ec876c52a5145`; imported proxy blob `e57a8516a0c76167894b05fc56be0e3165535488`  
-Strongest evidence class: `integration-executed`  
 Reviewed input generation: predecessor composition `00caba3d753536dd9a3a68fc6f110c75e338ec08`; final record head above  
 Current review disposition: `ACCEPT`  
 Desk routing: `not-entered`  
