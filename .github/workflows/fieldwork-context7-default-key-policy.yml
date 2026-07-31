@@ -62,7 +62,7 @@ jobs:
           fi
 
           cp "${shared_test}" context7/packages/mcp/test/default-key-policy.test.ts
-          printf '\n' >> context7/packages/mcp/test/default-key-policy.test.ts
+          git -C context7 add -N -- packages/mcp/test/default-key-policy.test.ts
           git -C context7 diff --check
           mkdir -p receipts
           git -C context7 diff --binary > "receipts/${CANDIDATE}-applied.diff"
@@ -172,8 +172,10 @@ jobs:
             reusableCandidateEvidence: Object.values(outcomes).every(value => value === 'success'),
             claims: {
               absentAndEmptyConfiguration: 'target-executed-when-focused-passes',
+              noClientIpNoKeyDiagnostic: 'target-executed-when-focused-passes',
               publicDefaultDecryptability: 'target-executed-when-focused-passes',
               explicitKeyCompatibility: 'target-executed-when-focused-passes',
+              explicitCiphertextRejectsPublicFallback: 'target-executed-when-focused-passes',
               completeMcpCompatibility: 'target-executed-when-fullTest-passes',
               hostedApiReceipt: 'not-claimed',
               ciphertextAuthenticity: 'not-claimed',
