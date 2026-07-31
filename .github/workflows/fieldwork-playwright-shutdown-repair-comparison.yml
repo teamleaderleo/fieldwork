@@ -1,0 +1,198 @@
+name: Fieldwork Playwright shutdown repair comparison
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-playwright-shutdown-repair-comparison.yml"
+      - "programmes/high-leverage-open-source/scouts/playwright-mcp-remote-shutdown/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Candidate ${{ matrix.candidate }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        candidate:
+          - loopback-only
+          - test-capability
+    steps:
+      - name: Check out exact Fieldwork comparison head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact Playwright source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: microsoft/playwright
+          ref: 368941457a82da112aa8610107e25f4bde94339a
+          path: playwright
+          persist-credentials: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+
+      - name: Select exact candidate inputs
+        id: select
+        env:
+          CANDIDATE: ${{ matrix.candidate }}
+        run: |
+          set -euo pipefail
+          case "$CANDIDATE" in
+            loopback-only)
+              echo "patch=candidate-loopback-only.patch" >> "$GITHUB_OUTPUT"
+              echo "test=fieldwork-loopback-only.spec.ts" >> "$GITHUB_OUTPUT"
+              ;;
+            test-capability)
+              echo "patch=candidate-test-capability.patch" >> "$GITHUB_OUTPUT"
+              echo "test=fieldwork-test-capability.spec.ts" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "unknown candidate: $CANDIDATE" >&2
+              exit 2
+              ;;
+          esac
+
+      - name: Verify exact inputs and apply candidate
+        id: verify
+        env:
+          PATCH_FILE: ${{ steps.select.outputs.patch }}
+          TEST_FILE: ${{ steps.select.outputs.test }}
+        run: |
+          set -euo pipefail
+          test "$(git -C fieldwork rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git -C playwright rev-parse HEAD)" = "368941457a82da112aa8610107e25f4bde94339a"
+          PATCH_PATH="fieldwork/programmes/high-leverage-open-source/scouts/playwright-mcp-remote-shutdown/$PATCH_FILE"
+          TEST_PATH="fieldwork/programmes/high-leverage-open-source/scouts/playwright-mcp-remote-shutdown/$TEST_FILE"
+          git -C playwright apply --check "../$PATCH_PATH"
+          git -C playwright apply "../$PATCH_PATH"
+          cp "$TEST_PATH" "playwright/tests/mcp/$TEST_FILE"
+          git -C playwright diff --check
+          mkdir -p fieldwork-receipts
+          git -C playwright diff --binary > "fieldwork-receipts/${{ matrix.candidate }}-applied.diff"
+
+      - name: Install exact dependencies
+        id: install
+        working-directory: playwright
+        run: npm ci
+
+      - name: Build exact Playwright source
+        id: build
+        working-directory: playwright
+        run: npm run build
+
+      - name: Install Chromium and runner dependencies
+        id: browser
+        working-directory: playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run complete HTTP suite and candidate controls
+        id: test
+        working-directory: playwright
+        env:
+          CI: "1"
+          TEST_FILE: ${{ steps.select.outputs.test }}
+        run: |
+          set -o pipefail
+          npm run test-mcp \
+            tests/mcp/http.spec.ts \
+            "tests/mcp/$TEST_FILE" \
+            -- --project=chromium \
+            2>&1 | tee "../fieldwork-receipts/${{ matrix.candidate }}-test.log"
+
+      - name: Run focused ESLint
+        id: lint
+        working-directory: playwright
+        env:
+          TEST_FILE: ${{ steps.select.outputs.test }}
+        run: |
+          npx eslint \
+            packages/playwright-core/src/tools/utils/mcp/http.ts \
+            tests/mcp/http.spec.ts \
+            "tests/mcp/$TEST_FILE"
+
+      - name: Recheck applied diff hygiene
+        id: diff
+        working-directory: playwright
+        run: |
+          git diff --check
+          git status --short
+
+      - name: Assemble candidate receipt
+        if: always()
+        env:
+          FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          CANDIDATE: ${{ matrix.candidate }}
+          PATCH_FILE: ${{ steps.select.outputs.patch }}
+          TEST_FILE: ${{ steps.select.outputs.test }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          BROWSER_OUTCOME: ${{ steps.browser.outcome }}
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          DIFF_OUTCOME: ${{ steps.diff.outcome }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const directory = path.join(process.cwd(), 'fieldwork-receipts');
+          fs.mkdirSync(directory, { recursive: true });
+          const outcomes = {
+            verify: process.env.VERIFY_OUTCOME || 'not-run',
+            install: process.env.INSTALL_OUTCOME || 'not-run',
+            build: process.env.BUILD_OUTCOME || 'not-run',
+            browser: process.env.BROWSER_OUTCOME || 'not-run',
+            test: process.env.TEST_OUTCOME || 'not-run',
+            lint: process.env.LINT_OUTCOME || 'not-run',
+            diff: process.env.DIFF_OUTCOME || 'not-run',
+          };
+          const receipt = {
+            schemaVersion: 1,
+            generatedAt: new Date().toISOString(),
+            fieldworkHead: process.env.FIELDWORK_HEAD,
+            candidate: process.env.CANDIDATE,
+            patchFile: process.env.PATCH_FILE,
+            testFile: process.env.TEST_FILE,
+            target: {
+              repository: 'microsoft/playwright',
+              head: '368941457a82da112aa8610107e25f4bde94339a',
+              project: 'chromium',
+            },
+            workflowSteps: outcomes,
+            reusableCandidateEvidence: Object.values(outcomes).every(value => value === 'success'),
+            claims: {
+              upstreamHttpSuite: 'target-executed-when-test-passes',
+              candidateReversingControls: 'target-executed-when-test-passes',
+              focusedLint: 'target-executed-when-lint-passes',
+              diffHygiene: 'target-executed-when-diff-passes',
+              publicExploitability: 'not-claimed',
+              repairAcceptance: 'not-claimed',
+            },
+          };
+          fs.writeFileSync(
+            path.join(directory, `${process.env.CANDIDATE}-receipt.json`),
+            `${JSON.stringify(receipt, null, 2)}\n`,
+          );
+          NODE
+
+      - name: Upload candidate receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: playwright-shutdown-${{ matrix.candidate }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
