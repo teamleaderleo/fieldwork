@@ -124,7 +124,55 @@ Record:
 
 A provisional selection may advance to implementation, execution, or review without asking the user to restate the technical judgment.
 
-### 8. Escalate only a non-delegable decision
+### 8. Resolve a genuine technical tie autonomously
+
+A tie exists only when all of the following are true:
+
+- the decision is one bounded question and a single answer is actually required;
+- the options are specified well enough to implement or execute;
+- the same predeclared criteria have been applied to every option;
+- no new technical point remains unexplored;
+- available prototypes, controls, precedent, and cross-review do not establish a material winner.
+
+Preference, repetition, review volume, branch age, author identity, and the order in which options were proposed do not create or resolve a technical tie.
+
+#### Blocking-objection rule
+
+A technical objection blocks selection only when it identifies:
+
+- the violated invariant or criterion;
+- the exact source, precedent, counterexample, or executed receipt supporting the objection;
+- the smallest control that could confirm or reverse it;
+- a repair, alternative, or explicit reason no safe alternative exists.
+
+An unsupported `-1`, aesthetic preference, or repeated concern whose technical substance has already been answered is retained as dissent but does not block progress. A reviewer may narrow the next transition or require a control without becoming the permanent owner of the decision.
+
+#### Tiebreak ladder
+
+Apply these steps in order and record the first step that resolves the choice.
+
+1. **Make the objection executable.** Build the smallest prototype, benchmark, model, compatibility fixture, or failure injection that can make one option lose. Cheap code is the default response to cheap uncertainty.
+2. **Call rough consensus on the objections, not on vote count.** A worker who did not author the competing candidates reviews the frozen packet and determines whether every material objection has been answered. Dissent may remain after its technical concern is addressed. The consensus caller records the objections, answers, unresolved limits, and selected direction.
+3. **Advance multiple options when coexistence is safe.** When no single interoperable answer is required, retain both behind an experiment, read-only shadow path, feature flag, compatibility adapter, or separately owned deployment-neutral probe. Define the observation that will later choose or retire an option.
+4. **Use ordered engineering defaults when one option is required.** Prefer, in order: satisfaction of the governing invariant; preservation of public compatibility; least authority and smallest irreversible effect; best rollback, observability, and failure containment; strongest target precedent; lower operational and maintenance burden; then the smaller reviewable diff. Do not reorder these criteria after seeing the result.
+5. **Use a neutral arbiter for a residual material tie.** Select one reviewer who did not author the candidates and has no affected writer lease. The arbiter reads the complete frozen packet, may request one final discriminator, and publishes a short reasoned selection plus reopening trigger. The arbiter cannot grant merge, release, deployment, spending, credential, data, or upstream-contact authority.
+6. **Use a reproducible draw only for materially equivalent reversible options.** Freeze the canonical comparison packet, exact candidate heads, ordered criteria, and stable option IDs before the draw. Sort the option IDs, compute `sha256(canonical_packet_bytes)`, interpret the digest as an unsigned integer, and select `digest mod option_count`. An independent reviewer verifies the frozen bytes and calculation. Random selection is forbidden when a material technical, compatibility, safety, authority, cost, or irreversibility difference remains.
+
+For low-risk internal work that is reversible and has an explicit rollback, the active owner may proceed under lazy execution after recording the candidate, controls, and absence of a live unanswered technical objection. A later objection may reopen or reverse the choice with new evidence; it does not erase the exact evidence already produced.
+
+#### Appeals and reopening
+
+A settled technical choice reopens only for:
+
+- new source or executed evidence;
+- a previously omitted governing criterion;
+- a counterexample that invalidates the selected invariant;
+- target, dependency, or compatibility movement that changes the comparison;
+- failure of an assumption named in the decision record.
+
+Restating a preference, changing reviewer identity, or disliking an arbitrary-equivalence draw is not a reopening trigger.
+
+### 9. Escalate only a non-delegable decision
 
 A human decision is justified when the remaining choice depends on one or more of:
 
@@ -137,7 +185,18 @@ A human decision is justified when the remaining choice depends on one or more o
 - credentials, secrets, legal commitments, or identity-bound approval;
 - an explicit instruction reserving the decision to a person.
 
-The escalation must say why further source research, prototypes, or execution cannot settle the choice. Present the smallest possible question and preserve the best autonomous recommendation.
+The escalation must say why further source research, prototypes, execution, neutral review, or the tiebreak ladder cannot settle the choice. Present the smallest possible question and preserve the best autonomous recommendation.
+
+## Decision-process precedent
+
+This protocol adapts established project-governance patterns rather than treating any one process as universal:
+
+- IETF RFC 7282 treats rough consensus as resolution of technical objections rather than a vote count and gives running engineering evidence substantial weight: https://www.rfc-editor.org/rfc/rfc7282
+- IETF RFC 3929 describes external review, preference review, qualified neutral selection, and random assignment for the narrow case where ordinary consensus is blocked; random assignment is reserved for choices with no remaining technical distinction: https://www.rfc-editor.org/rfc/rfc3929
+- Apache uses do-ocracy and lazy consensus for ordinary progress while requiring a technically justified negative vote and an explanation or alternative: https://www.apache.org/foundation/how-it-works/ and https://www.apache.org/foundation/voting.html
+- Python PEP 13 prefers consensus and standard processes, keeps a steering council as a final appeal mechanism, and permits random resolution for a residual election tie: https://peps.python.org/pep-0013/
+
+Fieldwork differs because workers can cheaply instantiate several technical alternatives. Therefore prototype-and-control evidence comes before neutral arbitration, and arbitrary selection is allowed only after the record proves material equivalence and reversibility.
 
 ## States and routing
 
@@ -167,7 +226,7 @@ Competing implementations may exist concurrently.
 
 - Keep each implementation on a separate owned branch or clearly separated commit series.
 - Keep evidence in unique paths under the canonical finding directory.
-- Give every option a stable identifier such as `A`, `B`, or `C`.
+- Give every option a stable identifier such as `A`, `B`, or `C` before executing the comparison.
 - Use one comparison file or section to apply the same criteria to all options.
 - Do not merge several alternatives into one ambiguous implementation PR.
 - Close or archive losing carriers only after their evidence and rejection reason are retained.
@@ -182,12 +241,18 @@ Question: <bounded choice>
 Governing invariant: <what must remain true>
 Project goals and contracts: <sources>
 Options instantiated: <branches, commits, artifacts, or reason paper-only>
-Decision criteria: <ordered list>
+Stable option IDs assigned before execution: <IDs>
+Decision criteria: <ordered list fixed before results>
 Discriminating controls: <tests, benchmarks, adversarial cases>
 Results by option: <exact receipts>
 Historical precedent: <primary sources and differences>
+Blocking objections: <objection, evidence, reversing control, alternative>
 Independent criticism: <reviews and counterexamples>
+Rough-consensus caller or neutral arbiter: <identity and non-authorship check>
+Tiebreak ladder step used: <none or exact step>
+Frozen tie packet and draw receipt: <not applicable or exact bytes/digest/calculation>
 Selected direction: <winner or all rejected>
+Retained dissent: <answered concern that did not block>
 Reopening trigger: <new evidence that changes the result>
 Non-delegable human decision: <none or smallest exact question>
 Upstream contact authorized: no | exact authority
@@ -198,10 +263,11 @@ Upstream contact authorized: no | exact authority
 Stop autonomous comparison when:
 
 - one option clearly wins and the next gate is implementation or validation;
+- the tiebreak ladder selects a reversible direction and records its reopening trigger;
 - all options fail and the finding becomes a retained negative result;
 - the question splits into independently owned findings;
 - the remaining uncertainty is immaterial to the bounded transition;
 - a non-delegable decision is precisely identified;
 - further work would exceed an explicit safety, privacy, authority, or cost boundary.
 
-Do not stop merely because thinking is hard, the precedent is mixed, or the first candidate passed.
+Do not stop merely because thinking is hard, the precedent is mixed, reviewers disagree, or the first candidate passed.
