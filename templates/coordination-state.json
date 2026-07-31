@@ -1,6 +1,17 @@
 {
   "schema_version": 1,
   "id": "F000-example",
+  "title": "Example retained finding",
+  "summary": "One bounded invariant is under active source investigation.",
+  "impact": "Without a current answer, later workers may repeat the same investigation or promote an unsupported transition.",
+  "priority": "P2",
+  "scope": {
+    "programme": "example-programme",
+    "target": "example-target",
+    "workstream": "example-workstream",
+    "parent_issue": 300
+  },
+  "state_updated_at": "YYYY-MM-DDTHH:MM:SSZ",
   "invariant_id": "example-invariant",
   "canonical_finding": "findings/F000-example/finding.md",
   "phase": "research-active",
