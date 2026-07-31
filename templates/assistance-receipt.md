@@ -33,6 +33,22 @@ These identifiers must not contain credentials, tokens, private chat or session 
 
 The same assistance ID appears in the claim, completion, and any supersession receipt. Never recycle an assistance ID for another bounded question or target generation.
 
+## Claim-to-completion continuity
+
+A completion is linked to one claim only when these fields repeat the claim exactly:
+
+- Assistance ID;
+- Helper worker instance;
+- Owning coordination record;
+- Assistance type;
+- claimed target repository and artifact identity, such as the same issue, pull request, branch, or path.
+
+Target generation movement is recorded only through `Target input observed`, `Target generation at completion`, and `Input currentness at completion`. Do not rewrite the claimed target identity to make moved work appear current.
+
+`Owner worker instance` must repeat the claim value, including `unknown`, unless the completion cites a separate authoritative replacement lease or transfer record that assigns the new owner. An assistance receipt never supplies that assignment itself.
+
+`Ownership effect` may remain unchanged, advance from `none` to `transfer-proposed`, or advance from `none` or `transfer-proposed` to `transfer-recorded`. `transfer-recorded` requires an exact separate assigning record and cannot later be downgraded inside the same Assistance ID. Every other claim-to-completion field mismatch remains unresolved rather than being accepted as a completion.
+
 ## Assistance claim
 
 Record this in the owning issue before substantive work when the helper will create a branch, mutable artifact, or focused execution surface.
@@ -70,12 +86,13 @@ Assistance ID: <same id as claim>
 State: complete
 Claim receipt: <exact claim comment, commit, or artifact>
 Helper worker instance: <same public-safe id as claim>
-Owner worker instance: <public-safe id or unknown>
-Owning coordination record: <issue>
+Owner worker instance: <same value as claim, unless an exact separate transfer record assigns a replacement>
+Owning coordination record: <same issue as claim>
+Claimed target artifact: <same repository, PR, branch, or path identity as claim>
 Target input observed: <exact observed generation>
 Target generation at completion: <exact current generation or unknown>
 Input currentness at completion: exact | moved | unknown
-Assistance type: <type>
+Assistance type: <same type as claim>
 Output: <exact artifact, branch, PR, commit, test, review, or recipe>
 Output generation: <exact head, digest, or comment id>
 Finding or repair: <compact technical result>
@@ -95,7 +112,7 @@ When `Ownership effect` is `transfer-recorded`, the completion must repeat the e
 
 A worker resuming an owned artifact should inspect the owning issue for assistance claims and completions newer than the last assistance receipt or target generation they observed. Correlate events by Assistance ID and exact Claim receipt, not only by shared author, timestamp, issue, target, or assistance type.
 
-The coordinator or a future router may index these blocks, but it must reject duplicate Assistance IDs with conflicting fields and must not infer a transfer from assistance activity.
+The coordinator or a future router may index these blocks, but it must reject duplicate Assistance IDs with conflicting fields, unlinked completions, and claim-to-completion transitions outside the continuity rules above. It must not infer a transfer from assistance activity.
 
 When evidence changes another assignment's premise, post the completion receipt in both relevant coordination records, following `COORDINATION.md`.
 
