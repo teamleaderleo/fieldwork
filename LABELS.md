@@ -19,9 +19,9 @@ Each live work item should have exactly one primary type:
 
 A `type:programme` issue is a long-lived research direction spanning several targets. A `type:target` issue is a long-lived hub and orientation record. Neither is an ordinary task backlog.
 
-## State labels
+## Issue-state labels
 
-Each live work item should have one primary state:
+Each live work item should have exactly one primary `state:*` label:
 
 - `state:observed`
 - `state:triage`
@@ -41,7 +41,40 @@ Each live work item should have one primary state:
 - `state:dormant`
 - `state:complete`
 
-Replace the previous state label during transitions. Do not accumulate state history as labels.
+Replace the previous issue-state label during transitions. Do not accumulate state history as labels.
+
+The issue body must mirror the live label exactly:
+
+```text
+Issue state: `state:<label>`
+```
+
+### Issue state is not finding state
+
+`state:*` labels describe GitHub coordination: whether an issue is ready, claimed, being investigated, blocked, submitted, or complete.
+
+Canonical findings use the separate technical transition vocabulary in `FINDINGS.md`:
+
+```text
+research-active
+comparative-evaluation-active
+review-ready
+design-decision-ready
+delivery-gate-ready
+land-ready
+stopped
+closed
+```
+
+When an issue has a canonical finding, its body also carries:
+
+```text
+Finding state: `<finding transition state>`
+```
+
+There is no one-to-one mapping. For example, an issue may be `state:claimed` while its finding is `comparative-evaluation-active`. Validators and reviewers must compare `Issue state:` to the live label and version `Finding state:` against the canonical finding separately.
+
+Use `Finding state: not applicable` when no canonical finding exists.
 
 ## Programme labels
 
@@ -89,18 +122,11 @@ When an owned repository is used to exercise another target in a realistic integ
 testbed:<stable-slug>
 ```
 
-Example:
-
-```text
-target:vercel-ai
-testbed:stensibly
-```
-
 Create a testbed label only after a real trial begins and a Fieldwork issue or retained experiment records the target version, testbed revision, scenario, baseline, observed result, limitations, and rollback. Do not pre-create testbed labels from the candidate registry. If the owned repository itself is the subject, use `target:<slug>` instead.
 
 ## Coordination labels
 
-These may accompany a type, state, programme, target, and testbed:
+These may accompany a type, issue state, programme, target, and testbed:
 
 - `needs:human-decision`
 - `needs:materialization`
