@@ -1,11 +1,11 @@
 # F406 Linux procfd nested-component boundary
 
-State: `primitive-executed-local`  
+State: `model-executed`  
 Assistance ID: `assist-fieldwork-406-procfd-nested-boundary-01`  
 Owning issue: `teamleaderleo/fieldwork#406`  
-Parent primitive: `teamleaderleo/fieldwork#409@b398f38185296248a671054f58d36076c41683df`  
+Parent model: `teamleaderleo/fieldwork#409@b398f38185296248a671054f58d36076c41683df`  
 Executed helper generation: `teamleaderleo/fieldwork#415@ed73ceef5e92a158b61d41ff77eb2c9421f9251f`  
-Target source context: `modelcontextprotocol/servers@76d64c822f5125032f89eb71dbdb94e42b434821`  
+Governing source context: `modelcontextprotocol/servers@76d64c822f5125032f89eb71dbdb94e42b434821`  
 Upstream contact authorized: no
 
 ## Question
@@ -51,6 +51,8 @@ Environment:
 - Ubuntu 24.04 hosted runner;
 - Node `v22.23.1`;
 - mounted `/proc/self/fd`;
+- dependency-free Linux/Node model;
+- no checkout or execution of the governing target repository;
 - no credentials and no hosted target request.
 
 Results:
@@ -67,7 +69,7 @@ Artifact:
 - retained files: exact TAP output and schema-1 JSON receipt;
 - expiry: 2026-08-14.
 
-Evidence class: `primitive-executed-local`. The generic Fieldwork integrity run on the later workflow-free generation is a separate repository gate and does not change this focused primitive result.
+Evidence class: `model-executed`. The generic Fieldwork integrity run on the later workflow-free generation is a separate repository gate and does not change this focused model result. The named `modelcontextprotocol/servers` revision is governing source context for the question, not an executed target checkout.
 
 ## Technical consequence
 
@@ -81,7 +83,7 @@ The same boundary applies to path-based directory-mtime mutation in `teamleaderl
 
 The experiment is limited to Linux, mounted procfs, Node 22, temporary directories, one nested component, exclusive file creation, and directory symlink replacement by a concurrent local actor.
 
-It does not establish a target patch, safe component-by-component traversal, `openat2()` availability, create-directory or cross-parent move semantics, procfs-unavailable behavior, descriptor cleanup under target exceptions, macOS, Windows, exploitability, prevalence, production impact, or upstream acceptance.
+It does not establish target execution, a target patch, safe component-by-component traversal, `openat2()` availability, create-directory or cross-parent move semantics, procfs-unavailable behavior, descriptor cleanup under target exceptions, macOS, Windows, exploitability, prevalence, production impact, or upstream acceptance.
 
 ## Transition
 
