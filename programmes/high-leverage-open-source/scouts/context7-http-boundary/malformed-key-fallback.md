@@ -2,13 +2,13 @@
 
 Parent finding: Fieldwork #333.
 
-State: `target-test-prepared / exact-head identity repair`
+State: `target-executed-local-helper / workflow-retirement pending`
 
 ## In simple words
 
-Context7's local metadata helper encrypts the selected client IP when its configured key is usable. Source inspection and one earlier non-promotable harness run indicate that a malformed configured key logs an error and returns the selected IP as plaintext instead.
+Context7's compiled local metadata helper encrypts the selected client IP when its configured key is usable. Under a malformed configured `CLIENT_IP_ENCRYPTION_KEY`, exact execution proved that the helper logs an invalid-key diagnostic and returns the selected IP unchanged as plaintext metadata.
 
-This is a separate configuration-failure boundary from the listener, CORS, and trusted-proxy findings. It does not establish hosted configuration or hosted trust.
+This is a separate configuration-failure boundary from the listener, CORS, and trusted-proxy findings. It does not establish hosted configuration, hosted receipt, or hosted trust.
 
 ## Exact target
 
@@ -26,63 +26,86 @@ When `CLIENT_IP_ENCRYPTION_KEY` is malformed, does the compiled local metadata h
 2. fail closed by rejecting configuration or omitting `mcp-client-ip`; or
 3. fail open by returning the selected IP unchanged?
 
-## Current source prediction
+## Exact execution receipt
+
+- exact Fieldwork execution head: `fd736a826044b92b1e82a5501fedce5cc4837020`;
+- focused workflow: `30629165557`, success;
+- focused job: `91151287009`, success;
+- exact-head Fieldwork integrity: `30629165583`, success;
+- artifact: `8792754564`;
+- artifact digest: `sha256:6daa628f897636c8aca033e1de269d589217e40df6462038438e10e32eb4b677`;
+- inspected JSON SHA-256: `7cd39b105145a49fce9bdc1c18a1bf74401a8919fb7aa9dd8580e95c7a7c307b`;
+- retained stdout SHA-256: `1bc5e916574b34512879f743f2dd5b61974868c716e4e5e5d2bf081869bdacfb`;
+- exact marker: `FIELDWORK_CONTEXT7_METADATA_FALLBACK_EXACT=3/3`.
+
+Every focused job step passed: exact Fieldwork checkout, actual-head verification, exact target checkout, dependency installation, target build, focused helper execution, receipt verification, diff hygiene, and artifact upload.
+
+The inspected receipt records:
+
+```text
+schemaVersion: 1
+evidenceClass: target-executed-local-helper
+fieldworkHead: fd736a826044b92b1e82a5501fedce5cc4837020
+exactTarget: 594a73133e14631af8c915a1b4f2c8039c964fe1
+selectedIp: 198.51.100.77
+socketIp: 203.0.113.9
+```
+
+Exact outcomes:
+
+- forwarded identity remained selected;
+- the repository-default key produced ciphertext-shaped metadata;
+- the runtime-composed malformed configured key emitted `198.51.100.77` unchanged as plaintext metadata;
+- reject-or-omit repair behavior was absent;
+- MCP session creation, hosted Context7 API calls, Redis operations, and usable credential use were all false.
+
+## Mechanism
 
 The exact source validates the configured key's shape. When validation fails, it logs an invalid-key diagnostic and returns the input string rather than throwing or omitting the metadata field.
 
-The strict reversing repair is therefore either:
+The helper executes the compiled target module in isolated child processes so module-level environment caching cannot make the default-key and malformed-key cases share configuration. The malformed fixture is assembled at runtime rather than stored as a credential-shaped environment assignment.
+
+## Reversing repair family
+
+A bounded source repair should choose one of two fail-closed contracts:
 
 - reject startup or metadata generation under malformed configuration; or
-- omit `mcp-client-ip` and retain a bounded local error receipt.
+- omit `mcp-client-ip` and retain a bounded local configuration-error receipt.
 
-A repair must not silently publish plaintext selected identity.
+A repair must not silently publish the selected identity as plaintext.
 
-## Focused control
-
-The helper runs the compiled target module in isolated child processes so module-level environment caching cannot make the two key cases share configuration.
-
-It requires:
-
-- repository-default key: selected identity retained internally and outbound metadata has ciphertext shape;
-- runtime-composed malformed configured key: selected identity retained internally, outbound metadata equals the selected IP in plaintext, and stderr contains the invalid-key diagnostic;
-- strict repair discriminator: reject-or-omit behavior is currently absent;
-- no MCP session, hosted Context7 request, Redis operation, usable credential, or account.
-
-The malformed fixture is assembled at runtime rather than stored as a credential-shaped environment assignment.
-
-## Exact-head workflow contract
-
-The focused workflow must:
-
-1. check out Fieldwork at `${{ github.event.pull_request.head.sha || github.sha }}`;
-2. assert the actual checkout SHA before copying or executing the helper;
-3. check out exact Context7 source;
-4. install and build the exact MCP package;
-5. execute only the focused helper;
-6. require the `FIELDWORK_CONTEXT7_METADATA_FALLBACK_EXACT=3/3` marker;
-7. assert the receipt's `fieldworkHead` equals the verified checkout;
-8. upload the narrow JSON receipt.
-
-Fieldwork integrity runs independently on the same branch head.
+The two repair families differ operationally. Rejecting startup gives the strongest configuration signal but can make the complete local server unavailable. Omitting optional metadata preserves service availability but must not disguise the configuration error. A later source candidate should compare repository conventions and ordinary tests before selecting one.
 
 ## Historical harness evidence
 
 PR #343 historical head `2b63a9854db1d9db5fb845e70c2b3401842ccd30` produced run `30627737510` and artifact `8792248270`, digest `sha256:c619ab873cabd07f6a44f67899f3e1ceb040ee215c421b1565d7392fc2e2d99d`.
 
-The artifact's helper outcome matched the source prediction, but the workflow checked out the synthetic pull-request merge ref while labeling the artifact with the PR head. Review `4827914873` therefore correctly blocks exact-head promotion. That run remains harness evidence only.
+That helper outcome matched the exact result above, but the old workflow checked out the synthetic pull-request merge ref while labeling the artifact with the PR head. Review `4827914873` correctly blocked exact-head promotion. That old run remains harness evidence only.
+
+A later broad Context7 workflow run `30629165530` was a retirement echo from the replaced workflow generation and failed outside the focused carrier. It is not the canonical malformed-key receipt. The focused exact-head workflow `30629165557` and integrity `30629165583` own this conclusion.
 
 ## Evidence boundary
 
-A green repaired run would be `target-executed-local-helper` for exact compiled source. It would not prove:
+Evidence class: `target-executed-local-helper` for exact compiled source `594a7313...` under Node 22 on the named Linux runner family.
+
+This establishes only the local parser-selected identity to metadata-helper fallback under malformed configuration. It does not prove:
 
 - a hosted Context7 deployment uses malformed configuration;
-- a hosted API receives or trusts the value;
+- a hosted API receives, persists, or trusts the value;
 - the value crosses an MCP session or Redis boundary;
-- every transport or deployment path shares the helper;
-- a source repair is complete or compatible.
+- every transport or deployment path shares this helper;
+- the hosted service interprets `mcp-client-ip` as identity authority;
+- either source repair family is complete or compatible;
+- production impact, exploitability, or deployment prevalence.
+
+## Carrier retirement
+
+The focused workflow may be removed after this exact receipt transfer. Removing it does not mean the target reran on the later cleanup head. The durable carrier is this report plus the isolated helper.
+
+Listener reachability, CORS, valid-key metadata composition, and trusted-proxy behavior remain owned by #355/#333. They are not rerun or widened here.
 
 ## Next transition
 
-Run the focused exact-head workflow and Fieldwork integrity. Inspect the receipt, transfer its exact identity here, remove the temporary workflow, and compare reject-configuration versus omit-metadata source sketches without contacting upstream.
+Remove the temporary focused workflow, run Fieldwork integrity on the workflow-free head, and obtain complete-diff review of this two-file retained evidence carrier. Then compare reject-configuration versus omit-metadata source sketches against target repository conventions without contacting upstream.
 
 No merge, deployment, real credential, private data, spending, hosted request, or public upstream interaction is authorized.
