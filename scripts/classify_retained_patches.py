@@ -41,13 +41,10 @@ else:
 
 SCHEMA_VERSION = 1
 BINARY_SUMMARY = "binary-summary-nonmaterializing"
+EVIDENCE_ONLY_SUFFIX = ".diff-summary"
 MATERIALIZABLE_KINDS = frozenset(
     {"textual-hunks", "git-binary-payload", "metadata-only"}
 )
-
-
-class PatchPolicyError(ValueError):
-    """Raised when a parse-valid artifact violates retained-patch policy."""
 
 
 @dataclass(frozen=True)
@@ -173,15 +170,17 @@ def inspect_patch(path: Path) -> PatchReceipt:
 
 
 def policy_violation(path: Path, receipt: PatchReceipt) -> str | None:
-    """Reject nonmaterializing content from implementation-shaped *.patch files."""
+    """Allow nonmaterializing summaries only under one explicit evidence suffix."""
 
-    if path.suffix == ".patch" and receipt.materialization_state != "materializable":
-        return (
-            f"{path}: retained *.patch contains "
-            f"{BINARY_SUMMARY}; retain replacement bytes or move the summary "
-            "to an explicitly evidence-only non-patch extension"
-        )
-    return None
+    if receipt.materialization_state == "materializable":
+        return None
+    if path.suffix == EVIDENCE_ONLY_SUFFIX:
+        return None
+    return (
+        f"{path}: {BINARY_SUMMARY} is allowed only under the explicit "
+        f"evidence-only suffix {EVIDENCE_ONLY_SUFFIX}; retain replacement "
+        "bytes for an implementation carrier"
+    )
 
 
 def build_receipt(paths: Iterable[Path]) -> tuple[dict[str, object], list[str]]:
