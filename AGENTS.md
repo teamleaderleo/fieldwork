@@ -4,11 +4,12 @@ These instructions apply to every AI system and automated worker operating in th
 
 ## Entry protocol
 
-- Start with `START_HERE.md`.
-- Read `CHARTER.md`, `CODE_FIRST.md`, `PLAIN_LANGUAGE.md`, `METHOD.md`, `REFERENCE_POLICY.md`, `PROGRAMMES.md`, `TARGET_HUBS.md`, `EXPERIMENTS.md`, `TESTBEDS.md`, `INTEGRATION_CONTEXT.md`, `COORDINATION.md`, `REVIEWING.md`, `BATCHES.md`, `FINDINGS.md`, `DECISIONS.md`, and `INVESTIGATION_WORKSPACES.md` before modifying research material.
+- `START_HERE.md` is the current transitional repository entry point. When that runbook sends you here, continue with these rules and do not restart the entry sequence.
+- Apply the universal agent rules in this file. Use the assignment and current phase to select the deeper research, execution, review, coordination, finding, decision, workspace, batch, testbed, or integration manuals indexed by `START_HERE.md`; do not treat this file as a second mandatory reading list.
 - Search programme hubs, target hubs, open Fieldwork issues, active pull requests, canonical findings, investigation workspaces, active batches, existing experiments, contexts, testbeds, campaign folders, and owned-fork branches before creating work.
 - Treat GitHub issues as live coordination, canonical findings as the current technical answer, workspaces as orientation, and repository files as durable evidence.
 - Work only from an explicit assignment, claimed scout or lane, requested synthesis, user-directed triage task, bounded review task, or bounded fork-free experiment.
+- This transitional protocol does not define dispatch, typed lease or authority state, lifecycle status, or controller-observed currentness. A later clean kernel successor must reference the accepted structured-state contract from #306 rather than copy those fields into another prose payload.
 
 ## Programme, target, and testbed indexing
 
