@@ -59,6 +59,21 @@ describe("Fieldwork shared cancellation receipt repair", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps a later authoritative cancelled update", async () => {
+    const { box, fetchMock } = await createTestBox();
+    fetchMock.mockResolvedValueOnce(mockResponse({}));
+
+    const run = new Run(box, "agent", "run-authoritative-cancelled");
+    const receipt = await run.requestCancel();
+    expect(run.status).toBe("running");
+
+    Run._update(run, { status: "cancelled" });
+
+    expect(run.status).toBe("cancelled");
+    expect(await run.requestCancel()).toBe(receipt);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("publishes fixed failure prose without claiming a terminal outcome", async () => {
     const { box, fetchMock } = await createTestBox();
     fetchMock.mockResolvedValueOnce(
