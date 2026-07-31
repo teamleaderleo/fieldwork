@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reversing controls for exact-input and per-action decision currentness."""
+"""Reversing controls for exact-input and per-action authority currentness."""
 
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ from reconcile import projection_is_current, reconcile  # noqa: E402
 T0 = "2026-07-31T02:30:00Z"
 EXPIRY = "2026-07-31T03:00:00Z"
 T1 = "2026-07-31T03:00:00Z"
+AFTER_EXPIRY = "2026-07-31T03:30:00Z"
 LATER_EXPIRY = "2026-07-31T04:00:00Z"
 
 
@@ -57,13 +58,19 @@ def live_facts(record: dict[str, object]) -> dict[str, object]:
     }
 
 
-def authority_reason(projection: dict[str, object], action: str) -> str:
+def authority_condition(
+    projection: dict[str, object], action: str
+) -> dict[str, object]:
     return next(
-        condition["reason"]
+        condition
         for condition in projection["conditions"]
         if condition["type"] == "AuthorityUsable"
         and condition["inputs"]["action"] == action
     )
+
+
+def authority_reason(projection: dict[str, object], action: str) -> str:
+    return str(authority_condition(projection, action)["reason"])
 
 
 def authorized(
@@ -101,7 +108,23 @@ class DecisionCurrentnessTests(unittest.TestCase):
         )
         self.assertEqual(EXPIRY, at_observation["valid_until"])
         self.assertEqual("True", at_observation["actions"]["merge"]["status"])
-        self.assertEqual("authorized", effective(projection, T0, record, facts)["merge"])
+
+        authorization = authorization_currentness(projection, T0, record, facts)
+        self.assertEqual(
+            ("True", "ExactInputsCurrent"),
+            (
+                authorization["inputs_current"]["status"],
+                authorization["inputs_current"]["reason"],
+            ),
+        )
+        self.assertEqual(
+            ("True", "ExactProjectedAuthority"),
+            (
+                authorization["projection_authority_integrity"]["merge"]["status"],
+                authorization["projection_authority_integrity"]["merge"]["reason"],
+            ),
+        )
+        self.assertEqual("authorized", authorization["actions"]["merge"]["effective"])
 
         self.assertTrue(projection_is_current(projection, record, facts))
         elapsed = decision_currentness(projection, T1)
@@ -175,13 +198,7 @@ class DecisionCurrentnessTests(unittest.TestCase):
         facts = live_facts(record)
         projection = reconcile(record, facts, T0)
         malformed = deepcopy(projection)
-        deploy_condition = next(
-            condition
-            for condition in malformed["conditions"]
-            if condition["type"] == "AuthorityUsable"
-            and condition["inputs"]["action"] == "deploy"
-        )
-        deploy_condition["inputs"]["expires_at"] = "not-a-time"
+        authority_condition(malformed, "deploy")["inputs"]["expires_at"] = "not-a-time"
 
         currentness = decision_currentness(malformed, T0)
         self.assertEqual("DecisionRefreshRequired", currentness["reason"])
@@ -189,9 +206,20 @@ class DecisionCurrentnessTests(unittest.TestCase):
         self.assertEqual(
             "InvalidAuthorityTime", currentness["actions"]["deploy"]["reason"]
         )
-        current = effective(malformed, T0, record, facts)
-        self.assertEqual("authorized", current["merge"])
-        self.assertEqual("denied", current["deploy"])
+        authorization = authorization_currentness(malformed, T0, record, facts)
+        self.assertEqual(
+            "True",
+            authorization["projection_authority_integrity"]["merge"]["status"],
+        )
+        self.assertEqual(
+            ("False", "ProjectionAuthorityMismatch"),
+            (
+                authorization["projection_authority_integrity"]["deploy"]["status"],
+                authorization["projection_authority_integrity"]["deploy"]["reason"],
+            ),
+        )
+        self.assertEqual("authorized", authorization["actions"]["merge"]["effective"])
+        self.assertEqual("denied", authorization["actions"]["deploy"]["effective"])
 
     def test_denied_action_remains_denied_while_current_action_survives(self) -> None:
         record = fixture()
@@ -296,6 +324,70 @@ class DecisionCurrentnessTests(unittest.TestCase):
             ),
         )
         self.assertEqual("denied", missing_inputs["actions"]["merge"]["effective"])
+
+    def test_extended_projected_expiry_cannot_outlive_durable_grant(self) -> None:
+        record = fixture()
+        record["authority"]["merge"] = authorized(expires_at=EXPIRY)
+        facts = live_facts(record)
+        projection = reconcile(record, facts, T0)
+        extended = deepcopy(projection)
+        authority_condition(extended, "merge")["inputs"]["expires_at"] = LATER_EXPIRY
+
+        self.assertTrue(projection_is_current(extended, record, facts))
+        self.assertEqual(
+            "True",
+            decision_currentness(extended, AFTER_EXPIRY)["actions"]["merge"]["status"],
+        )
+        currentness = authorization_currentness(
+            extended,
+            AFTER_EXPIRY,
+            record,
+            facts,
+        )
+        self.assertEqual("True", currentness["inputs_current"]["status"])
+        self.assertEqual(
+            ("False", "ProjectionAuthorityMismatch"),
+            (
+                currentness["projection_authority_integrity"]["merge"]["status"],
+                currentness["projection_authority_integrity"]["merge"]["reason"],
+            ),
+        )
+        self.assertEqual("True", currentness["actions"]["merge"]["decision_current"])
+        self.assertEqual("denied", currentness["actions"]["merge"]["effective"])
+
+    def test_flipped_projected_revocation_cannot_restore_authority(self) -> None:
+        record = fixture()
+        record["authority"] = {
+            "merge": authorized(
+                expires_at=None,
+                revocation_record="authority/merge@v1",
+            ),
+            "deploy": authorized(expires_at=LATER_EXPIRY),
+        }
+        facts = live_facts(record)
+        facts["authority_revocations"] = {"authority/merge@v1": True}
+        projection = reconcile(record, facts, T0)
+        self.assertEqual("denied", projection["effective_authority"]["merge"])
+        self.assertEqual("AuthorityRevoked", authority_reason(projection, "merge"))
+
+        flipped = deepcopy(projection)
+        flipped["effective_authority"]["merge"] = "authorized"
+        merge_condition = authority_condition(flipped, "merge")
+        merge_condition["status"] = "True"
+        merge_condition["reason"] = "AuthorityCurrent"
+
+        self.assertTrue(projection_is_current(flipped, record, facts))
+        self.assertEqual(
+            "True",
+            decision_currentness(flipped, T0)["actions"]["merge"]["status"],
+        )
+        currentness = authorization_currentness(flipped, T0, record, facts)
+        self.assertEqual(
+            "False",
+            currentness["projection_authority_integrity"]["merge"]["status"],
+        )
+        self.assertEqual("denied", currentness["actions"]["merge"]["effective"])
+        self.assertEqual("authorized", currentness["actions"]["deploy"]["effective"])
 
 
 if __name__ == "__main__":
