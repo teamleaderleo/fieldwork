@@ -1,0 +1,23 @@
+name: Fieldwork 325 observed generation
+
+on:
+  pull_request:
+    paths:
+      - "playgrounds/EXP-20260731-observed-generation/**"
+      - ".github/workflows/fieldwork-325-observed-generation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Validate retained experiment metadata
+        run: python3 scripts/validate_experiments.py
+      - name: Run generation-bound reconciliation controls
+        run: python3 playgrounds/EXP-20260731-observed-generation/test_reconcile.py
