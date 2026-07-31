@@ -2,7 +2,7 @@
 
 Date: 2026-07-31  
 Parent finding: `F371-playwright-mcp-remote-shared-context`  
-Evidence class: `source-read / upstream-test-read`
+Evidence class: `source-read / upstream-test-read`, later resolved by exact target execution
 
 ## Exact revisions
 
@@ -42,7 +42,7 @@ The CLI option contract separates:
 - shared browser context;
 - browser/network permissions.
 
-`--host` defaults to localhost. `--allowed-hosts` defaults to the normalized bind Host. The help text describes the allowlist as a DNS-rebinding defense.
+`--host` defaults to localhost. `--allowed-hosts` defaults to the normalized bind Host. The original help text describes the allowlist as a DNS-rebinding defense.
 
 ### `packages/playwright-core/src/tools/utils/mcp/server.ts`
 
@@ -75,29 +75,40 @@ The inspected target tests retain these relevant controls:
 - shared-browser-context mode lets client 2 list and use a tab created by client 1;
 - client 2 continues after client 1 disconnects.
 
-These target tests were read, not executed by Fieldwork.
+Fieldwork later executed this complete file on the exact pinned target as part of the 19-test matrix retained in `20260731-target-matrix.md`.
 
-## Current interpretation
+## Source-read prediction
 
-Playwright MCP already separates accidental network exposure from explicit remote configuration better than Context7's inspected HTTP default:
+Playwright MCP appeared to separate accidental network exposure from explicit remote configuration more carefully than Context7's inspected HTTP default:
 
 - standard input/output by default;
 - loopback HTTP default;
 - explicit all-interface opt-in;
 - default DNS-rebinding defense.
 
-The remaining comparison question is client authority after deliberate remote enablement, especially when shared context turns separate MCP sessions into one browser-state authority domain.
+The unresolved source-read question was client authority after deliberate remote enablement, especially when shared context turns separate MCP sessions into one browser-state authority domain.
 
-## Missing evidence
+## Executed resolution
 
-Fieldwork has not yet established:
+Exact target run `30633739476`, job `91166043729`, resolved that question on Ubuntu 24.04, Node 22, and Chromium:
 
-- the actual listener on the pinned build;
-- two credential-free remote-equivalent sessions on an explicitly allowed Host;
-- isolated-mode cross-client separation;
-- shared-mode cross-client visibility and mutation;
-- client disconnect versus browser/context cleanup order;
-- final-client disconnect cleanup;
-- the clarity of runtime startup/help warnings in an executable installation.
+- the complete upstream HTTP suite passed;
+- two explicitly remote-equivalent isolated sessions kept browser state separate;
+- two explicitly remote-equivalent shared sessions used one browser authority domain;
+- client 2 observed client 1's page and continued after client 1 disconnected;
+- both sessions were deleted and the browser closed after the final client.
 
-No external website, account, credential, private browser state, or public upstream interaction was used.
+Exact help-candidate run `30634831167`, job `91169666445`, then proved the selected three-string patch applies, builds, and appears in generated runtime help.
+
+## Remaining boundaries
+
+Fieldwork still has not established:
+
+- public exploitability or deployment prevalence;
+- behavior behind an authenticated reverse proxy;
+- risk involving real logged-in or private browser state;
+- behavior on other operating systems or browsers;
+- the need for a built-in authentication protocol;
+- public upstream acceptance.
+
+No external website, account, credential, private browser state, merge, deployment, spending, or public upstream interaction was used.
