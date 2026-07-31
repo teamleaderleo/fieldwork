@@ -1,36 +1,45 @@
-# F254-run-qemu-result-precedence: cleanup must not replace the primary result
+# F254-run-qemu-result-precedence: preserve authoritative results through cleanup
 
 Finding state: `delivery-gate-ready`
 
 Workstream: `G`  
 Canonical Fieldwork issue: `#254`  
 Canonical finding path: `findings/F254-run-qemu-result-precedence/finding.md`  
-Canonical implementation: `teamleaderleo/linux-fieldwork#270`  
-Exact implementation head: `14cb0e16014d0e4abe29ea5d2302abfb7ff7c299`  
-Exact base or source revision: Linux Fieldwork main `c35f877b4fd4d70f487852973d2bc47bd97ac2d0`; imported `run_qemu.sh` blob `426aeeb854173569b24e64d6eb85019f45bdf0b6`  
-Strongest evidence class: lifecycle claims `model-executed`; complete imported-source gate `target-test-prepared`  
-Reviewed input generation: current Fieldwork/Linux protocols; Linux #269; PR #270 exact review `4824831881`  
+Canonical implementation: `teamleaderleo/linux-fieldwork#319`  
+Exact implementation head: `2fe3f99364df29de217536dc35a4d03b10f49640`  
+Exact base or source revision: Linux Fieldwork main `782774b01002abf37878d834a54d0bbf8b226397`; imported `run_qemu.sh` blob `426aeeb854173569b24e64d6eb85019f45bdf0b6`  
+Strongest evidence class: lifecycle and event-order claims `model-executed`; complete composed repository gate `target-test-prepared`  
+Reviewed input generation: current Fieldwork/Linux protocols; Linux issues #269/#297; PRs #270/#282/#304; PR #319 review `4828231099`  
 Current review disposition: `EXECUTE`  
 Desk routing: Delivery Desk #160 D2  
 Upstream contact authorized: `no`
 
 ## In simple words
 
-`run_qemu.sh` owns several possible results: the host/QEMU command can fail, the guest can report a test failure, a signal can cancel the wrapper, and cleanup can fail.
+`run_qemu.sh` can learn several different results while it exits:
 
-The imported cleanup function ran for normal exit and signals. It could let the guest or cleanup cover up a more specific host result, report a stop signal as success, and run cleanup twice.
+- the host, timeout, debvm, or QEMU command failed;
+- the guest completed and reported failure;
+- INT or TERM cancelled the wrapper;
+- cleanup failed.
 
-PR #270 separates normal exit from explicit signal handling and applies one order:
+The imported wrapper used the same cleanup body for ordinary exit and signals. It could report the wrong owner, return success after cancellation, run cleanup twice, lose the first signal, ignore a signal during ordinary cleanup, or replace an already-completed guest failure with a later cleanup-time signal.
+
+The composed candidate applies one event-ordered rule:
 
 ```text
-host or signal failure > guest failure > first cleanup failure > success
+captured host failure
+> completed guest failure
+> first cleanup-time signal
+> first cleanup failure
+> success
 ```
 
 ## Why we care
 
-Timeout 124, host failure 42, cancellation 130/143, guest test failure 1, and cleanup failure identify different owners and recovery actions. Replacing one with another misclassifies the failure and makes debugging harder.
+Timeout 124, host failure 42, guest failure 1, cancellation 130/143, and cleanup failure identify different owners and recovery actions. Replacing one with another misclassifies the incident.
 
-False success after INT/TERM is a direct correctness defect. Duplicate cleanup and last-cleanup-failure precedence also hide resource ownership.
+A result is not authoritative merely because cleanup observed it last. The final status must preserve the earliest completed failure at the correct ownership layer while still completing bounded cleanup once.
 
 ## What happens if we leave it alone
 
@@ -40,161 +49,201 @@ The imported source installs:
 trap cleanup INT TERM EXIT
 ```
 
-The cleanup function captures `$?`, removes temporary state, reads the guest status, and sets the final result to 1 when the guest status is nonzero.
-
-Consequences reproduced in the exact reduced model:
+Reproduced consequences include:
 
 - host timeout 124 plus guest failure returns 1;
 - missing guest status can replace host failure;
-- parent-only INT/TERM plus guest success returns 0;
-- parent-only INT/TERM plus guest failure returns 1;
-- signal cleanup exits through the still-installed EXIT trap and runs again.
+- INT/TERM plus guest success returns 0;
+- INT/TERM plus guest failure returns 1;
+- signal cleanup exits through the still-installed EXIT trap and runs again;
+- an early repair can lose TERM 143 to later INT and stop cleanup after only `rm`;
+- a two-patch repair can ignore TERM during ordinary cleanup and return 0;
+- a three-patch repair can replace completed guest failure 1 with later TERM 143.
+
+## Exact event order
+
+The guest worker completes before host ordinary EXIT cleanup:
+
+1. it executes the test and captures the status;
+2. it writes `/mnt/exitstatus.txt`;
+3. it unmounts `/mnt`;
+4. it powers off;
+5. `debvm-run` returns;
+6. host EXIT cleanup begins.
+
+A nonzero guest status is therefore already authoritative before INT or TERM arrives during host cleanup.
 
 ## Current finding
 
-Result ownership must be explicit before cleanup starts.
+Result ownership must be explicit and event ordered.
 
 The retained contract is:
 
-1. ordinary EXIT captures its incoming status;
-2. INT and TERM use explicit 130 and 143;
-3. every converging trap is cleared before cleanup;
-4. an existing host or signal nonzero status wins;
-5. otherwise guest nonzero, missing, unreadable, or malformed status becomes generic 1;
-6. otherwise the first cleanup failure becomes final;
-7. later cleanup actions are attempted but cannot replace that first cleanup failure;
-8. otherwise status is 0.
+1. ordinary EXIT captures the incoming host status;
+2. explicit INT and TERM select 130 and 143;
+3. EXIT is cleared before final exit, preventing cleanup re-entry;
+4. already-handled INT/TERM remain ignored while bounded explicit-signal cleanup finishes;
+5. ordinary EXIT cleanup records its first INT/TERM instead of ignoring it;
+6. a captured host failure remains authoritative;
+7. otherwise a completed guest nonzero, malformed, unreadable, or missing result becomes generic 1;
+8. otherwise the first cleanup-time INT/TERM becomes 130/143;
+9. otherwise the first cleanup failure becomes final;
+10. later cleanup actions still run but cannot replace that first cleanup failure;
+11. otherwise status is 0.
 
 ### Claim table
 
 | Claim | Evidence class | Exact support | Limit |
 | --- | --- | --- | --- |
-| Host 124 plus guest failure becomes 1 in the baseline. | `model-executed` | primary regression negative control | Reduced exact cleanup shape |
-| Parent-only INT/TERM can become guest-dependent 0/1. | `model-executed` | signal matrix | Target `/bin/sh`, held foreground command |
-| Baseline signal cleanup runs twice. | `model-executed` | cleanup log `rm, rmdir, rm` | Disposable wrappers |
-| Candidate preserves host/signal result over guest and cleanup. | `model-executed` | precedence matrix | No actual QEMU/debvm |
-| Candidate retains first cleanup failure 74 over later 75. | `model-executed` | additive cleanup regression | Simulated cleanup functions |
-| Candidate applies to complete imported source and passes syntax/repository gate. | `target-test-prepared` | CI `30597908319` / 787 | Queued at this revision |
-| PR #270 is one commit and five files over live base. | `source-read` | PR metadata and review `4824831881` | Exact relation at generation time |
+| Imported host 124 plus guest failure returns 1. | `model-executed` | primary negative control | Reduced exact cleanup shape |
+| Imported INT/TERM can become guest-dependent 0/1 and cleanup runs twice. | `model-executed` | explicit signal matrix and cleanup log | Disposable shell model |
+| A later handled signal can replace the first and interrupt cleanup. | `model-executed` | TERM→INT predecessor barrier | INT/TERM only |
+| A signal during ordinary EXIT cleanup can disappear as status 0. | `model-executed` | two-patch predecessor barrier | Bounded cleanup |
+| Guest failure completes before host cleanup. | `source-read` | guest write/unmount/poweroff and host wait order | Pinned import |
+| Three-patch signal-over-guest policy returns 143 after completed guest failure. | `model-executed` | PR #304 negative control | Reduced exact source shape |
+| Final policy retains host, guest, cleanup-time signal, and cleanup order. | `model-executed` | patches 1–4 and five focused modules | No real QEMU/debvm |
+| Composed current-main packet is one commit and seventeen files. | `source-read` | PR #319 compare and review `4828231099` | Exact generation |
+| Complete repository gate is prepared on the composed head. | `target-test-prepared` | CI `30628645668` / 889 | Queued at this revision |
+
+## Patch and ownership map
+
+### Patch 1 — primary result and once-only cleanup
+
+- introduces `finish STATUS`;
+- reads guest status without allowing `set -e` to replace an existing host failure;
+- retains the first cleanup failure;
+- separates ordinary EXIT and explicit INT/TERM cleanup;
+- prevents EXIT cleanup re-entry.
+
+### Patch 2 — first handled signal stability
+
+- ignores already-handled INT/TERM through bounded cleanup;
+- prevents a second handled signal from replacing the first or interrupting cleanup.
+
+### Patch 3 — first signal during ordinary EXIT cleanup
+
+- adds a first-writer cleanup signal slot;
+- records INT/TERM during ordinary EXIT cleanup;
+- retains cancellation after otherwise successful work.
+
+### Patch 4 — completed guest before later cleanup signal
+
+- changes only final selection;
+- places completed guest failure before later cleanup-time cancellation;
+- preserves host precedence, signal capture, cleanup, and first-writer behavior.
 
 ## System and ownership map
 
 - Wrapper owner: `run_qemu.sh`.
-- Primary result owner: timeout/debvm/QEMU command or explicit signal handler.
-- Subordinate result channel: guest-written `shared/exitstatus.txt` when `shared/output.txt` exists.
+- Primary host result owner: timeout/debvm/QEMU command.
+- Explicit cancellation owner: INT/TERM handler.
+- Completed subordinate result: guest-written `shared/exitstatus.txt` after guest completion.
+- Cleanup-time cancellation owner: first INT/TERM received after ordinary cleanup starts.
 - Cleanup owner: temporary log and directory.
-- Background log follower: existing `setpriv --pdeathsig TERM tail -f`; unchanged by this candidate.
-- Result flow: primary status, then guest classification only after primary success, then first cleanup failure only after both succeed.
+- Background log follower: existing `setpriv --pdeathsig TERM tail -f`; unchanged.
+- Final flow: host, completed guest, cleanup-time signal, first cleanup failure, success.
 
-## Historical precedent
+## Alternatives and what made them lose
 
-### Shell signal and cleanup ownership
+### Imported shared trap — rejected
 
-- Source: https://github.com/teamleaderleo/linux-fieldwork/pull/224
-- Revision: merged 2026-07-31
-- Principle supported: signal cleanup must terminate with explicit identity and clear converging traps.
-- Important difference: #224 owns child/cache lifecycle; #270 owns result-channel precedence.
+It loses host and signal identity and runs cleanup twice.
 
-### Worker result precedence
+### Host-only guard — rejected
 
-- Source: https://github.com/teamleaderleo/linux-fieldwork/pull/267
-- Revision: `c066db4046626cbed0b1c186cb52b9dffa72554a`
-- Principle supported: primary failure and cancellation must survive cleanup.
-- Important difference: #267 owns pipeline worker and parent proxy; #270 combines host, guest, signal, and cleanup results.
+It preserves some host failures but still leaves signal status guest-dependent and cleanup duplicated.
 
-## Approaches considered
+### Restore default INT/TERM before cleanup — rejected
 
-### Retained: explicit precedence in one finish function
+A second signal can replace the first and stop cleanup halfway.
 
-This keeps one cleanup implementation while supplying the primary status explicitly from ordinary exit or signal handlers.
+### Ignore INT/TERM for all cleanup — rejected
 
-### Declined: only guard guest overwrite when `$?` is nonzero
+During ordinary EXIT cleanup no signal has yet been retained; cancellation can disappear as success.
 
-That preserves host failures but still leaves signals guest-dependent and cleanup duplicated through EXIT.
+### Cleanup-time signal before completed guest — rejected
 
-### Declined: use one shared trap and infer signal from `$?`
+It reports later cancellation instead of a guest failure that was already written and durable before cleanup began.
 
-A deferred shell trap can see the foreground command's status rather than the signal identity.
+### Last cleanup failure wins — rejected
 
-### Declined: last cleanup failure wins
-
-Later cleanup errors can hide the first cleanup operation that failed. The candidate attempts all cleanup while retaining the first failure.
-
-### Deferred: HUP/QUIT policy and full QEMU integration
-
-Those require separate policy or expensive execution and do not overlap the exact repair.
+It hides the first cleanup operation that failed.
 
 ## Edge cases covered
 
-| Case | Evidence | Result |
-| --- | --- | --- |
-| Host 0/42/124/143 | primary matrix | expected primary precedence |
-| Guest 0/nonzero/malformed/missing | primary matrix | generic 1 only after host success |
-| INT/TERM with guest 0/nonzero | signal matrix | candidate 130/143; baseline 0/1 |
-| Signal cleanup convergence | cleanup logs | candidate once; baseline twice |
-| Cleanup rm 74 then rmdir 75 | cleanup regression | 74 retained |
-| Host 42 plus cleanup 74/75 | cleanup regression | 42 retained |
-| Exact patch application | source test | passed locally |
-| Complete shell syntax | `/bin/sh -n` | passed locally |
-| Unittest discovery | six unique tests | no duplicate imported cases |
+| Case | Evidence | Selected result |
+| --- | --- | ---: |
+| Host 0/42/124/signal-like 143 | primary matrices | incoming host result when nonzero |
+| Guest 0/nonzero/malformed/missing | primary/event-order matrices | 1 only after host success |
+| Explicit INT/TERM | signal matrices | 130/143 |
+| TERM then INT during cleanup | deterministic barrier | first signal retained |
+| Ordinary EXIT then INT/TERM | deterministic barrier | 130/143 after guest success |
+| Completed guest failure then TERM | event-order matrix | 1 |
+| Cleanup rm 74 then rmdir 75 | cleanup regression | 74 |
+| Signal over cleanup failure after success | event-order matrix | 130/143 |
+| Once-only cleanup | cleanup logs | exactly `rm, rmdir` |
+| Immediate rerun | focused modules | clean success |
+| Patch composition | patches 1–4 | zero fuzz and `/bin/sh -n` |
+| Discovery | repository test suite | no duplicate imported cases |
 
 ## Edge cases deferred or outside scope
 
-| Edge case | Why outside scope | Owner or trigger |
+| Edge case | Why outside scope | Reopening trigger |
 | --- | --- | --- |
-| Complete QEMU/debvm guest execution | high-cost integration | before authorized external packet if justified |
-| Timeout behavior in every signal topology | separate execution topology | contradictory exact evidence |
-| Background tail lifecycle | existing pdeathsig design unchanged | leak or stale log evidence |
-| HUP/QUIT mapping | no current contract selected | separate policy finding |
-| Current public source | pinned import only | refresh before external preparation |
-| Unusual filesystem cleanup failures | reduced status model only | contradictory filesystem evidence |
+| Real QEMU/debvm guest execution | high-cost integration | contradictory reduced evidence or delivery need |
+| Foreground-child/process-group cancellation | separate topology | surviving descendant evidence |
+| HUP/QUIT mapping | no selected contract | explicit policy request |
+| TERM-to-KILL escalation | cleanup is bounded in this proof | uncooperative process evidence |
+| Background tail lifecycle | existing pdeathsig unchanged | leak evidence |
+| Current public source | pinned import only | external preparation authority |
+| Unusual filesystem cleanup | reduced failures only | contradictory filesystem evidence |
 
 ## Exact execution and receipts
 
-| Repository/head | Command or workflow | Result | Evidence class |
+| Repository/head | Gate | Result | Evidence class |
 | --- | --- | --- | --- |
-| local retained tree | primary result/signal module | 4 tests passed | `model-executed` |
-| local retained tree | first cleanup failure module | 2 tests passed | `model-executed` |
-| combined local discovery | `python3 -m unittest discover -v -s tests -p 'test_run_qemu*.py'` | 6 unique tests passed in 2.981s | `model-executed` |
-| `linux-fieldwork#270@14cb0e16…` | exact review `4824831881` | no source-visible repair | `source-read` |
-| same head | Linux Fieldwork CI `30597908319` / 787 | queued | `target-test-prepared` |
+| PR #270 `76ffad2e…` | Linux CI `30623610733` / 828 | passed | `model-executed` / repository gate |
+| PR #282 `e973546c…` | Linux CI `30624661338` / 844 | passed | mechanism gate |
+| PR #304 `0d5864c5…` | Linux CI `30625359304` / 854 | passed | event-order comparison gate |
+| PR #319 `2fe3f993…` | complete review `4828231099` | no source-visible repair | `source-read` |
+| same head | Linux CI `30628645668` / 889 | queued | `target-test-prepared` |
 
-The Python startup spreadsheet-runtime warmup diagnostic was unrelated to these test modules; the unittest process returned 0.
+The component runs validate exact historical generations. They do not replace the composed head's final gate.
 
 ## Complete-diff and compatibility review
 
-- Changed-file fence: retained patch, investigation README, reusable note, primary regression, cleanup regression.
-- Base relationship: one commit ahead of `c35f877b…`, zero behind at generation time.
-- Imported source file is not changed directly; the patch is retained as evidence/candidate material.
-- Compatibility surfaces: host status, guest status, missing/malformed result, INT/TERM identity, cleanup ordering, first cleanup failure, later-work suppression, syntax, discovery.
-- Unchanged surfaces: QEMU/debvm command construction, timeout policy, guest status format, background tail ownership, HUP/QUIT.
-- Current disposition: `EXECUTE`; exact hosted imported-source execution is the only current gate.
+- Direct relation: one commit ahead of current main, zero behind at generation time.
+- File fence: four patches, four investigation records, four reusable notes, five executable modules.
+- Sixteen component blobs transferred byte-identically; only the canonical README changed.
+- Imported product source is not edited directly; the exact patch stack is retained as candidate material.
+- Compatibility surfaces reviewed: host/guest/signal/cleanup ordering, competing signals, missing/malformed guest status, once-only cleanup, rerun, syntax, discovery.
+- Unchanged: QEMU/debvm command construction, timeout policy, guest status format, background follower, HUP/QUIT, process-group policy.
 
 ## Current disposition and desk routing
 
 - Finding state: `delivery-gate-ready`
 - Review disposition: `EXECUTE`
-- Review Queue entry: exact review retained on PR #270
 - Delivery lane: `D2`
-- Exact next transition: classify CI `30597908319`; if green and unchanged with current-enough base, set `land-ready` and merge internally
-- Clearing condition: patch application, shell syntax, both focused modules without duplicate discovery, and repository discovery pass on `14cb0e16…`
-- Required subgates: intended job executed; exact head unchanged; base relationship current enough
+- Exact next transition: classify CI `30628645668`; if green and unchanged, mark PR #319 `land-ready` and retire #270/#282/#304 without merge
+- Clearing condition: all five focused modules, zero-fuzz patches 1–4, complete shell syntax, repository discovery, unchanged seventeen-file fence
 - User decision requested: none
 
 ## Changes to the canonical conclusion
 
 | Date | Record | Change |
 | --- | --- | --- |
-| 2026-07-31 | Linux #269 | recorded host-overwrite question and live checkpoint |
-| 2026-07-31 | reduced matrix | found false signal success and duplicate cleanup in addition to host overwrite |
-| 2026-07-31 | complete-diff review | found and repaired last-cleanup-failure precedence; added nonduplicating cleanup module |
-| 2026-07-31 | PR #270 `14cb0e16…` | published clean current-main five-file candidate with one exact gate |
+| 2026-07-31 | Linux #269/#270 | found host overwrite, false signal success, duplicate cleanup, and first cleanup failure rule |
+| 2026-07-31 | competing-signal review | found second handled signal could replace first and interrupt cleanup |
+| 2026-07-31 | Linux #282 | found first signal during ordinary EXIT cleanup could disappear; mechanism passed CI 844 |
+| 2026-07-31 | Linux #297/#304 | proved completed guest failure precedes later cleanup signal; comparison passed CI 854 |
+| 2026-07-31 | Linux #319 | materialized one current-main seventeen-file composed carrier |
 
 ## References
 
 - https://github.com/teamleaderleo/linux-fieldwork/issues/269
+- https://github.com/teamleaderleo/linux-fieldwork/issues/297
 - https://github.com/teamleaderleo/linux-fieldwork/pull/270
-- https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30597908319
-- https://github.com/teamleaderleo/linux-fieldwork/pull/224
-- https://github.com/teamleaderleo/linux-fieldwork/pull/267
+- https://github.com/teamleaderleo/linux-fieldwork/pull/282
+- https://github.com/teamleaderleo/linux-fieldwork/pull/304
+- https://github.com/teamleaderleo/linux-fieldwork/pull/319
 - https://github.com/teamleaderleo/fieldwork/issues/254
