@@ -7,6 +7,7 @@ from copy import deepcopy
 import json
 import unittest
 
+from decision_currentness import authorization_currentness
 import reconcile as parent
 import reconcile_malformed_authority_candidate as candidate
 import test_reconcile as fixtures
@@ -137,6 +138,43 @@ class MalformedAuthorityCandidateTests(unittest.TestCase):
             (current["status"], current["reason"]),
         )
         self.assertEqual("authorized", projection["effective_authority"]["merge"])
+
+    def test_05_candidate_projection_composes_with_authorization_currentness(self) -> None:
+        record = deepcopy(self.parent.cross_repository)
+        record["authority"]["merge"] = fixtures.authorized(expires_at="not-a-time")
+        record["authority"]["upstream_contact"] = fixtures.authorized(
+            expires_at="2026-08-01T02:30:00Z"
+        )
+        facts = self.parent.live_facts(record)
+        projection = candidate.reconcile(record, facts, fixtures.OBSERVED_AT)
+
+        currentness = authorization_currentness(
+            projection,
+            fixtures.OBSERVED_AT,
+            record,
+            facts,
+        )
+
+        self.assertEqual(
+            ("True", "ExactInputsCurrent"),
+            (
+                currentness["inputs_current"]["status"],
+                currentness["inputs_current"]["reason"],
+            ),
+        )
+        self.assertEqual("denied", currentness["actions"]["merge"]["effective"])
+        self.assertEqual(
+            "NotAuthorized",
+            currentness["actions"]["merge"]["decision_reason"],
+        )
+        self.assertEqual(
+            "authorized",
+            currentness["actions"]["upstream_contact"]["effective"],
+        )
+        self.assertEqual(
+            "True",
+            currentness["actions"]["upstream_contact"]["decision_current"],
+        )
 
 
 if __name__ == "__main__":
