@@ -1,7 +1,7 @@
 diff --git a/AGENTS.md b/AGENTS.md
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -6,7 +6,7 @@ These instructions apply to every AI system and automated worker operating in th
+@@ -9,7 +9,7 @@ These instructions apply to every AI system and automated worker operating in th
  - Search programme hubs, target hubs, open Fieldwork issues, active pull requests, canonical findings, investigation workspaces, active batches, existing experiments, contexts, testbeds, campaign folders, and owned-fork branches before creating work.
  - Treat GitHub issues as live coordination, canonical findings as the current technical answer, workspaces as orientation, and repository files as durable evidence.
  - Work only from an explicit assignment, claimed scout or lane, requested synthesis, user-directed triage task, bounded review task, or bounded fork-free experiment.
