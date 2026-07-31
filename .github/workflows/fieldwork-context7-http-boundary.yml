@@ -1,0 +1,83 @@
+name: Fieldwork Context7 HTTP boundary
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-context7-http-boundary.yml"
+      - "programmes/high-leverage-open-source/scouts/context7-http-boundary/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  characterize:
+    name: Node 22 Linux network boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out Fieldwork carrier
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact Context7 source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: upstash/context7
+          ref: 594a73133e14631af8c915a1b4f2c8039c964fe1
+          path: context7
+          persist-credentials: false
+
+      - name: Verify target and install controls
+        run: |
+          test "$(git -C context7 rev-parse HEAD)" = "594a73133e14631af8c915a1b4f2c8039c964fe1"
+          cp \
+            fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/fieldwork-http-boundary.test.ts \
+            context7/packages/mcp/test/fieldwork-http-boundary.test.ts
+          chmod +x fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/check-http-boundary.sh
+          bash -n fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/check-http-boundary.sh
+
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+        with:
+          version: 10
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: context7/pnpm-lock.yaml
+
+      - name: Install exact dependencies
+        working-directory: context7
+        run: pnpm install --frozen-lockfile
+
+      - name: Build exact MCP package
+        working-directory: context7
+        run: pnpm --filter @upstash/context7-mcp build
+
+      - name: Characterize real HTTP listener and CORS
+        run: >-
+          fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/check-http-boundary.sh
+          context7
+
+      - name: Run forwarded identity controls
+        working-directory: context7
+        run: >-
+          pnpm --filter @upstash/context7-mcp exec vitest run
+          test/client-ip.test.ts
+          test/fieldwork-http-boundary.test.ts
+
+      - name: Run focused static and build gates
+        working-directory: context7
+        run: |
+          pnpm --filter @upstash/context7-mcp exec eslint \
+            test/client-ip.test.ts \
+            test/fieldwork-http-boundary.test.ts
+          pnpm --filter @upstash/context7-mcp exec prettier --check \
+            test/client-ip.test.ts \
+            test/fieldwork-http-boundary.test.ts
+          pnpm --filter @upstash/context7-mcp typecheck
+          pnpm --filter @upstash/context7-mcp build
+          git diff --check
