@@ -1,47 +1,48 @@
 # F371-playwright-mcp-remote-shared-context: remote reachability and shared browser authority are separate controls
 
-Finding state: `research-active`
+Finding state: `delivery-gate-ready`
 
 Canonical issue: `#371`  
 Initiative: `#254`  
 Workstream: `B/C — browser runtime and MCP authority boundaries`  
 Exact package source: `microsoft/playwright-mcp@55679f5f3d4b4f3e2534ec0ce2fc5683ba2eaf3f`  
 Exact shared core source: `microsoft/playwright@368941457a82da112aa8610107e25f4bde94339a`  
-Exact executed carrier: Fieldwork PR `#375` at `2a7b6c45179ac3f9e78b8540702e7e88f849b3fd`  
-Exact target run: `30633739476`, job `91166043729`, success  
-Artifact: `8794430468`, digest `sha256:e53fc07dbfb1dfecd98e5e4a4227c50e8774fe5fb4bc05f880f3f56c73403235`  
-Canonical implementation: documentation patch `evidence/0001-document-http-client-authority.patch`  
+Behavior carrier: closed Fieldwork PR `#375` at `2a7b6c45179ac3f9e78b8540702e7e88f849b3fd`  
+Behavior run: `30633739476`, job `91166043729`, success  
+Behavior artifact: `8794430468`, digest `sha256:e53fc07dbfb1dfecd98e5e4a4227c50e8774fe5fb4bc05f880f3f56c73403235`  
+Help candidate carrier: Fieldwork PR `#377` at `204b96c94dfd2fef3ea4981796b2cb98ceae09a9`  
+Help candidate run: `30634831167`, job `91169666445`, success  
+Help artifact: `8794842941`, digest `sha256:d0347ff4a0ed8408f9c5d01b36b703d931bc5bab8e6ac79da373a6bfcb2d0683`  
+Canonical implementation: `evidence/0001-document-http-client-authority.patch`  
 Strongest evidence class: `target-executed`  
-Current disposition: `EXECUTE documentation candidate`  
+Current disposition: `REVIEW READY — documentation/runtime-help candidate`  
 Upstream contact authorized: `no`
 
 ## In simple words
 
-Playwright MCP is careful about accidental HTTP exposure:
+Playwright MCP already has strong network defaults:
 
-- standard input/output is the default;
+- standard input/output is the default transport;
 - HTTP is optional;
 - HTTP binds to localhost by default;
 - all-interface binding requires an explicit host option;
-- requests must pass a Host-header check.
+- accepted requests must pass a Host-header check.
 
-Those are strong defaults.
+When an operator deliberately enables non-loopback HTTP and `--shared-browser-context`, another authority boundary appears. Host validation prevents DNS rebinding; it does not authenticate a client. Every accepted HTTP session shares one browser context and can observe and control the same tabs, cookies, storage, and page state.
 
-When an operator deliberately enables remote-equivalent HTTP and `--shared-browser-context`, a separate authority boundary appears. Host validation prevents DNS rebinding; it does not authenticate a client. Every accepted HTTP session shares one browser context and can observe and control the same tabs, cookies, storage, and page state.
-
-Exact target execution confirms that composition and also confirms bounded final cleanup.
+Exact target execution confirms that composition and confirms bounded final cleanup. The selected repair changes help text only.
 
 ## Five separate controls
 
 1. **Bind authority** — which interfaces accept connections.
-2. **Host validation** — which HTTP Host values pass DNS-rebinding defense.
+2. **Host validation** — which Host values pass DNS-rebinding defense.
 3. **Client authentication** — which principal may create a session.
 4. **Session identity** — which actions and resources belong to one client.
 5. **Browser-context sharing** — whether separate sessions intentionally share browser state.
 
-Passing one control does not establish the others.
+One passing control does not establish the others.
 
-## Source map
+## Exact source map
 
 At shared core head `3689414...`:
 
@@ -51,24 +52,24 @@ At shared core head `3689414...`:
 - `--allowed-hosts` defaults to the normalized listener Host;
 - `--allowed-hosts=*` disables the Host check;
 - accepted requests can create streamable HTTP or legacy SSE sessions;
-- no bearer token, client certificate, user identity, or equivalent client-authentication decision is visible in the inspected handler;
+- no bearer token, client certificate, user identity, or equivalent authentication decision is visible in the inspected HTTP handler;
 - `--shared-browser-context` reuses one browser context across clients.
 
-The upstream suite already tests default Host rejection and loopback shared-context behavior. Fieldwork added the missing explicit remote-equivalent composition.
+The upstream suite already covers default Host rejection and loopback shared-context behavior. Fieldwork executed the missing explicit remote-equivalent composition.
 
-## Exact target matrix
+## Exact behavior matrix
 
-Fieldwork PR #375 executed exact Playwright source on Ubuntu 24.04, Node 22, and Chromium.
+Fieldwork PR #375 ran exact Playwright source on Ubuntu 24.04, Node 22, and Chromium.
 
-The workflow:
+The successful job:
 
 - verified exact Fieldwork and target heads;
 - installed 638 target dependencies;
-- built exact Playwright source;
+- built exact source;
 - installed Chromium and runner dependencies;
-- ran the complete upstream `tests/mcp/http.spec.ts` file;
+- ran the complete target `tests/mcp/http.spec.ts` file;
 - ran two target-native Fieldwork controls through the same fixtures;
-- uploaded logs, a target report, and an exact-head receipt.
+- uploaded logs, target report, and exact-head receipt.
 
 Result:
 
@@ -88,9 +89,9 @@ With explicit `--host=0.0.0.0`, `--allowed-hosts=*`, and connection through the 
 
 ### Shared-context positive control
 
-With the same remote-equivalent transport plus `--shared-browser-context`:
+With the same transport plus `--shared-browser-context`:
 
-- client 1 opened a disposable local page;
+- client 1 opened the disposable page;
 - client 2 saw that page in its own tab list;
 - client 1 disconnected;
 - client 2 continued using the shared browser successfully;
@@ -110,23 +111,68 @@ The behavior is intentional and internally coherent:
 - first-client disconnect does not revoke the remaining client's shared authority;
 - final-client disconnect closes the shared browser.
 
-The actionable gap is guidance rather than transport behavior. Current help describes Host validation as DNS-rebinding defense and says shared context is reused across clients. It does not state plainly that Host validation is not authentication or that every accepted client shares browser authority.
+The actionable gap is guidance. Current help describes Host validation as DNS-rebinding defense and says the browser context is reused across clients. It does not state plainly that Host validation is not authentication or name the browser authority shared by every accepted client.
 
 ## Selected repair
-
-### Documentation/runtime-help boundary — selected
 
 Retained patch:
 
 `evidence/0001-document-http-client-authority.patch`
 
-It changes only three CLI help strings:
+It changes three CLI descriptions only:
 
-- `--allowed-hosts`: explicitly says the check does not authenticate clients;
+- `--allowed-hosts`: states that the check does not authenticate clients;
 - `--host`: recommends a trusted authenticated network boundary or reverse proxy for non-loopback HTTP;
-- `--shared-browser-context`: explicitly names shared tabs, cookies, storage, and page control.
+- `--shared-browser-context`: names shared tabs, cookies, storage, and page control.
 
-This preserves current behavior and safe defaults while making the composed authority model difficult to mistake.
+No transport, session, authentication, browser, or default behavior changes.
+
+## Exact help-candidate receipt
+
+Fieldwork PR #377 applied the retained patch to exact shared-core source.
+
+Final run `30634831167`, job `91169666445`, passed:
+
+- exact Fieldwork and target-head verification;
+- ordinary zero-fuzz, whitespace-clean patch application;
+- one-file target diff enforcement;
+- exact dependency installation;
+- complete target build;
+- generated `Playwright MCP --help` execution;
+- whitespace-normalized semantic assertions for all three authority statements;
+- `git diff --check`;
+- JSON receipt and raw-help artifact upload;
+- Fieldwork integrity `30634831152`, job `91169666324`.
+
+Generated help contains:
+
+```text
+This is DNS-rebinding protection and does not authenticate clients.
+```
+
+```text
+Non-loopback HTTP should be protected by a trusted authenticated network boundary or reverse proxy.
+```
+
+```text
+Every accepted client can observe and control the shared tabs, cookies, storage, and page state.
+```
+
+## Carrier repair history
+
+### Behavior carrier first run
+
+Run `30633035608` stopped before target installation because the workflow checked the synthetic PR merge ref while expecting the branch head. The exact-head checkout repair was the only carrier change.
+
+### Help candidate first run
+
+Run `30634283260` stopped before target installation because the retained patch used zero-context one-line hunks. The artifact was repaired with exact surrounding source context rather than weakening Git's application gate.
+
+### Help candidate second run
+
+Run `30634703157` applied the patch and built exact source. Generated help contained all required text, while literal line-based assertions failed because Commander wrapped two phrases. The final carrier retained the raw help and normalized whitespace for semantic assertions.
+
+These are carrier/harness failures and do not contradict the selected candidate.
 
 ## Alternatives
 
@@ -140,7 +186,7 @@ Remote binding and shared context are both explicit operator choices. The execut
 
 ### External authenticated proxy contract — compatible
 
-The selected help wording can recommend this boundary without hard-coding a particular authentication mechanism.
+The selected wording recommends this boundary without hard-coding one authentication mechanism.
 
 ## Evidence table
 
@@ -152,19 +198,16 @@ The selected help wording can recommend this boundary without hard-coding a part
 | Explicit remote-equivalent shared clients use one browser authority domain. | `target-executed` | same runner and disposable local page |
 | Remaining client keeps shared authority after first-client disconnect. | `target-executed` | streamable HTTP sessions |
 | Final-client disconnect closes the shared browser. | `target-executed` | target debug lifecycle counters |
+| Three-string help patch applies, builds, and appears in runtime help. | `target-executed` | exact pinned target and one generated-help surface |
 | Public exploitability or deployment prevalence. | `not established` | no production deployment or external target |
 | Built-in authentication is the correct repair. | `not established` | deployment architecture comparison pending |
-
-## Carrier history
-
-The first execution run `30633035608` failed before target installation because the carrier checked the synthetic PR merge ref while expecting the branch head. Head `2a7b6c4...` pinned the checkout to the exact PR head. That first run is carrier-failure evidence only.
+| Public upstream acceptance. | `not established` | no upstream contact authorized |
 
 ## Exact next transition
 
-1. apply the retained documentation patch to exact shared core source;
-2. require zero-fuzz application, build, generated CLI help, and focused help-text assertions;
-3. transfer the receipt into this finding;
-4. retire the temporary workflow carrier;
-5. obtain one eligible review before any delivery or upstream-submission claim.
+1. close the temporary help workflow carrier after receipt transfer;
+2. run Fieldwork integrity on this workflow-free finding generation;
+3. obtain one eligible complete-diff review of the finding, evidence, and retained patch;
+4. only separate public-upstream authority may permit submission.
 
-No merge, release, deployment, real credential, private browsing data, spending, or public upstream interaction is authorized.
+No merge, release, deployment, real credential, private browser data, spending, or public upstream interaction is authorized.
