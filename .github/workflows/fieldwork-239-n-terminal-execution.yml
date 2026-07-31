@@ -1,0 +1,224 @@
+name: Fieldwork 239 lane N terminal execution
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/fieldwork-239-n-terminal-execution.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fieldwork-239-n-terminal-execution
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  UPSTREAM_HEAD: 97576b1794872e342450ebd577123e052ab57626
+  HISTORICAL_SOURCE: 7db66fe3f235df77c36a9db521677e23379bcac5
+  CARRIER_HEAD: c4e0de2e54d804d1054afb90c30b7150a774151c
+
+jobs:
+  reconstruct-test-export:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out reviewed Codex carrier
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/codex
+          ref: ${{ env.CARRIER_HEAD }}
+          path: codex
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Extract reviewed source scripts
+        shell: python
+        run: |
+          from pathlib import Path
+
+          workflow = Path(
+              'codex/.github/workflows/fieldwork-terminal-acd540-restack.yml'
+          ).read_text(encoding='utf-8').splitlines()
+          steps = {
+              'Restack historical source and preserve current source work': '/tmp/restack.sh',
+              'Verify source fence and format': '/tmp/format.sh',
+          }
+          for name, destination in steps.items():
+              step = workflow.index(f'      - name: {name}')
+              run_line = next(
+                  index
+                  for index in range(step + 1, len(workflow))
+                  if workflow[index].strip() == 'run: |'
+              )
+              end = next(
+                  (
+                      index
+                      for index in range(run_line + 1, len(workflow))
+                      if workflow[index].startswith('      - name: ')
+                  ),
+                  len(workflow),
+              )
+              script_lines = []
+              for line in workflow[run_line + 1 : end]:
+                  if line.startswith('          '):
+                      script_lines.append(line[10:])
+                  elif line.strip():
+                      raise SystemExit(
+                          f'unexpected indentation in {name}: {line!r}'
+                      )
+                  else:
+                      script_lines.append('')
+              Path(destination).write_text(
+                  '\n'.join(script_lines) + '\n',
+                  encoding='utf-8',
+              )
+
+      - name: Fetch exact Codex source refs
+        working-directory: codex
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=2 https://github.com/teamleaderleo/codex.git \
+            refs/heads/fieldwork/upstream-97576-base:refs/remotes/origin/fieldwork/upstream-97576-base \
+            refs/heads/fieldwork/23-terminal-current-upstream:refs/remotes/origin/fieldwork/23-terminal-current-upstream
+          git checkout --detach "$UPSTREAM_HEAD"
+          test "$(git rev-parse HEAD)" = "$UPSTREAM_HEAD"
+          test "$(git rev-parse origin/fieldwork/23-terminal-current-upstream)" = "$HISTORICAL_SOURCE"
+          test -z "$(git status --short)"
+          echo "FIELDWORK_TERMINAL_INPUT_BASE=$UPSTREAM_HEAD"
+          echo "FIELDWORK_TERMINAL_INPUT_SOURCE=$HISTORICAL_SOURCE"
+          echo "FIELDWORK_TERMINAL_CARRIER_HEAD=$CARRIER_HEAD"
+
+      - uses: ./codex/.github/actions/setup-ci
+
+      - uses: dtolnay/rust-toolchain@e081816240890017053eacbb1bdf337761dc5582
+        with:
+          toolchain: 1.95.0
+          components: rustfmt
+
+      - uses: taiki-e/install-action@44c6d64aa62cd779e873306675c7a58e86d6d532
+        with:
+          tool: cargo-nextest
+
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: "0.11.3"
+
+      - name: Reconstruct current Codex source
+        working-directory: codex
+        run: bash /tmp/restack.sh
+
+      - name: Format and verify four-file fence
+        working-directory: codex
+        run: bash /tmp/format.sh
+
+      - name: Resolve and execute nine exact controls through just
+        working-directory: codex/codex-rs
+        run: |
+          set -euo pipefail
+          cargo nextest list -p codex-core --lib --message-format json > /tmp/tests.json
+          python3 <<'PY' > /tmp/resolved-tests
+          import json
+          from pathlib import Path
+
+          suffixes = (
+              'local_output_task_retains_stdout_before_best_effort_broadcast',
+              'local_output_task_retains_invalid_utf8_when_broadcast_lags',
+              'completed_item_includes_output_emitted_before_subscription',
+              'reconcile_transcript_replaces_partial_stream_with_authoritative_output',
+              'split_valid_utf8_prefix_respects_max_bytes_for_ascii',
+              'split_valid_utf8_prefix_avoids_splitting_utf8_codepoints',
+              'split_valid_utf8_prefix_makes_progress_on_invalid_utf8',
+              'split_valid_utf8_prefix_consumes_all_valid_bytes_before_invalid_utf8',
+              'split_invalid_utf8_advances_without_shifting_remaining_bytes',
+          )
+          listing = json.loads(Path('/tmp/tests.json').read_text(encoding='utf-8'))
+          tests = []
+          for suite in listing['rust-suites'].values():
+              for name, testcase in suite['testcases'].items():
+                  if testcase['filter-match']['status'] == 'matches':
+                      tests.append(name)
+
+          resolved = []
+          for suffix in suffixes:
+              matches = sorted(name for name in tests if name.endswith(suffix))
+              print(f'{suffix} matches: {matches}', file=__import__('sys').stderr)
+              if len(matches) != 1:
+                  raise SystemExit(
+                      f'expected exactly one full test name for {suffix}, found {len(matches)}'
+                  )
+              resolved.append(matches[0])
+
+          if len(set(resolved)) != len(suffixes):
+              raise SystemExit('resolved test names are not unique')
+          print('\n'.join(resolved))
+          PY
+
+          count=0
+          while IFS= read -r test_name; do
+            printf 'exact test: %s\n' "$test_name"
+            just test -p codex-core --lib -E "test(=$test_name)" --no-tests=fail
+            count=$((count + 1))
+          done < /tmp/resolved-tests
+          test "$count" -eq 9
+          echo 'FIELDWORK_TERMINAL_97576_EXACT=9/9'
+
+      - name: Execute codex-core library and integration compile gates
+        working-directory: codex/codex-rs
+        run: |
+          set -euo pipefail
+          just test -p codex-core --lib
+          cargo test -p codex-core --tests --no-run
+
+      - name: Export exact source commit and files
+        working-directory: codex
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$UPSTREAM_HEAD"
+          test "$(git rev-list --count "$UPSTREAM_HEAD"..HEAD)" -eq 1
+          git diff --name-only "$UPSTREAM_HEAD"...HEAD | sort > /tmp/source-files
+          cat > /tmp/expected-files <<'EOF'
+          codex-rs/core/src/unified_exec/async_watcher.rs
+          codex-rs/core/src/unified_exec/async_watcher_tests.rs
+          codex-rs/core/src/unified_exec/process.rs
+          codex-rs/core/src/unified_exec/process_tests.rs
+          EOF
+          diff -u /tmp/expected-files /tmp/source-files
+          git diff --check "$UPSTREAM_HEAD"...HEAD
+
+          output="$RUNNER_TEMP/fieldwork-terminal-97576"
+          mkdir -p "$output"
+          git format-patch --binary --stdout "$UPSTREAM_HEAD"..HEAD > "$output/source.patch"
+          tar -czf "$output/source-files.tar.gz" \
+            codex-rs/core/src/unified_exec/process.rs \
+            codex-rs/core/src/unified_exec/process_tests.rs \
+            codex-rs/core/src/unified_exec/async_watcher.rs \
+            codex-rs/core/src/unified_exec/async_watcher_tests.rs
+          {
+            echo "source_base=$UPSTREAM_HEAD"
+            echo "historical_source=$HISTORICAL_SOURCE"
+            echo "carrier_head=$CARRIER_HEAD"
+            echo "source_head=$(git rev-parse HEAD)"
+            echo "source_tree=$(git rev-parse HEAD^{tree})"
+            echo "source_parent=$(git rev-parse HEAD^)"
+            echo "source_commit_count=$(git rev-list --count "$UPSTREAM_HEAD"..HEAD)"
+            echo "exact_controls=9/9"
+            echo "library_gate=executed"
+            echo "integration_gate=compiled-only"
+            echo "runner=$RUNNER_OS"
+          } > "$output/metadata.txt"
+          cp /tmp/resolved-tests "$output/resolved-tests.txt"
+          cp /tmp/source-files "$output/source-files.txt"
+          sha256sum "$output"/* > "$output/SHA256SUMS"
+          cat "$output/metadata.txt"
+          cat "$output/SHA256SUMS"
+
+      - name: Upload tested source artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: fieldwork-terminal-97576-source
+          path: ${{ runner.temp }}/fieldwork-terminal-97576
+          if-no-files-found: error
+          retention-days: 14
