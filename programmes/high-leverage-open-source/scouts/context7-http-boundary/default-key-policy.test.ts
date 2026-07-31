@@ -2,10 +2,8 @@ import { createDecipheriv } from "crypto";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 const CLIENT_IP = "198.51.100.77";
-const PUBLIC_DEFAULT_KEY =
-  "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
-const EXPLICIT_TEST_KEY =
-  "f00102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1eff";
+const PUBLIC_DEFAULT_KEY = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+const EXPLICIT_TEST_KEY = "f00102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1eff";
 const MISSING_KEY_MESSAGE =
   "CLIENT_IP_ENCRYPTION_KEY is required; omitting mcp-client-ip metadata.";
 
@@ -14,9 +12,7 @@ type Candidate = "compatibility-retained" | "explicit-key-only";
 function candidate(): Candidate {
   const value = process.env.FIELDWORK_CANDIDATE;
   if (value !== "compatibility-retained" && value !== "explicit-key-only") {
-    throw new Error(
-      "FIELDWORK_CANDIDATE must name one exact default-key policy candidate",
-    );
+    throw new Error("FIELDWORK_CANDIDATE must name one exact default-key policy candidate");
   }
   return value;
 }
@@ -39,7 +35,7 @@ function decryptClientIp(value: string, key: string): string {
   const decipher = createDecipheriv(
     "aes-256-cbc",
     Buffer.from(key, "hex"),
-    Buffer.from(ivHex, "hex"),
+    Buffer.from(ivHex, "hex")
   );
   let plaintext = decipher.update(ciphertextHex, "hex", "utf8");
   plaintext += decipher.final("utf8");
@@ -54,9 +50,7 @@ function decryptClientIpOrNull(value: string, key: string): string | null {
   }
 }
 
-function generate(
-  generateHeaders: Awaited<ReturnType<typeof loadGenerateHeaders>>,
-) {
+function generate(generateHeaders: Awaited<ReturnType<typeof loadGenerateHeaders>>) {
   return generateHeaders({
     clientIp: CLIENT_IP,
     sessionId: "session-default-policy",
@@ -92,12 +86,8 @@ describe.sequential("Context7 client-IP default-key policy", () => {
       expectUnrelatedHeaders(headers);
 
       if (selected === "compatibility-retained") {
-        expect(headers["mcp-client-ip"]).toMatch(
-          /^[0-9a-f]{32}:[0-9a-f]+$/,
-        );
-        expect(
-          decryptClientIp(headers["mcp-client-ip"], PUBLIC_DEFAULT_KEY),
-        ).toBe(CLIENT_IP);
+        expect(headers["mcp-client-ip"]).toMatch(/^[0-9a-f]{32}:[0-9a-f]+$/);
+        expect(decryptClientIp(headers["mcp-client-ip"], PUBLIC_DEFAULT_KEY)).toBe(CLIENT_IP);
         expect(diagnostic).not.toHaveBeenCalled();
       } else {
         expect(headers).not.toHaveProperty("mcp-client-ip");
@@ -133,12 +123,8 @@ describe.sequential("Context7 client-IP default-key policy", () => {
     expectUnrelatedHeaders(headers);
     expect(headers["mcp-client-ip"]).toMatch(/^[0-9a-f]{32}:[0-9a-f]+$/);
     expect(headers["mcp-client-ip"]).not.toContain(CLIENT_IP);
-    expect(decryptClientIp(headers["mcp-client-ip"], EXPLICIT_TEST_KEY)).toBe(
-      CLIENT_IP,
-    );
-    expect(
-      decryptClientIpOrNull(headers["mcp-client-ip"], PUBLIC_DEFAULT_KEY),
-    ).not.toBe(CLIENT_IP);
+    expect(decryptClientIp(headers["mcp-client-ip"], EXPLICIT_TEST_KEY)).toBe(CLIENT_IP);
+    expect(decryptClientIpOrNull(headers["mcp-client-ip"], PUBLIC_DEFAULT_KEY)).not.toBe(CLIENT_IP);
     expect(diagnostic).not.toHaveBeenCalled();
   });
 });
