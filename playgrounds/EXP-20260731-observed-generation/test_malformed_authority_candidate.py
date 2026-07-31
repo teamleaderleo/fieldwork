@@ -9,16 +9,12 @@ import unittest
 
 import reconcile as parent
 import reconcile_malformed_authority_candidate as candidate
-from test_reconcile import (
-    OBSERVED_AT,
-    ObservedGenerationPilotTests,
-    authorized,
-)
+import test_reconcile as fixtures
 
 
 class MalformedAuthorityCandidateTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.parent = ObservedGenerationPilotTests(methodName="runTest")
+        self.parent = fixtures.ObservedGenerationPilotTests(methodName="runTest")
         self.parent.setUp()
 
     @staticmethod
@@ -41,22 +37,22 @@ class MalformedAuthorityCandidateTests(unittest.TestCase):
         record = deepcopy(self.parent.cross_repository)
         facts = self.parent.live_facts(record)
 
-        expected = parent.reconcile(record, facts, OBSERVED_AT)
-        actual = candidate.reconcile(record, facts, OBSERVED_AT)
+        expected = parent.reconcile(record, facts, fixtures.OBSERVED_AT)
+        actual = candidate.reconcile(record, facts, fixtures.OBSERVED_AT)
 
         self.assertEqual(expected, actual)
 
     def test_02_malformed_canonical_time_denies_only_that_action(self) -> None:
         record = deepcopy(self.parent.cross_repository)
-        record["authority"]["merge"] = authorized(expires_at="not-a-time")
-        record["authority"]["upstream_contact"] = authorized(
+        record["authority"]["merge"] = fixtures.authorized(expires_at="not-a-time")
+        record["authority"]["upstream_contact"] = fixtures.authorized(
             expires_at="2026-08-01T02:30:00Z"
         )
         facts = self.parent.live_facts(record)
         record_before = json.dumps(record, sort_keys=True)
         facts_before = json.dumps(facts, sort_keys=True)
 
-        projection = candidate.reconcile(record, facts, OBSERVED_AT)
+        projection = candidate.reconcile(record, facts, fixtures.OBSERVED_AT)
 
         malformed = self.authority_condition(projection, "merge")
         current = self.authority_condition(projection, "upstream_contact")
@@ -90,17 +86,17 @@ class MalformedAuthorityCandidateTests(unittest.TestCase):
 
     def test_03_timezone_naive_expiry_is_also_isolated(self) -> None:
         record = deepcopy(self.parent.cross_repository)
-        record["authority"]["release"] = authorized(
+        record["authority"]["release"] = fixtures.authorized(
             expires_at="2026-08-01T02:30:00"
         )
-        record["authority"]["deploy"] = authorized(
+        record["authority"]["deploy"] = fixtures.authorized(
             expires_at=None,
             revocation_record="authority/deploy@v1",
         )
         facts = self.parent.live_facts(record)
         facts["authority_revocations"] = {"authority/deploy@v1": False}
 
-        projection = candidate.reconcile(record, facts, OBSERVED_AT)
+        projection = candidate.reconcile(record, facts, fixtures.OBSERVED_AT)
 
         malformed = self.authority_condition(projection, "release")
         current = self.authority_condition(projection, "deploy")
@@ -117,13 +113,15 @@ class MalformedAuthorityCandidateTests(unittest.TestCase):
 
     def test_04_non_string_expiry_is_isolated(self) -> None:
         record = deepcopy(self.parent.cross_repository)
-        record["authority"]["material_spending"] = authorized(expires_at=12345)
-        record["authority"]["merge"] = authorized(
+        record["authority"]["material_spending"] = fixtures.authorized(
+            expires_at=12345
+        )
+        record["authority"]["merge"] = fixtures.authorized(
             expires_at="2026-08-01T02:30:00Z"
         )
         facts = self.parent.live_facts(record)
 
-        projection = candidate.reconcile(record, facts, OBSERVED_AT)
+        projection = candidate.reconcile(record, facts, fixtures.OBSERVED_AT)
 
         malformed = self.authority_condition(projection, "material_spending")
         current = self.authority_condition(projection, "merge")
@@ -131,7 +129,9 @@ class MalformedAuthorityCandidateTests(unittest.TestCase):
             ("Unknown", "InvalidAuthorityTime"),
             (malformed["status"], malformed["reason"]),
         )
-        self.assertEqual("denied", projection["effective_authority"]["material_spending"])
+        self.assertEqual(
+            "denied", projection["effective_authority"]["material_spending"]
+        )
         self.assertEqual(
             ("True", "AuthorityCurrent"),
             (current["status"], current["reason"]),
