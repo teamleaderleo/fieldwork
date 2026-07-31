@@ -1,0 +1,60 @@
+{
+  "id": "pilot-comparative-alternatives",
+  "spec_generation": "comparison-spec-v1",
+  "invariant_id": "one-finding-multiple-surfaces",
+  "parent_issue": {"repository": "teamleaderleo/fieldwork", "number": 325},
+  "phase": "comparative-evaluation-active",
+  "canonical_source": {
+    "repository": "teamleaderleo/example-source",
+    "branch": "fieldwork/preferred-source",
+    "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "review": {"disposition": "EXECUTE", "exact_head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "active_carriers": [
+    {
+      "id": "bounded-repair-carrier",
+      "repository": "teamleaderleo/fieldwork",
+      "pull_request": 900,
+      "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state": "active",
+      "purpose": "Execute the preferred source and bounded repair controls."
+    }
+  ],
+  "alternatives": [
+    {
+      "id": "bounded-repair",
+      "repository": "teamleaderleo/example-source",
+      "branch": "fieldwork/bounded-repair",
+      "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "role": "repair-candidate",
+      "state": "active",
+      "review": {"disposition": "EXECUTE", "exact_head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+      "losing_reason": null,
+      "reopening_triggers": []
+    },
+    {
+      "id": "staged-ownership",
+      "repository": "teamleaderleo/example-source",
+      "branch": "fieldwork/staged-ownership",
+      "head": "cccccccccccccccccccccccccccccccccccccccc",
+      "role": "active-comparison",
+      "state": "active",
+      "review": {"disposition": "EXECUTE", "exact_head": "cccccccccccccccccccccccccccccccccccccccc"},
+      "losing_reason": null,
+      "reopening_triggers": []
+    },
+    {
+      "id": "automatic-rollback",
+      "repository": "teamleaderleo/example-source",
+      "branch": "fieldwork/automatic-rollback",
+      "head": "dddddddddddddddddddddddddddddddddddddddd",
+      "role": "retained-loser",
+      "state": "retained",
+      "review": {"disposition": "REJECT", "exact_head": "dddddddddddddddddddddddddddddddddddddddd"},
+      "losing_reason": "It erases producer-specific failure state needed by the caller.",
+      "reopening_triggers": ["caller contract changes", "new compatibility precedent"]
+    }
+  ],
+  "authority": {},
+  "terminal": null
+}
