@@ -35,6 +35,7 @@ jobs:
           repository: teamleaderleo/playwright
           ref: a834222d585371636eea7fd013e551fb819d9f7d
           path: playwright
+          fetch-depth: 3
           persist-credentials: false
 
       - name: Set up Node 22
@@ -49,12 +50,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          base=368941457a82da112aa8610107e25f4bde94339a
+          expected=$'packages/playwright-core/src/tools/utils/mcp/http.ts\ntests/mcp/remote-shutdown-authority.spec.ts'
           test "$(git -C fieldwork rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           test "$(git -C playwright rev-parse HEAD)" = "a834222d585371636eea7fd013e551fb819d9f7d"
-          test "$(git -C playwright merge-base HEAD 368941457a82da112aa8610107e25f4bde94339a)" = "368941457a82da112aa8610107e25f4bde94339a"
-          test "$(git -C playwright diff --name-only 368941457a82da112aa8610107e25f4bde94339a...HEAD | wc -l | tr -d ' ')" = "2"
+          test "$(git -C playwright merge-base HEAD "$base")" = "$base"
+          test "$(git -C playwright diff --name-only "$base"...HEAD)" = "$expected"
           mkdir -p fieldwork-receipts
-          git -C playwright diff --binary 368941457a82da112aa8610107e25f4bde94339a...HEAD > "fieldwork-receipts/direct-source-${{ matrix.os }}.diff"
+          git -C playwright diff --binary "$base"...HEAD > "fieldwork-receipts/direct-source-${{ matrix.os }}.diff"
 
       - name: Install exact dependencies
         id: install
@@ -107,12 +110,12 @@ jobs:
         working-directory: playwright
         run: |
           set -euo pipefail
-          git diff --check 368941457a82da112aa8610107e25f4bde94339a...HEAD
-          mapfile -t files < <(git diff --name-only 368941457a82da112aa8610107e25f4bde94339a...HEAD)
-          printf '%s\n' "${files[@]}"
-          test "${#files[@]}" = "2"
-          test "${files[0]}" = "packages/playwright-core/src/tools/utils/mcp/http.ts"
-          test "${files[1]}" = "tests/mcp/remote-shutdown-authority.spec.ts"
+          base=368941457a82da112aa8610107e25f4bde94339a
+          expected=$'packages/playwright-core/src/tools/utils/mcp/http.ts\ntests/mcp/remote-shutdown-authority.spec.ts'
+          git diff --check "$base"...HEAD
+          files="$(git diff --name-only "$base"...HEAD)"
+          printf '%s\n' "$files"
+          test "$files" = "$expected"
 
       - name: Assemble direct-source platform receipt
         if: always()
