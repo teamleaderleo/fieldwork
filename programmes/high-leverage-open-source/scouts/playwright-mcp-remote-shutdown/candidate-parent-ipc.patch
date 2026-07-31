@@ -1,7 +1,7 @@
 diff --git a/packages/playwright-core/src/entry/mcp.ts b/packages/playwright-core/src/entry/mcp.ts
 --- a/packages/playwright-core/src/entry/mcp.ts
 +++ b/packages/playwright-core/src/entry/mcp.ts
-@@ -17,6 +17,29 @@ import { program } from 'commander';
+@@ -17,6 +17,32 @@ import { program } from 'commander';
  import { tools, utils } from '../coreBundle';
  import { packageJSON } from '../package';
  
@@ -96,7 +96,7 @@ diff --git a/tests/mcp/http.spec.ts b/tests/mcp/http.spec.ts
  
    const transport = new StreamableHTTPClientTransport(new URL('/mcp', url));
    const client = new Client({ name: 'test', version: '1.0.0' });
-@@ -145,7 +145,36 @@ test('http transport browser sigint', async ({ serverEndpoint, server }) => {
+@@ -145,14 +145,40 @@ test('http transport browser sigint', async ({ serverEndpoint, server }) => {
      arguments: { url: server.HELLO_WORLD },
    });
  
