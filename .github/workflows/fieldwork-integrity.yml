@@ -27,3 +27,7 @@ jobs:
         run: python3 scripts/test_coordination_views.py
       - name: Render empty coordination views
         run: python3 scripts/render_coordination_views.py --output-dir /tmp/coordination-views
+      - name: Test coordination reconciliation controllers
+        run: python3 scripts/test_coordination_audit.py
+      - name: Reconcile empty coordination state with retained facts template
+        run: python3 scripts/audit_coordination.py --facts templates/coordination-live-facts.json --output-dir /tmp/coordination-audit
