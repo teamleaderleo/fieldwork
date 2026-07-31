@@ -27,6 +27,8 @@ assist:<UTC date>:<short random or assignment id>
 worker:<role>:<UTC date>:<short random or assignment id>
 ```
 
+Both identifiers must be 1–160 ASCII characters, begin with the appropriate `assist:` or `worker:` prefix, and otherwise contain only lowercase letters, digits, `.`, `_`, `:`, or `-`. Whitespace, control characters, Unicode confusables, path separators, query fragments, and line breaks are invalid.
+
 These identifiers must not contain credentials, tokens, private chat or session identifiers, personal data, hostnames, filesystem paths, provider request IDs, or other private infrastructure details. They are attribution and correlation metadata, not authentication, write authority, or proof of independent-review eligibility.
 
 The same assistance ID appears in the claim, completion, and any supersession receipt. Never recycle an assistance ID for another bounded question or target generation.
