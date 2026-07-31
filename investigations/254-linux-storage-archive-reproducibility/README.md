@@ -19,9 +19,17 @@ This workspace records five practical lessons from Linux Fieldwork:
 
 The consequential repairs are already merged locally in Linux Fieldwork. The remaining work is evidence synchronization: exact-head closeout records in Linux PR #249 and canonical findings in this Fieldwork stack.
 
+`closed` and `stopped` apply only to the bounded findings below. They do not declare the surrounding subjects dead. [`research-avenues.md`](research-avenues.md) preserves adjacent questions, smallest safe probes, blockers, and reopening triggers so interruption, missing capability, or an authority boundary cannot erase the research map.
+
 ## Why this matters
 
 These are not novelty claims. They are boundary failures that can corrupt cached bytes, delete the wrong tree, silently rename archive members, misclassify expected variance as a defect, or duplicate active work. The useful result is knowing which invariant owns each failure and leaving enough exact evidence that the next worker does not repeat the investigation.
+
+## How to read the states
+
+- `closed` means the exact bounded repair or evidence unit completed its local transition. It does not close adjacent research avenues.
+- `stopped` means the current defect premise or implementation should not continue now. The evidence and reopening trigger remain retained.
+- A skipped job, unavailable environment, policy restriction, safety boundary, or prohibited public interaction is not a technical negative result. It must be recorded as a blocker or evidence limit.
 
 ## Canonical finding index
 
@@ -64,15 +72,19 @@ The local PPMd refill-accounting candidate overlapped an active equivalent publi
 
 ## Missing evidence and reopening triggers
 
+The compact list below is expanded into concrete questions, smallest safe probes, and continuity rules in [`research-avenues.md`](research-avenues.md).
+
 - Cache: reopen for same-UID pathname replacement races, miss coalescing, crash durability, checksum policy, remote deployment, or broader URI syntax.
 - Output-root guard: reopen if same-UID mutation after validation produces an escaping deletion path or if additional cleanup roots are proposed.
-- Tarfilter: reopen for locale-sensitive ranges, POSIX bracket constructs, GNU alphabetic escapes, malformed-diagnostic parity, or denial-of-service limits.
+- Tarfilter: reopen for locale-sensitive ranges, POSIX bracket constructs, GNU alphabetic escapes, malformed-diagnostic parity, denial-of-service limits, expression-state composition, or broader archive metadata.
 - Reproducibility: reopen with a new package, toolchain, architecture, format, or controlled factor that produces unexplained package-content variance.
 - Ecosystem overlap: reopen only after a fresh read-only check shows the equivalent fix is closed, abandoned, materially different, or absent from a released version that still carries the defect.
+- Cross-cutting: retain stale-state automation, skipped-job classification, and composition-first review heuristics as active research avenues.
 
 ## Canonical outputs
 
 - canonical technical conclusions: the five root `findings/F254-*` files;
+- adjacent research and interruption continuity: [`research-avenues.md`](research-avenues.md);
 - Linux executable evidence: the linked Linux Fieldwork investigation and test paths;
 - Linux exact-state synchronization: PR #249;
 - initiative routing: issue #254 comments;
@@ -83,5 +95,6 @@ The local PPMd refill-accounting candidate overlapped an active equivalent publi
 1. Read Linux Fieldwork CI run 720 for PR #249 and classify any failure before editing.
 2. Keep this finding stack rebased on the current protocol branch if PR #283 moves.
 3. Run Fieldwork integrity on the exact finding head.
-4. Request independent review of the complete finding and Linux-record diffs.
-5. Do not merge, release, deploy, or contact public upstream without separate authority.
+4. Request independent review of the complete finding, avenues, and Linux-record diffs.
+5. When future work is interrupted, append the question, evidence, blocker, smallest safe probe, and reopening trigger before ending.
+6. Do not merge, release, deploy, or contact public upstream without separate authority.
