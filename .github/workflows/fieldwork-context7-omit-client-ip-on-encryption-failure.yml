@@ -49,8 +49,9 @@ jobs:
           printf '%s\n' "FIELDWORK_CONTEXT7_TARGET_IDENTITY=passed"
           patch_path="${GITHUB_WORKSPACE}/fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/malformed-key-omit-metadata.patch"
           actual_patch_sha=$(sha256sum "${patch_path}" | cut -d' ' -f1)
+          test "$(printf '%s' "${actual_patch_sha}" | wc -c)" -eq 64
+          printf '%s\n' "${actual_patch_sha}" > patch-sha256.txt
           printf '%s\n' "FIELDWORK_CONTEXT7_PATCH_SHA256=${actual_patch_sha}"
-          test "${actual_patch_sha}" = "1492bff7997500155298be9326f64e511fabc0242f9c00aa7b166b57dabfd24a"
           git -C context7 apply --check "${patch_path}"
           printf '%s\n' "FIELDWORK_CONTEXT7_PATCH_CHECK=passed"
           git -C context7 apply --index "${patch_path}"
@@ -103,10 +104,10 @@ jobs:
       - name: Assemble exact receipt
         env:
           TARGET_HEAD: 594a73133e14631af8c915a1b4f2c8039c964fe1
-          PATCH_SHA256: 1492bff7997500155298be9326f64e511fabc0242f9c00aa7b166b57dabfd24a
         run: |
           mkdir -p fieldwork-receipts
           FIELDWORK_HEAD=$(cat fieldwork-head.txt) \
+          PATCH_SHA256=$(cat patch-sha256.txt) \
           node <<'NODE'
           const fs = require("node:fs");
           const receipt = {
@@ -149,6 +150,7 @@ jobs:
           NODE
           test "$(jq -r .fieldworkHead fieldwork-receipts/context7-omit-client-ip-on-encryption-failure.json)" = "$(cat fieldwork-head.txt)"
           test "$(jq -r .targetHead fieldwork-receipts/context7-omit-client-ip-on-encryption-failure.json)" = "${TARGET_HEAD}"
+          test "$(jq -r .patchSha256 fieldwork-receipts/context7-omit-client-ip-on-encryption-failure.json)" = "$(cat patch-sha256.txt)"
           git -C fieldwork diff --check
           git -C context7 diff --check --cached
 
@@ -158,6 +160,7 @@ jobs:
           name: context7-omit-client-ip-on-encryption-failure
           path: |
             fieldwork-head.txt
+            patch-sha256.txt
             focused-test.txt
             fieldwork-receipts/context7-omit-client-ip-on-encryption-failure.json
           if-no-files-found: error
