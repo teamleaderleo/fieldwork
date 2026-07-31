@@ -1,0 +1,189 @@
+name: Fieldwork Playwright parent IPC platforms
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-playwright-parent-ipc-platforms.yml"
+      - "programmes/high-leverage-open-source/scouts/playwright-mcp-remote-shutdown/candidate-parent-ipc.patch"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ipc-platform:
+    name: Parent IPC on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    steps:
+      - name: Check out exact Fieldwork carrier head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact Playwright source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: microsoft/playwright
+          ref: 368941457a82da112aa8610107e25f4bde94339a
+          path: playwright
+          persist-credentials: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+
+      - name: Verify exact inputs and apply IPC candidate
+        id: verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=$'packages/playwright-core/src/entry/mcp.ts\npackages/playwright-core/src/tools/utils/mcp/http.ts\ntests/mcp/http.spec.ts'
+          test "$(git -C fieldwork rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git -C playwright rev-parse HEAD)" = "368941457a82da112aa8610107e25f4bde94339a"
+          patch="../fieldwork/programmes/high-leverage-open-source/scouts/playwright-mcp-remote-shutdown/candidate-parent-ipc.patch"
+          git -C playwright apply --check "$patch"
+          git -C playwright apply "$patch"
+          git -C playwright diff --check
+          test "$(git -C playwright diff --name-only)" = "$expected"
+          mkdir -p fieldwork-receipts
+          git -C playwright diff --binary > "fieldwork-receipts/parent-ipc-${{ matrix.os }}.diff"
+
+      - name: Install exact dependencies
+        id: install
+        working-directory: playwright
+        run: npm ci
+
+      - name: Build exact source
+        id: build
+        working-directory: playwright
+        run: npm run build
+
+      - name: Install Chromium and Linux dependencies
+        id: browser_linux
+        if: runner.os == 'Linux'
+        working-directory: playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Chromium
+        id: browser_other
+        if: runner.os != 'Linux'
+        working-directory: playwright
+        run: npx playwright install chromium
+
+      - name: Run complete MCP HTTP suite
+        id: test
+        shell: bash
+        working-directory: playwright
+        env:
+          CI: "1"
+        run: |
+          set -o pipefail
+          npm run test-mcp tests/mcp/http.spec.ts -- --project=chromium \
+            2>&1 | tee "../fieldwork-receipts/parent-ipc-${{ matrix.os }}-test.log"
+
+      - name: Run focused ESLint
+        id: lint
+        shell: bash
+        working-directory: playwright
+        run: |
+          npx eslint \
+            packages/playwright-core/src/entry/mcp.ts \
+            packages/playwright-core/src/tools/utils/mcp/http.ts \
+            tests/mcp/http.spec.ts
+
+      - name: Verify exact three-file diff hygiene
+        id: diff
+        shell: bash
+        working-directory: playwright
+        run: |
+          set -euo pipefail
+          expected=$'packages/playwright-core/src/entry/mcp.ts\npackages/playwright-core/src/tools/utils/mcp/http.ts\ntests/mcp/http.spec.ts'
+          git diff --check
+          test "$(git diff --name-only)" = "$expected"
+
+      - name: Assemble platform receipt
+        if: always()
+        shell: bash
+        env:
+          FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          RUNNER_OS: ${{ runner.os }}
+          RUNNER_ARCH: ${{ runner.arch }}
+          MATRIX_OS: ${{ matrix.os }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          BROWSER_LINUX_OUTCOME: ${{ steps.browser_linux.outcome }}
+          BROWSER_OTHER_OUTCOME: ${{ steps.browser_other.outcome }}
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          DIFF_OUTCOME: ${{ steps.diff.outcome }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const directory = 'fieldwork-receipts';
+          fs.mkdirSync(directory, { recursive: true });
+          const browser = process.env.RUNNER_OS === 'Linux'
+            ? process.env.BROWSER_LINUX_OUTCOME
+            : process.env.BROWSER_OTHER_OUTCOME;
+          const outcomes = {
+            verify: process.env.VERIFY_OUTCOME || 'not-run',
+            install: process.env.INSTALL_OUTCOME || 'not-run',
+            build: process.env.BUILD_OUTCOME || 'not-run',
+            browser: browser || 'not-run',
+            test: process.env.TEST_OUTCOME || 'not-run',
+            lint: process.env.LINT_OUTCOME || 'not-run',
+            diff: process.env.DIFF_OUTCOME || 'not-run',
+          };
+          const receipt = {
+            schemaVersion: 1,
+            generatedAt: new Date().toISOString(),
+            fieldworkHead: process.env.FIELDWORK_HEAD,
+            target: {
+              repository: 'microsoft/playwright',
+              head: '368941457a82da112aa8610107e25f4bde94339a',
+              candidate: 'parent-owned-ipc-shutdown',
+              changedFiles: [
+                'packages/playwright-core/src/entry/mcp.ts',
+                'packages/playwright-core/src/tools/utils/mcp/http.ts',
+                'tests/mcp/http.spec.ts',
+              ],
+            },
+            platform: {
+              matrixLabel: process.env.MATRIX_OS,
+              runnerOS: process.env.RUNNER_OS,
+              runnerArch: process.env.RUNNER_ARCH,
+              node: process.version,
+              project: 'chromium',
+            },
+            workflowSteps: outcomes,
+            reusableCandidateEvidence: Object.values(outcomes).every(value => value === 'success'),
+            claims: {
+              completeMcpHttpSuite: outcomes.test,
+              parentIpcShutdown: outcomes.test,
+              oldHttpRouteAbsent: outcomes.test,
+              fullRepositoryGate: 'not-claimed',
+              sourceAcceptance: 'not-claimed',
+            },
+          };
+          fs.writeFileSync(path.join(directory, `parent-ipc-${process.env.MATRIX_OS}-receipt.json`), `${JSON.stringify(receipt, null, 2)}\n`);
+          NODE
+
+      - name: Upload platform receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: playwright-parent-ipc-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
