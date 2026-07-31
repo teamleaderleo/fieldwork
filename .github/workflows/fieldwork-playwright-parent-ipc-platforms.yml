@@ -50,12 +50,27 @@ jobs:
           expected=$'packages/playwright-core/src/entry/mcp.ts\npackages/playwright-core/src/tools/utils/mcp/http.ts\ntests/mcp/http.spec.ts'
           test "$(git -C fieldwork rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           test "$(git -C playwright rev-parse HEAD)" = "368941457a82da112aa8610107e25f4bde94339a"
-          patch="../fieldwork/programmes/high-leverage-open-source/scouts/playwright-mcp-remote-shutdown/candidate-parent-ipc.patch"
-          git -C playwright apply --check "$patch"
-          git -C playwright apply "$patch"
+
+          # Git for Windows may materialize both the target and retained patch
+          # with CRLF. Normalize the exact clean target and a disposable patch
+          # copy to LF before applying; candidate source bytes remain unchanged.
+          git -C playwright config core.autocrlf false
+          git -C playwright config core.eol lf
+          git -C playwright reset --hard HEAD
+          mkdir -p fieldwork-receipts
+          source_patch="fieldwork/programmes/high-leverage-open-source/scouts/playwright-mcp-remote-shutdown/candidate-parent-ipc.patch"
+          normalized_patch="fieldwork-receipts/candidate-parent-ipc.patch"
+          node - "$source_patch" "$normalized_patch" <<'NODE'
+          const fs = require('node:fs');
+          const [source, destination] = process.argv.slice(2);
+          const content = fs.readFileSync(source, 'utf8').replace(/\r\n/g, '\n');
+          fs.writeFileSync(destination, content);
+          NODE
+
+          git -C playwright apply --check "../$normalized_patch"
+          git -C playwright apply "../$normalized_patch"
           git -C playwright diff --check
           test "$(git -C playwright diff --name-only)" = "$expected"
-          mkdir -p fieldwork-receipts
           git -C playwright diff --binary > "fieldwork-receipts/parent-ipc-${{ matrix.os }}.diff"
 
       - name: Install exact dependencies
