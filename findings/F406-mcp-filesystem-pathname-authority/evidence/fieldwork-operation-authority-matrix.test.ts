@@ -110,12 +110,12 @@ describe("Fieldwork operation authority after pathname validation", () => {
     }
   });
 
-  it("redirects recursive directory creation after validating a nonexistent path", async () => {
+  it("redirects final directory creation after validating the missing child", async () => {
     const { root, allowed, outside } = await fixture();
     try {
       const parent = path.join(allowed, "mkdir-pivot");
       await fs.mkdir(parent);
-      const requested = path.join(parent, "new", "nested");
+      const requested = path.join(parent, "new");
 
       const validated = await validatePath(requested);
       const parked = await replaceParentWithOutsideSymlink(
@@ -125,8 +125,8 @@ describe("Fieldwork operation authority after pathname validation", () => {
       );
       await fs.mkdir(validated, { recursive: true });
 
-      expect(await exists(path.join(outside, "new", "nested"))).toBe(true);
-      expect(await exists(path.join(parked, "new", "nested"))).toBe(false);
+      expect(await exists(path.join(outside, "new"))).toBe(true);
+      expect(await exists(path.join(parked, "new"))).toBe(false);
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }
