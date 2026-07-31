@@ -174,8 +174,48 @@ Self-review prepares the handoff. It does not replace eligible independent accep
 
 ## 12. Report and close visibly
 
+A standalone experiment does not require an issue comment. Finish its report and `experiment.json`, and promote it when another record depends on the result.
+
 For coordinated work, post short routing updates only when issue state, finding state, canonical path, exact head, evidence, selected direction, blocker, or authority changes. Put full reasoning in the canonical finding, workspace, review, or implementation PR.
 
-A coordinated handoff names the programme and target, issue state, finding state, canonical finding, exact source and carrier heads, commands and outcomes, claim scope, uncertainty, dependencies, exact next transition, and upstream-contact authorization.
+Use this exact handoff shape when a scout, lane, probe, or comparable assignment reaches a transition:
 
-Coordinated work is finished only when evidence is durable, the issue and finding are synchronized, labels are correct, blockers and uncertainty are visible, the coordinator can discover the result, broader claims retain their limits, and the assignment is accepted, revised, promoted, stopped, or retained as a negative result.
+```text
+FIELDWORK HANDOFF
+Issue state: state:<label> | not applicable
+Finding state: <FINDINGS.md transition | not applicable>
+Programme: <programme slug and hub>
+Target: <target slug and hub>
+Testbed: <slug, neutral id, or none>
+Batch: <batch id or none>
+Campaign: <campaign id or none>
+Assignment: <scout, lane, or probe id>
+Canonical finding: <path and PR or none>
+Canonical implementation: <repository PR or none>
+Exact source and carrier heads: <sha list or none>
+Claim scope supported: mechanism | interface | integration | operational | ecosystem
+Integration context: <path or none>
+Commands and workflows: <exact receipts and outcomes>
+Durable artifacts: <paths or Fieldwork PR>
+In simple words: <compact result>
+Finding: <one-paragraph technical result>
+Branch candidates: <ranked candidates or none>
+Evidence classes present: <classes>
+Uncertainty: <remaining uncertainty>
+Dependencies discovered: <none or exact records>
+Decision needed: <none or exact non-delegable decision>
+Exact next transition: <one bounded action>
+Upstream contact authorized: no | yes, with explicit authority
+```
+
+If repository writes are unavailable, place the full handoff in the issue and apply `needs:materialization`.
+
+A scout is finished when its revision, code and test map, runnable evidence or explicit feasibility limit, branch candidates, negative results, uncertainty, and recommendation are durable.
+
+An experiment is finished when its question, claim scope, command, result, uncertainty, context requirements, and disposition are durable.
+
+An integration trial is finished when its target and testbed revisions, scenario, baseline, candidate, result, limitations, rollback, and disposition are durable.
+
+Coordinated work is finished only when evidence is durable or queued for materialization, the issue and finding are synchronized, labels are correct, blockers and uncertainty are visible, the coordinator can discover the result, broader claims retain their limits, and the assignment is accepted, revised, promoted, stopped, or retained as a negative result.
+
+The coordinator owns shared issue-state transitions, registry and manifest edits, workspace synthesis, decisions, and closeout.
