@@ -28,6 +28,25 @@ Issue state and finding state are independent review inputs. The issue-body `Iss
 
 A legacy issue-body `State:` value is issue coordination state only. It never supplies a finding state. A new review-ready, design-decision-ready, delivery-gate-ready, or land-ready transition requires migration to the two-field form before acceptance.
 
+## Review-identity reconciliation
+
+Complete this section whenever a prior disposition or execution receipt is proposed for carry-forward after any head, base, dependency, issue, finding, policy, generated input, or reviewed-input movement.
+
+- Prior reviewed generation: exact head plus every governing input generation named by the prior receipt
+- Current generation: exact head plus every current governing input generation
+- Disposition-relevant reviewed paths:
+- Old/new blob identity for every reviewed path:
+- Governing input generations unchanged: yes | no
+- Changed reviewed paths: none | exact paths
+- Material configuration, generated input, indirect dependency, policy, or mergeability change: none | exact change
+- Carry-forward without fresh review allowed: yes | no
+- Fresh review receipt required: yes | no
+- Exact reason:
+
+A prior disposition may carry forward without fresh review only when every disposition-relevant reviewed path is byte-identical across the named generations and every governing-input generation named by the prior receipt is unchanged. Record `changed reviewed paths: none`; file-disjoint base movement alone is not sufficient.
+
+Any changed reviewed byte or changed governing input is a new review input. A reviewer may conclude the new input is semantically equivalent, but that conclusion is a fresh review receipt. It does not retroactively make the prior disposition current.
+
 ## Claim-scoped evidence
 
 Record one row for every claim that affects the disposition. Do not assign one strongest evidence class to the whole pull request or finding when different claims have different support.
@@ -89,4 +108,4 @@ State the remaining technical, operational, compatibility, impact, or policy unc
 
 ## Expiry
 
-This review applies only to the exact head and reviewed input generations named above. Any head movement, issue-body generation change, issue-state label change, finding-state change, dependency change, policy change, or contradictory evidence expires the disposition unless semantic identity is proved within the reviewed fence.
+This review applies only to the exact head and reviewed input generations named above. Any head movement, issue-body generation change, issue-state label change, finding-state change, dependency change, policy change, material configuration or generated-input change, indirect dependency change, or contradictory evidence expires the disposition unless the Review-identity reconciliation section proves every disposition-relevant reviewed path byte-identical and every governing input generation unchanged. Any changed reviewed byte or governing input requires a fresh review receipt.
