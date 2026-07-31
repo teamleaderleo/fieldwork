@@ -44,10 +44,10 @@ const expectedFailureStages = [
   "authentication",
   "payload_parse",
   "authorization",
+  "request_validation",
   "server_construction",
   "transport_connection",
   "request_execution",
-  "request_validation",
 ] as const;
 
 describe("Fieldwork MCP attempt admission repair", () => {
