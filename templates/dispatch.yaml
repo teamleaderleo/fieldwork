@@ -17,10 +17,18 @@ canonical_records:
 
 # Problem participation may be non-exclusive. This lease controls mutation of
 # one branch, shared file, manifest, canonical finding edit, or other artifact.
+# A lease cannot be treated as current without an exact artifact identity,
+# freshness fields, and a named stale condition.
 writer_lease:
   worker: ""
-  artifact: ""
+  artifact:
+    repository: ""
+    ref_or_path: ""
+    head_or_generation: ""
   state: active
+  acquired_at: ""
+  last_confirmed_at: ""
+  stale_after: ""
   transfer_record: null
 
 source_boundary:
@@ -36,14 +44,40 @@ stop_condition: ""
 # One exact issue, PR, or finding where material routing events belong.
 reporting_sink: ""
 
-# These values are explicit and do not follow from technical readiness.
+# Authority does not follow from technical readiness. Every authorized action
+# must name its authorizing source, bounded scope, and expiry or revocation
+# condition. `denied` is the safe default; a bare boolean is invalid.
 authority:
-  merge: false
-  release: false
-  deploy: false
-  upstream_contact: false
-  private_or_production_data: false
-  material_spending: false
+  merge:
+    state: denied
+    source: null
+    scope: null
+    valid_until_or_revocation: null
+  release:
+    state: denied
+    source: null
+    scope: null
+    valid_until_or_revocation: null
+  deploy:
+    state: denied
+    source: null
+    scope: null
+    valid_until_or_revocation: null
+  upstream_contact:
+    state: denied
+    source: null
+    scope: null
+    valid_until_or_revocation: null
+  private_or_production_data:
+    state: denied
+    source: null
+    scope: null
+    valid_until_or_revocation: null
+  material_spending:
+    state: denied
+    source: null
+    scope: null
+    valid_until_or_revocation: null
 
 # Optional known dependencies and exclusions keep parallel workers from
 # silently widening the assignment.
