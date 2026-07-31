@@ -40,7 +40,9 @@ import { isSubpath } from '../utils/paths.js';
 import { WorkspaceContext } from '../utils/workspaceContext.js';
 import { ShellTool } from './shell.js';
 
-function completedResult(): ShellExecutionResult {
+function completedResult(
+  overrides: Partial<ShellExecutionResult> = {},
+): ShellExecutionResult {
   return {
     rawOutput: Buffer.from(''),
     output: '',
@@ -50,6 +52,7 @@ function completedResult(): ShellExecutionResult {
     aborted: false,
     pid: 12345,
     executionMethod: 'child_process',
+    ...overrides,
   };
 }
 
@@ -69,6 +72,7 @@ describe('background shell temporary-resource cleanup transfer', () => {
     targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shell-temp-owner-test-'));
     extractedTempFile = undefined;
     processExitCleanup = undefined;
+    backgroundMock.mockReturnValue(false);
 
     const sandboxManager = new NoopSandboxManager();
     const config = {
@@ -161,7 +165,7 @@ describe('background shell temporary-resource cleanup transfer', () => {
     fs.rmSync(targetDir, { recursive: true, force: true });
   });
 
-  it('removes the PID directory when a short background request actually exits', async () => {
+  it('keeps creator ownership when exit wins before background claim', async () => {
     const invocation = shellTool.build({
       command: 'true',
       is_background: true,
@@ -179,6 +183,8 @@ describe('background shell temporary-resource cleanup transfer', () => {
     });
 
     await processExitCleanup?.();
+    expect(fs.existsSync(path.dirname(extractedTempFile!))).toBe(true);
+
     resolveExecution(completedResult());
     await execution;
 
@@ -187,7 +193,36 @@ describe('background shell temporary-resource cleanup transfer', () => {
       'fieldwork-session',
       'true',
     );
-    expect(extractedTempFile).toBeDefined();
+    expect(fs.existsSync(path.dirname(extractedTempFile!))).toBe(false);
+  });
+
+  it('transfers cleanup only after background ownership is acknowledged', async () => {
+    backgroundMock.mockImplementation(() => {
+      resolveExecution(
+        completedResult({
+          exitCode: null,
+          backgrounded: true,
+        }),
+      );
+      return true;
+    });
+
+    const invocation = shellTool.build({
+      command: 'sleep 10',
+      is_background: true,
+      delay_ms: 0,
+    });
+
+    const result = await invocation.execute({
+      abortSignal: new AbortController().signal,
+    });
+
+    expect(result.llmContent).toContain('Command is running in background');
+    expect(processExitCleanup).toBeTypeOf('function');
+    expect(fs.existsSync(path.dirname(extractedTempFile!))).toBe(true);
+
+    await processExitCleanup?.();
+
     expect(fs.existsSync(path.dirname(extractedTempFile!))).toBe(false);
   });
 
