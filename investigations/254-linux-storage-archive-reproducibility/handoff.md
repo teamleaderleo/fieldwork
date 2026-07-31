@@ -9,8 +9,8 @@ Upstream contact authorized: no
 
 - Fieldwork protocol base: PR #283, branch `integration/canonical-findings-workspaces-2026-07-31`, head `23ef5d6e1d955eb7a8984a0491dc99a5e08a1d81`.
 - Fieldwork finding branch: `docs/h-linux-storage-findings-20260731`; live head belongs in PR metadata because this file's own commit advances it.
-- Linux Fieldwork observed main: `63e7bbff2d2dc6da4078f9f72d02cd4330b1a09a`.
-- Linux closeout-record repair: PR #249, branch `repair/h-durable-record-state-20260731`, head `fed2b03cb3a584f0e3f2f2db5c58e6a2f0102023`.
+- Linux Fieldwork observed main before closeout repair: `63e7bbff2d2dc6da4078f9f72d02cd4330b1a09a`.
+- Linux closeout-record repair: PR #249, branch `repair/h-durable-record-state-20260731`, head `fed2b03cb3a584f0e3f2f2db5c58e6a2f0102023`, merged as `d7aebcf38459fd3f4791c1ce5da1ec446d6d3296`.
 
 ## Canonical implementation receipts
 
@@ -22,12 +22,13 @@ Upstream contact authorized: no
 | tarfilter group controls | `bb0a79dec47958c6b865d4b382a44baff17ab736` | Linux Fieldwork CI `30582215292` / 634 | success | `ed49c01a85e9d363626db5d2973a33b67209e13b` |
 | package variance corpus | `7c67db4942ff9f5863a20af42c443f456783ddf5` | Linux CI `30543908605` / 293; LF-12 `30543908611` / 6 | success; success | `c730b8ef2e90e07ad18b5835b225a8b41e22420a` |
 | ecosystem overlap record | `d9c09cb81c1258612dda601b5bf5f6b703833b8a` | Linux Fieldwork CI `30581903516` / 629 | success | `d256fd697457eac29862e1073d974813a488725c` |
+| durable closeout record repair | `fed2b03cb3a584f0e3f2f2db5c58e6a2f0102023` | Linux Fieldwork CI `30592017920` / 720 | success | `d7aebcf38459fd3f4791c1ce5da1ec446d6d3296` |
 
 ## Current execution
 
-- Linux Fieldwork PR #249: CI run `30592017920` / 720 was queued when this handoff was written.
-- Fieldwork protocol PR #283: integrity run `30591290799` / 1230 was queued when this handoff was written.
-- The Fieldwork finding PR created from this branch must retain its own exact-head integrity receipt in PR metadata.
+- Linux Fieldwork PR #249 completed CI run `30592017920` / 720 successfully and merged without head movement.
+- Fieldwork protocol PR #283 completed integrity run `30591290799` / 1230 successfully at `23ef5d6e1d955eb7a8984a0491dc99a5e08a1d81`.
+- Fieldwork finding PR #308 pre-synchronization head `81a38cd7cdfcac3448b61579a38ecc5fa6ad9a92` completed integrity run `30595659828` / 1282 successfully. The current metadata-only synchronization advances that head, so PR metadata must retain the replacement exact-head receipt before review-ready promotion.
 
 ## Review and disposition
 
@@ -36,15 +37,15 @@ Upstream contact authorized: no
 - The PPMd implementation is stopped because an equivalent active public fix existed at the exact 2026-07-31 refresh boundary; release adoption, downstream retirement, and semantic divergence remain retained avenues.
 - `research-avenues.md` records concrete adjacent questions, why they may matter, existing evidence, smallest safe probes, and reopening triggers across cache races/durability, destructive-path capabilities, archive language/metadata, broader reproducibility, public-state expiry, and evidence automation.
 - A skipped job, missing privilege, unavailable environment, safety restriction, policy boundary, or prohibited public interaction must be preserved as a blocker or evidence limit, not converted into a technical negative result.
-- Linux PR #249 is a four-file durable-state repair only. It requires exact-head CI and complete-diff review; no product execution claim depends on it.
-- This Fieldwork stack adds one workspace, one handoff, five canonical findings, and one research-avenues ledger on top of PR #283. It requires exact-head Fieldwork integrity and independent complete-diff review.
+- Linux PR #249 is merged documentation evidence. It changes no product source and no product execution claim depends on it.
+- This Fieldwork stack adds one workspace, one handoff, five canonical findings, and one research-avenues ledger on top of PR #283. It requires replacement exact-head Fieldwork integrity after this synchronization plus eligible independent complete-diff review.
 
 ## Blockers and smallest next actions
 
-1. Read Linux run 720. If green, classify PR #249 as review-ready; if red, identify whether the failure is documentation integrity, stale base, or unrelated infrastructure before editing.
-2. Read protocol run 1230 and confirm PR #283 has not moved. Rebase this branch only if the parent head changes.
-3. Run and retain the Fieldwork integrity receipt for the exact finding head.
-4. Repair any stale cross-links or schema failures found by integrity.
+1. Read the replacement exact-head Fieldwork integrity run for the synchronized PR #308 head. Classify any failure before editing.
+2. Confirm protocol PR #283 remains at `23ef5d6e1d955eb7a8984a0491dc99a5e08a1d81`. Reconcile against current inputs if it moves; rebase only for overlapping or materially governing movement or a current-base promotion package.
+3. Review the complete eight-file Markdown diff, including continuity semantics and every exact Linux receipt.
+4. Route the unchanged green head to an eligible independent reviewer through Review Queue #213 or the owning issue.
 5. During future exploration, append any new avenue before stopping: question, consequence, source/environment boundary, evidence, blocker, smallest safe probe, reopening trigger, and authority state.
 6. Do not merge either pull request without explicit authority.
 
@@ -55,6 +56,7 @@ Upstream contact authorized: no
 - A new source candidate, implementation, or broader claim must update the relevant finding before promotion.
 - A skipped workflow is not product evidence; the LF-23 cancellation probe remained skipped on the harness-safety composition head.
 - An interruption does not expire a retained avenue if the blocker and continuation point are recorded precisely.
+- File-disjoint parent movement may use an explicit semantic-identity proof, but an old receipt remains historical until affected review identities are renewed.
 
 ## Public interaction
 
