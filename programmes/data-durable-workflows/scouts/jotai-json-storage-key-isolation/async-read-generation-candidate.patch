@@ -1,7 +1,7 @@
 diff --git a/src/vanilla/utils/atomWithStorage.ts b/src/vanilla/utils/atomWithStorage.ts
 --- a/src/vanilla/utils/atomWithStorage.ts
 +++ b/src/vanilla/utils/atomWithStorage.ts
-@@ -117,6 +117,15 @@ export function createJSONStorage<Value>(
+@@ -117,6 +117,14 @@ export function createJSONStorage<Value>(
  ): AsyncStorage<Value> | SyncStorage<Value> {
    const cachedValues = new Map<string, { str: string; value: Value }>()
 +  const readGenerations = new Map<string, number>()
@@ -16,9 +16,7 @@ diff --git a/src/vanilla/utils/atomWithStorage.ts b/src/vanilla/utils/atomWithSt
      getItem: (key, initialValue) => {
 +      const generation = advanceReadGeneration(key)
        const parse = (str: string | null) => {
-         str = str || ''
-         const cached = cachedValues.get(key)
-@@ -128,12 +136,16 @@ export function createJSONStorage<Value>(
+@@ -128,10 +136,14 @@ export function createJSONStorage<Value>(
          }
          try {
            const value = JSON.parse(str, options?.reviver) as Value
