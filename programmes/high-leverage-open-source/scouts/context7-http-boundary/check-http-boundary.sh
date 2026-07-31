@@ -3,13 +3,95 @@ set -euo pipefail
 
 context7_root=${1:?usage: check-http-boundary.sh CONTEXT7_ROOT}
 port=${FIELDWORK_CONTEXT7_PORT:-38731}
+receipt_path=${FIELDWORK_CONTEXT7_NETWORK_RECEIPT:-context7-http-boundary-network.json}
+target_head=594a73133e14631af8c915a1b4f2c8039c964fe1
 stdout_log=$(mktemp)
 stderr_log=$(mktemp)
 headers_file=$(mktemp)
 normalized_headers_file=$(mktemp)
 server_pid=
+startup_line=
+listener=
+runner_ip=
+loopback_response=
+non_loopback_response=
+cors_status=
+loopback_reachable=false
+non_loopback_reachable=false
+probe_complete=false
+
+write_receipt() {
+  local exit_code=$1
+  mkdir -p "$(dirname "${receipt_path}")"
+
+  NETWORK_EXIT_CODE="${exit_code}" \
+    NETWORK_TARGET_HEAD="${target_head}" \
+    NETWORK_STARTUP_LINE="${startup_line}" \
+    NETWORK_LISTENER="${listener}" \
+    NETWORK_RUNNER_IP="${runner_ip}" \
+    NETWORK_LOOPBACK_RESPONSE="${loopback_response}" \
+    NETWORK_NON_LOOPBACK_RESPONSE="${non_loopback_response}" \
+    NETWORK_CORS_STATUS="${cors_status}" \
+    NETWORK_LOOPBACK_REACHABLE="${loopback_reachable}" \
+    NETWORK_NON_LOOPBACK_REACHABLE="${non_loopback_reachable}" \
+    NETWORK_PROBE_COMPLETE="${probe_complete}" \
+    node - "${receipt_path}" "${normalized_headers_file}" <<'NODE'
+const fs = require("node:fs");
+
+const outputPath = process.argv[2];
+const headersPath = process.argv[3];
+const responseHeaders = fs.existsSync(headersPath)
+  ? fs.readFileSync(headersPath, "utf8")
+  : "";
+const asBoolean = (value) => value === "true";
+const exitCode = Number(process.env.NETWORK_EXIT_CODE || 1);
+
+const receipt = {
+  schemaVersion: 1,
+  targetHead: process.env.NETWORK_TARGET_HEAD,
+  status: exitCode === 0 ? "success" : "failure",
+  exitCode,
+  startupText: process.env.NETWORK_STARTUP_LINE || null,
+  listener: process.env.NETWORK_LISTENER || null,
+  runnerNonLoopbackIpv4: process.env.NETWORK_RUNNER_IP || null,
+  reachability: {
+    loopback: {
+      reached: asBoolean(process.env.NETWORK_LOOPBACK_REACHABLE),
+      response: process.env.NETWORK_LOOPBACK_RESPONSE || null,
+    },
+    nonLoopback: {
+      reached: asBoolean(process.env.NETWORK_NON_LOOPBACK_REACHABLE),
+      response: process.env.NETWORK_NON_LOOPBACK_RESPONSE || null,
+    },
+  },
+  corsPreflight: {
+    request: {
+      method: "OPTIONS",
+      origin: "https://fieldwork.invalid",
+      accessControlRequestMethod: "POST",
+      accessControlRequestHeaders: ["authorization", "x-context7-api-key"],
+    },
+    responseStatus: process.env.NETWORK_CORS_STATUS || null,
+    responseHeaders,
+  },
+  probeComplete: asBoolean(process.env.NETWORK_PROBE_COMPLETE),
+  claimClasses: {
+    startupPresentation: "target-executed-linux",
+    listenerBinding: "target-executed-linux",
+    loopbackReachability: "target-executed-linux",
+    nonLoopbackReachability: "target-executed-linux",
+    corsPreflight: "target-executed-linux",
+    browserPrivateNetworkExposure: "not-claimed",
+  },
+};
+
+fs.writeFileSync(outputPath, `${JSON.stringify(receipt, null, 2)}\n`);
+NODE
+}
 
 cleanup() {
+  local exit_code=$?
+  write_receipt "${exit_code}" || true
   if [[ -n ${server_pid} ]]; then
     kill "${server_pid}" 2>/dev/null || true
     wait "${server_pid}" 2>/dev/null || true
@@ -55,10 +137,11 @@ loopback_response=$(curl --noproxy '*' --silent --show-error --fail \
   "http://127.0.0.1:${port}/ping")
 printf 'Loopback response: %s\n' "${loopback_response}"
 grep -F '"status":"ok"' <<<"${loopback_response}" >/dev/null
+loopback_reachable=true
 
-grep -F "running on HTTP at http://localhost:${port}/mcp" "${stderr_log}" >/dev/null
-printf 'Startup log: '
-grep -F "running on HTTP at http://localhost:${port}/mcp" "${stderr_log}"
+startup_line=$(grep -F "running on HTTP at http://localhost:${port}/mcp" "${stderr_log}" | head -n 1)
+test -n "${startup_line}"
+printf 'Startup log: %s\n' "${startup_line}"
 
 listener=$(ss -H -ltn | awk -v suffix=":${port}" '$4 ~ suffix "$" { print }')
 if [[ -z ${listener} ]]; then
@@ -94,17 +177,22 @@ if ! non_loopback_response=$(curl --noproxy '*' --silent --show-error --fail \
 fi
 printf 'Non-loopback response: %s\n' "${non_loopback_response}"
 grep -F '"status":"ok"' <<<"${non_loopback_response}" >/dev/null
+non_loopback_reachable=true
 
-curl --noproxy '*' --silent --show-error \
+cors_status=$(curl --noproxy '*' --silent --show-error \
   --dump-header "${headers_file}" \
   --output /dev/null \
+  --write-out '%{http_code}' \
   --request OPTIONS \
   --header 'Origin: https://fieldwork.invalid' \
-  "http://127.0.0.1:${port}/mcp"
+  --header 'Access-Control-Request-Method: POST' \
+  --header 'Access-Control-Request-Headers: authorization,x-context7-api-key' \
+  "http://127.0.0.1:${port}/mcp")
 tr -d '\r' <"${headers_file}" >"${normalized_headers_file}"
 
 printf '%s\n' 'Anonymous MCP preflight headers:'
 cat "${normalized_headers_file}"
+test "${cors_status}" = 200
 require_header '^access-control-allow-origin: \*$' 'Access-Control-Allow-Origin: *'
 require_header '^access-control-allow-methods: .*POST.*$' 'POST in Access-Control-Allow-Methods'
 require_header '^access-control-allow-headers: .*Authorization.*$' 'Authorization allowance'
@@ -113,4 +201,5 @@ require_header '^access-control-allow-headers: .*X-Context7-API-Key.*$' 'X-Conte
 printf 'Loopback endpoint: http://127.0.0.1:%s/ping\n' "${port}"
 printf 'Non-loopback endpoint: http://%s:%s/ping\n' "${runner_ip}" "${port}"
 printf 'Startup log presents localhost while the listener accepts the non-loopback endpoint.\n'
-printf 'Anonymous MCP preflight returns wildcard CORS and API-key/Authorization header allowance.\n'
+printf 'Realistic anonymous MCP preflight returns wildcard CORS and API-key/Authorization header allowance.\n'
+probe_complete=true
