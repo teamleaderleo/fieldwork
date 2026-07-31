@@ -1,0 +1,34 @@
+name: Fieldwork Zustand hydration failure completion
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/fieldwork-zustand-hydration-failure.yml'
+      - 'programmes/data-durable-workflows/scouts/zustand-hydration-failure-completion/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Node.js ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - 22
+          - 24
+          - 26
+    defaults:
+      run:
+        working-directory: programmes/data-durable-workflows/scouts/zustand-hydration-failure-completion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm install --ignore-scripts
+      - run: npm ls zustand
+      - run: npm run probe
