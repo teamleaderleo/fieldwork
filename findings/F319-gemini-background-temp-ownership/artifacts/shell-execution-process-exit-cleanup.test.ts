@@ -10,6 +10,12 @@ import { ExecutionLifecycleService } from './executionLifecycleService.js';
 import { NoopSandboxManager } from './sandboxManager.js';
 import { ShellExecutionService } from './shellExecutionService.js';
 
+const sanitizationConfig = {
+  allowedEnvironmentVariables: [],
+  blockedEnvironmentVariables: [],
+  enableEnvironmentVariableRedaction: false,
+};
+
 const executeChild = async (onProcessExit: () => void | Promise<void>) => {
   const handle = await ShellExecutionService.execute(
     'true',
@@ -18,7 +24,7 @@ const executeChild = async (onProcessExit: () => void | Promise<void>) => {
     new AbortController().signal,
     false,
     {
-      sanitizationConfig: {},
+      sanitizationConfig,
       sandboxManager: new NoopSandboxManager(),
       sessionId: 'fieldwork-process-exit-cleanup',
       onProcessExit,
@@ -100,7 +106,7 @@ describe('ShellExecutionService process-exit cleanup', () => {
       new AbortController().signal,
       false,
       {
-        sanitizationConfig: {},
+        sanitizationConfig,
         sandboxManager: new NoopSandboxManager(),
         sessionId: 'fieldwork-process-exit-cleanup-once',
         onProcessExit: cleanup,
