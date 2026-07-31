@@ -217,7 +217,7 @@ describe('background shell temporary-resource cleanup transfer', () => {
       abortSignal: new AbortController().signal,
     });
 
-    expect(result.llmContent).toContain('Command is running in background');
+    expect(result.llmContent).toContain('Command moved to background');
     expect(processExitCleanup).toBeTypeOf('function');
     expect(fs.existsSync(path.dirname(extractedTempFile!))).toBe(true);
 
