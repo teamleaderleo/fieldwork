@@ -277,7 +277,7 @@ Binary files a/image.png and b/image.png differ
             """diff --git a/image.png b/image.png
 GIT binary patch
 """,
-            "complete binary payload",
+            "GIT binary patch marker has no payload header",
         )
 
     def test_rejects_binary_header_without_payload_data(self) -> None:
