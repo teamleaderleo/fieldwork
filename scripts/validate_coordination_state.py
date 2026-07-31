@@ -3,9 +3,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 from pathlib import Path
+import re
 import sys
 from typing import Any
 
@@ -26,6 +27,7 @@ REVIEWED_PHASES = {
     "delivery-gate-ready",
     "land-ready",
 }
+SOURCE_REQUIRED_PHASES = {"delivery-gate-ready", "land-ready"}
 WORK_CLASSES = {
     "owned-product-delivery",
     "upstream-fork-research",
@@ -44,7 +46,9 @@ EVIDENCE_LEVELS = {
     "full-gate",
 }
 LEASE_STATES = {"active", "released", "stale", "superseded", "none"}
-AUTHORITY_KEYS = {
+LEASE_RESOURCE_KINDS = {"branch", "path", "record", "none"}
+GENERATION_TYPES = {"git-sha", "sha256", "record-version", "none"}
+AUTHORITY_ACTIONS = {
     "merge",
     "release",
     "deploy",
@@ -52,7 +56,53 @@ AUTHORITY_KEYS = {
     "private_or_production_data",
     "material_spending",
 }
+AUTHORITY_STATES = {"denied", "authorized"}
+AUTHORITY_TARGET_KINDS = {
+    "repository",
+    "pull-request",
+    "issue",
+    "deployment",
+    "data",
+    "spend",
+    "other",
+    "none",
+}
+AUTHORITY_SOURCE_KINDS = {"user-instruction", "approval-record", "none"}
+DATA_CLASSES = {"none", "public", "private", "production", "regulated"}
+BOUNDARY_KINDS = {"git-sha", "version", "retrieval"}
 SCOPE_KEYS = {"programme", "target", "workstream", "parent_issue"}
+REVIEW_KEYS = {"disposition", "exact_head", "reviewed_inputs"}
+EVIDENCE_KEYS = {"claim", "level", "receipt", "limit"}
+SOURCE_KEYS = {"repository", "branch", "head"}
+CARRIER_KEYS = {"repository", "pull_request", "head", "purpose"}
+LEASE_KEYS = {
+    "state",
+    "holder",
+    "repository",
+    "resource_kind",
+    "resource",
+    "generation_type",
+    "generation",
+    "acquired_at",
+    "renewed_at",
+    "duration_seconds",
+    "transition",
+    "previous_generation",
+    "transfer_record",
+}
+FRESHNESS_KEYS = {"base_head", "external_boundary", "checked_at"}
+BOUNDARY_KEYS = {"kind", "value", "source"}
+AUTHORITY_ENTRY_KEYS = {
+    "state",
+    "action",
+    "target",
+    "source",
+    "issued_at",
+    "expires_at",
+    "revocation_record",
+}
+AUTHORITY_TARGET_KEYS = {"kind", "location", "operation_id", "data_class"}
+AUTHORITY_SOURCE_KEYS = {"kind", "record", "generation"}
 TOP_LEVEL_KEYS = {
     "schema_version",
     "id",
@@ -73,11 +123,15 @@ TOP_LEVEL_KEYS = {
     "writer_lease",
     "freshness",
     "authority",
-    "authority_record",
     "blocker",
     "next_transition",
     "terminal_record",
 }
+
+GIT_SHA = re.compile(r"^[0-9a-f]{40}$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
+VERSIONED_INPUT = re.compile(r"^[^@\s]+@[^@\s]+$")
+REPOSITORY = re.compile(r"^[^/\s]+/[^/\s]+$")
 
 
 def non_empty_string(value: object) -> bool:
@@ -89,7 +143,15 @@ def nullable_string(value: object) -> bool:
 
 
 def positive_integer(value: object) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool) and value >= 1
+    return type(value) is int and value >= 1
+
+
+def nonnegative_integer(value: object) -> bool:
+    return type(value) is int and value >= 0
+
+
+def exact_git_sha(value: object) -> bool:
+    return isinstance(value, str) and GIT_SHA.fullmatch(value) is not None
 
 
 def safe_relative_path(value: object) -> bool:
@@ -99,14 +161,18 @@ def safe_relative_path(value: object) -> bool:
     return not path.is_absolute() and ".." not in path.parts
 
 
-def parse_timestamp(value: object) -> bool:
+def parse_datetime(value: object) -> datetime | None:
     if not non_empty_string(value):
-        return False
+        return None
     try:
         parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except ValueError:
-        return False
-    return parsed.tzinfo is not None
+        return None
+    return parsed if parsed.tzinfo is not None else None
+
+
+def parse_timestamp(value: object) -> bool:
+    return parse_datetime(value) is not None
 
 
 def exact_keys(value: object, expected: set[str], location: str) -> list[str]:
@@ -139,20 +205,26 @@ def validate_scope(path: Path, value: object) -> list[str]:
 
 def validate_review(path: Path, value: object) -> list[str]:
     location = f"{path}: review"
-    errors = exact_keys(value, {"disposition", "exact_head", "reviewed_inputs"}, location)
+    errors = exact_keys(value, REVIEW_KEYS, location)
     if errors or not isinstance(value, dict):
         return errors
     if value["disposition"] not in DISPOSITIONS:
         errors.append(f"{location}: unsupported disposition {value['disposition']!r}")
-    if not nullable_string(value["exact_head"]):
-        errors.append(f"{location}: exact_head must be a string or null")
+    exact_head = value["exact_head"]
+    if exact_head is not None and not exact_git_sha(exact_head):
+        errors.append(f"{location}: exact_head must be a full lowercase Git SHA or null")
     inputs = value["reviewed_inputs"]
-    if not isinstance(inputs, list) or any(not non_empty_string(item) for item in inputs):
-        errors.append(f"{location}: reviewed_inputs must contain non-empty strings")
+    if not isinstance(inputs, list) or any(
+        not isinstance(item, str) or VERSIONED_INPUT.fullmatch(item) is None
+        for item in inputs
+    ):
+        errors.append(
+            f"{location}: reviewed_inputs must use unique record@generation strings"
+        )
     elif len(inputs) != len(set(inputs)):
         errors.append(f"{location}: reviewed_inputs must be unique")
-    if value["disposition"] == "ACCEPT" and not non_empty_string(value["exact_head"]):
-        errors.append(f"{location}: ACCEPT requires exact_head")
+    if value["disposition"] == "ACCEPT" and not exact_git_sha(exact_head):
+        errors.append(f"{location}: ACCEPT requires an exact Git head")
     return errors
 
 
@@ -163,7 +235,7 @@ def validate_evidence(path: Path, value: object) -> list[str]:
     errors: list[str] = []
     for index, item in enumerate(value):
         item_location = f"{location}[{index}]"
-        item_errors = exact_keys(item, {"claim", "level", "receipt", "limit"}, item_location)
+        item_errors = exact_keys(item, EVIDENCE_KEYS, item_location)
         errors.extend(item_errors)
         if item_errors or not isinstance(item, dict):
             continue
@@ -182,15 +254,15 @@ def validate_source(path: Path, value: object) -> list[str]:
     location = f"{path}: canonical_source"
     if value is None:
         return []
-    errors = exact_keys(value, {"repository", "branch", "head"}, location)
+    errors = exact_keys(value, SOURCE_KEYS, location)
     if errors or not isinstance(value, dict):
         return errors
-    if not non_empty_string(value["repository"]) or "/" not in value["repository"]:
+    if not isinstance(value["repository"], str) or REPOSITORY.fullmatch(value["repository"]) is None:
         errors.append(f"{location}: repository must be owner/name")
     if not non_empty_string(value["branch"]):
         errors.append(f"{location}: branch must be non-empty")
-    if not non_empty_string(value["head"]) or len(value["head"]) < 7:
-        errors.append(f"{location}: head must identify an exact revision")
+    if not exact_git_sha(value["head"]):
+        errors.append(f"{location}: head must be a full lowercase Git SHA")
     return errors
 
 
@@ -198,61 +270,206 @@ def validate_carrier(path: Path, value: object) -> list[str]:
     location = f"{path}: active_carrier"
     if value is None:
         return []
-    errors = exact_keys(value, {"repository", "pull_request", "head", "purpose"}, location)
+    errors = exact_keys(value, CARRIER_KEYS, location)
     if errors or not isinstance(value, dict):
         return errors
-    if not non_empty_string(value["repository"]) or "/" not in value["repository"]:
+    if not isinstance(value["repository"], str) or REPOSITORY.fullmatch(value["repository"]) is None:
         errors.append(f"{location}: repository must be owner/name")
     if not positive_integer(value["pull_request"]):
         errors.append(f"{location}: pull_request must be a positive integer")
-    if not non_empty_string(value["head"]) or len(value["head"]) < 7:
-        errors.append(f"{location}: head must identify an exact revision")
+    if not exact_git_sha(value["head"]):
+        errors.append(f"{location}: head must be a full lowercase Git SHA")
     if not non_empty_string(value["purpose"]):
         errors.append(f"{location}: purpose must be non-empty")
     return errors
 
 
+def validate_generation(kind: object, value: object, location: str) -> list[str]:
+    errors: list[str] = []
+    if kind not in GENERATION_TYPES:
+        return [f"{location}: unsupported generation_type {kind!r}"]
+    if kind == "git-sha" and not exact_git_sha(value):
+        errors.append(f"{location}: git-sha generation must be a full lowercase Git SHA")
+    elif kind == "sha256" and not isinstance(value, str) or (
+        kind == "sha256" and SHA256.fullmatch(value) is None
+    ):
+        errors.append(f"{location}: sha256 generation must be 64 lowercase hex characters")
+    elif kind == "record-version" and not non_empty_string(value):
+        errors.append(f"{location}: record-version generation must be non-empty")
+    elif kind == "none" and value is not None:
+        errors.append(f"{location}: none generation_type requires null generation")
+    return errors
+
+
 def validate_lease(path: Path, value: object) -> list[str]:
     location = f"{path}: writer_lease"
-    errors = exact_keys(value, {"worker", "artifact", "state", "transfer_record"}, location)
+    errors = exact_keys(value, LEASE_KEYS, location)
     if errors or not isinstance(value, dict):
         return errors
-    if value["state"] not in LEASE_STATES:
-        errors.append(f"{location}: unsupported lease state {value['state']!r}")
-    for key in ("worker", "artifact", "transfer_record"):
-        if not nullable_string(value[key]):
-            errors.append(f"{location}: {key} must be a string or null")
-    if value["state"] == "active":
-        if not non_empty_string(value["worker"]):
-            errors.append(f"{location}: active lease requires worker")
-        if not safe_relative_path(value["artifact"]):
-            errors.append(f"{location}: active lease requires a safe relative artifact")
+    state = value["state"]
+    if state not in LEASE_STATES:
+        errors.append(f"{location}: unsupported lease state {state!r}")
+        return errors
+    if value["resource_kind"] not in LEASE_RESOURCE_KINDS:
+        errors.append(f"{location}: unsupported resource_kind {value['resource_kind']!r}")
+    errors.extend(
+        validate_generation(value["generation_type"], value["generation"], location)
+    )
+    if not nonnegative_integer(value["transition"]):
+        errors.append(f"{location}: transition must be a nonnegative integer")
+
+    if state == "none":
+        null_fields = (
+            "holder",
+            "repository",
+            "resource",
+            "generation",
+            "acquired_at",
+            "renewed_at",
+            "duration_seconds",
+            "previous_generation",
+            "transfer_record",
+        )
+        if value["resource_kind"] != "none" or value["generation_type"] != "none":
+            errors.append(f"{location}: none lease requires none resource/generation kinds")
+        for field in null_fields:
+            if value[field] is not None:
+                errors.append(f"{location}: none lease requires null {field}")
+        if value["transition"] != 0:
+            errors.append(f"{location}: none lease requires transition 0")
+        return errors
+
+    if not non_empty_string(value["holder"]):
+        errors.append(f"{location}: non-none lease requires holder")
+    if not isinstance(value["repository"], str) or REPOSITORY.fullmatch(value["repository"]) is None:
+        errors.append(f"{location}: non-none lease requires repository owner/name")
+    if value["resource_kind"] == "none" or not non_empty_string(value["resource"]):
+        errors.append(f"{location}: non-none lease requires typed resource identity")
+    if value["generation_type"] == "none":
+        errors.append(f"{location}: non-none lease requires exact generation identity")
+
+    acquired = parse_datetime(value["acquired_at"])
+    renewed = parse_datetime(value["renewed_at"])
+    if acquired is None:
+        errors.append(f"{location}: acquired_at must be timezone-aware ISO-8601")
+    if renewed is None:
+        errors.append(f"{location}: renewed_at must be timezone-aware ISO-8601")
+    if acquired is not None and renewed is not None and renewed < acquired:
+        errors.append(f"{location}: renewed_at cannot precede acquired_at")
+    if not positive_integer(value["duration_seconds"]):
+        errors.append(f"{location}: duration_seconds must be a positive integer")
+    if value["transition"] > 0:
+        if not non_empty_string(value["previous_generation"]):
+            errors.append(f"{location}: takeover transition requires previous_generation")
+        if not non_empty_string(value["transfer_record"]):
+            errors.append(f"{location}: takeover transition requires transfer_record")
+    elif value["previous_generation"] is not None:
+        errors.append(f"{location}: initial transition requires null previous_generation")
+    return errors
+
+
+def validate_boundary(path: Path, value: object) -> list[str]:
+    location = f"{path}: freshness.external_boundary"
+    if value is None:
+        return []
+    errors = exact_keys(value, BOUNDARY_KEYS, location)
+    if errors or not isinstance(value, dict):
+        return errors
+    kind = value["kind"]
+    if kind not in BOUNDARY_KINDS:
+        errors.append(f"{location}: unsupported boundary kind {kind!r}")
+    elif kind == "git-sha" and not exact_git_sha(value["value"]):
+        errors.append(f"{location}: git-sha boundary requires a full lowercase Git SHA")
+    elif kind in {"version", "retrieval"} and not non_empty_string(value["value"]):
+        errors.append(f"{location}: {kind} boundary requires a non-empty value")
+    if not non_empty_string(value["source"]):
+        errors.append(f"{location}: source must identify the observed source")
     return errors
 
 
 def validate_freshness(path: Path, value: object) -> list[str]:
     location = f"{path}: freshness"
-    errors = exact_keys(value, {"base_head", "upstream_valid_through", "checked_at"}, location)
+    errors = exact_keys(value, FRESHNESS_KEYS, location)
     if errors or not isinstance(value, dict):
         return errors
-    for key in ("base_head", "upstream_valid_through"):
-        if not nullable_string(value[key]):
-            errors.append(f"{location}: {key} must be a string or null")
+    if value["base_head"] is not None and not exact_git_sha(value["base_head"]):
+        errors.append(f"{location}: base_head must be a full lowercase Git SHA or null")
+    errors.extend(validate_boundary(path, value["external_boundary"]))
     if not parse_timestamp(value["checked_at"]):
-        errors.append(f"{location}: checked_at must be a timezone-aware ISO-8601 timestamp")
+        errors.append(f"{location}: checked_at must be timezone-aware ISO-8601")
     return errors
 
 
-def validate_authority(path: Path, value: object, record: object) -> list[str]:
-    location = f"{path}: authority"
-    errors = exact_keys(value, AUTHORITY_KEYS, location)
+def validate_authority_target(value: object, location: str) -> list[str]:
+    errors = exact_keys(value, AUTHORITY_TARGET_KEYS, location)
     if errors or not isinstance(value, dict):
         return errors
-    for key in sorted(AUTHORITY_KEYS):
-        if not isinstance(value[key], bool):
-            errors.append(f"{location}: {key} must be boolean")
-    if any(value.get(key) is True for key in AUTHORITY_KEYS) and not non_empty_string(record):
-        errors.append(f"{path}: enabled authority requires authority_record")
+    if value["kind"] not in AUTHORITY_TARGET_KINDS:
+        errors.append(f"{location}: unsupported target kind {value['kind']!r}")
+    if value["data_class"] not in DATA_CLASSES:
+        errors.append(f"{location}: unsupported data_class {value['data_class']!r}")
+    return errors
+
+
+def validate_authority_source(value: object, location: str) -> list[str]:
+    errors = exact_keys(value, AUTHORITY_SOURCE_KEYS, location)
+    if errors or not isinstance(value, dict):
+        return errors
+    if value["kind"] not in AUTHORITY_SOURCE_KINDS:
+        errors.append(f"{location}: unsupported source kind {value['kind']!r}")
+    return errors
+
+
+def validate_authority_entry(path: Path, action: str, value: object) -> list[str]:
+    location = f"{path}: authority.{action}"
+    errors = exact_keys(value, AUTHORITY_ENTRY_KEYS, location)
+    if errors or not isinstance(value, dict):
+        return errors
+    if value["state"] not in AUTHORITY_STATES:
+        errors.append(f"{location}: unsupported state {value['state']!r}")
+    if value["action"] != action:
+        errors.append(f"{location}: action must equal {action!r}")
+    errors.extend(validate_authority_target(value["target"], f"{location}.target"))
+    errors.extend(validate_authority_source(value["source"], f"{location}.source"))
+    target = value["target"] if isinstance(value["target"], dict) else {}
+    source = value["source"] if isinstance(value["source"], dict) else {}
+
+    if value["state"] == "denied":
+        if target.get("kind") != "none" or target.get("location") is not None or target.get("operation_id") is not None or target.get("data_class") != "none":
+            errors.append(f"{location}: denied authority requires an empty target")
+        if source.get("kind") != "none" or source.get("record") is not None or source.get("generation") is not None:
+            errors.append(f"{location}: denied authority requires an empty source")
+        for field in ("issued_at", "expires_at", "revocation_record"):
+            if value[field] is not None:
+                errors.append(f"{location}: denied authority requires null {field}")
+        return errors
+
+    if target.get("kind") == "none" or not non_empty_string(target.get("location")) or not non_empty_string(target.get("operation_id")):
+        errors.append(f"{location}: authorized authority requires a typed target and operation_id")
+    if source.get("kind") == "none" or not non_empty_string(source.get("record")) or not non_empty_string(source.get("generation")):
+        errors.append(f"{location}: authorized authority requires a versioned source record")
+    issued = parse_datetime(value["issued_at"])
+    expires = parse_datetime(value["expires_at"]) if value["expires_at"] is not None else None
+    if issued is None:
+        errors.append(f"{location}: authorized authority requires issued_at")
+    if value["expires_at"] is not None and expires is None:
+        errors.append(f"{location}: expires_at must be timezone-aware ISO-8601 or null")
+    if issued is not None and expires is not None and expires <= issued:
+        errors.append(f"{location}: expires_at must follow issued_at")
+    if expires is None and not non_empty_string(value["revocation_record"]):
+        errors.append(f"{location}: authorized authority requires expires_at or revocation_record")
+    if action == "private_or_production_data" and target.get("data_class") not in {"private", "production", "regulated"}:
+        errors.append(f"{location}: data authority requires private, production, or regulated data_class")
+    return errors
+
+
+def validate_authority(path: Path, value: object) -> list[str]:
+    location = f"{path}: authority"
+    errors = exact_keys(value, AUTHORITY_ACTIONS, location)
+    if errors or not isinstance(value, dict):
+        return errors
+    for action in sorted(AUTHORITY_ACTIONS):
+        errors.extend(validate_authority_entry(path, action, value[action]))
     return errors
 
 
@@ -261,8 +478,8 @@ def validate_state(path: Path, data: object) -> list[str]:
     if errors or not isinstance(data, dict):
         return errors
 
-    if data["schema_version"] != 1:
-        errors.append(f"{path}: schema_version must be 1")
+    if type(data["schema_version"]) is not int or data["schema_version"] != 1:
+        errors.append(f"{path}: schema_version must be integer 1")
     for key in ("id", "title", "summary", "impact", "invariant_id"):
         if not non_empty_string(data[key]):
             errors.append(f"{path}: {key} must be non-empty")
@@ -270,11 +487,12 @@ def validate_state(path: Path, data: object) -> list[str]:
         errors.append(f"{path}: unsupported priority {data['priority']!r}")
     errors.extend(validate_scope(path, data["scope"]))
     if not parse_timestamp(data["state_updated_at"]):
-        errors.append(f"{path}: state_updated_at must be a timezone-aware ISO-8601 timestamp")
+        errors.append(f"{path}: state_updated_at must be timezone-aware ISO-8601")
     if not safe_relative_path(data["canonical_finding"]):
         errors.append(f"{path}: canonical_finding must be a safe relative path")
-    if data["phase"] not in PHASES:
-        errors.append(f"{path}: unsupported phase {data['phase']!r}")
+    phase = data["phase"]
+    if phase not in PHASES:
+        errors.append(f"{path}: unsupported phase {phase!r}")
     if data["work_class"] not in WORK_CLASSES:
         errors.append(f"{path}: unsupported work_class {data['work_class']!r}")
 
@@ -284,31 +502,46 @@ def validate_state(path: Path, data: object) -> list[str]:
     errors.extend(validate_carrier(path, data["active_carrier"]))
     errors.extend(validate_lease(path, data["writer_lease"]))
     errors.extend(validate_freshness(path, data["freshness"]))
-    errors.extend(validate_authority(path, data["authority"], data["authority_record"]))
+    errors.extend(validate_authority(path, data["authority"]))
 
-    for key in ("authority_record", "blocker", "terminal_record"):
+    for key in ("blocker", "terminal_record"):
         if not nullable_string(data[key]):
             errors.append(f"{path}: {key} must be a string or null")
     if not isinstance(data["next_transition"], str):
         errors.append(f"{path}: next_transition must be a string")
 
-    phase = data["phase"]
     review = data["review"] if isinstance(data["review"], dict) else {}
     source = data["canonical_source"]
     carrier = data["active_carrier"]
+    lease = data["writer_lease"] if isinstance(data["writer_lease"], dict) else {}
+
     if phase in ACTIVE_PHASES and not non_empty_string(data["next_transition"]):
         errors.append(f"{path}: active phase requires next_transition")
-    if phase == "land-ready":
-        if source is None:
-            errors.append(f"{path}: land-ready requires canonical_source")
-        if review.get("disposition") != "ACCEPT":
-            errors.append(f"{path}: land-ready requires ACCEPT disposition")
+    if phase in REVIEWED_PHASES:
+        if not exact_git_sha(review.get("exact_head")):
+            errors.append(f"{path}: review-facing phase requires exact reviewed head")
+        if not review.get("reviewed_inputs"):
+            errors.append(f"{path}: review-facing phase requires versioned reviewed_inputs")
+        if not data["evidence"]:
+            errors.append(f"{path}: review-facing phase requires claim-scoped evidence")
+        if source is None and (
+            phase in SOURCE_REQUIRED_PHASES
+            or data["work_class"] not in {"evidence-documentation", "blocked-sensitive"}
+        ):
+            errors.append(f"{path}: review-facing technical phase requires canonical_source")
         if isinstance(source, dict) and review.get("exact_head") != source.get("head"):
-            errors.append(f"{path}: land-ready review head must match canonical source head")
+            errors.append(f"{path}: reviewed head must match canonical source head")
+    if review.get("disposition") == "ACCEPT" and isinstance(source, dict) and review.get("exact_head") != source.get("head"):
+        errors.append(f"{path}: ACCEPT head must match canonical source head")
     if carrier is not None and source is None:
         errors.append(f"{path}: active_carrier requires canonical_source")
-    if phase in {"stopped", "closed"} and not non_empty_string(data["terminal_record"]):
-        errors.append(f"{path}: stopped or closed phase requires terminal_record")
+    if phase in {"stopped", "closed"}:
+        if not non_empty_string(data["terminal_record"]):
+            errors.append(f"{path}: stopped or closed phase requires terminal_record")
+        if carrier is not None:
+            errors.append(f"{path}: stopped or closed phase cannot retain active_carrier")
+        if lease.get("state") == "active":
+            errors.append(f"{path}: stopped or closed phase cannot retain active writer lease")
     return errors
 
 
@@ -330,11 +563,15 @@ def discover_paths() -> list[Path]:
     return paths
 
 
+def lease_identity(lease: dict[str, Any]) -> tuple[str, str, str]:
+    return (lease["repository"], lease["resource_kind"], lease["resource"])
+
+
 def main() -> int:
     errors: list[str] = []
     ids: dict[str, Path] = {}
     findings: dict[str, Path] = {}
-    active_leases: dict[str, Path] = {}
+    active_leases: dict[tuple[str, str, str], Path] = {}
     active_carriers: dict[str, Path] = {}
 
     for path in discover_paths():
@@ -359,12 +596,12 @@ def main() -> int:
 
         lease = state["writer_lease"]
         if lease["state"] == "active":
-            artifact = lease["artifact"]
-            previous = active_leases.get(artifact)
+            identity = lease_identity(lease)
+            previous = active_leases.get(identity)
             if previous is not None:
-                errors.append(f"{path}: active writer lease duplicates {artifact!r} from {previous}")
+                errors.append(f"{path}: active writer lease duplicates {identity!r} from {previous}")
             else:
-                active_leases[artifact] = path
+                active_leases[identity] = path
 
         if state["active_carrier"] is not None:
             invariant = state["invariant_id"]
