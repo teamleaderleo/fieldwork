@@ -4,7 +4,7 @@ Parent finding: #333
 
 Retained evidence: PR #343
 
-State: `target-test-prepared`
+State: `target-execution-repair`
 
 Upstream contact authorized: `no`
 
@@ -22,7 +22,7 @@ The selected repair keeps the primary documentation service available but omits 
 - target source path: `packages/mcp/src/lib/encryption.ts`;
 - target test path: `packages/mcp/test/encryption.test.ts`;
 - retained patch: `malformed-key-omit-metadata.patch`;
-- patch SHA-256: `bc03183e34dcd2100555f7bf7fefc9383c8b558f3edccef95ed8f8bcf7b639da`;
+- warning-clean patch SHA-256: `7c7834b3e6515107bd85a1fcc3d46e6d340eb9ae68de9bbed458fe867d422d83`;
 - mirrored target-native test: `malformed-key-omit-metadata.test.ts`.
 
 ## Evidence input
@@ -64,6 +64,21 @@ The new Vitest file covers:
 - injected `randomBytes()` failure: client-IP metadata omitted, unrelated headers retained, fixed diagnostic emitted, no raw IP or exception text in diagnostic.
 
 The test resets modules and environment between cases because the target reads the encryption key at module load. The runtime failure uses a local crypto mock and does not make a network request.
+
+## First exact execution
+
+Prepared head `561224ea00aff5b212608c48dbb28e1c2f9a5067` produced run `30631807091`, job `91159672157`.
+
+The run established:
+
+- exact Fieldwork checkout verification: passed;
+- exact target checkout and patch SHA verification: passed;
+- zero-fuzz patch application and mirrored-test equality: passed;
+- focused omission controls: `3/3`, passed;
+- complete MCP package suite: four files and 49 tests, passed;
+- package format check: failed on `test/encryption.test.ts` before lint, typecheck, build, or receipt assembly.
+
+This is a presentation-only carrier failure. The source contract and complete package tests passed. The warning-clean generation restructures the three long test declarations to the target's Prettier shape and changes no assertions or source behavior.
 
 ## Required exact execution
 
