@@ -67,7 +67,6 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
             ),
             self.receipt(
                 checkout_sha=OTHER,
-                event_sha=OTHER,
                 parents=[BASE, PARENT],
                 expected="other-checkout",
             ),
@@ -99,9 +98,9 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
             self.receipt(base_sha="1" * 39),
             self.receipt(parents=True),
             self.receipt(parents=[PARENT, PARENT]),
+            self.receipt(event_name=True),
             self.receipt(run_id=True),
             self.receipt(run_attempt="0"),
-            self.receipt(head_ref=""),
         )
         for data in cases:
             with self.subTest(data=data):
@@ -118,10 +117,30 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
                 parents=[BASE, MERGE],
             )
 
-    def test_non_pr_event_can_have_empty_branch_refs(self) -> None:
+    def test_pull_request_event_metadata_fails_closed(self) -> None:
+        cases = (
+            self.receipt(event_name="workflow_dispatch"),
+            self.receipt(ref="refs/heads/main"),
+            self.receipt(ref="refs/pull/42/head"),
+            self.receipt(ref="refs/pull/0/merge"),
+            self.receipt(head_ref=""),
+            self.receipt(base_ref=""),
+            self.receipt(head_ref="feature with space"),
+            self.receipt(base_ref="main\tbranch"),
+            self.receipt(event_sha=HEAD),
+            self.receipt(event_sha=BASE),
+            self.receipt(head_sha=BASE),
+        )
+        for data in cases:
+            with self.subTest(data=data):
+                with self.assertRaises(IdentityError):
+                    build_receipt(data)
+
+    def test_push_event_metadata_is_coherent(self) -> None:
         receipt = build_receipt(
             self.receipt(
                 event_name="push",
+                ref="refs/heads/main",
                 checkout_sha=HEAD,
                 event_sha=HEAD,
                 head_ref="",
@@ -129,6 +148,28 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
             )
         )
         self.assertEqual(receipt.classification, "exact-head")
+
+    def test_push_event_metadata_fails_closed(self) -> None:
+        coherent = {
+            "event_name": "push",
+            "ref": "refs/heads/main",
+            "checkout_sha": HEAD,
+            "event_sha": HEAD,
+            "head_ref": "",
+            "base_ref": "",
+        }
+        cases = (
+            self.receipt(**coherent, ref="refs/pull/42/merge"),
+            self.receipt(**coherent, ref="refs/tags/v1"),
+            self.receipt(**coherent, ref="refs/heads/main branch"),
+            self.receipt(**coherent, head_ref="feature/example"),
+            self.receipt(**coherent, base_ref="main"),
+            self.receipt(**coherent, event_sha=OTHER),
+        )
+        for data in cases:
+            with self.subTest(data=data):
+                with self.assertRaises(IdentityError):
+                    build_receipt(data)
 
     def test_cli_output_and_optimizer_status_match(self) -> None:
         root = Path(__file__).resolve().parents[1]
