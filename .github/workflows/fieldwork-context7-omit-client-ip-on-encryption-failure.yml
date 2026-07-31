@@ -50,7 +50,7 @@ jobs:
           patch_path="${GITHUB_WORKSPACE}/fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/malformed-key-omit-metadata.patch"
           actual_patch_sha=$(sha256sum "${patch_path}" | cut -d' ' -f1)
           printf '%s\n' "FIELDWORK_CONTEXT7_PATCH_SHA256=${actual_patch_sha}"
-          test "${actual_patch_sha}" = "7c7834b3e6515107bd85a1fcc3d46e6d340eb9ae68de9bbed458fe867d422d83"
+          test "${actual_patch_sha}" = "1492bff7997500155298be9326f64e511fabc0242f9c00aa7b166b57dabfd24a"
           git -C context7 apply --check "${patch_path}"
           printf '%s\n' "FIELDWORK_CONTEXT7_PATCH_CHECK=passed"
           git -C context7 apply --index "${patch_path}"
@@ -103,7 +103,7 @@ jobs:
       - name: Assemble exact receipt
         env:
           TARGET_HEAD: 594a73133e14631af8c915a1b4f2c8039c964fe1
-          PATCH_SHA256: 7c7834b3e6515107bd85a1fcc3d46e6d340eb9ae68de9bbed458fe867d422d83
+          PATCH_SHA256: 1492bff7997500155298be9326f64e511fabc0242f9c00aa7b166b57dabfd24a
         run: |
           mkdir -p fieldwork-receipts
           FIELDWORK_HEAD=$(cat fieldwork-head.txt) \
