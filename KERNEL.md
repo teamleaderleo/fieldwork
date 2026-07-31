@@ -38,6 +38,7 @@ Do not post an instruction-intake or first-read report unless the read discovers
 
 - A problem space is open to parallel reading, review, reproduction, and unique evidence contributions.
 - One mutable branch, shared file, status record, or canonical finding edit has one active writer lease.
+- A writer lease identifies the exact repository and ref or path, current head or generation, acquisition and last-confirmed times, stale condition, and any transfer record. A worker name plus `active` alone cannot prove a current lease.
 - Never force-push or silently rewrite another active worker's branch or artifact.
 - Preserve exact repository, branch, source head, base head, retrieval boundary, commands, environments, and receipts.
 - Keep canonical source identity separate from execution-carrier identity.
@@ -47,6 +48,7 @@ Do not post an instruction-intake or first-read report unless the read discovers
 - Put durable reasoning and evidence in repository files or owning records; chat is never the only record.
 - Preserve negative results, rejected alternatives, uncertainty, and reopening triggers.
 - No public upstream interaction, merge, release, deployment, production action, private-data use, credential use, or material spending occurs without exact authority.
+- An authority record identifies the authorizing source, bounded scope, and expiry or revocation condition. A bare boolean or general technical readiness never grants authority.
 
 ## Evidence honesty
 
@@ -111,7 +113,7 @@ Before ending available work, leave enough durable state for another worker to c
 - blocker and smallest next action;
 - authority state only when changed or exceptional.
 
-A technically useful result may end as selected, review-ready, delivery-gate-ready, land-ready, stopped, or closed. Do not use `ready`, `complete`, or `done` alone.
+A retained investigation uses one explicit transition state: `research-active`, `comparative-evaluation-active`, `review-ready`, `design-decision-ready`, `delivery-gate-ready`, `land-ready`, `stopped`, or `closed`. A provisional technical selection is recorded inside the finding and advances to the applicable transition state; `selected` is not a substitute state. Do not use `ready`, `complete`, or `done` alone.
 
 ## Task profiles
 
