@@ -48,7 +48,7 @@ def main() -> None:
 const singletonTransitions = new Set<McpAttemptTransitionKind>(
 ''',
         '''} as const satisfies Record<McpFailureStage, McpFailureStageWindow>;
-export const mcpAttemptFailureStages = Object.freeze(
+const failureStages = Object.freeze(
   Object.keys(failureStageWindows) as McpFailureStage[],
 );
 const singletonTransitions = new Set<McpAttemptTransitionKind>(
@@ -62,18 +62,6 @@ const singletonTransitions = new Set<McpAttemptTransitionKind>(
         '''const secretShapedIdentityPattern = /(?:^|[._:/-])(?:(?:env|secret):\\/\\/|github_pat_|gh[pousr]_|stn\\.tok_|sk-|xox[baprs]-)/iu;
 ''',
         "replace credential identity detector",
-    )
-    source = replace_once(
-        source,
-        '''      optionalEnumValue(record.failureStage, "MCP failure stage", failureStages),
-''',
-        '''      optionalEnumValue(
-        record.failureStage,
-        "MCP failure stage",
-        mcpAttemptFailureStages,
-      ),
-''',
-        "bind failure-stage admission",
     )
     source = replace_once(
         source,
