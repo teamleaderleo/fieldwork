@@ -1,0 +1,76 @@
+name: Issue 244 repository admission
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - STENSIBLY.md
+      - campaigns/0006-authority-aware-capability-fallback/artifacts/classify_fallback.py
+      - campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/**
+      - .github/workflows/issue-244-repository-admission.yml
+  push:
+    branches:
+      - main
+    paths:
+      - STENSIBLY.md
+      - campaigns/0006-authority-aware-capability-fallback/artifacts/classify_fallback.py
+      - campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/**
+      - .github/workflows/issue-244-repository-admission.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Compile admission and fallback classifiers
+        run: |
+          python3 -m py_compile \
+            campaigns/0006-authority-aware-capability-fallback/artifacts/classify_fallback.py \
+            campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/artifacts/evaluate_admission.py
+      - name: Execute deterministic admission matrices
+        run: |
+          path=campaigns/0006-authority-aware-capability-fallback/lanes/fieldwork-repository-admission/artifacts
+          python3 "$path/evaluate_admission.py" \
+            --cases "$path/cases.json" \
+            --output /tmp/repository-admission-base-1.json
+          python3 "$path/evaluate_admission.py" \
+            --cases "$path/cases.json" \
+            --output /tmp/repository-admission-base-2.json
+          cmp /tmp/repository-admission-base-1.json /tmp/repository-admission-base-2.json
+
+          python3 "$path/evaluate_admission.py" \
+            --cases "$path/composition-cases.json" \
+            --output /tmp/repository-admission-composition-1.json
+          python3 "$path/evaluate_admission.py" \
+            --cases "$path/composition-cases.json" \
+            --output /tmp/repository-admission-composition-2.json
+          cmp /tmp/repository-admission-composition-1.json /tmp/repository-admission-composition-2.json
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          base = json.loads(Path('/tmp/repository-admission-base-1.json').read_text())
+          composition = json.loads(Path('/tmp/repository-admission-composition-1.json').read_text())
+          assert base['case_count'] == 14
+          assert base['all_expectations_passed'] is True
+          assert composition['case_count'] == 4
+          assert composition['decision_counts'] == {
+              'ready': 0,
+              'degraded_read_only': 1,
+              'require_explicit_approval': 0,
+              'blocked': 2,
+              'invalid': 1,
+          }
+          assert composition['all_expectations_passed'] is True
+          PY
+      - name: Run Fieldwork repository checks
+        run: |
+          node scripts/test_interaction_references.js
+          python3 scripts/check_fieldwork_integrity.py
+          git diff --check
