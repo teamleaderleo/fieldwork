@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Time-bound decision currentness for the issue #325 mechanism pilot.
+"""Generation-bound and time-bound authority currentness for issue #325.
 
-Exact input identity and present decision usability are separate. A historically
-exact projection may remain useful evidence after one time-sensitive authority
-conclusion expires, while unrelated current authority remains independently
-usable. Effective authority requires both dimensions to remain current.
+Exact input identity, exact derived authority status, and present decision
+usability are separate. A historically exact projection may remain useful
+evidence after one time-sensitive authority conclusion expires, while unrelated
+current authority remains independently usable. Effective authority requires all
+three dimensions to remain current for that action.
 """
 
 from __future__ import annotations
@@ -12,11 +13,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from reconcile import projection_is_current
+from reconcile import projection_is_current, reconcile as build_projection
 
 
 DecisionCurrentness = dict[str, Any]
 ActionCurrentness = dict[str, dict[str, Any]]
+ProjectionAuthorityIntegrity = dict[str, dict[str, Any]]
 AuthorizationCurrentness = dict[str, Any]
 
 
@@ -126,7 +128,7 @@ def decision_currentness(
 
     The projection-level status is a refresh signal. Per-action currentness remains
     available in ``actions`` and controls effective authority independently after
-    exact input currentness succeeds.
+    exact input and derived-status checks succeed.
     """
 
     observed_value = projection.get("observed_at")
@@ -205,7 +207,18 @@ def _input_currentness(
             "status": "Unknown",
             "reason": "MissingCurrentInputs",
         }
-    if projection_is_current(projection, current_record, current_live_facts):
+    try:
+        current = projection_is_current(
+            projection,
+            current_record,
+            current_live_facts,
+        )
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return {
+            "status": "Unknown",
+            "reason": "InvalidCurrentInputs",
+        }
+    if current:
         return {
             "status": "True",
             "reason": "ExactInputsCurrent",
@@ -216,15 +229,102 @@ def _input_currentness(
     }
 
 
+def _projection_authority_integrity(
+    projection: dict[str, Any],
+    current_record: dict[str, Any] | None,
+    current_live_facts: dict[str, Any] | None,
+) -> ProjectionAuthorityIntegrity:
+    """Bind each derived authority result to deterministic exact-input output.
+
+    Input-manifest equality alone does not prove that a retained projection's
+    derived conditions remained byte-for-byte consistent with those inputs. This
+    comparison reproduces the authority view at the original observation boundary
+    and isolates any mismatch to the affected action.
+    """
+
+    projected_authority = projection.get("effective_authority")
+    projected_authority = (
+        projected_authority if isinstance(projected_authority, dict) else {}
+    )
+    projected_actions = {str(action) for action in projected_authority}
+
+    if not isinstance(current_record, dict) or not isinstance(current_live_facts, dict):
+        return {
+            action: {
+                "status": "Unknown",
+                "reason": "MissingCurrentInputs",
+            }
+            for action in projected_actions
+        }
+
+    try:
+        expected = build_projection(
+            current_record,
+            current_live_facts,
+            projection.get("observed_at"),
+        )
+        expected_authority = expected.get("effective_authority")
+        if not isinstance(expected_authority, dict):
+            raise ValueError("reproduced effective authority must be a record")
+        projected_conditions = _authority_conditions(projection)
+        expected_conditions = _authority_conditions(expected)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return {
+            action: {
+                "status": "Unknown",
+                "reason": "ProjectionReproductionFailed",
+            }
+            for action in projected_actions
+        }
+
+    actions = projected_actions | {str(action) for action in expected_authority}
+    integrity: ProjectionAuthorityIntegrity = {}
+    for action in sorted(actions):
+        projected_condition = projected_conditions.get(action)
+        expected_condition = expected_conditions.get(action)
+        projected_state = projected_authority.get(action)
+        expected_state = expected_authority.get(action)
+
+        if projected_condition is None or action not in projected_authority:
+            integrity[action] = {
+                "status": "Unknown",
+                "reason": "MissingProjectedAuthority",
+            }
+        elif expected_condition is None or action not in expected_authority:
+            integrity[action] = {
+                "status": "False",
+                "reason": "UnexpectedProjectedAuthority",
+            }
+        elif (
+            projected_state != expected_state
+            or projected_condition != expected_condition
+        ):
+            integrity[action] = {
+                "status": "False",
+                "reason": "ProjectionAuthorityMismatch",
+            }
+        else:
+            integrity[action] = {
+                "status": "True",
+                "reason": "ExactProjectedAuthority",
+            }
+    return integrity
+
+
 def authorization_currentness(
     projection: dict[str, Any],
     current_at: str,
     current_record: dict[str, Any] | None,
     current_live_facts: dict[str, Any] | None,
 ) -> AuthorizationCurrentness:
-    """Expose exact-input and time/revocation currentness as separate dimensions."""
+    """Expose exact-input, derived-status, and decision currentness separately."""
 
     inputs_current = _input_currentness(
+        projection,
+        current_record,
+        current_live_facts,
+    )
+    projection_authority = _projection_authority_integrity(
         projection,
         current_record,
         current_live_facts,
@@ -234,19 +334,30 @@ def authorization_currentness(
     if not isinstance(authority, dict):
         authority = {}
 
+    action_names = {str(action) for action in authority} | set(projection_authority)
     actions: dict[str, dict[str, Any]] = {}
-    for raw_action, raw_state in authority.items():
-        action = str(raw_action)
+    for action in sorted(action_names):
+        raw_state = authority.get(action)
         decision_action = decision.get("actions", {}).get(action, {})
+        integrity_action = projection_authority.get(
+            action,
+            {"status": "Unknown", "reason": "MissingProjectionIntegrity"},
+        )
         effective = (
             "authorized"
             if inputs_current["status"] == "True"
+            and integrity_action.get("status") == "True"
             and raw_state == "authorized"
             and decision_action.get("status") == "True"
             else "denied"
         )
         actions[action] = {
             "inputs_current": inputs_current["status"],
+            "projection_current": integrity_action.get("status", "Unknown"),
+            "projection_reason": integrity_action.get(
+                "reason",
+                "MissingProjectionIntegrity",
+            ),
             "decision_current": decision_action.get("status", "Unknown"),
             "decision_reason": decision_action.get(
                 "reason",
@@ -257,6 +368,7 @@ def authorization_currentness(
 
     return {
         "inputs_current": inputs_current,
+        "projection_authority_integrity": projection_authority,
         "decision_currentness": decision,
         "actions": actions,
     }
@@ -268,7 +380,7 @@ def effective_authority_at(
     current_record: dict[str, Any] | None,
     current_live_facts: dict[str, Any] | None,
 ) -> dict[str, str]:
-    """Return authority only when exact inputs and per-action decisions are current."""
+    """Return authority only when inputs, derived status, and decisions are current."""
 
     return {
         action: state["effective"]
