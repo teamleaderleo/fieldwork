@@ -9,7 +9,6 @@ Investigation workspace: `investigations/254-linux-storage-archive-reproducibili
 Canonical implementation: `teamleaderleo/linux-fieldwork` PR #151; accepted-neighbor controls in PR #220  
 Exact implementation head: product `4555c5c250c1afedb3947fd1a7b5a0323bd9d262`; controls `bb0a79dec47958c6b865d4b382a44baff17ab736`  
 Exact base or source revision: PR #151 base `d344c942af4b55b5b0c71c8a66a8870fbf0db7bf`; GNU tar 1.35 under `LC_ALL=C`  
-Strongest evidence class: `target-executed`  
 Reviewed input generation: predecessor chain PRs #56, #68, #102, #113; final product and control heads above  
 Current review disposition: `ACCEPT`  
 Desk routing: `not-entered`  
@@ -127,7 +126,7 @@ Locale, collation, POSIX bracket classes, diagnostics, performance limits, and G
 ## Edge cases deferred or outside scope
 
 | Edge case | Why deferred | Owning next record or reopening trigger |
-| --- | --- | --- |
+| --- | --- | --- | --- |
 | POSIX bracket classes, collating elements, equivalence classes | not covered by the bounded translator | reopen with a differential matrix and source design |
 | locale-sensitive ranges and non-`C` locales | GNU/Python locale semantics differ | new locale compatibility finding |
 | GNU alphabetic escapes and word boundaries | unresolved translation semantics | reopen when a caller or test requires them |
