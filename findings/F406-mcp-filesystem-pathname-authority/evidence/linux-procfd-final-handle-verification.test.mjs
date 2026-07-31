@@ -170,7 +170,7 @@ test('visible allowed-root replacement does not invalidate retained-root verific
   }
 });
 
-test('deleted retained roots keep descriptor-relative read identity', async () => {
+test('deleted retained roots fail verification closed even though an already-open file remains readable', async () => {
   const state = await fixture();
   let rootHandle;
   let fileHandle;
@@ -181,8 +181,10 @@ test('deleted retained roots keep descriptor-relative read identity', async () =
     await fs.unlink(path.join(state.allowed, 'inside.txt'));
     await fs.rmdir(state.allowed);
 
-    const verified = await verifyOpenedHandleBeneathRoot(rootHandle, fileHandle);
-    assert.equal(isWithin(verified.openedPath, verified.rootPath), true);
+    await assert.rejects(
+      verifyOpenedHandleBeneathRoot(rootHandle, fileHandle),
+      error => error?.code === 'ENOENT',
+    );
     assert.equal(await fileHandle.readFile('utf8'), 'inside-value');
   } finally {
     await fileHandle?.close();
