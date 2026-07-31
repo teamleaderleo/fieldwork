@@ -18,7 +18,7 @@ diff --git a/playgrounds/EXP-20260731-observed-generation/reconcile.py b/playgro
 +        if expires_at is not None:
 +            try:
 +                expiry = _parse_time(expires_at)
-+            except (TypeError, ValueError):
++            except (AttributeError, TypeError, ValueError):
 +                effective[action] = "denied"
 +                conditions.append(
 +                    _condition(
