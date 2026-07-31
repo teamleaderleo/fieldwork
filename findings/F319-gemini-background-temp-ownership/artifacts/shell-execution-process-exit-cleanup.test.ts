@@ -31,6 +31,7 @@ type ActiveChildProcessForTest = {
   process: {
     emit(event: string, ...args: unknown[]): boolean;
     kill(signal?: NodeJS.Signals): boolean;
+    once(event: string, listener: (...args: unknown[]) => void): unknown;
   };
 };
 
@@ -110,16 +111,19 @@ describe('ShellExecutionService process-exit cleanup', () => {
     const child = activeChildProcess(handle.pid!);
     expect(child).toBeDefined();
 
+    const closed = new Promise<void>((resolve) => {
+      child!.process.once('close', () => resolve());
+    });
+
     child!.process.emit('error', new Error('synthetic child error'));
-    child!.process.kill('SIGTERM');
+    expect(child!.process.kill('SIGTERM')).toBe(true);
+    await closed;
 
     const result = await handle.result;
     expect(result.error?.message).toBe('synthetic child error');
-
     await vi.waitFor(() => {
       expect(cleanup).toHaveBeenCalledTimes(1);
     });
-    await new Promise((resolve) => setTimeout(resolve, 100));
     expect(cleanup).toHaveBeenCalledTimes(1);
   });
 });
