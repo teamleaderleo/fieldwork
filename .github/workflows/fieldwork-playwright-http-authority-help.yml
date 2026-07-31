@@ -67,9 +67,24 @@ jobs:
           set -euo pipefail
           node packages/playwright-core/lib/entry/mcp.js --help \
             | tee ../fieldwork-receipts/playwright-mcp-help.txt
-          grep -F "does not authenticate clients" ../fieldwork-receipts/playwright-mcp-help.txt
-          grep -F "trusted authenticated network boundary or reverse proxy" ../fieldwork-receipts/playwright-mcp-help.txt
-          grep -F "shared tabs, cookies, storage, and page state" ../fieldwork-receipts/playwright-mcp-help.txt
+          node <<'NODE'
+          const fs = require('node:fs');
+          const help = fs
+            .readFileSync('../fieldwork-receipts/playwright-mcp-help.txt', 'utf8')
+            .replace(/\s+/g, ' ')
+            .trim();
+          const expected = [
+            'does not authenticate clients',
+            'trusted authenticated network boundary or reverse proxy',
+            'shared tabs, cookies, storage, and page state',
+          ];
+          for (const phrase of expected) {
+            if (!help.includes(phrase)) {
+              console.error(`Missing generated-help phrase: ${phrase}`);
+              process.exitCode = 1;
+            }
+          }
+          NODE
           git diff --check
 
       - name: Assemble exact-head receipt
