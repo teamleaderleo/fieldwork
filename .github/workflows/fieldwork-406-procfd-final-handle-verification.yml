@@ -73,7 +73,7 @@ jobs:
               'swap-before-open-rejected',
               'swap-after-open-stable',
               'visible-root-replacement-stable',
-              'deleted-root-descriptor-identity',
+              'deleted-root-verification-fails-closed',
             ],
             workflowSteps: {
               verify: process.env.VERIFY_OUTCOME || 'not-run',
@@ -82,6 +82,7 @@ jobs:
             evidenceClass: 'model-executed',
             claims: {
               readOnlyFinalSymlinkCompatibility: process.env.MODEL_OUTCOME === 'success',
+              deletedRootVerificationPolicy: 'fail-closed',
               writeOrRenameCompatibility: 'not-claimed',
               targetComposition: 'not-claimed',
               openat2Equivalence: 'not-claimed',
