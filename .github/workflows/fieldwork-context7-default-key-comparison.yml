@@ -1,0 +1,241 @@
+name: Fieldwork Context7 default-key comparison
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-context7-default-key-comparison.yml"
+      - "programmes/high-leverage-open-source/scouts/context7-http-boundary/default-key-comparison/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Exact default-key characterization and explicit-key-only candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact Fieldwork carrier head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact Context7 source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: upstash/context7
+          ref: 594a73133e14631af8c915a1b4f2c8039c964fe1
+          path: context7
+          persist-credentials: false
+
+      - name: Verify exact identities and carrier syntax
+        id: verify
+        shell: bash
+        env:
+          EXPECTED_FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git -C fieldwork rev-parse HEAD)" = "$EXPECTED_FIELDWORK_HEAD"
+          test "$(git -C context7 rev-parse HEAD)" = "594a73133e14631af8c915a1b4f2c8039c964fe1"
+          python3 -m py_compile \
+            fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/default-key-comparison/apply_explicit_key_only.py
+          mkdir -p fieldwork-receipts
+
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+        with:
+          version: 10
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: context7/pnpm-lock.yaml
+
+      - name: Install exact target dependencies
+        id: install
+        working-directory: context7
+        run: pnpm install --frozen-lockfile
+
+      - name: Prove absent and empty configuration use a publicly decryptable key
+        id: characterize
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp \
+            fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/default-key-comparison/default-key-characterization.test.ts \
+            context7/packages/mcp/test/fieldwork-default-key-characterization.test.ts
+          cd context7
+          set -o pipefail
+          pnpm --filter @upstash/context7-mcp exec vitest run \
+            test/fieldwork-default-key-characterization.test.ts \
+            2>&1 | tee ../fieldwork-receipts/default-key-characterization.log
+          rm packages/mcp/test/fieldwork-default-key-characterization.test.ts
+
+      - name: Apply explicit-key-only candidate
+        id: apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 \
+            fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/default-key-comparison/apply_explicit_key_only.py \
+            context7
+          cp \
+            fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/default-key-comparison/explicit-key-only.test.ts \
+            context7/packages/mcp/test/encryption.test.ts
+          git -C context7 add -N -- packages/mcp/test/encryption.test.ts
+          git -C context7 diff --check
+
+      - name: Format exact candidate with target toolchain
+        id: format
+        working-directory: context7
+        run: |
+          pnpm --filter @upstash/context7-mcp exec prettier --write \
+            src/lib/encryption.ts \
+            test/encryption.test.ts
+
+      - name: Run focused candidate controls
+        id: focused
+        shell: bash
+        working-directory: context7
+        run: |
+          set -o pipefail
+          pnpm --filter @upstash/context7-mcp exec vitest run \
+            test/encryption.test.ts \
+            2>&1 | tee ../fieldwork-receipts/explicit-key-only-focused.log
+
+      - name: Run complete MCP package gates
+        id: package
+        working-directory: context7
+        run: |
+          pnpm --filter @upstash/context7-mcp test
+          pnpm --filter @upstash/context7-mcp typecheck
+          pnpm --filter @upstash/context7-mcp lint:check
+          pnpm --filter @upstash/context7-mcp format:check
+          pnpm --filter @upstash/context7-mcp build
+
+      - name: Retain exact target candidate and receipt
+        if: always()
+        shell: bash
+        env:
+          EXPECTED_FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          CHARACTERIZE_OUTCOME: ${{ steps.characterize.outcome }}
+          APPLY_OUTCOME: ${{ steps.apply.outcome }}
+          FORMAT_OUTCOME: ${{ steps.format.outcome }}
+          FOCUSED_OUTCOME: ${{ steps.focused.outcome }}
+          PACKAGE_OUTCOME: ${{ steps.package.outcome }}
+          RUN_ID_VALUE: ${{ github.run_id }}
+          RUN_ATTEMPT_VALUE: ${{ github.run_attempt }}
+          EVENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p fieldwork-receipts
+          actual_fieldwork_head=$(git -C fieldwork rev-parse HEAD 2>/dev/null || true)
+          actual_target_head=$(git -C context7 rev-parse HEAD 2>/dev/null || true)
+          patch_path=fieldwork-receipts/context7-explicit-key-only.patch
+          patch_sha256=
+          if [[ -d context7/.git ]]; then
+            git -C context7 diff --binary > "$patch_path"
+            if [[ -s "$patch_path" ]]; then
+              patch_sha256=$(sha256sum "$patch_path" | cut -d' ' -f1)
+            fi
+          fi
+          export ACTUAL_FIELDWORK_HEAD="$actual_fieldwork_head"
+          export ACTUAL_TARGET_HEAD="$actual_target_head"
+          export PATCH_SHA256="$patch_sha256"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const outcomes = {
+            verify: process.env.VERIFY_OUTCOME || 'not-run',
+            install: process.env.INSTALL_OUTCOME || 'not-run',
+            characterizePublicDefault: process.env.CHARACTERIZE_OUTCOME || 'not-run',
+            applyExplicitKeyOnly: process.env.APPLY_OUTCOME || 'not-run',
+            targetFormat: process.env.FORMAT_OUTCOME || 'not-run',
+            focusedCandidate: process.env.FOCUSED_OUTCOME || 'not-run',
+            completeMcpPackage: process.env.PACKAGE_OUTCOME || 'not-run',
+          };
+          const allSucceeded = Object.values(outcomes).every(value => value === 'success');
+          const receipt = {
+            schemaVersion: 1,
+            expectedFieldworkHead: process.env.EXPECTED_FIELDWORK_HEAD,
+            actualFieldworkCheckout: process.env.ACTUAL_FIELDWORK_HEAD,
+            fieldworkCheckoutClassification:
+              process.env.EXPECTED_FIELDWORK_HEAD === process.env.ACTUAL_FIELDWORK_HEAD
+                ? 'exact-head'
+                : 'other-checkout',
+            eventSha: process.env.EVENT_SHA,
+            targetRepository: 'upstash/context7',
+            expectedTargetHead: '594a73133e14631af8c915a1b4f2c8039c964fe1',
+            actualTargetCheckout: process.env.ACTUAL_TARGET_HEAD,
+            targetCheckoutMatches:
+              process.env.ACTUAL_TARGET_HEAD ===
+              '594a73133e14631af8c915a1b4f2c8039c964fe1',
+            patchSha256: process.env.PATCH_SHA256 || null,
+            runId: process.env.RUN_ID_VALUE,
+            runAttempt: process.env.RUN_ATTEMPT_VALUE,
+            workflowSteps: outcomes,
+            reusableCandidateEvidence: allSucceeded,
+            evidenceClass: allSucceeded
+              ? 'target-executed-local-mocked'
+              : 'partial-harness-receipt',
+            hostedProviderCall: false,
+            credentialsUsed: false,
+            comparison: {
+              compatibilityPreserving: {
+                policy: 'retain public fallback key and narrow confidentiality claim',
+                confidentialityBoundary: false,
+              },
+              selected: {
+                policy: 'emit client-IP metadata only with an explicit valid key',
+                missingOrEmpty: 'omit-with-fixed-diagnostic',
+                malformedOrRuntimeFailure: 'omit-with-fixed-diagnostic',
+                validExplicitKey: 'ciphertext-retained',
+              },
+            },
+            claimReceipts: {
+              absentKeyDecryptableWithPublicConstant: {
+                evidenceClass: 'target-executed',
+                status: outcomes.characterizePublicDefault,
+              },
+              emptyKeyDecryptableWithPublicConstant: {
+                evidenceClass: 'target-executed',
+                status: outcomes.characterizePublicDefault,
+              },
+              explicitKeyOnlyCandidate: {
+                evidenceClass: 'target-executed',
+                status:
+                  outcomes.focusedCandidate === 'success' &&
+                  outcomes.completeMcpPackage === 'success'
+                    ? 'success'
+                    : 'incomplete',
+              },
+              ciphertextAuthenticity: { status: 'not-claimed' },
+              hostedProviderBehavior: { status: 'not-claimed' },
+              upstreamAcceptance: { status: 'not-claimed' },
+            },
+          };
+          fs.writeFileSync(
+            path.join('fieldwork-receipts', 'context7-default-key-comparison.json'),
+            `${JSON.stringify(receipt, null, 2)}\n`,
+          );
+          NODE
+          test "$actual_fieldwork_head" = "$EXPECTED_FIELDWORK_HEAD"
+          test "$actual_target_head" = "594a73133e14631af8c915a1b4f2c8039c964fe1"
+          if [[ ${PACKAGE_OUTCOME} == success ]]; then
+            test -n "$patch_sha256"
+            git -C context7 diff --check
+          fi
+
+      - name: Upload exact comparison receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: context7-default-key-comparison-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
