@@ -138,7 +138,19 @@ const singletonTransitions = new Set<McpAttemptTransitionKind>(
 ''',
         ''').toThrow("contains unsupported fields");
 ''',
-        "update fixed unknown-field expectation",
+        "update fixed record-field expectation",
+    )
+    tests = replace_once(
+        tests,
+        '''    expect(() => projectMcpAttemptObservations(decorated)).toThrow(
+      "unsupported field privatePayload",
+    );
+''',
+        '''    expect(() => projectMcpAttemptObservations(decorated)).toThrow(
+      "contains unsupported fields",
+    );
+''',
+        "update fixed array-decoration expectation",
     )
     test_path.write_text(tests, encoding="utf-8")
 
