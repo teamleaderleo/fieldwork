@@ -1,18 +1,34 @@
 diff --git a/packages/playwright-core/src/entry/mcp.ts b/packages/playwright-core/src/entry/mcp.ts
 --- a/packages/playwright-core/src/entry/mcp.ts
 +++ b/packages/playwright-core/src/entry/mcp.ts
-@@ -17,6 +17,16 @@ import { program } from 'commander';
+@@ -17,6 +17,29 @@ import { program } from 'commander';
  import { tools, utils } from '../coreBundle';
  import { packageJSON } from '../package';
  
++type TestSigintMessage = {
++  type: 'playwright:mcp:test:sigint';
++  version: 1;
++};
++
++function isTestSigintMessage(message: unknown): message is TestSigintMessage {
++  return !!message &&
++    typeof message === 'object' &&
++    !Array.isArray(message) &&
++    (message as TestSigintMessage).type === 'playwright:mcp:test:sigint' &&
++    (message as TestSigintMessage).version === 1;
++}
++
 +// The spawning test process already owns this child. Use its private IPC
 +// channel to exercise the cross-platform SIGINT path without exposing a
 +// network shutdown endpoint to MCP clients.
 +if (process.send) {
-+  process.on('message', message => {
-+    if (message === 'playwright:mcp:test:sigint')
-+      process.emit('SIGINT');
-+  });
++  const onTestMessage = (message: unknown) => {
++    if (!isTestSigintMessage(message))
++      return;
++    process.off('message', onTestMessage);
++    process.emit('SIGINT');
++  };
++  process.on('message', onTestMessage);
 +}
 +
  const p = program.version('Version ' + packageJSON.version).name('Playwright MCP');
@@ -50,7 +66,7 @@ diff --git a/tests/mcp/http.spec.ts b/tests/mcp/http.spec.ts
  import { ListRootsRequestSchema, PingRequestSchema } from 'playwright-core/lib/utilsBundle';
  
 -const test = baseTest.extend<{ serverEndpoint: (options?: { args?: string[], noPort?: boolean, env?: Record<string, string> }) => Promise<{ url: URL, stderr: () => string }> }>({
-+const test = baseTest.extend<{ serverEndpoint: (options?: { args?: string[], noPort?: boolean, env?: Record<string, string> }) => Promise<{ url: URL, stderr: () => string, send: (message: unknown) => void }> }>({
++const test = baseTest.extend<{ serverEndpoint: (options?: { args?: string[], noPort?: boolean, env?: Record<string, string> }) => Promise<{ url: URL, stderr: () => string, send: (message: unknown) => void, disconnect: () => void }> }>({
    serverEndpoint: async ({ mcpHeadless }, use, testInfo) => {
      let cp: ChildProcess | undefined;
      const userDataDir = testInfo.outputPath('user-data-dir');
@@ -67,7 +83,7 @@ diff --git a/tests/mcp/http.spec.ts b/tests/mcp/http.spec.ts
        }));
  
 -      return { url: new URL(url), stderr: () => stderr };
-+      return { url: new URL(url), stderr: () => stderr, send: message => cp!.send(message) };
++      return { url: new URL(url), stderr: () => stderr, send: message => cp!.send(message), disconnect: () => cp!.disconnect() };
      });
      cp?.kill('SIGTERM');
    },
@@ -80,7 +96,7 @@ diff --git a/tests/mcp/http.spec.ts b/tests/mcp/http.spec.ts
  
    const transport = new StreamableHTTPClientTransport(new URL('/mcp', url));
    const client = new Client({ name: 'test', version: '1.0.0' });
-@@ -145,7 +145,17 @@ test('http transport browser sigint', async ({ serverEndpoint, server }) => {
+@@ -145,7 +145,36 @@ test('http transport browser sigint', async ({ serverEndpoint, server }) => {
      arguments: { url: server.HELLO_WORLD },
    });
  
@@ -92,10 +108,33 @@ diff --git a/tests/mcp/http.spec.ts b/tests/mcp/http.spec.ts
 +  expect(oldShutdownResponse.status).not.toBe(200);
 +  await client.ping();
 +
-+  send('playwright:mcp:test:not-sigint');
++  send('playwright:mcp:test:sigint');
++  send({ type: 'playwright:mcp:test:sigint', version: 2 });
 +  await client.ping();
 +
-+  send('playwright:mcp:test:sigint');
++  const shutdownMessage = { type: 'playwright:mcp:test:sigint', version: 1 };
++  send(shutdownMessage);
++  send(shutdownMessage);
  
    await expect.poll(() => formatLog(stderr())).toEqual({
      'create browser (isolated)': 1,
+     'create context': 1,
+     'create http session': 1,
+     'gracefully closing 1': 1,
+   });
+ });
++
++test('http transport parent IPC disconnect is inert', async ({ serverEndpoint }) => {
++  const { url, disconnect } = await serverEndpoint({ args: ['--isolated'] });
++
++  const transport = new StreamableHTTPClientTransport(new URL('/mcp', url));
++  const client = new Client({ name: 'test', version: '1.0.0' });
++  await client.connect(transport);
++  await client.ping();
++
++  disconnect();
++  await client.ping();
++  await client.close();
++});
+ 
+ test('http transport browser lifecycle (isolated, multiclient)', { annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41539' } }, async ({ serverEndpoint, server }) => {
