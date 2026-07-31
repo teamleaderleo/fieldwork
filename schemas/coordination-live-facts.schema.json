@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://teamleaderleo.github.io/fieldwork/schemas/coordination-live-facts.schema.json",
+  "title": "Fieldwork coordination live facts",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "refs", "pull_requests", "issues"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "generated_at": { "type": "string", "minLength": 1 },
+    "refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repository", "branch", "head", "observed_at"],
+        "properties": {
+          "repository": { "type": "string", "minLength": 1 },
+          "branch": { "type": "string", "minLength": 1 },
+          "head": { "type": "string", "minLength": 7 },
+          "observed_at": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "pull_requests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "repository",
+          "number",
+          "state",
+          "draft",
+          "head_branch",
+          "head",
+          "base_branch",
+          "base_head",
+          "updated_at",
+          "checks"
+        ],
+        "properties": {
+          "repository": { "type": "string", "minLength": 1 },
+          "number": { "type": "integer", "minimum": 1 },
+          "state": { "enum": ["open", "closed"] },
+          "draft": { "type": "boolean" },
+          "head_branch": { "type": "string", "minLength": 1 },
+          "head": { "type": "string", "minLength": 7 },
+          "base_branch": { "type": "string", "minLength": 1 },
+          "base_head": { "type": ["string", "null"] },
+          "updated_at": { "type": "string", "minLength": 1 },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "status", "conclusion", "run_id", "job_id"],
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "status": { "enum": ["queued", "in_progress", "completed"] },
+                "conclusion": {
+                  "enum": [
+                    "success",
+                    "failure",
+                    "cancelled",
+                    "timed_out",
+                    "skipped",
+                    "neutral",
+                    "action_required",
+                    null
+                  ]
+                },
+                "run_id": { "type": ["integer", "null"], "minimum": 1 },
+                "job_id": { "type": ["integer", "null"], "minimum": 1 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repository", "number", "state", "state_text", "labels", "updated_at"],
+        "properties": {
+          "repository": { "type": "string", "minLength": 1 },
+          "number": { "type": "integer", "minimum": 1 },
+          "state": { "enum": ["open", "closed"] },
+          "state_text": { "type": ["string", "null"] },
+          "labels": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          },
+          "updated_at": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}
