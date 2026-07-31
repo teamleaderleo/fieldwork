@@ -46,7 +46,17 @@ function decryptClientIp(value: string, key: string): string {
   return plaintext;
 }
 
-function generate(generateHeaders: Awaited<ReturnType<typeof loadGenerateHeaders>>) {
+function decryptClientIpOrNull(value: string, key: string): string | null {
+  try {
+    return decryptClientIp(value, key);
+  } catch {
+    return null;
+  }
+}
+
+function generate(
+  generateHeaders: Awaited<ReturnType<typeof loadGenerateHeaders>>,
+) {
   return generateHeaders({
     clientIp: CLIENT_IP,
     sessionId: "session-default-policy",
@@ -99,6 +109,22 @@ describe.sequential("Context7 client-IP default-key policy", () => {
     }
   });
 
+  test("does not require an encryption key without a client IP", async () => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => {});
+    const generateHeaders = await loadGenerateHeaders(undefined);
+    const headers = generateHeaders({
+      sessionId: "session-no-client-ip",
+      apiKey: "test-api-key",
+      transport: "stdio",
+    });
+
+    expect(headers).not.toHaveProperty("mcp-client-ip");
+    expect(headers["mcp-session-id"]).toBe("session-no-client-ip");
+    expect(headers["Authorization"]).toBe("Bearer test-api-key");
+    expect(headers["X-Context7-Transport"]).toBe("stdio");
+    expect(diagnostic).not.toHaveBeenCalled();
+  });
+
   test("preserves metadata with an explicit valid non-public key", async () => {
     const diagnostic = vi.spyOn(console, "error").mockImplementation(() => {});
     const generateHeaders = await loadGenerateHeaders(EXPLICIT_TEST_KEY);
@@ -110,6 +136,9 @@ describe.sequential("Context7 client-IP default-key policy", () => {
     expect(decryptClientIp(headers["mcp-client-ip"], EXPLICIT_TEST_KEY)).toBe(
       CLIENT_IP,
     );
+    expect(
+      decryptClientIpOrNull(headers["mcp-client-ip"], PUBLIC_DEFAULT_KEY),
+    ).not.toBe(CLIENT_IP);
     expect(diagnostic).not.toHaveBeenCalled();
   });
 });
