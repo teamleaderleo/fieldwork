@@ -1,0 +1,37 @@
+diff --git a/packages/playwright-core/src/tools/utils/mcp/http.ts b/packages/playwright-core/src/tools/utils/mcp/http.ts
+--- a/packages/playwright-core/src/tools/utils/mcp/http.ts
++++ b/packages/playwright-core/src/tools/utils/mcp/http.ts
+@@ -58,6 +58,7 @@ async function installHttpTransport(httpServer: http.Server, serverBackendFactory
+   const host = new URL(url).host;
+   allowedHosts = (allowedHosts || [host]).map(h => h.toLowerCase());
+   const allowAnyHost = allowedHosts.includes('*');
++  const allowProcessShutdown = process.env.PLAYWRIGHT_MCP_ALLOW_PROCESS_SHUTDOWN === '1';
+ 
+   const sseSessions = new Map();
+   const streamableSessions = new Map();
+@@ -72,6 +73,10 @@ async function installHttpTransport(httpServer: http.Server, serverBackendFactory
+ 
+     const url = new URL(`http://localhost${req.url}`);
+     if (url.pathname === '/killkillkill') {
++      if (!allowProcessShutdown) {
++        res.statusCode = 404;
++        return res.end();
++      }
+       // Require POST plus a custom header to prevent cross-origin CSRF
+       // (a browser-coerced <img> GET or simple <form> POST can't add custom headers,
+       // and any cross-origin request with custom headers is blocked by CORS preflight).
+diff --git a/tests/mcp/http.spec.ts b/tests/mcp/http.spec.ts
+--- a/tests/mcp/http.spec.ts
++++ b/tests/mcp/http.spec.ts
+@@ -132,7 +132,11 @@ test('http transport browser lifecycle (isolated)', async ({ serverEndpoint, serv
+ });
+ 
+ test('http transport browser sigint', async ({ serverEndpoint, server }) => {
+-  const { url, stderr } = await serverEndpoint({ args: ['--isolated'] });
++  const { url, stderr } = await serverEndpoint({
++    args: ['--isolated'],
++    env: { PLAYWRIGHT_MCP_ALLOW_PROCESS_SHUTDOWN: '1' },
++  });
+ 
+   const transport = new StreamableHTTPClientTransport(new URL('/mcp', url));
+   const client = new Client({ name: 'test', version: '1.0.0' });
