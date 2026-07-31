@@ -1,0 +1,32 @@
+{
+  "id": "pilot-cross-repository",
+  "spec_generation": "cross-repository-spec-v1",
+  "invariant_id": "cross-repository-source-carrier",
+  "parent_issue": {"repository": "teamleaderleo/fieldwork", "number": 325},
+  "phase": "delivery-gate-ready",
+  "canonical_source": {
+    "repository": "teamleaderleo/example-product",
+    "branch": "fieldwork/product-candidate",
+    "head": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "review": {"disposition": "EXECUTE", "exact_head": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
+  "active_carriers": [
+    {
+      "id": "external-execution-carrier",
+      "repository": "teamleaderleo/fieldwork",
+      "pull_request": 901,
+      "head": "ffffffffffffffffffffffffffffffffffffffff",
+      "state": "active",
+      "purpose": "Run exact product-source controls without presenting the carrier as the product candidate."
+    }
+  ],
+  "alternatives": [],
+  "authority": {
+    "merge": {
+      "state": "denied",
+      "expires_at": null,
+      "revocation_record": null
+    }
+  },
+  "terminal": null
+}
