@@ -6,7 +6,7 @@ State: `target-executed`
 
 FFmpeg can report that an encode was interrupted while still leaving a valid, shorter MP4 at the requested output pathname. A hard kill leaves an existing file that the matching `ffprobe` cannot parse.
 
-An application that owns publication should therefore separate “FFmpeg produced bytes” from “the application accepted this output.” Writing to a temporary pathname and renaming only after status `0` keeps the final pathname absent after interruption while preserving the partial file for inspection or cleanup.
+An application that owns publication should therefore separate “FFmpeg produced bytes” from “the application accepted this output.” In the executed absent-destination fixture, writing to a temporary pathname and renaming only after status `0` kept the final pathname absent after interruption while preserving the partial file for inspection or cleanup.
 
 ## Identity
 
@@ -35,7 +35,7 @@ When an ordinary MP4 encode is interrupted after packets have reached the output
 2. does FFmpeg write a trailer and return a distinct interrupted status;
 3. can `ffprobe` parse the resulting partial file;
 4. how does that compare with `SIGKILL`, which bypasses cleanup;
-5. does application-level temporary-path staging keep the final pathname absent unless the process completes successfully?
+5. starting from an absent destination, does application-level temporary-path staging keep the final pathname absent unless the process completes successfully?
 
 ## Source map
 
@@ -99,6 +99,8 @@ Disposition: `SIGKILL` bypassed cleanup. Pathname existence did not imply a pars
 
 ### Staged graceful interruption
 
+The final pathname was absent before this case began.
+
 ```text
 process status: 255
 temporary ffprobe status: 0
@@ -108,19 +110,19 @@ temporary file size: 419217 bytes
 final file exists: no
 ```
 
-Disposition: temporary-path staging preserved the recoverable partial artifact while withholding final publication because rename authority required status `0`.
+Disposition: temporary-path staging preserved the recoverable partial artifact while keeping the initially absent final pathname unpublished because rename authority required status `0`.
 
 ## Accepted findings
 
 1. **Process outcome and media usability are separate facts.** Status `255` can accompany a valid, parseable partial MP4.
 2. **Pathname existence is not an acceptance receipt.** It occurs in both graceful and hard-kill cases, with different consumer outcomes.
 3. **Graceful interruption is observably different from hard death.** The graceful path writes enough final container metadata for parsing in this fixture.
-4. **Application staging supplies publication authority.** Rename-on-success makes final-path visibility depend on the application's acceptance rule rather than FFmpeg's first write.
+4. **Application staging can withhold first publication.** For the executed absent-destination case, rename-on-success made final-path visibility depend on the application's acceptance rule rather than FFmpeg's first write.
 5. **Recoverable partial output is not itself a core defect.** It can be useful for inspection or recovery; applications decide whether to publish, retain, or delete it.
 
 Evidence class: `target-executed` for exact FFmpeg 8.1.2 under the named synthetic fixture.
 
-## Application contract
+## Application receipt pattern
 
 For consequential media generation, retain a receipt with at least:
 
@@ -132,7 +134,7 @@ For consequential media generation, retain a receipt with at least:
 - application acceptance decision;
 - rename, cleanup, or quarantine outcome.
 
-Recommended publication sequence:
+For a destination that is absent before the attempt, the executed publication sequence is:
 
 1. choose a unique temporary pathname in the destination filesystem;
 2. run FFmpeg against that temporary pathname;
@@ -141,18 +143,23 @@ Recommended publication sequence:
 5. rename atomically to the final pathname on acceptance;
 6. otherwise retain, quarantine, or delete the temporary artifact explicitly.
 
+Replacing an existing accepted artifact is a stronger contract. It requires a separate control that proves the old final generation remains byte-for-byte unchanged and parseable after interrupted replacement work. That control was not executed here.
+
 ## Evidence boundary
 
 The fixture preserves:
 
 - ordinary file-protocol output;
-- MP4 trailer dependence;
-- real `SIGINT` and `SIGKILL` process behavior;
-- final-path visibility;
+- ordinary non-fragmented MP4 trailer dependence;
+- executed `SIGINT` and `SIGKILL` outcomes with matching process status and logs;
+- final-path visibility when the staged destination begins absent;
 - consumer classification through the matching `ffprobe` build.
+
+The retained runner waits for output growth before signaling, but it does not yet check `kill -0` immediately before every signal or install a cleanup trap for a live encoder after a harness failure. The exact receipt's signal log and statuses support the executed outcome; future reruns should add those liveness and cleanup controls before claiming a stronger reusable harness guarantee.
 
 It does not establish:
 
+- preservation or atomic replacement of an existing accepted final artifact;
 - behavior for every format, muxer, protocol, encoder, or signal;
 - Windows control-event behavior;
 - disk-full or write-error settlement;
@@ -162,8 +169,8 @@ It does not establish:
 
 ## Current disposition
 
-**ACCEPT the bounded mechanism and retain application-level staging as the publication pattern. STOP the core-defect search on this evidence.**
+**ACCEPT the bounded producer mechanism and retain temporary-path staging as an executed first-publication pattern for an initially absent destination. STOP the core-defect search on this evidence.**
 
-A new lane is justified only for a distinct contract: format-specific finalization, write-error settlement, Windows interruption, network output, or an application that intentionally publishes graceful partial media.
+A new lane is justified only for a distinct contract: preserving an existing accepted artifact during replacement, format-specific finalization, write-error settlement, Windows interruption, network output, or an application that intentionally publishes graceful partial media.
 
-The one-off execution workflow is retired after this receipt transfer. The retained carrier consists of the report, experiment definition, and deterministic runner.
+The one-off execution workflow is retired after receipt transfer. The retained carrier consists of the report, experiment definition, and runner; the runner's unexecuted liveness/cleanup hardening remains explicit above.
