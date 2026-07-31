@@ -1,0 +1,103 @@
+name: Fieldwork procfd component walk
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-406-procfd-component-walk.yml"
+      - "findings/F406-mcp-filesystem-pathname-authority/evidence/linux-procfd-component-walk.test.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  component-walk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact model head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+
+      - name: Verify Linux procfd and exact inputs
+        id: verify
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test -d /proc/self/fd
+          test -r findings/F406-mcp-filesystem-pathname-authority/evidence/linux-procfd-component-walk.test.mjs
+          git diff --check
+          mkdir -p receipts
+
+      - name: Run component-walk model
+        id: model
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          node --test \
+            findings/F406-mcp-filesystem-pathname-authority/evidence/linux-procfd-component-walk.test.mjs \
+            2>&1 | tee receipts/linux-procfd-component-walk.tap
+
+      - name: Assemble exact receipt
+        if: always()
+        env:
+          FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          MODEL_OUTCOME: ${{ steps.model.outcome }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const os = require('node:os');
+          fs.mkdirSync('receipts', { recursive: true });
+          const receipt = {
+            schemaVersion: 1,
+            generatedAt: new Date().toISOString(),
+            fieldworkHead: process.env.FIELDWORK_HEAD,
+            environment: {
+              platform: process.platform,
+              release: os.release(),
+              node: process.version,
+              procfdMounted: fs.existsSync('/proc/self/fd'),
+            },
+            model: 'component-wise procfd directory acquisition',
+            controls: [
+              'nested-authority-survives-ancestor-swaps',
+              'pre-acquisition-symlink-rejected',
+              'final-symlink-rejected',
+              'procfs-absence-fails-closed',
+              'traversal-syntax-rejected',
+            ],
+            workflowSteps: {
+              verify: process.env.VERIFY_OUTCOME || 'not-run',
+              model: process.env.MODEL_OUTCOME || 'not-run',
+            },
+            evidenceClass: 'model-executed',
+            claims: {
+              linuxNodeProcfdFeasibility: process.env.MODEL_OUTCOME === 'success',
+              targetComposition: 'not-claimed',
+              openat2Equivalence: 'not-claimed',
+              macosWindowsBehavior: 'not-claimed',
+              exploitability: 'not-claimed',
+            },
+          };
+          fs.writeFileSync(
+            'receipts/linux-procfd-component-walk-receipt.json',
+            `${JSON.stringify(receipt, null, 2)}\n`,
+          );
+          NODE
+
+      - name: Upload exact receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: procfd-component-walk-${{ github.run_id }}-${{ github.run_attempt }}
+          path: receipts/
+          if-no-files-found: error
+          retention-days: 14
