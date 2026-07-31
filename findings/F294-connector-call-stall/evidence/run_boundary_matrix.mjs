@@ -5,6 +5,34 @@ import path from "node:path"
 const delay = milliseconds =>
   new Promise(resolve => setTimeout(resolve, milliseconds))
 
+const CANCELLATION_ACKNOWLEDGEMENT = Symbol("cancellation-acknowledgement")
+
+function acknowledgeCancellation() {
+  return Object.freeze({ [CANCELLATION_ACKNOWLEDGEMENT]: true })
+}
+
+function isCancellationAcknowledgement(value) {
+  return Boolean(
+    value
+      && typeof value === "object"
+      && value[CANCELLATION_ACKNOWLEDGEMENT] === true,
+  )
+}
+
+function minimizedFailure(error) {
+  return Object.freeze({
+    code: "runtime_failed",
+    errorType: error instanceof Error ? error.name : "NonError",
+  })
+}
+
+function minimizedControlFailure(error) {
+  return Object.freeze({
+    code: "control_failed",
+    errorType: error instanceof Error ? error.name : "NonError",
+  })
+}
+
 function consumeResponseEvents(events) {
   const assistantText = []
   const argumentBuffers = new Map()
@@ -81,7 +109,7 @@ async function superviseRuntime(
     .then(() => startRuntime(controller.signal))
     .then(
       value => ({ kind: "settled", value }),
-      error => ({ kind: "failed", error: String(error) }),
+      error => ({ kind: "failed", failure: minimizedFailure(error) }),
     )
 
   const beforeDeadline = await Promise.race([
@@ -90,37 +118,48 @@ async function superviseRuntime(
   ])
 
   if (beforeDeadline.kind === "settled") {
-    return Object.freeze({ kind: "completed", value: beforeDeadline.value })
+    return Object.freeze({ kind: "completed" })
   }
 
   if (beforeDeadline.kind === "failed") {
-    return Object.freeze({ kind: "failed", error: beforeDeadline.error })
+    return Object.freeze({
+      kind: "failed",
+      ...beforeDeadline.failure,
+    })
   }
 
   controller.abort(new Error("runtime deadline exceeded"))
 
-  const afterCancellation = await Promise.race([
+  const afterCancellationRequest = await Promise.race([
     runtimeResult,
     delay(cancellationGraceMs).then(() => ({ kind: "grace_expired" })),
   ])
 
-  if (afterCancellation.kind === "settled") {
+  if (afterCancellationRequest.kind === "settled") {
+    if (isCancellationAcknowledgement(afterCancellationRequest.value)) {
+      return Object.freeze({
+        kind: "cancelled",
+        code: "runtime_acknowledged_cancellation",
+      })
+    }
+
     return Object.freeze({
-      kind: "cancelled",
-      value: afterCancellation.value,
+      kind: "settled_after_cancel_request",
+      code: "cancellation_causality_unconfirmed",
     })
   }
 
-  if (afterCancellation.kind === "failed") {
+  if (afterCancellationRequest.kind === "failed") {
     return Object.freeze({
-      kind: "cancelled",
-      error: afterCancellation.error,
+      kind: "failed_after_cancel_request",
+      code: "cancellation_causality_unconfirmed",
+      errorType: afterCancellationRequest.failure.errorType,
     })
   }
 
   return Object.freeze({
     kind: "outcome_unknown",
-    code: "runtime_did_not_settle_after_cancellation",
+    code: "runtime_did_not_settle_after_cancel_request",
   })
 }
 
@@ -170,6 +209,7 @@ recordCase("unknown internal event is quarantined", async () => {
     kind: "error",
     code: "unsupported_event",
   })
+  assert.equal(JSON.stringify(result).includes("synthetic-sensitive-value"), false)
 
   return result
 })
@@ -212,13 +252,13 @@ recordCase("completed call dispatches exactly once", async () => {
   return result
 })
 
-recordCase("cooperative runtime settles after cancellation", async () => {
+recordCase("cooperative runtime explicitly acknowledges cancellation", async () => {
   const receipt = await superviseRuntime(
     signal =>
       new Promise(resolve => {
         signal.addEventListener(
           "abort",
-          () => resolve("cooperative-stop"),
+          () => resolve(acknowledgeCancellation()),
           { once: true },
         )
       }),
@@ -226,8 +266,42 @@ recordCase("cooperative runtime settles after cancellation", async () => {
 
   assert.deepEqual(receipt, {
     kind: "cancelled",
-    value: "cooperative-stop",
+    code: "runtime_acknowledged_cancellation",
   })
+
+  return receipt
+})
+
+recordCase("natural late completion does not become cancelled", async () => {
+  const receipt = await superviseRuntime(
+    () => delay(40).then(() => "natural-success"),
+    { timeoutMs: 10, cancellationGraceMs: 100 },
+  )
+
+  assert.deepEqual(receipt, {
+    kind: "settled_after_cancel_request",
+    code: "cancellation_causality_unconfirmed",
+  })
+
+  return receipt
+})
+
+recordCase("late failure stays causal-unknown and content-minimized", async () => {
+  const secretShapedValue = "sk-proj-fieldwork-secret-shaped-value"
+  const receipt = await superviseRuntime(
+    () =>
+      delay(40).then(() => {
+        throw new Error(`provider failure ${secretShapedValue}`)
+      }),
+    { timeoutMs: 10, cancellationGraceMs: 100 },
+  )
+
+  assert.deepEqual(receipt, {
+    kind: "failed_after_cancel_request",
+    code: "cancellation_causality_unconfirmed",
+    errorType: "Error",
+  })
+  assert.equal(JSON.stringify(receipt).includes(secretShapedValue), false)
 
   return receipt
 })
@@ -239,7 +313,7 @@ recordCase("non-settling runtime returns bounded outcome-unknown", async () => {
 
   assert.deepEqual(receipt, {
     kind: "outcome_unknown",
-    code: "runtime_did_not_settle_after_cancellation",
+    code: "runtime_did_not_settle_after_cancel_request",
   })
   assert.ok(elapsedMs < 1000, `expected bounded settlement, got ${elapsedMs} ms`)
 
@@ -261,11 +335,26 @@ recordCase("late completion cannot rewrite emitted terminal receipt", async () =
   assert.equal(JSON.stringify(receipt), serializedReceipt)
   assert.deepEqual(receipt, {
     kind: "outcome_unknown",
-    code: "runtime_did_not_settle_after_cancellation",
+    code: "runtime_did_not_settle_after_cancel_request",
   })
   assert.equal(Object.isFrozen(receipt), true)
 
   return receipt
+})
+
+recordCase("failed-control diagnostics omit source text", async () => {
+  const secretShapedValue = "ghp_fieldwork_secret_shaped_value"
+  const diagnostic = minimizedControlFailure(
+    new Error(`assertion contained ${secretShapedValue}`),
+  )
+
+  assert.deepEqual(diagnostic, {
+    code: "control_failed",
+    errorType: "Error",
+  })
+  assert.equal(JSON.stringify(diagnostic).includes(secretShapedValue), false)
+
+  return diagnostic
 })
 
 const results = []
@@ -278,16 +367,18 @@ for (const testCase of cases) {
       detail: await testCase.run(),
     })
   } catch (error) {
+    const diagnostic = minimizedControlFailure(error)
     results.push({
       name: testCase.name,
       status: "failed",
-      error: error instanceof Error ? error.stack : String(error),
+      diagnostic,
     })
+    process.stderr.write(`${testCase.name}: ${diagnostic.code}\n`)
   }
 }
 
 const report = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   evidenceClass: "model-executed",
   claimLimit:
     "Synthetic contract model only. It does not execute the ChatGPT host, connector runtime, mobile client, or public Codex source.",
