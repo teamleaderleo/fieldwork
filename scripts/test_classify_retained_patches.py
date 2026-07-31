@@ -10,6 +10,7 @@ import unittest
 
 from scripts.classify_retained_patches import (
     BINARY_SUMMARY,
+    EVIDENCE_ONLY_SUFFIX,
     build_receipt,
     classify_patch_text,
 )
@@ -97,37 +98,43 @@ class ExactBinaryPairPolicyTests(unittest.TestCase):
         self.assertNotIn(new_bytes.hex(), summary)
         return summary
 
-    def test_parse_valid_summary_cannot_be_retained_as_candidate_patch(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            summary = self.make_binary_summary(root)
-            candidate = root / "candidate.patch"
-            candidate.write_text(summary, encoding="utf-8")
+    def inspect_summary(self, root: Path, name: str) -> tuple[dict[str, object], list[str]]:
+        summary = self.make_binary_summary(root)
+        path = root / name
+        path.write_text(summary, encoding="utf-8")
+        return build_receipt([path])
 
-            document, violations = build_receipt([candidate])
-
+    def assert_nonmaterializing(self, document: dict[str, object]) -> None:
         self.assertEqual(len(document["files"]), 1)
         file_receipt = document["files"][0]
         self.assertEqual(file_receipt["parse_state"], "parse-valid")
         self.assertEqual(file_receipt["materialization_state"], "nonmaterializing")
         self.assertEqual(file_receipt["section_kinds"], (BINARY_SUMMARY,))
-        self.assertEqual(len(violations), 1)
-        self.assertIn("retained *.patch contains", violations[0])
 
-    def test_evidence_only_nonpatch_extension_keeps_explicit_classification(self) -> None:
+    def test_parse_valid_summary_cannot_be_retained_as_candidate_patch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            summary = self.make_binary_summary(root)
-            evidence = root / "comparison.diff-summary"
-            evidence.write_text(summary, encoding="utf-8")
+            document, violations = self.inspect_summary(Path(tmp), "candidate.patch")
 
-            document, violations = build_receipt([evidence])
+        self.assert_nonmaterializing(document)
+        self.assertEqual(len(violations), 1)
+        self.assertIn(EVIDENCE_ONLY_SUFFIX, violations[0])
+
+    def test_generic_diff_name_is_not_an_evidence_only_escape(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            document, violations = self.inspect_summary(Path(tmp), "candidate.diff")
+
+        self.assert_nonmaterializing(document)
+        self.assertEqual(len(violations), 1)
+        self.assertIn(EVIDENCE_ONLY_SUFFIX, violations[0])
+
+    def test_explicit_evidence_suffix_keeps_nonmaterializing_classification(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            document, violations = self.inspect_summary(
+                Path(tmp), f"comparison{EVIDENCE_ONLY_SUFFIX}"
+            )
 
         self.assertEqual(violations, [])
-        file_receipt = document["files"][0]
-        self.assertEqual(file_receipt["parse_state"], "parse-valid")
-        self.assertEqual(file_receipt["materialization_state"], "nonmaterializing")
-        self.assertEqual(file_receipt["section_kinds"], (BINARY_SUMMARY,))
+        self.assert_nonmaterializing(document)
 
 
 if __name__ == "__main__":
