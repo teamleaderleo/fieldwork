@@ -53,6 +53,10 @@ jobs:
           cp \
             fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/test_cancel_receipt_repair.py \
             box/packages/python-sdk/tests/test_cancel_receipt_repair.py
+          git -C box add -N -- \
+            packages/python-sdk/upstash_box/_cancellation.py \
+            packages/sdk/src/__tests__/fieldwork-cancel-receipt-repair.test.ts \
+            packages/python-sdk/tests/test_cancel_receipt_repair.py
           git -C box diff --check
 
       - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
