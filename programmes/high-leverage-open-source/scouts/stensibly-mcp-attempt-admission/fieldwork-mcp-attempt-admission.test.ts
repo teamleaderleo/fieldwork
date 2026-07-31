@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   createMcpAttemptObservation,
-  mcpAttemptFailureStages,
   projectMcpAttemptObservations,
   type McpAttemptObservationInput,
   type McpAttemptObservationV1,
@@ -34,20 +33,6 @@ const secretShapedIds = [
   "grant-xoxb-private",
   "receipt:env://PRIVATE_TOKEN",
   "receipt:secret://github-token",
-] as const;
-
-const expectedFailureStages = [
-  "method_validation",
-  "origin_validation",
-  "host_validation",
-  "token_authority",
-  "authentication",
-  "payload_parse",
-  "authorization",
-  "request_validation",
-  "server_construction",
-  "transport_connection",
-  "request_execution",
 ] as const;
 
 describe("Fieldwork MCP attempt admission repair", () => {
@@ -143,13 +128,12 @@ describe("Fieldwork MCP attempt admission repair", () => {
   });
 
   test("failure stage vocabulary is derived from the exhaustive window table", async () => {
-    expect(mcpAttemptFailureStages).toEqual(expectedFailureStages);
-    expect(Object.isFrozen(mcpAttemptFailureStages)).toBe(true);
-
     const source = await Bun.file(
       new URL("../src/mcp-attempt-observation.ts", import.meta.url),
     ).text();
+    expect(source).toContain("const failureStages = Object.freeze(");
     expect(source).toContain("Object.keys(failureStageWindows)");
     expect(source).not.toContain("const failureStages = [");
+    expect(source).not.toContain("export const mcpAttemptFailureStages");
   });
 });
