@@ -21,5 +21,9 @@ jobs:
         run: python3 scripts/validate_experiments.py
       - name: Run generation-bound reconciliation controls
         run: python3 playgrounds/EXP-20260731-observed-generation/test_reconcile.py
+      - name: Run malformed-time transfer controls
+        run: >-
+          python3
+          playgrounds/EXP-20260731-observed-generation/test_malformed_authority_time_patch.py
       - name: Run per-action decision-currentness controls
         run: python3 playgrounds/EXP-20260731-observed-generation/test_decision_currentness.py

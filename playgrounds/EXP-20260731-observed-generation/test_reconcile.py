@@ -13,6 +13,7 @@ HERE = Path(__file__).resolve().parent
 FIXTURES = HERE / "fixtures"
 sys.path.insert(0, str(HERE))
 
+from decision_currentness import authorization_currentness  # noqa: E402
 from lease_checks import evaluate_writer_leases  # noqa: E402
 from reconcile import (  # noqa: E402
     input_generation_manifest,
@@ -35,7 +36,7 @@ def source_key(record: dict[str, object]) -> str:
 
 
 def authorized(
-    *, expires_at: str | None, revocation_record: str | None = None
+    *, expires_at: object, revocation_record: str | None = None
 ) -> dict[str, object]:
     return {
         "state": "authorized",
@@ -346,7 +347,7 @@ class ObservedGenerationPilotTests(unittest.TestCase):
         self.assertIn("finding_generation", condition["inputs"]["missing"])
         self.assertFalse(projection_is_current(projection, record, facts))
 
-    def test_15_success_and_failure_leave_inputs_byte_for_byte_unchanged(self) -> None:
+    def test_15_success_and_malformed_authority_leave_inputs_unchanged(self) -> None:
         record = deepcopy(self.cross_repository)
         facts = self.live_facts(record)
         record_before = json.dumps(record, sort_keys=True)
@@ -358,11 +359,103 @@ class ObservedGenerationPilotTests(unittest.TestCase):
 
         broken = deepcopy(record)
         broken["authority"]["merge"] = authorized(expires_at="not-a-time")
+        broken_facts = self.live_facts(broken)
         broken_before = json.dumps(broken, sort_keys=True)
-        with self.assertRaises(ValueError):
-            reconcile(broken, facts, OBSERVED_AT)
+        broken_facts_before = json.dumps(broken_facts, sort_keys=True)
+        repaired = reconcile(broken, broken_facts, OBSERVED_AT)
+        condition = self.condition(
+            repaired,
+            "AuthorityUsable",
+            action="merge",
+        )
+        self.assertEqual(
+            ("Unknown", "InvalidAuthorityTime"),
+            (condition["status"], condition["reason"]),
+        )
+        self.assertEqual("denied", repaired["effective_authority"]["merge"])
         self.assertEqual(broken_before, json.dumps(broken, sort_keys=True))
-        self.assertEqual(facts_before, json.dumps(facts, sort_keys=True))
+        self.assertEqual(
+            broken_facts_before,
+            json.dumps(broken_facts, sort_keys=True),
+        )
+
+    def test_16_malformed_authority_time_is_action_local_and_composable(self) -> None:
+        invalid_values: tuple[object, ...] = (
+            "not-a-time",
+            "2026-08-01T02:30:00",
+            123,
+        )
+        for invalid in invalid_values:
+            with self.subTest(invalid=invalid):
+                record = deepcopy(self.cross_repository)
+                record["authority"] = {
+                    "merge": authorized(expires_at=invalid),
+                    "deploy": authorized(expires_at="2026-08-01T02:30:00Z"),
+                    "release": authorized(
+                        expires_at=None,
+                        revocation_record="authority/release@v1",
+                    ),
+                }
+                facts = self.live_facts(record)
+                facts["authority_revocations"] = {"authority/release@v1": False}
+                projection = reconcile(record, facts, OBSERVED_AT)
+
+                merge = self.condition(
+                    projection,
+                    "AuthorityUsable",
+                    action="merge",
+                )
+                deploy = self.condition(
+                    projection,
+                    "AuthorityUsable",
+                    action="deploy",
+                )
+                release = self.condition(
+                    projection,
+                    "AuthorityUsable",
+                    action="release",
+                )
+                self.assertEqual(
+                    ("Unknown", "InvalidAuthorityTime"),
+                    (merge["status"], merge["reason"]),
+                )
+                self.assertEqual(
+                    ("True", "AuthorityCurrent"),
+                    (deploy["status"], deploy["reason"]),
+                )
+                self.assertEqual(
+                    ("True", "AuthorityCurrent"),
+                    (release["status"], release["reason"]),
+                )
+
+                currentness = authorization_currentness(
+                    projection,
+                    OBSERVED_AT,
+                    record,
+                    facts,
+                )
+                self.assertEqual(
+                    "True",
+                    currentness["projection_authority_integrity"]["merge"]["status"],
+                )
+                self.assertEqual(
+                    "denied",
+                    currentness["actions"]["merge"]["effective"],
+                )
+                self.assertEqual(
+                    "authorized",
+                    currentness["actions"]["deploy"]["effective"],
+                )
+                self.assertEqual(
+                    "authorized",
+                    currentness["actions"]["release"]["effective"],
+                )
+
+    def test_17_malformed_global_observation_boundary_still_aborts(self) -> None:
+        record = deepcopy(self.cross_repository)
+        facts = self.live_facts(record)
+        with self.assertRaises(ValueError):
+            reconcile(record, facts, "not-a-time")
 
 
 if __name__ == "__main__":
