@@ -1,6 +1,7 @@
 {
   "id": "pilot-terminal-continuity",
   "spec_generation": "terminal-spec-v1",
+  "finding_generation": "finding-terminal-v1",
   "invariant_id": "bounded-path-continuity",
   "parent_issue": {"repository": "teamleaderleo/fieldwork", "number": 325},
   "phase": "stopped",
