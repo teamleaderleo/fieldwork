@@ -2,12 +2,9 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { SERVER_VERSION } from "../src/lib/constants.js";
 
 const CLIENT_IP = "198.51.100.77";
-const VALID_KEY =
-  "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
-const INVALID_KEY_MESSAGE =
-  "Invalid encryption key format; omitting mcp-client-ip metadata.";
-const CIPHER_FAILURE_MESSAGE =
-  "Unable to encrypt client IP; omitting mcp-client-ip metadata.";
+const VALID_KEY = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+const INVALID_KEY_MESSAGE = "Invalid encryption key format; omitting mcp-client-ip metadata.";
+const CIPHER_FAILURE_MESSAGE = "Unable to encrypt client IP; omitting mcp-client-ip metadata.";
 
 type CryptoModule = typeof import("crypto");
 
