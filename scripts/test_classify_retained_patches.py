@@ -13,6 +13,7 @@ from scripts.classify_retained_patches import (
     EVIDENCE_ONLY_SUFFIX,
     build_receipt,
     classify_patch_text,
+    discover_tracked_materialization_artifacts,
 )
 
 
@@ -28,6 +29,20 @@ class SectionClassificationTests(unittest.TestCase):
 """
         )
         self.assertEqual([section.kind for section in sections], ["textual-hunks"])
+        self.assertTrue(sections[0].materializable)
+
+    def test_hunk_content_that_looks_like_file_headers_stays_in_one_section(self) -> None:
+        sections = classify_patch_text(
+            """diff --git a/a.txt b/a.txt
+--- a/a.txt
++++ b/a.txt
+@@ -1 +1 @@
+--- deleted content beginning with two dashes
++++ added content beginning with two pluses
+"""
+        )
+        self.assertEqual(len(sections), 1)
+        self.assertEqual(sections[0].kind, "textual-hunks")
         self.assertTrue(sections[0].materializable)
 
     def test_classifies_git_binary_payload(self) -> None:
@@ -135,6 +150,53 @@ class ExactBinaryPairPolicyTests(unittest.TestCase):
 
         self.assertEqual(violations, [])
         self.assert_nonmaterializing(document)
+
+    def test_no_argument_discovery_covers_all_policy_suffixes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = Path(tmp)
+            self.run_git(repository, "init", "-q")
+            self.run_git(repository, "config", "user.name", "Fieldwork Test")
+            self.run_git(
+                repository,
+                "config",
+                "user.email",
+                "fieldwork@example.invalid",
+            )
+
+            source_root = repository / "fixture"
+            source_root.mkdir()
+            summary = self.make_binary_summary(source_root)
+            names = [
+                "candidate.patch",
+                "candidate.diff",
+                f"comparison{EVIDENCE_ONLY_SUFFIX}",
+            ]
+            for name in names:
+                (repository / name).write_text(summary, encoding="utf-8")
+            self.run_git(repository, "add", "--", *names)
+
+            discovered = discover_tracked_materialization_artifacts(repository)
+            self.assertEqual(
+                [path.name for path in discovered],
+                sorted(names),
+            )
+
+            document, violations = build_receipt(discovered)
+
+        self.assertEqual(
+            sorted(Path(file_receipt["path"]).name for file_receipt in document["files"]),
+            sorted(names),
+        )
+        self.assertEqual(
+            [file_receipt["materialization_state"] for file_receipt in document["files"]],
+            ["nonmaterializing", "nonmaterializing", "nonmaterializing"],
+        )
+        self.assertEqual(len(violations), 2)
+        self.assertTrue(any("candidate.patch" in violation for violation in violations))
+        self.assertTrue(any("candidate.diff" in violation for violation in violations))
+        self.assertFalse(
+            any(f"comparison{EVIDENCE_ONLY_SUFFIX}" in violation for violation in violations)
+        )
 
 
 if __name__ == "__main__":
