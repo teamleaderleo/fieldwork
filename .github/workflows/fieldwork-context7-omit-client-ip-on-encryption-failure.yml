@@ -1,0 +1,157 @@
+name: Fieldwork Context7 omit client IP on encryption failure
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-context7-omit-client-ip-on-encryption-failure.yml"
+      - "programmes/high-leverage-open-source/scouts/context7-http-boundary/malformed-key-omit-metadata.patch"
+      - "programmes/high-leverage-open-source/scouts/context7-http-boundary/malformed-key-omit-metadata.test.ts"
+      - "programmes/high-leverage-open-source/scouts/context7-http-boundary/malformed-key-omit-metadata-candidate.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  execute:
+    name: Node 22 exact omission candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact Fieldwork carrier head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Verify actual Fieldwork checkout identity
+        env:
+          EXPECTED_FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          actual_head=$(git -C fieldwork rev-parse HEAD)
+          test "${actual_head}" = "${EXPECTED_FIELDWORK_HEAD}"
+          test "$(printf '%s' "${actual_head}" | wc -c)" -eq 40
+          printf '%s\n' "${actual_head}" > fieldwork-head.txt
+          git -C fieldwork diff --check
+
+      - name: Check out exact Context7 source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: upstash/context7
+          ref: 594a73133e14631af8c915a1b4f2c8039c964fe1
+          path: context7
+          persist-credentials: false
+
+      - name: Verify target and apply exact candidate
+        run: |
+          test "$(git -C context7 rev-parse HEAD)" = "594a73133e14631af8c915a1b4f2c8039c964fe1"
+          patch_path="${GITHUB_WORKSPACE}/fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/malformed-key-omit-metadata.patch"
+          test "$(sha256sum "${patch_path}" | cut -d' ' -f1)" = "bc03183e34dcd2100555f7bf7fefc9383c8b558f3edccef95ed8f8bcf7b639da"
+          git -C context7 apply --check "${patch_path}"
+          git -C context7 apply --index "${patch_path}"
+          cmp \
+            fieldwork/programmes/high-leverage-open-source/scouts/context7-http-boundary/malformed-key-omit-metadata.test.ts \
+            context7/packages/mcp/test/encryption.test.ts
+          git -C context7 diff --check --cached
+
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+        with:
+          version: 10
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: context7/pnpm-lock.yaml
+
+      - name: Install exact dependencies
+        working-directory: context7
+        run: pnpm install --frozen-lockfile
+
+      - name: Run focused omission controls
+        working-directory: context7
+        run: |
+          pnpm --filter @upstash/context7-mcp exec vitest run test/encryption.test.ts \
+            | tee "${GITHUB_WORKSPACE}/focused-test.txt"
+          grep -F "3 passed" "${GITHUB_WORKSPACE}/focused-test.txt"
+          printf '%s\n' "FIELDWORK_CONTEXT7_OMIT_METADATA_EXACT=3/3"
+
+      - name: Run complete MCP package tests
+        working-directory: context7
+        run: pnpm --filter @upstash/context7-mcp test
+
+      - name: Run package formatting and lint gates
+        working-directory: context7
+        run: |
+          pnpm --filter @upstash/context7-mcp format:check
+          pnpm --filter @upstash/context7-mcp lint:check
+
+      - name: Run package typecheck and build gates
+        working-directory: context7
+        run: |
+          pnpm --filter @upstash/context7-mcp typecheck
+          pnpm --filter @upstash/context7-mcp build
+
+      - name: Assemble exact receipt
+        env:
+          TARGET_HEAD: 594a73133e14631af8c915a1b4f2c8039c964fe1
+          PATCH_SHA256: bc03183e34dcd2100555f7bf7fefc9383c8b558f3edccef95ed8f8bcf7b639da
+        run: |
+          mkdir -p fieldwork-receipts
+          FIELDWORK_HEAD=$(cat fieldwork-head.txt) \
+          node <<'NODE'
+          const fs = require("node:fs");
+          const receipt = {
+            schemaVersion: 1,
+            evidenceClass: "target-executed-source-candidate",
+            fieldworkHead: process.env.FIELDWORK_HEAD,
+            targetHead: process.env.TARGET_HEAD,
+            patchSha256: process.env.PATCH_SHA256,
+            outcomes: {
+              validKeyCiphertextRetained: true,
+              malformedKeyMetadataOmitted: true,
+              runtimeCipherFailureMetadataOmitted: true,
+              unrelatedHeadersRetained: true,
+              rawIpAbsentFromDiagnostics: true,
+              keyAbsentFromDiagnostics: true,
+              exceptionTextAbsentFromDiagnostics: true,
+            },
+            gates: {
+              focusedVitest: "passed-3-of-3",
+              completeMcpTests: "passed",
+              formatCheck: "passed",
+              lintCheck: "passed",
+              typecheck: "passed",
+              build: "passed",
+              diffHygiene: "passed",
+            },
+            boundaries: {
+              hostedContext7ApiCalled: false,
+              mcpSessionCreated: false,
+              redisOperationCalled: false,
+              credentialUsed: false,
+              upstreamContacted: false,
+            },
+          };
+          fs.writeFileSync(
+            "fieldwork-receipts/context7-omit-client-ip-on-encryption-failure.json",
+            `${JSON.stringify(receipt, null, 2)}\n`,
+          );
+          console.log(JSON.stringify(receipt));
+          NODE
+          test "$(jq -r .fieldworkHead fieldwork-receipts/context7-omit-client-ip-on-encryption-failure.json)" = "$(cat fieldwork-head.txt)"
+          test "$(jq -r .targetHead fieldwork-receipts/context7-omit-client-ip-on-encryption-failure.json)" = "${TARGET_HEAD}"
+          git -C fieldwork diff --check
+          git -C context7 diff --check --cached
+
+      - name: Upload exact source-candidate receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: context7-omit-client-ip-on-encryption-failure
+          path: |
+            fieldwork-head.txt
+            focused-test.txt
+            fieldwork-receipts/context7-omit-client-ip-on-encryption-failure.json
+          if-no-files-found: error
+          retention-days: 14
