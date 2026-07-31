@@ -1,0 +1,200 @@
+diff --git a/codex-rs/core/tests/suite/mcp_tool_cache.rs b/codex-rs/core/tests/suite/mcp_tool_cache.rs
+index 1b3daf2..1c3b2fe 100644
+--- a/codex-rs/core/tests/suite/mcp_tool_cache.rs
++++ b/codex-rs/core/tests/suite/mcp_tool_cache.rs
+@@ -115,6 +115,7 @@ async fn regular_mcp_definition_cache_preserves_live_session_state() -> anyhow::
+                 .expect("test config should allow disabled permissions");
+             let app_only_cwd_marker_file = config.cwd.join("cwd-app-only");
+             let barrier_file = config.cwd.join("allow-initialize");
++            let echo_schema_v2_marker_file = config.cwd.join("echo-schema-v2");
+             let pid_file = config.cwd.join("mcp.pid");
+             let mut servers = config.mcp_servers.get().clone();
+             servers.insert(
+@@ -126,6 +127,7 @@ async fn regular_mcp_definition_cache_preserves_live_session_state() -> anyhow::
+                         "MCP_TEST_APP_ONLY_CWD_MARKER_FILE": app_only_cwd_marker_file,
+                         "MCP_TEST_INITIALIZE_BARRIER_FILE": barrier_file,
+                         "MCP_TEST_DYNAMIC_SERVER_METADATA": "1",
++                        "MCP_TEST_ECHO_SCHEMA_V2_MARKER_FILE": echo_schema_v2_marker_file,
+                         "MCP_TEST_PID_FILE": pid_file,
+                     },
+                     "enabled_tools": ["cwd", "echo"],
+@@ -144,6 +146,8 @@ async fn regular_mcp_definition_cache_preserves_live_session_state() -> anyhow::
+     let app_only_cwd_marker_file =
+         PathUri::from_host_native_path(fixture.config.cwd.join("cwd-app-only"))?;
+     let barrier_file = PathUri::from_host_native_path(fixture.config.cwd.join("allow-initialize"))?;
++    let echo_schema_v2_marker_file =
++        PathUri::from_host_native_path(fixture.config.cwd.join("echo-schema-v2"))?;
+     let pid_file = PathUri::from_host_native_path(fixture.config.cwd.join("mcp.pid"))?;
+ 
+     let cold_response = mount_sse_once(
+@@ -185,6 +189,12 @@ async fn regular_mcp_definition_cache_preserves_live_session_state() -> anyhow::
+         /*sandbox*/ None,
+     )
+     .await?;
++    fs.write_file(
++        &echo_schema_v2_marker_file,
++        b"count-schema".to_vec(),
++        /*sandbox*/ None,
++    )
++    .await?;
+     let NewThread {
+         thread: second_thread,
+         ..
+@@ -248,18 +258,15 @@ async fn regular_mcp_definition_cache_preserves_live_session_state() -> anyhow::
+         let EventMsg::McpToolCallEnd(end) = end else {
+             unreachable!("event predicate guarantees an MCP tool result");
+         };
+-        let called_process = end
++        let schema_error = end
+             .result
+-            .expect("echo call should succeed")
+-            .structured_content
+-            .and_then(|content| content.get("echo").cloned())
+-            .and_then(|echo| echo.as_str().map(ToString::to_string))
+-            .expect("echo result should identify its live server process");
++            .expect_err("A-shaped echo arguments should fail against B's count schema")
++            .to_string();
+         wait_for_event(&second_for_turn, |event| {
+             matches!(event, EventMsg::TurnComplete(_))
+         })
+         .await;
+-        anyhow::Ok(called_process)
++        anyhow::Ok(schema_error)
+     });
+     tokio::time::timeout(Duration::from_secs(2), async {
+         while cached_response.requests().is_empty() {
+@@ -273,6 +280,15 @@ async fn regular_mcp_definition_cache_preserves_live_session_state() -> anyhow::
+         &format!("Tools in the {NAMESPACE} namespace."),
+         &format!("Echo from {first_process}."),
+     );
++    let cached_body = cached_response.single_request().body_json();
++    let cached_echo = responses::namespace_child_tool(&cached_body, NAMESPACE, "echo")
++        .expect("cached request should advertise echo");
++    assert_eq!(cached_echo["parameters"]["required"], json!(["message"]));
++    assert!(
++        cached_echo["parameters"]["properties"]
++            .get("count")
++            .is_none()
++    );
+     tokio::time::timeout(Duration::from_secs(2), unrelated_finished_rx)
+         .await
+         .context("an unrelated tool should complete while cached MCP startup is pending")?
+@@ -282,7 +298,11 @@ async fn regular_mcp_definition_cache_preserves_live_session_state() -> anyhow::
+     fs.write_file(&barrier_file, b"ready".to_vec(), /*sandbox*/ None)
+         .await?;
+     let expected_error = format!("MCP tool `{SERVER_NAME}/cwd` is not available to the model");
+-    assert_eq!(cached_turn.await??, second_process);
++    let schema_error = cached_turn.await??;
++    assert!(
++        schema_error.contains("echo schema v2 requires integer count"),
++        "live B should reject the A-shaped arguments: {schema_error}"
++    );
+     let output = cached_done_response
+         .single_request()
+         .function_call_output_text(app_only_call_id)
+@@ -294,10 +314,10 @@ async fn regular_mcp_definition_cache_preserves_live_session_state() -> anyhow::
+     let output = cached_done_response
+         .single_request()
+         .function_call_output_text("cached-call")
+-        .expect("successful tool output should be returned to the model");
++        .expect("schema mismatch should be returned to the model");
+     assert!(
+-        output.contains(&second_process),
+-        "model-visible tool output should come from the live server: {output}"
++        output.contains("echo schema v2 requires integer count"),
++        "model-visible output should report the live B schema rejection: {output}"
+     );
+     assert_eq!(
+         cached_done_response
+diff --git a/codex-rs/rmcp-client/src/bin/test_stdio_server.rs b/codex-rs/rmcp-client/src/bin/test_stdio_server.rs
+index d95a939..2b3f664 100644
+--- a/codex-rs/rmcp-client/src/bin/test_stdio_server.rs
++++ b/codex-rs/rmcp-client/src/bin/test_stdio_server.rs
+@@ -51,6 +51,7 @@ const SANDBOX_STATE_META_CAPABILITY: &str = "codex/sandbox-state-meta";
+ const SMALL_PNG_BASE64: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+ const APP_ONLY_CWD_MARKER_FILE_ENV: &str = "MCP_TEST_APP_ONLY_CWD_MARKER_FILE";
+ const DYNAMIC_SERVER_METADATA_ENV: &str = "MCP_TEST_DYNAMIC_SERVER_METADATA";
++const ECHO_SCHEMA_V2_MARKER_FILE_ENV: &str = "MCP_TEST_ECHO_SCHEMA_V2_MARKER_FILE";
+ const INITIALIZE_BARRIER_FILE_ENV: &str = "MCP_TEST_INITIALIZE_BARRIER_FILE";
+ const SERVER_INSTRUCTIONS_ENV: &str = "MCP_TEST_SERVER_INSTRUCTIONS";
+ 
+@@ -60,6 +61,11 @@ fn dynamic_server_process_label() -> Option<String> {
+         .then(|| format!("rmcp-test-process-{}", std::process::id()))
+ }
+ 
++fn echo_schema_v2() -> bool {
++    std::env::var_os(ECHO_SCHEMA_V2_MARKER_FILE_ENV)
++        .is_some_and(|path| std::path::Path::new(&path).exists())
++}
++
+ pub fn stdio() -> (tokio::io::Stdin, tokio::io::Stdout) {
+     (tokio::io::stdin(), tokio::io::stdout())
+ }
+@@ -159,17 +165,29 @@ impl TestToolServer {
+     }
+ 
+     fn build_echo_tool(name: &'static str, description: &'static str) -> Tool {
++        let schema_value = if echo_schema_v2() {
++            json!({
++                "type": "object",
++                "properties": {
++                    "count": { "type": "integer" }
++                },
++                "required": ["count"],
++                "additionalProperties": false
++            })
++        } else {
++            json!({
++                "type": "object",
++                "properties": {
++                    "message": { "type": "string" },
++                    "env_var": { "type": "string" }
++                },
++                "required": ["message"],
++                "additionalProperties": false
++            })
++        };
+         #[expect(clippy::expect_used)]
+-        let schema: JsonObject = serde_json::from_value(json!({
+-            "type": "object",
+-            "properties": {
+-                "message": { "type": "string" },
+-                "env_var": { "type": "string" }
+-            },
+-            "required": ["message"],
+-            "additionalProperties": false
+-        }))
+-        .expect("echo tool schema should deserialize");
++        let schema: JsonObject =
++            serde_json::from_value(schema_value).expect("echo tool schema should deserialize");
+ 
+         let mut tool = Tool::new(
+             Cow::Borrowed(name),
+@@ -612,6 +630,27 @@ impl ServerHandler for TestToolServer {
+                 ]))
+             }
+             "echo" | "echo-tool" => {
++                if echo_schema_v2() {
++                    let count = request
++                        .arguments
++                        .as_ref()
++                        .and_then(|arguments| arguments.get("count"))
++                        .and_then(serde_json::Value::as_i64)
++                        .ok_or_else(|| {
++                            McpError::invalid_params(
++                                "echo schema v2 requires integer count".to_string(),
++                                None,
++                            )
++                        })?;
++                    let process = dynamic_server_process_label()
++                        .unwrap_or_else(|| "echo-schema-v2".to_string());
++                    return Ok(Self::structured_result(json!({
++                        "echo": format!("{process}-count-{count}"),
++                        "env": null,
++                    }))
++                    .into());
++                }
++
+                 let args: EchoArgs = match request.arguments {
+                     Some(arguments) => serde_json::from_value(serde_json::Value::Object(
+                         arguments.into_iter().collect(),
