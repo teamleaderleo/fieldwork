@@ -24,32 +24,31 @@
     "writer_lease",
     "freshness",
     "authority",
-    "authority_record",
     "blocker",
     "next_transition",
     "terminal_record"
   ],
   "properties": {
-    "schema_version": { "const": 1 },
-    "id": { "type": "string", "minLength": 1 },
-    "title": { "type": "string", "minLength": 1 },
-    "summary": { "type": "string", "minLength": 1 },
-    "impact": { "type": "string", "minLength": 1 },
-    "priority": { "enum": ["P0", "P1", "P2", "P3", "none"] },
+    "schema_version": {"type": "integer", "const": 1},
+    "id": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "summary": {"type": "string", "minLength": 1},
+    "impact": {"type": "string", "minLength": 1},
+    "priority": {"enum": ["P0", "P1", "P2", "P3", "none"]},
     "scope": {
       "type": "object",
       "additionalProperties": false,
       "required": ["programme", "target", "workstream", "parent_issue"],
       "properties": {
-        "programme": { "type": ["string", "null"] },
-        "target": { "type": ["string", "null"] },
-        "workstream": { "type": ["string", "null"] },
-        "parent_issue": { "type": ["integer", "null"], "minimum": 1 }
+        "programme": {"type": ["string", "null"]},
+        "target": {"type": ["string", "null"]},
+        "workstream": {"type": ["string", "null"]},
+        "parent_issue": {"type": ["integer", "null"], "minimum": 1}
       }
     },
-    "state_updated_at": { "type": "string", "minLength": 1 },
-    "invariant_id": { "type": "string", "minLength": 1 },
-    "canonical_finding": { "type": "string", "minLength": 1 },
+    "state_updated_at": {"$ref": "#/$defs/timestamp"},
+    "invariant_id": {"type": "string", "minLength": 1},
+    "canonical_finding": {"type": "string", "minLength": 1},
     "phase": {
       "enum": [
         "research-active",
@@ -71,97 +70,25 @@
         "blocked-sensitive"
       ]
     },
-    "review": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["disposition", "exact_head", "reviewed_inputs"],
-      "properties": {
-        "disposition": {
-          "enum": ["ACCEPT", "REPAIR", "HOLD", "EXECUTE", "REJECT", "none"]
-        },
-        "exact_head": { "type": ["string", "null"] },
-        "reviewed_inputs": {
-          "type": "array",
-          "items": { "type": "string", "minLength": 1 },
-          "uniqueItems": true
-        }
-      }
-    },
+    "review": {"$ref": "#/$defs/review"},
     "evidence": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["claim", "level", "receipt", "limit"],
-        "properties": {
-          "claim": { "type": "string", "minLength": 1 },
-          "level": {
-            "enum": [
-              "source-read",
-              "model-executed",
-              "target-test-prepared",
-              "target-executed",
-              "integration-executed",
-              "full-gate"
-            ]
-          },
-          "receipt": { "type": "string", "minLength": 1 },
-          "limit": { "type": "string", "minLength": 1 }
-        }
-      }
+      "items": {"$ref": "#/$defs/evidence"}
     },
     "canonical_source": {
       "oneOf": [
-        { "type": "null" },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["repository", "branch", "head"],
-          "properties": {
-            "repository": { "type": "string", "minLength": 1 },
-            "branch": { "type": "string", "minLength": 1 },
-            "head": { "type": "string", "minLength": 7 }
-          }
-        }
+        {"type": "null"},
+        {"$ref": "#/$defs/source"}
       ]
     },
     "active_carrier": {
       "oneOf": [
-        { "type": "null" },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["repository", "pull_request", "head", "purpose"],
-          "properties": {
-            "repository": { "type": "string", "minLength": 1 },
-            "pull_request": { "type": "integer", "minimum": 1 },
-            "head": { "type": "string", "minLength": 7 },
-            "purpose": { "type": "string", "minLength": 1 }
-          }
-        }
+        {"type": "null"},
+        {"$ref": "#/$defs/carrier"}
       ]
     },
-    "writer_lease": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["worker", "artifact", "state", "transfer_record"],
-      "properties": {
-        "worker": { "type": ["string", "null"] },
-        "artifact": { "type": ["string", "null"] },
-        "state": { "enum": ["active", "released", "stale", "superseded", "none"] },
-        "transfer_record": { "type": ["string", "null"] }
-      }
-    },
-    "freshness": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["base_head", "upstream_valid_through", "checked_at"],
-      "properties": {
-        "base_head": { "type": ["string", "null"] },
-        "upstream_valid_through": { "type": ["string", "null"] },
-        "checked_at": { "type": "string", "minLength": 1 }
-      }
-    },
+    "writer_lease": {"$ref": "#/$defs/lease"},
+    "freshness": {"$ref": "#/$defs/freshness"},
     "authority": {
       "type": "object",
       "additionalProperties": false,
@@ -174,17 +101,341 @@
         "material_spending"
       ],
       "properties": {
-        "merge": { "type": "boolean" },
-        "release": { "type": "boolean" },
-        "deploy": { "type": "boolean" },
-        "upstream_contact": { "type": "boolean" },
-        "private_or_production_data": { "type": "boolean" },
-        "material_spending": { "type": "boolean" }
+        "merge": {"allOf": [{"$ref": "#/$defs/authority"}, {"properties": {"action": {"const": "merge"}}}]},
+        "release": {"allOf": [{"$ref": "#/$defs/authority"}, {"properties": {"action": {"const": "release"}}}]},
+        "deploy": {"allOf": [{"$ref": "#/$defs/authority"}, {"properties": {"action": {"const": "deploy"}}}]},
+        "upstream_contact": {"allOf": [{"$ref": "#/$defs/authority"}, {"properties": {"action": {"const": "upstream_contact"}}}]},
+        "private_or_production_data": {"allOf": [{"$ref": "#/$defs/authority"}, {"properties": {"action": {"const": "private_or_production_data"}}}]},
+        "material_spending": {"allOf": [{"$ref": "#/$defs/authority"}, {"properties": {"action": {"const": "material_spending"}}}]}
       }
     },
-    "authority_record": { "type": ["string", "null"] },
-    "blocker": { "type": ["string", "null"] },
-    "next_transition": { "type": "string" },
-    "terminal_record": { "type": ["string", "null"] }
+    "blocker": {"type": ["string", "null"]},
+    "next_transition": {"type": "string"},
+    "terminal_record": {"type": ["string", "null"]}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "phase": {
+            "enum": [
+              "review-ready",
+              "design-decision-ready",
+              "delivery-gate-ready",
+              "land-ready"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "review": {
+            "properties": {
+              "exact_head": {"$ref": "#/$defs/gitSha"},
+              "reviewed_inputs": {"minItems": 1}
+            }
+          },
+          "evidence": {"minItems": 1}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "phase": {"enum": ["delivery-gate-ready", "land-ready"]}
+        }
+      },
+      "then": {
+        "properties": {
+          "canonical_source": {"$ref": "#/$defs/source"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "phase": {"enum": ["stopped", "closed"]}
+        }
+      },
+      "then": {
+        "properties": {
+          "active_carrier": {"type": "null"},
+          "terminal_record": {"type": "string", "minLength": 1},
+          "writer_lease": {
+            "not": {
+              "properties": {"state": {"const": "active"}},
+              "required": ["state"]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "versionedInput": {
+      "type": "string",
+      "pattern": "^[^@\\s]+@[^@\\s]+$"
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disposition", "exact_head", "reviewed_inputs"],
+      "properties": {
+        "disposition": {"enum": ["ACCEPT", "REPAIR", "HOLD", "EXECUTE", "REJECT", "none"]},
+        "exact_head": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/gitSha"}
+          ]
+        },
+        "reviewed_inputs": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/versionedInput"},
+          "uniqueItems": true
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim", "level", "receipt", "limit"],
+      "properties": {
+        "claim": {"type": "string", "minLength": 1},
+        "level": {
+          "enum": [
+            "source-read",
+            "model-executed",
+            "target-test-prepared",
+            "target-executed",
+            "integration-executed",
+            "full-gate"
+          ]
+        },
+        "receipt": {"type": "string", "minLength": 1},
+        "limit": {"type": "string", "minLength": 1}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "branch", "head"],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$"},
+        "branch": {"type": "string", "minLength": 1},
+        "head": {"$ref": "#/$defs/gitSha"}
+      }
+    },
+    "carrier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "pull_request", "head", "purpose"],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$"},
+        "pull_request": {"type": "integer", "minimum": 1},
+        "head": {"$ref": "#/$defs/gitSha"},
+        "purpose": {"type": "string", "minLength": 1}
+      }
+    },
+    "lease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "holder",
+        "repository",
+        "resource_kind",
+        "resource",
+        "generation_type",
+        "generation",
+        "acquired_at",
+        "renewed_at",
+        "duration_seconds",
+        "transition",
+        "previous_generation",
+        "transfer_record"
+      ],
+      "properties": {
+        "state": {"enum": ["active", "released", "stale", "superseded", "none"]},
+        "holder": {"type": ["string", "null"]},
+        "repository": {"type": ["string", "null"]},
+        "resource_kind": {"enum": ["branch", "path", "record", "none"]},
+        "resource": {"type": ["string", "null"]},
+        "generation_type": {"enum": ["git-sha", "sha256", "record-version", "none"]},
+        "generation": {"type": ["string", "null"]},
+        "acquired_at": {"type": ["string", "null"], "format": "date-time"},
+        "renewed_at": {"type": ["string", "null"], "format": "date-time"},
+        "duration_seconds": {"type": ["integer", "null"], "minimum": 1},
+        "transition": {"type": "integer", "minimum": 0},
+        "previous_generation": {"type": ["string", "null"]},
+        "transfer_record": {"type": ["string", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"state": {"const": "none"}}},
+          "then": {
+            "properties": {
+              "holder": {"type": "null"},
+              "repository": {"type": "null"},
+              "resource_kind": {"const": "none"},
+              "resource": {"type": "null"},
+              "generation_type": {"const": "none"},
+              "generation": {"type": "null"},
+              "acquired_at": {"type": "null"},
+              "renewed_at": {"type": "null"},
+              "duration_seconds": {"type": "null"},
+              "transition": {"const": 0},
+              "previous_generation": {"type": "null"},
+              "transfer_record": {"type": "null"}
+            }
+          },
+          "else": {
+            "properties": {
+              "holder": {"type": "string", "minLength": 1},
+              "repository": {"type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$"},
+              "resource_kind": {"enum": ["branch", "path", "record"]},
+              "resource": {"type": "string", "minLength": 1},
+              "generation_type": {"enum": ["git-sha", "sha256", "record-version"]},
+              "generation": {"type": "string", "minLength": 1},
+              "acquired_at": {"$ref": "#/$defs/timestamp"},
+              "renewed_at": {"$ref": "#/$defs/timestamp"},
+              "duration_seconds": {"type": "integer", "minimum": 1}
+            }
+          }
+        }
+      ]
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "value", "source"],
+      "properties": {
+        "kind": {"enum": ["git-sha", "version", "retrieval"]},
+        "value": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"kind": {"const": "git-sha"}}},
+          "then": {"properties": {"value": {"$ref": "#/$defs/gitSha"}}}
+        }
+      ]
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base_head", "external_boundary", "checked_at"],
+      "properties": {
+        "base_head": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/gitSha"}
+          ]
+        },
+        "external_boundary": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/boundary"}
+          ]
+        },
+        "checked_at": {"$ref": "#/$defs/timestamp"}
+      }
+    },
+    "authorityTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "location", "operation_id", "data_class"],
+      "properties": {
+        "kind": {"enum": ["repository", "pull-request", "issue", "deployment", "data", "spend", "other", "none"]},
+        "location": {"type": ["string", "null"]},
+        "operation_id": {"type": ["string", "null"]},
+        "data_class": {"enum": ["none", "public", "private", "production", "regulated"]}
+      }
+    },
+    "authoritySource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "record", "generation"],
+      "properties": {
+        "kind": {"enum": ["user-instruction", "approval-record", "none"]},
+        "record": {"type": ["string", "null"]},
+        "generation": {"type": ["string", "null"]}
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "action", "target", "source", "issued_at", "expires_at", "revocation_record"],
+      "properties": {
+        "state": {"enum": ["denied", "authorized"]},
+        "action": {"enum": ["merge", "release", "deploy", "upstream_contact", "private_or_production_data", "material_spending"]},
+        "target": {"$ref": "#/$defs/authorityTarget"},
+        "source": {"$ref": "#/$defs/authoritySource"},
+        "issued_at": {"type": ["string", "null"], "format": "date-time"},
+        "expires_at": {"type": ["string", "null"], "format": "date-time"},
+        "revocation_record": {"type": ["string", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"state": {"const": "denied"}}},
+          "then": {
+            "properties": {
+              "target": {
+                "properties": {
+                  "kind": {"const": "none"},
+                  "location": {"type": "null"},
+                  "operation_id": {"type": "null"},
+                  "data_class": {"const": "none"}
+                }
+              },
+              "source": {
+                "properties": {
+                  "kind": {"const": "none"},
+                  "record": {"type": "null"},
+                  "generation": {"type": "null"}
+                }
+              },
+              "issued_at": {"type": "null"},
+              "expires_at": {"type": "null"},
+              "revocation_record": {"type": "null"}
+            }
+          },
+          "else": {
+            "properties": {
+              "target": {
+                "properties": {
+                  "kind": {"not": {"const": "none"}},
+                  "location": {"type": "string", "minLength": 1},
+                  "operation_id": {"type": "string", "minLength": 1}
+                }
+              },
+              "source": {
+                "properties": {
+                  "kind": {"not": {"const": "none"}},
+                  "record": {"type": "string", "minLength": 1},
+                  "generation": {"type": "string", "minLength": 1}
+                }
+              },
+              "issued_at": {"$ref": "#/$defs/timestamp"}
+            },
+            "anyOf": [
+              {"properties": {"expires_at": {"$ref": "#/$defs/timestamp"}}},
+              {"properties": {"revocation_record": {"type": "string", "minLength": 1}}}
+            ]
+          }
+        }
+      ]
+    }
   }
 }
