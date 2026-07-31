@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260731-observed-generation",
+  "question": "Can a read-only reconciliation model distinguish current, stale, false, and unknown coordination facts at an exact observed generation without mutating canonical inputs?",
+  "owner": "workstream-d",
+  "created_at": "2026-07-31",
+  "state": "running",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "Fieldwork coordination pilot issue 325",
+      "url": "https://github.com/teamleaderleo/fieldwork/issues/325",
+      "revision": "issue-body-generation-2026-07-31T02:10:51Z",
+      "retrieved_at": "2026-07-31",
+      "claim": "Defines the bounded pilot records, ten discriminating controls, and no-mutation boundary.",
+      "evidence_label": "Normative"
+    },
+    {
+      "name": "Fieldwork structured coordination state PR 306",
+      "url": "https://github.com/teamleaderleo/fieldwork/pull/306",
+      "revision": "a9337a3dc2b3e84b4eac834b1f48a18dc13a1519",
+      "retrieved_at": "2026-07-31",
+      "claim": "Provides the current provisional typed-state vocabulary; compatibility remains unclaimed until exact acceptance.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "python3 playgrounds/EXP-20260731-observed-generation/test_reconcile.py",
+  "environment": {
+    "runtime": "Python 3 standard library",
+    "platform": "platform-independent deterministic fixtures",
+    "dependencies": []
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "A projection whose observed_generation differs from the current spec_generation is rejected, while missing live facts produce Unknown conditions.",
+      "interpretation": "Generation-bound observed status can prevent stale projection promotion without inventing negative conclusions."
+    },
+    {
+      "observation": "Moving one comparison surface expires only that surface and leaves unrelated alternatives current.",
+      "interpretation": "Alternative-specific identities are required; one finding-wide review head is insufficient for comparative work."
+    },
+    {
+      "observation": "The model cannot preserve continuity, cross-repository identity, or fail-closed authority without adding fields absent from the accepted contract.",
+      "interpretation": "Return an exact state-contract blocker rather than widening the controller."
+    }
+  ],
+  "stop_condition": "Stop after the ten issue-325 controls pass or one exact state-contract blocker prevents a deterministic read-only result.",
+  "network_policy": "disabled",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260731-observed-generation/README.md",
+    "playgrounds/EXP-20260731-observed-generation/reconcile.py",
+    "playgrounds/EXP-20260731-observed-generation/test_reconcile.py",
+    "playgrounds/EXP-20260731-observed-generation/fixtures/terminal-continuity.json",
+    "playgrounds/EXP-20260731-observed-generation/fixtures/comparative-alternatives.json",
+    "playgrounds/EXP-20260731-observed-generation/fixtures/cross-repository.json"
+  ],
+  "promoted_to": null
+}
