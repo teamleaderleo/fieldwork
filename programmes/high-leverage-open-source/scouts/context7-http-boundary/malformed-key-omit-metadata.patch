@@ -1,7 +1,7 @@
 diff --git a/packages/mcp/src/lib/encryption.ts b/packages/mcp/src/lib/encryption.ts
 --- a/packages/mcp/src/lib/encryption.ts
 +++ b/packages/mcp/src/lib/encryption.ts
-@@ -11,10 +11,10 @@
+@@ -11,10 +11,12 @@
    return /^[0-9a-fA-F]{64}$/.test(key);
  }
  
@@ -10,12 +10,14 @@ diff --git a/packages/mcp/src/lib/encryption.ts b/packages/mcp/src/lib/encryptio
    if (!validateEncryptionKey(ENCRYPTION_KEY)) {
 -    console.error("Invalid encryption key format. Must be 64 hex characters.");
 -    return clientIp; // Fallback to unencrypted
-+    console.error("Invalid encryption key format; omitting mcp-client-ip metadata.");
++    console.error(
++      "Invalid encryption key format; omitting mcp-client-ip metadata.",
++    );
 +    return undefined;
    }
  
    try {
-@@ -23,9 +23,9 @@
+@@ -23,9 +25,11 @@
      let encrypted = cipher.update(clientIp, "utf8", "hex");
      encrypted += cipher.final("hex");
      return iv.toString("hex") + ":" + encrypted;
@@ -23,12 +25,14 @@ diff --git a/packages/mcp/src/lib/encryption.ts b/packages/mcp/src/lib/encryptio
 -    console.error("Error encrypting client IP:", error);
 -    return clientIp; // Fallback to unencrypted
 +  } catch {
-+    console.error("Unable to encrypt client IP; omitting mcp-client-ip metadata.");
++    console.error(
++      "Unable to encrypt client IP; omitting mcp-client-ip metadata.",
++    );
 +    return undefined;
    }
  }
  
-@@ -40,7 +40,10 @@
+@@ -40,7 +44,10 @@
    };
  
    if (context.clientIp) {
