@@ -16,9 +16,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
-      - name: Check out Fieldwork carrier
+      - name: Check out exact Fieldwork carrier head
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: fieldwork
           persist-credentials: false
 
