@@ -76,6 +76,21 @@ There is no one-to-one mapping. For example, an issue may be `state:claimed` whi
 
 Use `Finding state: not applicable` when no canonical finding exists.
 
+### Migration from legacy `State:` bodies
+
+Existing issues may retain a legacy body line such as `State: state:investigating` until their next material state, claim, finding, review, promotion, or authority change.
+
+During migration:
+
+- interpret the legacy `State:` value only as issue coordination state;
+- compare it with the live `state:*` label;
+- never infer a canonical finding state from it;
+- migrate the issue on the next material touch to `Issue state:` plus `Finding state:` or `Finding state: not applicable`;
+- require the two-field form before a new review-ready, delivery-gate-ready, land-ready, or design-decision-ready transition;
+- let validators warn on untouched legacy bodies rather than silently inventing a finding state or blocking unrelated repository work.
+
+A review of a legacy issue must version the exact legacy body input and treat finding state as absent until a canonical finding supplies it.
+
 ## Programme labels
 
 Every issue belonging to a long-lived research direction should carry:
