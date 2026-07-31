@@ -1,58 +1,109 @@
 # Nixpkgs gomarkdoc check restoration
 
-## In simple words
+## TL;DR
 
-Current Nixpkgs builds gomarkdoc with its upstream tests disabled. The package tests call gomarkdoc's CLI parser in-process, so ambient `GOFLAGS=-mod=vendor` is mistaken for a gomarkdoc application flag and rejected.
+Removing Nixpkgs' `-mod=vendor` token from gomarkdoc's test environment clears the original parser collision, but it does not restore the v1.1.0 suite on current Go 1.26.
 
-The bounded repair restores checks and removes only the package-manager token from `GOFLAGS` during `preCheck`. The vendor tree remains materialized, Go 1.18's vendor selection remains available, and the shared `buildGoModule` framework stays unchanged.
+The executed Linux/Darwin matrix exposed two additional release-level assumptions:
 
-## Exact source fence
+- command tests reference an empty `.gomarkdoc-empty.yml` fixture absent from the tag;
+- the docs golden expects field-link resolution that changes under Go 1.26.
 
-- Nixpkgs commit: `bbbd95e512a066deaefa89e3a244b541ed6c8c7f`.
-- Package path: `pkgs/by-name/go/gomarkdoc/package.nix`.
-- Framework path: `pkgs/build-support/go/module.nix`.
-- gomarkdoc version: `1.1.0`.
-- Fieldwork issue: #241.
+The current package-local experiment builds and tests the final binary with supported `buildGo125Module`, removes only `-mod=vendor` during checks, and creates the omitted empty config in the disposable build tree.
 
-At this fence:
+## Input → action → result
 
-- the package carries `doCheck = false` and the GOFLAGS collision comment;
-- `buildGoModule` materializes `vendor/` for non-proxy vendoring;
-- it exports `GOFLAGS` with `-mod=vendor` and usually `-trimpath`;
-- `checkPhase` removes only `-trimpath` before invoking `go test`.
+### Baseline containment
 
-## Candidate
+Input: gomarkdoc 1.1.0 under Nixpkgs `buildGoModule`.  
+Action: `doCheck = false`.  
+Result: package builds; no upstream tests execute.
+
+### First restoration candidate
+
+Input: current Go 1.26.5 builder and real vendored source.  
+Action: enable checks and remove only `-mod=vendor` in `preCheck`.  
+Result: both Linux and Darwin reach `checkPhase`; the original GOFLAGS error is gone; command tests fail on the absent config fixture and changed docs output.
+
+### Current restoration candidate
+
+Input: the same exact Nixpkgs and gomarkdoc revisions.  
+Action: use supported Go 1.25 for both build and test, remove `-mod=vendor`, and create the omitted empty fixture.  
+Expected result: full upstream suite and version passthru pass on both platforms without filtering tests or changing shared builder behavior.
+
+## Exact fences
+
+- Nixpkgs: `bbbd95e512a066deaefa89e3a244b541ed6c8c7f`;
+- gomarkdoc: v1.1.0;
+- package path: `pkgs/by-name/go/gomarkdoc/package.nix`;
+- framework path: `pkgs/build-support/go/module.nix`;
+- Fieldwork issue: #241;
+- Fieldwork PR: #265;
+- second-candidate patch head: `1cdbcfa7bf07086ed9a46f440d3595595afdd241`.
+
+## Current target patch
 
 ```nix
+{
+  buildGo125Module,
+  ...
+}:
+
+buildGo125Module (finalAttrs: {
   doCheck = true;
 
   preCheck = ''
     export GOFLAGS="''${GOFLAGS//-mod=vendor/}"
+    touch .gomarkdoc-empty.yml
   '';
+})
 ```
 
-The doubled single quote preserves shell interpolation inside the Nix indented string. The substitution removes only `-mod=vendor`; other package-specific Go flags remain available.
+The vendor tree remains materialized and `GOPROXY=off` remains owned by the shared builder. The empty fixture is created in the temporary source tree and is not installed.
 
-## Execution matrix
+## Why the same toolchain matters
 
-The owned workflow applies the one-file patch to the exact source fence and runs on:
+The failed golden describes generated documentation produced by the final binary. Testing with Go 1.25 while shipping a Go 1.26 binary would validate different behavior. The current experiment therefore changes the package builder coherently for both compilation and tests.
 
-- `x86_64-linux` through `ubuntu-24.04`;
-- `aarch64-darwin` through `macos-14`.
+## Executed matrix
 
-Each job must:
+Run `30586416205` on x86_64-linux and aarch64-darwin proved:
 
-1. evaluate the patched package;
-2. build `gomarkdoc` with checks enabled;
-3. retain logs containing `Running phase: checkPhase`;
-4. retain the successful `github.com/princjef/gomarkdoc/cmd/gomarkdoc` test line;
-5. build `gomarkdoc.tests.version`;
-6. keep the diff limited to the one package expression.
+- exact package patch application;
+- real offline vendored build;
+- entry into `checkPhase`;
+- clearance of the original `-mod=vendor` parsing failure;
+- identical remaining failures under Go 1.26.5;
+- docs golden divergence at field-link resolution;
+- missing `.gomarkdoc-empty.yml` in tests that request it.
+
+Fieldwork integrity run `30586416247` passed at the same prior head.
+
+## Required current result
+
+Each platform job must:
+
+1. build the exact patched package;
+2. show `Running phase: checkPhase`;
+3. show successful `github.com/princjef/gomarkdoc/cmd/gomarkdoc` output;
+4. run the full discovered test set without exclusion or `-run` filtering;
+5. pass `gomarkdoc.tests.version`;
+6. retain logs and a one-file Nixpkgs target diff.
+
+## Rejected shortcuts
+
+- dynamically regenerate expected docs from candidate output;
+- exclude the command package that owns the defect;
+- test with a different Go version than the shipped binary;
+- remove vendoring flags framework-wide;
+- call the Go 1.26 failures platform-specific.
 
 ## Evidence boundary
 
-Source mechanism and patch spelling are source-read. The candidate becomes target-executed only after both platform jobs pass at one exact Fieldwork head. A platform-specific failure must be classified as package behavior, Nix runner setup, cache/fetch behavior, or target test failure before changing the repair.
+This is an owned cross-platform package experiment. It does not propose a public Nixpkgs patch, update gomarkdoc fixtures, or establish compatibility beyond the exact revisions and two named platforms.
 
-## Contact boundary
+## Current disposition
 
-Owned Fieldwork execution only. No public Nixpkgs or gomarkdoc interaction is authorized or included.
+`research-active / EXECUTE GO 1.25 COHERENT RESTORATION`.
+
+No public upstream interaction occurred or is authorized.
