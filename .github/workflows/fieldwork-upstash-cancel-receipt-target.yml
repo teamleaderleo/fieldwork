@@ -32,8 +32,11 @@ jobs:
           persist-credentials: false
 
       - name: Verify identities and apply selected repair
+        env:
+          EXPECTED_FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
+          test "$(git -C fieldwork rev-parse HEAD)" = "${EXPECTED_FIELDWORK_HEAD}"
           test "$(git -C box rev-parse HEAD)" = "b55d832d6e3ae0156e32d21ea3863e231dfff9cd"
           python3 -m py_compile \
             fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/apply_target_repair.py \
@@ -130,31 +133,64 @@ jobs:
             upstash_box/types.py
 
       - name: Retain exact candidate diff and receipt
+        if: always()
         env:
-          FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_TARGET_HEAD: b55d832d6e3ae0156e32d21ea3863e231dfff9cd
+          EVENT_SHA: ${{ github.sha }}
+          JOB_STATUS: ${{ job.status }}
           RUN_ID_VALUE: ${{ github.run_id }}
           RUN_ATTEMPT_VALUE: ${{ github.run_attempt }}
         run: |
           set -euo pipefail
           mkdir -p fieldwork-receipts
-          git -C box diff --binary \
-            > fieldwork-receipts/upstash-box-cancel-receipt.patch
-          test -s fieldwork-receipts/upstash-box-cancel-receipt.patch
-          export PATCH_SHA256="$(sha256sum fieldwork-receipts/upstash-box-cancel-receipt.patch | cut -d' ' -f1)"
+          actual_fieldwork_head=$(git -C fieldwork rev-parse HEAD 2>/dev/null || true)
+          actual_target_head=$(git -C box rev-parse HEAD 2>/dev/null || true)
+          patch_path=fieldwork-receipts/upstash-box-cancel-receipt.patch
+          patch_sha256=
+          if [[ -d box/.git ]]; then
+            git -C box diff --binary > "${patch_path}"
+            if [[ -s ${patch_path} ]]; then
+              patch_sha256=$(sha256sum "${patch_path}" | cut -d' ' -f1)
+            fi
+          fi
+          if [[ ${JOB_STATUS} == success ]]; then
+            test -n "${patch_sha256}"
+          fi
+          export ACTUAL_FIELDWORK_HEAD="${actual_fieldwork_head}"
+          export ACTUAL_TARGET_HEAD="${actual_target_head}"
+          export PATCH_SHA256="${patch_sha256}"
           python3 <<'PY'
           import json
           import os
           from pathlib import Path
 
+          expected_fieldwork = os.environ["EXPECTED_FIELDWORK_HEAD"]
+          actual_fieldwork = os.environ["ACTUAL_FIELDWORK_HEAD"]
+          expected_target = os.environ["EXPECTED_TARGET_HEAD"]
+          actual_target = os.environ["ACTUAL_TARGET_HEAD"]
+          job_status = os.environ["JOB_STATUS"]
           receipt = {
-              "schemaVersion": 1,
-              "fieldworkHead": os.environ["FIELDWORK_HEAD"],
+              "schemaVersion": 2,
+              "expectedFieldworkHead": expected_fieldwork,
+              "actualFieldworkCheckout": actual_fieldwork,
+              "fieldworkCheckoutClassification": (
+                  "exact-head" if actual_fieldwork == expected_fieldwork else "other-checkout"
+              ),
+              "eventSha": os.environ["EVENT_SHA"],
               "targetRepository": "upstash/box",
-              "targetHead": "b55d832d6e3ae0156e32d21ea3863e231dfff9cd",
-              "patchSha256": os.environ["PATCH_SHA256"],
+              "expectedTargetHead": expected_target,
+              "actualTargetCheckout": actual_target,
+              "targetCheckoutMatches": actual_target == expected_target,
+              "patchSha256": os.environ["PATCH_SHA256"] or None,
               "runId": os.environ["RUN_ID_VALUE"],
               "runAttempt": os.environ["RUN_ATTEMPT_VALUE"],
-              "evidenceClass": "target-executed-local-mocked",
+              "technicalGateStatus": job_status,
+              "evidenceClass": (
+                  "target-executed-local-mocked"
+                  if job_status == "success"
+                  else "partial-harness-receipt"
+              ),
               "hostedProviderCall": False,
               "credentialsUsed": False,
               "selectedApi": {
@@ -167,7 +203,11 @@ jobs:
               encoding="utf-8",
           )
           PY
-          git -C box diff --check
+          test "${actual_fieldwork_head}" = "${EXPECTED_FIELDWORK_HEAD}"
+          test "${actual_target_head}" = "${EXPECTED_TARGET_HEAD}"
+          if [[ -d box/.git ]]; then
+            git -C box diff --check
+          fi
 
       - name: Upload exact target candidate receipt
         if: always()
@@ -175,5 +215,5 @@ jobs:
         with:
           name: upstash-box-cancel-receipt-${{ github.run_id }}-${{ github.run_attempt }}
           path: fieldwork-receipts/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
