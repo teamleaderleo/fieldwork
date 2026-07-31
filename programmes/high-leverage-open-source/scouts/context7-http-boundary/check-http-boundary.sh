@@ -17,6 +17,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
+require_header() {
+  local pattern=$1
+  local description=$2
+  if ! grep -Eqi "${pattern}" "${headers_file}"; then
+    echo "Missing expected CORS header: ${description}" >&2
+    cat "${headers_file}" >&2
+    exit 1
+  fi
+}
+
 export UPSTASH_REDIS_REST_URL=https://redis.invalid
 export UPSTASH_REDIS_REST_TOKEN=fieldwork-inert-token
 
@@ -40,11 +50,14 @@ for _ in $(seq 1 100); do
   sleep 0.1
 done
 
-curl --noproxy '*' --silent --show-error --fail \
-  "http://127.0.0.1:${port}/ping" \
-  | grep -F '"status":"ok"' >/dev/null
+loopback_response=$(curl --noproxy '*' --silent --show-error --fail \
+  "http://127.0.0.1:${port}/ping")
+printf 'Loopback response: %s\n' "${loopback_response}"
+grep -F '"status":"ok"' <<<"${loopback_response}" >/dev/null
 
 grep -F "running on HTTP at http://localhost:${port}/mcp" "${stderr_log}" >/dev/null
+printf 'Startup log: '
+grep -F "running on HTTP at http://localhost:${port}/mcp" "${stderr_log}"
 
 listener=$(ss -H -ltn | awk -v suffix=":${port}" '$4 ~ suffix "$" { print }')
 if [[ -z ${listener} ]]; then
@@ -59,15 +72,27 @@ if grep -Eq '127\.0\.0\.1:|\[::1\]:' <<<"${listener}"; then
   exit 1
 fi
 
-runner_ip=$(ip -4 route get 1.1.1.1 | sed -n 's/.* src \([^ ]*\).*/\1/p' | head -n 1)
+if ! runner_route=$(ip -4 route get 1.1.1.1 2>&1); then
+  echo "Could not inspect the runner IPv4 route" >&2
+  echo "${runner_route}" >&2
+  exit 1
+fi
+printf 'Runner route: %s\n' "${runner_route}"
+runner_ip=$(sed -n 's/.* src \([^ ]*\).*/\1/p' <<<"${runner_route}" | head -n 1)
 if [[ -z ${runner_ip} ]]; then
   echo "Could not resolve the runner non-loopback IPv4 address" >&2
   exit 1
 fi
+printf 'Runner non-loopback IPv4: %s\n' "${runner_ip}"
 
-curl --noproxy '*' --silent --show-error --fail \
-  "http://${runner_ip}:${port}/ping" \
-  | grep -F '"status":"ok"' >/dev/null
+if ! non_loopback_response=$(curl --noproxy '*' --silent --show-error --fail \
+  "http://${runner_ip}:${port}/ping" 2>&1); then
+  echo "Context7 listener was not reachable through the runner non-loopback address" >&2
+  echo "${non_loopback_response}" >&2
+  exit 1
+fi
+printf 'Non-loopback response: %s\n' "${non_loopback_response}"
+grep -F '"status":"ok"' <<<"${non_loopback_response}" >/dev/null
 
 curl --noproxy '*' --silent --show-error \
   --dump-header "${headers_file}" \
@@ -76,10 +101,12 @@ curl --noproxy '*' --silent --show-error \
   --header 'Origin: https://fieldwork.invalid' \
   "http://127.0.0.1:${port}/mcp"
 
-grep -Eqi '^access-control-allow-origin: \*\r?$' "${headers_file}"
-grep -Eqi '^access-control-allow-methods: .*POST.*\r?$' "${headers_file}"
-grep -Eqi '^access-control-allow-headers: .*Authorization.*\r?$' "${headers_file}"
-grep -Eqi '^access-control-allow-headers: .*X-Context7-API-Key.*\r?$' "${headers_file}"
+printf '%s\n' 'Anonymous MCP preflight headers:'
+cat "${headers_file}"
+require_header '^access-control-allow-origin: \*\r?$' 'Access-Control-Allow-Origin: *'
+require_header '^access-control-allow-methods: .*POST.*\r?$' 'POST in Access-Control-Allow-Methods'
+require_header '^access-control-allow-headers: .*Authorization.*\r?$' 'Authorization allowance'
+require_header '^access-control-allow-headers: .*X-Context7-API-Key.*\r?$' 'X-Context7-API-Key allowance'
 
 printf 'Loopback endpoint: http://127.0.0.1:%s/ping\n' "${port}"
 printf 'Non-loopback endpoint: http://%s:%s/ping\n' "${runner_ip}" "${port}"
