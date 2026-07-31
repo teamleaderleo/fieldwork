@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reversing controls for per-action time-dependent decision currentness."""
+"""Reversing controls for exact-input and per-action decision currentness."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ FIXTURES = HERE / "fixtures"
 sys.path.insert(0, str(HERE))
 
 from decision_currentness import (  # noqa: E402
+    authorization_currentness,
     decision_currentness,
     effective_authority_at,
 )
@@ -75,6 +76,15 @@ def authorized(
     }
 
 
+def effective(
+    projection: dict[str, object],
+    current_at: str,
+    record: dict[str, object],
+    facts: dict[str, object],
+) -> dict[str, str]:
+    return effective_authority_at(projection, current_at, record, facts)
+
+
 class DecisionCurrentnessTests(unittest.TestCase):
     def test_expired_action_invalidates_its_decision_without_input_movement(self) -> None:
         record = fixture()
@@ -85,13 +95,14 @@ class DecisionCurrentnessTests(unittest.TestCase):
         self.assertTrue(projection_is_current(projection, record, facts))
         self.assertEqual("AuthorityCurrent", authority_reason(projection, "merge"))
         at_observation = decision_currentness(projection, T0)
-        self.assertEqual(("True", "DecisionCurrent"), (at_observation["status"], at_observation["reason"]))
+        self.assertEqual(
+            ("True", "DecisionCurrent"),
+            (at_observation["status"], at_observation["reason"]),
+        )
         self.assertEqual(EXPIRY, at_observation["valid_until"])
         self.assertEqual("True", at_observation["actions"]["merge"]["status"])
-        self.assertEqual("authorized", effective_authority_at(projection, T0)["merge"])
+        self.assertEqual("authorized", effective(projection, T0, record, facts)["merge"])
 
-        # Only wall-clock time moves. Historical input identity remains exact, but
-        # this action's present authority fails closed at its own expiry boundary.
         self.assertTrue(projection_is_current(projection, record, facts))
         elapsed = decision_currentness(projection, T1)
         self.assertEqual(
@@ -105,7 +116,7 @@ class DecisionCurrentnessTests(unittest.TestCase):
                 elapsed["actions"]["merge"]["reason"],
             ),
         )
-        self.assertEqual("denied", effective_authority_at(projection, T1)["merge"])
+        self.assertEqual("denied", effective(projection, T1, record, facts)["merge"])
 
         fresh = reconcile(record, facts, T1)
         self.assertEqual("AuthorityExpired", authority_reason(fresh, "merge"))
@@ -117,7 +128,8 @@ class DecisionCurrentnessTests(unittest.TestCase):
             "merge": authorized(expires_at=LATER_EXPIRY),
             "deploy": authorized(expires_at=EXPIRY),
         }
-        projection = reconcile(record, live_facts(record), T0)
+        facts = live_facts(record)
+        projection = reconcile(record, facts, T0)
         self.assertEqual(EXPIRY, decision_currentness(projection, T0)["valid_until"])
 
         at_first_horizon = decision_currentness(projection, T1)
@@ -126,9 +138,9 @@ class DecisionCurrentnessTests(unittest.TestCase):
         self.assertEqual("True", at_first_horizon["actions"]["merge"]["status"])
         self.assertEqual("False", at_first_horizon["actions"]["deploy"]["status"])
 
-        effective = effective_authority_at(projection, T1)
-        self.assertEqual("authorized", effective["merge"])
-        self.assertEqual("denied", effective["deploy"])
+        current = effective(projection, T1, record, facts)
+        self.assertEqual("authorized", current["merge"])
+        self.assertEqual("denied", current["deploy"])
 
     def test_expiry_does_not_revoke_generation_bounded_authority(self) -> None:
         record = fixture()
@@ -144,11 +156,15 @@ class DecisionCurrentnessTests(unittest.TestCase):
         projection = reconcile(record, facts, T0)
 
         at_horizon = decision_currentness(projection, T1)
-        self.assertEqual("GenerationBoundCurrent", at_horizon["actions"]["merge"]["reason"])
-        self.assertEqual("AuthorityHorizonElapsed", at_horizon["actions"]["deploy"]["reason"])
-        effective = effective_authority_at(projection, T1)
-        self.assertEqual("authorized", effective["merge"])
-        self.assertEqual("denied", effective["deploy"])
+        self.assertEqual(
+            "GenerationBoundCurrent", at_horizon["actions"]["merge"]["reason"]
+        )
+        self.assertEqual(
+            "AuthorityHorizonElapsed", at_horizon["actions"]["deploy"]["reason"]
+        )
+        current = effective(projection, T1, record, facts)
+        self.assertEqual("authorized", current["merge"])
+        self.assertEqual("denied", current["deploy"])
 
     def test_malformed_one_action_time_denies_only_that_action(self) -> None:
         record = fixture()
@@ -156,7 +172,8 @@ class DecisionCurrentnessTests(unittest.TestCase):
             "merge": authorized(expires_at=LATER_EXPIRY),
             "deploy": authorized(expires_at=EXPIRY),
         }
-        projection = reconcile(record, live_facts(record), T0)
+        facts = live_facts(record)
+        projection = reconcile(record, facts, T0)
         malformed = deepcopy(projection)
         deploy_condition = next(
             condition
@@ -169,10 +186,12 @@ class DecisionCurrentnessTests(unittest.TestCase):
         currentness = decision_currentness(malformed, T0)
         self.assertEqual("DecisionRefreshRequired", currentness["reason"])
         self.assertEqual("True", currentness["actions"]["merge"]["status"])
-        self.assertEqual("InvalidAuthorityTime", currentness["actions"]["deploy"]["reason"])
-        effective = effective_authority_at(malformed, T0)
-        self.assertEqual("authorized", effective["merge"])
-        self.assertEqual("denied", effective["deploy"])
+        self.assertEqual(
+            "InvalidAuthorityTime", currentness["actions"]["deploy"]["reason"]
+        )
+        current = effective(malformed, T0, record, facts)
+        self.assertEqual("authorized", current["merge"])
+        self.assertEqual("denied", current["deploy"])
 
     def test_denied_action_remains_denied_while_current_action_survives(self) -> None:
         record = fixture()
@@ -184,20 +203,25 @@ class DecisionCurrentnessTests(unittest.TestCase):
                 "revocation_record": None,
             },
         }
-        projection = reconcile(record, live_facts(record), T0)
+        facts = live_facts(record)
+        projection = reconcile(record, facts, T0)
         currentness = decision_currentness(projection, T0)
         self.assertEqual("DecisionCurrent", currentness["reason"])
-        self.assertEqual("NotAuthorized", currentness["actions"]["deploy"]["reason"])
-        effective = effective_authority_at(projection, T0)
-        self.assertEqual("authorized", effective["merge"])
-        self.assertEqual("denied", effective["deploy"])
+        self.assertEqual(
+            "NotAuthorized", currentness["actions"]["deploy"]["reason"]
+        )
+        current = effective(projection, T0, record, facts)
+        self.assertEqual("authorized", current["merge"])
+        self.assertEqual("denied", current["deploy"])
 
     def test_future_or_malformed_projection_boundary_denies_all_actions(self) -> None:
         record = fixture()
         record["authority"]["merge"] = authorized(expires_at=LATER_EXPIRY)
-        projection = reconcile(record, live_facts(record), T0)
+        facts = live_facts(record)
+        projection = reconcile(record, facts, T0)
 
-        future = decision_currentness(projection, "2026-07-31T02:00:00Z")
+        future_time = "2026-07-31T02:00:00Z"
+        future = decision_currentness(projection, future_time)
         self.assertEqual(
             ("False", "ProjectionObservedInFuture"),
             (future["status"], future["reason"]),
@@ -205,9 +229,7 @@ class DecisionCurrentnessTests(unittest.TestCase):
         self.assertTrue(
             all(
                 state == "denied"
-                for state in effective_authority_at(
-                    projection, "2026-07-31T02:00:00Z"
-                ).values()
+                for state in effective(projection, future_time, record, facts).values()
             )
         )
 
@@ -219,8 +241,61 @@ class DecisionCurrentnessTests(unittest.TestCase):
             (currentness["status"], currentness["reason"]),
         )
         self.assertTrue(
-            all(state == "denied" for state in effective_authority_at(malformed, T1).values())
+            all(
+                state == "denied"
+                for state in effective(malformed, T1, record, facts).values()
+            )
         )
+
+    def test_stale_inputs_deny_unexpired_authority_while_time_dimension_stays_current(self) -> None:
+        record = fixture()
+        record["authority"]["merge"] = authorized(expires_at=LATER_EXPIRY)
+        facts = live_facts(record)
+        projection = reconcile(record, facts, T0)
+
+        moved_record = deepcopy(record)
+        moved_record["finding_generation"] = "finding-cross-repository-v2"
+        self.assertFalse(projection_is_current(projection, moved_record, facts))
+        currentness = authorization_currentness(
+            projection,
+            T0,
+            moved_record,
+            facts,
+        )
+        self.assertEqual(
+            ("False", "InputsMovedOrIncomplete"),
+            (
+                currentness["inputs_current"]["status"],
+                currentness["inputs_current"]["reason"],
+            ),
+        )
+        self.assertEqual(
+            "True",
+            currentness["decision_currentness"]["actions"]["merge"]["status"],
+        )
+        self.assertEqual("denied", currentness["actions"]["merge"]["effective"])
+        self.assertEqual(
+            "denied",
+            effective(projection, T0, moved_record, facts)["merge"],
+        )
+
+        moved_facts = deepcopy(facts)
+        moved_facts["generation"] = "live-facts-decision-horizon-v2"
+        self.assertFalse(projection_is_current(projection, record, moved_facts))
+        self.assertEqual(
+            "denied",
+            effective(projection, T0, record, moved_facts)["merge"],
+        )
+
+        missing_inputs = authorization_currentness(projection, T0, None, None)
+        self.assertEqual(
+            ("Unknown", "MissingCurrentInputs"),
+            (
+                missing_inputs["inputs_current"]["status"],
+                missing_inputs["inputs_current"]["reason"],
+            ),
+        )
+        self.assertEqual("denied", missing_inputs["actions"]["merge"]["effective"])
 
 
 if __name__ == "__main__":
