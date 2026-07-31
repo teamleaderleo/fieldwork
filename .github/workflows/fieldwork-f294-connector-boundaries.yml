@@ -1,0 +1,78 @@
+name: Fieldwork F294 connector boundary model
+
+on:
+  pull_request:
+    branches:
+      - finding/294-connector-call-stall
+    paths:
+      - .github/workflows/fieldwork-f294-connector-boundaries.yml
+      - findings/F294-connector-call-stall/evidence/run_boundary_matrix.mjs
+      - findings/F294-connector-call-stall/evidence/20260731-boundary-model.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  boundary-matrix:
+    name: Node ${{ matrix.node }} boundary matrix
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - 22
+          - 24
+
+    steps:
+      - name: Check out execution carrier
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Verify carrier fence
+        env:
+          CANONICAL_SOURCE_HEAD: 9fe73ef41ab8a9f56e430190a22d3b9017dc8b64
+        run: |
+          git merge-base --is-ancestor "$CANONICAL_SOURCE_HEAD" HEAD
+          git diff --name-only "$CANONICAL_SOURCE_HEAD"...HEAD > /tmp/f294-carrier-files.txt
+          cat /tmp/f294-carrier-files.txt
+          test "$(cat /tmp/f294-carrier-files.txt)" = ".github/workflows/fieldwork-f294-connector-boundaries.yml"
+
+      - name: Run presentation and settlement model
+        env:
+          RESULTS_DIR: ${{ runner.temp }}/f294-node-${{ matrix.node }}
+        run: |
+          node findings/F294-connector-call-stall/evidence/run_boundary_matrix.mjs
+
+      - name: Check retained result
+        env:
+          RESULTS_DIR: ${{ runner.temp }}/f294-node-${{ matrix.node }}
+        run: |
+          test -s "$RESULTS_DIR/boundary-matrix.json"
+          node -e '
+            const fs = require("node:fs")
+            const report = JSON.parse(fs.readFileSync(process.env.RESULTS_DIR + "/boundary-matrix.json", "utf8"))
+            if (report.evidenceClass !== "model-executed") process.exit(1)
+            if (report.cases.length !== 6) process.exit(1)
+            if (report.cases.some(testCase => testCase.status !== "passed")) process.exit(1)
+          '
+
+      - name: Check tracked diff hygiene
+        run: |
+          git diff --exit-code
+          test -z "$(git status --short --untracked-files=all)"
+
+      - name: Upload exact model result
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: f294-connector-boundary-node-${{ matrix.node }}
+          path: ${{ runner.temp }}/f294-node-${{ matrix.node }}/boundary-matrix.json
+          if-no-files-found: error
+          retention-days: 30
