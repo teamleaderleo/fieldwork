@@ -21,12 +21,14 @@ The existing base control deliberately records this crash. PR #366 protects reta
 
 Parse each non-null action expiry inside a bounded `try` block.
 
-On `TypeError` or `ValueError`:
+On `AttributeError`, `TypeError`, or `ValueError` from the current parser boundary:
 
 - set only that action's effective authority to `denied`;
 - emit `AuthorityUsable = Unknown / InvalidAuthorityTime`;
 - preserve the exact malformed input in the condition receipt;
 - continue reconciling unrelated actions.
+
+The explicit `AttributeError` fence is required because the current `_parse_time()` calls `.replace()` before type validation; a non-string object can therefore fail before `datetime.fromisoformat()` raises `TypeError` or `ValueError`.
 
 Valid expired, current, denied, absent, revocation-bounded, revoked, and unresolved paths remain unchanged.
 
