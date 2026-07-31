@@ -171,7 +171,9 @@ Competing implementations may exist concurrently.
 - Use one comparison file or section to apply the same criteria to all options.
 - Do not merge several alternatives into one ambiguous implementation PR.
 - Close or archive losing carriers only after their evidence and rejection reason are retained.
-- Reconcile the winning candidate against exact current canonical inputs after selection. Rebase or restack when movement overlaps the candidate, changes governing protocol or mergeability, or a current-base promotion package is required. Otherwise record the newer exact generation, prove file-disjoint or semantic identity within the reviewed fence, and renew only affected exact-head controls. Never present an expired receipt as current.
+- Reconcile the winning candidate against exact current canonical inputs after selection. Rebase or restack when movement overlaps the candidate, changes governing protocol, material configuration or generated inputs, indirect dependencies, promotion or mergeability requirements, or when a current-base promotion package is required.
+- A prior disposition may carry forward without fresh review only when every disposition-relevant reviewed path is byte-identical across old and new generations and every governing-input generation named by the receipt is unchanged. Record exact old/new generations, old/new blob identities for every reviewed path, governing-input equality, and `changed reviewed paths: none`. File-disjoint movement alone is not sufficient.
+- Any changed reviewed byte or changed governing input requires a fresh review receipt, even when the new reviewer concludes that the change is semantically equivalent. Renew only the receipts and controls whose input or execution identity changed; never present an expired receipt as current.
 
 ## Decision record requirements
 
