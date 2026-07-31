@@ -49,7 +49,10 @@ jobs:
           cp "$source_dir/shell-execution-process-exit-cleanup.test.ts" \
             packages/core/src/services/shell-execution-process-exit-cleanup.test.ts
           git diff --check
-          git diff --name-only | sort > /tmp/actual-files
+          {
+            git diff --name-only
+            git ls-files --others --exclude-standard
+          } | sort -u > /tmp/actual-files
           cat > /tmp/expected-files <<'EOF'
           packages/core/src/services/executionLifecycleService.ts
           packages/core/src/services/shell-execution-process-exit-cleanup.test.ts
@@ -100,7 +103,10 @@ jobs:
           mkdir -p "$output"
           cd gemini
           git diff --binary > "$output/candidate.patch"
-          git diff --name-only | sort > "$output/files.txt"
+          {
+            git diff --name-only
+            git ls-files --others --exclude-standard
+          } | sort -u > "$output/files.txt"
           {
             echo "gemini_source=$GEMINI_SOURCE"
             echo "fieldwork_head=${{ github.event.pull_request.head.sha }}"
