@@ -1,0 +1,96 @@
+name: T3 Orchestration V2 lifecycle evaluation
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t3-orchestration-v2-lifecycle-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - name: Checkout Fieldwork head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+
+      - name: Check evaluation inputs
+        id: filter
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(.github/workflows/t3-orchestration-v2-lifecycle-evaluation.yml|campaigns/t3-opencode-completion-reconciliation/artifacts/v2-target-head.txt)$'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  evaluation:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Lifecycle outbox ownership controls
+            command: >-
+              vp test run
+              apps/server/src/orchestration-v2/EffectOutbox.lifecycle-evaluation.test.ts
+          - name: Effect worker process-loss controls
+            command: >-
+              vp test run
+              apps/server/src/orchestration-v2/EffectWorker.test.ts
+          - name: Provider session release race controls
+            command: >-
+              vp test run
+              apps/server/src/orchestration-v2/ProviderSessionManager.test.ts
+              -t "^(ProviderSessionManagerV2 does not idle-release|ProviderSessionManagerV2 does not apply a stale idle pin|ProviderSessionManagerV2 keeps active sessions)"
+          - name: Server typecheck
+            command: vp run --filter t3 typecheck
+    steps:
+      - name: Checkout Fieldwork evaluation pin
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+
+      - name: Resolve pinned V2 evaluation head
+        id: target
+        run: echo "ref=$(tr -d '\n' < fieldwork/campaigns/t3-opencode-completion-reconciliation/artifacts/v2-target-head.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout owned T3 V2 evaluation head
+        uses: actions/checkout@v6
+        with:
+          repository: teamleaderleo/t3code
+          ref: ${{ steps.target.outputs.ref }}
+          path: t3code
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: t3code/package.json
+          cache: false
+          run-install: false
+
+      - name: Install target dependencies
+        working-directory: t3code
+        run: vp install
+
+      - name: Run evaluation check
+        working-directory: t3code
+        run: ${{ matrix.command }}

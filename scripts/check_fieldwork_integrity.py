@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Validate machine-readable Fieldwork batch contracts."""
+"""Validate machine-readable Fieldwork contracts and candidate patch syntax."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 import sys
 
 ALLOWED_BATCH_STATES = {
@@ -57,6 +58,10 @@ REQUIRED_ASSIGNMENT_KEYS = {
     "stop_condition",
     "upstream_contact_authorized",
 }
+
+UNIFIED_DIFF_HUNK = re.compile(
+    r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(?: .*)?$"
+)
 
 
 def safe_owned_path(value: object) -> bool:
@@ -140,10 +145,75 @@ def validate_manifest(path: Path) -> list[str]:
     return errors
 
 
+def validate_candidate_patch(path: Path) -> list[str]:
+    """Reject malformed unified-diff hunk metadata before target CI runs."""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        return [f"{path}: unreadable candidate patch: {exc}"]
+
+    errors: list[str] = []
+    hunk_count = 0
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if not line.startswith("@@"):
+            index += 1
+            continue
+
+        hunk_count += 1
+        match = UNIFIED_DIFF_HUNK.fullmatch(line)
+        if match is None:
+            errors.append(f"{path}:{index + 1}: malformed unified-diff hunk header")
+            index += 1
+            continue
+
+        declared_old = int(match.group(2) or "1")
+        declared_new = int(match.group(4) or "1")
+        actual_old = 0
+        actual_new = 0
+        cursor = index + 1
+
+        while cursor < len(lines):
+            body_line = lines[cursor]
+            if body_line.startswith("@@") or body_line.startswith("diff --git "):
+                break
+            if body_line.startswith(" "):
+                actual_old += 1
+                actual_new += 1
+            elif body_line.startswith("-"):
+                actual_old += 1
+            elif body_line.startswith("+"):
+                actual_new += 1
+            elif body_line.startswith("\\ No newline at end of file"):
+                pass
+            else:
+                errors.append(
+                    f"{path}:{cursor + 1}: invalid unified-diff hunk body line"
+                )
+            cursor += 1
+
+        if (actual_old, actual_new) != (declared_old, declared_new):
+            errors.append(
+                f"{path}:{index + 1}: hunk declares old/new "
+                f"{declared_old}/{declared_new} but contains {actual_old}/{actual_new}"
+            )
+        index = cursor
+
+    if any(line.startswith("diff --git ") for line in lines) and hunk_count == 0:
+        errors.append(f"{path}: candidate patch contains no unified-diff hunks")
+
+    return errors
+
+
 def main() -> int:
     errors: list[str] = []
     for manifest in sorted(Path("batches").glob("*/manifest.json")):
         errors.extend(validate_manifest(manifest))
+
+    for patch in sorted(Path("campaigns").rglob("*.patch")):
+        if "candidates" in patch.parts:
+            errors.extend(validate_candidate_patch(patch))
 
     if errors:
         print("Fieldwork integrity violations:\n", file=sys.stderr)

@@ -1,0 +1,198 @@
+diff --git a/apps/server/src/provider/Layers/OpenCodeAdapter.ts b/apps/server/src/provider/Layers/OpenCodeAdapter.ts
+index 73c23b7..0000000 100644
+--- a/apps/server/src/provider/Layers/OpenCodeAdapter.ts
++++ b/apps/server/src/provider/Layers/OpenCodeAdapter.ts
+@@ -320,6 +320,11 @@
+ function mapPermissionToRequestType(
+   permission: string,
+-): "command_execution_approval" | "file_read_approval" | "file_change_approval" | "unknown" {
++):
++  | "command_execution_approval"
++  | "file_read_approval"
++  | "file_change_approval"
++  | "dynamic_tool_call"
++  | "unknown" {
+   switch (permission) {
+     case "bash":
+       return "command_execution_approval";
+@@ -327,6 +332,8 @@
+       return "file_read_approval";
+     case "edit":
+       return "file_change_approval";
++    case "skill":
++      return "dynamic_tool_call";
+     default:
+       return "unknown";
+   }
+@@ -654,4 +654,57 @@
+     const emit = (event: ProviderRuntimeEvent) =>
+       Queue.offer(runtimeEvents, event).pipe(Effect.asVoid);
++
++    const expirePendingInteractiveRequests = Effect.fn(
++      "expirePendingInteractiveRequests",
++    )(function* (
++      context: OpenCodeSessionContext,
++      turnId: TurnId | undefined,
++      reason:
++        | "turn_interrupted"
++        | "turn_completed"
++        | "session_error"
++        | "provider_exited"
++        | "session_stopped",
++    ) {
++      const resolution = {
++        status: "expired" as const,
++        reason,
++      };
++
++      const permissions = [...context.pendingPermissions.values()];
++      context.pendingPermissions.clear();
++      for (const request of permissions) {
++        yield* emit({
++          ...(yield* buildEventBase({
++            threadId: context.session.threadId,
++            turnId,
++            requestId: request.id,
++          })),
++          type: "request.resolved",
++          payload: {
++            requestType: mapPermissionToRequestType(request.permission),
++            resolution,
++          },
++        });
++      }
++
++      const questions = [...context.pendingQuestions.values()];
++      context.pendingQuestions.clear();
++      for (const request of questions) {
++        yield* emit({
++          ...(yield* buildEventBase({
++            threadId: context.session.threadId,
++            turnId,
++            requestId: request.id,
++          })),
++          type: "user-input.resolved",
++          payload: {
++            answers: {},
++            resolution,
++          },
++        });
++      }
++    });
++
+     const writeNativeEvent = (
+       threadId: ThreadId,
+@@ -682,3 +682,4 @@
+       const turnId = context.activeTurnId;
++      yield* expirePendingInteractiveRequests(context, turnId, "provider_exited");
+       sessions.delete(context.session.threadId);
+       // Emit lifecycle events BEFORE tearing down the scope. Both call sites
+@@ -1061,3 +1061,4 @@
+           if (event.properties.status.type === "idle" && turnId) {
++            yield* expirePendingInteractiveRequests(context, turnId, "turn_completed");
+             context.activeTurnId = undefined;
+             yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
+@@ -1080,4 +1080,5 @@
+           const message = sessionErrorMessage(event.properties.error);
+           const activeTurnId = context.activeTurnId;
+           context.activeTurnId = undefined;
++          yield* expirePendingInteractiveRequests(context, activeTurnId, "session_error");
+           yield* updateProviderSession(
+@@ -1542,14 +1542,16 @@
+     const interruptTurn: OpenCodeAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
+       function* (threadId, turnId) {
+         context = yield* ensureSessionContext(sessions, threadId);
++        const interruptedTurnId = turnId ?? context.activeTurnId;
+         yield* runOpenCodeSdk("session.abort", () =>
+           context.client.session.abort({ sessionID: context.openCodeSessionId }),
+         ).pipe(Effect.mapError(toRequestError));
+-        if (turnId ?? context.activeTurnId) {
++        yield* expirePendingInteractiveRequests(context, interruptedTurnId, "turn_interrupted");
++        if (interruptedTurnId) {
+           yield* emit({
+             ...(yield* buildEventBase({
+               threadId,
+-              turnId: turnId ?? context.activeTurnId,
++              turnId: interruptedTurnId,
+             })),
+             type: "turn.aborted",
+             payload: {
+@@ -1613,2 +1613,7 @@
++        yield* expirePendingInteractiveRequests(
++          context,
++          context.activeTurnId,
++          "session_stopped",
++        );
+         const stopped = yield* stopOpenCodeContext(context);
+         sessions.delete(threadId);
+diff --git a/packages/contracts/src/providerRuntime.ts b/packages/contracts/src/providerRuntime.ts
+index eb2563e..0000000 100644
+--- a/packages/contracts/src/providerRuntime.ts
++++ b/packages/contracts/src/providerRuntime.ts
+@@ -459,3 +459,4 @@
+ const UserInputResolvedPayload = Schema.Struct({
+   answers: UnknownRecordSchema,
++  resolution: Schema.optional(Schema.Unknown),
+ });
+diff --git a/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts b/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
+index a8a51b3..0000000 100644
+--- a/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
++++ b/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts
+@@ -309,4 +309,16 @@
+   }
+ }
+ 
++function runtimeResolutionStatus(resolution: unknown): string | undefined {
++  if (
++    resolution === null ||
++    typeof resolution !== "object" ||
++    !("status" in resolution)
++  ) {
++    return undefined;
++  }
++  const status = resolution.status;
++  return typeof status === "string" ? status : undefined;
++}
++
+ export function runtimeEventToActivities(
+@@ -354,6 +354,7 @@
+       if (event.payload.requestType === "tool_user_input") {
+         return [];
+       }
++      const resolutionStatus = runtimeResolutionStatus(event.payload.resolution);
+       const requestKind = requestKindFromCanonicalRequestType(event.payload.requestType);
+       return [
+         {
+@@ -361,10 +362,13 @@
+           createdAt: event.createdAt,
+           tone: "approval",
+           kind: "approval.resolved",
+-          summary: "Approval resolved",
++          summary: resolutionStatus === "expired" ? "Approval expired" : "Approval resolved",
+           payload: {
+             requestId: toApprovalRequestId(event.requestId),
+             ...(requestKind ? { requestKind } : {}),
+             requestType: event.payload.requestType,
+             ...(event.payload.decision ? { decision: event.payload.decision } : {}),
++            ...(event.payload.resolution !== undefined
++              ? { resolution: event.payload.resolution }
++              : {}),
+           },
+@@ -472,12 +472,16 @@
+     case "user-input.resolved": {
++      const resolutionStatus = runtimeResolutionStatus(event.payload.resolution);
+       return [
+         {
+           id: event.eventId,
+           createdAt: event.createdAt,
+           tone: "info",
+           kind: "user-input.resolved",
+-          summary: "User input submitted",
++          summary: resolutionStatus === "expired" ? "User input expired" : "User input submitted",
+           payload: {
+             ...(event.requestId ? { requestId: event.requestId } : {}),
+             answers: event.payload.answers,
++            ...(event.payload.resolution !== undefined
++              ? { resolution: event.payload.resolution }
++              : {}),
+           },
