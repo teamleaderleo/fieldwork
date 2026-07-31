@@ -2,8 +2,9 @@
 """Time-bound decision currentness for the issue #325 mechanism pilot.
 
 Exact input identity and present decision usability are separate. A historically
-exact projection may remain useful evidence after its time-sensitive authority
-conclusions have expired, but it must not continue granting effective authority.
+exact projection may remain useful evidence after one time-sensitive authority
+conclusion expires, while unrelated current authority remains independently
+usable.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from typing import Any
 
 
 DecisionCurrentness = dict[str, Any]
+ActionCurrentness = dict[str, dict[str, Any]]
 
 
 def _parse_time(value: object) -> datetime:
@@ -24,46 +26,109 @@ def _parse_time(value: object) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def _valid_until(projection: dict[str, Any]) -> str | None:
-    """Return the earliest expiry supporting a currently authorized decision."""
-
-    candidates: list[tuple[datetime, str]] = []
+def _authority_conditions(projection: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    conditions: dict[str, dict[str, Any]] = {}
     for condition in projection.get("conditions", []):
         if not isinstance(condition, dict):
             raise ValueError("projection condition must be a record")
-        if (
-            condition.get("type") != "AuthorityUsable"
-            or condition.get("status") != "True"
-            or condition.get("reason") != "AuthorityCurrent"
-        ):
+        if condition.get("type") != "AuthorityUsable":
             continue
         inputs = condition.get("inputs")
         if not isinstance(inputs, dict):
             raise ValueError("authority condition inputs must be a record")
+        action = inputs.get("action")
+        if not isinstance(action, str):
+            raise ValueError("authority condition action must be a string")
+        if action in conditions:
+            raise ValueError(f"duplicate authority condition for {action}")
+        conditions[action] = condition
+    return conditions
+
+
+def _action_currentness(
+    projection: dict[str, Any], current: datetime
+) -> ActionCurrentness:
+    authority = projection.get("effective_authority")
+    if not isinstance(authority, dict):
+        return {}
+
+    conditions = _authority_conditions(projection)
+    result: ActionCurrentness = {}
+    for raw_action, raw_state in authority.items():
+        action = str(raw_action)
+        if raw_state != "authorized":
+            result[action] = {
+                "status": "False",
+                "reason": "NotAuthorized",
+                "valid_until": None,
+            }
+            continue
+
+        condition = conditions.get(action)
+        if condition is None:
+            result[action] = {
+                "status": "Unknown",
+                "reason": "MissingAuthorityCondition",
+                "valid_until": None,
+            }
+            continue
+        if (
+            condition.get("status") != "True"
+            or condition.get("reason") != "AuthorityCurrent"
+        ):
+            result[action] = {
+                "status": "False",
+                "reason": "ProjectedAuthorityUnusable",
+                "valid_until": None,
+            }
+            continue
+
+        inputs = condition["inputs"]
         expires_at = inputs.get("expires_at")
         if expires_at is None:
+            result[action] = {
+                "status": "True",
+                "reason": "GenerationBoundCurrent",
+                "valid_until": None,
+            }
             continue
-        candidates.append((_parse_time(expires_at), expires_at))
-    return min(candidates, key=lambda candidate: candidate[0])[1] if candidates else None
+        try:
+            expiry = _parse_time(expires_at)
+        except (TypeError, ValueError):
+            result[action] = {
+                "status": "False",
+                "reason": "InvalidAuthorityTime",
+                "valid_until": expires_at,
+            }
+            continue
+        if current >= expiry:
+            result[action] = {
+                "status": "False",
+                "reason": "AuthorityHorizonElapsed",
+                "valid_until": expires_at,
+            }
+            continue
+        result[action] = {
+            "status": "True",
+            "reason": "AuthorityCurrentUntil",
+            "valid_until": expires_at,
+        }
+    return result
 
 
 def decision_currentness(
     projection: dict[str, Any], current_at: str
 ) -> DecisionCurrentness:
-    """Evaluate whether time-dependent conclusions remain usable now.
+    """Summarize whether time-dependent conclusions need fresh reconciliation.
 
-    Invalid timestamps or malformed authority conditions fail closed. This result
-    does not replace the existing exact input-generation comparison.
+    The projection-level status is a refresh signal. Per-action currentness remains
+    available in ``actions`` and controls effective authority independently.
     """
 
     observed_value = projection.get("observed_at")
     try:
         observed_at = _parse_time(observed_value)
         current = _parse_time(current_at)
-        valid_until_value = _valid_until(projection)
-        valid_until = (
-            _parse_time(valid_until_value) if valid_until_value is not None else None
-        )
     except (TypeError, ValueError):
         return {
             "status": "False",
@@ -71,6 +136,7 @@ def decision_currentness(
             "observed_at": observed_value,
             "current_at": current_at,
             "valid_until": None,
+            "actions": {},
         }
 
     if current < observed_at:
@@ -79,37 +145,76 @@ def decision_currentness(
             "reason": "ProjectionObservedInFuture",
             "observed_at": observed_value,
             "current_at": current_at,
-            "valid_until": valid_until_value,
+            "valid_until": None,
+            "actions": {},
         }
-    if valid_until is not None and current >= valid_until:
+
+    try:
+        actions = _action_currentness(projection, current)
+    except (TypeError, ValueError):
         return {
             "status": "False",
-            "reason": "DecisionHorizonElapsed",
+            "reason": "InvalidAuthorityCondition",
             "observed_at": observed_value,
             "current_at": current_at,
-            "valid_until": valid_until_value,
+            "valid_until": None,
+            "actions": {},
         }
+
+    valid_expiries: list[tuple[datetime, str]] = []
+    for action in actions.values():
+        expires_at = action.get("valid_until")
+        if action.get("status") == "True" and expires_at is not None:
+            valid_expiries.append((_parse_time(expires_at), expires_at))
+    valid_until = (
+        min(valid_expiries, key=lambda candidate: candidate[0])[1]
+        if valid_expiries
+        else None
+    )
+
+    refresh_required = any(
+        action.get("reason")
+        in {
+            "AuthorityHorizonElapsed",
+            "InvalidAuthorityTime",
+            "MissingAuthorityCondition",
+        }
+        for action in actions.values()
+    )
     return {
-        "status": "True",
-        "reason": "DecisionCurrent",
+        "status": "False" if refresh_required else "True",
+        "reason": "DecisionRefreshRequired" if refresh_required else "DecisionCurrent",
         "observed_at": observed_value,
         "current_at": current_at,
-        "valid_until": valid_until_value,
+        "valid_until": valid_until,
+        "actions": actions,
     }
 
 
 def effective_authority_at(
     projection: dict[str, Any], current_at: str
 ) -> dict[str, str]:
-    """Return effective authority only while the projection decision is current."""
+    """Return per-action authority at the requested observation boundary."""
 
     authority = projection.get("effective_authority")
     if not isinstance(authority, dict):
         return {}
+
     currentness = decision_currentness(projection, current_at)
-    if currentness["status"] != "True":
+    if currentness["reason"] in {
+        "InvalidDecisionTime",
+        "ProjectionObservedInFuture",
+        "InvalidAuthorityCondition",
+    }:
         return {str(action): "denied" for action in authority}
+
+    actions = currentness["actions"]
     return {
-        str(action): state if state == "authorized" else "denied"
+        str(action): (
+            "authorized"
+            if state == "authorized"
+            and actions.get(str(action), {}).get("status") == "True"
+            else "denied"
+        )
         for action, state in authority.items()
     }
