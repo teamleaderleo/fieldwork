@@ -1,254 +1,265 @@
 # F294: Classify connector-call payload exposure and stalled-turn recovery
 
-Finding state: `comparative-evaluation-active`
+Finding state: `target-characterized / comparative-evaluation-active`
 
 Workstream: `I/N — cross-repository audit and Codex process, cancellation, and recovery`  
 Canonical Fieldwork issue: `#294`  
 Canonical finding path: `findings/F294-connector-call-stall/finding.md`  
 Canonical implementation: `none`  
 Exact implementation head: `none`  
-Exact base or source revision: `openai/codex@4642370542739d5dd080b0c87a9de06a6435d3db`; core paths inspected at `413492cd6c3a4d4f8dff6f406247ccda5a9d88aa`, with the one-commit delta limited to precomputed protocol archives  
-Strongest evidence class: `source-read` plus one `observed` user-interface incident  
-Reviewed input generation: `issue #294 body generation created 2026-07-31T23:17:06Z`  
-Current review disposition: `EXECUTE distinguishing fixtures`  
+Synthetic model source: `3a0cf7b1b6eb579277ed8749fd5dd6f0d514a709`  
+Target-native Codex source: `teamleaderleo/codex#110@526bb798695e9103e6efbf0342ccf6adbbcdc23a` over `openai/codex@f0c30e528a54bdf0fa9a4d52ff74b34383434811`  
+Strongest evidence class: `observed` incident + `model-executed` contract + `target-characterized` public-Codex liveness boundary  
+Current review disposition: `COMPARE bounded liveness and uncertainty-preserving receipt designs`  
 Desk routing: `not-entered`  
 Upstream contact authorized: `no`
 
 ## In simple words
 
-A private connector instruction appeared in the chat as half-finished JSON. The chat then stayed in `Thinking` and ended as `Stopped thinking` instead of returning a result or a clear error.
+A private connector instruction appeared in chat as half-finished JSON. The turn then stayed in `Thinking` and ended as `Stopped thinking` instead of returning a result or a clear error.
 
-The evidence does not yet show one bug. It may be a presentation failure that exposed an internal event, a lifecycle failure that let a tool wait without a terminal receipt, or both. Public Codex source explains part of the lifecycle but does not contain the proprietary connector or the ChatGPT mobile renderer, so attribution remains open.
+The investigation now proves one real public-Codex lifecycle boundary: when a runtime opts into cancellation cleanup, observes cancellation, and then never finishes cleanup, the enclosing tool-call task can remain pending without a terminal receipt. A cooperative cleanup control still settles normally.
 
-The next work is two separate controlled tests: prove incomplete tool-call data cannot become visible assistant text, and prove a tool future that never cooperates still reaches a bounded terminal turn state.
+That result does not explain the separate mobile presentation leak. The proprietary connector and ChatGPT mobile renderer are outside public Codex, so the presentation owner remains unlocated.
 
 ## Why we care
 
-The observed presentation breaks an important interface boundary: internal tool arguments should not be shown as an assistant answer. Even a privacy-safe payload is confusing; a different call could contain sensitive or implementation-specific values.
+The presentation symptom crosses an interface boundary: internal tool arguments should not become assistant prose. Even a privacy-safe payload is confusing; another call could contain sensitive or implementation-specific values.
 
-The stalled recovery breaks a separate reliability boundary: a tool or client failure should end in a typed success, failure, timeout, cancellation, or outcome-unknown receipt. A turn that remains `Thinking` leaves the user unable to tell whether work is active, failed, cancelled, or still producing effects.
+The lifecycle result crosses a liveness boundary: one non-settling cleanup future can prevent the caller from receiving any typed final state. A user cannot tell whether work is active, failed, cancelled, or still producing effects.
 
-Frequency, backend duration, and broader exposure are unknown. This finding retains one incident and does not extrapolate prevalence.
-
-## What happens if we leave it alone
-
-Observed consequence:
-
-- the user saw a truncated internal-looking connector payload;
-- no normal tool result or assistant recovery appeared;
-- the turn later ended as `Stopped thinking`.
-
-Plausible but unproved consequences:
-
-- other internal arguments could be exposed by the same presentation fallback;
-- a non-settling runtime could hold a turn until manual cancellation or platform intervention;
-- the backend and client could disagree about whether a turn is still active;
-- retries after an ambiguous terminal state could duplicate a state-changing effect.
-
-The last consequence belongs to the existing mutation-identity and timeout-outcome campaigns unless a fixture connects it to this incident.
+A naive timeout can make the interface responsive while inventing certainty. Returning ordinary `cancelled` after abandoning cleanup would hide whether local cleanup finished or remote effects stopped. The durable result therefore needs both bounded settlement and explicit uncertainty.
 
 ## Current finding
 
-One user-visible incident establishes a composed symptom, not a single owner.
-
-Public Codex currently waits for a completed response item before constructing and dispatching a direct function call. It treats a stream that closes before `response.completed` as an error. It also awaits in-flight tool futures after response processing, with cancellation delegated into each runtime and no generic per-tool watchdog visible in that drain path.
-
-The first two facts make public Codex's normal direct-function-call event path an unlikely sole explanation for raw partial arguments becoming assistant text. The final fact leaves a real terminal-settlement question for runtimes that ignore, lose, or fail to observe cancellation.
-
-The working comparison therefore has two axes:
+The original observation contains two independent questions:
 
 1. **presentation integrity** — incomplete or unknown tool events must never become assistant prose;
-2. **terminal settlement** — every dispatched or partially dispatched call must produce a bounded terminal receipt for the turn, even when the runtime does not cooperate.
+2. **terminal settlement** — a non-settling runtime must not hold the turn forever, and any early terminal receipt must preserve uncertainty about cleanup and remote effects.
+
+The synthetic schema-v2 model executes both desired contracts. The public-Codex characterization proves the uncovered wait exists at one target-native boundary. Neither result attributes the mobile payload presentation to Codex.
 
 ### Claim table
 
 | Claim | Evidence class | Exact support | Limit |
 | --- | --- | --- | --- |
 | A truncated internal-looking JSON payload became visible in ChatGPT mobile. | observed | `evidence/20260731-observed-mobile-incident.md` | One incident; owner and frequency unknown. |
-| The visible turn did not produce a normal result or typed error before `Stopped thinking`. | observed | Same evidence note | Backend events and elapsed time are unavailable. |
-| Public Codex dispatches direct tool calls from completed `ResponseItem::FunctionCall` items. | source-read | `codex-rs/core/src/session/turn.rs`; `codex-rs/core/src/stream_events_utils.rs`; `codex-rs/core/src/tools/router.rs` at `413492cd...` | Proprietary ChatGPT host and connector layers are outside this repository. |
-| A stream closing before `response.completed` becomes a Codex stream error. | source-read | `try_run_sampling_request` in `codex-rs/core/src/session/turn.rs` | Does not prove the mobile client displays that error correctly. |
-| Direct function-call argument deltas are not emitted through the custom-tool argument-diff consumer in the inspected path. | source-read | `ResponseEvent::OutputItemAdded` and `ToolCallInputDelta` handling in `codex-rs/core/src/session/turn.rs` | Other host protocol events or client fallbacks remain unknown. |
-| Codex awaits in-flight tool futures after stream processing. | source-read | `drain_in_flight` and post-loop drain in `codex-rs/core/src/session/turn.rs` | A runtime may implement its own timeout; no claim is made about the proprietary connector. |
-| No close duplicate was found for the combined raw-payload-plus-stalled-turn sequence. | source-read/search | Fieldwork and read-only public issue searches on 2026-07-31 | Search terminology and inaccessible private trackers limit completeness. |
-| Public Codex caused this incident. | unknown | none | Must not be asserted without a fixture or platform trace. |
+| The visible turn produced no normal result or typed error before `Stopped thinking`. | observed | Same evidence note | Backend events and elapsed time are unavailable. |
+| The repaired event/settlement contract executes on Node 22 and 24. | model-executed | Fieldwork carrier #351, workflow `30626853243`, jobs `91144004050` and `91144003927`, exact `9/9` | Synthetic model only; no product-owner attribution. |
+| Public Codex dispatches direct tool calls from completed response items rather than partial direct-call deltas. | source-read | `session/turn.rs`, `stream_events_utils.rs`, and `tools/router.rs` on the pinned public source | Proprietary host and mobile presentation layers remain outside the repository. |
+| An opted-in cleanup future that never settles can keep the enclosing public-Codex tool-call task pending after cancellation. | target-characterized | `teamleaderleo/codex#110@526bb798...`; carrier #118; workflow `30632906276`; job `91163308818` | Bounded test observation; no production timeout policy selected. |
+| Cooperative runtime cleanup still settles normally. | target-characterized | Same exact carrier and existing cooperative control | Does not prove every runtime cleans up correctly. |
+| Public Codex caused the mobile payload presentation. | unknown | none | Must not be asserted without a host/client fixture or trace. |
+| Cancellation request proves cleanup or remote-effect cancellation. | false as a general inference | synthetic model and target-native review | Runtime acknowledgement and remote-effect evidence remain separate facts. |
+
+## Exact executed evidence
+
+### Synthetic schema-v2 contract
+
+Execution carrier #351 at `bb5e8a7ccaa51ae68181a2b8845d9ba1f63b96f4` passed:
+
+- workflow `30626853243`;
+- Fieldwork integrity `30626853359`;
+- Node 22.23.1 job `91144004050`, exact `9/9`;
+- Node 24.18.0 job `91144003927`, exact `9/9`.
+
+Artifacts:
+
+- Node 22 artifact `8792117981`, digest `sha256:db925d945281dbe8ed6dcebed9d357f6f2108156b1736fc047e0a8d74819d127`;
+- Node 24 artifact `8792114882`, digest `sha256:0966d9ac21dac9e04ca1bba4f092ab8a46b50a981e75abc0dfe619d92c38ef28`.
+
+The matrix proves:
+
+- partial and unknown events stay quarantined;
+- one completed call identity dispatches at most once;
+- only explicit runtime acknowledgement produces `cancelled`;
+- natural completion and independent failure after a cancellation request retain causality-neutral states;
+- non-settlement becomes bounded `outcome_unknown`;
+- late completion cannot rewrite an emitted terminal receipt;
+- durable receipts omit arbitrary provider, secret-shaped, and failed-control text.
+
+### Target-native public Codex characterization
+
+Canonical source:
+
+- public base: `f0c30e528a54bdf0fa9a4d52ff74b34383434811`;
+- owned source PR: `teamleaderleo/codex#110`;
+- exact source head: `526bb798695e9103e6efbf0342ccf6adbbcdc23a`;
+- changed-file fence: `codex-rs/core/src/tools/mod.rs` and `codex-rs/core/src/tools/nonsettling_cancellation_tests.rs` only.
+
+Execution:
+
+- workflow-only carrier: `teamleaderleo/codex#118@0b2d5048fbb857e7e258cdfe64d83753e4e0bf33`;
+- workflow `30632906276`;
+- job `91163308818`;
+- Rust 1.95.0 setup, repository formatting, exact source ancestry, and one-workflow-file fence passed;
+- `cancellation_waiting_for_nonsettling_runtime_cleanup_has_no_terminal_receipt` passed;
+- `tool_runtime_cancellation_cooperatively_cleans_up_before_returning_cancelled` passed.
+
+Bounded conclusion:
+
+```text
+runtime opts into cancellation cleanup
+→ runtime observes cancellation
+→ cleanup future never settles
+→ enclosing tool-call task has no terminal receipt during the bounded observation window
+```
+
+The cooperative control proves the test does not label every cancellation path as stuck.
 
 ## System and ownership map
 
-### Entry and model event
+### Response and presentation
 
-A model response stream produces output-item and argument-delta events. In the inspected public Codex path, `try_run_sampling_request` owns stream consumption, active item state, completion handling, and the transition to tool execution.
+The model response stream produces output-item and argument-delta events. Public Codex constructs direct function calls from completed response items and treats premature stream closure as an error. The proprietary connector name and mobile rendering path from the incident do not appear in public source.
 
-### Tool construction and dispatch
+Potential presentation owners remain:
 
-`ToolRouter::build_tool_call` converts a completed response item into a `ToolCall`. Direct function-call arguments remain a string in `ToolPayload::Function`; concrete handlers parse or validate their own payloads. `handle_output_item_done` records the completed call and queues a tool future.
+- model-output serialization;
+- a ChatGPT host event adapter;
+- connector orchestration;
+- shared app-server protocol handling;
+- mobile rendering or fallback presentation.
 
-### Turn settlement
+### Tool execution and cleanup
 
-After stream completion or failure, Codex drains queued tool futures. Cancellation tokens are passed to tool runtime execution. The turn returns only after the drain completes, then emits remaining token/diff state or returns `TurnAborted` if cancelled.
+`ToolCallRuntime` owns public-Codex tool dispatch. A runtime may declare that the caller should wait for runtime cancellation cleanup. That choice protects resources when cleanup cooperates, but creates an unbounded caller wait when cleanup never settles.
 
-### Presentation boundary
+### Receipt authority
 
-The observed surface is ChatGPT mobile, not the public Codex TUI or desktop renderer. The proprietary `api_tool.find_in_resource` name and its response-resource URI do not appear in public Codex source. Ownership may lie in model-output serialization, a ChatGPT host event adapter, connector orchestration, a shared app-server protocol layer, or mobile rendering.
+At least five facts need separate representation:
 
-### Recovery boundary
+- cancellation requested;
+- runtime acknowledged cancellation;
+- local cleanup confirmed;
+- runtime task settled;
+- remote effect confirmed or unknown.
 
-At minimum, four identities need separation:
+A single `cancelled` bit cannot truthfully stand for all five.
 
-- response stream item;
-- tool call and call ID;
-- runtime execution future;
-- client-visible turn state.
+## Historical and technical precedent
 
-A terminal state for one does not prove settlement of the others.
+### Existing cooperative cleanup behavior
 
-## Historical precedent
+Public Codex already tests a runtime that cooperatively cleans up before returning a cancelled result. The new characterization adds the missing opposite control rather than replacing the intended cooperative behavior.
 
-### Codex response-header wait can hang indefinitely
+### Synthetic causality repair
 
-- Source: https://redirect.github.com/openai/codex/issues/31376
-- Revision or date: read 2026-07-31
-- Principle supported: every wait boundary needs its own effective timeout and retry/terminal policy; an idle timeout elsewhere may not cover a pre-stream wait.
-- Important difference: that report concerns transport establishment and `CLOSE_WAIT`, not connector argument presentation or an in-flight tool future.
+The first six-case model labelled any grace-window settlement after a cancellation request as `cancelled`. The schema-v2 repair split explicit acknowledgement, later natural completion, later independent failure, and non-settlement. This is the receipt vocabulary needed for reviewing a bounded-liveness candidate.
 
-### Codex desktop can stay thinking while a subagent remains active
+### Adjacent public reports
 
-- Source: https://redirect.github.com/openai/codex/issues/23292
-- Revision or date: read 2026-07-31
-- Principle supported: the visible main-turn terminal state can remain coupled to another runtime's lifecycle.
-- Important difference: the retained incident involved one connector read and a raw JSON presentation leak, not a known subagent.
+- response-header wait can hang indefinitely: https://redirect.github.com/openai/codex/issues/31376
+- desktop can stay thinking while another runtime remains active: https://redirect.github.com/openai/codex/issues/23292
+- Goal workflow can remain in Thinking after steering: https://redirect.github.com/openai/codex/issues/35641
 
-### Goal workflow can remain in Thinking after steering
+These reports support the general liveness concern but do not match the exact connector-presentation incident.
 
-- Source: https://redirect.github.com/openai/codex/issues/35641
-- Revision or date: read 2026-07-31
-- Principle supported: client-visible progress and backend continuation can diverge after an event-ordering transition.
-- Important difference: no Goal workflow or steering event is known here.
+## Design directions under review
 
-### Fieldwork timeout-outcome and mutation-identity campaigns
+### Option A — keep the unbounded wait
 
-- Sources: Fieldwork #83, #134, #162, and #239
-- Revision or date: current records on 2026-07-31
-- Principle supported: caller deadline, cancellation request, cancellation delivery, transport state, runtime completion, remote effect, result persistence, and client display are distinct facts.
-- Important difference: this finding begins with a read-only connector and a presentation leak. It should not inherit state-changing replay claims without evidence.
+Advantage: never returns before opted-in cleanup finishes.
 
-### Duplicate search without a close presentation match
+Failure: one broken or lost cleanup future can hold the user-visible turn forever. The target-native characterization proves this failure shape exists.
 
-Fieldwork was searched for `stalled turn`, `partial function call`, `tool arguments`, `response.completed`, and `raw JSON`. Public Codex issues were searched for visible/rendered tool-call JSON, hangs, and stuck `Thinking`. Adjacent lifecycle reports were found, but no close match combined an unterminated internal connector payload displayed as chat text with missing bounded recovery.
+### Option B — generic watchdog, then return ordinary cancellation
 
-## Approaches considered
+Advantage: bounded caller latency and small control-flow change.
 
-### Retained Option A: split presentation and settlement fixtures
+Failure: `cancelled` would overstate certainty. Cleanup may remain unfinished and remote effects may continue. This option loses unless the runtime explicitly acknowledges cancellation and the host can prove the required cleanup boundary.
 
-Build one fixture that supplies incomplete or unknown tool-call events and asserts no assistant-text exposure, and a separate fixture with a non-resolving tool future that asserts bounded cancellation/timeout settlement.
+### Option C — bounded wait, then detach and emit `outcome_unknown`
 
-This is retained because either half can fail independently. A combined end-to-end test would be useful later but would not identify the first broken owner.
+Advantage: the caller receives a terminal receipt without inventing cancellation certainty. Late cleanup can continue under separate ownership.
 
-Option A loses if current source and protocol tests prove both properties and the incident cannot be reproduced at any owned boundary.
+Required work:
 
-### Retained Option B: inspect host protocol fallback before proposing public Codex source
+- define who owns the detached task;
+- prevent task/resource leaks;
+- make late completion observable without rewriting the already emitted receipt;
+- preserve mutation and retry safety;
+- define shutdown behavior.
 
-Map raw response-item notifications, unknown event handling, and client presentation fallbacks. The proprietary connector absence from public source is evidence to avoid patching the wrong repository.
+This is the leading generic direction.
 
-Option B loses if a public Codex fixture reproduces the exact raw argument presentation without any host-specific layer.
+### Option D — runtime-specific cancellation deadline
 
-### Deferred Option C: add a generic per-tool watchdog immediately
+Advantage: runtimes with known cleanup contracts can choose appropriate bounds.
 
-A watchdog may be justified, but timeout duration, cancellation authority, state-changing effects, and outcome-unknown semantics are separate design questions. Adding one before reproducing a non-settling runtime could convert an observability defect into unsafe replay or premature abandonment.
+Failure: inconsistent defaults can reintroduce indefinite waits, and the caller still needs one generic terminal vocabulary. Runtime-specific policy is useful as an override on top of a safe host default, not as the only protection.
 
-This option belongs to a focused successor if the non-resolving tool fixture establishes an uncovered wait.
+### Option E — abort or drop the dispatch task at the deadline
 
-### Declined: classify the screenshot as sufficient proof of a public Codex bug
+Advantage: simple ownership termination.
 
-The visible tool name and response URI are proprietary to this environment, and the public direct-function-call path does not expose partial direct arguments through the inspected diff consumer. Attribution would exceed the evidence.
+Failure: dropping a Rust future does not prove external cleanup or remote cancellation. Some resources may rely on cooperative teardown. The receipt still needs `cleanup_unconfirmed` or `outcome_unknown`.
 
-### Declined: treat `Stopped thinking` as an adequate terminal receipt
+### Option F — process-specific escalation
 
-That label does not state whether a tool began, finished, failed, was cancelled, timed out, or could still have effects. It is presentation state, not an execution outcome.
+For subprocess runtimes, a staged signal/kill policy may provide stronger local cleanup evidence. It does not generalize to network connectors, in-process libraries, or remote services.
 
-### Deferred: public issue or pull request
+## Required next discriminators
 
-No public upstream interaction is authorized. A public packet would also be premature until ownership is located and a privacy-safe deterministic reproducer exists.
+1. deadline-edge race: cleanup settles immediately before and immediately after the bound;
+2. task-drop behavior: verify which local resources are released when the dispatch future is dropped;
+3. repeated cancellation: first request, duplicate request, and already-terminal behavior;
+4. parallel calls: one non-settling runtime must not block unrelated completed calls from receiving receipts;
+5. runtime opt-out: runtimes that do not request cleanup waiting retain current cancellation behavior;
+6. late completion: detached cleanup settles after `outcome_unknown` without rewriting the first receipt;
+7. mutation safety: unknown remote effect blocks automatic retry unless durable identity/reconciliation proves safety;
+8. host shutdown: detached cleanup has an explicit join, abandonment, or escalation policy;
+9. presentation independence: no lifecycle candidate may claim to fix the mobile raw-payload exposure without a host/client fixture.
 
-## Edge cases covered
+## Edge and compatibility ledger
 
-| Edge case or control | Evidence | Result |
-| --- | --- | --- |
-| Incomplete visible JSON | Observed screenshot sequence | Payload prefix was unterminated and visible. |
-| Normal result/error absent | Observed screenshot sequence | No normal connector result or typed error appeared before stop. |
-| Stream closes before completion | Public source read | Codex constructs an explicit stream error. |
-| Direct function-call partial argument deltas | Public source read | Inspected direct path does not attach the custom-tool argument diff consumer. |
-| Completed direct call construction | Public source read | Dispatch begins from completed response item and preserves arguments for handler parsing. |
-| In-flight tool settlement | Public source read | Turn drains queued tool futures; no generic watchdog is visible in that function. |
-| Current-source drift | Compare `413492cd...` to `46423705...` | One commit changes only precomputed app-server protocol archive files; inspected core source remains current. |
-| Duplicate search | Fieldwork and public issue search | Adjacent hang reports found; no close combined match. |
-| Privacy retention | Evidence note | Only a short non-secret payload prefix is retained; screenshot binary omitted. |
-
-## Edge cases deferred or outside scope
-
-| Edge case | Why deferred | Owning next record or reopening trigger |
-| --- | --- | --- |
-| State-changing connector effects after timeout | Current call was read-only and execution is unproved | #83/#134/#162 unless a fixture connects this path. |
-| Mobile renderer implementation | Not present in accessible public source | Reopen when an owned client source or event trace is available. |
-| Proprietary connector runtime internals | Not present in public Codex | Reopen with connector logs, a controlled runtime, or repeated incident. |
-| Network pre-stream hang | Existing public precedent is separate | #294 only if the fixture shows the same terminal-state presentation. |
-| Subagent lifecycle | No subagent involved in observed intent | #239 lane N or a successor if reproduction requires one. |
-| Frequency and affected versions | One incident and no platform build metadata | Another privacy-safe incident or telemetry summary. |
-| Sensitive argument exposure | No sensitive data observed and unsafe to manufacture casually | Use synthetic secrets in an owned presentation fixture only. |
-
-## Exact execution and receipts
-
-| Repository/head | Command or workflow | Platform/environment | Result | Evidence class |
-| --- | --- | --- | --- | --- |
-| ChatGPT mobile incident, 2026-07-31 ~07:06 +08:00 | User-observed conversation sequence | Mobile client; exact build unknown | Partial internal payload visible; turn later `Stopped thinking` | observed |
-| `openai/codex@413492cd6c3a4d4f8dff6f406247ccda5a9d88aa` | Read `session/turn.rs`, `stream_events_utils.rs`, `tools/router.rs`, and function-call error/runtime contracts | GitHub source | Located completed-item dispatch, stream-close error, argument-delta behavior, and in-flight drain | source-read |
-| `openai/codex@4642370542739d5dd080b0c87a9de06a6435d3db` | Commit search and compare from `413492cd...` | GitHub source | Current head one commit ahead; only precomputed protocol archives changed | source-read |
-| Fieldwork | Exact-term issue searches | GitHub tracker | No close duplicate; adjacent lifecycle campaigns retained | source-read |
-| Public Codex tracker | Read-only issue searches | GitHub tracker | Adjacent #31376, #23292, and #35641; no close combined match | source-read |
-
-No target-executed reproducer exists yet.
-
-## Complete-diff and compatibility review
-
-- Finding branch base: Fieldwork composed protocol head `c2946c71b7330b74d326deb7af18a5ae55afce99` from draft PR #283.
-- Changed-file fence: this canonical finding and one privacy-safe evidence note only.
-- Product source changed: none.
-- Current public Codex source fence: `4642370542739d5dd080b0c87a9de06a6435d3db`.
-- Compatibility surfaces examined: response stream completion, direct function-call construction, custom-tool argument diff presentation, tool-future drain, turn cancellation/error return.
-- Compatibility surfaces not examined: proprietary ChatGPT host adapter, mobile renderer, connector runtime, platform telemetry.
-- Temporary carrier status: none.
-- Known routine work: build two discriminating fixtures and inspect protocol fallback handling.
-- Reviewer eligibility: independent exact-head review required after fixtures or before stopping the finding.
+| Boundary | Current state |
+| --- | --- |
+| incomplete/unknown event quarantine | proved in synthetic model |
+| once-only dispatch | proved in synthetic model |
+| explicit cancellation acknowledgement | proved in synthetic model |
+| bounded `outcome_unknown` vocabulary | proved in synthetic model |
+| public-Codex non-settling wait | target-characterized |
+| cooperative cleanup | target-characterized control |
+| proprietary connector behavior | unknown |
+| mobile rendering owner | unknown |
+| deadline duration | design judgment, unselected |
+| task-drop cleanup | unproved |
+| detached task ownership | unproved |
+| remote-effect settlement | unproved |
+| automatic retry safety | out of scope without mutation receipts |
+| parallel-call isolation | unproved |
+| host shutdown semantics | unproved |
 
 ## Current disposition and desk routing
 
-- Finding state: `comparative-evaluation-active`
-- Review disposition: `EXECUTE distinguishing fixtures`
-- Review Queue entry: none
-- Delivery lane: `not-entered`
-- Exact next transition: create a bounded owned Codex/app-server test carrier for incomplete-event presentation and non-settling-tool cancellation.
-- Clearing condition: one exact-head fixture locates or excludes each owner independently and records a typed terminal-state expectation.
-- Required subgates: no-dispatch control for incomplete calls; no-assistant-text control; cancellation/timeout terminal receipt; post-cancellation runtime-state check.
-- Autonomous work remaining: source map test harnesses, run fixtures, classify first divergent boundary, and cross-review.
-- Non-delegable human decision: none.
+- Finding state: `target-characterized / comparative-evaluation-active`.
+- Review disposition: `COMPARE bounded-liveness designs; no production patch yet`.
+- Review Queue entry: none.
+- Delivery lane: `not-entered`.
+- Exact next transition: add the nine discriminators above to a source-level design carrier, beginning with deadline-edge, task-drop, parallel-call, and late-completion controls.
+- Clearing condition: one candidate returns a bounded uncertainty-preserving receipt, contains or owns remaining cleanup, and preserves cooperative-runtime behavior.
+- Presentation clearing condition: a separate host-visible fixture locates or excludes the event-to-assistant-text owner.
+- Non-delegable human decision: choose the generic receipt and detached-cleanup ownership contract after the discriminator matrix executes.
 
 ## Changes to the canonical conclusion
 
 | Date | Pull request or commit | Change in conclusion |
 | --- | --- | --- |
 | 2026-07-31 | Initial F294 materialization | Split one observed composed symptom into presentation-integrity and terminal-settlement hypotheses; held public Codex attribution pending execution. |
-| 2026-07-31 | Safe-reference self-audit | Routed public Codex issue citations through `redirect.github.com`; technical conclusion unchanged. |
+| 2026-07-31 | Schema-v2 execution | Executed nine synthetic controls and replaced causally overbroad cancellation labels with acknowledgement-aware receipt states. |
+| 2026-07-31 | Public-Codex target characterization | Proved an opted-in non-settling cleanup future can hold the enclosing tool-call task without a terminal receipt while cooperative cleanup still settles. |
 
 ## References
 
 - `findings/F294-connector-call-stall/evidence/20260731-observed-mobile-incident.md`
+- `findings/F294-connector-call-stall/evidence/20260731-boundary-model.md`
+- `findings/F294-connector-call-stall/evidence/run_boundary_matrix.mjs`
 - Fieldwork #23, #83, #134, #162, #239, #254, and #294
-- `openai/codex@4642370542739d5dd080b0c87a9de06a6435d3db`
-- `codex-rs/core/src/session/turn.rs`
-- `codex-rs/core/src/stream_events_utils.rs`
-- `codex-rs/core/src/tools/router.rs`
-- `codex-rs/tools/src/function_call_error.rs`
-- `codex-rs/tools/src/tool_executor.rs`
+- `teamleaderleo/codex#110@526bb798695e9103e6efbf0342ccf6adbbcdc23a`
+- `openai/codex@f0c30e528a54bdf0fa9a4d52ff74b34383434811`
+- `codex-rs/core/src/tools/parallel.rs`
+- `codex-rs/core/src/tools/nonsettling_cancellation_tests.rs`
 - https://redirect.github.com/openai/codex/issues/31376
 - https://redirect.github.com/openai/codex/issues/23292
 - https://redirect.github.com/openai/codex/issues/35641
