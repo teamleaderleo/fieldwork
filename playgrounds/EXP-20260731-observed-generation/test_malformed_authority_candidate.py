@@ -115,6 +115,29 @@ class MalformedAuthorityCandidateTests(unittest.TestCase):
         self.assertEqual("denied", projection["effective_authority"]["release"])
         self.assertEqual("authorized", projection["effective_authority"]["deploy"])
 
+    def test_04_non_string_expiry_is_isolated(self) -> None:
+        record = deepcopy(self.parent.cross_repository)
+        record["authority"]["material_spending"] = authorized(expires_at=12345)
+        record["authority"]["merge"] = authorized(
+            expires_at="2026-08-01T02:30:00Z"
+        )
+        facts = self.parent.live_facts(record)
+
+        projection = candidate.reconcile(record, facts, OBSERVED_AT)
+
+        malformed = self.authority_condition(projection, "material_spending")
+        current = self.authority_condition(projection, "merge")
+        self.assertEqual(
+            ("Unknown", "InvalidAuthorityTime"),
+            (malformed["status"], malformed["reason"]),
+        )
+        self.assertEqual("denied", projection["effective_authority"]["material_spending"])
+        self.assertEqual(
+            ("True", "AuthorityCurrent"),
+            (current["status"], current["reason"]),
+        )
+        self.assertEqual("authorized", projection["effective_authority"]["merge"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
