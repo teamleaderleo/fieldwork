@@ -79,6 +79,7 @@ jobs:
           git -C playwright apply --check "../$PATCH_PATH"
           git -C playwright apply "../$PATCH_PATH"
           cp "$TEST_PATH" "playwright/tests/mcp/$TEST_FILE"
+          printf '\n' >> "playwright/tests/mcp/$TEST_FILE"
           git -C playwright diff --check
           mkdir -p fieldwork-receipts
           git -C playwright diff --binary > "fieldwork-receipts/${{ matrix.candidate }}-applied.diff"
