@@ -1,7 +1,7 @@
 # F406 Linux procfd feasibility comparison
 
-State: `target-test-prepared`  
-Evidence class: `primitive-execution-prepared`  
+State: `primitive-executed`  
+Evidence class: `primitive-executed-local`  
 Canonical finding: PR #408  
 Target source context: `modelcontextprotocol/servers@76d64c822f5125032f89eb71dbdb94e42b434821`  
 Platform: Linux only  
@@ -19,33 +19,61 @@ Open the validated parent directory with `O_RDONLY | O_DIRECTORY`, retain the `F
 /proc/self/fd/<directory-fd>/<child>
 ```
 
-Linux resolves the procfd link through the opened directory object. The test determines whether that identity survives when the original parent pathname is renamed aside and replaced by an outside-pointing symlink.
+Linux resolves the procfd link through the opened directory object. The executed test determines whether that identity survives when the original parent pathname is renamed aside and replaced by an outside-pointing symlink.
 
-## Controls
+## Exact execution
 
-1. ordinary pathname baseline follows the swapped ancestor and writes outside;
-2. procfd child creation writes under the renamed, opened parent and leaves outside untouched;
-3. procfd sibling temporary-file creation plus rename replaces an existing file under the opened parent and leaves outside untouched.
+- Fieldwork head: `1ecdca9770c7780fe9de2c226f6e4c1850ae6679`;
+- workflow `30650666819`, job `91222837286`: success;
+- prepared-head Fieldwork integrity `30650666774`: success;
+- Node controls: 3/3 passed;
+- target-context worktree: untouched;
+- artifact `8801230952`;
+- artifact digest `sha256:20ee6dfb106439da7e8fbedc8cc89012c0d12b48de1b6c61fb1dcf241acc4239`.
 
-All paths are disposable temporary directories. The test performs no MCP request, source mutation, credential use, or external filesystem access.
+Detailed receipt: `linux-procfd-execution.md`.
 
-## Decision criteria
+## Results
 
-- closes the exact executed Linux ancestor-swap case;
-- uses available Node 22 primitives;
-- retains current final-component `wx` and sibling-temp semantics;
-- does not claim portability beyond Linux with mounted `/proc`;
-- names behavior when `/proc`, `O_DIRECTORY`, or permissions are unavailable;
-- keeps the opened directory handle lifetime bounded to one operation;
-- does not turn a Linux feasibility result into a complete cross-platform repair claim.
+1. **Ordinary pathname baseline:** followed the swapped ancestor and wrote outside.
+2. **Opened-directory child creation:** wrote under the renamed, opened inside parent and left outside untouched.
+3. **Opened-directory sibling temp and rename:** replaced the existing file under the renamed, opened inside parent and left outside untouched.
 
-## Reversing outcomes
+Every reversing outcome was avoided in the executed Ubuntu 24.04 / Node 22.23.1 environment. The directory handle remained usable after rename, both mutation forms retained the opened parent, and cleanup closed the handle and removed the complete temporary root.
 
-Reject this primitive if:
+## Decision criteria result
 
-- procfd creation follows the replacement symlink;
-- sibling temp/rename crosses outside or fails under ordinary ext4 runner semantics;
-- the opened directory cannot be used after rename;
-- cleanup or descriptor lifetime is ambiguous.
+- closes the exact executed Linux ancestor-swap primitive: **yes**;
+- uses available Node 22 primitives without a compiled addon: **yes**;
+- retains final-component `wx` and sibling-temp rename mechanics: **yes in the executed controls**;
+- portable beyond Linux with mounted procfs: **no**;
+- fallback behavior when procfs or `O_DIRECTORY` is unavailable: **not designed**;
+- operation-scoped descriptor lifetime: **mechanically demonstrated**;
+- complete target repair or cross-platform confinement: **not established**.
 
-A green result establishes Linux feasibility only. It does not settle API design, other operations, containers without procfs, macOS, Windows, packaging, or target acceptance.
+## Technical selection
+
+Retain this as the leading Linux hardening primitive. It is stronger than repeated pathname revalidation for the exact ancestor-swap case because the mutation resolves through an already-open directory object.
+
+It does not replace the portable threat-model repair. The best-supported direction is layered:
+
+1. document the current concurrent-local-namespace limitation and require OS/container isolation where strong confinement is expected;
+2. evaluate an optional Linux hardened mutation path using an opened parent plus procfd;
+3. fail closed or use explicitly documented ordinary-path behavior when the Linux primitive is unavailable—never silently label the fallback as race-complete confinement.
+
+## Remaining target discriminators
+
+Before preparing a target source candidate, execute:
+
+- nested child-path handling where more than one unresolved component remains;
+- behavior when the opened parent is deleted or its mount changes;
+- procfs unavailable or inaccessible;
+- operation-scoped handle closure on success and every failure path;
+- existing-file replacement through the target's exact helper composition;
+- API shape that keeps ordinary callers compatible and makes the Linux-only guarantee observable.
+
+Create-directory, cross-parent move, recursive edit/search, dynamic roots, macOS, and Windows remain separately scoped.
+
+## Claim boundary
+
+A green primitive result establishes Linux feasibility only. It does not establish public exploitability, production prevalence, complete MCP filesystem confinement, target acceptance, or portability.
