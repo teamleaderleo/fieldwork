@@ -171,7 +171,7 @@ Competing implementations may exist concurrently.
 - Use one comparison file or section to apply the same criteria to all options.
 - Do not merge several alternatives into one ambiguous implementation PR.
 - Close or archive losing carriers only after their evidence and rejection reason are retained.
-- Rebase the winning candidate and re-run exact-head controls after selection.
+- Reconcile the winning candidate against exact current canonical inputs after selection. Rebase or restack when movement overlaps the candidate, changes governing protocol or mergeability, or a current-base promotion package is required. Otherwise record the newer exact generation, prove file-disjoint or semantic identity within the reviewed fence, and renew only affected exact-head controls. Never present an expired receipt as current.
 
 ## Decision record requirements
 
