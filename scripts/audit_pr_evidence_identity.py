@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Classify the commit identity exercised by a pull-request workflow checkout."""
+"""Classify the commit identity exercised by a workflow checkout."""
 
 from __future__ import annotations
 
@@ -13,7 +13,10 @@ from typing import Any, Sequence
 
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+PULL_REQUEST_REF_RE = re.compile(r"^refs/pull/[1-9][0-9]*/merge$")
+PUSH_REF_RE = re.compile(r"^refs/heads/[^\s]+$")
 CLASSIFICATIONS = {"exact-head", "synthetic-merge-ref", "other-checkout"}
+SUPPORTED_EVENTS = {"pull_request", "push"}
 
 
 class IdentityError(ValueError):
@@ -50,6 +53,47 @@ def _require_sha(value: Any, field: str) -> str:
     if SHA_RE.fullmatch(text) is None:
         raise IdentityError(f"{field} must be a lowercase 40-hex commit SHA")
     return text
+
+
+def _require_branch_name(value: str, field: str) -> None:
+    if not value or any(character.isspace() for character in value):
+        raise IdentityError(f"{field} must be a nonempty Git branch name")
+
+
+def _validate_event_metadata(
+    *,
+    event_name: str,
+    ref: str,
+    head_ref: str,
+    base_ref: str,
+    event_sha: str,
+    head_sha: str,
+    base_sha: str,
+) -> None:
+    if event_name not in SUPPORTED_EVENTS:
+        raise IdentityError(f"unsupported event_name: {event_name}")
+
+    if event_name == "pull_request":
+        if PULL_REQUEST_REF_RE.fullmatch(ref) is None:
+            raise IdentityError(
+                "pull_request ref must be refs/pull/<positive-number>/merge"
+            )
+        _require_branch_name(head_ref, "head_ref")
+        _require_branch_name(base_ref, "base_ref")
+        if head_sha == base_sha:
+            raise IdentityError("pull_request head_sha and base_sha must differ")
+        if event_sha in {head_sha, base_sha}:
+            raise IdentityError(
+                "pull_request event_sha must identify a generated object, not a parent"
+            )
+        return
+
+    if PUSH_REF_RE.fullmatch(ref) is None:
+        raise IdentityError("push ref must be a refs/heads/<branch> ref")
+    if head_ref or base_ref:
+        raise IdentityError("push receipts require empty head_ref and base_ref")
+    if event_sha != head_sha:
+        raise IdentityError("push event_sha must equal head_sha")
 
 
 def classify_identity(
@@ -109,14 +153,22 @@ def build_receipt(data: Any) -> IdentityReceipt:
     ref = _require_string(data.get("ref"), "ref")
     head_ref = _require_string(data.get("head_ref"), "head_ref", allow_empty=True)
     base_ref = _require_string(data.get("base_ref"), "base_ref", allow_empty=True)
+    _validate_event_metadata(
+        event_name=event_name,
+        ref=ref,
+        head_ref=head_ref,
+        base_ref=base_ref,
+        event_sha=event_sha,
+        head_sha=head_sha,
+        base_sha=base_sha,
+    )
+
     run_id = _require_string(data.get("run_id"), "run_id")
     run_attempt = _require_string(data.get("run_attempt"), "run_attempt")
     if not run_id.isdecimal() or int(run_id) <= 0:
         raise IdentityError("run_id must be a positive decimal string")
     if not run_attempt.isdecimal() or int(run_attempt) <= 0:
         raise IdentityError("run_attempt must be a positive decimal string")
-    if event_name == "pull_request" and (not head_ref or not base_ref):
-        raise IdentityError("pull_request receipts require head_ref and base_ref")
 
     expected = data.get("expected")
     if expected is not None:
@@ -153,7 +205,7 @@ def _read_input(path: str) -> Any:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Classify a GitHub pull-request checkout identity receipt."
+        description="Classify a GitHub workflow checkout identity receipt."
     )
     parser.add_argument("input", help="JSON input path, or - for stdin")
     parser.add_argument("--output", type=Path, help="optional JSON output path")
