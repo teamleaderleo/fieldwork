@@ -1,0 +1,93 @@
+name: Protocol successor literal heads
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/protocol-successor-literal-heads.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: protocol-successor-literal-heads
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: assistance-discovery
+            head: 0f6d318837a864bad2ae5bb8f24361994f247712
+            parent: 92eaf8c0c95b39784c91e77e4033a89c7e9b7394
+            commits: '2'
+            files: templates/assistance-receipt.md
+          - name: governing-input-manifests
+            head: 9448a4e88b80a0e26c13134960860a0035c6ea5c
+            parent: 33cc2f944030e50d8d08525fdeb876dac17670d2
+            commits: '3'
+            files: DECISIONS.md,FINDINGS.md,templates/review.md
+
+    steps:
+      - name: Check out literal source head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ matrix.head }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify identity and source fence
+        env:
+          EXPECTED_HEAD: ${{ matrix.head }}
+          EXPECTED_PARENT: ${{ matrix.parent }}
+          EXPECTED_COMMITS: ${{ matrix.commits }}
+          EXPECTED_FILES: ${{ matrix.files }}
+          CASE_NAME: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          actual_head=$(git rev-parse HEAD)
+          test "$actual_head" = "$EXPECTED_HEAD"
+          test "$(git rev-list --count "$EXPECTED_PARENT..$EXPECTED_HEAD")" = "$EXPECTED_COMMITS"
+          git merge-base --is-ancestor "$EXPECTED_PARENT" "$EXPECTED_HEAD"
+          git diff --name-only "$EXPECTED_PARENT..$EXPECTED_HEAD" | sort -u > /tmp/actual-files
+          printf '%s' "$EXPECTED_FILES" | tr ',' '\n' | sort -u > /tmp/expected-files
+          diff -u /tmp/expected-files /tmp/actual-files
+          if grep -q '^\.github/' /tmp/actual-files; then
+            echo 'execution carrier leaked into source fence' >&2
+            exit 1
+          fi
+          {
+            echo "case=$CASE_NAME"
+            echo "expected_head=$EXPECTED_HEAD"
+            echo "actual_head=$actual_head"
+            echo "parent=$EXPECTED_PARENT"
+            echo "commit_count=$EXPECTED_COMMITS"
+            echo 'classification=exact-head'
+          } > /tmp/receipt.txt
+          cat /tmp/receipt.txt
+
+      - name: Run Fieldwork integrity
+        run: |
+          set -euo pipefail
+          node scripts/test_interaction_references.js
+          python3 scripts/check_fieldwork_integrity.py
+          git diff --check
+          test -z "$(git status --porcelain)"
+
+      - name: Upload exact receipt
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: protocol-${{ matrix.name }}-literal-head
+          path: |
+            /tmp/receipt.txt
+            /tmp/actual-files
+            /tmp/expected-files
+          if-no-files-found: error
+          retention-days: 14
