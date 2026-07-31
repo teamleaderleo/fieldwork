@@ -1,0 +1,223 @@
+name: Fieldwork Upstash cancellation receipt target
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-upstash-cancel-receipt-target.yml"
+      - "programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  materialize:
+    name: TypeScript and Python target materialization
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact Fieldwork carrier head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact Upstash Box source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: upstash/box
+          ref: b55d832d6e3ae0156e32d21ea3863e231dfff9cd
+          path: box
+          persist-credentials: false
+
+      - name: Verify identities and apply selected repair
+        env:
+          EXPECTED_FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git -C fieldwork rev-parse HEAD)" = "${EXPECTED_FIELDWORK_HEAD}"
+          test "$(git -C box rev-parse HEAD)" = "b55d832d6e3ae0156e32d21ea3863e231dfff9cd"
+          python3 -m py_compile \
+            fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/apply_target_repair.py \
+            fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/apply_sync_test_repair.py
+          python3 \
+            fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/apply_target_repair.py \
+            box
+          python3 \
+            fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/apply_sync_test_repair.py \
+            box
+          cp \
+            fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/fieldwork-cancel-receipt-repair.test.ts \
+            box/packages/sdk/src/__tests__/fieldwork-cancel-receipt-repair.test.ts
+          cp \
+            fieldwork/programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/target-materialization/test_cancel_receipt_repair.py \
+            box/packages/python-sdk/tests/test_cancel_receipt_repair.py
+          git -C box add -N -- \
+            packages/python-sdk/upstash_box/_cancellation.py \
+            packages/sdk/src/__tests__/fieldwork-cancel-receipt-repair.test.ts \
+            packages/python-sdk/tests/test_cancel_receipt_repair.py
+          git -C box diff --check
+
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+        with:
+          version: 10
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: box/pnpm-lock.yaml
+
+      - name: Install exact JavaScript workspace
+        working-directory: box
+        run: pnpm install --frozen-lockfile
+
+      - name: Run TypeScript cancellation controls and package gates
+        working-directory: box
+        run: |
+          pnpm --filter @upstash/box exec prettier --write \
+            src/client.ts \
+            src/types.ts \
+            src/index.ts \
+            src/__tests__/run.test.ts \
+            src/__tests__/fieldwork-cancel-receipt-repair.test.ts
+          pnpm --filter @upstash/box exec vitest run \
+            src/__tests__/run.test.ts \
+            src/__tests__/fieldwork-cancel-receipt-repair.test.ts
+          pnpm --filter @upstash/box test
+          pnpm --filter @upstash/box build
+          pnpm --filter @upstash/box ci:lint
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: box/packages/python-sdk/pyproject.toml
+
+      - name: Install exact Python SDK development dependencies
+        run: python -m pip install -e 'box/packages/python-sdk[dev]'
+
+      - name: Generate synchronous client deterministically
+        run: |
+          set -euo pipefail
+          python box/packages/python-sdk/scripts/generate_sync.py
+          git -C box diff -- packages/python-sdk/upstash_box/_sync \
+            > /tmp/fieldwork-sync-first.diff
+          python box/packages/python-sdk/scripts/generate_sync.py
+          git -C box diff -- packages/python-sdk/upstash_box/_sync \
+            > /tmp/fieldwork-sync-second.diff
+          cmp /tmp/fieldwork-sync-first.diff /tmp/fieldwork-sync-second.diff
+          test -s /tmp/fieldwork-sync-first.diff
+
+      - name: Run Python async, generated sync, parity, and package gates
+        working-directory: box/packages/python-sdk
+        run: |
+          pytest -q \
+            tests/_async/test_run.py \
+            tests/test_cancel_receipt_repair.py
+          pytest -q
+          python scripts/check_parity.py
+          ruff check \
+            upstash_box \
+            tests/_async/test_run.py \
+            tests/_sync/test_sync_client.py \
+            tests/test_cancel_receipt_repair.py \
+            scripts/generate_sync.py
+          ruff format --check \
+            upstash_box \
+            tests/_async/test_run.py \
+            tests/_sync/test_sync_client.py \
+            tests/test_cancel_receipt_repair.py \
+            scripts/generate_sync.py
+          mypy \
+            upstash_box/_async/client.py \
+            upstash_box/_sync/client.py \
+            upstash_box/_cancellation.py \
+            upstash_box/types.py
+
+      - name: Retain exact candidate diff and receipt
+        if: always()
+        env:
+          EXPECTED_FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_TARGET_HEAD: b55d832d6e3ae0156e32d21ea3863e231dfff9cd
+          EVENT_SHA: ${{ github.sha }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_ID_VALUE: ${{ github.run_id }}
+          RUN_ATTEMPT_VALUE: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          mkdir -p fieldwork-receipts
+          actual_fieldwork_head=$(git -C fieldwork rev-parse HEAD 2>/dev/null || true)
+          actual_target_head=$(git -C box rev-parse HEAD 2>/dev/null || true)
+          patch_path=fieldwork-receipts/upstash-box-cancel-receipt.patch
+          patch_sha256=
+          if [[ -d box/.git ]]; then
+            git -C box diff --binary > "${patch_path}"
+            if [[ -s ${patch_path} ]]; then
+              patch_sha256=$(sha256sum "${patch_path}" | cut -d' ' -f1)
+            fi
+          fi
+          if [[ ${JOB_STATUS} == success ]]; then
+            test -n "${patch_sha256}"
+          fi
+          export ACTUAL_FIELDWORK_HEAD="${actual_fieldwork_head}"
+          export ACTUAL_TARGET_HEAD="${actual_target_head}"
+          export PATCH_SHA256="${patch_sha256}"
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          expected_fieldwork = os.environ["EXPECTED_FIELDWORK_HEAD"]
+          actual_fieldwork = os.environ["ACTUAL_FIELDWORK_HEAD"]
+          expected_target = os.environ["EXPECTED_TARGET_HEAD"]
+          actual_target = os.environ["ACTUAL_TARGET_HEAD"]
+          job_status = os.environ["JOB_STATUS"]
+          receipt = {
+              "schemaVersion": 2,
+              "expectedFieldworkHead": expected_fieldwork,
+              "actualFieldworkCheckout": actual_fieldwork,
+              "fieldworkCheckoutClassification": (
+                  "exact-head" if actual_fieldwork == expected_fieldwork else "other-checkout"
+              ),
+              "eventSha": os.environ["EVENT_SHA"],
+              "targetRepository": "upstash/box",
+              "expectedTargetHead": expected_target,
+              "actualTargetCheckout": actual_target,
+              "targetCheckoutMatches": actual_target == expected_target,
+              "patchSha256": os.environ["PATCH_SHA256"] or None,
+              "runId": os.environ["RUN_ID_VALUE"],
+              "runAttempt": os.environ["RUN_ATTEMPT_VALUE"],
+              "technicalGateStatus": job_status,
+              "evidenceClass": (
+                  "target-executed-local-mocked"
+                  if job_status == "success"
+                  else "partial-harness-receipt"
+              ),
+              "hostedProviderCall": False,
+              "credentialsUsed": False,
+              "selectedApi": {
+                  "typescript": "requestCancel() -> immutable shared receipt; cancel() -> void",
+                  "python": "request_cancel() -> frozen shared receipt; cancel() -> None",
+              },
+          }
+          Path("fieldwork-receipts/upstash-box-cancel-receipt.json").write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          test "${actual_fieldwork_head}" = "${EXPECTED_FIELDWORK_HEAD}"
+          test "${actual_target_head}" = "${EXPECTED_TARGET_HEAD}"
+          if [[ -d box/.git ]]; then
+            git -C box diff --check
+          fi
+
+      - name: Upload exact target candidate receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: upstash-box-cancel-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
