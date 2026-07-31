@@ -9,7 +9,6 @@ Investigation workspace: `investigations/254-linux-storage-archive-reproducibili
 Canonical implementation: `teamleaderleo/linux-fieldwork` PR #199  
 Exact implementation head: `6251a11fd30b26d29451e5ee292a6186344429a1`  
 Exact base or source revision: `a0ec62f64fd6a9ff2cc20b28142ec876c52a5145`  
-Strongest evidence class: `target-executed`  
 Reviewed input generation: direct guard predecessor `b1e8aa4e9376e41962e456467c2f3fdcb38cae17`; symlink proof `556c15c67b2978a1eae635a27f4b69986b4dc0e2`  
 Current review disposition: `ACCEPT`  
 Desk routing: `not-entered`  
