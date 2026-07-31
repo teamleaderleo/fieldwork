@@ -117,8 +117,8 @@ def apply(root: Path) -> None:
 
     replace_once(
         python_sdk / "PARITY.md",
-        "| `Run`/`StreamRun`    | `Run`/`StreamRun` (+ `Async*`) |\n",
-        "| `Run`/`StreamRun`    | `Run`/`StreamRun` (+ `Async*`) |\n| `RunCancellationReceipt` | same (frozen dataclass in Python) |\n",
+        "| `Run` / `StreamRun`    | `Run` / `StreamRun` (+ `Async*`) |\n",
+        "| `Run` / `StreamRun`    | `Run` / `StreamRun` (+ `Async*`) |\n| `RunCancellationReceipt` | same (frozen dataclass in Python) |\n",
     )
     replace_once(
         python_sdk / "PARITY.md",
