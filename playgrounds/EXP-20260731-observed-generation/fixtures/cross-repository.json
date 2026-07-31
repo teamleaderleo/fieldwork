@@ -1,6 +1,7 @@
 {
   "id": "pilot-cross-repository",
   "spec_generation": "cross-repository-spec-v1",
+  "finding_generation": "finding-cross-repository-v1",
   "invariant_id": "cross-repository-source-carrier",
   "parent_issue": {"repository": "teamleaderleo/fieldwork", "number": 325},
   "phase": "delivery-gate-ready",
@@ -16,6 +17,7 @@
       "repository": "teamleaderleo/fieldwork",
       "pull_request": 901,
       "head": "ffffffffffffffffffffffffffffffffffffffff",
+      "checks_generation": "checks-external-carrier-v1",
       "state": "active",
       "purpose": "Run exact product-source controls without presenting the carrier as the product candidate."
     }
