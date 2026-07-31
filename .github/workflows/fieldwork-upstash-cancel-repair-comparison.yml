@@ -1,0 +1,42 @@
+name: Fieldwork Upstash cancellation repair comparison
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-upstash-cancel-repair-comparison.yml"
+      - "programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/cancel_repair_comparison.py"
+      - "programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/test_cancel_repair_comparison.py"
+      - "programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/REPAIR_COMPARISON.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Python 3.12 semantic discriminator
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact Fieldwork comparison
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+
+      - name: Compile comparison
+        run: >-
+          python -m py_compile
+          programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/cancel_repair_comparison.py
+          programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts/test_cancel_repair_comparison.py
+
+      - name: Execute discriminating controls
+        working-directory: programmes/high-leverage-open-source/scouts/upstash-box-cancel-receipts
+        run: python -m unittest -v test_cancel_repair_comparison.py
+
+      - name: Check diff hygiene
+        run: git diff --check
