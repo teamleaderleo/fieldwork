@@ -155,10 +155,14 @@ async function connectClient(url: URL): Promise<Client> {
   return client;
 }
 
-test('local proxy reveals the candidate shutdown authority boundary', async ({ shutdownServer }) => {
+test('local proxy reveals the candidate shutdown authority boundary', async ({ shutdownServer, server }) => {
   const selected = candidate();
   const endpoint = await shutdownServer();
   const client = await connectClient(new URL('/mcp', endpoint.loopbackBaseUrl));
+  await client.callTool({
+    name: 'browser_navigate',
+    arguments: { url: server.HELLO_WORLD },
+  });
   const proxy = createProxy(endpoint.loopbackBaseUrl);
   const proxyPort = await listen(proxy);
 
