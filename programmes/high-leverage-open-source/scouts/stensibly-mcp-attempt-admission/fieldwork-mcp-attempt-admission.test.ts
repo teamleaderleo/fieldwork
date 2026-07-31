@@ -35,7 +35,7 @@ const secretShapedIds = [
   "receipt:secret://github-token",
 ] as const;
 
-describe("Fieldwork MCP attempt admission repair", () => {
+describe("Fieldwork MCP attempt admission final-source verification", () => {
   test("rejects out-of-range numeric-looking data without changing array length", () => {
     const history = [accepted()];
     Object.defineProperty(history, "4294967295", {
@@ -88,7 +88,7 @@ describe("Fieldwork MCP attempt admission repair", () => {
       message = error instanceof Error ? error.message : String(error);
     }
     expect(message).toBe(
-      "MCP attempt observations contains unsupported fields",
+      "MCP attempt observations cannot contain symbol fields",
     );
     expect(message).not.toContain("github_pat_private");
     expect(reads).toBe(0);
@@ -147,7 +147,7 @@ describe("Fieldwork MCP attempt admission repair", () => {
       message = error instanceof Error ? error.message : String(error);
     }
     expect(message).toBe(
-      "MCP attempt observation input contains unsupported fields",
+      "MCP attempt observation input contains unknown fields",
     );
     expect(message).not.toContain("github_pat_private_field");
     expect(reads).toBe(0);
