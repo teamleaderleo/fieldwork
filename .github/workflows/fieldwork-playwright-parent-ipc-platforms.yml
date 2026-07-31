@@ -1,4 +1,4 @@
-name: Fieldwork Playwright parent IPC platforms
+name: Fieldwork Playwright parent IPC Windows repair
 
 on:
   pull_request:
@@ -11,14 +11,10 @@ permissions:
   contents: read
 
 jobs:
-  ipc-platform:
-    name: Parent IPC on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  ipc-windows:
+    name: Parent IPC on windows-2025
+    runs-on: windows-2025
     timeout-minutes: 55
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, macos-15, windows-2025]
     steps:
       - name: Check out exact Fieldwork carrier head
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -42,7 +38,7 @@ jobs:
           cache: npm
           cache-dependency-path: playwright/package-lock.json
 
-      - name: Verify exact inputs and apply IPC candidate
+      - name: Normalize exact source checkout and apply IPC candidate
         id: verify
         shell: bash
         run: |
@@ -50,13 +46,15 @@ jobs:
           expected=$'packages/playwright-core/src/entry/mcp.ts\npackages/playwright-core/src/tools/utils/mcp/http.ts\ntests/mcp/http.spec.ts'
           test "$(git -C fieldwork rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           test "$(git -C playwright rev-parse HEAD)" = "368941457a82da112aa8610107e25f4bde94339a"
+          git -C playwright config core.autocrlf false
+          git -C playwright reset --hard HEAD
           patch="../fieldwork/programmes/high-leverage-open-source/scouts/playwright-mcp-remote-shutdown/candidate-parent-ipc.patch"
           git -C playwright apply --check "$patch"
           git -C playwright apply "$patch"
           git -C playwright diff --check
           test "$(git -C playwright diff --name-only)" = "$expected"
           mkdir -p fieldwork-receipts
-          git -C playwright diff --binary > "fieldwork-receipts/parent-ipc-${{ matrix.os }}.diff"
+          git -C playwright diff --binary > "fieldwork-receipts/parent-ipc-windows-2025.diff"
 
       - name: Install exact dependencies
         id: install
@@ -68,15 +66,8 @@ jobs:
         working-directory: playwright
         run: npm run build
 
-      - name: Install Chromium and Linux dependencies
-        id: browser_linux
-        if: runner.os == 'Linux'
-        working-directory: playwright
-        run: npx playwright install --with-deps chromium
-
       - name: Install Chromium
-        id: browser_other
-        if: runner.os != 'Linux'
+        id: browser
         working-directory: playwright
         run: npx playwright install chromium
 
@@ -89,7 +80,7 @@ jobs:
         run: |
           set -o pipefail
           npm run test-mcp tests/mcp/http.spec.ts -- --project=chromium \
-            2>&1 | tee "../fieldwork-receipts/parent-ipc-${{ matrix.os }}-test.log"
+            2>&1 | tee "../fieldwork-receipts/parent-ipc-windows-2025-test.log"
 
       - name: Run focused ESLint
         id: lint
@@ -111,19 +102,15 @@ jobs:
           git diff --check
           test "$(git diff --name-only)" = "$expected"
 
-      - name: Assemble platform receipt
+      - name: Assemble Windows repair receipt
         if: always()
         shell: bash
         env:
           FIELDWORK_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-          RUNNER_OS: ${{ runner.os }}
-          RUNNER_ARCH: ${{ runner.arch }}
-          MATRIX_OS: ${{ matrix.os }}
           VERIFY_OUTCOME: ${{ steps.verify.outcome }}
           INSTALL_OUTCOME: ${{ steps.install.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
-          BROWSER_LINUX_OUTCOME: ${{ steps.browser_linux.outcome }}
-          BROWSER_OTHER_OUTCOME: ${{ steps.browser_other.outcome }}
+          BROWSER_OUTCOME: ${{ steps.browser.outcome }}
           TEST_OUTCOME: ${{ steps.test.outcome }}
           LINT_OUTCOME: ${{ steps.lint.outcome }}
           DIFF_OUTCOME: ${{ steps.diff.outcome }}
@@ -133,14 +120,11 @@ jobs:
           const path = require('node:path');
           const directory = 'fieldwork-receipts';
           fs.mkdirSync(directory, { recursive: true });
-          const browser = process.env.RUNNER_OS === 'Linux'
-            ? process.env.BROWSER_LINUX_OUTCOME
-            : process.env.BROWSER_OTHER_OUTCOME;
           const outcomes = {
             verify: process.env.VERIFY_OUTCOME || 'not-run',
             install: process.env.INSTALL_OUTCOME || 'not-run',
             build: process.env.BUILD_OUTCOME || 'not-run',
-            browser: browser || 'not-run',
+            browser: process.env.BROWSER_OUTCOME || 'not-run',
             test: process.env.TEST_OUTCOME || 'not-run',
             lint: process.env.LINT_OUTCOME || 'not-run',
             diff: process.env.DIFF_OUTCOME || 'not-run',
@@ -149,6 +133,12 @@ jobs:
             schemaVersion: 1,
             generatedAt: new Date().toISOString(),
             fieldworkHead: process.env.FIELDWORK_HEAD,
+            predecessor: {
+              fieldworkHead: 'fcf3f7da3591d7c8461510ef5ec1846c0c1b1d6b',
+              runId: '30657528090',
+              windowsClassification: 'carrier-checkout-normalization-failure',
+              linuxAndMacOS: 'reusable-success',
+            },
             target: {
               repository: 'microsoft/playwright',
               head: '368941457a82da112aa8610107e25f4bde94339a',
@@ -160,7 +150,7 @@ jobs:
               ],
             },
             platform: {
-              matrixLabel: process.env.MATRIX_OS,
+              matrixLabel: 'windows-2025',
               runnerOS: process.env.RUNNER_OS,
               runnerArch: process.env.RUNNER_ARCH,
               node: process.version,
@@ -169,21 +159,24 @@ jobs:
             workflowSteps: outcomes,
             reusableCandidateEvidence: Object.values(outcomes).every(value => value === 'success'),
             claims: {
+              exactNormalizedCheckout: outcomes.verify,
               completeMcpHttpSuite: outcomes.test,
               parentIpcShutdown: outcomes.test,
               oldHttpRouteAbsent: outcomes.test,
+              focusedLint: outcomes.lint,
+              diffHygiene: outcomes.diff,
               fullRepositoryGate: 'not-claimed',
               sourceAcceptance: 'not-claimed',
             },
           };
-          fs.writeFileSync(path.join(directory, `parent-ipc-${process.env.MATRIX_OS}-receipt.json`), `${JSON.stringify(receipt, null, 2)}\n`);
+          fs.writeFileSync(path.join(directory, 'parent-ipc-windows-2025-repair-receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`);
           NODE
 
-      - name: Upload platform receipt
+      - name: Upload Windows repair evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: playwright-parent-ipc-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: playwright-parent-ipc-windows-repair-${{ github.run_id }}-${{ github.run_attempt }}
           path: fieldwork-receipts/
           if-no-files-found: error
           retention-days: 14
