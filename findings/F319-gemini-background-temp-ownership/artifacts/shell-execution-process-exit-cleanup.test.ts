@@ -32,7 +32,7 @@ describe('ShellExecutionService process-exit cleanup', () => {
     ExecutionLifecycleService.resetForTest();
   });
 
-  it('acknowledges background ownership exactly once', async () => {
+  it('preflights and acknowledges background ownership exactly once', async () => {
     const handle = ExecutionLifecycleService.createExecution(
       '',
       undefined,
@@ -40,7 +40,9 @@ describe('ShellExecutionService process-exit cleanup', () => {
     );
     const executionId = handle.pid!;
 
+    expect(ExecutionLifecycleService.canBackground(executionId)).toBe(true);
     expect(ExecutionLifecycleService.background(executionId)).toBe(true);
+    expect(ExecutionLifecycleService.canBackground(executionId)).toBe(false);
     expect(ExecutionLifecycleService.background(executionId)).toBe(false);
     await expect(handle.result).resolves.toMatchObject({
       pid: executionId,
