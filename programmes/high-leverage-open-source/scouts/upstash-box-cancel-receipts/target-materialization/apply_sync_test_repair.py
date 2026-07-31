@@ -55,6 +55,15 @@ def test_run_cancel_preserves_status_and_shared_failure_receipt():
     box.close()
 '''
 
+OLD_TYPESCRIPT_REQUEST = '''  requestCancel(): Promise<RunCancellationReceipt> {
+    if (this._cancelRequest === undefined) {
+      this._abortController?.abort();
+'''
+NEW_TYPESCRIPT_REQUEST = '''  requestCancel(): Promise<RunCancellationReceipt> {
+    this._abortController?.abort();
+    if (this._cancelRequest === undefined) {
+'''
+
 OLD_TYPING_IMPORT = (
     "from typing import Awaitable, Callable, Generic, Optional, TypeVar\n"
 )
@@ -81,8 +90,16 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("target_root", type=Path)
     args = parser.parse_args()
-    python_sdk = args.target_root.resolve() / "packages" / "python-sdk"
+    target_root = args.target_root.resolve()
+    sdk = target_root / "packages" / "sdk"
+    python_sdk = target_root / "packages" / "python-sdk"
 
+    replace_once(
+        sdk / "src" / "client.ts",
+        OLD_TYPESCRIPT_REQUEST,
+        NEW_TYPESCRIPT_REQUEST,
+        "TypeScript repeated local observer cancellation",
+    )
     replace_once(
         python_sdk / "tests" / "_sync" / "test_sync_client.py",
         OLD_SYNC_TEST,
