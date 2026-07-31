@@ -1,3 +1,30 @@
+diff --git a/packages/core/src/services/executionLifecycleService.ts b/packages/core/src/services/executionLifecycleService.ts
+--- a/packages/core/src/services/executionLifecycleService.ts
++++ b/packages/core/src/services/executionLifecycleService.ts
+@@ -475,12 +475,12 @@ export class ExecutionLifecycleService {
+-  static background(executionId: number): void {
++  static background(executionId: number): boolean {
+     const resolve = this.activeResolvers.get(executionId);
+     if (!resolve) {
+-      return;
++      return false;
+     }
+ 
+     const execution = this.activeExecutions.get(executionId);
+     if (!execution) {
+-      return;
++      return false;
+     }
+ 
+     const output = execution.getBackgroundOutput?.() ?? execution.output;
+@@ -514,4 +514,5 @@ export class ExecutionLifecycleService {
+     for (const listener of this.backgroundStartListeners) {
+       listener(info);
+     }
++    return true;
+   }
+ 
+   static subscribe(
 diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core/src/services/shellExecutionService.ts
 --- a/packages/core/src/services/shellExecutionService.ts
 +++ b/packages/core/src/services/shellExecutionService.ts
@@ -46,14 +73,36 @@ diff --git a/packages/core/src/services/shellExecutionService.ts b/packages/core
            };
  
            if (abortSignal.aborted) {
+@@ -1413,7 +1434,11 @@ export class ShellExecutionService {
+    *
+    * @param pid The process ID of the target PTY.
+    */
+-  static background(pid: number, sessionId?: string, command?: string): void {
++  static background(
++    pid: number,
++    sessionId?: string,
++    command?: string,
++  ): boolean {
+     const activePty = this.activePtys.get(pid);
+     const activeChild = this.activeChildProcesses.get(pid);
+@@ -1490,7 +1515,7 @@ export class ShellExecutionService {
+ 
+     this.backgroundLogPids.add(pid);
+ 
+-    ExecutionLifecycleService.background(pid);
++    return ExecutionLifecycleService.background(pid);
+   }
+ 
+   static subscribe(
 diff --git a/packages/core/src/tools/shell.ts b/packages/core/src/tools/shell.ts
 --- a/packages/core/src/tools/shell.ts
 +++ b/packages/core/src/tools/shell.ts
-@@ -489,6 +489,31 @@ export class ShellToolInvocation extends BaseToolInvocation<
+@@ -489,4 +489,34 @@ export class ShellToolInvocation extends BaseToolInvocation<
      const isWindows = os.platform() === 'win32';
      let tempFilePath = '';
      let tempDir = '';
 +    let tempCleanupTransferred = false;
++    let processExitObserved = false;
 +    let tempCleanupPromise: Promise<void> | undefined;
 +
 +    const cleanupTemporaryResources = (): Promise<void> => {
@@ -75,24 +124,41 @@ diff --git a/packages/core/src/tools/shell.ts b/packages/core/src/tools/shell.ts
 +      })();
 +      return tempCleanupPromise;
 +    };
++
++    const cleanupAfterTransferredExit = async (): Promise<void> => {
++      processExitObserved = true;
++      if (tempCleanupTransferred) {
++        await cleanupTemporaryResources();
++      }
++    };
  
      const timeoutMs = this.context.config.getShellToolInactivityTimeout();
-     const timeoutController = new AbortController();
-@@ -657,6 +682,10 @@ export class ShellToolInvocation extends BaseToolInvocation<
+@@ -657,5 +687,8 @@ export class ShellToolInvocation extends BaseToolInvocation<
              backgroundCompletionBehavior:
                this.context.config.getShellBackgroundCompletionBehavior(),
              originalCommand: strippedCommand,
 +            onProcessExit: this.params.is_background
-+              ? cleanupTemporaryResources
++              ? cleanupAfterTransferredExit
 +              : undefined,
            },
          );
-+
-+      tempCleanupTransferred = Boolean(this.params.is_background && pid);
+@@ -690,7 +723,14 @@ export class ShellToolInvocation extends BaseToolInvocation<
+           const sessionId = this.context.config?.getSessionId?.() ?? 'default';
+           const delay = this.params.delay_ms ?? BACKGROUND_DELAY_MS;
+           setTimeout(() => {
+-            ShellExecutionService.background(pid, sessionId, strippedCommand);
++            tempCleanupTransferred = ShellExecutionService.background(
++              pid,
++              sessionId,
++              strippedCommand,
++            );
++            if (tempCleanupTransferred && processExitObserved) {
++              void cleanupTemporaryResources();
++            }
+           }, delay);
  
-       if (pid) {
-         if (setExecutionIdCallback) {
-@@ -1065,23 +1094,8 @@ export class ShellToolInvocation extends BaseToolInvocation<
+           // Wait for the delay amount to see if command returns quickly
+@@ -1065,23 +1105,8 @@ export class ShellToolInvocation extends BaseToolInvocation<
        signal.removeEventListener('abort', onAbort);
        timeoutController.signal.removeEventListener('abort', onAbort);
  
