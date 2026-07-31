@@ -19,7 +19,6 @@ PHASES = {
     "stopped",
     "closed",
 }
-
 ACTIVE_PHASES = PHASES - {"stopped", "closed"}
 REVIEWED_PHASES = {
     "review-ready",
@@ -89,6 +88,10 @@ def nullable_string(value: object) -> bool:
     return value is None or isinstance(value, str)
 
 
+def positive_integer(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 1
+
+
 def safe_relative_path(value: object) -> bool:
     if not non_empty_string(value):
         return False
@@ -99,14 +102,11 @@ def safe_relative_path(value: object) -> bool:
 def parse_timestamp(value: object) -> bool:
     if not non_empty_string(value):
         return False
-    text = str(value)
-    if "YYYY" in text:
-        return True  # The tracked template intentionally contains placeholders.
     try:
-        datetime.fromisoformat(text.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except ValueError:
         return False
-    return True
+    return parsed.tzinfo is not None
 
 
 def exact_keys(value: object, expected: set[str], location: str) -> list[str]:
@@ -131,10 +131,8 @@ def validate_scope(path: Path, value: object) -> list[str]:
     for key in ("programme", "target", "workstream"):
         if not nullable_string(value[key]):
             errors.append(f"{location}: {key} must be a string or null")
-    parent_issue = value["parent_issue"]
-    if parent_issue is not None and (
-        not isinstance(parent_issue, int) or isinstance(parent_issue, bool) or parent_issue < 1
-    ):
+    parent = value["parent_issue"]
+    if parent is not None and not positive_integer(parent):
         errors.append(f"{location}: parent_issue must be a positive integer or null")
     return errors
 
@@ -151,7 +149,7 @@ def validate_review(path: Path, value: object) -> list[str]:
     inputs = value["reviewed_inputs"]
     if not isinstance(inputs, list) or any(not non_empty_string(item) for item in inputs):
         errors.append(f"{location}: reviewed_inputs must contain non-empty strings")
-    elif len(set(inputs)) != len(inputs):
+    elif len(inputs) != len(set(inputs)):
         errors.append(f"{location}: reviewed_inputs must be unique")
     if value["disposition"] == "ACCEPT" and not non_empty_string(value["exact_head"]):
         errors.append(f"{location}: ACCEPT requires exact_head")
@@ -170,13 +168,13 @@ def validate_evidence(path: Path, value: object) -> list[str]:
         if item_errors or not isinstance(item, dict):
             continue
         if not non_empty_string(item["claim"]):
-            errors.append(f"{item_location}: claim must be a non-empty string")
+            errors.append(f"{item_location}: claim must be non-empty")
         if item["level"] not in EVIDENCE_LEVELS:
             errors.append(f"{item_location}: unsupported evidence level {item['level']!r}")
         if not non_empty_string(item["receipt"]):
-            errors.append(f"{item_location}: receipt must be a non-empty string")
+            errors.append(f"{item_location}: receipt must be non-empty")
         if not non_empty_string(item["limit"]):
-            errors.append(f"{item_location}: limit must be a non-empty string")
+            errors.append(f"{item_location}: limit must be non-empty")
     return errors
 
 
@@ -190,7 +188,7 @@ def validate_source(path: Path, value: object) -> list[str]:
     if not non_empty_string(value["repository"]) or "/" not in value["repository"]:
         errors.append(f"{location}: repository must be owner/name")
     if not non_empty_string(value["branch"]):
-        errors.append(f"{location}: branch must be a non-empty string")
+        errors.append(f"{location}: branch must be non-empty")
     if not non_empty_string(value["head"]) or len(value["head"]) < 7:
         errors.append(f"{location}: head must identify an exact revision")
     return errors
@@ -205,12 +203,12 @@ def validate_carrier(path: Path, value: object) -> list[str]:
         return errors
     if not non_empty_string(value["repository"]) or "/" not in value["repository"]:
         errors.append(f"{location}: repository must be owner/name")
-    if not isinstance(value["pull_request"], int) or isinstance(value["pull_request"], bool) or value["pull_request"] < 1:
+    if not positive_integer(value["pull_request"]):
         errors.append(f"{location}: pull_request must be a positive integer")
     if not non_empty_string(value["head"]) or len(value["head"]) < 7:
         errors.append(f"{location}: head must identify an exact revision")
     if not non_empty_string(value["purpose"]):
-        errors.append(f"{location}: purpose must be a non-empty string")
+        errors.append(f"{location}: purpose must be non-empty")
     return errors
 
 
@@ -221,12 +219,9 @@ def validate_lease(path: Path, value: object) -> list[str]:
         return errors
     if value["state"] not in LEASE_STATES:
         errors.append(f"{location}: unsupported lease state {value['state']!r}")
-    if not nullable_string(value["worker"]):
-        errors.append(f"{location}: worker must be a string or null")
-    if not nullable_string(value["artifact"]):
-        errors.append(f"{location}: artifact must be a string or null")
-    if not nullable_string(value["transfer_record"]):
-        errors.append(f"{location}: transfer_record must be a string or null")
+    for key in ("worker", "artifact", "transfer_record"):
+        if not nullable_string(value[key]):
+            errors.append(f"{location}: {key} must be a string or null")
     if value["state"] == "active":
         if not non_empty_string(value["worker"]):
             errors.append(f"{location}: active lease requires worker")
@@ -240,16 +235,15 @@ def validate_freshness(path: Path, value: object) -> list[str]:
     errors = exact_keys(value, {"base_head", "upstream_valid_through", "checked_at"}, location)
     if errors or not isinstance(value, dict):
         return errors
-    if not nullable_string(value["base_head"]):
-        errors.append(f"{location}: base_head must be a string or null")
-    if not nullable_string(value["upstream_valid_through"]):
-        errors.append(f"{location}: upstream_valid_through must be a string or null")
+    for key in ("base_head", "upstream_valid_through"):
+        if not nullable_string(value[key]):
+            errors.append(f"{location}: {key} must be a string or null")
     if not parse_timestamp(value["checked_at"]):
-        errors.append(f"{location}: checked_at must be an ISO-8601 timestamp")
+        errors.append(f"{location}: checked_at must be a timezone-aware ISO-8601 timestamp")
     return errors
 
 
-def validate_authority(path: Path, value: object, authority_record: object) -> list[str]:
+def validate_authority(path: Path, value: object, record: object) -> list[str]:
     location = f"{path}: authority"
     errors = exact_keys(value, AUTHORITY_KEYS, location)
     if errors or not isinstance(value, dict):
@@ -257,7 +251,7 @@ def validate_authority(path: Path, value: object, authority_record: object) -> l
     for key in sorted(AUTHORITY_KEYS):
         if not isinstance(value[key], bool):
             errors.append(f"{location}: {key} must be boolean")
-    if any(value.get(key) is True for key in AUTHORITY_KEYS) and not non_empty_string(authority_record):
+    if any(value.get(key) is True for key in AUTHORITY_KEYS) and not non_empty_string(record):
         errors.append(f"{path}: enabled authority requires authority_record")
     return errors
 
@@ -269,21 +263,14 @@ def validate_state(path: Path, data: object) -> list[str]:
 
     if data["schema_version"] != 1:
         errors.append(f"{path}: schema_version must be 1")
-    if not non_empty_string(data["id"]):
-        errors.append(f"{path}: id must be a non-empty string")
-    if not non_empty_string(data["title"]):
-        errors.append(f"{path}: title must be a non-empty string")
-    if not non_empty_string(data["summary"]):
-        errors.append(f"{path}: summary must be a non-empty string")
-    if not non_empty_string(data["impact"]):
-        errors.append(f"{path}: impact must be a non-empty string")
+    for key in ("id", "title", "summary", "impact", "invariant_id"):
+        if not non_empty_string(data[key]):
+            errors.append(f"{path}: {key} must be non-empty")
     if data["priority"] not in PRIORITIES:
         errors.append(f"{path}: unsupported priority {data['priority']!r}")
     errors.extend(validate_scope(path, data["scope"]))
     if not parse_timestamp(data["state_updated_at"]):
-        errors.append(f"{path}: state_updated_at must be an ISO-8601 timestamp")
-    if not non_empty_string(data["invariant_id"]):
-        errors.append(f"{path}: invariant_id must be a non-empty string")
+        errors.append(f"{path}: state_updated_at must be a timezone-aware ISO-8601 timestamp")
     if not safe_relative_path(data["canonical_finding"]):
         errors.append(f"{path}: canonical_finding must be a safe relative path")
     if data["phase"] not in PHASES:
@@ -299,24 +286,18 @@ def validate_state(path: Path, data: object) -> list[str]:
     errors.extend(validate_freshness(path, data["freshness"]))
     errors.extend(validate_authority(path, data["authority"], data["authority_record"]))
 
-    if not nullable_string(data["authority_record"]):
-        errors.append(f"{path}: authority_record must be a string or null")
-    if not nullable_string(data["blocker"]):
-        errors.append(f"{path}: blocker must be a string or null")
+    for key in ("authority_record", "blocker", "terminal_record"):
+        if not nullable_string(data[key]):
+            errors.append(f"{path}: {key} must be a string or null")
     if not isinstance(data["next_transition"], str):
         errors.append(f"{path}: next_transition must be a string")
-    if not nullable_string(data["terminal_record"]):
-        errors.append(f"{path}: terminal_record must be a string or null")
 
     phase = data["phase"]
     review = data["review"] if isinstance(data["review"], dict) else {}
     source = data["canonical_source"]
     carrier = data["active_carrier"]
-
     if phase in ACTIVE_PHASES and not non_empty_string(data["next_transition"]):
         errors.append(f"{path}: active phase requires next_transition")
-    if phase in REVIEWED_PHASES and not non_empty_string(data["canonical_finding"]):
-        errors.append(f"{path}: reviewed phase requires canonical_finding")
     if phase == "land-ready":
         if source is None:
             errors.append(f"{path}: land-ready requires canonical_source")
@@ -351,6 +332,8 @@ def discover_paths() -> list[Path]:
 
 def main() -> int:
     errors: list[str] = []
+    ids: dict[str, Path] = {}
+    findings: dict[str, Path] = {}
     active_leases: dict[str, Path] = {}
     active_carriers: dict[str, Path] = {}
 
@@ -364,26 +347,32 @@ def main() -> int:
         if state_errors:
             continue
 
+        for value, index, label in (
+            (state["id"], ids, "state id"),
+            (state["canonical_finding"], findings, "canonical finding"),
+        ):
+            previous = index.get(value)
+            if previous is not None:
+                errors.append(f"{path}: duplicate {label} {value!r} from {previous}")
+            else:
+                index[value] = path
+
         lease = state["writer_lease"]
         if lease["state"] == "active":
             artifact = lease["artifact"]
             previous = active_leases.get(artifact)
             if previous is not None:
-                errors.append(
-                    f"{path}: active writer lease duplicates {artifact!r} from {previous}"
-                )
+                errors.append(f"{path}: active writer lease duplicates {artifact!r} from {previous}")
             else:
                 active_leases[artifact] = path
 
         if state["active_carrier"] is not None:
-            invariant_id = state["invariant_id"]
-            previous = active_carriers.get(invariant_id)
+            invariant = state["invariant_id"]
+            previous = active_carriers.get(invariant)
             if previous is not None:
-                errors.append(
-                    f"{path}: active carrier duplicates invariant {invariant_id!r} from {previous}"
-                )
+                errors.append(f"{path}: active carrier duplicates invariant {invariant!r} from {previous}")
             else:
-                active_carriers[invariant_id] = path
+                active_carriers[invariant] = path
 
     if errors:
         print("Coordination state violations:\n", file=sys.stderr)
