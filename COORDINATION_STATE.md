@@ -5,9 +5,9 @@ Parent architecture: #300
 
 ## In simple words
 
-A single word such as `ready` cannot say whether research is finished, which exact source was reviewed, whether target tests ran, whether the upstream pin is current, whether a temporary carrier is still active, or whether anyone has merge authority.
+A single word such as `ready` cannot say whether research is finished, which exact source was reviewed, whether target tests ran, whether an external source boundary is current, whether temporary execution machinery is still active, or whether anyone has authority to merge or contact upstream.
 
-Each retained finding may therefore carry a `state.json` sidecar. The sidecar stores independent coordination facts. The canonical `finding.md` remains the human explanation.
+Each retained finding may therefore carry a `state.json` sidecar. The sidecar stores independent, executable coordination facts. The canonical `finding.md` remains the human technical explanation.
 
 ## Canonical files
 
@@ -23,28 +23,26 @@ findings/F<issue>-<slug>/
 
 `finding.md` owns:
 
-- the current explanation;
-- consequence and limits;
+- current explanation and consequence;
 - governing invariant;
 - alternatives and precedent;
 - selected direction;
-- reopening trigger;
+- uncertainty and reopening trigger;
 - transition framing.
 
 `state.json` owns:
 
-- phase;
-- work class;
-- exact source and carrier identity;
+- compact human digest and priority;
+- phase and work class;
+- exact source and execution-carrier identity;
 - claim-scoped evidence receipts;
-- review disposition and reviewed head;
-- freshness;
-- writer lease;
-- authority and its exact authority record;
-- blocker and next transition;
-- terminal record for stopped or closed work.
+- review disposition, reviewed head, and versioned reviewed inputs;
+- source freshness;
+- repository-scoped writer lease and transition generation;
+- per-action authority records;
+- blocker, next transition, and terminal record.
 
-Issue and PR comments remain routing events. They do not become another canonical state store.
+Issue and pull-request comments remain routing events. They are not another canonical state store.
 
 ## Independent axes
 
@@ -59,9 +57,19 @@ Issue and PR comments remain routing events. They do not become another canonica
 - `stopped`;
 - `closed`.
 
-Phase answers where the finding is in its lifecycle. It does not state evidence strength, review outcome, or authority.
+Phase answers where the finding is in its lifecycle. It does not state evidence strength, review outcome, currentness, or authority.
 
-`stopped` and `closed` records require a `terminal_record` pointing to the retained stop reason, reopening trigger, merge, archive, or closeout.
+Review-facing phases require:
+
+- an exact 40-character lowercase Git review head;
+- at least one versioned `record@generation` reviewed input;
+- claim-scoped evidence;
+- canonical source identity for technical work;
+- equality between reviewed head and canonical source head when source exists.
+
+An `ACCEPT` disposition is invalid whenever its reviewed head differs from canonical source, not only at the final landing phase.
+
+`stopped` and `closed` require a terminal record, no active execution carrier, and no active writer lease.
 
 ### Work class
 
@@ -80,11 +88,18 @@ Phase answers where the finding is in its lifecycle. It does not state evidence 
 - `REJECT`;
 - `none`.
 
-The exact reviewed source head and disposition-bearing record inputs must be separate fields.
+The exact reviewed head and every disposition-bearing finding, issue, decision, or authority input are versioned independently.
 
-### Evidence level
+### Evidence
 
-Each claim records one of:
+Every consequence-bearing claim records:
+
+- claim text;
+- one evidence level;
+- exact receipt or durable path;
+- the limit of that evidence.
+
+Levels:
 
 - `source-read`;
 - `model-executed`;
@@ -93,59 +108,98 @@ Each claim records one of:
 - `integration-executed`;
 - `full-gate`.
 
-One finding may contain claims at several levels.
+One finding may contain claims at several levels. Synthesis never upgrades them.
 
-### Authority
+## Exact identity
 
-Authority is explicit and never inferred from technical readiness:
+Git source, carrier, review, and base revisions use full lowercase 40-character Git SHAs. Symbolic refs, short SHAs, branch names, and arbitrary strings are not exact identities.
 
-- merge;
-- release;
-- deploy;
-- upstream contact;
-- private or production data;
-- material spending.
+A non-Git external freshness boundary is typed as:
 
-A `land-ready` finding may still have every authority value set to `false`. Any authority value set to `true` requires a non-empty `authority_record` naming the exact user instruction, approval, or other valid authority source.
+```json
+{
+  "kind": "version | retrieval | git-sha",
+  "value": "exact boundary value",
+  "source": "what was observed"
+}
+```
+
+Historical execution remains evidence after the external source moves. Currentness, review, proposal, and landing claims may expire.
 
 ## Canonical source and active carrier
 
 The canonical source identifies the product branch and exact head under consideration.
 
-The active carrier identifies temporary evidence-producing machinery. It includes an invariant identifier and purpose. The default is one active carrier per invariant.
+The active carrier identifies temporary evidence-producing machinery and its exact purpose. It never becomes the merge or upstream candidate.
 
-A carrier may be replaced only after a classified harness/workflow defect, polluted diff, materially different execution purpose, or explicit retirement. Runner queue delay is not a replacement reason.
+Default per invariant:
+
+```text
+one preferred canonical source
+one active execution carrier
+```
+
+A carrier may be replaced only after a classified harness/workflow defect, polluted diff, materially different execution purpose, or explicit retirement. Runner queue delay alone is not a replacement reason.
 
 ## Writer lease
 
 Problem-space participation remains open. Mutation of one shared artifact does not.
 
-A writer lease records:
+A non-empty writer lease records:
 
-- worker identity;
-- mutable artifact path or branch;
-- lease state;
-- optional transfer record.
+- state and current holder;
+- repository;
+- resource kind: branch, path, or record;
+- resource identity;
+- generation type and exact generation;
+- acquisition and renewal timestamps;
+- positive duration in seconds;
+- monotonic transition number;
+- previous generation and transfer record for takeover.
 
-States:
+The collision key is:
 
-- `active`;
-- `released`;
-- `stale`;
-- `superseded`;
-- `none`.
+```text
+(repository, resource_kind, resource)
+```
 
-The validator rejects more than one active lease for the same artifact across tracked state files.
+The same path in different repositories does not collide. The same resource in one repository cannot have two active leases.
 
-## Freshness
+The effective expiry boundary is:
 
-Freshness records:
+```text
+renewed_at + duration_seconds
+```
 
-- base head;
-- public or external validity boundary;
-- check time.
+The tracked validator checks that the lease is structurally renewable and takeover is generation-bound. A reconciliation controller compares the expiry boundary with a versioned observation time and classifies the lease as current or stale. It never infers a takeover silently.
 
-Historical execution remains evidence after the external source moves. Current, proposal-ready, accepted, and land-ready claims may expire.
+A takeover increments `transition` and requires both `previous_generation` and a durable `transfer_record`. Force-pushing or silently rewriting another active branch remains prohibited.
+
+## Authority
+
+Authority is per action and fail-closed. Technical phase, review acceptance, green CI, or a parent initiative never grants authority.
+
+Actions:
+
+- merge;
+- release;
+- deploy;
+- upstream contact;
+- private or production data access;
+- material spending.
+
+Each action record contains:
+
+- `state`: `denied` or `authorized`;
+- exact action name;
+- typed target, location, operation ID, and data class;
+- versioned authority source and generation;
+- issue time;
+- expiry or revocation record.
+
+A denied action has an empty target and source. An authorized action is invalid unless all scope and provenance fields are present. Data authority additionally identifies private, production, or regulated data.
+
+Authority for one operation does not generalize to another PR, repository, follow-up message, deployment, dataset, or spend.
 
 ## Precedence when records disagree
 
@@ -156,7 +210,7 @@ Historical execution remains evidence after the external source moves. Current, 
 5. generated Review Queue, Delivery Desk, and cockpit projections;
 6. historical narrative and chat.
 
-A lower layer does not silently overwrite a higher layer. The consistency controller reports the conflict and exact repair path.
+A lower layer does not silently overwrite a higher layer. Reconciliation reports the conflict and exact repair path.
 
 ## Legacy migration
 
@@ -167,41 +221,41 @@ Legacy words are interpreted conservatively:
 | `investigating` | `phase: research-active` |
 | `ready-for-synthesis` | usually `phase: review-ready`; require canonical finding and exact evidence review |
 | `needs-decision` | `comparative-evaluation-active` unless a non-delegable decision is proved |
-| `blocked` | keep actual phase and set `blocker`; do not use blocker as the phase |
-| `complete` | inspect transition; migrate to `review-ready`, `delivery-gate-ready`, `land-ready`, `stopped`, or `closed` |
-| `negative-result` | usually `phase: stopped` with retained reason and reopening trigger |
+| `blocked` | preserve the actual phase and set `blocker` |
+| `complete` | inspect the transition; migrate to an explicit review, delivery, landing, stopped, or closed phase |
+| `negative-result` | usually `phase: stopped` with terminal reason and reopening trigger |
 | `ready` | insufficient; derive phase from canonical records or report a migration error |
 
-Migration never rewrites historical issue comments. It adds a current normalized state.
+Migration never rewrites historical issue comments. It adds a current normalized record.
 
-## Validation rules
+## Validation
 
-The validator checks at least:
+The tracked validator and regressions reject at least:
 
-- required fields and allowed values;
-- authority values are explicit booleans;
-- enabled authority has an exact `authority_record`;
-- unfinished phases have a next transition;
-- review-ready and later active phases identify a canonical finding;
-- accepted and land-ready states identify an exact reviewed head;
-- land-ready review head matches the canonical source head;
-- active carriers identify a canonical source and purpose;
-- no more than one active carrier exists per invariant;
-- no more than one active writer lease exists per artifact;
-- every evidence claim has a non-empty receipt and limit;
-- stopped or closed findings have a terminal record;
-- technical state never toggles authority implicitly.
+- boolean values masquerading as integer schema versions or IDs;
+- placeholder or timezone-naive timestamps;
+- short or symbolic Git revisions;
+- review-facing phases without exact identity, reviewed inputs, evidence, or source;
+- stale accepted review/source relationships;
+- terminal phases with active work;
+- carriers without canonical source;
+- duplicate state IDs, canonical paths, active carriers, or repository-scoped leases;
+- active leases without exact generation, renewal, duration, and takeover provenance;
+- authority that lacks action, target, operation, source generation, time, expiry, or revocation;
+- evidence claims without receipts or limits.
 
-The first validator is intentionally local and deterministic. Generated GitHub-state reconciliation belongs to #304.
+The JSON Schema documents the interchange contract. The standard-library validator enforces cross-field and cross-record invariants without a network dependency. Live GitHub reconciliation belongs to #304.
 
 ## Adoption
 
-Adopt incrementally. A finding without `state.json` remains valid but is not eligible for generated current-state projections until materialized or explicitly marked as legacy input.
+Adopt incrementally. A finding without `state.json` remains valid but is not eligible for generated current-state projections until materialized or explicitly classified as legacy input.
 
 Pilot examples should cover:
 
 - active comparative evaluation;
-- current source plus execution carrier;
+- exact source plus one execution carrier;
 - stopped negative result;
 - review-ready evidence packet;
-- land-ready owned product delivery with merge authority still false.
+- land-ready owned delivery with merge authority still denied;
+- explicit, bounded, expiring authority;
+- clean lease transfer between workers.
