@@ -23,7 +23,7 @@ diff --git a/packages/playwright-core/src/tools/utils/mcp/http.ts b/packages/pla
 diff --git a/tests/mcp/http.spec.ts b/tests/mcp/http.spec.ts
 --- a/tests/mcp/http.spec.ts
 +++ b/tests/mcp/http.spec.ts
-@@ -132,7 +132,10 @@ test('http transport browser lifecycle (isolated)', async ({ serverEndpoint, serv
+@@ -132,9 +132,12 @@ test('http transport browser lifecycle (isolated)', async ({ serverEndpoint, serv
  });
  
  test('http transport browser sigint', async ({ serverEndpoint, server }) => {
@@ -35,3 +35,5 @@ diff --git a/tests/mcp/http.spec.ts b/tests/mcp/http.spec.ts
  
    const transport = new StreamableHTTPClientTransport(new URL('/mcp', url));
    const client = new Client({ name: 'test', version: '1.0.0' });
+   await client.connect(transport);
+
