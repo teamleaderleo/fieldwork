@@ -2,7 +2,7 @@
 
 Parent finding: Fieldwork #333.
 
-State: `target-executed-local-helper / workflow-retirement pending`
+State: `target-executed-local-helper / workflow-free`
 
 ## In simple words
 
@@ -100,12 +100,12 @@ This establishes only the local parser-selected identity to metadata-helper fall
 
 ## Carrier retirement
 
-The focused workflow may be removed after this exact receipt transfer. Removing it does not mean the target reran on the later cleanup head. The durable carrier is this report plus the isolated helper.
+The focused workflow was removed after exact receipt transfer at cleanup head `fcd35454373a9c141e805793ace10219c2d00933`. Its removal does not mean the target reran on the later cleanup generation. The durable carrier is this report plus the isolated helper.
 
 Listener reachability, CORS, valid-key metadata composition, and trusted-proxy behavior remain owned by #355/#333. They are not rerun or widened here.
 
 ## Next transition
 
-Remove the temporary focused workflow, run Fieldwork integrity on the workflow-free head, and obtain complete-diff review of this two-file retained evidence carrier. Then compare reject-configuration versus omit-metadata source sketches against target repository conventions without contacting upstream.
+Run Fieldwork integrity on the final workflow-free documentation head, then obtain complete-diff review of the two-file retained evidence carrier. Compare reject-configuration versus omit-metadata source sketches against target repository conventions without contacting upstream.
 
 No merge, deployment, real credential, private data, spending, hosted request, or public upstream interaction is authorized.
