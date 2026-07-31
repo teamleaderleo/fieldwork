@@ -6,6 +6,7 @@ port=${FIELDWORK_CONTEXT7_PORT:-38731}
 stdout_log=$(mktemp)
 stderr_log=$(mktemp)
 headers_file=$(mktemp)
+normalized_headers_file=$(mktemp)
 server_pid=
 
 cleanup() {
@@ -13,16 +14,16 @@ cleanup() {
     kill "${server_pid}" 2>/dev/null || true
     wait "${server_pid}" 2>/dev/null || true
   fi
-  rm -f "${stdout_log}" "${stderr_log}" "${headers_file}"
+  rm -f "${stdout_log}" "${stderr_log}" "${headers_file}" "${normalized_headers_file}"
 }
 trap cleanup EXIT
 
 require_header() {
   local pattern=$1
   local description=$2
-  if ! grep -Eqi "${pattern}" "${headers_file}"; then
+  if ! grep -Eqi "${pattern}" "${normalized_headers_file}"; then
     echo "Missing expected CORS header: ${description}" >&2
-    cat "${headers_file}" >&2
+    cat "${normalized_headers_file}" >&2
     exit 1
   fi
 }
@@ -100,13 +101,14 @@ curl --noproxy '*' --silent --show-error \
   --request OPTIONS \
   --header 'Origin: https://fieldwork.invalid' \
   "http://127.0.0.1:${port}/mcp"
+tr -d '\r' <"${headers_file}" >"${normalized_headers_file}"
 
 printf '%s\n' 'Anonymous MCP preflight headers:'
-cat "${headers_file}"
-require_header '^access-control-allow-origin: \*\r?$' 'Access-Control-Allow-Origin: *'
-require_header '^access-control-allow-methods: .*POST.*\r?$' 'POST in Access-Control-Allow-Methods'
-require_header '^access-control-allow-headers: .*Authorization.*\r?$' 'Authorization allowance'
-require_header '^access-control-allow-headers: .*X-Context7-API-Key.*\r?$' 'X-Context7-API-Key allowance'
+cat "${normalized_headers_file}"
+require_header '^access-control-allow-origin: \*$' 'Access-Control-Allow-Origin: *'
+require_header '^access-control-allow-methods: .*POST.*$' 'POST in Access-Control-Allow-Methods'
+require_header '^access-control-allow-headers: .*Authorization.*$' 'Authorization allowance'
+require_header '^access-control-allow-headers: .*X-Context7-API-Key.*$' 'X-Context7-API-Key allowance'
 
 printf 'Loopback endpoint: http://127.0.0.1:%s/ping\n' "${port}"
 printf 'Non-loopback endpoint: http://%s:%s/ping\n' "${runner_ip}" "${port}"
