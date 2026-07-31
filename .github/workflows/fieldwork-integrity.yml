@@ -10,12 +10,212 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  merge-ref-integrity:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Test interaction reference scanner
-        run: node scripts/test_interaction_references.js
-      - name: Validate batch contracts
-        run: python3 scripts/check_fieldwork_integrity.py
+      - name: Check out generated pull request merge
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Run Fieldwork integrity on merge ref
+        run: |
+          node scripts/test_interaction_references.js
+          python3 scripts/check_fieldwork_integrity.py
+          python3 -m unittest -v scripts.test_pr_evidence_identity
+      - name: Record merge-ref identity
+        env:
+          CHECKOUT_MODE: synthetic-merge-ref
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+          RUN_ID_VALUE: ${{ github.run_id }}
+          RUN_ATTEMPT_VALUE: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          mkdir -p fieldwork-receipts
+          checkout_line=$(git rev-list --parents -n 1 HEAD)
+          export CHECKOUT_LINE="$checkout_line"
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          fields = os.environ["CHECKOUT_LINE"].split()
+          data = {
+              "checkout_sha": fields[0],
+              "head_sha": os.environ["PR_HEAD_SHA"],
+              "base_sha": os.environ["PR_BASE_SHA"],
+              "event_sha": os.environ["EVENT_SHA"],
+              "parents": fields[1:],
+              "event_name": os.environ["EVENT_NAME"],
+              "ref": os.environ["EVENT_REF"],
+              "head_ref": os.environ["HEAD_REF"],
+              "base_ref": os.environ["BASE_REF"],
+              "run_id": os.environ["RUN_ID_VALUE"],
+              "run_attempt": os.environ["RUN_ATTEMPT_VALUE"],
+              "expected": os.environ["CHECKOUT_MODE"],
+          }
+          Path("fieldwork-receipts/merge-ref-input.json").write_text(
+              json.dumps(data, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          python3 scripts/audit_pr_evidence_identity.py \
+            fieldwork-receipts/merge-ref-input.json \
+            --output fieldwork-receipts/merge-ref-receipt.json
+          printf '%s\n' "$checkout_line" \
+            > fieldwork-receipts/merge-ref-rev-list.txt
+      - name: Upload merge-ref receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: fieldwork-integrity-merge-ref-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
+
+  head-integrity:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out literal pull request head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Run Fieldwork integrity on literal head
+        run: |
+          node scripts/test_interaction_references.js
+          python3 scripts/check_fieldwork_integrity.py
+          python3 -m unittest -v scripts.test_pr_evidence_identity
+      - name: Record literal-head identity
+        env:
+          CHECKOUT_MODE: exact-head
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+          RUN_ID_VALUE: ${{ github.run_id }}
+          RUN_ATTEMPT_VALUE: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          mkdir -p fieldwork-receipts
+          checkout_line=$(git rev-list --parents -n 1 HEAD)
+          export CHECKOUT_LINE="$checkout_line"
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          fields = os.environ["CHECKOUT_LINE"].split()
+          data = {
+              "checkout_sha": fields[0],
+              "head_sha": os.environ["PR_HEAD_SHA"],
+              "base_sha": os.environ["PR_BASE_SHA"],
+              "event_sha": os.environ["EVENT_SHA"],
+              "parents": fields[1:],
+              "event_name": os.environ["EVENT_NAME"],
+              "ref": os.environ["EVENT_REF"],
+              "head_ref": os.environ["HEAD_REF"],
+              "base_ref": os.environ["BASE_REF"],
+              "run_id": os.environ["RUN_ID_VALUE"],
+              "run_attempt": os.environ["RUN_ATTEMPT_VALUE"],
+              "expected": os.environ["CHECKOUT_MODE"],
+          }
+          Path("fieldwork-receipts/head-input.json").write_text(
+              json.dumps(data, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          python3 scripts/audit_pr_evidence_identity.py \
+            fieldwork-receipts/head-input.json \
+            --output fieldwork-receipts/head-receipt.json
+          printf '%s\n' "$checkout_line" \
+            > fieldwork-receipts/head-rev-list.txt
+      - name: Upload literal-head receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: fieldwork-integrity-head-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
+
+  push-integrity:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pushed commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Run Fieldwork integrity on pushed commit
+        run: |
+          node scripts/test_interaction_references.js
+          python3 scripts/check_fieldwork_integrity.py
+          python3 -m unittest -v scripts.test_pr_evidence_identity
+      - name: Record push identity
+        env:
+          CHECKOUT_MODE: exact-head
+          PUSH_HEAD_SHA: ${{ github.sha }}
+          PUSH_BASE_SHA: ${{ github.event.before }}
+          EVENT_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          RUN_ID_VALUE: ${{ github.run_id }}
+          RUN_ATTEMPT_VALUE: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          mkdir -p fieldwork-receipts
+          checkout_line=$(git rev-list --parents -n 1 HEAD)
+          export CHECKOUT_LINE="$checkout_line"
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          fields = os.environ["CHECKOUT_LINE"].split()
+          data = {
+              "checkout_sha": fields[0],
+              "head_sha": os.environ["PUSH_HEAD_SHA"],
+              "base_sha": os.environ["PUSH_BASE_SHA"],
+              "event_sha": os.environ["EVENT_SHA"],
+              "parents": fields[1:],
+              "event_name": os.environ["EVENT_NAME"],
+              "ref": os.environ["EVENT_REF"],
+              "head_ref": "",
+              "base_ref": "",
+              "run_id": os.environ["RUN_ID_VALUE"],
+              "run_attempt": os.environ["RUN_ATTEMPT_VALUE"],
+              "expected": os.environ["CHECKOUT_MODE"],
+          }
+          Path("fieldwork-receipts/push-input.json").write_text(
+              json.dumps(data, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          python3 scripts/audit_pr_evidence_identity.py \
+            fieldwork-receipts/push-input.json \
+            --output fieldwork-receipts/push-receipt.json
+          printf '%s\n' "$checkout_line" \
+            > fieldwork-receipts/push-rev-list.txt
+      - name: Upload push receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: fieldwork-integrity-push-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
