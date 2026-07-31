@@ -243,7 +243,7 @@ class CoordinationStateTests(unittest.TestCase):
         self.assertTrue(any("operation_id" in error for error in errors), errors)
         self.assertTrue(any("versioned source" in error for error in errors), errors)
         self.assertTrue(any("issued_at" in error for error in errors), errors)
-        self.assertTrue(any("expires_at or revocation_record" in error for error in errors), errors)
+        self.assertTrue(any("expires_at or versioned revocation_record" in error for error in errors), errors)
 
     def test_duplicate_identity_carrier_and_same_repository_lease_fail_collection(self) -> None:
         first = state_fixture()
