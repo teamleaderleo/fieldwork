@@ -31,7 +31,11 @@ Tiny probes normally live in a batch manifest and result file rather than receiv
 
 Each active long-lived direction has one `type:programme` issue and a `programme:<slug>` label. The hub holds the thesis, targets, scout list, candidate testbeds, branching rule, and current direction. The active portfolio is recorded in `programmes/registry.yml`.
 
+Programme hubs are not giant backlogs. Child work is discovered through programme labels and explicit issue links.
+
 Each active recurring target may have one long-lived `type:target` issue. The hub holds the plain-language model, target map, change thesis, research surfaces, testbed history, and label searches. Active hubs are recorded in `targets/hubs.yml`.
+
+Do not pin every target hub. Discover hubs through `type:target`, target labels, the hub registry, and repository entry points. A target hub is an index, not a giant checklist.
 
 A scout lane may begin before a specific bug is known. It must still produce code and test maps, runnable evidence or a feasibility limit, ranked branch candidates, negative results, and a recommendation.
 
@@ -45,6 +49,8 @@ See [`LABELS.md`](LABELS.md). Every work item should have:
 - one or more `target:*` labels when a recurring system is involved;
 - an optional `testbed:*` label only after an owned-repository trial begins;
 - optional `needs:*`, `parallel-safe`, or policy labels.
+
+Issue forms apply the initial type and issue-state labels automatically. Agents add programme, target, and testbed labels when known.
 
 The issue-body `Issue state:` field must agree with the live `state:*` label. A retained canonical finding carries a separate `Finding state:` from `FINDINGS.md`. The two fields are independent and must not be collapsed into one `State:` line.
 
@@ -64,11 +70,11 @@ GitHub issues hold current owner, issue state, blockers, dependencies, authority
 
 ### Actual review queue
 
-[`QUEUE.md`](QUEUE.md) is the repository entry point. [Issue #213](https://github.com/teamleaderleo/fieldwork/issues/213) is the live ordered set of bounded human review cards.
+[`QUEUE.md`](QUEUE.md) is the repository entry point. [Issue #213](https://github.com/teamleaderleo/fieldwork/issues/213) is the live ordered set of bounded human review cards. It may grow as work becomes reviewable; priority controls order rather than admission.
 
 Each card states the exact decision, evidence to inspect, uncertainty that must survive, disposition that moves the work, canonical finding, and implementation or evidence PR.
 
-Remove a card after disposition and durable routing. A changed code head, issue input, finding state, authority input, or evidence identity expires the review unless semantic identity is proved.
+Remove a card after disposition and durable routing. Route implementation and final gates to issue #160. A changed code head, issue input, finding state, authority input, or evidence identity expires the review unless semantic identity is proved. Later source movement, execution evidence, or adjacent findings may return settled work for explicit re-examination.
 
 ### Delivery Desk
 
