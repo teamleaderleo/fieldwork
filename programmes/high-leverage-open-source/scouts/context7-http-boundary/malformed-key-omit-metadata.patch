@@ -48,8 +48,9 @@ diff --git a/packages/mcp/test/encryption.test.ts b/packages/mcp/test/encryption
 new file mode 100644
 --- /dev/null
 +++ b/packages/mcp/test/encryption.test.ts
-@@ -0,0 +1,113 @@
+@@ -0,0 +1,112 @@
 +import { afterEach, describe, expect, test, vi } from "vitest";
++import { SERVER_VERSION } from "../src/lib/constants.js";
 +
 +const CLIENT_IP = "198.51.100.77";
 +const VALID_KEY =
@@ -74,9 +75,7 @@ new file mode 100644
 +
 +function expectBaseHeaders(headers: Record<string, string>) {
 +  expect(headers["X-Context7-Source"]).toBe("mcp-server");
-+  expect(headers["X-Context7-Server-Version"]).toBe(
-+    process.env.npm_package_version || "unknown",
-+  );
++  expect(headers["X-Context7-Server-Version"]).toBe(SERVER_VERSION);
 +}
 +
 +afterEach(() => {
