@@ -123,11 +123,7 @@ fn run_cancel_attempt(df: DataFrame, path: &Path, rows: usize) -> PolarsResult<R
     let (barrier_bytes, barrier_elapsed_ms) = wait_for_visible_output(path);
 
     let (cancellation_requested, outcome, query_error) = match query.fetch() {
-        Some(Ok(_)) => (
-            false,
-            QueryOutcome::CompletedBeforeCancelRequest,
-            None,
-        ),
+        Some(Ok(_)) => (false, QueryOutcome::CompletedBeforeCancelRequest, None),
         Some(Err(error)) => return Err(error),
         None => {
             query.cancel();
