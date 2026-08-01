@@ -11,7 +11,9 @@ When a caller-provided `AbortSignal` fires during `streamText`, which state tran
 3. Owned characterization PR #1 at `e685a4c92a5869aec306718ab5a440b7cb4fa5b1` broadened root/derived, pre-abort, local-tool, multi-consumer, callback-stall, and provider-error coverage.
 4. Owned repair PR #7 at `19a9dbe26b48af848f3202fa0c409ed67d034c7d` moved outward terminal mechanics before observability and made post-abort provider values/errors yield to abort.
 5. Internal materialization PR #8 reconciled the five-file candidate onto public main `e84b8bc8154030cdb7469b0e0b8cd8b9354f19a0`, producing clean source head `92079da650430d8376a7eeef2436910b44393411`.
-6. Continued cancellation analysis modeled the exact native Web Streams layers returned by `streamLanguageModelCall()` and encoded the result as a target-native regression on PR #12 at `7ae1794889d9dd22eeef9faf4f33d01330c0918d`.
+6. Continued cancellation analysis modeled the exact native Web Streams layers returned by `streamLanguageModelCall()` and encoded the result as a target-native regression through PR #12.
+7. PR #12 squash-merged the regression into canonical source head `3035f6e5a3ef6ff9236c8d1b08f4ea3dfe852c15`.
+8. Owned-fork review PR #13 compares that exact head with current-public-base `e84b8bc8154030cdb7469b0e0b8cd8b9354f19a0` through a six-file fence.
 
 ## Current control flow
 
@@ -82,7 +84,7 @@ Receipt: `receipts/2026-08-01-provider-cancel-promise-model.md`.
 
 A proposed wrapper around `streamLanguageModelCall()` attempted to detach explicit-abort cancellation while preserving awaited ordinary cancellation. The model showed ordinary cancellation already settles before provider cleanup through the existing pipe layers. The wrapper introduced an extra reader and lifecycle boundary without creating the claimed distinction.
 
-The branch was reset to the clean source head. PR #12 retains the correction in its discussion and now contains one target-native regression file only.
+The branch was reset to the clean source head. PR #12 retains the correction in its discussion and merged one target-native regression file only.
 
 ## Callback boundary
 
@@ -103,4 +105,6 @@ The contribution preserves the difference between:
 
 ## Strongest current conclusion
 
-The terminal-ordering direction is supported by exact prior target execution. The clean current-main production candidate has no newly demonstrated hostile-cancellation defect. The remaining gate is target-native execution of the cancellation-promise regression on exact head `7ae1794889d9dd22eeef9faf4f33d01330c0918d`, followed by ordinary CI on the resulting canonical source head.
+The terminal-ordering direction is supported by exact prior target execution. The clean current-main production candidate has no newly demonstrated hostile-cancellation defect. Canonical source head `3035f6e5a3ef6ff9236c8d1b08f4ea3dfe852c15` includes a target-native regression for the corrected cancellation semantics.
+
+Promotion is held on exact-head Verify Changesets run `30691402294`, ordinary CI run `30691402306`, and independent complete-diff acceptance. Every current job exists in the queue and zero jobs have started, so the present blocker supplies no product-test conclusion.
