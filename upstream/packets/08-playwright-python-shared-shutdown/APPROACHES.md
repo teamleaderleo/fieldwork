@@ -1,175 +1,157 @@
 # Unit 08 approaches ledger
 
-## In simple words
+## Selected approach — one shared task with cancellation-safe wait joining
 
-Several repairs can make a cancelled first caller stop blocking later shutdown attempts. The selected design keeps the existing cleanup operation intact and changes ownership from a boolean to the operation's task. The alternatives either permit duplicate cleanup, introduce more states than the mechanism requires, or hide an abandoned failure.
-
-## Selected approach — one shielded task with waiter-owned observation
-
-Source: [`teamleaderleo/playwright-python#8`](https://github.com/teamleaderleo/playwright-python/pull/8) at `54c17acaa1189bca3cf66da0bd9c22dae224b1ec`.
+Canonical source: [`teamleaderleo/playwright-python#8`](https://github.com/teamleaderleo/playwright-python/pull/8), head `4cfc6a9e3e3a5c6dcab04015a1210ce6924d4c27`.
 
 Properties:
 
 - one `Connection.stop_async()` task;
-- `asyncio.shield()` around every wait;
+- callers join through `asyncio.wait({stop_task})`, then await the completed task for its exact result;
+- cancellation of a caller does not cancel cleanup;
 - active waiter count;
-- same success or failure for all callers;
+- same terminal success or failure for every caller;
 - one deferred event-loop report when failure has no observer;
-- pending report cancelled by a late waiter;
-- no temporary workflow in the clean source.
+- a late waiter cancels a pending report;
+- no workflow, generated file, dependency, or packaging change in the clean source.
 
 Why selected:
 
 - directly represents the completion callers need to join;
-- preserves the existing request-stop → transport completion → cleanup owner;
-- caller cancellation and cleanup cancellation remain separate;
-- focused paired execution distinguishes it from the silent baseline;
-- state remains bounded to one terminal task and one possible report.
+- preserves the existing request-stop → transport completion → cleanup operation;
+- separates caller cancellation from cleanup ownership;
+- avoids Python 3.14's automatic `asyncio.shield` failure logger;
+- passed full repository pre-commit, wheel builds, and all 33 focused cases on Python 3.10, 3.12, and 3.14;
+- keeps state bounded to one terminal task and one possible explicit report.
 
-## Accepted foundation, rejected final policy — shared task with silent exception retention
+## Accepted foundation, rejected final join — `asyncio.shield`
 
-Historical source: [`teamleaderleo/playwright-python#3`](https://github.com/teamleaderleo/playwright-python/pull/3) at `dbbc8834acd69dc1f7f122ba1d3f49360565e7ef`.
+Historical selected mechanism used one shared task and `await asyncio.shield(stop_task)`.
+
+What it established:
+
+- retry after cancellation;
+- one operation for concurrent callers;
+- cancellation of one waiter leaves cleanup and other waiters alive;
+- repeated success is idempotent;
+- failure remains shared and joinable;
+- explicit fallback reporting closes the silent-failure gap on Python 3.12.
+
+Why it lost:
+
+Run `30692014938`, job `91348287797`, passed pre-commit and all 33 cases on Python 3.10 and 3.12. On Python 3.14, a cancelled shielded waiter caused CPython to publish `RuntimeError exception in shielded future` when the inner task failed. The candidate also published its intentional report, so exactly three observability cases saw duplicate contexts.
+
+The ownership model remains selected; only the join primitive changed.
+
+## Accepted foundation, rejected policy — silent exception retention
+
+Historical PR #3 head: `dbbc8834acd69dc1f7f122ba1d3f49360565e7ef`.
 
 Mechanism:
 
 - one `_stop_task`;
-- all callers await through `asyncio.shield()`;
-- done callback calls `task.exception()` to suppress an unhandled-task warning.
+- callers joined the task;
+- done callback retrieved `task.exception()` only to suppress a default warning.
 
 What it proved:
 
-- retry after cancellation;
-- one operation for concurrent callers;
-- one cancelled waiter leaves another alive;
-- repeated success is idempotent;
-- failure remains shared after cancellation.
+- retry, concurrency, idempotence, and shared failure semantics.
 
 Why final policy lost:
 
-When every waiter cancels and the task later fails, the done callback retrieves the exception and no observer receives it. PR #5's paired controls produced exactly three failures, one for each browser parameter, solely on the missing loop-exception report.
+When every waiter cancelled and cleanup later failed, no caller and no event-loop handler observed the failure. Baseline run `30595155697`, job `91045840683`, passed 30 cases and failed exactly the three abandoned-failure controls.
 
-Reopening trigger:
-
-- explicit maintainer preference for silent retained failure, with a documented observation route elsewhere.
+Reopening trigger: explicit maintainer preference for silent retained failure with another documented observation route.
 
 ## Viable alternative — explicit shutdown state machine
 
-Possible states:
-
-- idle;
-- stopping;
-- stopped;
-- failed.
-
-Possible transitions would retain a future/task for stopping and terminal outcome for stopped/failed.
+Possible states: idle, stopping, stopped, failed.
 
 Why deferred:
 
 - the task already represents stopping plus terminal success/failure;
 - separate state duplicates task state and creates consistency obligations;
-- no tested behavior requires restart after terminal failure;
-- more code would broaden the review surface without improving the selected invariant.
+- no required behavior retries an underlying failed cleanup;
+- more code broadens the review surface without improving the invariant.
 
-Reopening trigger:
+Reopening triggers:
 
-- a future requirement for retry after underlying cleanup failure;
-- multiple ordered cleanup phases with independently resumable ownership;
+- resumable multi-phase cleanup;
+- retry after underlying cleanup failure;
 - a public lifecycle status API.
 
-## Rejected easy answer — reset `_exit_was_called` when cancellation occurs
-
-Concept:
-
-Catch `CancelledError`, reset the guard, then allow a later caller to run `stop_async()` again.
+## Rejected — reset `_exit_was_called` after cancellation
 
 Why rejected:
 
-- cancellation can occur while the first cleanup continues below the caller;
-- resetting permits duplicate transport-stop or cleanup operations;
-- the later caller lacks a stable completion to join;
-- failure from the first operation can race with a second operation.
+- cleanup may continue after caller cancellation;
+- resetting permits two transport-stop/cleanup operations;
+- the retry still lacks a stable completion to join;
+- failure from the first operation can race with the second.
 
-Reopening trigger:
-
-- only if `Connection.stop_async()` becomes explicitly cancel-safe, restartable, and idempotent across every phase, with exact concurrency tests. Current evidence supports one operation instead.
-
-## Rejected easy answer — swallow caller cancellation until cleanup finishes
-
-Concept:
-
-Ignore cancellation, await cleanup to completion, then return normally or re-raise later.
+## Rejected — swallow cancellation until cleanup finishes
 
 Why rejected:
 
-- changes caller cancellation latency and semantics;
+- changes cancellation latency and semantics;
 - forces one caller to own cleanup rather than sharing completion;
-- concurrent callers still need a stable outcome owner;
-- masking cancellation can interfere with task-group shutdown.
+- concurrent callers still need one terminal outcome;
+- can interfere with task-group shutdown.
 
-Reopening trigger:
-
-- an explicit public contract that shutdown is uncancellable and caller cancellation must wait for completion.
-
-## Rejected easy answer — keep boolean and call `cleanup()` on retry
-
-Concept:
-
-A later call detects partial shutdown and invokes `Connection.cleanup()` directly.
+## Rejected — keep the boolean and call `cleanup()` on retry
 
 Why rejected:
 
 - bypasses transport completion ordering;
 - duplicates ownership knowledge from `Connection.stop_async()`;
-- can race with the original stop task;
-- forces the context manager to understand connection internals.
+- can race with the original operation;
+- makes the context manager depend on connection internals.
 
-## Executed negative control — lifecycle tests on silent baseline
+## Rejected — manual future proxy around the task
 
-PR #5 head: `13848d073c9d23629a9a8300c89262a4d8b42411`.
+A custom future could mirror task completion while insulating it from waiter cancellation.
 
-Run `30595155697`, job `91045840683`:
+Why rejected:
 
-- 33 tests collected across Chromium, Firefox, WebKit;
-- 30 passed;
-- three failed exactly at `test_unjoined_stop_failure_reaches_loop_exception_handler`;
-- Black and diff hygiene passed.
+- `asyncio.wait` already supplies non-cancelling waiting;
+- a proxy adds callback and exception-forwarding states;
+- a proxy could recreate the same duplicate-observation problem found with shield;
+- no executed requirement needs a second completion object.
 
-This result accepts the shared-task ownership and rejects only silent abandoned failure.
+## Typing approach correction
 
-## Executed selected repair
+The observability test temporarily stored `connection.stop_async` under a broad `Callable[[], Awaitable[None]]` annotation and restored it without a method-assignment suppression. Repository mypy rejected both choices.
 
-PR #6 head: `beb025b6ee98e4b15b80335039f5d0afec5a7efd`.
+Final approach:
 
-Run `30595174700`, job `91045896030`:
+- infer the exact bound method type;
+- use the narrow `# type: ignore[method-assign]` only where monkeypatching assigns or restores the method.
 
-- 33 passed;
-- 2 warnings;
-- 7.20 seconds;
-- Black passed;
-- tracked diff hygiene passed;
-- independent exact-head review `4827700772`: ACCEPT for the bounded focused mechanism.
+Receipt: run `30691401327`, job `91346660311`; repair `b0509982c7cb7ef9cfeaa6a65225ec6e64a28b92`.
 
-## Harness approaches and corrections
+## Executed comparison
 
-### First lifecycle run — invalid setup evidence
+| Approach | Receipt | Result |
+| --- | --- | --- |
+| upstream boolean | `30492906544` | intended incomplete-cleanup assertion fails on Python 3.10 and 3.14 |
+| silent shared task | `30595155697` / `91045840683` | 30 passed, 3 observability failures |
+| shield + explicit report | `30595174700` / `91045896030` | 33 passed on Python 3.12 |
+| shield on current head | `30692014938` / `91348287797` | 3.10/3.12 green; three duplicate-report failures on 3.14 |
+| `asyncio.wait` + explicit report | `30692313951` / `91349092242` | pre-commit green; 33 passed on each of 3.10, 3.12, 3.14; wheel and diff hygiene green |
 
-Run `30590715257`, job `91032218906` installed the editable package without assembling the driver. Existing tests failed at startup and the first new control timed out. The run was cancelled and classified as setup evidence.
+## Harness corrections
 
-Correction:
+- first lifecycle run omitted driver assembly and was classified as setup evidence;
+- stale-base PR #7 widened comparison to 31 files and was retired;
+- runs checking out PR #7 were demoted from clean-source evidence;
+- Test Docker was removed as a false blocker because its path filters do not match unit 08;
+- final carrier used `if: always()` for later version steps so one diagnostic could not hide remaining evidence.
 
-- run `python -m build --wheel`;
-- disable automatic reruns;
-- use verbose output and long tracebacks.
+## Adjacent questions excluded from this change
 
-### Base-drift pull request — invalid comparison surface
-
-Owned PR #7 compared the current-base source branch against stale fork `main` at `9a10128...`, producing a 31-file diff. It was closed and replaced by PR #8 against exact base branch `upstream/base-3b7c24c` at `3b7c24c...`.
-
-## Adjacent questions excluded
-
-- connection callback cleanup bug in public issue #2581;
-- browser-process termination guarantees;
-- retries after an underlying stop failure;
-- sync API shutdown ownership;
-- general event-loop logging policy outside this one retained task;
-- broader task-group cancellation behavior in protocol callbacks.
+- failed async startup task ownership (`microsoft/playwright-python#3132`);
+- bounded driver-process termination and public issue #2633;
+- retries after underlying stop failure;
+- external cancellation of the authoritative task itself;
+- general event-loop logging outside this retained cleanup task;
+- sync API shutdown changes.
