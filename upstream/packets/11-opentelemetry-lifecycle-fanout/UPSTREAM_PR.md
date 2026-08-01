@@ -1,89 +1,87 @@
 # Upstream pull-request draft — fix: snapshot lifecycle targets before concurrent fanout
 
-Draft status: `not ready`  
-Proposed head: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout`  
-Proposed base: `open-telemetry/opentelemetry-js:main` at `2c931bf4eec18a234a28706567c6977f08139abd`  
+Draft status: `repair required`  
+Proposed base: `open-telemetry/opentelemetry-js:main`  
 Public interaction authorized: `no`
 
-The code and public-facing description are prepared. Submission remains blocked on current clean-head gates, exact clean-head independent review, changelog packaging, a fresh duplicate/current-main check, and explicit authorization.
+The owned candidate passed all named repository workflows, but complete-diff review found that metrics should be snapshot-only. This draft describes the intended repaired contribution rather than the over-broad current source head.
 
 ---
 
 ## Summary
 
-- Attempt every trace processor, log processor, and metric reader that belongs to the lifecycle operation's opening set.
-- Convert synchronous child throws into rejected promises so later opening children are still invoked.
-- Preserve eager concurrent fanout and existing package-specific error behavior.
+- Snapshot trace processors, log processors, and metric collectors before lifecycle fanout so mutation cannot skip a child that belonged to the opening set.
+- For trace and logs, convert direct synchronous processor throws into rejected promises so later opening processors are still invoked.
+- Preserve eager concurrent fanout and existing package-specific outward error behavior.
 
 ## Problem
 
-The trace, logs, and metrics lifecycle aggregators currently invoke child methods while iterating mutable arrays. A synchronous child throw can stop later promise inputs from being constructed. A child can also remove a later indexed child during iteration, causing shutdown or force flush to skip an opening child.
+The trace, logs, and metrics lifecycle aggregators iterate mutable child arrays. A child can remove a later indexed child during shutdown or force flush, causing the current operation to skip an opening child.
 
-A lifecycle aggregate should attempt every child present when the operation begins. Mutations during the call should affect future operations while leaving the current opening set stable.
+Trace and logs also invoke child lifecycle methods directly while constructing promise inputs. A synchronous throw can stop construction before later processors are invoked.
+
+Metrics differs: `MetricCollector.shutdown()` and `forceFlush()` are already async, so synchronous reader throws already become rejected promises. Metrics only needs the stable opening snapshot.
 
 ## Change
 
-Each affected entrypoint now takes a shallow `.slice()` of its child collection before invoking any child. Each invocation passes through a local `callLifecycle()` helper that converts synchronous throws into rejected promises.
+- `MultiSpanProcessor`: snapshot processors and invoke each through a local synchronous safe-call helper before `Promise.all`.
+- `MultiLogRecordProcessor`: snapshot processors and invoke each through a local synchronous safe-call helper while retaining timeout behavior.
+- `MeterProvider`: snapshot metric collectors and call the existing async collector lifecycle methods directly.
 
-The aggregate still uses `Promise.all`:
+The original collections remain mutable for future operations.
 
-- trace shutdown still rejects;
-- trace force flush still reports through `globalErrorHandler` and resolves;
-- logs and metrics still reject;
+## Behavior retained
+
+- trace shutdown rejects;
+- trace force flush reports through `globalErrorHandler` and resolves;
+- logs and metrics reject;
 - child calls remain eager and concurrent;
-- the original collections remain mutable for future operations.
-
-Focused tests cover synchronous throw and opening-set mutation for shutdown and force flush in all three packages.
+- `Promise.all` retains first-rejection behavior rather than aggregating every asynchronous error.
 
 ## Tests
 
-- `Unit Tests` workflow, including:
-  - `packages/sdk-trace/test/common/MultiSpanProcessor.attempt-all.test.ts`;
-  - `experimental/packages/sdk-logs/test/common/MultiLogRecordProcessor.attempt-all.test.ts`;
-  - `packages/sdk-metrics/test/MeterProvider.attempt-all.test.ts`.
-- Lint and compile-bearing repository checks.
-- E2E Tests, Bundler tests, W3C Trace Context Integration, Ensure API Peer Dependency, CodeQL, and Zizmor workflow-security analysis.
+Focused tests cover:
 
-Prior exact generation `db7a0b3a2179f43bf1e0145c8352ff0367bdce79` passed all listed gates. The current clean generation `641528c9786f7d027fef4f4a76ae685f7107d394` has its own matrix queued on the owned fork.
+- synchronous throw and opening-set mutation for trace shutdown and force flush;
+- synchronous throw and opening-set mutation for logs shutdown and force flush;
+- opening-set mutation for metrics shutdown and force flush;
+- metrics synchronous-throw behavior only as a baseline compatibility control if retained;
+- trace global error-handler compatibility.
+
+The reviewed owned head `641528c9786f7d027fef4f4a76ae685f7107d394` passed Unit, E2E, Lint, Bundler, W3C Trace Context Integration, API peer-dependency, CodeQL, and Zizmor workflows. Because the metrics source must change, all gates must run again on the repaired exact head.
 
 ## Compatibility
 
-- public API: unchanged;
-- existing behavior retained: package-specific resolution/rejection and global error reporting;
-- platform or runtime notes: standard ECMAScript array-copy and promise semantics;
-- performance or allocation notes: one shallow array allocation per affected lifecycle call;
-- migration or rollback: no migration; revert the six-file patch.
+- Public API: unchanged.
+- Allocation: one shallow child-array copy per affected lifecycle operation.
+- Concurrency and failure timing: existing eager `Promise.all` model retained.
+- Migration: none.
+- Rollback: revert the bounded source/test patch.
 
 ## Alternatives considered
 
-- Safe-call over live arrays still allows a first child to remove a later indexed child.
-- Freezing or permanently copying arrays changes future membership behavior.
-- Sequential awaiting changes eager concurrency and latency.
-- Settle-all aggregation changes caller-visible failure timing and error semantics.
+- Safe-call over live arrays does not prevent an earlier child from removing a later opening child.
+- Permanent freezing or copying changes future membership behavior.
+- Sequential awaiting changes concurrency and latency.
+- Settle-all aggregation changes outward failure timing and error semantics.
+- A metrics safe-call wrapper is unnecessary because the collector boundary is already async.
 
 ## Limits
 
-- The change does not aggregate every asynchronous child failure; `Promise.all` retains first-rejection behavior.
-- Delayed same-owner recursion, one-shot provider/reader state, final metrics collection, pre-existing span delivery, and process-global disposal remain separate.
 - Production prevalence is unmeasured.
-
-## Related work
-
-- PR #802 introduced span-processor force-flush support and is historical context rather than an equivalent repair.
-- Searches on 2026-08-01 found no current issue or pull request implementing stable opening snapshots for these lifecycle fanouts.
+- The change does not aggregate all asynchronous failures.
+- Delayed recursion, one-shot provider/reader state, final metrics collection, pre-existing span delivery, and global disposal remain separate.
 
 ---
 
 ## Submission checklist
 
-- [x] Branch is a direct child of public base `2c931bf4eec18a234a28706567c6977f08139abd`.
-- [x] Diff contains six product/test files only.
-- [x] Research wording, temporary workflows, publishers, receipts, and evidence-only files are absent.
-- [ ] Every changed file receives independent review at the exact proposed head.
-- [ ] Focused regressions complete on the clean candidate; baseline relationship is retained in the packet.
-- [ ] Project-declared ordinary gates complete on the clean candidate.
-- [x] Current duplicate and overlap search completed on 2026-08-01; repeat immediately before filing.
-- [x] Commit titles follow conventional commit form; six commits should be squashed or accepted according to maintainer preference before submission.
-- [ ] Add required root and experimental changelog entries once a public PR number exists, or obtain an explicit changelog-skip decision.
-- [ ] Target contribution and AI-disclosure policies rechecked at filing time.
-- [ ] Exact user authorization to open the pull request recorded.
+- [ ] Repair metrics source to snapshot-only.
+- [ ] Reclassify or remove metrics synchronous-throw controls.
+- [ ] Rerun focused tests and all project-declared gates on the repaired exact head.
+- [ ] Obtain eligible independent complete-diff review.
+- [ ] Refresh current main and duplicate/overlap search immediately before filing.
+- [ ] Squash the file-level commits if appropriate.
+- [ ] Add required changelog entries using the real PR number.
+- [ ] Recheck contribution and AI-disclosure policy.
+- [ ] Record exact user authorization before any public upstream interaction.
