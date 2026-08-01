@@ -2,85 +2,126 @@
 
 ## In simple words
 
-Nixpkgs packages `gomarkdoc` 1.1.0 with upstream tests disabled. The current expression says Nix's `-mod=vendor` reaches gomarkdoc's application flag parser. Source review and upstream issue #516481 narrow the observed failure: the unknown flag produces a diagnostic and returns no tags, while the missing empty config fixture and later Go golden divergence are the test blockers established by execution.
+Nixpkgs packages `gomarkdoc` 1.1.0 with its upstream checks disabled. Public issue #516481 records the missing empty config fixture as the observed test failure; the unknown `GOFLAGS` token produces a diagnostic and returns no tags. Retained Fieldwork execution also found a Go 1.26 documentation-golden difference.
 
-The retained Fieldwork candidate repaired the toolchain, `GOFLAGS`, and fixture concerns, yet its execution only tested `cmd/gomarkdoc`. Nixpkgs uses `subPackages = [ "cmd/gomarkdoc" ]` both for installation and generic check discovery. The earlier “full suite” claim is superseded.
+The earlier Fieldwork repair handled the Go version, test-time `GOFLAGS`, and fixture, yet it exercised only `cmd/gomarkdoc`. Nixpkgs uses `subPackages = [ "cmd/gomarkdoc" ]` for both binary build selection and generic check discovery, so the old “full suite” claim is superseded.
 
-The repaired candidate keeps the build selector, clears it inside `preCheck`, and lets the standard `buildGoModule` check phase discover every directory containing tests. It also keeps `-mod=vendor` out of gomarkdoc's application parser while retaining the materialized vendor tree and offline Go environment. A pinned Linux/Darwin execution carrier requires representative root, `lang`, format, command-package, and version results.
+The clean candidate preserves the narrow binary install, clears `subPackages` only inside `preCheck`, and lets the standard Go builder discover every package containing tests. The source is complete. Hosted Linux, Darwin, `nixpkgs-review`, binary-help, and final Fieldwork-integrity jobs remain queued.
 
 ## Current disposition
 
-`REPAIR`
+`HOLD`
 
 Last verified: `2026-08-01`  
 Worker: `OpenAI`  
 Priority-zero parent: [`teamleaderleo/fieldwork#435`](https://github.com/teamleaderleo/fieldwork/issues/435)  
 Upstream contact authorized: `no`
 
-Clearing condition: execution carrier [Fieldwork PR #437](https://github.com/teamleaderleo/fieldwork/pull/437) completes on x86_64-linux and aarch64-darwin with root, `lang`, format, `cmd/gomarkdoc`, and version controls all observed.
+Clearing condition: [Fieldwork PR #437](https://github.com/teamleaderleo/fieldwork/pull/437) run [`30674969557`](https://github.com/teamleaderleo/fieldwork/actions/runs/30674969557) reaches terminal state with the intended controls on both platforms, run [`30674969559`](https://github.com/teamleaderleo/fieldwork/actions/runs/30674969559) supplies current packet-integrity evidence, all receipts are transferred here, and the carrier is closed.
 
 ## Contribution
 
 - Target project: [`NixOS/nixpkgs`](https://github.com/NixOS/nixpkgs)
-- Proposed upstream destination: `NixOS/nixpkgs:master`
+- Proposed destination: `NixOS/nixpkgs:master`
 - Proposed title: `gomarkdoc: restore full upstream checks`
-- Contribution synopsis: switch gomarkdoc 1.1.0 to `buildGo125Module`, enable checks, remove only `-mod=vendor` from test-time `GOFLAGS`, recreate the omitted empty config fixture, and clear the build-only package selector during check discovery.
 - Work class: `upstream-fork research`
+- Synopsis: use `buildGo125Module`, enable checks, keep Nix's `-mod=vendor` out of gomarkdoc's application parser during tests, recreate the omitted empty fixture, and clear the build-only package selector before standard check discovery.
 
 ## Exact identities
 
-- Public upstream base inspected: [`55096b0ce13784d4f6420059c5627475fa26ebb1`](https://github.com/NixOS/nixpkgs/commit/55096b0ce13784d4f6420059c5627475fa26ebb1)
-- Newer public head checked for staleness: [`f8e81fc7eb063db454f563cdd596fb96a5ad1497`](https://github.com/NixOS/nixpkgs/commit/f8e81fc7eb063db454f563cdd596fb96a5ad1497); relevant package and builder blobs are unchanged
-- Owned target fork: [`teamleaderleo/nixpkgs`](https://github.com/teamleaderleo/nixpkgs)
-- Canonical source branch: [`fieldwork/unit-22-gomarkdoc-checks`](https://github.com/teamleaderleo/nixpkgs/tree/fieldwork/unit-22-gomarkdoc-checks)
-- Canonical source head: [`94be3956403ebf368b9d8262fdc9e5a5d2e80683`](https://github.com/teamleaderleo/nixpkgs/commit/94be3956403ebf368b9d8262fdc9e5a5d2e80683)
-- Source compare: [`55096b0c...94be3956`](https://github.com/teamleaderleo/nixpkgs/compare/55096b0ce13784d4f6420059c5627475fa26ebb1...94be3956403ebf368b9d8262fdc9e5a5d2e80683)
-- Fieldwork packet branch: [`p0/435-unit-22-nixpkgs-gomarkdoc-checks`](https://github.com/teamleaderleo/fieldwork/tree/p0/435-unit-22-nixpkgs-gomarkdoc-checks/upstream/packets/22-nixpkgs-gomarkdoc-checks)
-- Packet base: [`920f87cb25dd0cc7901d59ea2019cd4b4a193b94`](https://github.com/teamleaderleo/fieldwork/commit/920f87cb25dd0cc7901d59ea2019cd4b4a193b94)
-- Exact packet head: recorded in the final unit-22 handoff on [Fieldwork issue #435](https://github.com/teamleaderleo/fieldwork/issues/435); the branch tip is canonical
-- Execution carrier: [Fieldwork PR #437](https://github.com/teamleaderleo/fieldwork/pull/437), workflow head [`5c9d932276679836547b79a38aaf6b951dbdad02`](https://github.com/teamleaderleo/fieldwork/commit/5c9d932276679836547b79a38aaf6b951dbdad02), run [`30674476739`](https://github.com/teamleaderleo/fieldwork/actions/runs/30674476739)
-- Superseded source evidence: Fieldwork issue [#241](https://github.com/teamleaderleo/fieldwork/issues/241), PR [#265](https://github.com/teamleaderleo/fieldwork/pull/265), final retained head [`d559a9756294b94c7a8ee4e68cae6ed603352986`](https://github.com/teamleaderleo/fieldwork/commit/d559a9756294b94c7a8ee4e68cae6ed603352986), execution patch head [`1cdbcfa7bf07086ed9a46f440d3595595afdd241`](https://github.com/teamleaderleo/fieldwork/commit/1cdbcfa7bf07086ed9a46f440d3595595afdd241)
+### Clean target source
 
-## Current code and tests
+- Owned fork: [`teamleaderleo/nixpkgs`](https://github.com/teamleaderleo/nixpkgs)
+- Branch: [`fieldwork/unit-22-gomarkdoc-checks`](https://github.com/teamleaderleo/nixpkgs/tree/fieldwork/unit-22-gomarkdoc-checks)
+- Base: [`55096b0ce13784d4f6420059c5627475fa26ebb1`](https://github.com/NixOS/nixpkgs/commit/55096b0ce13784d4f6420059c5627475fa26ebb1)
+- Head: [`94be3956403ebf368b9d8262fdc9e5a5d2e80683`](https://github.com/teamleaderleo/nixpkgs/commit/94be3956403ebf368b9d8262fdc9e5a5d2e80683)
+- Compare: [`55096b0c...94be3956`](https://github.com/teamleaderleo/nixpkgs/compare/55096b0ce13784d4f6420059c5627475fa26ebb1...94be3956403ebf368b9d8262fdc9e5a5d2e80683)
+- Changed file: [`pkgs/by-name/go/gomarkdoc/package.nix`](https://github.com/teamleaderleo/nixpkgs/blob/94be3956403ebf368b9d8262fdc9e5a5d2e80683/pkgs/by-name/go/gomarkdoc/package.nix)
 
-### Product code
+### Current-main relation
 
-- [`pkgs/by-name/go/gomarkdoc/package.nix`](https://github.com/teamleaderleo/nixpkgs/blob/94be3956403ebf368b9d8262fdc9e5a5d2e80683/pkgs/by-name/go/gomarkdoc/package.nix) — the complete one-file candidate.
-- [`patches/0001-gomarkdoc-restore-full-upstream-checks.patch`](./patches/0001-gomarkdoc-restore-full-upstream-checks.patch) — retained mailbox-style patch for continuation or rebasing.
+- Newer public `master` checked: [`f8e81fc7eb063db454f563cdd596fb96a5ad1497`](https://github.com/NixOS/nixpkgs/commit/f8e81fc7eb063db454f563cdd596fb96a5ad1497)
+- Distance from inspected base: 9 commits ahead
+- Relevant-path overlap: none in `package.nix` or the reviewed Go-builder behavior
+- Submission action: rebase onto a fresh public head and rerun exact-head gates before authorized upstream posting
 
-### Target-native tests
+### Fieldwork packet
 
-- `nix-build . -A gomarkdoc --no-out-link`
-- `nix-build . -A gomarkdoc.tests.version --no-out-link`
-- Execution carrier assertions require observed result lines for:
-  - `github.com/princjef/gomarkdoc`
-  - `github.com/princjef/gomarkdoc/lang`
-  - at least one `github.com/princjef/gomarkdoc/format/...` package
-  - `github.com/princjef/gomarkdoc/cmd/gomarkdoc`
-  - version output `1.1.0`
+- Path: `upstream/packets/22-nixpkgs-gomarkdoc-checks/`
+- Branch: [`p0/435-unit-22-nixpkgs-gomarkdoc-checks`](https://github.com/teamleaderleo/fieldwork/tree/p0/435-unit-22-nixpkgs-gomarkdoc-checks/upstream/packets/22-nixpkgs-gomarkdoc-checks)
+- Base: [`920f87cb25dd0cc7901d59ea2019cd4b4a193b94`](https://github.com/teamleaderleo/fieldwork/commit/920f87cb25dd0cc7901d59ea2019cd4b4a193b94)
+- Exact packet head: recorded in the final unit-22 comment on [issue #435](https://github.com/teamleaderleo/fieldwork/issues/435); the branch tip is canonical
 
-### Required generated or dependency files
+### Active execution carrier
 
-None. The source hash and vendor hash remain unchanged.
+- PR: [Fieldwork #437](https://github.com/teamleaderleo/fieldwork/pull/437)
+- Carrier branch: `p0/435-unit-22-execution`
+- Carrier head: [`b6003f2a3523f01880ff5690798b69afcb4e11f5`](https://github.com/teamleaderleo/fieldwork/commit/b6003f2a3523f01880ff5690798b69afcb4e11f5)
+- Target run: [`30674969557`](https://github.com/teamleaderleo/fieldwork/actions/runs/30674969557)
+- Linux job: `91300175276`
+- Darwin job: `91300175296`
+- Fieldwork integrity run: [`30674969559`](https://github.com/teamleaderleo/fieldwork/actions/runs/30674969559)
+- Superseded carrier head/run: `5c9d932276679836547b79a38aaf6b951dbdad02` / `30674476739`
+
+### Superseded retained candidate
+
+- Fieldwork issue: [#241](https://github.com/teamleaderleo/fieldwork/issues/241)
+- Fieldwork PR: [#265](https://github.com/teamleaderleo/fieldwork/pull/265)
+- Retained head: [`d559a9756294b94c7a8ee4e68cae6ed603352986`](https://github.com/teamleaderleo/fieldwork/commit/d559a9756294b94c7a8ee4e68cae6ed603352986)
+- Execution patch head: [`1cdbcfa7bf07086ed9a46f440d3595595afdd241`](https://github.com/teamleaderleo/fieldwork/commit/1cdbcfa7bf07086ed9a46f440d3595595afdd241)
+- Run: [`30598626867`](https://github.com/teamleaderleo/fieldwork/actions/runs/30598626867)
+
+## Code and retained patch
+
+- Exact source file: [`package.nix`](https://github.com/teamleaderleo/nixpkgs/blob/94be3956403ebf368b9d8262fdc9e5a5d2e80683/pkgs/by-name/go/gomarkdoc/package.nix)
+- Retained patch: [`patches/0001-gomarkdoc-restore-full-upstream-checks.patch`](./patches/0001-gomarkdoc-restore-full-upstream-checks.patch)
+- Source/vendor hashes: unchanged
+- Generated or lock files: none
 
 ## Changed-file fence
 
-| Path | Role | Keep upstream? |
+| Path | Role | Upstream candidate |
 | --- | --- | --- |
 | `pkgs/by-name/go/gomarkdoc/package.nix` | package definition and check repair | yes |
+
+## Intended gates
+
+```sh
+nix-build . -A gomarkdoc --no-out-link
+nix-build . -A gomarkdoc.tests.version --no-out-link
+nixpkgs-review rev HEAD --no-shell
+```
+
+The active carrier also executes the installed binary's help path and requires result lines for:
+
+- `github.com/princjef/gomarkdoc`
+- `github.com/princjef/gomarkdoc/lang`
+- at least one `github.com/princjef/gomarkdoc/format/...` package
+- `github.com/princjef/gomarkdoc/cmd/gomarkdoc`
+- at least four distinct gomarkdoc package result lines
+- version output `1.1.0`
 
 ## Evidence summary
 
 | Claim | Evidence class | Exact receipt | Limit |
 | --- | --- | --- | --- |
-| Current Nixpkgs still disables gomarkdoc tests | source-read | [package at `f8e81fc7`](https://github.com/NixOS/nixpkgs/blob/f8e81fc7eb063db454f563cdd596fb96a5ad1497/pkgs/by-name/go/gomarkdoc/package.nix) | snapshot from 2026-08-01 |
-| Generic Go checks call `preCheck` before `getGoDirs test`, and nonempty `subPackages` wins | source-read | [`module.nix` at `f8e81fc7`](https://github.com/NixOS/nixpkgs/blob/f8e81fc7eb063db454f563cdd596fb96a5ad1497/pkgs/build-support/go/module.nix) | depends on this exact builder revision |
-| The missing empty fixture is an observed upstream failure | source-read and public prior art | [Nixpkgs issue #516481](https://github.com/NixOS/nixpkgs/issues/516481) and [v1.1.0 command test](https://github.com/princjef/gomarkdoc/blob/v1.1.0/cmd/gomarkdoc/command_test.go) | exact version and reported regression window |
-| Unknown `GOFLAGS` tokens produce a diagnostic and return no tags | source-read | [`defaultTags()` v1.1.0](https://github.com/princjef/gomarkdoc/blob/v1.1.0/cmd/gomarkdoc/command.go) | removal is semantic isolation, not a separately proven failure blocker |
-| Old candidate built and ran the command-package test on Linux and Darwin | target-executed | [run 30598626867](https://github.com/teamleaderleo/fieldwork/actions/runs/30598626867) | only `cmd/gomarkdoc` ran |
-| Old candidate passed the version passthru on Linux and Darwin | target-executed | [run 30598626867](https://github.com/teamleaderleo/fieldwork/actions/runs/30598626867) | tied to old target base `bbbd95e5` |
-| Repaired candidate is a one-file commit directly above the inspected base | source-read | [compare](https://github.com/teamleaderleo/nixpkgs/compare/55096b0ce13784d4f6420059c5627475fa26ebb1...94be3956403ebf368b9d8262fdc9e5a5d2e80683) | execution pending |
-| Repaired candidate runs the intended package set on Linux and Darwin | target-test-prepared | [PR #437 checks](https://github.com/teamleaderleo/fieldwork/pull/437/checks) | jobs `91298756809` and `91298756825` remain queued |
+| Nixpkgs still disables gomarkdoc checks | `source-read` | [package at `f8e81fc7`](https://github.com/NixOS/nixpkgs/blob/f8e81fc7eb063db454f563cdd596fb96a5ad1497/pkgs/by-name/go/gomarkdoc/package.nix) | 2026-08-01 snapshot |
+| `preCheck` runs before `getGoDirs test`; nonempty `subPackages` wins | `source-read` | [`module.nix` at `f8e81fc7`](https://github.com/NixOS/nixpkgs/blob/f8e81fc7eb063db454f563cdd596fb96a5ad1497/pkgs/build-support/go/module.nix) | exact builder revision |
+| Missing empty fixture is an observed public failure | `source-read` / public prior art | [Nixpkgs issue #516481](https://github.com/NixOS/nixpkgs/issues/516481) | Linux reproduction from May 2026 |
+| Unknown `GOFLAGS` token emits a diagnostic and yields no tags | `source-read` | [`defaultTags()` v1.1.0](https://github.com/princjef/gomarkdoc/blob/v1.1.0/cmd/gomarkdoc/command.go) | diagnostic alone is not proven to fail the suite |
+| Old candidate built on Linux and Darwin, ran command-package checks, and reported version `1.1.0` | `target-executed` | [run 30598626867](https://github.com/teamleaderleo/fieldwork/actions/runs/30598626867) | only `cmd/gomarkdoc` ran |
+| Clean repair is one commit and one file | `source-read` | [source compare](https://github.com/teamleaderleo/nixpkgs/compare/55096b0ce13784d4f6420059c5627475fa26ebb1...94be3956403ebf368b9d8262fdc9e5a5d2e80683) | full execution pending |
+| Full intended package set passes on Linux/Darwin | `target-test-prepared` | [PR #437 checks](https://github.com/teamleaderleo/fieldwork/pull/437/checks) | jobs remain queued |
+
+## Duplicate and prior art
+
+Search date: `2026-08-01`
+
+- [#516481 — gomarkdoc 1.1.0 checkPhase regressed](https://github.com/NixOS/nixpkgs/issues/516481)
+- [#516792 — gomarkdoc: disable tests](https://github.com/NixOS/nixpkgs/pull/516792)
+- [#516381 — NixOS 26.05 Zero Hydra Failures](https://github.com/NixOS/nixpkgs/issues/516381), release campaign context linked from the disablement
+- [#279440 — gomarkdoc: init at 1.1.0](https://github.com/NixOS/nixpkgs/pull/279440)
+- Equivalent restoration PR found: `no`
 
 ## Packet navigation
 
@@ -91,45 +132,35 @@ None. The source hash and vendor hash remain unchanged.
 - [Upstream pull-request draft](./UPSTREAM_PR.md)
 - [Review and human inspection guide](./REVIEW.md)
 
-## Duplicate and prior-art result
-
-- Search date: `2026-08-01`
-- Current upstream issue: [#516481 — gomarkdoc 1.1.0 checkPhase regressed](https://github.com/NixOS/nixpkgs/issues/516481)
-- Relevant upstream pull requests:
-  - [#279440 — gomarkdoc: init at 1.1.0](https://github.com/NixOS/nixpkgs/pull/279440)
-  - [#516792 — gomarkdoc: disable tests](https://github.com/NixOS/nixpkgs/pull/516792)
-- Equivalent restoration found: `no`
-- Relationship to prior work: proposed source repair for the open regression report and the containment introduced by #516792.
-
 ## Data-quality observation
 
-Fieldwork issue #241 labels [`teamleaderleo/fieldwork#11`](https://github.com/teamleaderleo/fieldwork/issues/11) as the Nixpkgs target hub. Issue #11 is the DuckDB target record. This packet records the mismatch and leaves other units untouched.
+Fieldwork issue #241 labels [`teamleaderleo/fieldwork#11`](https://github.com/teamleaderleo/fieldwork/issues/11) as the Nixpkgs target hub. Issue #11 describes DuckDB. This packet records the mismatch and leaves every other unit untouched.
 
-## Remaining work
+## Remaining work, in order
 
-Complete in this order:
-
-1. Read PR #437 job logs and transfer exact run, job, package-result, version, and artifact links into `TESTS.md`.
-2. Update this packet and `REVIEW.md` to one final disposition.
-3. Close the temporary execution carrier after receipt transfer.
-4. Obtain independent complete-diff review.
-5. Seek explicit authority before any public upstream action.
+1. Let runs `30674969557` and `30674969559` reach terminal state.
+2. Transfer exact job conclusions, package lines, help output, version output, `nixpkgs-review` report, artifact IDs/digests, and integrity result into this packet.
+3. Repair source or harness only when terminal logs identify a concrete defect.
+4. Close PR #437 after receipt transfer.
+5. Obtain independent complete-diff review.
+6. Rebase onto a fresh public Nixpkgs head and rerun exact-head gates before any authorized submission.
+7. Seek explicit authority for public upstream interaction.
 
 ## Blockers and limits
 
-- Run `30674476739` and jobs `91298756809` / `91298756825` remain queued.
-- This runtime has no `nix-build` or `nix` executable, and its attempt to download the official Nix 2.35.1 installer failed, so it cannot replace the hosted execution.
+- Target run `30674969557`, jobs `91300175276` and `91300175296`, and integrity run `30674969559` remain queued.
+- The available runtime has no `nix` or `nix-build`; its attempt to retrieve the official Nix 2.35.1 installer failed, so it cannot replace hosted execution.
+- GitHub's public status showed Actions operational during the queue; repository/account workload remains the observable execution dependency.
 - Public upstream contact authority is absent.
-- Full Nixpkgs merge-queue/Hydra execution requires a future authorized upstream PR.
-- `nixpkgs-review` has yet to run for the repaired source head.
-- AI/contribution disclosure requirements require a final human recheck at submission time; no explicit repository-wide AI disclosure text was located in the inspected contribution files.
+- Hydra, ofborg, and merge-queue evidence require a future authorized NixOS pull request.
+- Final independent acceptance remains required.
 
 ## Latest handoff
 
-State: `REPAIR`  
+State: `HOLD`  
 Exact source head: `94be3956403ebf368b9d8262fdc9e5a5d2e80683`  
-Exact packet head: see final unit-22 comment on issue #435  
-Tests: old partial Linux/Darwin receipts retained; repaired full-discovery matrix queued in PR #437  
-Temporary machinery remaining: branch `p0/435-unit-22-execution`, workflow `.github/workflows/unit-22-gomarkdoc-checks.yml`, PR #437  
-Next worker action: inspect PR #437 once both jobs reach a terminal state and transfer the receipts  
+Exact packet head: see the final unit-22 comment on issue #435  
+Tests executed: old partial Linux/Darwin run `30598626867`; clean-candidate run `30674969557` and integrity run `30674969559` are queued  
+Temporary machinery: active carrier branch `p0/435-unit-22-execution`, workflow `.github/workflows/unit-22-gomarkdoc-checks.yml`, PR #437  
+Next action: read terminal PR #437 receipts, update packet status, and close the carrier  
 Public upstream interaction: none
