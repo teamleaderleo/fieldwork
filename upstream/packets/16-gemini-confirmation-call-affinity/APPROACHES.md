@@ -2,15 +2,17 @@
 
 ## In simple words
 
-The leading direction keeps authority inside the confirmation loop: resolve the exact call ID, validate the current approval generation before and after asynchronous modification, then rebuild and update that same call. Alternatives either preserve insertion-order ambiguity, widen the scheduler state API before evidence requires it, or weaken stale-authority protection.
+The selected direction keeps authority inside the confirmation loop: resolve the exact call ID, validate the current approval generation before and after asynchronous modification, rebuild from the revalidated call, and update that same ID. The current-main candidate also proves ordering through two real scheduler calls waiting simultaneously and responses delivered in reverse order.
+
+Alternatives either preserve insertion-order ambiguity, widen the state API before evidence requires it, or weaken stale-authority protection.
 
 ## Decision criteria
 
 1. One confirmation generation owns response, modifier input, rebuild tool, and state update.
-2. The change preserves public APIs and existing confirmation behavior.
-3. Authority loss during asynchronous work fails before publishing arguments.
-4. The diff remains narrow and reviewable.
-5. The design adds negligible runtime cost and stays platform-neutral.
+2. Two simultaneous approvals remain isolated under reverse response order.
+3. Authority loss during asynchronous work fails before publication.
+4. Public APIs and existing confirmation behavior stay compatible.
+5. The source diff remains narrow, reviewable, and platform-neutral.
 
 ## Selected approach
 
@@ -18,100 +20,138 @@ The leading direction keeps authority inside the confirmation loop: resolve the 
 
 - Design: derive `callId` from the validating call; fetch a waiting call by that ID; pass it to the modifier; after await, fetch again and require `AwaitingApproval` plus object identity; rebuild from the revalidated call and update the same ID.
 - Owning boundary: private confirmation modification helpers.
-- Evidence: clean head `b359ece8a2bd059aef870a084ab9494eff16fa8f`, run `30595253180`, 14/14 tests.
-- Advantages: closes both wrong-call and stale-generation paths without a public API change.
-- Costs and risks: introduces thrown stale-authority errors; relies on state-object replacement as the generation discriminator.
-- Remaining controls: real two-call out-of-order scheduler test, current-main rebase, full preflight.
+- Current source: `0c3a86b0555e152b50ca55fd5f8dc53608571cbe`, one commit over current base `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`.
+- Evidence: predecessor run `30595253180` passed 14/14; current-main real scheduler control is committed and run `30691280000` owns execution.
+- Advantages: closes wrong-call and stale-generation paths without a public API or state-manager change.
+- Costs and risks: introduces thrown stale-authority errors; uses state-object identity as the generation discriminator.
+- Remaining controls: current-main focused/integration execution, core typecheck, full preflight, independent review.
 
 ## Viable alternatives
 
-### Explicit approval generation token
+### Explicit approval-generation token
 
-- Design: add a generation/version token to waiting state and compare it after modification.
-- Why it remains plausible: expresses the invariant directly and survives benign object replacement.
-- What it would improve: clearer compare-and-swap semantics.
-- What it would widen or complicate: state types, transitions, serialization/publication, tests, and migration reasoning.
-- Exact discriminator: evidence that same-generation waiting calls are legitimately reconstructed as new objects.
-- Reopening trigger: a current or planned scheduler refactor makes object identity unstable.
+- Design: add a version/token to waiting state and compare it after modification.
+- Why plausible: states the invariant directly and survives benign object reconstruction.
+- Improvement: explicit compare-and-swap semantics.
+- Widening: state types, transitions, publication, tests, and migration reasoning.
+- Discriminator: evidence that same-generation waiting calls are legitimately reconstructed as new objects.
+- Reopening trigger: scheduler refactor makes object identity unstable.
 
 ### State-manager guarded update
 
-- Design: add an `updateArgsIfAwaiting(callId, generation, ...)` method that performs the final check and update atomically.
-- Why it remains plausible: centralizes race protection.
-- What it would improve: stronger atomicity if state mutation can interleave synchronously around `updateArgs`.
-- What it would widen or complicate: public/internal state-manager API and callers outside confirmation.
-- Exact discriminator: a demonstrated synchronous interleaving between the post-await read and update.
-- Reopening trigger: scheduler execution becomes multi-threaded or state updates gain asynchronous hooks.
+- Design: add `updateArgsIfAwaiting(callId, generation, ...)` and combine the final check with the update.
+- Why plausible: centralizes race protection.
+- Improvement: stronger atomicity if state mutation can interleave synchronously around `updateArgs`.
+- Widening: state-manager API and additional caller contracts.
+- Discriminator: a demonstrated interleave between the post-await read and synchronous update.
+- Reopening trigger: scheduler state updates gain asynchronous hooks or multi-threaded ownership.
 
 ## Executed losing approaches
 
-### Use `state.firstActiveCall`
+### `state.firstActiveCall` as authority
 
-- Exact branch, patch, or commit: public base `3499c84f7b8e70c86600e7cd2c67a7c65a667f5e`; evidence PR #2 head `a7f5cc934446849e19a08cc8f4527473ada74401`.
+- Exact source/evidence: public base `3499c84f7b8e70c86600e7cd2c67a7c65a667f5e`; evidence PR #2 head `a7f5cc934446849e19a08cc8f4527473ada74401`.
 - What ran: focused target-native inline affinity test and core typecheck.
-- Result: modifier received `call-a` while confirmation correlation owned `call-b`.
+- Result: modifier received `call-a` while response correlation owned `call-b`.
 - Why it lost: insertion order carries no confirmation authority.
-- Useful evidence retained: exact baseline failure and deterministic harness.
+- Retained value: deterministic baseline failure.
 
 ### Exact-ID lookup only before the modifier
 
-- Exact branch, patch, or commit: carrier review head `0ffa264696cb7dd422ee0596518fd2f1194b529d`.
+- Exact head: `0ffa264696cb7dd422ee0596518fd2f1194b529d`.
 - What ran: focused controls; adjacent suite exposed a separate stale fixture.
-- Result: first authority mismatch closed, but review found that cancellation/replacement during the modifier await could still publish stale arguments.
-- Why it lost: authority was validated before asynchronous work and assumed afterward.
-- Useful evidence retained: established the correct initial lookup boundary.
+- Result: initial mismatch closed, but cancellation/replacement during the modifier await could still publish stale arguments.
+- Why it lost: authority was assumed to survive asynchronous work.
+- Retained value: established the correct initial lookup boundary.
 
-### Exact-ID pre/post status check without generation identity
+### Pre/post status check without generation identity
 
-- Exact branch, patch, or commit: clean publication before final replacement control, including `c707e267ae2053195646f00f495c159484fc6c15`.
-- What ran: five focused controls plus eight adjacent controls, build, typecheck, formatting, and lint.
-- Result: green, then complete-diff review identified same-ID waiting-generation replacement.
+- Exact head family: `c707e267ae2053195646f00f495c159484fc6c15`.
+- What ran: five focused controls, eight adjacent controls, build, typecheck, formatting, and lint.
+- Result: green, then complete-diff review found same-ID approval replacement.
 - Why it lost: a new `AwaitingApproval` object under the same ID could accept stale modifier output.
-- Useful evidence retained: current selected approach plus one additional identity fence.
+- Retained value: selected approach plus one identity fence.
+
+### Transiently generate the integration test inside the publisher
+
+- Exact carrier: PR #6 head `12e096c7672c86fd45d45f87c6a3324347559d11`; run `30690542009`.
+- What ran: dependency install, source restore, test generation, Prettier, pre-commit lint.
+- Result: ESLint rejected two unused declarations before product tests.
+- Why it lost: transient generation created an avoidable harness surface and obscured the immutable candidate.
+- Retained value: exact lint classification and corrected test requirements.
+
+### Keep source generation inside execution carriers
+
+- Exact fallback: PR #22 head `e41dd92ab680f5eb05370bf7d5263a70f6897e34`.
+- Result: runner queue only; superseded before execution.
+- Why it lost: the source can be materialized and reviewed directly.
+- Retained value: immutable corrected integration-test head `6804d0b87c196b265c42276f2939573edaf6d89c`.
+
+## Source composition approach
+
+The corrected test branch accumulated the exact four-file diff over current base. Internal PR #23 then squash-merged those four commits onto `repair/16-confirmation-call-affinity-current-main`, producing one source commit `0c3a86b0555e152b50ca55fd5f8dc53608571cbe`. The canonical branch and clean review PR #24 now point to that commit. Execution carrier #6 checks out the immutable source directly.
+
+This separates:
+
+- source identity;
+- execution machinery;
+- packet documentation;
+- eventual public issue/PR authority.
 
 ## Rejected easy answers
 
 ### Build from the original validating call
 
-- Temptation: keep `toolCall.tool.build` after selecting the correct call for the modifier.
-- Why it is incomplete or unsafe: the current waiting generation is the authority after the await; rebuilding from a captured object weakens that ownership chain.
-- Negative control or source fact: the candidate's post-await check deliberately rebuilds from the revalidated waiting call.
+- Temptation: keep `toolCall.tool.build` after selecting the current waiting call.
+- Problem: the current waiting generation is the authority after the await.
+- Control: candidate rebuilds from the revalidated waiting call.
 
 ### Fall back to another active call when the target disappears
 
-- Temptation: preserve workflow continuity.
-- Why it is incomplete or unsafe: it recreates the original cross-call mutation defect.
-- Negative control or source fact: missing target and status-loss tests require zero modifier/update activity or zero `updateArgs`.
+- Temptation: preserve progress.
+- Problem: recreates cross-call mutation.
+- Control: missing target and status-loss cases require zero publication.
 
-### Relax the status requirement
+### Relax the waiting-status requirement
 
-- Temptation: allow updates after the scheduler advances the call.
-- Why it is incomplete or unsafe: modified arguments belong to an approval decision; publishing them after cancellation/execution changes authority.
-- Negative control or source fact: editor status-loss control rejects and records zero updates.
+- Temptation: allow updates after scheduler advancement.
+- Problem: modified arguments belong to an approval decision and lose authority after cancellation/execution.
+- Control: editor status-loss case rejects.
 
-## Prior upstream approaches
+### Merge the change into the owned fork's main branch before validation
 
-| Link | Approach | Status | Relationship to this unit |
+- Temptation: obtain a single commit quickly.
+- Problem: obscures the clean public-base relationship.
+- Decision: maintain a dedicated current-main repair branch and canonical source branch.
+
+## Prior work
+
+| Link | Approach | Status | Relationship |
 | --- | --- | --- | --- |
-| [Fieldwork PR #45](https://github.com/teamleaderleo/fieldwork/pull/45) | source survey and repair sketch | merged research | origin of narrow exact-ID direction |
-| [Evidence PR #2](https://github.com/teamleaderleo/gemini-cli/pull/2) | target-native baseline reproduction | closed | proves inline mechanism |
-| [Production carrier PR #6](https://github.com/teamleaderleo/gemini-cli/pull/6) | repair, execution, clean publisher | open draft | owns full history and temporary workflow |
-| [Portfolio PR #269](https://github.com/teamleaderleo/fieldwork/pull/269) | comparison and current-owner map | open draft | records replacement-generation gap and routes editor lifetime as integration work |
-| Public upstream searches on 2026-08-01 | no equivalent issue/PR/commit found | current read-only search | no replacement found |
+| [Fieldwork PR #45](https://github.com/teamleaderleo/fieldwork/pull/45) | source survey and repair sketch | merged research | origin of exact-ID direction |
+| [Evidence PR #2](https://github.com/teamleaderleo/gemini-cli/pull/2) | baseline target-native reproduction | closed | proves inline mechanism |
+| [Carrier PR #6](https://github.com/teamleaderleo/gemini-cli/pull/6) | execution and publication history | open draft | active immutable-source validation |
+| [Source composition PR #23](https://github.com/teamleaderleo/gemini-cli/pull/23) | squash four-file current-main candidate | merged owned-fork PR | creates exact source head |
+| [Clean source PR #24](https://github.com/teamleaderleo/gemini-cli/pull/24) | workflow-free review surface | open draft | canonical exact-head review |
+| [Fallback PR #22](https://github.com/teamleaderleo/gemini-cli/pull/22) | corrected transient publisher | closed superseded | retains queue/provenance record |
+| [Portfolio PR #269](https://github.com/teamleaderleo/fieldwork/pull/269) | current-owner map | open draft | records generation gap and adjacent editor work |
+| Public searches, 2026-08-01 | no equivalent issue/PR/commit found | read-only | no replacement found |
 
 ## Deferred adjacent work
 
-- Two simultaneous real scheduler approval loops — required as an acceptance gate, kept out of the narrow source implementation.
-- External-editor lifetime versus edit-session completion — may expose further lifecycle policy, separate from call identity.
-- Waiting indicator aggregation — owned by the waiting-state unit.
-- Generic compare-and-swap state APIs — deferred until another caller needs them.
+- external-editor lifetime versus edit-session completion
+- waiting-indicator aggregation
+- generic compare-and-swap state APIs
+- durable approval receipts across resume
+- end-to-end UI presentation
 
 ## Decision history
 
 | Date | Exact inputs | Decision | Reason | Reopening trigger |
 | --- | --- | --- | --- | --- |
-| 2026-07-30 | base `3499c84...`, PR #2 evidence | reject `firstActiveCall` authority | target-native mismatch | upstream replacement |
-| 2026-07-30 | review head `0ffa264...` | require post-await revalidation | modifier awaits can outlive authority | modifier becomes synchronous |
-| 2026-07-31 | clean head `c707e267...` | require generation identity | same-ID waiting replacement remained | explicit generation token added |
-| 2026-07-31 | head `b359ece8...`, run `30595253180` | retain exact-ID plus object-identity fence | six focused and eight adjacent tests green | real integration or current-main evidence contradicts it |
-| 2026-08-01 | public head `f47d6c6...` | disposition `REPAIR` | base drift, parallel test, and preflight remain | all three gates clear on one head |
+| 2026-07-30 | base `3499c84...`, PR #2 | reject `firstActiveCall` authority | exact wrong-call failure | upstream replacement |
+| 2026-07-30 | head `0ffa264...` | require post-await revalidation | modifier awaits can outlive authority | modifier becomes synchronous |
+| 2026-07-31 | head `c707e267...` | require generation identity | same-ID replacement remained | explicit token added |
+| 2026-07-31 | head `b359ece8...`, run `30595253180` | retain exact-ID plus identity fence | 14/14 green | integration contradicts it |
+| 2026-08-01 | run `30690542009` | stop transient test generation | pre-test lint failure | none; corrected test committed |
+| 2026-08-01 | source `0c3a86b...` | select immutable four-file candidate | one clean commit on current main with real scheduler test | current execution or review rejects it |
