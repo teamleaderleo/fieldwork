@@ -1,24 +1,45 @@
 # Tests — Miniflare runtime-first disposal
 
-Current test judgment: **HOLD**
+## In simple words
+
+The clean source and three target-native lifecycle controls now exist at one exact head. The source fence is verified. Repository CI is running on the canonical owned-fork source PR. The remaining evidence task is to confirm the focused assertions executed, capture a baseline receipt, and classify the ordinary gates.
+
+Current test judgment: **EXECUTE**
 
 ## Exact candidate target
 
 Base: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`  
 Branch: `teamleaderleo/workers-sdk:upstream/miniflare-runtime-first-disposal`  
-Current branch head: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`  
-Materialization carrier: `teamleaderleo/workers-sdk#4` at `92eeb04c7866775351e184085cc53c0b9d3b1446`  
-Carrier run: `30674559186`  
-Carrier job: `91299001548`  
-Observed carrier status: `queued`
+Candidate head: `56f4df168d7c4707890ca3345e3d4a34ee3fa08a`  
+Canonical source PR: `teamleaderleo/workers-sdk#5`  
+Retired materialization carrier: `teamleaderleo/workers-sdk#4` at `92eeb04c7866775351e184085cc53c0b9d3b1446`  
+Carrier run/job: `30674559186` / `91299001548`  
+Carrier result: `success`
+
+## Exact source fence
+
+Verified through the base-to-head comparison:
+
+- one commit ahead;
+- zero commits behind;
+- exactly three changed files;
+- `123` additions and `4` deletions on source PR `#5`.
+
+```text
+.changeset/fuzzy-cats-dispose.md
+packages/miniflare/src/index.ts
+packages/miniflare/test/teardown-lifecycle.spec.ts
+```
+
+The canonical head contains no workflow, packet, playground, or legacy experiment files.
 
 ## Target-native test file
 
-Prepared path:
+Committed path:
 
-`packages/miniflare/test/teardown-lifecycle.spec.ts`
+[`packages/miniflare/test/teardown-lifecycle.spec.ts`](https://github.com/teamleaderleo/workers-sdk/blob/56f4df168d7c4707890ca3345e3d4a34ee3fa08a/packages/miniflare/test/teardown-lifecycle.spec.ts)
 
-The file follows the package guidance in `packages/miniflare/AGENTS.md`: Vitest, `.spec.ts`, real Miniflare instances, controlled prototype injection, and explicit cleanup fallback.
+The file uses Vitest, real Miniflare instances, controlled prototype injection, a workerd-specific child-kill observer, and explicit cleanup fallback.
 
 ## Control 1 — rejected proxy cleanup
 
@@ -93,6 +114,20 @@ The legacy carrier also contains a test for failed initialization followed by la
 
 ## Executed evidence
 
+### Materialization receipt
+
+Workflow run `30674559186`, job `91299001548` completed successfully.
+
+Established:
+
+- branch creation from exact base `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`;
+- current-source patch application;
+- creation of the exact three-test file;
+- creation of the Miniflare patch changeset;
+- publication of source head `56f4df168d7c4707890ca3345e3d4a34ee3fa08a`.
+
+Evidence class: source materialization. This receipt contains no target test execution.
+
 ### A001 executable models
 
 The accepted A001 investigation recorded successful direct Node controls for:
@@ -111,20 +146,21 @@ node /tmp/bounded-cleanup.mjs
 
 Recorded result: pass at the A001 evidence point ending at `fa39841a98d71edd2df7561beb877f4dacbc6b7c` and summarized through `teamleaderleo/fieldwork#112`.
 
-These models validate control flow. They do not replace target-native package execution.
+Evidence class: `model-executed`. These controls validate JavaScript control flow and leave package behavior for target execution.
 
 ### Repository inspection
 
-Executed through GitHub at exact current base:
+Executed through GitHub at exact current base and exact candidate head:
 
 - read `CONTRIBUTING.md`;
 - read package `AGENTS.md` and `package.json`;
 - inspected current `Miniflare.dispose()` and `Runtime.dispose()`;
 - compared legacy base `161443215fba3ac77407ba30f6996aa9963a0276` with current base `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`;
 - inspected the legacy patch and four-test carrier file;
-- separated the three lifecycle controls from the aggregation control.
+- separated the three lifecycle controls from the aggregation control;
+- reviewed the complete source PR `#5` patch.
 
-Result: source mechanism remains present on current base; target code has evolved around Browser Rendering, dispatchers, temporary cleanup, and registry teardown, so current-base execution remains required.
+Evidence class: `source-read` and `target-test-prepared`.
 
 ### Local clone attempt
 
@@ -136,7 +172,27 @@ Result:
 Could not resolve host: github.com
 ```
 
-Classification: execution-environment network blocker. GitHub connector reads and writes remain available.
+Classification: runner network limitation. GitHub connector reads and writes remained available, and the owned-fork workflow materialized the clean branch.
+
+## Current exact-head workflows
+
+Source head: `56f4df168d7c4707890ca3345e3d4a34ee3fa08a`
+
+| Workflow | Run | Current recorded state |
+| --- | ---: | --- |
+| CI | `30690756068` | queued at last inspection |
+| CI (Other Node Versions) | `30690756037` | queued at last inspection |
+| Changeset Review | `30690756089` | queued at last inspection |
+| Semgrep OSS scan | `30690756086` | queued at last inspection |
+| Wrangler E2E | `30690756036` | queued at last inspection |
+| Vite Plugin E2E | `30690756056` | queued at last inspection |
+| Vite plugin playgrounds | `30690756058` | queued at last inspection |
+| C3 E2E | `30690756051` | queued at last inspection |
+| Local Explorer UI E2E | `30690756098` | queued at last inspection |
+| Deploy Previews | `30690756055` | skipped |
+| Prerelease | `30690756085` | skipped |
+
+The broad repository matrix exceeds this unit's direct scope. Each result must be classified by whether it built or executed the Miniflare source and focused test.
 
 ## Tests still required
 
@@ -152,7 +208,7 @@ Expected:
 
 ### Candidate focused controls
 
-Run the same file against the clean candidate head.
+Run the same file against candidate head `56f4df168d7c4707890ca3345e3d4a34ee3fa08a`.
 
 Expected: all three pass.
 
@@ -168,40 +224,33 @@ pnpm --filter miniflare test
 pnpm run check
 ```
 
-The exact accepted command set should follow current workspace behavior and CI configuration. Retain run and job links for every executed gate.
+Retain the exact command, source head, runner environment, assertion count, run, job, and result. Classify installation, setup, fixture, timeout, and unrelated-package failures separately.
 
-### Diff fence
-
-Verify one commit over the base and exactly:
-
-```text
-.changeset/fuzzy-cats-dispose.md
-packages/miniflare/src/index.ts
-packages/miniflare/test/teardown-lifecycle.spec.ts
-```
-
-### Review controls
+## Review controls
 
 - confirm the test only counts `SIGKILL` calls on a child whose spawn file begins with `workerd`;
 - confirm prototype mocks are restored after every test;
 - confirm baseline cleanup fallback cannot turn a failed ownership assertion into a leaked CI process;
-- confirm the test does not depend on child exit timing, only initiation of the kill request;
-- confirm error-aggregation behavior stays outside the candidate.
+- confirm the first control allows the killed child to finish exiting before the test process ends;
+- confirm the test observes initiation of the kill request instead of child-exit timing;
+- confirm error-aggregation behavior stays outside the candidate;
+- confirm early runtime termination leaves Browser Rendering cleanup independent and diagnosable.
 
-## Blockers
+## Remaining execution blockers
 
-1. Carrier run `30674559186` is queued, so the clean candidate commit has not been published.
-2. Target-native controls have not executed on baseline or candidate.
-3. Full package and repository checks have not executed for the candidate.
-4. Public upstream issue engagement is unauthorized.
+1. A retained candidate focused-test receipt is pending.
+2. A retained baseline focused-test receipt is pending.
+3. Ordinary Miniflare gate conclusions are pending.
+4. Independent final review is pending.
+
+Public-contact authority is a later submission boundary and does not block owned-fork execution.
 
 ## Acceptance rule
 
-Move the test judgment from **HOLD** only when:
+Promote the test judgment from **EXECUTE** when:
 
-- the exact clean source head is recorded;
 - baseline and candidate focused receipts exist;
 - candidate focused controls pass;
 - applicable ordinary gates pass or every failure is classified with exact logs and unaffected-file proof;
-- the source diff fence is exact;
-- self-review has no unresolved correctness concern.
+- complete-diff review clears the first-test child-exit concern and browser-cleanup interaction;
+- independent review accepts the exact source head.
