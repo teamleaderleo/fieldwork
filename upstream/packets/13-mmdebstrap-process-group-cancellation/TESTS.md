@@ -2,29 +2,33 @@
 
 ## In simple words
 
-The selected mechanism passed exact imported-wrapper controls for null, QEMU-style, and sudo process trees plus the full Linux Fieldwork gate. A fresh local model repeated the core later-work distinction, and its exact source now lives in this packet. The upstream mmdebstrap target suite has yet to run on a clean current-`master` source branch.
+The selected mechanism passed exact imported-wrapper controls for null, QEMU-style, and sudo process trees. Those receipts remain valid for their exact historical source/base pairs. Linux Fieldwork later changed its workflow and test-discovery inputs, so a byte-identical current-main restack is now executing on PR #406.
+
+A reviewed relocatable local model also repeats the core later-work distinction. The upstream mmdebstrap target suite has yet to run on a clean current-`master` source branch.
 
 ## Evidence classes
 
 | Claim | Evidence class | Exact support | Limit |
 | --- | --- | --- | --- |
-| imported and current inspected `coverage.py` use wrapper-only termination | `source-read` | imported blob `9a522484…`; inspected upstream `master` revision `77ec9be5…` | current revision inspected through public source surfaces |
-| wrapper-only variants permit later descendant work | `model-executed` | Linux Fieldwork exact-wrapper controls and local 2026-08-01 model | responsive modeled topologies |
-| group candidate suppresses later work in null/QEMU-wrapper/sudo controls | `model-executed` | CI 931 and CI 942 | Fieldwork harness, Linux runner; real QEMU omitted |
-| Linux Fieldwork repository gates pass | `full-gate` | CI 931, 942, 943 | gate belongs to Linux Fieldwork, not upstream mmdebstrap |
-| upstream target-native regression exists | — | no clean target test exists yet | preparation pending |
+| imported `coverage.py` uses wrapper-only termination | `source-read` | imported blob `9a522484…` | imported `debian/1.5.7-3` source |
+| previously inspected upstream source carried the same lifecycle | `source-read` | reported revision `77ec9be5…` | refresh canonical Salsa `master` before target materialization |
+| wrapper-only variants permit later descendant work | `model-executed` | exact-wrapper controls and packet model | responsive modeled topologies |
+| group candidate suppresses later work in null/QEMU-wrapper/sudo controls | `model-executed` | CI 931 and CI 942 | Linux Fieldwork harness; real QEMU omitted |
+| historical Linux Fieldwork repository gates passed | `full-gate` | CI 931, 942, 943 | exact historical base pairs only |
+| current Linux Fieldwork integration passes | `target-test-prepared` | PR #406 at `e82b9b05…`; CI 1151 queued | result pending |
+| upstream target-native regression exists | — | no clean target test exists | preparation pending |
 | upstream ordinary gates pass | — | never run | delivery blocker |
 
-## Retained Linux Fieldwork gate — mechanism generation
+## Historical mechanism gate
 
 - source head: `e90fc438f530f7bd78ffd6fd1ba24c665bd96913`
 - workflow run: [30632491641](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30632491641)
 - job: [91161937871](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30632491641/job/91161937871)
 - result: success
+- recorded count: 359 passed in 167.224 seconds
 - steps: checkout proposed state; validate changed patch carriers; compile Python tools; run unit tests; check shell syntax and command help
-- recorded test count: 359 passed in 167.224 seconds
 
-Focused controls recorded by the canonical carrier:
+Focused controls:
 
 1. imported null baseline — status 0 after release; surviving pipeline; later work;
 2. status-only null — status 130 after release; surviving pipeline; later work;
@@ -43,15 +47,43 @@ Focused controls recorded by the canonical carrier:
 
 Specialized `capture-bug-report` and `reproduce-mmdebstrap` jobs were skipped by workflow conditions. The successful `lab-tools` job contains the relevant gate.
 
-## Retained Linux Fieldwork gate — current carrier generation
+## Historical retained-head gate
 
 - source head: `dfc6d0503fb844f4c428ce16a567a9fdcd35280a`
 - generated merge: `24c7ba065b4c50fee76a07b0f6d6cb000d4684d8`
 - workflow run: [30633602052](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30633602052)
 - job: [91165600654](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30633602052/job/91165600654)
 - result: success
-- recorded unique discovery count in final review: 340 repository tests
-- candidate patch and executable test bytes remained unchanged after the mechanism head; later commits narrowed evidence wording.
+- recorded count: 340 uniquely discovered repository tests
+
+Candidate patch and executable test bytes remained unchanged after the mechanism head; later commits narrowed evidence wording.
+
+### Staleness classification
+
+A later complete review found that Linux Fieldwork `main` had changed governing inputs after CI 943: workflow behavior, unittest discovery and duplicate handling, retained-patch validation, process-group kill probes, zero-status selection controls, and signal/result-precedence suites. CI 931/943 remain valid at their exact heads and generated merges. They no longer support a current-main delivery claim.
+
+## Current-main reconciliation — active execution
+
+- canonical current Linux Fieldwork base: `6cc74d846c50b9bbb88247e8a128b67e8c174c1e`
+- branch: `repair/313-current-main-reconciliation`
+- exact source head: `e82b9b059850fce1efcf8daadef89049495a8b27`
+- pull request: [#406](https://github.com/teamleaderleo/linux-fieldwork/pull/406)
+- changed-file fence: nine files
+- source relation: exact blob-for-blob restack of PR #313 head `dfc6d050…`
+- workflow run: [30690801852](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30690801852)
+- run number: 1151
+- state at packet update: queued
+
+Required receipt from this gate:
+
+- generated merge identity;
+- patch validation result;
+- compilation result;
+- exact discovery count;
+- confirmation that all three process-group modules execute once;
+- null/QEMU-wrapper/sudo lifecycle results;
+- shell syntax and command-help result;
+- skips and environment limits.
 
 ## QEMU causal-evidence successor
 
@@ -65,16 +97,31 @@ Specialized `capture-bug-report` and `reproduce-mmdebstrap` jobs were skipped by
 - recorded count: 269 tests passed
 - independent exact-head review comment: `5143736054`
 
-The fixture records entry into Python's SIGINT handler before the losing controls release the deliberately surviving QEMU-like worker. Candidate product bytes remain unchanged.
+The fixture records entry into Python's SIGINT handler before the losing controls release the deliberately surviving QEMU-like worker. Candidate product bytes remain unchanged. This refinement remains separate from #313 and #406.
 
-## Fresh local process model
+## Local process model
 
 - date: 2026-08-01
 - kernel: Linux 6.12.13 x86_64
 - Python: 3.13.5
-- command: `cd /tmp/unit13-probe && python3 harness.py`
-- initial result: success
-- closeout rerun: success with identical output
+- evidence class: `model-executed`
+
+Original run:
+
+```sh
+cd /tmp/unit13-probe
+python3 harness.py
+```
+
+Reviewed relocatable replay:
+
+```sh
+cd upstream/packets/13-mmdebstrap-process-group-cancellation/fixtures/local-process-model
+python3 -m py_compile child.py driver.py harness.py harness_original.py wrapper.py
+python3 harness.py
+```
+
+Results:
 
 ```text
 variant=baseline rc=0 later_work=true child_live=false
@@ -82,32 +129,38 @@ variant=status rc=130 later_work=true child_live=false
 variant=group rc=130 later_work=false child_live=false
 ```
 
+- compilation: success
+- original run: success
+- closeout rerun: success
+- reviewed relocatable replay: success
 - receipt: [`receipts/2026-08-01-local-process-model.md`](./receipts/2026-08-01-local-process-model.md)
-- exact retained source: [`fixtures/local-process-model/`](./fixtures/local-process-model/)
+- retained source: [`fixtures/local-process-model/`](./fixtures/local-process-model/)
 
-## Setup/network result
+The reviewed replay repairs only portability, readiness ordering, early-exit diagnosis, and cleanup. It changes no expected outcome or mechanism.
 
-Attempted read-only `git ls-remote` against the canonical upstream host from the local execution container. DNS resolution failed with `Could not resolve host`. Classification: setup/network limitation. Public source inspection through available repository interfaces supplied the inspected upstream revision and relevant file comparison.
+## Setup and retrieval limits
 
-The canonical Salsa project advertises `master` as its selected/default branch. Any future target materialization must refresh the branch head directly before applying the patch.
+A read-only `git ls-remote` attempt against the canonical upstream host failed with `Could not resolve host`. Classification: setup/network limitation.
 
-## Tests prepared or retained but outside the canonical carrier
+The Salsa project advertises `master` as its selected/default branch. Revision `77ec9be5417ee44c96343d2347145585da1b1f94` is retained as the previously inspected source identity, not asserted as the current head. Refresh `master` directly before target materialization.
 
-- PR #339 refined QEMU losing-control test remains separate from #313.
-- PR #347/#353 retained repeated-SIGINT, TERM-resistance, final-publication, and containment comparisons; no product patch selected.
-- packet patch matches the inspected source hunk by textual identity, while `git apply --check` against a fresh current-upstream checkout remains pending.
+## Tests retained outside the canonical carrier
+
+- PR #339 — refined QEMU losing-control causal proof;
+- PR #347/#353 — repeated-SIGINT, TERM-resistance, final-publication, and containment comparisons; no product patch selected;
+- packet patch — matches the retained imported source hunk; `git apply --check` against a fresh canonical checkout remains pending.
 
 ## Required next execution
 
-After an owned target fork exists:
+1. finish PR #406 current-main CI and complete-diff review;
+2. record its exact generated merge, counts, skips, and conclusions;
+3. obtain or create an owned mmdebstrap fork;
+4. refresh canonical Salsa `master` and record the exact base;
+5. create `fix/coverage-backend-process-group-current-master`;
+6. apply the retained one-file patch;
+7. run `python3 -m py_compile coverage.py`;
+8. adapt the discriminating parent-only SIGINT regression into the target's accepted test surface;
+9. run focused baseline/candidate execution and project-declared ordinary gates;
+10. record exact commands, environment, counts, skips, cleanup, and rerun.
 
-1. create `fix/coverage-backend-process-group-current-master` from the refreshed exact upstream `master` head;
-2. apply the retained one-file patch;
-3. run `python3 -m py_compile coverage.py`;
-4. adapt the discriminating parent-only SIGINT regression into the target's accepted test surface;
-5. run that focused test on baseline and candidate;
-6. run the project-declared source checks and ordinary suite appropriate to the change;
-7. record exact commands, environment, counts, skips, and receipts;
-8. review the complete clean target diff.
-
-Until those steps run, the packet carries no target-native or upstream ordinary-gate claim.
+Until those steps run, the packet carries no upstream target-native or upstream ordinary-gate claim.
