@@ -2,92 +2,78 @@
 
 ## Decision
 
-Selected: pin gomarkdoc 1.1.0 to `buildGo125Module` and restore the default command-package checks by removing `doCheck = false`.
+Selected: keep the current Go builder, update the one Go 1.26 command golden under `testData`, and restore the default selected command-package checks.
 
-Canonical source: [`5c17b14e271611c3418e3e2f572366766f6aa3cc`](https://github.com/teamleaderleo/nixpkgs/commit/5c17b14e271611c3418e3e2f572366766f6aa3cc)
+Canonical source: [`3a036ab91fa1de2fbbd038b2b212552cff1cc5bf`](https://github.com/teamleaderleo/nixpkgs/commit/3a036ab91fa1de2fbbd038b2b212552cff1cc5bf)
 
 Current disposition: `EXECUTE`.
 
-## Selected approach — Go 1.25 pin only
+## Selected approach — current-Go golden repair
 
 ```nix
-{
-  buildGo125Module,
-  # ...
-}:
-
-buildGo125Module (finalAttrs: {
-  # gomarkdoc 1.1.0's command tests compare generated documentation that
-  # changed with Go 1.26. Keep the oldest supported Go toolchain for now.
-})
+postPatch = ''
+  substituteInPlace testData/docs/README.md \
+    --replace-fail 'GetField gets \[\*AnotherStruct.Field\].' \
+    'GetField gets [\\\*AnotherStruct.Field](<#AnotherStruct>).'
+'';
 ```
 
-`buildGoModule` enables checks by default, so removing the explicit disable restores `cmd/gomarkdoc` tests.
+Removing `doCheck = false` restores the standard selected-package check.
 
 ### Why selected
 
-- The repair-isolation run proves Go 1.25 alone passes.
-- The same run proves Go 1.26 fails even after fixture and flag cleanup.
-- It preserves the existing command-only package selection.
-- It uses the standard Nixpkgs Go build and check phases.
-- It adds no test patch, custom check phase, fixture, or shell mutation.
-- Versioned Go builders are the documented Nixpkgs response for toolchain-sensitive packages.
+- Go 1.26 command checks pass after one exact golden update.
+- The change touches test data, not product source.
+- The installed candidate binary is byte-identical to the checks-disabled Go 1.26 baseline.
+- It preserves the default supported toolchain.
+- It avoids a fixed-builder lifecycle pin.
+- It keeps the existing command-only package selection and standard Go phases.
+- `--replace-fail` makes future source drift explicit.
 
 ### Risks
 
-- The installed binary changes from Go 1.26 to Go 1.25, which can change generated documentation.
-- Go 1.25 is temporary and will eventually leave the supported Nixpkgs window.
-- Selected checks cover the built command package, not the complete upstream library suite.
-- The package is dormant upstream, making a future clean update uncertain.
+- The expected markdown is coupled to current Go documentation-link semantics.
+- A future Go bump may change additional golden output.
+- Selected checks cover the built command package, not every upstream library package.
+- The package is dormant upstream.
 
-## Executed rejected approach — fixture and `GOFLAGS` cleanup as fixes
+## Executed rejected approach — fixture and `GOFLAGS` cleanup
 
-Run [`30692403974`](https://github.com/teamleaderleo/fieldwork/actions/runs/30692403974) tested all combinations.
+Run [`30692403974`](https://github.com/teamleaderleo/fieldwork/actions/runs/30692403974) tested all combinations. Go 1.25 passed with neither cleanup, and Go 1.26 failed with both. They are not repair ingredients.
 
-Go 1.25 passed with:
+## Executed rejected approach — Go 1.25 pin
 
-- both cleanups;
-- only fixture creation;
-- only `GOFLAGS` cleanup;
-- neither cleanup.
+Source `5c17b14e271611c3418e3e2f572366766f6aa3cc` changed to `buildGo125Module` and restored checks. Exact aarch64-darwin execution passed.
 
-The cleanups are not required repairs. They were removed to satisfy the smallest-proven-diff rule.
+Rejected after the current-Go comparison because:
 
-## Executed rejected approach — current Go with both cleanups
-
-Go 1.26 plus the empty fixture and `GOFLAGS` cleanup failed `TestCommand/./docs`. This disproves the original causal theory.
+- it changes the shipped toolchain and standard-library view;
+- it creates removal work when Go 1.25 leaves Nixpkgs;
+- the Go 1.26 golden repair restores checks with an identical installed binary.
 
 ## Executed rejected approach — full package discovery
 
-Run [`30674969557`](https://github.com/teamleaderleo/fieldwork/actions/runs/30674969557) cleared `subPackages` and reached the broad suite on Linux and Darwin. `lang` failed deterministic standard-library documentation goldens.
-
-Both expected strings align only with Go 1.21 or older. Current Nixpkgs does not retain such an old supported builder. Rejected.
-
-## Viable future approach — patch current-Go goldens
-
-Patch the gomarkdoc v1.1.0 expected documentation for Go 1.26 and retain the default builder. This would validate the currently shipped toolchain but adds test-data patches coupled to Go's evolving documentation output. Consider when the Go 1.25 pin ages out.
+Run [`30674969557`](https://github.com/teamleaderleo/fieldwork/actions/runs/30674969557) reached the broad suite on Linux and Darwin. `lang` failed standard-library documentation goldens whose combined expectations require Go 1.21 or older. Rejected.
 
 ## Rejected approach — split build and test toolchains
 
-Building the product with Go 1.26 while running tests with Go 1.25 would make the checks pass without validating production behavior. Rejected.
+Building with Go 1.26 while testing with Go 1.25 would not validate production behavior. Rejected.
 
 ## Rejected approach — custom checkPhase
 
-The standard selected-package check phase works under Go 1.25. A custom phase adds unnecessary divergence. Rejected.
+The standard selected-package check works after the golden update. Rejected.
 
-## Rejected approach — update to an untagged gomarkdoc revision
+## Rejected approach — untagged update
 
 No newer tagged release exists. An untagged update changes dependencies and hashes and exceeds unit 22. Rejected.
 
 ## Validation fence
 
-The next execution carrier must prove for source head `5c17b14e...`:
+Final acceptance requires:
 
-- exact parent `55096b0c...`;
+- exact source head `3a036ab9...` and parent;
 - one changed package file and `git diff --check`;
-- package build and `cmd/gomarkdoc` check on x86_64-linux and aarch64-darwin;
-- exactly one gomarkdoc package result;
-- installed help output;
-- version `1.1.0`;
-- Linux `nixpkgs-review rev HEAD --no-shell`;
-- retained artifacts and current packet integrity.
+- aarch64-darwin command check, help, version, and binary identity — complete;
+- x86_64-linux command check, help, version, and `nixpkgs-review` — pending;
+- retained artifacts and current packet integrity;
+- clean retirement of temporary execution carriers.

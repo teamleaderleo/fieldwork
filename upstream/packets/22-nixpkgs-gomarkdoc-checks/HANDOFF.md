@@ -4,63 +4,71 @@
 
 `EXECUTE`
 
-Independent code review is complete. The simplified exact source requires fresh target execution.
+Independent code review selected the current-Go golden repair. Exact Darwin acceptance controls pass; Linux and packet integrity remain.
 
 ## Exact source
 
 - Repository: `teamleaderleo/nixpkgs`
 - Branch: `fieldwork/unit-22-gomarkdoc-checks`
 - Base: `55096b0ce13784d4f6420059c5627475fa26ebb1`
-- Head: `5c17b14e271611c3418e3e2f572366766f6aa3cc`
+- Head: `3a036ab91fa1de2fbbd038b2b212552cff1cc5bf`
 - Changed file: `pkgs/by-name/go/gomarkdoc/package.nix`
-- Relation: one commit, one file, 4 additions, 6 deletions
+- Relation: one commit, one file, six additions, four deletions
 
 ## Source decision
 
-- use `buildGo125Module`;
-- restore default command checks by removing `doCheck = false`;
+- retain the default Go 1.26 builder;
+- restore selected command checks by removing `doCheck = false`;
+- update one expected markdown line in `testData/docs/README.md`;
 - retain `subPackages = [ "cmd/gomarkdoc" ]`;
-- do not create a missing fixture;
+- do not create a fixture;
 - do not rewrite `GOFLAGS`.
 
 ## Why
 
-A target variant matrix proves Go 1.25 alone passes and Go 1.26 fails even with both proposed environment cleanups. The public issue compared a Go 1.25 release branch with Go 1.26 master and misidentified captured diagnostics as the cause.
+A target matrix disproved the original environment-cleanup theory. A current-Go comparison then proved the one-line golden update passes and leaves the installed binary byte-for-byte identical to the checks-disabled package.
 
 ## Executed evidence
+
+### Go 1.26 golden acceptance
+
+- Run `30692966149` — success
+- Job `91350898702`
+- Artifact `8816337182`
+- Digest `sha256:14ae794f8160a5f6c68bcf113dd430d628fa4b8399ad9ceb65f1d5f33770e5e1`
+- Command check, help, version, and binary identity: pass
+- Shared binary SHA-256: `b8bc993930c3a8af5ebf141d0fa5e2f422b117a420630f532296e20e4428e93e`
 
 ### Repair isolation
 
 - Run `30692403974` — success
 - Job `91349338842`
-- Artifact `8816151764`
-- Digest `sha256:8597cc8e25daa9975c20a36c1a824d939820f373bc8a0521d2a022ac60e5471e`
-- Conclusion: pin required; fixture and flag edits unnecessary
+- Conclusion: fixture and flag edits unnecessary; Go 1.26 golden mismatch is causal
 
 ### Broader-suite negative control
 
-- Run `30674969557` — failure by design
+- Run `30674969557` — expected failure
 - Linux and Darwin reached broad package discovery
 - Both failed deterministic `lang` standard-library prose expectations
 
-### Superseded exact-head passes
+### Superseded pin
 
-Prior Go 1.25 command-package executions on Linux and Darwin remain useful compatibility evidence but do not validate source head `5c17b14e...`.
+The Go 1.25 candidate passed exact Darwin gates but is rejected because the final Go 1.26 repair preserves installed bytes and avoids a toolchain pin.
 
 ## Independent review
 
-Complete-diff review accepted the simplified source direction and repaired the packet's causal and compatibility claims. No additional independent-review dependency remains.
+The final diff, causal chain, compatibility behavior, and drafts are accepted. No additional independent-review dependency remains.
 
 Receipt: `receipts/2026-08-01-independent-code-review.md`.
 
 ## Required continuation
 
-1. Create a clean execution carrier anchored to the packet revision containing this handoff.
-2. Run source head `5c17b14e...` on x86_64-linux and aarch64-darwin.
-3. Preserve source fence, command result, one-package count, installed help, version, Linux `nixpkgs-review`, artifacts, and integrity.
-4. Transfer receipts and retire the execution carrier.
-5. Mark the research packet `ACCEPT` for the user's final-mile public decision if all exact-head gates pass.
-6. Rebase/regenerate on a fresh public Nixpkgs head before any authorized submission.
+1. Create a clean Linux execution carrier anchored to the packet revision containing this handoff.
+2. Run source `3a036ab9...` on x86_64-linux with package/check/help/version and `nixpkgs-review` gates.
+3. Preserve artifact and current Fieldwork-integrity receipts.
+4. Transfer receipts and retire PRs #437 and #438.
+5. Mark the packet `ACCEPT` for the user's final-mile public decision if all gates pass.
+6. Regenerate on a fresh public Nixpkgs head before authorized submission.
 
 ## Public interaction
 

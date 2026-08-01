@@ -4,73 +4,64 @@
 
 - Work class: `upstream-fork research`
 - Reviewer lane: independent complete-diff pass assigned by the user to this workstream
-- Canonical source: `teamleaderleo/nixpkgs:fieldwork/unit-22-gomarkdoc-checks`
 - Source base: `55096b0ce13784d4f6420059c5627475fa26ebb1`
-- Source head: `5c17b14e271611c3418e3e2f572366766f6aa3cc`
+- Canonical source head: `3a036ab91fa1de2fbbd038b2b212552cff1cc5bf`
 - Changed-file fence: `pkgs/by-name/go/gomarkdoc/package.nix`
-- Upstream authority: absent
+- Upstream-contact authority: absent
 
 ## Complete-diff result
 
 The source is one commit and one file. It:
 
-- replaces `buildGoModule` with `buildGo125Module`;
-- removes the stale diagnostic-based disable-tests explanation;
-- removes `doCheck = false` so the standard command-package check runs;
-- adds a two-line compatibility comment.
+- removes the stale diagnostic-based disable-tests explanation and `doCheck = false`;
+- adds one `postPatch` replacement for the Go 1.26 command golden;
+- uses `--replace-fail` to reject unexpected source drift.
 
-It does not add fixtures, environment mutations, custom checks, test patches, generated files, dependency changes, hash changes, widened package selection, or Fieldwork files.
+It does not change the Go builder, package version, hashes, dependencies, command selection, linker flags, metadata, installed files, or generic check implementation.
 
 ## Findings repaired during review
 
 ### 1. Incorrect causal attribution — repaired
 
-The previous packet treated the missing fixture and leaked `-mod=vendor` as repair requirements. Comparative target execution proves neither is required. The source and packet were simplified.
+Fixture creation and `GOFLAGS` cleanup were disproved as requirements by a five-variant target matrix.
 
 ### 2. Branch comparison ambiguity — repaired
 
-The public issue's passing revision is from release-25.11 and its failing revision is from master. The decisive difference is Go 1.25 versus Go 1.26. The packet no longer presents them as a same-branch temporal regression.
+The public issue compares a Go 1.25 release snapshot with Go 1.26 master, not a linear same-branch package regression.
 
-### 3. Product-output compatibility claim — repaired
+### 3. Go-pin product risk — avoided
 
-Pinning the builder changes the installed binary's Go runtime/GOROOT view and can change generated documentation. Earlier wording claiming unchanged output was removed.
+A Go 1.25 pin passed but changed the shipped toolchain and created lifecycle work. The final current-Go repair preserves installed bytes exactly.
 
-### 4. Broader-suite feasibility — clarified
+### 4. Full-suite wording — corrected
 
-The two observed language goldens jointly require Go 1.21 or older. Current Nixpkgs does not retain that as a supported builder. Full-suite restoration is not part of this package-selected command repair.
+Broad discovery reaches additional packages with older standard-library prose goldens. Selected coverage remains the command package built by Nixpkgs.
 
 ## Evidence table
 
 | Claim | Evidence class | Result | Limit |
 | --- | --- | --- | --- |
-| release snapshot uses Go 1.25; master snapshot uses Go 1.26 | `source-read` | established | two named snapshots |
-| Go 1.25 alone passes command checks | `target-executed comparative experiment` | established | generated variant, not final Git head |
-| fixture and flag cleanup are unnecessary | `target-executed comparative experiment` | established | aarch64-darwin experiment |
-| Go 1.26 fails with both cleanups | `target-executed negative control` | established | aarch64-darwin command package |
-| broad discovery reaches all package families | `target-executed` | established | superseded source generation |
-| broad suite is compatible with supported Go | disproved | deterministic language failures | Go 1.25 only |
-| simplified source is one clean commit/file | `source-read` | established | execution pending |
-| simplified exact head passes Linux/Darwin | `target-test-prepared` | pending | no exact-head receipt yet |
+| release uses Go 1.25; master uses Go 1.26 | `source-read` | established | named snapshots |
+| fixture and flag cleanup are unnecessary | `target-executed matrix` | established | aarch64-darwin |
+| Go 1.26 fails before golden update | `target-executed negative control` | established | command package |
+| one-line Go 1.26 golden update passes | `target-executed` | established | aarch64-darwin |
+| installed baseline/candidate binaries are identical | `target-executed comparative control` | established | aarch64-darwin |
+| broader discovery reaches all package families | `target-executed` | established | superseded generation |
+| canonical source is one clean commit/file | `source-read` | established | Linux pending |
+| canonical Linux check/review passes | `target-test-prepared` | pending | queued next |
 
 ## Compatibility judgment
 
-The Go 1.25 pin is acceptable as a bounded compatibility repair because:
-
-- upstream v1.1.0 CI pinned Go 1.20;
-- current Go 1.26 changes checked generated output;
-- Go 1.25 is the oldest currently supported Nixpkgs toolchain;
-- the package is dormant and has no newer tagged release.
-
-The pin is not permanent. A future update should prefer a maintained gomarkdoc release or current-Go golden repair over carrying an unsupported Go builder.
+The selected candidate is preferable because it restores a meaningful production-toolchain test while leaving the installed executable unchanged. The test-data adjustment is coupled to Go 1.26 documentation semantics, but `--replace-fail` and future Go bumps make that maintenance visible.
 
 ## Independent disposition
 
 `EXECUTE`
 
-The source design and complete diff are accepted. The next transition is exact-head target execution, not another review dependency.
+The final source design and complete diff are accepted. The remaining transition is Linux target execution and packet integrity, not another review dependency.
 
-Clearing condition: source head `5c17b14e...` must pass the prepared Linux and Darwin package/check/help/version gates, Linux `nixpkgs-review`, and packet integrity. After receipt transfer, this review lane may issue `ACCEPT` for handoff to the user's final-mile upstream decision.
+Clearing condition: exact source `3a036ab9...` must pass x86_64-linux package/check/help/version and `nixpkgs-review`, followed by current packet integrity. Then this lane may issue `ACCEPT` for the user's final-mile upstream decision.
 
 ## Reviewer eligibility
 
-This receipt records the independent review responsibility explicitly assigned by the user. The user retains the final authority for public upstream submission. No public interaction is authorized by this review.
+This receipt records the independent responsibility assigned by the user. The user retains final authority for public upstream submission. No public interaction is authorized by this review.

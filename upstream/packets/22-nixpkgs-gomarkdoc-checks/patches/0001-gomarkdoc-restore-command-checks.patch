@@ -1,34 +1,19 @@
-From 5c17b14e271611c3418e3e2f572366766f6aa3cc Mon Sep 17 00:00:00 2001
+From 3a036ab91fa1de2fbbd038b2b212552cff1cc5bf Mon Sep 17 00:00:00 2001
 From: teamleaderleo <teamleaderleo@users.noreply.github.com>
-Date: Sat, 1 Aug 2026 08:55:00 +0000
-Subject: [PATCH] gomarkdoc: restore command checks
+Date: Sat, 1 Aug 2026 09:00:00 +0000
+Subject: [PATCH] gomarkdoc: update Go 1.26 command golden
 
 Base: 55096b0ce13784d4f6420059c5627475fa26ebb1
 Source: teamleaderleo/nixpkgs fieldwork/unit-22-gomarkdoc-checks
 ---
- pkgs/by-name/go/gomarkdoc/package.nix | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ pkgs/by-name/go/gomarkdoc/package.nix | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
 diff --git a/pkgs/by-name/go/gomarkdoc/package.nix b/pkgs/by-name/go/gomarkdoc/package.nix
-index 149e1cf1908f..95b031206da5 100644
+index 149e1cf1908f..53f4eef322e8 100644
 --- a/pkgs/by-name/go/gomarkdoc/package.nix
 +++ b/pkgs/by-name/go/gomarkdoc/package.nix
-@@ -1,12 +1,12 @@
- {
-   lib,
--  buildGoModule,
-+  buildGo125Module,
-   fetchFromGitHub,
-   testers,
-   gomarkdoc,
- }:
- 
--buildGoModule (finalAttrs: {
-+buildGo125Module (finalAttrs: {
-   pname = "gomarkdoc";
-   version = "1.1.0";
- 
-@@ -21,10 +21,8 @@ buildGoModule (finalAttrs: {
+@@ -21,10 +21,12 @@ buildGoModule (finalAttrs: {
  
    vendorHash = "sha256-gCuYqk9agH86wfGd7k6QwLUiG3Mv6TrEd9tdyj8AYPs=";
  
@@ -36,8 +21,12 @@ index 149e1cf1908f..95b031206da5 100644
 -  # environment. nixpkgs sets GOFLAGS=-mod=vendor, but gomarkdoc's own flag
 -  # parser only accepts -tags, so -mod triggers "flag provided but not defined".
 -  doCheck = false;
-+  # gomarkdoc 1.1.0's command tests compare generated documentation that
-+  # changed with Go 1.26. Keep the oldest supported Go toolchain for now.
++  # Go 1.26 resolves this field reference while generating the command golden.
++  postPatch = ''
++    substituteInPlace testData/docs/README.md \
++      --replace-fail 'GetField gets \[\*AnotherStruct.Field\].' \
++      'GetField gets [\\\*AnotherStruct.Field](<#AnotherStruct>).'
++  '';
  
    ldflags = [
      "-s"

@@ -4,39 +4,36 @@
 
 `NO NEW ISSUE — USE EXISTING NixOS/nixpkgs#516481`
 
-A new issue would duplicate the existing regression report. The existing issue should be linked by a future authorized pull request, while its causal explanation should be corrected in the PR body.
+A new issue would duplicate the existing regression report. A future authorized pull request should link the issue and correct its causal explanation.
 
 Public upstream contact remains unauthorized.
 
 ## Corrected diagnosis
 
-The issue compares:
+The issue compares a Go 1.25 release branch with Go 1.26 master. Comparative execution proves:
 
-- a `release-25.11` backport using Go 1.25;
-- a master revision using Go 1.26.
+- creating `.gomarkdoc-empty.yml` is unnecessary;
+- removing Nix's inherited `GOFLAGS` is unnecessary;
+- Go 1.26 fails the command documentation golden even with both cleanups;
+- updating one expected Go 1.26 markdown line restores the command check.
 
-The package source, vendor hash, and command selection remain the same. A comparative target run proves:
-
-- Go 1.25 passes without adding the missing fixture and without removing Nix `GOFLAGS`;
-- Go 1.26 fails even when both cleanups are applied.
-
-The visible missing-file and unknown-flag messages are captured output printed when the package test fails. They are not established failure causes.
+The visible missing-file and unknown-flag messages are captured output, not the failing assertion.
 
 ## Preferred authorized route
 
-Open a direct pull request against current `master` and use:
+Open a direct PR against current `master` and use:
 
 ```text
 Closes #516481
 ```
 
-The PR should explain that gomarkdoc 1.1.0's generated-documentation tests are toolchain-sensitive and that Nixpkgs' Go 1.25 release branch passes while Go 1.26 master does not.
+The PR should explain the release-branch/master toolchain difference, the exact Go 1.26 golden update, and the byte-identical installed-binary control.
 
 ## Optional future issue comment
 
-A separate issue comment is unnecessary if a direct PR accurately explains the result. If maintainers ask, a concise correction would be:
+A separate issue comment is unnecessary if the PR explains the result. If maintainers ask, retained wording is:
 
-> The two reproducer revisions are from different Nixpkgs lines: the passing release-25.11 snapshot maps buildGoModule to Go 1.25, while the failing master snapshot maps it to Go 1.26. A variant matrix shows Go 1.25 passes without fixture or GOFLAGS changes, and Go 1.26 fails with both. The visible diagnostics are captured output, not the failing assertion.
+> The passing reproducer is a release-25.11 snapshot using Go 1.25, while the failing master snapshot uses Go 1.26. A variant matrix shows fixture and GOFLAGS changes are unnecessary. Updating the one Go 1.26 command golden restores checks, and the checks-enabled installed binary is byte-identical to the current checks-disabled package.
 
 This text is retained only for future explicit authorization.
 
@@ -45,6 +42,7 @@ This text is retained only for future explicit authorization.
 - [x] Existing issue found.
 - [x] Duplicate issue avoided.
 - [x] Causal claim independently checked.
+- [x] Installed-output identity tested.
 - [x] No public comment, reaction, or maintainer contact performed.
-- [ ] Explicit authorization obtained for any future public action.
+- [ ] Explicit authorization obtained for future public action.
 - [ ] Current issue state and contribution policy rechecked at submission time.
