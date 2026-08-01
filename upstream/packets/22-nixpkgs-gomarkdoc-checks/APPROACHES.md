@@ -12,7 +12,7 @@ Selected: keep `subPackages` for binary installation, then clear it inside `preC
 
 Canonical source: [`94be3956403ebf368b9d8262fdc9e5a5d2e80683`](https://github.com/teamleaderleo/nixpkgs/commit/94be3956403ebf368b9d8262fdc9e5a5d2e80683)
 
-Current disposition: `REPAIR` pending exact-head Linux and Darwin execution.
+Current disposition: `HOLD` pending exact-head Linux/Darwin execution, Linux `nixpkgs-review`, Fieldwork integrity, receipt transfer, and carrier closure.
 
 ## Approach A — leave `doCheck = false`
 
@@ -234,18 +234,22 @@ preCheck = ''
 
 ## Selected validation fence
 
-The candidate must show all of the following on x86_64-linux and aarch64-darwin:
+The current carrier head [`b6003f2a3523f01880ff5690798b69afcb4e11f5`](https://github.com/teamleaderleo/fieldwork/commit/b6003f2a3523f01880ff5690798b69afcb4e11f5) must show:
 
 - exact source head and parent;
 - one changed package file;
 - `git diff --check` success;
-- package build success;
-- check phase executed;
+- package build success on x86_64-linux and aarch64-darwin;
+- executable installed `bin/gomarkdoc` and usable help output;
+- check phase execution;
 - root package test result;
 - `lang` package test result;
 - format-package test result;
 - command-package test result;
 - at least four distinct gomarkdoc package result lines;
-- version passthru output `1.1.0`.
+- version passthru output `1.1.0`;
+- Linux `nixpkgs-review rev HEAD --no-shell` success;
+- current Fieldwork-integrity success;
+- transferred artifacts and closed execution carrier.
 
-Full Nixpkgs merge-queue, Hydra, and independent-review confidence remain later gates.
+Hydra, ofborg, merge-queue, fresh-public-head, authorization, and independent-review gates remain later boundaries.
