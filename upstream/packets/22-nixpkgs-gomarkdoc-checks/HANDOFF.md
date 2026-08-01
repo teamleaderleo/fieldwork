@@ -4,14 +4,14 @@
 
 `EXECUTE`
 
-Independent code review selected the current-Go golden repair. Exact Darwin acceptance controls pass; Linux and packet integrity remain.
+Independent review selected the current-Go golden repair and regenerated it on the current public Nixpkgs head. Exact current-base execution remains.
 
 ## Exact source
 
 - Repository: `teamleaderleo/nixpkgs`
 - Branch: `fieldwork/unit-22-gomarkdoc-checks`
-- Base: `55096b0ce13784d4f6420059c5627475fa26ebb1`
-- Head: `3a036ab91fa1de2fbbd038b2b212552cff1cc5bf`
+- Public base: `97d48ba11e7eeb6896e9da8d64b22b306da14103`
+- Canonical head: `e8d97d5d8c67a9473a7aaad3961c0630583aa34b`
 - Changed file: `pkgs/by-name/go/gomarkdoc/package.nix`
 - Relation: one commit, one file, six additions, four deletions
 
@@ -24,51 +24,21 @@ Independent code review selected the current-Go golden repair. Exact Darwin acce
 - do not create a fixture;
 - do not rewrite `GOFLAGS`.
 
-## Why
+## Preserved evidence
 
-A target matrix disproved the original environment-cleanup theory. A current-Go comparison then proved the one-line golden update passes and leaves the installed binary byte-for-byte identical to the checks-disabled package.
-
-## Executed evidence
-
-### Go 1.26 golden acceptance
-
-- Run `30692966149` — success
-- Job `91350898702`
-- Carrier PR `#490` — comparison receipt transferred
-- Artifact `8816337182`
-- Digest `sha256:14ae794f8160a5f6c68bcf113dd430d628fa4b8399ad9ceb65f1d5f33770e5e1`
-- Command check, help, version, and binary identity: pass
-- Shared binary SHA-256: `b8bc993930c3a8af5ebf141d0fa5e2f422b117a420630f532296e20e4428e93e`
-
-### Repair isolation
-
-- Run `30692403974` — success
-- Job `91349338842`
-- Conclusion: fixture and flag edits unnecessary; Go 1.26 golden mismatch is causal
-
-### Broader-suite negative control
-
-- Run `30674969557` — expected failure
-- Linux and Darwin reached broad package discovery
-- Both failed deterministic `lang` standard-library prose expectations
-
-### Superseded pin
-
-The Go 1.25 candidate passed exact Darwin gates but is rejected because the final Go 1.26 repair preserves installed bytes and avoids a toolchain pin.
-
-## Independent review
-
-The final diff, causal chain, compatibility behavior, and drafts are accepted. No additional independent-review dependency remains.
-
-Receipt: `receipts/2026-08-01-independent-code-review.md`.
+- Repair isolation: run `30692403974`, job `91349338842`.
+- Go 1.26 patch-equivalent acceptance: run `30692966149`, job `91350898702`, artifact `8816337182`, binary SHA-256 `b8bc993930c3a8af5ebf141d0fa5e2f422b117a420630f532296e20e4428e93e`.
+- Broad-suite negative control: run `30674969557`.
+- Comparison carrier PR #490 closed after receipt transfer.
+- Unit 01 PR #438 remains unrelated and intact.
 
 ## Required continuation
 
-1. Complete canonical execution PR #437, run `30693249520`, against exact source `3a036ab9...`.
-2. Preserve x86_64-linux package/check/help/version, `nixpkgs-review`, artifact, and Fieldwork-integrity receipts.
-3. Transfer receipts and retire PR #437. Comparison PR #490 may close after its transferred receipt is confirmed.
-4. Mark the packet `ACCEPT` for the user's final-mile public decision if all gates pass.
-5. Regenerate on a fresh public Nixpkgs head before authorized submission.
+1. Launch a clean carrier anchored to the packet revision containing this handoff.
+2. Run current source `e8d97d5d...` on x86_64-linux and aarch64-darwin.
+3. Preserve source fence, command result, help, version, Darwin baseline/candidate binary identity, Linux `nixpkgs-review`, artifacts, and integrity.
+4. Transfer receipts and retire canonical execution PR #437.
+5. Mark the packet `ACCEPT` for the user's final-mile public decision if all gates pass.
 
 ## Public interaction
 

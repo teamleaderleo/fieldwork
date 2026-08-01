@@ -4,25 +4,28 @@
 
 Nixpkgs disabled gomarkdoc 1.1.0 checks after a Go-toolchain transition exposed a generated-documentation golden mismatch. The visible missing-config and unknown-flag diagnostics were captured output, not the failing assertion.
 
-The selected repair keeps the current Go 1.26 builder and updates the one command-test golden line whose link resolution changed. It removes `doCheck = false`, restores the package-selected `cmd/gomarkdoc` tests, and leaves the installed binary byte-for-byte identical to the current checks-disabled package.
+The selected repair keeps the current Go 1.26 builder and updates the one command-test golden line whose link resolution changed. It removes `doCheck = false`, restores the package-selected `cmd/gomarkdoc` tests, and leaves product source and package metadata unchanged.
+
+A patch-equivalent aarch64-darwin comparison proved the checks-enabled installed binary is byte-for-byte identical to the checks-disabled baseline. The canonical commit has now been regenerated on the current public Nixpkgs head and requires exact-head Linux/Darwin acceptance.
 
 ## Disposition
 
 `EXECUTE`
 
-Independent review accepts the source direction. The exact final source has passed its aarch64-darwin command, help, version, and binary-identity comparison. A packet-anchored x86_64-linux build plus `nixpkgs-review` and current Fieldwork integrity remain before `ACCEPT`.
+Independent review accepts the source direction. Current-base exact-head target execution and packet integrity remain before `ACCEPT`.
 
 Upstream contact authorized: `no`.
 
-## Exact clean source
+## Exact current source
 
 - Repository: [`teamleaderleo/nixpkgs`](https://github.com/teamleaderleo/nixpkgs)
 - Branch: [`fieldwork/unit-22-gomarkdoc-checks`](https://github.com/teamleaderleo/nixpkgs/tree/fieldwork/unit-22-gomarkdoc-checks)
-- Base: [`55096b0ce13784d4f6420059c5627475fa26ebb1`](https://github.com/NixOS/nixpkgs/commit/55096b0ce13784d4f6420059c5627475fa26ebb1)
-- Head: [`3a036ab91fa1de2fbbd038b2b212552cff1cc5bf`](https://github.com/teamleaderleo/nixpkgs/commit/3a036ab91fa1de2fbbd038b2b212552cff1cc5bf)
-- Compare: [`55096b0c...3a036ab9`](https://github.com/teamleaderleo/nixpkgs/compare/55096b0ce13784d4f6420059c5627475fa26ebb1...3a036ab91fa1de2fbbd038b2b212552cff1cc5bf)
+- Public base: [`97d48ba11e7eeb6896e9da8d64b22b306da14103`](https://github.com/NixOS/nixpkgs/commit/97d48ba11e7eeb6896e9da8d64b22b306da14103)
+- Canonical head: [`e8d97d5d8c67a9473a7aaad3961c0630583aa34b`](https://github.com/teamleaderleo/nixpkgs/commit/e8d97d5d8c67a9473a7aaad3961c0630583aa34b)
+- Compare: [`97d48ba1...e8d97d5d`](https://github.com/teamleaderleo/nixpkgs/compare/97d48ba11e7eeb6896e9da8d64b22b306da14103...e8d97d5d8c67a9473a7aaad3961c0630583aa34b)
 - Changed file: `pkgs/by-name/go/gomarkdoc/package.nix`
 - Fence: one commit, one file, six additions and four deletions
+- Regenerated: 2026-08-01 after confirming the public package still had blob `149e1cf1908f421132ba3f9bbe08588f9d424a92`
 
 ## Selected source change
 
@@ -55,17 +58,9 @@ Run [`30692403974`](https://github.com/teamleaderleo/fieldwork/actions/runs/3069
 
 ### Go 1.26 golden comparison
 
-- Run: [`30692966149`](https://github.com/teamleaderleo/fieldwork/actions/runs/30692966149)
-- Job: `91350898702` — success
-- Source: `3a036ab91fa1de2fbbd038b2b212552cff1cc5bf`
-- Platform: aarch64-darwin
-- Command check: pass
-- Installed help: pass
-- Version `1.1.0`: pass
-- Baseline/candidate binary `cmp`: pass
-- Shared binary SHA-256: `b8bc993930c3a8af5ebf141d0fa5e2f422b117a420630f532296e20e4428e93e`
-- Artifact: [`8816337182`](https://github.com/teamleaderleo/fieldwork/actions/runs/30692966149/artifacts/8816337182)
-- Digest: `sha256:14ae794f8160a5f6c68bcf113dd430d628fa4b8399ad9ceb65f1d5f33770e5e1`
+Patch-equivalent source `3a036ab91fa1de2fbbd038b2b212552cff1cc5bf` ran in [`30692966149`](https://github.com/teamleaderleo/fieldwork/actions/runs/30692966149), job `91350898702`, on aarch64-darwin. Command check, help, version, and binary identity passed. Artifact `8816337182`, digest `sha256:14ae794f8160a5f6c68bcf113dd430d628fa4b8399ad9ceb65f1d5f33770e5e1`.
+
+The canonical current-base commit uses the same final package blob `53f4eef322e84133c2c867070a55c60bb14e09ae`.
 
 Detailed receipt: [`receipts/2026-08-01-go126-golden-comparison.md`](./receipts/2026-08-01-go126-golden-comparison.md).
 
@@ -79,23 +74,11 @@ The complete final diff, target comparisons, installed-output identity, builder 
 
 Receipt: [`receipts/2026-08-01-independent-code-review.md`](./receipts/2026-08-01-independent-code-review.md).
 
-## Packet navigation
-
-- [Deep dive](./DEEP_DIVE.md)
-- [Approaches](./APPROACHES.md)
-- [Tests and receipts](./TESTS.md)
-- [Upstream issue route](./UPSTREAM_ISSUE.md)
-- [Upstream pull-request draft](./UPSTREAM_PR.md)
-- [Review](./REVIEW.md)
-- [Handoff](./HANDOFF.md)
-- [Retained source patch](./patches/0001-gomarkdoc-restore-command-checks.patch)
-
 ## Remaining sequence
 
-1. Run exact source head `3a036ab9...` on x86_64-linux with `nixpkgs-review` from a carrier anchored to this packet revision.
-2. Preserve the Linux package/check/help/version/review artifact and current Fieldwork-integrity receipt.
+1. Run exact current source `e8d97d5d...` on x86_64-linux and aarch64-darwin.
+2. Preserve source fence, command result, help, version, Linux `nixpkgs-review`, Darwin baseline/candidate binary identity, artifacts, and Fieldwork integrity.
 3. Transfer receipts and retire temporary carriers.
 4. Mark the research packet `ACCEPT` for the user's final-mile public decision.
-5. Regenerate the one-file commit on a fresh public Nixpkgs head before any authorized submission.
 
 No public upstream interaction occurred.
