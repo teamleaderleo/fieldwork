@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "evidenceClass": "target-executed-source-candidate",
+  "fieldworkHead": "3360d80d8aa90e3eaafea3367ff9dcfd4dfe0345",
+  "targetHead": "594a73133e14631af8c915a1b4f2c8039c964fe1",
+  "patchSha256": "bcdbef2c71e89d456267d3bc82a3eed2f62f03133b2dab326196d29fb24309d5",
+  "outcomes": {
+    "validKeyCiphertextRetained": true,
+    "malformedKeyMetadataOmitted": true,
+    "runtimeCipherFailureMetadataOmitted": true,
+    "unrelatedHeadersRetained": true,
+    "rawIpAbsentFromDiagnostics": true,
+    "keyAbsentFromDiagnostics": true,
+    "exceptionTextAbsentFromDiagnostics": true
+  },
+  "gates": {
+    "focusedVitest": "passed-3-of-3",
+    "completeMcpTests": "passed",
+    "formatCheck": "passed",
+    "lintCheck": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "diffHygiene": "passed"
+  },
+  "boundaries": {
+    "hostedContext7ApiCalled": false,
+    "mcpSessionCreated": false,
+    "redisOperationCalled": false,
+    "credentialUsed": false,
+    "upstreamContacted": false
+  }
+}
