@@ -2,9 +2,9 @@
 
 ## In simple words
 
-DuckDB computes a `ROWS ... FOLLOWING` frame start by adding the requested offset to the current row number. With the largest signed 64-bit offset, that addition overflows for later rows. The overflow path currently resets the frame start to the beginning of the partition, which turns a frame wholly beyond the partition into the whole partition. The bounded repair sends that start to the current partition end, matching the existing overflow treatment for the frame end and yielding an empty frame.
+DuckDB computes a `ROWS ... FOLLOWING` frame start by adding the requested offset to the current row number. With the largest signed 64-bit offset, that addition overflows for later rows. The overflow path resets the frame start to the beginning of the partition, which turns a frame wholly beyond the partition into the whole partition.
 
-A minimal native regression already passed on the historical reproducing revision. A clean current-main candidate is executing in the owned fork. The contribution remains on `HOLD` because DuckDB's current contribution policy asks contributors to avoid LLM-generated pull requests. A human must independently author or reimplement and review any upstream submission.
+The bounded correction sends the overflowing start to the current partition end. Historical native execution passed the focused repair. Current-main execution also passed the focused regression, then the complete `test/sql/window` gate failed. The publisher correctly withheld the clean two-file commit. DuckDB's current contribution policy also asks contributors to avoid LLM-generated pull requests, so any eventual public contribution requires independent human authorship or reimplementation and review.
 
 ## Current disposition
 
@@ -25,32 +25,36 @@ Upstream contact authorized: `no`
 
 ## Exact identities
 
-- Public upstream base inspected: [`duckdb/duckdb@63094a6f725af5045113dda74e291c7d604f6a88`](https://github.com/duckdb/duckdb/commit/63094a6f725af5045113dda74e291c7d604f6a88)
+- Current public upstream base inspected: [`duckdb/duckdb@63094a6f725af5045113dda74e291c7d604f6a88`](https://github.com/duckdb/duckdb/commit/63094a6f725af5045113dda74e291c7d604f6a88)
+- Historical reproducing source: [`duckdb/duckdb@de477da7606fc2d857f81117f0140d0550a5c42c`](https://github.com/duckdb/duckdb/commit/de477da7606fc2d857f81117f0140d0550a5c42c)
 - Owned target fork: [`teamleaderleo/duckdb`](https://github.com/teamleaderleo/duckdb)
+- Clean base branch: [`fieldwork/base-duckdb-63094a6-clean`](https://github.com/teamleaderleo/duckdb/tree/fieldwork/base-duckdb-63094a6-clean)
 - Canonical source branch: [`fix/window-rows-following-overflow`](https://github.com/teamleaderleo/duckdb/tree/fix/window-rows-following-overflow)
-- Canonical source head: pending current-main execution run [`30674257475`](https://github.com/teamleaderleo/duckdb/actions/runs/30674257475)
+- Canonical source head: `63094a6f725af5045113dda74e291c7d604f6a88` — clean upstream source; candidate publication was withheld after the complete window gate failed
 - Fieldwork packet branch: [`p0/435-unit-03-duckdb-rows-following-overflow`](https://github.com/teamleaderleo/fieldwork/tree/p0/435-unit-03-duckdb-rows-following-overflow/upstream/packets/03-duckdb-rows-following-overflow)
-- Fieldwork packet head: exact current head is recorded in the latest `#435` handoff; this file cannot contain the SHA of its own commit.
-- Execution carriers: [`teamleaderleo/duckdb#17`](https://github.com/teamleaderleo/duckdb/pull/17), historical [`teamleaderleo/duckdb#8`](https://github.com/teamleaderleo/duckdb/pull/8)
-- Superseded carriers: historical test-and-workflow carrier `teamleaderleo/duckdb#8` after receipt transfer
+- Fieldwork packet head: recorded in the latest `#435` handoff because this file cannot contain its own commit SHA
+- Current execution carrier: [`teamleaderleo/duckdb#17`](https://github.com/teamleaderleo/duckdb/pull/17), carrier head `bf703f57b15555c2db68520b1f4165e23ca737ae`
+- Historical carriers: [`teamleaderleo/duckdb#8`](https://github.com/teamleaderleo/duckdb/pull/8), [`teamleaderleo/fieldwork#253`](https://github.com/teamleaderleo/fieldwork/pull/253)
+- Packet review surface: [`teamleaderleo/fieldwork#453`](https://github.com/teamleaderleo/fieldwork/pull/453)
 
 ## Current code and tests
 
 ### Product code
 
 - [Current upstream `WindowBoundariesState::FrameBegin` at `63094a6f...`](https://github.com/duckdb/duckdb/blob/63094a6f725af5045113dda74e291c7d604f6a88/src/function/window/window_boundaries_state.cpp#L720-L731) — the overflow branch still assigns `partition_begin_data[chunk_idx]`.
-- [Current owned source branch](https://github.com/teamleaderleo/duckdb/blob/fix/window-rows-following-overflow/src/function/window/window_boundaries_state.cpp) — commit-pinned candidate link will replace this branch link after publication.
+- [Historical exact one-line patch](https://github.com/teamleaderleo/duckdb/blob/2cfe22d250f5501a097b5f994ca01498513b939c/fieldwork/window_rows_following_overflow.patch) — changes that assignment to `partition_end_data[chunk_idx]`.
+- Current clean source branch contains upstream source only because the current-main publisher stopped after the red window-directory gate.
 
 ### Target-native tests
 
 - [Historical exact regression at `2cfe22d...`](https://github.com/teamleaderleo/duckdb/blob/2cfe22d250f5501a097b5f994ca01498513b939c/test/sql/window/test_rows_following_overflow.test) — exact extreme frame, ordinary control, and partition-isolation control.
-- [Current owned source branch test](https://github.com/teamleaderleo/duckdb/blob/fix/window-rows-following-overflow/test/sql/window/test_rows_following_overflow.test) — commit-pinned candidate link will replace this branch link after publication.
+- [Current carrier copy](https://github.com/teamleaderleo/duckdb/blob/bf703f57b15555c2db68520b1f4165e23ca737ae/fieldwork/unit-03/test_rows_following_overflow.test) — materialized into the current-main worktree for run `30674257475`.
 
 ### Required generated or dependency files
 
 - Not applicable.
 
-## Changed-file fence
+## Changed-file fence for an eligible human-owned candidate
 
 | Path | Role | Keep upstream? |
 | --- | --- | --- |
@@ -64,7 +68,8 @@ Upstream contact authorized: `no`
 | The bug reproduces at the SQL result boundary | `target-executed` | Fieldwork run [`30580996108`](https://github.com/teamleaderleo/fieldwork/actions/runs/30580996108), report [`735a2e184bc6039c64a341449d01977f4091311e`](https://github.com/teamleaderleo/fieldwork/commit/735a2e184bc6039c64a341449d01977f4091311e) | historical source `de477da...` |
 | The one-line saturation repair passes the focused regression and ordinary control | `target-executed` | owned-fork run [`30595242656`](https://github.com/teamleaderleo/duckdb/actions/runs/30595242656) | historical source and execution carrier |
 | Current public main still contains the same fallback | `source-read` | [`63094a6f...` source](https://github.com/duckdb/duckdb/blob/63094a6f725af5045113dda74e291c7d604f6a88/src/function/window/window_boundaries_state.cpp#L720-L731) | source inspection only |
-| The current-main clean candidate passes focused and ordinary affected-suite gates | `integration-executed` | current run [`30674257475`](https://github.com/teamleaderleo/duckdb/actions/runs/30674257475) | pending at this packet revision |
+| The materialized current-main candidate compiles and passes the focused regression | `target-executed` | run [`30674257475`](https://github.com/teamleaderleo/duckdb/actions/runs/30674257475), job `91298115859` | candidate existed only in the runner worktree |
+| The complete window-directory gate is green | `target-executed` | same run and job | failed; exact failing case remains unextracted from the connector-visible receipt |
 
 ## Packet navigation
 
@@ -78,7 +83,8 @@ Upstream contact authorized: `no`
 ## Duplicate and prior-art result
 
 - Search date: `2026-08-01`
-- Current upstream issues/PRs checked: [`duckdb/duckdb#24307`](https://github.com/duckdb/duckdb/issues/24307), PR searches for issue number, title terms, symbol, and overflow wording
+- Current upstream issue checked: [`duckdb/duckdb#24307`](https://github.com/duckdb/duckdb/issues/24307), open, reproduced, zero comments at the last check
+- PR searches checked: issue number, title terms, symbol, and overflow wording
 - Equivalent implementation found: `no`
 - Relationship to prior work: `independent repair candidate for an already public reproduced issue`
 
@@ -86,22 +92,25 @@ Upstream contact authorized: `no`
 
 Complete in this order:
 
-1. Finish current-main focused regression, complete `test/sql/window`, and formatting execution.
-2. Publish and inspect the exact clean two-file source head.
-3. Require an independent human to author or reimplement and review any upstream candidate under DuckDB's current generative-AI policy; obtain exact authority before any public contact.
+1. Extract or reproduce the exact failing case from `test/sql/window` on the materialized current-main candidate and classify product overlap.
+2. Repair the candidate or gate invocation as evidence requires, then rerun the focused regression, complete `test/sql/window`, and `make format-check`.
+3. Publish and inspect an exact clean two-file source head only after every gate passes.
+4. Require an independent human to author or reimplement and review any public candidate; obtain exact authority before public contact.
 
 ## Blockers and limits
 
-- DuckDB's current `CONTRIBUTING.md` says: “Please do not submit pull requests generated by AI (LLMs).” This candidate therefore serves as research and a human handoff, not a submission-ready branch.
+- Current-main run `30674257475` passed compilation and the focused regression, then failed the complete `test/sql/window` gate. Formatting and publication were skipped by design.
+- The connector-visible job receipt identifies the failed step but did not expose the exact failing test/output during this session.
+- DuckDB's current `CONTRIBUTING.md` says: “Please do not submit pull requests generated by AI (LLMs).” This work is a research handoff, not a public submission candidate.
 - Public upstream contact is unauthorized.
-- Full `make unit`, all-unit, and platform matrix execution remain outside the current focused carrier unless later run by an eligible human-authored branch.
+- Full `make unit`, `make allunit`, release/relassert, and platform matrices remain unexecuted on a clean candidate head.
 
 ## Latest handoff
 
 State: `HOLD`  
-Exact source head: pending run `30674257475`  
+Exact source head: `63094a6f725af5045113dda74e291c7d604f6a88` on `teamleaderleo/duckdb:fix/window-rows-following-overflow`; clean base only, no candidate commit published  
 Exact packet head: recorded in the latest comment on `teamleaderleo/fieldwork#435`  
-Tests: historical reproduction and focused repaired execution complete; current-main build and affected-suite run in progress  
-Temporary machinery remaining: `teamleaderleo/duckdb#17` and its workflow; historical carrier `teamleaderleo/duckdb#8` awaiting retirement after final transfer  
-Next worker action: inspect run `30674257475`, record its exact source head, then close the execution carriers and require human authorship before upstream preparation  
+Tests: historical baseline reproduced; historical focused repair passed; current-main Debug compile passed; current-main focused regression passed; complete `test/sql/window` failed; formatting and publisher skipped  
+Temporary machinery remaining: `teamleaderleo/duckdb#17`, `exec/unit-03-window-overflow-materialize`, historical `teamleaderleo/duckdb#8`, and accidental Fieldwork branch `dummy-no`  
+Next worker action: obtain the exact `test/sql/window` failure from run `30674257475` or reproduce it on the same two-file worktree, then repair/rerun before publishing a candidate head  
 Public upstream interaction: `none`
