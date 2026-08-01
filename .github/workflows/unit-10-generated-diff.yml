@@ -1,0 +1,98 @@
+name: Unit 10 generated declaration diff
+
+on:
+  push:
+    branches:
+      - execution/435-unit-10-generated-diff
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CANDIDATE_SHA: d9c685f095f7984f959769e901099309552bc9c9
+  BASE_SHA: d82c2a45a8695aac30d4d24828ce1ee7fb11909b
+
+jobs:
+  generated-output:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out Fieldwork carrier
+        uses: actions/checkout@v4
+
+      - name: Check out exact workerd candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/workerd
+          ref: ${{ env.CANDIDATE_SHA }}
+          path: workerd
+          fetch-depth: 0
+
+      - name: Install workerd LLVM 19 toolchain
+        working-directory: workerd
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          wget -q https://apt.llvm.org/llvm.sh
+          sed -i '/apt-get install/d' llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 19
+          sudo apt-get install -y -qq --no-install-recommends \
+            clang-19 lld-19 libunwind-19 libc++abi1-19 libc++1-19 \
+            libc++-19-dev libclang-rt-19-dev llvm-19
+          sudo ln -sf /usr/bin/llvm-symbolizer-19 /usr/bin/llvm-symbolizer
+          sudo ln -sf /usr/bin/llvm-profdata-19 /usr/bin/llvm-profdata
+          sudo ln -sf /usr/bin/llvm-cov-19 /usr/bin/llvm-cov
+          echo "build:linux --repo_env=CC=/usr/lib/llvm-19/bin/clang" >> .bazelrc
+          echo "build:linux --linkopt=--ld-path=/usr/lib/llvm-19/bin/ld.lld" >> .bazelrc
+          echo "build:linux --host_linkopt=--ld-path=/usr/lib/llvm-19/bin/ld.lld" >> .bazelrc
+          echo "build:linux --repo_env=AR=/usr/lib/llvm-19/bin/llvm-ar" >> .bazelrc
+          git config core.hooksPath githooks
+
+      - name: Build baseline declarations
+        working-directory: workerd
+        run: |
+          git switch --detach "${BASE_SHA}"
+          bazelisk build //types:types
+          mkdir -p /tmp/unit-10/baseline
+          cp -aL bazel-bin/types/definitions/. /tmp/unit-10/baseline/
+          find /tmp/unit-10/baseline -type f -print | sort > /tmp/unit-10/baseline-files.txt
+
+      - name: Build candidate and run generated receiver fixture
+        working-directory: workerd
+        run: |
+          git switch --detach "${CANDIDATE_SHA}"
+          bazelisk build //types:types
+          bazelisk test //types:test/types/fetch-receiver --test_output=errors
+          mkdir -p /tmp/unit-10/candidate
+          cp -aL bazel-bin/types/definitions/. /tmp/unit-10/candidate/
+          find /tmp/unit-10/candidate -type f -print | sort > /tmp/unit-10/candidate-files.txt
+          if grep -R "__JSG_GENERATED_RECEIVER__" /tmp/unit-10/candidate; then
+            echo "generated receiver marker leaked into public declarations" >&2
+            exit 1
+          fi
+
+      - name: Produce compatibility artifact
+        run: |
+          mkdir -p unit-10-validation
+          diff -ruN /tmp/unit-10/baseline /tmp/unit-10/candidate > unit-10-validation/generated-declarations.diff || test $? = 1
+          cp /tmp/unit-10/baseline-files.txt unit-10-validation/
+          cp /tmp/unit-10/candidate-files.txt unit-10-validation/
+          grep '^+.*this:' unit-10-validation/generated-declarations.diff > unit-10-validation/added-receivers.txt || true
+          grep '^-.*this:' unit-10-validation/generated-declarations.diff > unit-10-validation/removed-receivers.txt || true
+          {
+            echo "base_sha=${BASE_SHA}"
+            echo "candidate_sha=${CANDIDATE_SHA}"
+            echo "changed_files=$(grep '^diff ' unit-10-validation/generated-declarations.diff | wc -l)"
+            echo "added_lines=$(grep '^+' unit-10-validation/generated-declarations.diff | grep -v '^+++' | wc -l)"
+            echo "removed_lines=$(grep '^-' unit-10-validation/generated-declarations.diff | grep -v '^---' | wc -l)"
+            echo "added_receiver_lines=$(wc -l < unit-10-validation/added-receivers.txt)"
+            echo "removed_receiver_lines=$(wc -l < unit-10-validation/removed-receivers.txt)"
+          } | tee unit-10-validation/summary.txt
+
+      - name: Upload generated declaration review packet
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-10-generated-declarations-${{ env.CANDIDATE_SHA }}
+          path: unit-10-validation/
+          if-no-files-found: error
