@@ -1,128 +1,121 @@
 # Approaches — Unit 18 Playwright MCP shutdown authority
 
-## In simple words
-
-Three repairs reached target execution. Direct loopback-peer checks were defeated by a local proxy. An explicit process capability removed accidental default exposure but retained a deliberately enabled network shutdown route. Parent-owned IPC removes network shutdown authority entirely while preserving the original cross-platform lifecycle-test purpose, so it leads.
-
 ## Decision criteria
 
 1. Ordinary MCP network reachability must not grant process-shutdown authority.
-2. The real-browser graceful SIGINT lifecycle test must continue on Linux, macOS, and Windows.
-3. Wrong, repeated, or disconnected control messages must not replace or duplicate cleanup.
-4. The source change should stay inside a small, reviewable target-native fence.
-5. The mechanism should avoid a new public option, token lifecycle, proxy identity assumption, or hidden deployment contract.
+2. The real-browser graceful shutdown lifecycle must remain target-native and cross-platform.
+3. Wrong, repeated, or disconnected controls must not replace or duplicate cleanup.
+4. The source change must remain small and reviewable.
+5. The mechanism should avoid a new public token, option, proxy assumption, or accidental protocol surface.
+6. A replacement ownership channel must not interfere with ordinary stdio MCP traffic.
 
 ## Selected approach
 
-### One-shot parent-owned IPC
+### One-shot strict parent-owned IPC
 
-- Design: remove `/killkillkill`; spawn the MCP test child with an IPC fd; accept one exact internal message from the spawning parent; remove the listener before SIGINT.
-- Owning boundary: MCP CLI entrypoint plus the test fixture that creates the child.
-- Evidence: Linux 18/18 at PR #430; unchanged hardened patch 18/18 on Ubuntu/macOS/Windows at PR #432.
-- Advantages: no HTTP route, no network credential, no proxy identity problem, no operator capability, parent already owns the process.
-- Costs and risks: test-only listener lives in the CLI entrypoint when any parent supplies IPC; strict message validation adds a small private protocol.
-- Remaining controls: exact current-head build/test/lint/diff execution for the extra-field and inherited-property rejection increment.
+- Remove `/killkillkill` from the HTTP transport.
+- Spawn the MCP test child with Node IPC.
+- Accept one exact plain-object `{ type, version }` message from the spawning parent.
+- Reject wrong strings, wrong versions, extension fields, inherited properties, and disconnect.
+- Remove the listener before emitting SIGINT.
 
-## Viable alternatives
+Exact source: `fix/mcp-parent-ipc-shutdown@e99e97da2acfc6c1a67749bc749e1d0cb71b5607`.
+
+Exact result: workflow `30690674059` passed all 18 native MCP HTTP tests plus locked install, complete build, Chromium, focused ESLint, clean tree, and exact diff on Ubuntu 24.04, macOS 15, and Windows 2025.
+
+Why it remains selected: it is the smallest fully executed design that removes network authority without changing normal MCP stdio behavior.
+
+## Newly executed alternative
+
+### Mode-aware parent stdin EOF
+
+#### Initial hypothesis
+
+The HTTP test harness already owns the child's stdin pipe, and MCP already has an exit watchdog. Closing the parent writable side could reuse process ownership without adding a private IPC message.
+
+#### First result
+
+Source `1d6ec11b...` removed the route and closed `cp.stdin`, but all three platforms failed the graceful-close discriminator. Parent EOF arrives as readable `end`; the watchdog listened for `close`.
+
+#### Repaired experiment
+
+Source `86d32569b47fd9f6e98c11517d1699cea5a2465a` listens for stdin `end` and calls `process.stdin.resume()`. Workflow `30704592268` passed a 17-test matrix, complete build, Chromium, focused ESLint, clean tree, and exact diff on Ubuntu, macOS, and Windows.
+
+#### Why it is held
+
+The watchdog is installed before server mode is selected. Global `process.stdin.resume()` can put stdin into flowing mode before `StdioServerTransport` attaches and can discard early protocol input. Stdio mode already owns its EOF handling in `server.start()`.
+
+Reopening condition: a mode-aware implementation consumes stdin only after HTTP mode is known and passes dedicated stdio early-message, disconnect, and ordinary protocol controls across all three platforms.
+
+## Other viable alternatives
+
+### Test-marker gate on the IPC listener
+
+Require Playwright's standard under-test marker in addition to `process.send` before installing the private listener.
+
+Benefit: embeddings with an IPC channel would not accept the test message outside Playwright's test environment.
+
+Why not applied: the parent already owns the child, the message is exact and one-shot, and changing the fully executed source head would require another matrix. Keep as a maintainer-review hardening option.
 
 ### Explicit process capability
 
-- Design: expose the route only when `PLAYWRIGHT_MCP_ALLOW_PROCESS_SHUTDOWN=1` is present.
-- Why it remains plausible: passed direct and local-proxy controls; default process hides the route with 404.
-- What it would improve: makes route exposure an explicit operator decision.
-- What it would widen or complicate: retains a network shutdown route, adds configuration/help/deployment semantics, and allows inherited environment to re-enable it.
-- Exact discriminator: parent-owned IPC works across every supported platform without a route.
-- Reopening trigger: a supported runtime or test harness cannot provide reliable parent IPC.
+Expose the route only when `PLAYWRIGHT_MCP_ALLOW_PROCESS_SHUTDOWN=1` is present.
+
+It passed direct and proxy controls, but retains a network termination primitive and adds configuration/deployment semantics. Reopen only if maintainers reject both private parent channels.
 
 ### Keep route and document trusted deployment
 
-- Design: retain POST/header and explain that remote HTTP requires a trusted authenticated boundary.
-- Why it remains plausible: smallest source change and consistent with operator responsibility.
-- What it would improve: documentation clarity only.
-- What it would widen or complicate: leaves the test-only termination primitive reachable by accepted network clients.
-- Exact discriminator: parent IPC removes the primitive without losing the test.
-- Reopening trigger: route is confirmed as a supported external API rather than test machinery.
+Smallest code delta, but leaves the test-only termination primitive reachable by accepted network clients. Reopen only if `/killkillkill` is confirmed as a supported external API.
 
 ## Executed losing approaches
 
 ### Direct loopback peer
 
-- Exact branch, patch, or commit: `teamleaderleo/playwright#37@a834222d585371636eea7fd013e551fb819d9f7d`; retained comparison PR #410.
-- What ran: complete native HTTP suite, direct remote/loopback controls, build, lint, diff hygiene; later local-proxy discriminator.
-- Result: direct remote caller received 403, but a local proxy relayed the request over loopback and MCP returned 200, gracefully closed the browser, and exited.
-- Why it lost: socket peer describes the final transport hop, not the originating client.
-- Useful evidence retained: direct-peer address classification and explicit proxy counterexample.
+PR #416 proved a local proxy presents a loopback peer and can relay the terminating request. Socket peer identity describes the last hop, not the originating caller.
 
-### Explicit environment capability
+### Bare-string persistent IPC
 
-- Exact branch, patch, or commit: retained candidate in PR #410 and proxy execution in PR #416.
-- What ran: 17 upstream controls under enabled capability, 2 capability controls, and 1 proxy control.
-- Result: ordinary process returned 404 and stayed responsive; enabled process retained shutdown behavior.
-- Why it lost: parent IPC removed the route entirely and therefore granted less authority.
-- Useful evidence retained: viable fallback if IPC becomes unavailable.
+Cross-platform viable, but weaker than a one-shot structured/versioned message.
 
-### Bare-string parent IPC
+### Loose matching object
 
-- Exact branch, patch, or commit: PR #423 head `bcceeadc2c806ab6e60e013d2278b7515339036d`.
-- What ran: 17/17 native suite on Ubuntu/macOS/Windows.
-- Result: removed network route and preserved graceful lifecycle.
-- Why it lost: public-looking bare string and persistent listener were weaker than a one-shot structured/versioned message.
-- Useful evidence retained: decisive cross-platform feasibility proof.
+Cross-platform viable, but accepted extra fields and inherited matching properties. Superseded by the exact-own-property validator.
 
-### Matching type/version object
+### Naïve stdin `close`
 
-- Exact branch, patch, or commit: PR #430 head `59899a28503cbe9d97811cbed103b6fc831e6663`.
-- What ran: 18/18 on Ubuntu/macOS/Windows.
-- Result: one-shot ordering, duplicate handling, wrong string/version, disconnect, and lifecycle all passed.
-- Why it needs one increment: validator accepted extra fields and inherited properties while the record claimed one exact message.
-- Useful evidence retained: all hardened behavior except exact-own-property discrimination.
+Failed identically on Ubuntu, macOS, and Windows because ordinary parent EOF did not trigger the watchdog's `close` listener.
+
+### Global stdin `resume()` as final design
+
+HTTP discriminator passed cross-platform, but the placement can race stdio protocol attachment. Useful proof, not a safe final design.
 
 ## Rejected easy answers
 
-### Trust the custom header
+- Treat fixed custom header as authorization: non-browser clients can set it.
+- Treat Host validation as authorization: it controls accepted hostnames and DNS rebinding, not caller identity.
+- Treat loopback as original-client identity: proxies break that assumption.
+- Add a reusable URL/header secret: unnecessary token lifecycle for a parent-owned test action.
+- Change signal exit codes in this unit: separate lifecycle-policy question.
+- Repair every stdin-close server surface here: separate bounded investigations.
 
-- Temptation: treat the fixed non-simple header as authorization.
-- Why it is incomplete: it is browser-CSRF resistance; a non-browser client can set it.
-- Negative control or source fact: exact non-loopback request with the fixed header returned 200 and terminated MCP.
+## Nearby leads kept separate
 
-### Trust Host validation
+- `packages/playwright-core/src/cli/driver.ts` foreground server stdin ownership
+- `packages/playwright/src/runner/testServer.ts` stdin ownership
+- dashboard/trace-viewer stdin-close patterns
+- MCP SIGINT/SIGTERM exit-code semantics versus the general process launcher
 
-- Temptation: accepted Host implies an authorized client.
-- Why it is incomplete: Host validation protects against DNS rebinding; wildcard or explicit accepted hosts intentionally widen reachability.
-- Negative control or source fact: default Host rejected the request, while wildcard Host accepted it.
-
-### Trust loopback
-
-- Temptation: direct peer locality represents local authority.
-- Why it is incomplete: a local proxy terminates the remote connection and creates a loopback connection to MCP.
-- Negative control or source fact: PR #416 executed this exact topology.
-
-### Use a reusable secret in the URL or header
-
-- Temptation: authenticate shutdown with a random token.
-- Why it is incomplete: introduces generation, distribution, redaction, lifetime, and accidental exposure concerns for a primitive required only by the spawning test parent.
-- Negative control or source fact: parent already owns the child and needs no new transferable credential.
-
-## Prior upstream approaches
-
-| Link | Approach | Status | Relationship to this unit |
-| --- | --- | --- | --- |
-| [`microsoft/playwright#40551`](https://github.com/microsoft/playwright/pull/40551) | require POST plus custom header | merged | complementary browser-CSRF hardening; does not establish client authority |
-| [`4a80eed`](https://github.com/microsoft/playwright/commit/4a80eed396071d6ed15a74c32723f2bc66849988) | implementation of the POST/header repair | merged | exact historical source predecessor |
-
-## Deferred adjacent work
-
-- MCP client authentication — separate product and protocol decision
-- proxy trust and forwarded identity — separate deployment design
-- shared browser-context authority — adjacent Fieldwork finding, separate unit
-- public security reporting — requires impact and authorization decisions
+These are source-read leads, not unit 18 defect claims. See `ADJACENT_RESEARCH.md`.
 
 ## Decision history
 
-| Date | Exact inputs | Decision | Reason | Reopening trigger |
-| --- | --- | --- | --- | --- |
-| 2026-07-31 | PR #410 direct comparison | provisional loopback selection | preserved test behavior with no hidden capability | realistic relay topology |
-| 2026-07-31 | PR #416 proxy run `30656319708` | select explicit capability | proxy defeats direct-peer identity | route can be removed entirely |
-| 2026-07-31 | PR #425 run `30657930500` | select parent IPC | cross-platform lifecycle preserved with no route | source hardening failure |
-| 2026-07-31 | PR #432 run `30659762667` | select one-shot structured IPC | hardened generation passed three platforms | exact-message claim mismatch |
-| 2026-08-01 | source head `c4c5e2d...` on public base `15b1aec...` | execute exact-message increment | rejects extra fields and inherited properties on a disjoint current base | exact-head test failure or maintainer contract |
+| Date | Evidence | Decision |
+| --- | --- | --- |
+| 2026-07-31 | direct loopback controls | provisional loopback repair |
+| 2026-07-31 | local-proxy discriminator | reject loopback; select explicit capability |
+| 2026-07-31 | bare IPC three-platform execution | select parent ownership; remove route |
+| 2026-07-31 | one-shot structured IPC three-platform execution | select hardened IPC |
+| 2026-08-01 | exact strict validator run `30690674059` | exact current candidate clears execution gate |
+| 2026-08-01 | stdin runs `30704410449` and `30704592268` | retain mode-aware stdin EOF as issue-first alternative; do not replace IPC yet |
+
+Current contribution route: `ISSUE FIRST`.
