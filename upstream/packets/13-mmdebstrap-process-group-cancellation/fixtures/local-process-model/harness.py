@@ -1,33 +1,88 @@
-import os, signal, subprocess, sys, tempfile, time
+from __future__ import annotations
+
+import os
+import signal
+import subprocess
+import sys
+import tempfile
+import time
 from pathlib import Path
-root = Path('/tmp/unit13-probe')
 
-def live(pid):
-    try: os.kill(pid, 0)
-    except ProcessLookupError: return False
-    try: return Path(f'/proc/{pid}/stat').read_text().split()[2] != 'Z'
-    except OSError: return False
+ROOT = Path(__file__).resolve().parent
 
-results=[]
-with tempfile.TemporaryDirectory(prefix='unit13-run-') as td:
-    base=Path(td)
-    for variant in ('baseline','status','group'):
-        case=base/variant; case.mkdir()
-        p=subprocess.Popen([sys.executable, str(root/'driver.py'), variant, str(case)])
-        deadline=time.time()+5
-        while time.time()<deadline and not (case/'child-ready').exists(): time.sleep(.01)
-        if not (case/'child-ready').exists():
-            p.kill(); p.wait(); raise RuntimeError(f'{variant}: start timeout')
-        wrapper_pid, child_pid = map(int,(case/'wrapper-ready').read_text().split())
-        os.kill(p.pid, signal.SIGINT)
-        rc=p.wait(timeout=5)
-        time.sleep(1.0)
-        later=(case/'later-work').exists(); alive=live(child_pid)
-        results.append((variant,rc,later,alive))
-        if live(child_pid): os.kill(child_pid, signal.SIGKILL)
-        if live(wrapper_pid): os.kill(wrapper_pid, signal.SIGKILL)
-for v,rc,later,alive in results:
-    print(f'variant={v} rc={rc} later_work={str(later).lower()} child_live={str(alive).lower()}')
-assert results[0][1:] == (0, True, False)
-assert results[1][1:] == (130, True, False)
-assert results[2][1:] == (130, False, False)
+
+def live(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    try:
+        return Path(f"/proc/{pid}/stat").read_text().split()[2] != "Z"
+    except OSError:
+        return False
+
+
+def wait_for_markers(case: Path, process: subprocess.Popen[bytes]) -> None:
+    markers = (case / "wrapper-ready", case / "child-ready")
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        if all(marker.exists() for marker in markers):
+            return
+        if process.poll() is not None:
+            raise RuntimeError(
+                f"driver exited before readiness markers: rc={process.returncode}"
+            )
+        time.sleep(0.01)
+    missing = [marker.name for marker in markers if not marker.exists()]
+    raise RuntimeError(f"start timeout; missing {missing}")
+
+
+def stop_pid(pid: int) -> None:
+    if live(pid):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
+results: list[tuple[str, int, bool, bool]] = []
+with tempfile.TemporaryDirectory(prefix="unit13-run-") as td:
+    base = Path(td)
+    for variant in ("baseline", "status", "group"):
+        case = base / variant
+        case.mkdir()
+        process = subprocess.Popen(
+            [sys.executable, str(ROOT / "driver.py"), variant, str(case)]
+        )
+        wrapper_pid = child_pid = None
+        try:
+            wait_for_markers(case, process)
+            wrapper_pid, child_pid = map(
+                int, (case / "wrapper-ready").read_text().split()
+            )
+            os.kill(process.pid, signal.SIGINT)
+            rc = process.wait(timeout=5)
+            time.sleep(1.0)
+            later = (case / "later-work").exists()
+            alive = live(child_pid)
+            results.append((variant, rc, later, alive))
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+            if child_pid is not None:
+                stop_pid(child_pid)
+            if wrapper_pid is not None:
+                stop_pid(wrapper_pid)
+
+for variant, rc, later, alive in results:
+    print(
+        f"variant={variant} rc={rc} "
+        f"later_work={str(later).lower()} child_live={str(alive).lower()}"
+    )
+
+assert results == [
+    ("baseline", 0, True, False),
+    ("status", 130, True, False),
+    ("group", 130, False, False),
+]
