@@ -4,6 +4,8 @@
 
 A per-key generation counter remains the selected direction. It directly represents which read or completed removal currently owns permission to change shared parsed identity. Promise identity can suppress some stale completions, while a broader all-operation generation would also cover writes and subscriptions; both widen or obscure this unit's accepted boundary.
 
+The selected design is now materialized on a clean owned-fork branch at `dfe607d7637fbcf61ae41c39f4f470f61fa7c531`, stacked exactly on unit 20 head `b2f84273b53bbed9df073354dac503e520be7101`. The remaining decision inputs are exact-head workflow conclusions and independent review, not source admission.
+
 ## Decision criteria
 
 1. Preserve unit 20's same-key identity behavior and unrelated-key isolation.
@@ -19,10 +21,11 @@ A per-key generation counter remains the selected direction. It directly represe
 
 - Design: increment a key-local integer when each read starts and when removal invalidation settles; only the current generation may publish or delete cache state.
 - Owning boundary: `createJSONStorage()` because it owns parsed cache identity.
-- Evidence: characterization PR #284, accepted repair PR #317, target runs `30623229098` and `30623229114`, plus the local 11-case model.
+- Evidence: characterization PR #284, accepted repair PR #317, target runs `30623229098` and `30623229114`, the local 11-case model, and the clean target compare `b2f8427...dfe607d`.
 - Advantages: directly encodes ordering; naturally includes completed removal; keeps backend values and rejection propagation unchanged; isolates keys.
-- Costs and risks: one additional adapter-lifetime map; counter growth; rejection semantics need target-native execution; depends on unit 20.
-- Remaining controls: execute the expanded rejection and same-string tests on the clean direct source branch, then run ordinary Jotai gates.
+- Costs and risks: one additional adapter-lifetime map; counter growth; depends on unit 20; exact-head workflow and independent-review evidence remain pending.
+- Current source: `teamleaderleo/jotai:fix/utils-async-read-generation` at `dfe607d7637fbcf61ae41c39f4f470f61fa7c531`.
+- Remaining controls: record the queued fork workflow conclusions and obtain independent complete-diff review.
 
 ## Viable alternatives
 
@@ -118,3 +121,4 @@ Searches on 2026-08-01 for `createJSONStorage async read generation`, `atomWithS
 | 2026-07-31 | repair head `e99c7d2...`, review `4827783876` | accept per-key generation for direct materialization | six native controls and Node 22/24/26 execution pass | contradictory direct-source execution |
 | 2026-08-01 | public main `56a9cc51...`, unit-20 and unit-21 patches | require a stacked source branch | local apply check proves unit 21 depends on unit 20 | unit 20 merges upstream or coordinator combines units |
 | 2026-08-01 | 11-case Node `v22.16.0` model | retain rejection semantics and same-string precision | all model controls pass | target-native result differs |
+| 2026-08-01 | owned source `b2f8427...dfe607d` | accept clean two-file, two-commit materialization | exact ancestry and complete diff match the packet boundary | exact-head workflows or independent review find a defect |
