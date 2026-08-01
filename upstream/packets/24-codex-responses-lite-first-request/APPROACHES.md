@@ -1,116 +1,173 @@
 # Approaches — unit 24 Responses Lite first request after prewarm
 
-## In simple words
+## Decision
 
-The selected direction ends the warmup response chain at the exact transition into the first generated Lite turn. It preserves prewarm, preserves later incremental reuse, and keeps the patch inside one client decision plus focused tests.
+Selected: terminate the untraced warmup response chain only for the first generated Responses Lite request.
 
-Broader answers—disabling prewarm, reconnecting every time, increasing worker stacks, or changing tool planning—either widen behavior or address separate evidence.
+The selected boundary preserves all generic Responses WebSocket warmup compression, preserves Lite prewarm, preserves later generated-response continuation, and keeps the source change inside one request-selection hunk plus target-native tests.
 
 ## Decision criteria
 
-1. The first generated Lite request carries the complete current logical request without a warmup predecessor.
-2. Later generated turns retain incremental reuse.
-3. Failure of the first generated request retries the complete request.
-4. The patch stays inside the owning client boundary and target-native tests.
-5. Wire format and public APIs remain unchanged.
+1. The first generated Lite request carries the complete current logical input with no warmup predecessor.
+2. Generic non-Lite warmup chaining remains unchanged.
+3. Later Lite turns retain incremental reuse from a generated response.
+4. A failed first generation retries the complete request.
+5. No wire schema, public API, planner, or provider-capability change is introduced.
+6. The source remains one clean commit and three files.
 
 ## Selected approach
 
-### Terminate the warmup chain before first generation
+### End Lite warmup response authority before first generation
 
-- Design: when `!warmup && use_responses_lite && last_response_from_untraced_warmup`, clear `last_response_rx` and skip incremental request preparation.
-- Owning boundary: `ModelClientSession::stream` immediately before request construction.
-- Evidence: current three-file diff at `2c3f21d38056d2d77215cd9dce820a680d11cfe8`; historical run `30584165709` / job `91011486628`.
-- Advantages: exact lifecycle predicate; one production hunk; existing full-request serialization; ordinary continuation unchanged; retry behavior directly testable.
-- Costs and risks: one complete first generated request after prewarm; current-head focused renewal pending.
-- Remaining controls: run all three exact tests and ordinary `codex-core` gates on the clean current head.
+Predicate:
+
+```text
+!warmup
+&& model_info.use_responses_lite
+&& websocket_session.last_response_from_untraced_warmup
+```
+
+Action:
+
+- clear `last_response_rx`;
+- return no incremental request and no untraced-warmup predecessor flag;
+- use the existing full WebSocket request serializer.
+
+Why this owns the transition:
+
+- `ModelClientSession::stream_responses_websocket` has the current request, model mode, warmup state, connection state, response provenance, trace attempt, and request serializer in one place;
+- the predicate expresses lifecycle provenance rather than comparing serialized bodies;
+- the subsequent state assignment already resets warmup provenance after the generated request;
+- later response reuse remains delegated to the existing generic incremental check.
+
+Evidence:
+
+- exact base `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`;
+- exact head `9fd4ba575de8dd77bc411362256591ce9e7d8c82`;
+- one commit, three files, `+301/-1`;
+- historical exact source fence `3/3` and client controls `2/2`;
+- complete-diff self-review attached to `teamleaderleo/codex#130`;
+- fresh exact execution carrier `teamleaderleo/codex#135`.
+
+Cost:
+
+- the Lite input prefix is transmitted once during prewarm and once during first generation;
+- later turns remain compressed.
+
+## Public prior art that constrains the answer
+
+### `openai/codex#23581` — logical trace after untraced warmup
+
+This merged change intentionally keeps the generic compressed wire follow-up chained to the warmup response while recording the complete logical request for rollout replay.
+
+Effect on unit 24: broad removal of warmup chaining is rejected. The selected predicate is explicitly Lite-only and leaves generic transport behavior intact.
+
+### `openai/codex#27946` — Responses Lite tools as input items
+
+This merged change moves Lite tools and instructions into input items. The complete input sequence therefore owns the Lite request identity rather than a separate top-level tools/instructions projection.
+
+Effect on unit 24: it supplies the reason to send the complete first generated Lite request instead of relying on a `generate=false` setup parent.
+
+### Earlier rollout-trace work `#22825` and `#23278`
+
+These changes handled unresolved or omitted untraced warmup prefixes in trace/replay. They do not define the Responses Lite first-generation wire contract.
 
 ## Viable alternatives
 
-### Compare the warmup prefix and generated request identity
+### Compare serialized warmup and generated inputs
 
-- Design: build both forms and choose incremental only when a serialized equivalence rule proves it safe.
-- Why it remains plausible: could generalize across future warmup forms.
-- What it would improve: finer-grained reuse decisions if multiple warmup contracts emerge.
-- What it would widen or complicate: request normalization, ordering, omitted/default fields, and future schema evolution.
-- Exact discriminator: a supported Lite case where warmup chaining is valid for first generation and the selected lifecycle predicate retransmits materially expensive data.
-- Reopening trigger: target maintainers define such a contract.
+Design: construct both requests and permit warmup chaining only when a normalization rule proves the generated logical identity is safely represented by the warmup prefix plus delta.
 
-### Represent warmup and generated predecessors with distinct typed state
+Advantages:
 
-- Design: replace the boolean/session combination with an explicit response-chain state enum.
-- Why it remains plausible: stronger state-machine readability.
-- What it would improve: impossible-state prevention and future extension.
-- What it would widen or complicate: larger refactor across WebSocket session transitions and tests.
-- Exact discriminator: repeated bugs caused by ambiguous response provenance.
-- Reopening trigger: adjacent response-chain work already requires that refactor.
+- could support multiple future warmup contracts;
+- might retain first-generation compression in a documented Lite subset.
 
-## Executed losing approaches
+Costs:
 
-### Treat a larger worker stack as the repair
+- request normalization must account for ordering, omitted/default fields, input-item identity, metadata, image preparation, and future schema evolution;
+- widens the patch and creates a second compatibility algorithm beside existing incremental comparison.
 
-- Exact branch, patch, or commit: historical execution carriers culminating in `teamleaderleo/codex#58@40a56eefce26ea647a65779faeb783d65a84a49a`.
-- What ran: full-agent assertion under default and 16 MiB Tokio worker stacks.
-- Result: default exit `101`; large-stack exit `0`.
-- Why it lost: stack size changes the test harness/runtime condition and does not define first-request identity.
-- Useful evidence retained: separates the full-agent runner abort from the two focused client controls.
+Reopening trigger: maintainers document a valid Lite first-generation chaining contract with an exact equivalence rule.
 
-### Preserve the broad early carrier
+### Add an explicit response-provenance state enum
 
-- Exact branch, patch, or commit: `teamleaderleo/codex#23@ccd4ce3...`.
-- What ran: early paired source and large-stack workflows.
-- Result: useful characterization, but 114 changed files and unrelated work.
-- Why it lost: unsuitable source fence and stale base.
-- Useful evidence retained: original reproduction and stack discriminator.
+Design: replace the boolean plus response receiver combination with typed states such as `None`, `Warmup`, and `Generated`.
 
-## Rejected easy answers
+Advantages:
 
-### Reuse the warmup response id
+- stronger state-machine readability;
+- can prevent impossible provenance combinations.
 
-- Temptation: maximize incremental reuse from the first generated request.
-- Why it is incomplete or unsafe: warmup uses `generate=false`; it has no generated-turn ownership and can leave current request identity implicit in a setup response chain.
-- Negative control or source fact: the selected tests require no first-generation `previous_response_id`, complete prefix identity, later reuse of `resp-1`, and a full retry after failure.
+Costs:
+
+- larger refactor across connection reset, response completion, tracing, retries, and tests;
+- unnecessary for the single transition while the existing fields already encode the required facts.
+
+Reopening trigger: another defect demonstrates that response provenance remains ambiguous after this correction.
+
+### Send the complete request but keep the warmup response ID
+
+Design: include both `previous_response_id = warm-1` and the complete input.
+
+Why rejected:
+
+- preserves setup response authority despite the full payload;
+- creates an ambiguous ownership model and unmeasured provider behavior;
+- does not satisfy the governing invariant that only a generated response becomes the predecessor of later generated turns.
+
+### Reset the whole WebSocket session
+
+Design: reconnect before first generation.
+
+Why rejected:
+
+- loses the connection benefit of prewarm;
+- changes handshake, authentication, and retry behavior;
+- broader than clearing one response-chain receiver.
 
 ### Disable Lite prewarm
 
-- Temptation: remove the transition entirely.
-- Why it is incomplete or unsafe: discards startup latency work and changes feature behavior beyond the defect.
-- Negative control or source fact: the candidate preserves one handshake for warmup plus first generation in the success path.
+Why rejected:
 
-### Reconnect before every generated request
+- removes the latency optimization rather than correcting response ownership;
+- changes scheduling and startup behavior outside the unit.
 
-- Temptation: guarantee full request independence.
-- Why it is incomplete or unsafe: sacrifices ordinary incremental continuation and WebSocket reuse.
-- Negative control or source fact: continuation test proves `previous_response_id = resp-1` after the first generated response.
+### Treat a larger Tokio worker stack as the product repair
 
-### Fold in planner or deferred-tool changes
+Why rejected:
 
-- Temptation: both areas concern Lite tool manifests.
-- Why it is incomplete or unsafe: planner exposure owns which tools enter the catalogue; this unit owns response-chain identity after prewarm.
-- Negative control or source fact: current source fence contains only `client.rs` and two WebSocket test files.
+- stack size changes the test environment, not request identity;
+- both isolated client controls pass without using stack size as product logic;
+- the default-versus-16-MiB result remains a test-harness classifier only.
 
-## Prior upstream approaches
+### Fold in planner, Code Mode, or tool-catalogue work
 
-| Link | Approach | Status | Relationship to this unit |
+Why rejected:
+
+- those areas decide which tools enter the Lite catalogue;
+- unit 24 decides whether the first generated request inherits setup response authority;
+- the current source fence excludes all planner and tool-registration files.
+
+## Executed history
+
+| Date | Source / carrier | Result | Decision |
 | --- | --- | --- | --- |
-| [`teamleaderleo/codex#23`](https://github.com/teamleaderleo/codex/pull/23) | broad Lite diagnostic and source carrier | closed | historical characterization only |
-| [`teamleaderleo/codex#58`](https://github.com/teamleaderleo/codex/pull/58) | execution-only carrier and workflow | open historical | exact receipt; exclude from source |
-| [`teamleaderleo/codex#87`](https://github.com/teamleaderleo/codex/pull/87) | exact three-file source on `e6cfd...` | open historical | direct predecessor |
-| [`teamleaderleo/codex#129`](https://github.com/teamleaderleo/codex/pull/129) | internal transplant onto current public base | merged | materialization only |
-| [`teamleaderleo/codex#130`](https://github.com/teamleaderleo/codex/pull/130) | clean current-base source | open draft | canonical current carrier |
-| Public issue/PR searches on `2026-08-01` | Responses Lite/prewarm/`previous_response_id` overlap | no equivalent result | no public duplicate found |
+| 2026-07-30 | broad owned carrier `teamleaderleo/codex#23` | useful reproduction; source far too broad | isolate a three-file candidate |
+| 2026-07-30 | source `e520da008366cd720ef58fa0b489efc0a2867e97`; carrier `40a56eefce26ea647a65779faeb783d65a84a49a` | source fence `3/3`; client controls `2/2`; agent `default:101;large:0` | retain bounded implementation and stack discriminator |
+| 2026-08-01 | source `2c3f21d38056d2d77215cd9dce820a680d11cfe8` on parent `670f69416bf91c5dfd8b58669e78050b584ff053` | clean one-commit currentization; ordinary CI included unrelated repository failures | continue instead of stopping at repository-wide failures |
+| 2026-08-01 | source `9fd4ba575de8dd77bc411362256591ce9e7d8c82` on parent `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff` | five-commit public drift was file-disjoint; complete self-review found no source blocker | run exact current-head execution and synchronize packet |
 
-## Deferred adjacent work
+## Current execution plan
 
-- worker-stack root cause — separate runtime/test-harness investigation
-- deferred tool loader and Code Mode exposure — separate planner unit
-- production prevalence — needs telemetry or a user reproduction
-- generalized response provenance state — future refactor if repeated defects justify it
+Execution-only PR `teamleaderleo/codex#135` runs, on the immutable source head:
 
-## Decision history
+1. exact three-file source fence;
+2. `cargo fmt --all -- --check`;
+3. both exact client controls;
+4. full-agent control at default and 16-MiB worker stacks;
+5. `just test -p codex-core` at a 32-MiB worker stack;
+6. `just fix -p codex-core`;
+7. clean-worktree and diff checks.
 
-| Date | Exact inputs | Decision | Reason | Reopening trigger |
-| --- | --- | --- | --- | --- |
-| 2026-07-30 | broad carrier `#23` plus early exact controls | isolate the client transport invariant | broad source mixed unrelated changes | source isolation fails |
-| 2026-07-30 | source `e520da...`, carrier `40a56e...`, run `30584165709` | accept historical bounded behavior | 3/3 fence, 2/2 client controls, large-stack full-agent pass | exact test contradicts claim |
-| 2026-08-01 | public base `670f694...`; clean head `2c3f21d...` | retain selected patch on current base with `REPAIR` disposition | three files unchanged across public drift; current focused execution pending | current source or contract changed |
+The execution workflow is excluded from the canonical source diff and will be closed and removed from its branch after the receipt is transferred.
