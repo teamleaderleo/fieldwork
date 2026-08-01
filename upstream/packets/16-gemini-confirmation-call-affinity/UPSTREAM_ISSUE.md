@@ -1,6 +1,6 @@
 # Upstream issue draft — Confirmation modification can use another active tool call
 
-Draft status: `not ready — exact-head execution and filing authority required`  
+Draft status: `ready — filing authority required`  
 Public interaction authorized: `no`
 
 ---
@@ -63,41 +63,41 @@ A narrow repair can stay inside `confirmation.ts`:
 4. after asynchronous modification, repeat the lookup and require the same approval generation;
 5. rebuild and update only that call.
 
-The current candidate uses waiting-call object identity as the generation fence because the state manager replaces the call object on transitions. An explicit generation token or guarded state-manager update remains a viable wider design.
+The prepared candidate uses waiting-call object identity as the generation fence because the state manager replaces the call object on transitions. An explicit generation token or guarded state-manager update remains a viable wider design.
 
-## Current candidate evidence
+## Candidate evidence
 
-- current base: `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`
-- candidate head: `0c3a86b0555e152b50ca55fd5f8dc53608571cbe`
+- public base: `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`
+- candidate: `b6d8e8bb6160aec16555647d81d46a694e44b58b`
 - one commit, four scheduler source/test files
-- focused controls: inline, editor, removal, status loss, same-ID generation replacement, missing call
-- adjacent confirmation controls: eight
-- scheduler control: two real scheduler calls awaiting approval simultaneously, with call 2's modified response delivered before call 1's
-- predecessor result: 14/14 focused and adjacent tests plus core build/typecheck passed
-- current exact-head focused/typecheck/preflight run: pending in the owned fork
+- six focused controls: inline, editor, removal, status loss, same-ID generation replacement, missing call
+- eight adjacent confirmation controls
+- one scheduler control with two real scheduler calls awaiting approval simultaneously and call 2's modified response delivered before call 1's
+- final result: 15/15 tests, posttest build, core typecheck, formatting, staged lint, four-file ESLint, exact fence, clean tree, and publication passed
+
+Full repository preflight reaches shellcheck `SC2031` in `.github/workflows/pr-size-labeler-batch-run.yml`. The unchanged base reproduces the same workflow path and warning; the candidate changes no workflow.
 
 ## Compatibility and risks
 
 - Public APIs and message formats remain unchanged.
-- Stale modification results become explicit errors instead of silently publishing.
+- Stale modification results become explicit errors before state publication.
 - The candidate adds two map lookups and one identity comparison per successful modification.
-- Object identity is an implicit generation token; maintainers may prefer an explicit token.
-- External editor effects may occur before stale authority is detected; the candidate prevents state publication, not editor-side rollback.
+- Object identity is an implicit generation token; an explicit token may be clearer.
+- External editor effects may occur before stale authority is detected; the candidate prevents publication, not editor-side rollback.
 
 ## Evidence limits
 
-- Current exact-head test and full preflight receipt are pending.
 - Executor and modifier are controlled in the scheduler ordering test.
 - Production frequency and impact are unmeasured.
 - macOS, Windows, and a real external editor process are untested.
+- Eligible independent review remains pending.
 
 ## Versions and environment
 
 - baseline reproduced: `3499c84f7b8e70c86600e7cd2c67a7c65a667f5e`
 - current public base: `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`
-- candidate: `0c3a86b0555e152b50ca55fd5f8dc53608571cbe`
-- predecessor runner: Ubuntu 24.04, Node `v22.23.1`, npm `10.9.8`, Vitest `3.2.4`
-- current requested runner: Linux, Node `20.19.0`, locked npm dependencies
+- candidate: `b6d8e8bb6160aec16555647d81d46a694e44b58b`
+- final runner: Ubuntu 22.04, Node `v20.19.0`, npm `10.8.2`, Vitest `3.2.4`
 - model/external service: none
 
 ## Additional context
@@ -109,10 +109,11 @@ No equivalent public issue, pull request, branch, or commit was found in searche
 ## Filing checklist
 
 - [ ] Current upstream issue and PR search repeated immediately before filing.
-- [ ] Exact current candidate execution receipt completed.
+- [x] Exact current candidate execution receipt completed.
 - [x] Reproduction is source-current and candidate is rebased on current public main.
 - [x] Severity and prevalence wording stays within evidence.
 - [x] Private/internal links omitted from the public draft body.
+- [ ] Eligible independent review completed.
 - [ ] Target issue template and contribution policy checked at filing time.
 - [ ] AI disclosure handled according to current project policy.
 - [ ] Exact user authorization to file recorded.
