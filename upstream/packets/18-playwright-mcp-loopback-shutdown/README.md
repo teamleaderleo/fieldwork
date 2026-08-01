@@ -8,14 +8,15 @@ The selected candidate removes the HTTP shutdown route. The spawning Playwright 
 
 ## Current disposition
 
-`EXECUTE`
+`ISSUE FIRST`
 
 Last verified: `2026-08-01`  
 Scope: unit 18 only  
 Priority-zero parent: [`teamleaderleo/fieldwork#435`](https://github.com/teamleaderleo/fieldwork/issues/435)  
+Canonical finding: [`teamleaderleo/fieldwork#404`](https://github.com/teamleaderleo/fieldwork/issues/404)  
 Public upstream contact authorized/performed: `no` / `none`
 
-Reason: exact current-head macOS and Windows execution is fully green; Ubuntu 24.04 remains queued before runner allocation. No product failure has appeared. After Ubuntu success or an explicit reviewed carry-forward decision, the contribution route becomes `ISSUE FIRST` under Playwright's current contribution guidance.
+Reason: the exact current source head passed every declared gate on Ubuntu 24.04, macOS 15, and Windows 2025, and the packet passed integrity. Playwright's contribution guidance requires a corresponding issue and prior approval/assignment for substantive work, so the next contribution step is design/issue discussion rather than a direct public pull request.
 
 ## Contribution
 
@@ -27,16 +28,17 @@ Reason: exact current-head macOS and Windows execution is fully green; Ubuntu 24
 ## Exact identities
 
 - Historical executed public base: [`368941457a82da112aa8610107e25f4bde94339a`](https://github.com/microsoft/playwright/commit/368941457a82da112aa8610107e25f4bde94339a)
-- Current public base inspected: [`15b1aec478d90f0293dae7b7b6dafd494d9f0154`](https://github.com/microsoft/playwright/commit/15b1aec478d90f0293dae7b7b6dafd494d9f0154)
+- Current inspected base: [`15b1aec478d90f0293dae7b7b6dafd494d9f0154`](https://github.com/microsoft/playwright/commit/15b1aec478d90f0293dae7b7b6dafd494d9f0154)
 - Exact-base branch: `teamleaderleo/playwright:fieldwork/435-unit-18-base-15b1aec@15b1aec478d90f0293dae7b7b6dafd494d9f0154`
 - Canonical source branch: `teamleaderleo/playwright:fix/mcp-parent-ipc-shutdown`
 - Canonical source head: `e99e97da2acfc6c1a67749bc749e1d0cb71b5607`
 - Owned source PR: [`teamleaderleo/playwright#40`](https://github.com/teamleaderleo/playwright/pull/40)
 - Packet branch: `p0/435-unit-18-playwright-mcp-shutdown`
 - Packet PR: [`teamleaderleo/fieldwork#451`](https://github.com/teamleaderleo/fieldwork/pull/451)
-- Current execution carrier: [`teamleaderleo/fieldwork#455@0323aeaadc391575b572e869258e5e1ac3c4652c`](https://github.com/teamleaderleo/fieldwork/pull/455)
-- Current workflow: [`30690674059`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690674059)
-- Superseded loopback source: `teamleaderleo/playwright#37@a834222d585371636eea7fd013e551fb819d9f7d`
+- Exact-current execution carrier: [`teamleaderleo/fieldwork#455@0323aeaadc391575b572e869258e5e1ac3c4652c`](https://github.com/teamleaderleo/fieldwork/pull/455)
+- Exact-current workflow: [`30690674059`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690674059)
+- Adjacent stdin-EOF research source: [`teamleaderleo/playwright#41@86d32569b47fd9f6e98c11517d1699cea5a2465a`](https://github.com/teamleaderleo/playwright/pull/41)
+- Adjacent execution carrier: [`teamleaderleo/fieldwork#494@2e32e643cdc6af0a322d49499b0cece3ee9e0699`](https://github.com/teamleaderleo/fieldwork/pull/494)
 
 ## Current code and tests
 
@@ -55,20 +57,23 @@ Reason: exact current-head macOS and Windows execution is fully green; Ubuntu 24
 
 Temporary workflows, receipts, Fieldwork files, dependencies, locks, snapshots, and generated output are absent from the target net diff.
 
-## Evidence summary
+## Exact-current evidence
 
-| Claim | Evidence | Current result or limit |
-| --- | --- | --- |
-| accepted non-loopback HTTP caller could terminate MCP | Fieldwork PR #405, run `30649849111`, job `91220131763` | 3/3 passed on Ubuntu with deliberate non-loopback listener/wildcard Host policy |
-| direct loopback identity fails through a local proxy | Fieldwork PR #416, run `30656319708`, job `91241456610` | direct suite 19/19 plus proxy discriminator 1/1 passed; loopback candidate terminated |
-| bare parent IPC works cross-platform | Fieldwork PRs #423/#425, run `30657930500` | 17/17 plus build, browser setup, focused lint, and diff on Ubuntu/macOS/Windows |
-| hardened one-shot IPC works cross-platform | Fieldwork PRs #430/#432, run `30659762667` | 18/18 plus all declared gates on Ubuntu/macOS/Windows; predecessor accepted extension fields |
-| current strict validator works on macOS | carrier #455, run `30690674059`, job `91344705071` | exact source `e99e97d...`; 18/18 in 32.6s; all declared gates passed; artifact `8815562250`, digest `sha256:80a6f32f6b8a560924af3a562c0af5bcc16ee4993cd2fdf05306b3bc67bd2d54` |
-| current strict validator works on Windows | carrier #455, run `30690674059`, job `91344705088` | exact source `e99e97d...`; 18/18 in 34.0s; all declared gates passed; artifact `8815574235`, digest `sha256:804ed03b8a52765366cdec5737cc0f9b3d7f90714b9939b8e613cb39af20bdf4` |
-| current strict validator works on Ubuntu | carrier #455, job `91344705054` | queued before runner allocation; no execution and no product failure yet |
-| full repository CI | none | not run and not claimed |
+Run `30690674059` checked out exact source `e99e97da...` and exact base `15b1aec...` on every platform, then ran exact-fence verification, `npm ci`, complete `npm run build`, Chromium installation, the complete native MCP HTTP file, focused ESLint, clean-tree verification, and exact diff checks.
 
-The previous packet head `7fe2bb3b619e6b1675c260d0304fd262eca71f1f` passed Fieldwork integrity in run `30675345841`. This updated packet must complete a fresh integrity run.
+| Platform | Job | Result | Artifact | Digest |
+| --- | --- | --- | --- | --- |
+| Ubuntu 24.04, Node 22.23.1 | `91344705054` | 18/18 and every declared gate passed | `8815924825` | `sha256:80ea42882f0c6ce9255d57d1a21b23e622b8f68aedda9478caacad818c124e4f` |
+| macOS 15 ARM64, Node 22.23.1 | `91344705071` | 18/18 in 32.6s and every declared gate passed | `8815562250` | `sha256:80a6f32f6b8a560924af3a562c0af5bcc16ee4993cd2fdf05306b3bc67bd2d54` |
+| Windows Server 2025 x64, Node 22.23.1 | `91344705088` | 18/18 in 34.0s and every declared gate passed | `8815574235` | `sha256:804ed03b8a52765366cdec5737cc0f9b3d7f90714b9939b8e613cb39af20bdf4` |
+
+Packet head `ca95ff2bc643c040ad48a73bb1dc80cdfc64fe8c` passed Fieldwork integrity in run `30691135221`. A new integrity run is required after this research update.
+
+## New approach result
+
+An alternative reused parent stdin ownership instead of adding a private IPC message. The first exact experiment failed on all platforms because parent EOF reaches a readable stream as `end`, while the existing watchdog listened for `close`. A repaired experiment listened for `end` and consumed stdin; run `30704592268` passed the focused 17-test matrix, build, Chromium, lint, and exact diff on Ubuntu, macOS, and Windows.
+
+That repair is not promoted because the watchdog is installed before transport mode is selected. Globally consuming stdin can race the stdio MCP transport and discard early protocol bytes. A safe stdin-based design must be mode-aware and needs dedicated stdio controls. See [Adjacent research](./ADJACENT_RESEARCH.md).
 
 ## Packet navigation
 
@@ -76,6 +81,7 @@ The previous packet head `7fe2bb3b619e6b1675c260d0304fd262eca71f1f` passed Field
 - [Approaches](./APPROACHES.md)
 - [Tests and retained receipts](./TESTS.md)
 - [Current exact-head execution](./CURRENT_EXECUTION.md)
+- [Adjacent research and new leads](./ADJACENT_RESEARCH.md)
 - [Canonical source generation](./CURRENT_SOURCE.md)
 - [Upstream issue draft](./UPSTREAM_ISSUE.md)
 - [Upstream pull-request draft](./UPSTREAM_PR.md)
@@ -85,27 +91,27 @@ The previous packet head `7fe2bb3b619e6b1675c260d0304fd262eca71f1f` passed Field
 
 ## Duplicate and prior-art result
 
-- Checked through public head `15b1aec478d90f0293dae7b7b6dafd494d9f0154` on `2026-08-01`.
+- Checked through inspected base `15b1aec478d90f0293dae7b7b6dafd494d9f0154` on `2026-08-01`.
 - Prior merged repair `microsoft/playwright#40551`, commit `4a80eed396071d6ed15a74c32723f2bc66849988`, changed the route from GET to POST plus a custom header for browser-CSRF resistance.
 - Equivalent route-removal/parent-IPC implementation found: none in the checked source, history, issues, and pull requests.
-- Relationship: complementary authority repair. The prior patch addresses browser-coerced requests; this candidate removes the test-only network termination authority.
+- No open issue was found for MCP stdin-owner shutdown or MCP signal exit-code semantics in the checked searches.
 
 ## Remaining work in order
 
-1. Complete Ubuntu exact-head execution or record an explicit reviewed carry-forward decision.
-2. Complete Fieldwork integrity at the updated packet head.
-3. Obtain independent complete-diff review and final acceptance.
-4. Squash the seven-commit source history before any authorized submission, then prove exact tree equivalence or rerun declared gates at the resulting head.
+1. Obtain independent complete-diff review and final acceptance.
+2. Decide during issue-first discussion whether maintainers prefer the tested private IPC approach, a mode-aware stdin-owner approach, or removal of the lifecycle test hook.
+3. Squash the seven-commit canonical source history before any authorized submission, then prove exact tree equivalence or rerun declared gates at the resulting head.
+4. Refresh the public upstream base and duplicate search immediately before authorized contact.
 5. Seek Playwright issue approval/assignment only after explicit public-contact authority.
 6. Open no public issue, PR, comment, or reaction without separate explicit authority.
 
-Evidence limits: full Playwright repository CI has not run; Node versions outside 22 and non-test parent embeddings remain untested.
+Evidence limits: full Playwright repository CI has not run; Node versions outside 22 and non-test parent embeddings remain untested. The stdin-EOF result is a separate experimental generation, not evidence that the canonical source changed.
 
 ## Latest handoff
 
-State: `EXECUTE`  
-Exact source head: `e99e97da2acfc6c1a67749bc749e1d0cb71b5607`  
-Exact packet head: use the latest `p0/435-unit-18-playwright-mcp-shutdown` head and issue #435 handoff after this packet update  
-Current exact-head tests: macOS 18/18 and Windows 18/18 plus complete build, Chromium, focused ESLint, clean tree, and exact diff; Ubuntu queued before allocation  
-Next action: inspect run `30690674059`, classify Ubuntu separately, transfer its exact receipt if it runs, then move to `ISSUE FIRST` only when the platform gate is cleared  
+State: `ISSUE FIRST`  
+Exact canonical source head: `e99e97da2acfc6c1a67749bc749e1d0cb71b5607`  
+Current exact-head tests: 18/18 plus complete declared gates on Ubuntu, macOS, and Windows  
+New alternative: mode-naïve stdin EOF repair passed all three platforms but is held for stdio compatibility review  
+Next action: obtain independent review, then prepare the issue-first decision surface without public contact  
 Public upstream interaction: none; unauthorized
