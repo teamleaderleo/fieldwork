@@ -10,7 +10,7 @@ Nixpkgs builds only `cmd/gomarkdoc`, and its generic Go builder applies the same
 
 A separate exact-head experiment proved that clearing `subPackages` reaches all upstream test packages. It also proved that the broader suite is incompatible with modern Go 1.25: two `lang` tests compare old standard-library prose against newer bracketed documentation links. Unit 22 retains that failure and does not weaken those tests.
 
-The selected exact source head has now passed its complete aarch64-darwin package, command-check, installed-help, and version fence. Linux and final packet-integrity evidence remain pending.
+The selected exact source head passes its complete aarch64-darwin package, command-check, installed-help, and version fence. The remaining Linux and Fieldwork integrity gates are queued from a clean carrier anchored to packet base `527021b7ff1535e8be4f27dc3ba7226b559a1630`.
 
 ## Scope and exact source
 
@@ -82,7 +82,7 @@ The failures were:
 
 The tests read Go standard-library documentation and compare exact summaries. Modern Go comments use bracketed links, while gomarkdoc v1.1.0 expectations retain earlier prose. Detailed receipt: [`receipts/2026-08-01-full-discovery-failure.md`](./receipts/2026-08-01-full-discovery-failure.md).
 
-This disproves the former claim that Go 1.25 makes the complete upstream suite pass. It supports the narrower claim now proven on the current Darwin execution: Go 1.25 plus fixture and flag isolation passes the selected command-package checks.
+This disproves the former claim that Go 1.25 makes the complete upstream suite pass. It supports the narrower claim now proven on Darwin: Go 1.25 plus fixture and flag isolation passes the selected command-package checks.
 
 ## Selected repair
 
@@ -113,37 +113,40 @@ Unchanged:
 
 ## Compatibility and rollback
 
-- Platform: exact-head Darwin passed; exact-head Linux is queued; retained older command runs passed both platforms.
+- Platform: exact-head Darwin passed; packet-anchored exact-head Linux is queued; retained older command runs passed both platforms.
 - API/output: installed program and package interface are unchanged.
 - Performance: package builds now execute selected command tests.
 - Rollback: restore `buildGoModule` and `doCheck = false`; no data migration or generated state is involved.
 - Future cleanup: update gomarkdoc or revisit the Go pin when upstream tests accommodate current Go documentation syntax.
 
-## Current execution generation
+## Execution receipts
+
+### Darwin
+
+- Carrier head: `c95da0c4b3f460df9bc8f342e98d05345da66df8`
+- Run: [`30690828310`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828310)
+- Job: `91345125710` — success
+- Artifact: `8815619734`
+- Digest: `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`
+
+Established exact source controls, one-file fence, selected command check, exactly one package result, installed help, and version `1.1.0`.
+
+### Packet-anchored Linux and integrity
 
 - Carrier PR: [Fieldwork #437](https://github.com/teamleaderleo/fieldwork/pull/437)
-- Carrier head: `c95da0c4b3f460df9bc8f342e98d05345da66df8`
-- Source head: `569c0c4d11e5a14f3fe6237c0a50dc484f80e744`
-- Command-check run: [`30690828310`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828310)
-- Carrier integrity run: [`30690828341`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828341)
+- Packet base: `527021b7ff1535e8be4f27dc3ba7226b559a1630`
+- Carrier head: `178e6388bf06b965970dd3ab7435db9e756a13e4`
+- Carrier relation: one commit and one workflow file
+- Linux run: [`30691551270`](https://github.com/teamleaderleo/fieldwork/actions/runs/30691551270), job `91347062784` — queued
+- Integrity run: [`30691551312`](https://github.com/teamleaderleo/fieldwork/actions/runs/30691551312), job `91347062807` — queued
 
-Darwin job `91345125710` succeeded with:
-
-- exact source and parent controls;
-- one-file fence and `diff --check`;
-- `ok github.com/princjef/gomarkdoc/cmd/gomarkdoc`;
-- exactly one selected package result;
-- installed help output;
-- version `1.1.0`;
-- artifact `8815619734`, digest `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`.
-
-Linux job `91345125742` and carrier-integrity job `91345125771` remain queued. A final carrier generation must validate the packet tip after all receipts are transferred.
+The Linux gate adds `nixpkgs-review rev HEAD --no-shell`. The integrity generation covers the packet through `527021b7ff1535e8be4f27dc3ba7226b559a1630`; later packet commits reconcile receipt and status data.
 
 ## Remaining uncertainty
 
-- exact-head Linux command, help, version, and `nixpkgs-review` evidence is pending;
-- final packet-tip integrity is pending;
-- independent review is pending;
+- packet-anchored Linux command, help, version, and `nixpkgs-review` evidence is pending;
+- packet-anchored integrity is pending;
+- carrier closure and independent review are pending;
 - the source must be rebased onto a fresh public head and rerun before submission;
 - Hydra, ofborg, and merge-queue evidence require a future authorized public PR;
 - public-contact authority is absent.
