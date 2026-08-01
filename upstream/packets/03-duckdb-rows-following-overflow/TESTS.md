@@ -2,31 +2,36 @@
 
 ## In simple words
 
-The baseline defect was executed with DuckDB's native SQLLogicTest runner and produced the wrong whole-partition frame. The one-line repair passed the same extreme query and ordinary controls on the historical source. A current-main worktree also compiled and passed the focused regression. Its complete `test/sql/window` run failed, so the workflow withheld formatting and clean-branch publication. The exact failing window case remains the next evidence task.
+The baseline defect was executed with DuckDB's native SQLLogicTest runner and produced the wrong whole-partition frame. The one-line repair passed the same extreme query and ordinary controls on the historical source. Current-main Debug execution also compiles and passes the focused regression.
+
+The first current-main carrier used a bare directory as the test filter and failed before producing a useful failure receipt. A corrected wildcard run selected the window tests and retained its output. The candidate test passed in three seconds. Three unrelated `.test_slow` cases then exceeded DuckDB's 600-second Debug batch timeout, and the sequential suite reached the 60-minute job limit. DuckDB's current pull-request workflow runs slow tests only when a `.test_slow` file changes. Unit 03 adds a regular `.test`, so the current successor runs every regular window SQLLogicTest and records the excluded slow-test inventory separately.
 
 ## Identity
 
 - Exact current upstream base: `63094a6f725af5045113dda74e291c7d604f6a88`
-- Exact canonical source head: `63094a6f725af5045113dda74e291c7d604f6a88` — unchanged clean base because publication was skipped
-- Exact execution carrier head: `bf703f57b15555c2db68520b1f4165e23ca737ae`
-- Current-main run: `30674257475`
-- Current-main job: `91298115859`
+- Exact canonical source head: `63094a6f725af5045113dda74e291c7d604f6a88` — unchanged clean base while publication remains gated
+- Initial current-main carrier head: `bf703f57b15555c2db68520b1f4165e23ca737ae`
+- Wildcard diagnostic carrier head: `10347a116cab489b9bd4d08d612f1c1095e6d706`
+- Current ordinary-gate carrier head: `243ff3929f34fa904bb96699005ac6848aab7f38`
+- Current successor run/job: `30692119355` / `91348557949`
 - Test date: `2026-07-31` through `2026-08-01`
-- Environment and platform: GitHub Actions Ubuntu 24.04; CMake/Ninja Debug current-main worktree; historical DuckDB native runner on GitHub Actions Ubuntu
+- Environment: GitHub Actions Ubuntu 24.04; CMake/Ninja Debug; DuckDB native parallel test wrapper
 
 ## Claim-to-evidence matrix
 
 | Claim | Evidence class | Test or source | Result | Coverage limit |
 | --- | --- | --- | --- | --- |
-| Extreme FOLLOWING returns whole-partition results on baseline | `target-executed` | Fieldwork run [`30580996108`](https://github.com/teamleaderleo/fieldwork/actions/runs/30580996108) and report [`735a2e184bc6039c64a341449d01977f4091311e`](https://github.com/teamleaderleo/fieldwork/commit/735a2e184bc6039c64a341449d01977f4091311e) | reproduced | historical source `de477da...` |
+| Extreme FOLLOWING returns whole-partition results on baseline | `target-executed` | Fieldwork run [`30580996108`](https://github.com/teamleaderleo/fieldwork/actions/runs/30580996108), report [`735a2e184bc6039c64a341449d01977f4091311e`](https://github.com/teamleaderleo/fieldwork/commit/735a2e184bc6039c64a341449d01977f4091311e) | reproduced | historical source `de477da...` |
 | Ordinary `1 FOLLOWING` remains correct on baseline | `target-executed` | same Fieldwork run | pass | one ordinary control |
 | Partition-end repair fixes the focused extreme result | `target-executed` | historical owned run [`30595242656`](https://github.com/teamleaderleo/duckdb/actions/runs/30595242656) | pass | execution-applied patch on historical source |
 | Regression reverses on source without repair | `target-executed` | Main run [`30595243144`](https://github.com/teamleaderleo/duckdb/actions/runs/30595243144), Relassert job `91057026663` | intended regression failed; 252 smoke tests passed | synthetic carrier merge without production repair |
-| Current-main candidate compiles | `target-executed` | run [`30674257475`](https://github.com/teamleaderleo/duckdb/actions/runs/30674257475), job `91298115859` | pass | materialized runner worktree only |
-| Current-main focused regression passes | `target-executed` | same run/job | pass | focused SQLLogicTest file |
-| Current-main complete window directory passes | `target-executed` | same run/job | fail | exact failing case was unavailable from connector-visible logs in this session |
-| Current-main formatting passes | `target-test-prepared` | `make format-check` in same workflow | skipped | prior gate failed |
-| Clean two-file source head exists | `target-test-prepared` | publisher step in same workflow | skipped | branch remains at clean base |
+| Current-main candidate compiles | `target-executed` | runs `30674257475` and `30689967043` | pass | materialized runner worktrees |
+| Current-main focused regression passes | `target-executed` | run `30689967043`, job `91342817226` | `1 passed, 0 skipped in 3s` | focused SQLLogicTest file |
+| Bare directory is an unsuitable suite filter | `target-executed` | run `30674257475`, then accepted wildcard in `30689967043` | harness invocation classified | original run retained no artifact |
+| Full wildcard includes slow tests outside the ordinary PR path | `target-executed` | run `30689967043`, artifact `8815977625` | three unrelated slow tests exceeded 600 seconds; job timed out | Debug, sequential job budget |
+| Ordinary regular window suite passes | `target-test-executing` | run `30692119355`, command `test/sql/window/*.test` | queued at this packet revision | Ubuntu Debug |
+| Formatting passes | `target-test-executing` | successor `make format-check` | pending behind regular suite | Ubuntu only |
+| Clean two-file source head exists | `target-test-executing` | successor publisher | pending behind all gates | canonical branch still clean base |
 
 ## Baseline characterization
 
@@ -43,7 +48,6 @@ DuckDB native SQLLogicTest runner through Fieldwork workflow run 30580996108
 
 ### Result
 
-- status: defect reproduced
 - workflow: `30580996108`
 - artifact: `8775602128`
 - digest: `sha256:1a5643009c07488c685ce498bf5203ec72286ae742edbc44c472c2f495749d5c`
@@ -57,7 +61,7 @@ DuckDB native SQLLogicTest runner through Fieldwork workflow run 30580996108
 - Workflow: [`30595242656`](https://github.com/teamleaderleo/duckdb/actions/runs/30595242656)
 - Assertions: exact extreme reproduction, ordinary bounded control, partition isolation
 - Result: pass
-- Limit: the source patch was applied during execution; PR head itself remained a carrier
+- Limit: patch applied during execution; PR head remained a carrier
 
 ### Historical baseline reversal through Main CI
 
@@ -65,71 +69,100 @@ DuckDB native SQLLogicTest runner through Fieldwork workflow run 30580996108
 - Command: `make smoke T="--changed-tests=/home/runner/work/_temp/changed_tests.txt"`
 - Result: 252 passed, one failed; the regression produced the exact baseline whole-partition output
 - Classification: expected baseline product failure caused by carrier topology
-- Limit: proves the test reverses; it does not evaluate the source repair
 
-### Current-main clean-candidate worktree
+### Initial current-main run
 
 - Upstream checkout: `63094a6f725af5045113dda74e291c7d604f6a88`
-- Carrier checkout: `bf703f57b15555c2db68520b1f4165e23ca737ae`
-- Workflow: [`30674257475`](https://github.com/teamleaderleo/duckdb/actions/runs/30674257475)
-- Job: `91298115859`
-- Materialization: patch applied and regression copied successfully
-- Configure: pass
+- Carrier head: `bf703f57b15555c2db68520b1f4165e23ca737ae`
+- Workflow/job: `30674257475` / `91298115859`
+- Materialization, configure, build, focused regression: pass
+- Ordinary command: `./build/fieldwork/test/run 'test/sql/window'`
+- Result: failed filter/gate invocation; formatting and publisher skipped
+- Retained artifact: none
+- Successor action: replace bare directory with an explicit wildcard and retain all output
+
+### Wildcard diagnostic run
+
+- Carrier head: `10347a116cab489b9bd4d08d612f1c1095e6d706`
+- Workflow/job: [`30689967043`](https://github.com/teamleaderleo/duckdb/actions/runs/30689967043) / `91342817226`
 - Build: `cmake --build build/fieldwork --target unittest --parallel 2` — pass
-- Focused command: `./build/fieldwork/test/run 'test/sql/window/test_rows_following_overflow.test'` — pass
-- Ordinary affected-suite command: `./build/fieldwork/test/run 'test/sql/window'` — fail
-- Formatting: skipped after the failed suite
-- Publisher: skipped after the failed suite
-- Failure classification: unresolved until the exact failing case/output is extracted or reproduced
-- Limit: candidate existed only in the runner worktree; no commit identifies the materialized two-file tree
+- Focused command: `./build/fieldwork/test/run 'test/sql/window/test_rows_following_overflow.test'`
+- Focused result: `1 passed, 0 skipped in 3s`; wrapper used three workers
+- Wildcard command: `./build/fieldwork/test/run 'test/sql/window/*'`
+- Wildcard result: accepted and executed; job reached the 60-minute limit
+- Artifact: `8815977625`
+- Digest: `sha256:69ceb3c4720921b31b7b6c3ee03c61df4319fadc19538120cf0b1f5be6bd7642`
+- Retained files: exact product patch, focused log, changed-file receipt, partial window-suite log
+- Slow timeouts recorded:
+  - `test/sql/window/window_partition_paging.test_slow`
+  - `test/sql/window/test_fill.test_slow`
+  - `test/sql/window/test_quantile_window.test_slow`
+- Timeout detail: each reported the wrapper's `600s` batch timeout after retries; the job was cancelled at its 60-minute bound
+- Classification: unrelated slow-test capacity in a Debug bounded carrier; the product candidate's focused test remained green
+
+### Current ordinary pull-request gate
+
+- Carrier head: `243ff3929f34fa904bb96699005ac6848aab7f38`
+- Workflow/job: [`30692119355`](https://github.com/teamleaderleo/duckdb/actions/runs/30692119355) / `91348557949`
+- Build: Debug native runner with four build workers
+- Focused command: exact regression file
+- Ordinary command: `./build/fieldwork/test/run 'test/sql/window/*.test'`
+- Scope rationale: DuckDB's current Main workflow sets `run_slow_tests=true` only when `.test_slow` files change or on `main`; unit 03 adds a regular `.test`
+- Additional receipt controls:
+  - exact changed-file list includes production source plus the untracked regression;
+  - exact expected two-file list is diffed against the observed list;
+  - all excluded `.test_slow` paths are recorded;
+  - candidate patch, regression file, focused log, suite log, and formatting log are retained with `if: always()`
+- Status at this packet revision: queued
 
 ## Ordinary repository gates
 
 | Gate | Exact command or workflow | Result | Notes |
 | --- | --- | --- | --- |
-| format | historical Main `Check format`; current `make format-check` | historical pass; current skipped | complete window gate stopped the job |
-| lint | historical Main `Lint CI` and Tidy Check | pass on historical carrier | current candidate has no new lint construct beyond one assignment |
-| compile | current `cmake --build build/fieldwork --target unittest --parallel 2` | pass | Ubuntu Debug |
-| focused regression | exact `test_rows_following_overflow.test` | historical pass; current-main pass | includes extreme, ordinary, and partition controls |
-| affected suite | complete `test/sql/window` | fail | exact failing case remains unextracted |
-| complete target-declared suite | `make unit` / `make allunit` | not run | outside the current carrier |
-| release/relassert | project builds on final clean source head | not run | clean candidate head absent |
-| platform matrix | project CI matrix | not run | human-authorship stop also remains |
+| compile | current Debug `unittest` build | passed twice; successor pending | Ubuntu 24.04 |
+| focused regression | exact `test_rows_following_overflow.test` | historical pass; current-main pass twice | extreme, ordinary, partition controls |
+| ordinary affected suite | every regular `test/sql/window/*.test` | executing in `30692119355` | matches current PR slow-test policy |
+| slow affected suite | `.test_slow` inventory | unchanged and excluded from ordinary PR gate | three slow Debug cases exceeded 600s in diagnostic run |
+| format | `make format-check` | pending in successor | historical carrier format passed |
+| complete target-declared suite | `make unit` / `make allunit` | unexecuted | outside bounded carrier |
+| release/relassert | project builds on final clean source head | unexecuted | clean candidate head pending |
+| platform matrix | project CI matrix | unexecuted | human-authorship stop remains |
 
 ## Reversing controls
 
-- The regression fails on the unmodified source and passes when the repair is applied.
+- The regression fails on unmodified source and passes when the repair is applied.
 - Ordinary `1 FOLLOWING` passes on baseline and repaired execution.
 - Multi-partition extreme offsets verify each frame uses its own partition end.
-- The complete window directory exposed a remaining red gate on current main.
+- The focused test passed on current main before and after the suite-invocation correction.
 
 ## Setup and harness failures
 
 | Attempt | Failure | Classification | Product claim affected? | Repair or stop |
 | --- | --- | --- | --- | --- |
 | historical early carrier linked from `#240` | initial arrangement lacked an immutable clean-source receipt | setup | no | rebuilt evidence on exact source and retained PR `#253` |
-| Main run `30595243144` | regression failed because the patch artifact was absent from the synthetic merge | carrier topology | no; supplied baseline reversal | replaced with materialized candidate workflow |
-| current run `30674257475` | complete `test/sql/window` failed after focused success | unresolved product/test interaction | yes, blocks clean publication | extract exact failure, classify, repair or rerun |
+| Main run `30595243144` | regression failed because patch artifact was absent from synthetic merge | carrier topology | no; supplied baseline reversal | replaced with materialized candidate workflow |
+| run `30674257475` | bare directory filter failed without useful retained output | invocation | no | explicit wildcard plus always-uploaded receipts |
+| run `30689967043` | full wildcard selected `.test_slow` cases; three exceeded 600 seconds and job reached 60 minutes | bounded Debug harness capacity | no focused-candidate failure | align ordinary gate with DuckDB PR slow-test policy |
 
-## Checks prepared but not executed
+## Checks prepared but unexecuted
 
-- `make format-check` on current candidate — skipped after suite failure.
-- Full `make unit` — outside the bounded carrier.
-- `make allunit` — outside the bounded carrier.
-- macOS and Windows matrices — remain for an eligible human-owned candidate.
+- Full `make unit`.
+- `make allunit`.
+- Release and relassert complete suites.
+- macOS and Windows matrices.
 
 ## Cleanup receipt
 
-- Temporary workflows removed from canonical source head: yes; canonical source branch remains the upstream base
-- Publisher or execution-only files removed from canonical source head: yes; none were published there
-- Generated residue checked: publisher had a two-path fence but never ran
-- Immediate rerun performed: historical yes; current focused pass followed by window-directory failure
-- Remaining temporary branches or PRs: `exec/unit-03-window-overflow-materialize`, owned PR `#17`, historical PR `#8`, accidental Fieldwork branch `dummy-no`
+- Canonical source branch remains the exact public base while gates execute.
+- Execution-only workflow and carrier files remain confined to `exec/unit-03-window-overflow-materialize` and PR `#17`.
+- Historical carrier PR `#8` remains for receipt transfer and retirement.
+- Accidental Fieldwork branch `dummy-no` remains a separate cleanup item.
+- No public upstream interaction occurred.
 
 ## Current test judgment
 
-`HOLD`
+`EXECUTE / HOLD`
 
-Reason: the defect and one-line correction retain strong historical evidence, and the focused current-main regression passes. The complete current-main window-directory gate is red, so no clean candidate head was published. The exact failure requires classification before any technical acceptance. DuckDB's current AI contribution policy separately requires independent human authorship or reimplementation for any public submission.
+The focused correction is green on current main. The original red suite result is now classified as a bare-directory invocation issue. The corrected full wildcard established unrelated slow-test capacity limits and retained exact receipts. The current successor runs the ordinary regular window suite that DuckDB's pull-request policy calls for when a regular `.test` changes.
 
-Clearing condition: identify the exact failure from run `30674257475`, repair the candidate or invocation as required, rerun focused regression plus complete `test/sql/window` plus formatting, publish an exact clean two-file head, and obtain independent human authorship/review and contact authority.
+Technical clearing condition: successor `30692119355` passes materialization, Debug build, focused regression, every regular window SQLLogicTest, formatting, exact two-file fencing, and clean publication. Public clearing condition: an independent human derives, authors or reimplements, and reviews an eligible candidate, followed by explicit contact authority.
