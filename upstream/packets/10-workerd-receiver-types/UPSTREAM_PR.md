@@ -4,7 +4,7 @@
 
 ## Proposed title
 
-`fix(types): generate receiver-aware TypeScript declarations`
+`Generate receiver-aware TypeScript methods`
 
 ## Proposed body
 
@@ -16,7 +16,7 @@
 - bind full-replacement receivers only to type parameters declared by the replacement;
 - widen generated context-global operations to their legal owner/global/nullish receiver set;
 - exclude static members from owning receiver generation and ambient extraction;
-- add generator, override, global, generic-replacement, lexical-resolution, static, and call-matrix coverage.
+- add generator, override, global, generic-replacement, lexical-resolution, transformed-heritage, static, callback-erasure, and call-matrix coverage.
 
 ### Problem
 
@@ -26,9 +26,11 @@ This changes declaration generation only. Runtime receiver enforcement remains u
 
 ### Implementation
 
-Initial generation marks receivers internally as `__JSG_GENERATED_RECEIVER__<Owner>`. The marker survives print/reparse, allows override/global passes to distinguish generated policy from explicit handwritten receivers, and is removed before final declaration output.
+Initial generation marks receivers internally as `__JSG_GENERATED_RECEIVER__<Owner>`. The marker survives print/reparse, allows override and global passes to distinguish generated policy from explicit handwritten receivers, and is removed before final declaration output.
 
 Ordinary methods emit `this: Owner`. Context-global generated operations emit `this: Owner | typeof globalThis | null | void`. Static methods emit no receiver. Full replacements specialize receivers from replacement-declared type parameters only.
+
+Global heritage lookup uses the TypeScript checker to establish lexical identity, then follows the corresponding transformed top-level declaration so override-added members and generated receiver markers survive extraction.
 
 ### Tests
 
@@ -44,35 +46,37 @@ bazelisk test \
   --test_output=errors
 ```
 
-The fixtures cover legal bare/global/nullish/detached calls, invalid unrelated receivers, explicit receiver preservation, overloads, full replacement, generics, inherited globals, same-name namespaces, and static exclusion.
+The fixtures cover legal bare/global/nullish/detached calls, invalid unrelated receivers, ordinary callback assignment, explicit receiver preservation, overloads, full replacement, generics, inherited globals, same-name namespaces, transformed heritage, and static exclusion.
 
 ### Compatibility
 
-Explicit receiver parameters can reveal source errors in code that rebinds native host methods. Callback widening can erase the receiver, so runtime validation remains necessary. Representative generated output should be reviewed before publication for intentional detachable APIs and recursive/global-type effects.
+The change reveals source errors where code retains the receiver-aware method type and rebinds a host method to an unrelated object. Those calls already fail at runtime.
 
-### Prior art
+Assignment to an ordinary receiver-free callback type remains accepted and erases the explicit `this` parameter under TypeScript's existing function assignability rules. Runtime validation therefore remains necessary.
 
-- workerd issue #6904 records the declaration mismatch;
-- workerd issue #2716 and PR #2730 preserve receiver-sensitive Web Crypto behavior while binding a compatibility export;
-- closed PR #2352 proposed selective detached JSG methods, reinforcing the distinction between ordinary owning methods and deliberate detachability.
+Current workerd source contains no detached-method registration path. Closed PR #2352 proposed a distinct `JSG_DETACHED_METHOD` macro, reinforcing the distinction between ordinary owning methods and deliberate receiver-independent instance operations. A future detached registration would need an RTTI flag and generator branch.
+
+### Commit organization
+
+The implementation is one commit because generation, override preservation, global widening, cleanup, and their fixtures form one atomic declaration invariant. Splitting them would create intermediate commits that either lose receivers through overrides or reject legal Worker-global calls.
 
 ### AI assistance
 
-AI systems assisted with source navigation, fixture preparation, implementation, compatibility analysis, and review. The human author must review and be able to defend each claim and line and should adjust this disclosure to the target's current policy.
+This change was developed with AI assistance. The author remains responsible for every implementation detail, test, compatibility claim, and submitted line.
 
 ## Exact internal source
 
 - owned PR: https://github.com/teamleaderleo/workerd/pull/5
-- base: `7cdc8c0e089287c8f3643f3a6f668ecdc221722a`
-- head: `f167a283fc9f792c427eeded306c38602e60261d`
-- compare: https://github.com/teamleaderleo/workerd/compare/7cdc8c0e089287c8f3643f3a6f668ecdc221722a...f167a283fc9f792c427eeded306c38602e60261d
+- base: `d82c2a45a8695aac30d4d24828ce1ee7fb11909b`
+- head: `8f41da276852ad48735c1d817b7c1a3699ac8beb`
+- compare: https://github.com/teamleaderleo/workerd/compare/d82c2a45a8695aac30d4d24828ce1ee7fb11909b...8f41da276852ad48735c1d817b7c1a3699ac8beb
 
 ## Publication checklist
 
 - [ ] focused exact-head target command passed;
 - [ ] ordinary target gates passed;
-- [ ] representative generated-output compatibility reviewed;
+- [ ] representative ambient and importable generated output reviewed;
 - [ ] independent complete-diff acceptance recorded;
-- [ ] issue and PR text synchronized to final head;
-- [ ] AI disclosure checked against current target expectations;
+- [x] issue and PR text synchronized to current source direction;
+- [x] commit and PR draft include current AI-assistance disclosure;
 - [ ] human explicitly authorized public publication.
