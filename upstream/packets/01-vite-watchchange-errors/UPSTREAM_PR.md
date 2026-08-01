@@ -2,7 +2,7 @@
 
 ## In simple words
 
-This draft describes the two-file Vite change without Fieldwork workflow terms. It remains unposted until the user authorizes the exact public upstream interaction.
+This is the polished public-facing draft for the two-file Vite change. It deliberately omits Fieldwork workflow terms and private branch names. It remains unposted until the user authorizes the exact public upstream interaction.
 
 ## Title
 
@@ -16,7 +16,7 @@ A rejected plugin `watchChange` hook currently exits the dev-server file-event h
 
 The watcher listener logs the rejection, so the error is visible, but a previously transformed virtual module can remain cached after its watched backing file changes.
 
-This follows the error-reporting work in #22188. That change handles escaped watcher promises; this change isolates the hook failure from the later Vite-owned event processing.
+This follows the error-reporting work in #22188. That change handles escaped watcher promises; this change isolates a hook failure from the later file-event work Vite owns.
 
 ### Change
 
@@ -35,7 +35,7 @@ For a change event with a rejecting hook, it verifies that:
 
 - the exact error reaches the configured logger;
 - the plugin `hotUpdate` hook runs;
-- the virtual module transform cache is invalidated;
+- the virtual-module transform cache is invalidated;
 - the next transform reads updated content.
 
 For add and unlink events, it verifies that:
@@ -59,18 +59,26 @@ pnpm exec oxfmt --check packages/vite/src/node/server/index.ts packages/vite/src
 pnpm exec eslint packages/vite/src/node/server/index.ts packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js
 ```
 
-Ordinary CI and workflow-security checks should be listed here with their final exact-head results before submission.
+The focused three-case regression passed in Vite CI. Repository build, lint, formatting, typecheck, documentation tests, workflow checks, Linux Node 20/22/24/26 Build&Test, and macOS Node 24 Build&Test passed. Windows build, unit, focused regression, and ordinary serve also passed; later Windows HMR/SSR playground runs were flaky in existing tests outside this change.
+
+## Private validation note — remove before public use
+
+- Canonical source head: `a2ab7ca6183ad74d64066d6706e57a546e355224`
+- Inspected public base: `e6b6b167afa0a80548829d1f24a0712f9194389a`
+- Complete source diff: exactly two files
+- Source self-review disposition: `ACCEPT` for independent final review
+- Public upstream contact: unauthorized; interactions zero
 
 ## Finalization checklist
 
 Before public use:
 
-1. rebase onto the then-current Vite `main`;
-2. run the focused regression and ordinary repository gates at the final exact head;
-3. replace the test section with accepted final receipts;
-4. confirm the complete diff contains only the implementation and test;
-5. confirm current contribution and AI-disclosure policy;
-6. remove this checklist and every internal branch reference;
+1. obtain independent complete-diff acceptance;
+2. re-read the then-current Vite `main` and rebase if materially needed;
+3. repeat duplicate search and contribution/AI-disclosure policy checks;
+4. rerun the focused regression and ordinary gates if the source or base moves;
+5. replace the test paragraph with the final accepted receipts;
+6. remove the private validation note, this checklist, and every internal reference;
 7. obtain explicit authority for the exact public pull request.
 
 Public upstream contact remains unauthorized.
