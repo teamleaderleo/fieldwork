@@ -34,6 +34,7 @@ A target matrix disproved the original environment-cleanup theory. A current-Go 
 
 - Run `30692966149` — success
 - Job `91350898702`
+- Carrier PR `#490` — comparison receipt transferred
 - Artifact `8816337182`
 - Digest `sha256:14ae794f8160a5f6c68bcf113dd430d628fa4b8399ad9ceb65f1d5f33770e5e1`
 - Command check, help, version, and binary identity: pass
@@ -63,12 +64,11 @@ Receipt: `receipts/2026-08-01-independent-code-review.md`.
 
 ## Required continuation
 
-1. Create a clean Linux execution carrier anchored to the packet revision containing this handoff.
-2. Run source `3a036ab9...` on x86_64-linux with package/check/help/version and `nixpkgs-review` gates.
-3. Preserve artifact and current Fieldwork-integrity receipts.
-4. Transfer receipts and retire PRs #437 and #438.
-5. Mark the packet `ACCEPT` for the user's final-mile public decision if all gates pass.
-6. Regenerate on a fresh public Nixpkgs head before authorized submission.
+1. Complete canonical execution PR #437, run `30693249520`, against exact source `3a036ab9...`.
+2. Preserve x86_64-linux package/check/help/version, `nixpkgs-review`, artifact, and Fieldwork-integrity receipts.
+3. Transfer receipts and retire PR #437. Comparison PR #490 may close after its transferred receipt is confirmed.
+4. Mark the packet `ACCEPT` for the user's final-mile public decision if all gates pass.
+5. Regenerate on a fresh public Nixpkgs head before authorized submission.
 
 ## Public interaction
 
