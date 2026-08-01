@@ -40,7 +40,7 @@ The following remain outside this unit:
 | Current public Workers SDK base | [`cloudflare/workers-sdk@95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`](https://github.com/cloudflare/workers-sdk/commit/95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d) |
 | Owned fork `main` | [`teamleaderleo/workers-sdk@95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`](https://github.com/teamleaderleo/workers-sdk/commit/95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d) |
 | Clean target branch | `teamleaderleo/workers-sdk:upstream/miniflare-runtime-first-disposal` |
-| Clean target head | [`56f4df168d7c4707890ca3345e3d4a34ee3fa08a`](https://github.com/teamleaderleo/workers-sdk/commit/56f4df168d7c4707890ca3345e3d4a34ee3fa08a) |
+| Clean target head | [`e5ac5d046a8b2ac634027e9da59dec93c61a650e`](https://github.com/teamleaderleo/workers-sdk/commit/e5ac5d046a8b2ac634027e9da59dec93c61a650e) |
 | Canonical owned-fork source PR | [`teamleaderleo/workers-sdk#5`](https://github.com/teamleaderleo/workers-sdk/pull/5) |
 | Packet branch | `teamleaderleo/fieldwork:upstream/15-miniflare-runtime-first-disposal` |
 | Packet workflow base | [`920f87cb25dd0cc7901d59ea2019cd4b4a193b94`](https://github.com/teamleaderleo/fieldwork/commit/920f87cb25dd0cc7901d59ea2019cd4b4a193b94) |
@@ -67,7 +67,7 @@ A rejection or unresolved promise in either earlier awaited step prevents execut
 
 ## Clean candidate
 
-The candidate at `56f4df168d7c4707890ca3345e3d4a34ee3fa08a`:
+The candidate at `e5ac5d046a8b2ac634027e9da59dec93c61a650e`:
 
 1. removes the exit hook;
 2. invokes `Runtime.dispose()` and retains its promise;
@@ -88,11 +88,11 @@ packages/miniflare/src/index.ts
 packages/miniflare/test/teardown-lifecycle.spec.ts
 ```
 
-Diff summary: `123` additions, `4` deletions. Temporary workflows, experiments, packet files, and carrier machinery are absent from the canonical source branch.
+Diff summary: `136` additions, `4` deletions. Temporary workflows, experiments, packet files, and carrier machinery are absent from the canonical source branch.
 
 ## Focused controls
 
-1. proxy cleanup rejects and the first disposal still requests `SIGKILL` for workerd;
+1. proxy cleanup rejects and the first disposal still requests `SIGKILL` for workerd, then the test awaits the killed child's exit;
 2. proxy cleanup remains pending and the workerd kill request occurs before the pending hook is released;
 3. a later `DevRegistry.dispose()` rejection confirms the runtime had already been terminated.
 
@@ -100,14 +100,14 @@ The legacy fourth test covering initialization-error preservation belongs to a s
 
 ## Current execution
 
-Owned-fork source PR `teamleaderleo/workers-sdk#5` opened at exact head `56f4df168d7c4707890ca3345e3d4a34ee3fa08a`.
+Owned-fork source PR `teamleaderleo/workers-sdk#5` is open at exact head `e5ac5d046a8b2ac634027e9da59dec93c61a650e`.
 
-Repository workflows started for that head, including:
+Fresh exact-head workflows include:
 
-- CI — run `30690756068`;
-- CI (Other Node Versions) — run `30690756037`;
-- Changeset Review — run `30690756089`;
-- Semgrep OSS scan — run `30690756086`;
+- CI — run `30690979156`;
+- CI (Other Node Versions) — run `30690979168`;
+- Changeset Review — run `30690979176`;
+- Semgrep OSS scan — run `30690979141`;
 - repository integration suites triggered by the target PR.
 
 The focused package assertion still needs a retained job-level execution receipt. This is an execution task, so the current disposition is **EXECUTE**.
@@ -126,7 +126,7 @@ The focused package assertion still needs a retained job-level execution receipt
 2. Confirm the focused lifecycle file actually executes and record its assertion count and result.
 3. Run or obtain a baseline receipt for the same controls at `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`.
 4. Classify every failed or skipped target gate by source relevance.
-5. Re-review browser-cleanup interaction and simultaneous runtime/earlier-hook failure precedence.
+5. Re-review Browser Rendering interaction and simultaneous runtime/earlier-hook failure precedence.
 6. Synchronize `TESTS.md`, `REVIEW.md`, the source PR front page, and issue `#435` at the final exact head.
 7. Obtain independent final review before promotion to `READY`.
 8. Keep public issue and PR drafts dormant until explicit public-contact authority.
