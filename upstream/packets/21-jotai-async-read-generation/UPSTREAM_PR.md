@@ -1,8 +1,8 @@
 # Upstream pull-request draft — fix(utils): fence stale async JSON reads by per-key generation
 
-Draft status: `not ready — clean stacked source branch and ordinary gates pending`  
-Proposed head: `teamleaderleo/jotai:fix/utils-async-read-generation` after fork creation  
-Proposed base: unit 20 clean source branch, itself based on `pmndrs/jotai:main` at `56a9cc51de8a5dd762b95a145820f12589cc47c9`  
+Draft status: `not ready — exact-head workflows and independent review pending`  
+Proposed head: `teamleaderleo/jotai:fix/utils-async-read-generation` at `dfe607d7637fbcf61ae41c39f4f470f61fa7c531`  
+Proposed base: `teamleaderleo/jotai:fix/utils-key-scoped-json-cache` at `b2f84273b53bbed9df073354dac503e520be7101`, itself based on `pmndrs/jotai:main` at `56a9cc51de8a5dd762b95a145820f12589cc47c9`  
 Public interaction authorized: `no`
 
 ---
@@ -26,31 +26,13 @@ Add an adapter-local generation map keyed by storage key.
 - Every `getItem()` captures a newly advanced generation.
 - A successful parse publishes cache identity only while that generation remains current.
 - A malformed result deletes cache identity only while that generation remains current.
-- Removal invalidation advances the same generation before deleting the affected cache entry.
+- Completed removal invalidation advances the same generation before deleting the affected cache entry.
 
 The generation controls shared publication only. Each caller continues to receive its own backend operation result under the existing rule that equal serialized bytes may reuse current cached identity.
 
 ## Tests
 
-Focused regression:
-
-```text
-pnpm vitest run \
-  tests/react/vanilla-utils/atomWithStorageAsyncReadGenerationRepair.test.ts \
-  tests/react/vanilla-utils/atomWithStorageKeyIsolation.test.ts \
-  tests/react/vanilla-utils/atomWithStorageReadInvalidation.test.ts \
-  tests/react/vanilla-utils/atomWithStorage.test.tsx
-```
-
-Ordinary gates required on the proposed head:
-
-```text
-pnpm run fix:format
-pnpm run build
-pnpm run test
-```
-
-The focused matrix covers:
+The target branch adds eleven deterministic regressions covering:
 
 - reverse same-key completion;
 - reads crossing completed removal;
@@ -60,6 +42,26 @@ The focused matrix covers:
 - recovery after rejection;
 - unrelated-key isolation;
 - same-string stale-caller identity reuse.
+
+Focused command:
+
+```text
+pnpm vitest run \
+  tests/react/vanilla-utils/atomWithStorageAsyncReadGenerationRepair.test.ts \
+  tests/react/vanilla-utils/atomWithStorageKeyIsolation.test.ts \
+  tests/react/vanilla-utils/atomWithStorageReadInvalidation.test.ts \
+  tests/react/vanilla-utils/atomWithStorage.test.tsx
+```
+
+Project gates:
+
+```text
+pnpm run fix:format
+pnpm run build
+pnpm run test
+```
+
+The owned-fork pull request has triggered the repository's existing Test, multiple-version, old-TypeScript, multiple-build, compressed-size, and preview-release workflows. Their final exact-head conclusions must be inserted here before filing.
 
 ## Compatibility
 
@@ -89,13 +91,16 @@ The focused matrix covers:
 
 ## Submission checklist
 
-- [ ] Owned Jotai fork exists.
-- [ ] Unit 20 has one clean source branch based on a recent upstream head.
-- [ ] Unit 21 is a clean child of unit 20 with exactly one production file and one native test file in its diff.
-- [ ] Expanded native tests ran at the exact proposed head.
-- [ ] `pnpm run fix:format`, `pnpm run build`, and `pnpm run test` ran at the exact proposed head.
+- [x] Owned Jotai fork exists.
+- [x] Unit 20 has one clean source branch on the exact inspected upstream base.
+- [x] Unit 21 is a clean child of unit 20.
+- [x] Unit 21 diff contains exactly one production file and one native test file.
+- [x] Commit history contains one focused fix commit and one focused test commit.
+- [x] Expanded eleven-case native test is present at the exact proposed head.
+- [ ] Exact-head workflows completed and actual test/build coverage was recorded.
+- [ ] `pnpm run fix:format`, `pnpm run build`, and `pnpm run test` coverage was confirmed at the exact proposed head.
 - [ ] Complete current diff received independent review.
 - [ ] Current duplicate and overlap search was repeated.
-- [ ] Commit history and title follow current project conventions.
-- [ ] Current contribution and AI-disclosure policies were checked.
+- [x] Commit history and title follow the current conventional-commit guidance.
+- [ ] Current contribution and AI-disclosure policies were checked immediately before filing.
 - [ ] Exact user authorization to open the public pull request is recorded.
