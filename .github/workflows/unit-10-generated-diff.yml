@@ -20,7 +20,7 @@ env:
 
 jobs:
   generated-output:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 360
     steps:
       - name: Check out Fieldwork carrier
