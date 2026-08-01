@@ -6,7 +6,9 @@
 
 The candidate is materialized on a clean owned-fork branch from current public main. Continued investigation corrected one packet premise: the pre-registration `await languageModelStream.cancel(reason)` already awaits a request-level cancellation promise. Native Web Streams modeling showed that this promise settles after forwarding cancellation while provider cleanup remains pending, and provider cleanup rejection is contained by the existing pipe chain. A target-native regression for those semantics is now part of the canonical branch.
 
-The source direction is coherent. Promotion is held on ordinary exact-head CI and independent acceptance.
+A broader code-first pass found one separate shared-helper defect: when an SDK async iterator receives a source-stream error, it propagates the error but retains its reader lock. Native iteration and a minimal catch-and-release candidate both leave the stream unlocked. This affects many streaming APIs and belongs in a separate follow-up, outside the six-file explicit-abort candidate.
+
+The source direction remains coherent. Promotion is held on ordinary exact-head CI and independent acceptance.
 
 ## Current disposition
 
@@ -70,6 +72,8 @@ Upstream contact authorized: `no`
 | `packages/ai/src/generate-text/stream-text-explicit-abort-races.test.ts` | regression | yes, subject to consolidation |
 | `packages/ai/src/generate-text/stream-language-model-call-cancellation.test.ts` | cancellation-promise regression | yes, subject to consolidation |
 
+The adjacent async-iterator finding changes `packages/ai/src/util/async-iterable-stream.ts` and its tests. It is excluded from this fence and from the canonical source branch.
+
 ## Evidence summary
 
 | Claim | Evidence class | Exact receipt | Limit |
@@ -79,6 +83,8 @@ Upstream contact authorized: `no`
 | Clean current-main candidate exists | `source-read` | source head `3035f6e5…` | ordinary exact-head jobs queued |
 | Returned model-call stream cancellation settles while provider cleanup remains pending | `model-executed` | `receipts/2026-08-01-provider-cancel-promise-model.md` | native Web Streams model |
 | Target-native cancellation semantics are encoded canonically | `target-test-prepared` | source head `3035f6e5…` | ordinary exact-head jobs queued |
+| SDK async iteration retains its reader lock after source error | `source-read` + `model-executed` | `receipts/2026-08-01-adjacent-stream-lifecycle-scout.md` | Node `v22.16.0`; target-native Node/Edge regression absent |
+| Pre-aborted first provider invocation is shared across `streamText` and `generateText` | `source-read` | adjacent lifecycle scout | contract and callback semantics unresolved |
 
 ## Packet navigation
 
@@ -86,6 +92,7 @@ Upstream contact authorized: `no`
 - [Approaches](./APPROACHES.md)
 - [Tests and receipts](./TESTS.md)
 - [Provider-cancel promise receipt](./receipts/2026-08-01-provider-cancel-promise-model.md)
+- [Adjacent stream lifecycle scout](./receipts/2026-08-01-adjacent-stream-lifecycle-scout.md)
 - [Upstream issue draft](./UPSTREAM_ISSUE.md)
 - [Upstream pull-request draft](./UPSTREAM_PR.md)
 - [Review and human inspection guide](./REVIEW.md)
@@ -98,6 +105,7 @@ Upstream contact authorized: `no`
 - Separate mid-body provider-error candidate: [`vercel/ai#15495`](https://github.com/vercel/ai/pull/15495)
 - Equivalent implementation found: `partial`
 - Relationship to prior work: the owned candidate extends the maintainer-authored pending-read fix with broader characterization, callback-independent settlement, deterministic post-abort arbitration, multi-consumer controls, and registration-gap cancellation. Public contribution should update or replace the existing PR only with maintainer direction.
+- Adjacent async-iterator lock-release search found no obvious current issue or pull request under the inspected terms. This is a quiet search result, not proof of uniqueness.
 
 ## Remaining work
 
@@ -105,13 +113,16 @@ Complete in this order:
 
 1. Obtain ordinary repository CI and changeset verification on exact canonical head `3035f6e5a3ef6ff9236c8d1b08f4ea3dfe852c15`; current runs `30691402306` and `30691402294` have jobs created and queued with zero started jobs.
 2. Obtain an independent complete-diff disposition on owned-fork PR #13.
-3. Retire temporary carrier branches and decide whether public delivery belongs as a revision of upstream PR #16852 or an issue/maintainer handoff.
+3. Decide whether public delivery belongs as a revision of upstream PR #16852 or an issue/maintainer handoff.
+4. Outside this unit, prepare and execute a focused Node/Edge regression for async-iterator lock release after source error before opening a separate campaign or source candidate.
+5. Characterize pre-aborted provider and callback invocation across `streamText` and `generateText` only if that contract becomes a selected follow-up.
 
 ## Blockers and limits
 
 - Exact-head Actions jobs remain queued; this is an execution availability/authorization blocker with no product-test conclusion.
 - Final independent acceptance remains absent.
 - Abort reports termination; it cannot reverse an external tool side effect that already committed.
+- The adjacent iterator result is model-executed, without target-native execution or demonstrated application frequency.
 - Public upstream contact remains unauthorized.
 
 ## Latest handoff
@@ -119,7 +130,7 @@ Complete in this order:
 State: `HOLD`  
 Exact canonical source head: `3035f6e5a3ef6ff9236c8d1b08f4ea3dfe852c15`  
 Exact packet head: see latest #435 handoff  
-Tests: prior matching repair diff passed 6 Node and 6 Edge tests plus type, format/lint, and diff checks; cancellation promise model passed on Node `v22.17.0`; exact canonical Verify Changesets `30691402294` and CI `30691402306` are queued  
-Temporary machinery remaining: superseded owned-fork carriers #9–#11 and their branches; canonical branch contains no workflow files  
-Next worker action: inspect exact canonical runs when jobs start, then obtain independent review and settle the contribution route  
+Tests: prior matching repair diff passed 6 Node and 6 Edge tests plus type, format/lint, and diff checks; cancellation promise model passed on Node `v22.17.0`; adjacent iterator model passed on Node `v22.16.0`; exact canonical Verify Changesets `30691402294` and CI `30691402306` remain queued  
+Temporary machinery remaining: no workflow files on the canonical head; superseded carrier and trigger branch tips were reset to the canonical source head; historical PRs remain as evidence  
+Next worker action: inspect exact canonical runs when jobs start, obtain independent review, and route the separate async-iterator lock-release finding through its own characterization  
 Public upstream interaction: none
