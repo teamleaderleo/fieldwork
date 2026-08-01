@@ -1,70 +1,96 @@
 # Unit 10 — workerd receiver-aware TypeScript declarations
 
+## In simple words
+
+`workerd` already rejects ordinary native methods called through the wrong JavaScript object. Its generated TypeScript declarations omit that receiver rule, so incorrect rebinding can compile and fail only at runtime. The candidate adds explicit TypeScript `this` parameters, preserves their generated origin through handwritten overrides and Worker-global extraction, and keeps legal global/nullish calls accepted.
+
 ## Current disposition
 
-**EXECUTE. Hold public pull-request publication.**
+**HOLD — clean source candidate complete; exact-head execution and final human review remain.**
 
-The repaired source is preserved on a clean owned-fork branch rebased onto current public `workerd/main`. Source review found and repaired three concrete defects during the research sequence: stale static-global expectations, ambiguous lexical heritage lookup, and generic full-replacement receivers that could retain an undeclared type parameter. The clean branch excludes the fork-only workflow and contains one source/test commit.
+The source is one commit on the current public `workerd/main` release head. It contains ten product/test files and no workflow or Fieldwork-only files. Public upstream contact remains unauthorized.
 
-Exact source:
+## Exact source
 
 - repository: `teamleaderleo/workerd`
 - clean branch: `unit-10/receiver-aware-types`
 - clean PR: https://github.com/teamleaderleo/workerd/pull/5
-- source head: `f167a283fc9f792c427eeded306c38602e60261d`
-- public upstream base: `7cdc8c0e089287c8f3643f3a6f668ecdc221722a` (`Release 2026-07-31`)
-- compare: https://github.com/teamleaderleo/workerd/compare/7cdc8c0e089287c8f3643f3a6f668ecdc221722a...f167a283fc9f792c427eeded306c38602e60261d
+- source head: `8f41da276852ad48735c1d817b7c1a3699ac8beb`
+- public upstream base: `d82c2a45a8695aac30d4d24828ce1ee7fb11909b` (`Release 2026-08-01`)
+- compare: https://github.com/teamleaderleo/workerd/compare/d82c2a45a8695aac30d4d24828ce1ee7fb11909b...8f41da276852ad48735c1d817b7c1a3699ac8beb
 - source fence: one commit, ten files, no workflow files
+- AI assistance: disclosed in the commit message and owned PR description, as required by current workerd submission guidance
 
-Packet:
+The August 1 upstream release differs from the prior July 31 base only in:
 
-- branch: `p0/435-unit-10-workerd-receiver-types`
-- directory: `upstream/packets/10-workerd-receiver-types/`
-- parent: https://github.com/teamleaderleo/fieldwork/issues/435
-- campaign record: https://github.com/teamleaderleo/fieldwork/issues/230
+- `src/workerd/io/maximum-compatibility-date.txt`
+- `src/workerd/io/release-version.txt`
 
-## In simple words
-
-`workerd` already rejects ordinary native methods called through the wrong JavaScript object. Its generated TypeScript declarations omit that receiver rule, so incorrect rebinding can compile and fail only in the runtime. The candidate adds explicit TypeScript `this` parameters, carries their generated origin through handwritten overrides, and widens Worker-global operations to the exact nullish/global receiver set used by the runtime.
+All implementation blobs other than the new callback-erasure control are identical to the repaired source reviewed on the prior base.
 
 ## What is established
 
-- Native `workerd` and Chromium reject unrelated receivers for Worker `fetch`; Bun and Node deliberately accept them.
-- TypeScript 5.8.3 can represent bare, detached, nullish, correct-global, and unrelated-holder behavior while the receiver-aware type remains precise.
-- The owned Stensibly production wrapper and native-workerd regression are merged at `f19c2c7aa09fc4d4fdb7e7ae2d4d727d0eedd091`.
-- The current source includes generator, override, global-extraction, generic-replacement, static, lexical-heritage, and call-matrix tests.
-- Public upstream main advanced only through three release commits touching release-date files; the clean branch is rebased onto that current head.
-- Search on 2026-08-01 found no second open `workerd` issue or pull request implementing receiver-aware generated declarations. Existing issue `cloudflare/workerd#6904` remains the public discussion record.
+- Ordinary JSG methods are installed with an owning V8 signature and reject unrelated receivers before the C++ callback executes.
+- Native `workerd` and Chromium reject unrelated receivers for Worker `fetch`; Bun and Node intentionally accept them.
+- TypeScript can represent the legal bare, detached, nullish, actual-global, and unrelated-holder call matrix while the receiver-aware type is retained.
+- Assignment to a receiver-free callback type intentionally erases the explicit `this` parameter; the current type fixture now preserves that compatibility boundary as an accepted case.
+- The candidate covers generator insertion, provenance cleanup, partial and full overrides, overloads, replacement generics, inherited globals, same-name lexical declarations, transformed heritage, static exclusion, and the Worker-global call matrix.
+- Public issue `cloudflare/workerd#6904` remains the discussion record. A current search found no competing public implementation PR.
+- Closed unmerged PR `cloudflare/workerd#2352` proposed a distinct detached-method registration macro. Its design supports the candidate's default: ordinary `JSG_METHOD` is receiver-owning, while receiver-independent instance operations require separate runtime registration and RTTI support.
 
-## Current test state
+## Commit organization result
 
-Executed and retained:
+Retain one source commit.
 
-- Stensibly exact-head commands at `2c42d8041b0cbe5fbccbe87202381361da2bc6ef`: `bun install`, `bun run typecheck`, `bun run test`, `bun run test:convex`, `bun run worker:check`, `bun run test:runtime-parity` — all passed in run `30449733862`; ordinary `test` and `runtime-parity` also passed in run `30449840120`.
-- workerd carrier lint at `0ecc0a6632747031a6650c49a401760e511c9f36`: run `30625540316` — passed.
-- TypeScript model commands and diagnostics are retained in Stensibly issue #474 and summarized in `TESTS.md`.
+The generator marker, override preservation, global widening, cleanup, and tests form one semantic change:
 
-Requested for clean head `f167a283fc9f792c427eeded306c38602e60261d` through owned draft PR #5:
+- generator-only code loses receivers through handwritten overrides;
+- generator plus overrides makes bare Worker-global calls type-invalid until global widening lands;
+- source without matching fixture updates does not satisfy the project's per-commit test discipline.
 
-- Lint `30674453451` — queued at packet creation.
-- New PR Review `30674453474` — queued.
-- CodSpeed `30674453493` — queued.
-- Tests `30674453627` — queued.
-- Coverage `30674453672` — queued.
+A three-commit split would create knowingly incomplete intermediate behavior and repeated snapshot churn. The current one-commit presentation is larger, yet atomic and easier to defend.
 
-Queued jobs provide no pass or failure evidence.
+## Test state
 
-## Remaining blockers
+Executed on the repaired semantic source:
 
-1. The clean exact head needs completed focused generator/override/global/type fixtures and ordinary target gates.
-2. The final source head needs independent complete-diff acceptance; review `4827890474` covered the semantically identical product/test blobs on carrier head `0ecc0a…`, while the clean rebase itself has only coordinator verification.
-3. A representative generated-output compatibility review should confirm intentional detachable operations and source-break scope across real APIs.
-4. Contribution guidance requires tested code and favors discussion before a non-trivial change. Public issue #6904 satisfies the discussion-first history, yet it has no maintainer response.
-5. Any public issue follow-up or pull request requires explicit human authorization.
+- workerd lint passed;
+- `//types:test/index.spec` passed after the transformed-heritage repair;
+- `//types:test/transforms/globals.spec` passed;
+- `//types:test/transforms/overrides/index.spec` passed;
+- `//types:test/transforms/overrides/replacement-receiver-generics.spec` passed;
+- the earlier end-to-end failure reproduced stale pre-transform heritage lookup and directly motivated the current repair.
 
-## Continuation-ready next action
+Executed downstream/runtime evidence:
 
-Wait for or inspect the clean-head workflow conclusions. If target execution completes, record exact jobs and logs, compare generated output, obtain independent review of `f167a283…`, update this packet, and choose `ACCEPT` or a concrete repair. If the jobs remain queued because the fork cannot obtain runner execution, retain that platform limit and arrange an authorized target-native run before publication.
+- Stensibly exact-head typecheck, unit, integration, Worker check, and native runtime-parity commands passed;
+- the native matrix accepted legal receiver forms and rejected unrelated holder, `call`, `apply`, and `bind` forms;
+- the production OAuth fetch wrapper completed through a local outbound Worker.
+
+Prepared on the final source head and still requiring exact execution:
+
+- callback-erasure compatibility control in `types/test/types/fetch-receiver.ts`;
+- full `//types/...` package;
+- generated declaration build and representative output diff.
+
+See [`TESTS.md`](./TESTS.md) for exact commands and evidence classes.
+
+## Remaining work in strict order
+
+1. Run the focused receiver targets and the complete `//types/...` package at `8f41da2…`.
+2. Build representative ambient and importable declaration output and review method count, global unions, marker leakage, recursive growth, and intentional detachability.
+3. Obtain independent complete-diff review of the final exact head.
+4. Synchronize the final generated-output findings into `DEEP_DIVE.md`, `TESTS.md`, `UPSTREAM_PR.md`, and `REVIEW.md`.
+5. Human decides whether to authorize a public follow-up on issue #6904 and an upstream pull request.
+
+Execution status should remain background evidence collection. Source review, prior-art analysis, contribution guidance, packet drafting, and compatibility analysis continue independently.
+
+## Packet
+
+- branch: `p0/435-unit-10-workerd-receiver-types`
+- directory: `upstream/packets/10-workerd-receiver-types/`
+- routing board: https://github.com/teamleaderleo/fieldwork/issues/435
+- campaign record: https://github.com/teamleaderleo/fieldwork/issues/230
 
 ## Reading order
 
