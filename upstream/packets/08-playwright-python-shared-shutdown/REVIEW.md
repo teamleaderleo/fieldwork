@@ -3,14 +3,14 @@
 ## Review target
 
 - Work class: upstream-fork research
-- Clean source PR: [`teamleaderleo/playwright-python#8`](https://github.com/teamleaderleo/playwright-python/pull/8)
-- Base: `3b7c24c3e67dc84f7b0eddd0c5fd2ca685705021`
-- Clean product/test head: `1ac8797ab4dc85fd91a38d526c3912a72a8fba23`
-- Complete clean diff: three files, five commits, 467 additions, 6 deletions
-- Current disposition: `REPAIR` pending the active exact-head execution receipt and independent human review
+- Canonical source PR: [`teamleaderleo/playwright-python#8`](https://github.com/teamleaderleo/playwright-python/pull/8)
+- Public base: `3b7c24c3e67dc84f7b0eddd0c5fd2ca685705021`
+- Clean source head: `1ac8797ab4dc85fd91a38d526c3912a72a8fba23`
+- Clean compare: 5 commits, exactly 3 files, 467 additions, 6 deletions
+- Current disposition: `REPAIR`
 - Upstream contact authorized: `no`
 
-The canonical branch is temporarily carrying an execution-only workflow commit while run `30691125773` is active. The clean source commit above is preserved and must be restored to the canonical branch after the run is classified.
+The canonical source branch is restored to the clean head. No workflow, generated file, or dependency change remains on it.
 
 ## Complete-diff fence
 
@@ -20,31 +20,31 @@ Review only:
 2. `tests/async/test_async_stop_cancellation.py`;
 3. `tests/async/test_async_stop_exit_contract.py`.
 
-Exact compare `3b7c24c...1ac8797` confirms only those three files. PR #7 is a retired base-drift comparison and must never be used for clean-source review. PRs #3, #5, and #6 are historical evidence surfaces with stacked commits and temporary workflows. PRs #9, #10, #11, and #12 are execution-only carriers or failed carrier designs.
+PR #7 is a retired base-drift comparison and must not be used for clean-source review. PRs #3, #5, and #6 are historical evidence surfaces. PRs #9 through #13 are closed execution-only carrier attempts.
 
-## Self-review result
+## Worker complete-diff review
 
 ### Production ownership
 
 - `_stop_task` is assigned before the first suspension.
-- one event loop therefore installs one authoritative stop task without a lock.
-- `asyncio.shield()` separates waiter cancellation from task cancellation.
-- all later callers await the same completed or failed task.
-- success and failure remain stable across repeated calls.
+- one event loop installs one authoritative stop task without a lock.
+- `asyncio.shield()` separates caller cancellation from task cancellation.
+- concurrent and later callers await the same task.
+- repeated callers receive one stable terminal result.
 
 ### Failure observation
 
-- the done callback retrieves and stores a task failure;
+- the done callback retrieves and stores task failure;
 - active waiters are counted;
 - a waiter receiving failure marks it observed;
-- zero waiters plus unobserved failure schedules one callback;
-- a late waiter cancels that callback before joining;
-- a post-report waiter still receives the task failure;
-- reported and pending-handle flags prevent duplicate reports.
+- zero waiters plus unobserved failure schedules one deferred callback;
+- a late waiter cancels a pending callback before joining;
+- a post-report waiter still receives the original task failure;
+- report and pending-handle flags prevent duplicate reports.
 
 ### Loop exception context
 
-The manual report passes:
+The fallback report supplies:
 
 ```python
 {
@@ -54,110 +54,126 @@ The manual report passes:
 }
 ```
 
-This is compatible with the event-loop exception-handler context contract: handlers accept a dictionary whose recognized keys include `message`, `exception`, and `task`, and may ignore or inspect additional context. The current regression test asserts all three values, including identity of the authoritative shared task. Current-head execution across Python 3.10, 3.12, and 3.14 remains the active confirmation step.
+The clean test asserts message, exact exception identity, and authoritative task identity. The shape follows the event-loop exception-handler context convention. Current-head execution of the new task-identity assertion remains unavailable because hosted jobs never started.
 
 ### Context-manager behavior
 
 - body error waits for successful cleanup and then propagates;
-- body cancellation enters `__aexit__`, waits for shielded cleanup, and then propagates;
-- cleanup failure replaces the body error while preserving body error as exception context;
-- direct `playwright.stop()` and `async with` use the same method.
+- body cancellation waits for shielded cleanup and then propagates;
+- cleanup failure takes precedence while preserving body error as context;
+- direct `playwright.stop()` and `async with` share the same stop path.
 
 ### Current-base relation
 
-Public upstream moved eight commits beyond the original base. The current upstream context-manager file remained unchanged. The candidate applies as a three-file diff against `3b7c24c...`.
+The public context-manager file remained unchanged across the eight upstream commits after the original base. Exact compare `3b7c24c...1ac8797` confirms only the fenced three files.
 
-## Repair work after the first clean-source review
+## Repairs completed during continuation
 
-1. Runs `30674333313` and `30674333365` were demoted because their logs checked out closed base-drift PR #7 rather than canonical PR #8.
-2. The stale lint job exposed one actionable issue: an unused `method-assign` suppression. Commit `33cbc587830d2083d43dcdf67339696634c24936` removes it.
-3. Commit `1ac8797ab4dc85fd91a38d526c3912a72a8fba23` adds exact loop-context task-identity coverage.
-4. Docker was removed from the blocker list because its workflow path filters do not match any unit 08 file.
-5. The final clean compare was re-read at `3b7c24c...1ac8797` and remains exactly three files.
+1. Reclassified runs `30674333313` and `30674333365` as base-drift evidence because they checked out closed PR #7.
+2. Removed an unused mypy suppression at `33cbc587830d2083d43dcdf67339696634c24936`.
+3. Added authoritative task identity coverage at `1ac8797ab4dc85fd91a38d526c3912a72a8fba23`.
+4. Removed Test Docker as a false blocker because its path filters do not match unit 08.
+5. Re-read the exact final diff; no additional production correction was found.
+6. Removed all temporary workflows from the canonical source branch and closed every carrier PR.
 
-## Claim-scoped evidence review
+## Claim-scoped review
 
 | Claim | Evidence | Review result |
 | --- | --- | --- |
 | old boolean loses joinable completion after cancellation | negative reproduction on Python 3.10/3.14 | supported |
-| one shielded task fixes direct caller ownership | six focused controls | supported |
-| context-manager cleanup and exception precedence remain coherent | four focused controls | supported |
-| abandoned failure receives one fallback report and remains joinable | paired baseline fail and selected repair pass | supported |
-| loop report identifies the authoritative shared task | exact clean-head assertion | source-supported; current-head execution pending |
-| clean current-base branch passes repository pre-commit and focused gates | active run `30691125773` | pending |
-| full unrelated repository matrix | full run `30690680740` intentionally cancelled after Examples passed | not claimed |
+| one shielded task fixes direct ownership | six focused controls | supported |
+| context-manager cleanup and precedence remain coherent | four focused controls | supported |
+| abandoned failure receives one report and remains joinable | paired baseline fail and selected repair pass | supported |
+| report context identifies the authoritative task | exact clean-source assertion | source-supported; current-head execution blocked |
+| clean source is limited to intended scope | exact compare and PR #8 metadata | supported |
+| current-head full pre-commit and 3-version focused gate | preserved carrier, no runner allocated | unexecuted |
+| independent clean-head review | none | blocked |
 
-## Exact focused acceptance already retained
+## Executed receipts retained
 
-Historical selected head `beb025b6ee98e4b15b80335039f5d0afec5a7efd`:
+### Negative reproduction
 
-- workflow `30595174700`;
-- job `91045896030`;
-- 33 passed, 2 warnings in 7.20s;
-- Black passed;
-- diff hygiene passed;
-- independent review `4827700772`: ACCEPT for bounded mechanism.
+- run `30492906544`
+- Python 3.10 job `90714870057`
+- Python 3.14 job `90714870025`
+- both fail the intended incomplete-cleanup assertion
 
-That receipt supports the mechanism but does not automatically accept clean head `1ac8797...`. The clean head has two test-only follow-ups and needs its own final execution classification.
+### Paired focused comparison
 
-## Active exact-head gate
+Baseline:
 
-Execution carrier commit `32f665a71ae56ea50ede79ffb28baa79c96a6c7c` has clean product/test head `1ac8797...` as its parent and changes only `.github/workflows/ci.yml`.
+- run `30595155697`, job `91045840683`
+- 30 passed, 3 intended abandoned-failure failures
+- Black and diff hygiene passed
 
-Run `30691125773`, job `91345932225`, executes sequentially on Ubuntu 22.04:
+Selected repair:
 
-1. Python 3.10 dependency installation, wheel build, full repository pre-commit, and all 11 focused lifecycle tests;
-2. Python 3.12 dependency installation, wheel build, and all 11 tests;
-3. Python 3.14 dependency installation, wheel build, and all 11 tests;
-4. tracked diff hygiene.
+- run `30595174700`, job `91045896030`
+- 33 passed, 2 warnings in 7.20s
+- Black and diff hygiene passed
+- review `4827700772`: ACCEPT for bounded mechanism
 
-Reruns are disabled. The carrier revision is preserved on branch `upstream/08-playwright-python-exact-gate-32f665a7`.
+### Clean-source partial gate
 
-## Required final review sequence
+- run `30690680740`
+- exact source `1ac8797...`
+- Examples job `91344746297`: passed
+- remaining broad matrix cancelled to release the serial runner; no broad claim
 
-1. Classify run `30691125773` and retain exact step output.
-2. Repair any product, test, typing, or formatting failure and repeat the gate.
-3. Force-reset canonical branch `upstream/08-playwright-python-shared-shutdown` to clean head `1ac8797...`.
-4. Confirm PR #8 again contains exactly the three fenced files and no workflow.
-5. Update packet README/TESTS, PR #8, PR #442, issue #149, and issue #435 with exact receipts.
-6. Close all execution-only carrier PRs after receipt transfer.
-7. Request independent human review before promotion or public upstream interaction.
+## Preserved current-head gate
+
+- branch: `upstream/08-playwright-python-exact-gate-0b34782a`
+- carrier commit: `0b34782a2c2dd4f708ef542e2eb80e71a1d249b3`
+- clean source ancestor: `1ac8797ab4dc85fd91a38d526c3912a72a8fba23`
+- carrier-only path: `.github/workflows/ci.yml`
+- execution PR #13: closed
+
+Planned sequential gate:
+
+1. Python 3.10 wheel build, full repository pre-commit, all 11 tests;
+2. Python 3.12 wheel build and all 11 tests;
+3. Python 3.14 wheel build and all 11 tests;
+4. reruns disabled and tracked diff hygiene.
+
+Jobs remained queued and never entered setup across Ubuntu 24.04, Ubuntu 22.04, `ubuntu-latest`, and Ubuntu 24.04 ARM. Final identities are recorded in `TESTS.md`. This is an infrastructure/runner blocker, not an observed product failure.
 
 ## Failure classification guide
 
 ### Product failure
 
-Examples:
-
 - duplicate `Connection.stop_async()` calls;
 - shared task cancelled by one waiter;
-- late caller receives a different failure or success;
-- loop handler receives zero or multiple abandoned-failure reports;
-- body cancellation or body error returns before cleanup;
-- typing or formatting error caused by the three changed files.
+- later caller receives a different outcome;
+- abandoned failure is silent or reported more than once;
+- body cancellation/error returns before cleanup;
+- typing or formatting error in the three changed files.
 
 ### Harness or repository failure
 
-Examples:
-
-- driver assembly failure before tests;
-- unrelated existing test timeout after candidate controls passed;
-- action permission or runner provisioning failure;
-- stale base comparison that introduces unrelated files;
+- runner never allocated;
+- setup or driver assembly fails before candidate tests;
+- unrelated existing suite timeout after candidate controls pass;
+- stale comparison introduces unrelated files;
 - execution-only workflow defect.
 
-Record harness failures without upgrading or rejecting product claims.
+Harness failures do not upgrade or reject product claims.
 
-## Compatibility questions for independent reviewer
+## Independent reviewer questions
 
-- Is the message `Playwright stop task failed` appropriately scoped?
-- Should a late joiner after loop reporting still receive the same exception? Current policy says yes and tests it.
-- Is one `call_soon` turn enough opportunity for a new waiter to suppress fallback reporting? Current policy says yes.
-- Does the project prefer this explicit loop report over default never-retrieved behavior? The retained task requires an explicit route because the done callback retrieves the exception.
-- Should authoritative task cancellation itself be addressed separately? It remains outside this caller-cancellation unit.
+1. Is the loop message `Playwright stop task failed` appropriately scoped?
+2. Should a late joiner after reporting still receive the same exception? Current policy says yes.
+3. Is one `call_soon` turn an appropriate observation window? Current policy says yes.
+4. Does the project prefer explicit loop reporting over default never-retrieved behavior for a retained task?
+5. Should authoritative task cancellation itself be addressed in a separate unit?
 
-## Current self-review disposition
+## Final worker disposition
 
-`EXECUTE` the active exact-head gate, restore the clean branch, and then request independent review.
+`REPAIR`
 
-No further production-code correction is requested by the complete worker re-read. No merge or public upstream interaction is authorized.
+The source and regression-test corrections identified by this continuation are complete. No further production-code change is requested by the worker review. Promotion is blocked by:
+
+1. current-head execution of the preserved pre-commit/Python 3.10/3.12/3.14 gate;
+2. independent human complete-diff review;
+3. explicit authority before any public upstream interaction.
+
+No merge or public upstream action is authorized.
