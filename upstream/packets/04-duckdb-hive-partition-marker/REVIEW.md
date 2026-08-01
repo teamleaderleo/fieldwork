@@ -1,137 +1,139 @@
-# HOLD — Unit 04 review
+# EXECUTE — Unit 04 owner review
 
-## Executive disposition
+## Executive decision
 
-The selected source change is technically coherent and passed DuckDB's native SQLLogic runner on current public base `63094a6f725af5045113dda74e291c7d604f6a88` with the widened fixed-name, UUID, nested multi-column, and raw-marker compatibility matrix.
+**ACCEPT IMPLEMENTATION FOR OWNER REVIEW. EXECUTE EXACT-HEAD GATES.**
 
-The unit remains **HOLD** for public submission. DuckDB's current contribution guide asks contributors to avoid LLM-generated pull requests, and public upstream contact lacks authorization. The owned branch remains useful as research evidence and a human rewrite guide.
+The source change is localized, reversible, and consistent with DuckDB's existing Hive URL codec. The clean branch is one commit over current public base and changes exactly the product source and its native regression test.
+
+Formal packet disposition remains `EXECUTE` while exact-head run `30696673877`, job `91360634513`, waits for a GitHub runner. Public-upstream authority is separate and remains false.
 
 ## Exact review inputs
 
-- public source base: `duckdb/duckdb@63094a6f725af5045113dda74e291c7d604f6a88`;
-- clean owned source head: `teamleaderleo/duckdb@866c8ee8e479789000dbd3acc1fd5a0444af41c2`;
-- historical source base: `duckdb/duckdb@de477da7606fc2d857f81117f0140d0550a5c42c`;
-- historical owned evidence head: `teamleaderleo/duckdb@85a2cf96a2e6fe67157ca0d8d8b7dc1494a8e058`;
-- erased temporary carrier head: `teamleaderleo/duckdb@a69d945a7b8d42ec17fb716e33a816f7c6b93e58`;
-- target branch: `teamleaderleo/duckdb:upstream/04-hive-default-partition-marker`;
-- source PR: `teamleaderleo/duckdb#18`;
+- public base: `duckdb/duckdb@81fcce7fa76a320dc65be54cb0825e5315ac6f5b`;
+- clean source: `teamleaderleo/duckdb@1c931ed41822f0e27d66afb636be2730695dcf8d`;
+- source branch: `upstream/04-hive-default-partition-marker`;
+- source PR: [`teamleaderleo/duckdb#18`](https://github.com/teamleaderleo/duckdb/pull/18);
+- execution carrier: [`teamleaderleo/duckdb#19`](https://github.com/teamleaderleo/duckdb/pull/19) at `67d78b2611cab36eb9736685ff86b6020e5a6667`;
+- exact-head run: [`30696673877`](https://github.com/teamleaderleo/duckdb/actions/runs/30696673877), job `91360634513`;
 - packet branch: `teamleaderleo/fieldwork:upstream/04-duckdb-hive-partition-marker`;
-- packet PR: `teamleaderleo/fieldwork#446`.
+- packet PR: [`teamleaderleo/fieldwork#446`](https://github.com/teamleaderleo/fieldwork/pull/446).
 
-## Full-diff review
+Archived generations:
 
-### Product source
+- prior clean pass: `866c8ee8e479789000dbd3acc1fd5a0444af41c2`;
+- current-base pre-control head: `85aa945baaabae180d6e3c9e5e08b2a63d63545d`;
+- historical carrier evidence: PR #7 and runs `30599145476` / `30599146006`.
 
-The product hunk changes only `PartitionFileRequestBuilder::BuildDirectory` in `src/execution/operator/persistent/physical_copy_to_file.cpp`.
+## Clean-diff review
+
+Comparison of base `81fcce7...` and head `1c931ed...` shows one commit, zero behind, and exactly:
+
+1. `src/execution/operator/persistent/physical_copy_to_file.cpp` — +5/-1;
+2. `test/sql/copy/parquet/parquet_hive_default_collision.test` — added native regression.
+
+No workflow, Fieldwork file, retained patch, generated file, or staging path appears in the source generation.
+
+## Product-source review
+
+The hunk changes `PartitionFileRequestBuilder::BuildDirectory`.
 
 For each non-NULL partition value it:
 
-1. calls the existing `HivePartitioning::Escape`;
-2. compares the escaped value with the exact raw reserved token;
-3. replaces the first underscore with `%5F` on equality;
-4. appends the resulting segment to the partition path.
+1. applies `HivePartitioning::Escape`;
+2. compares the escaped value with raw `__HIVE_DEFAULT_PARTITION__`;
+3. encodes the first underscore as `%5F` on exact equality;
+4. appends the result to the partition path.
 
-Review result:
+Acceptance reasons:
 
-- path identity is repaired before file creation;
+- correction occurs before directory and file identity are lost;
 - raw marker ownership remains with SQL NULL;
-- the existing reader URL decoder restores the literal string;
-- ordinary values keep the existing path codec;
-- no API, configuration, schema, or file payload changes;
-- the source hunk is compact and independently reversible.
+- existing URL decoding restores the literal marker;
+- ordinary values retain their existing codec;
+- API, schema, payload, transaction, cleanup, retry, and cancellation behavior remain unchanged;
+- cost is one equality comparison per non-NULL partition segment and one small allocation on the exact literal.
 
-### Target-native test
+## Target-test review
 
-The candidate adds `test/sql/copy/parquet/parquet_hive_default_collision.test`.
+The regression covers:
 
-Review result:
+- fixed-filename overwrite and two-row preservation;
+- exact raw and encoded path names;
+- distinct file identity;
+- literal equality and SQL NULL filter pruning;
+- UUID filenames as a semantic control;
+- injectivity against literal `%5F_HIVE_DEFAULT_PARTITION__` via `%255F...`;
+- nested multi-column partitions under repeated parents;
+- existing raw-marker compatibility.
 
-- reproduces destructive fixed-filename collision;
-- asserts raw and encoded directories separately;
-- proves distinct file identity;
-- adds UUID filenames as a semantic control;
-- adds nested multi-column partition paths beneath repeated parents;
-- preserves raw-marker compatibility;
-- uses DuckDB's native SQLLogic style and Parquet requirement.
+The test uses isolated fixture names and output roots and requires Parquet through DuckDB's native SQLLogic harness.
 
-### Cleanliness gate
+## Correctness model
 
-Comparison of public base `63094a6f725af5045113dda74e291c7d604f6a88` with candidate `866c8ee8e479789000dbd3acc1fd5a0444af41c2` shows one commit and exactly two changed files:
-
-1. `src/execution/operator/persistent/physical_copy_to_file.cpp`;
-2. `test/sql/copy/parquet/parquet_hive_default_collision.test`.
-
-The temporary retained patch, temporary workflow, and staging directory were erased before the clean branch was published.
-
-## Correctness reasoning
-
-The defect occurs at the writer boundary. Once two values receive the same directory, a reader-only repair cannot reconstruct overwritten data or identify which file belonged to which logical value. Encoding the exact colliding literal at write time preserves a reversible one-to-one mapping:
-
-| Logical value | Directory token | Reader result |
+| Logical value | On-disk token | Reader result |
 | --- | --- | --- |
 | SQL NULL | `__HIVE_DEFAULT_PARTITION__` | SQL NULL |
-| literal marker | `%5F_HIVE_DEFAULT_PARTITION__` | `__HIVE_DEFAULT_PARTITION__` |
+| `__HIVE_DEFAULT_PARTITION__` | `%5F_HIVE_DEFAULT_PARTITION__` | literal marker |
+| `%5F_HIVE_DEFAULT_PARTITION__` | `%255F_HIVE_DEFAULT_PARTITION__` | literal `%5F...` |
 
-UUID filenames demonstrate why file-level uniqueness alone is insufficient: both files can survive inside one raw-marker directory while both inherit SQL NULL partition semantics.
+The mapping is injective under the existing encoder/decoder. UUID files confirm file uniqueness alone cannot repair a shared partition token. Filter cases confirm the identity survives path-derived constant evaluation before file open.
 
-## Compatibility review
+## Evidence classification
 
-- API and source callers: unchanged;
-- binary/wire protocol: unchanged;
-- data payload: unchanged;
-- directory persistence: one exact literal receives a new encoded path;
-- existing raw-marker directories: continue to mean SQL NULL;
-- rollback: source can be reverted; encoded directories remain readable through current decoding;
-- performance: one equality comparison for each non-NULL partition segment and one replacement allocation for the exact reserved literal;
-- retry, cancellation, cleanup, and transaction behavior: unchanged by the reviewed hunk.
+### Target-executed
 
-## Test review
+- unpatched control run `30599146006`, job `91065692552`: expected one-row failure;
+- historical patched run `30599145476`, job `91057888706`: pass;
+- prior focused materialization run `30674271134`, job `91298159055`: pass at archived clean head `866c8ee...`.
 
-- historical unpatched control: run `30599146006`, job `91065692552`, expected failure with one surviving SQL NULL row;
-- historical applied-patch control: run `30599145476`, job `91057888706`, pass;
-- current-head focused materialization: run `30674271134`, job `91298159055`, pass and clean branch publication;
-- clean-head stock Main workflow: run `30675412769`, `action_required` with zero jobs.
+### Source-read and exact-diff reviewed
 
-The focused native gate is the terminal technical receipt for this generated candidate. A substantive ordinary workflow on the clean head remains absent.
+- current writer, `HivePartitioning::Escape`, `GetValue`, `IsNull`, URL encoder/decoder, and `MultiFileReader` path-constant flow at base `81fcce7...`;
+- exact clean source diff `81fcce7...1c931ed`;
+- new alias and pruning controls.
 
-## Prior-art review
+### Pending execution
 
-- public issue #24308 tracks the exact unresolved collision;
-- merged PR #20512 established the current raw-marker NULL contract;
-- merged PR #21731 adjusted type inference around NULL markers;
-- merged PR #24318 fixed the adjacent literal string `NULL` ambiguity and is already in the current base;
-- merged PR #8540 supplies historical marker discussion;
-- current source search found no equivalent exact-marker writer escape.
+- stock Main run `30696400414`: pending before job creation, zero code evidence;
+- owner-review run `30696673877`: queued, checks out exact source SHA and requests repository prepare gates, focused regression, and complete native test runner.
 
-## Evidence reviewed
+## Prior art and duplicate state
 
-- Fieldwork issue #223 and all comments;
-- Fieldwork PR #253 and retained execution receipts;
-- owned DuckDB PR #7, complete diff, review comments, and both focused/ordinary workflow logs;
-- owned DuckDB PR #18 and exact clean two-file generation;
-- public DuckDB issue #24308;
-- public issue #24309 and PRs #20512, #21731, #24318, and #8540;
-- current writer, codec, Parquet Hive NULL test, UUID filename test, contribution guide, and target test guide;
-- packet workflow and repository guidance linked by issue #435.
+- public issue #24308 remains the exact duplicate/problem record;
+- PR #20512 established raw marker semantics for SQL NULL;
+- PR #21731 addressed type detection around NULL markers;
+- PR #24318 handled the adjacent literal `NULL` ambiguity;
+- PR #8540 supplies historical marker discussion;
+- current source search found no equivalent writer escape on base `81fcce7...`.
 
-## Remaining review risks
+## Additional context findings
 
-1. External Hive-compatible readers were not executed against the encoded literal directory.
-2. The source boundary is generic while retained semantic execution is Parquet-focused.
-3. Windows, remote object stores, and full-suite execution remain unmeasured.
-4. A future configurable NULL marker would need a separate API and persistence review.
-5. The clean-head stock Main workflow did not start jobs.
-6. Current source and prose are AI-assisted, triggering DuckDB's contribution-policy hold.
+The wider code pass produced separate candidates without changing unit 04:
 
-## Required continuation
+1. escaped partition keys remain encoded; existing `hive_partition_escape.test` expects binder failure for a writer-produced reserved-character column name;
+2. slashes after `?` can re-enable partition candidacy in `HivePartitioning::Parse`, creating a source-inferred query-fragment phantom partition risk;
+3. duplicate external partition keys collapse through map insertion.
 
-1. Read the public issue and current source without treating the generated patch as human-authored work.
-2. Independently derive and write the source and test changes on a fresh branch from the then-current DuckDB main.
-3. Run the focused native regression and substantive ordinary project gates on that human-authored head.
-4. Recheck duplicate work and current contribution policy.
-5. Obtain explicit authorization before any public comment, issue, or pull request.
-6. Preserve the replacement head, receipts, and disposition on Fieldwork issue #435.
+Each requires its own minimal reproduction and issue-first packet. Details are in `APPROACHES.md` and source PR #18.
 
-## Review decision
+## Remaining risks and limits
 
-**HOLD.** Retain the owned candidate and packet. Public upstream remains untouched. A fresh independently human-authored replacement is the submission path described by this packet.
+1. External Hive-compatible readers have not consumed the encoded literal path.
+2. Semantic execution remains Parquet-focused until the current carrier completes.
+3. Windows and remote object stores remain unexecuted.
+4. Public-upstream authority remains false.
+5. Any source-head movement expires this review.
+
+## Owner inspection guide
+
+1. Confirm PR #18 head is `1c931ed41822f0e27d66afb636be2730695dcf8d` and base is `81fcce7fa76a320dc65be54cb0825e5315ac6f5b`.
+2. Review the four-line writer rule before the test.
+3. Inspect fixed-name, filter, UUID, alias, nested, and compatibility sections in order.
+4. Confirm the literal `%5F...` case maps to `%255F...` and reads back unchanged.
+5. Read run `30696673877` when terminal.
+6. On pass, accept packet as `READY`; on failure, preserve the first failing step and return unit 04 to `REPAIR`.
+
+## Current review decision
+
+**EXECUTE.** The implementation is checked off for owner review. The exact-head test receipt is the remaining formal gate.
