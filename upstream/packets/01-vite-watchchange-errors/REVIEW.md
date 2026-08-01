@@ -135,7 +135,7 @@ The PR workflow checkout used a synthetic merge containing source head `a2ab7ca6
 - [x] `UPSTREAM_ISSUE.md` preserves the direct-PR/optional-issue route.
 - [x] `UPSTREAM_PR.md` contains a polished public-facing draft and current private validation note.
 - [x] `teamleaderleo/vite#4` names the current base, head, tests, limits, and disposition.
-- [ ] Fieldwork #435 receives the final compact handoff for the new packet head.
+- [x] Fieldwork #435 has the final compact handoff: [`comment 5150565424`](https://github.com/teamleaderleo/fieldwork/issues/435#issuecomment-5150565424).
 - [x] No material finding remains chat-only.
 
 ## Temporary machinery and branch hygiene
