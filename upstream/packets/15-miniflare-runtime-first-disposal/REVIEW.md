@@ -2,7 +2,7 @@
 
 ## In simple words
 
-The ownership fix has been extracted onto a clean one-commit source branch with three focused tests and one changeset. The diff matches unit 15 and the temporary materialization workflow has been retired. The current transition is execution: confirm the focused controls, ordinary Miniflare gates, child-exit cleanup, and Browser Rendering interaction at exact head `56f4df168d7c4707890ca3345e3d4a34ee3fa08a`.
+The ownership fix is isolated on a clean one-commit source branch with three focused tests and one changeset. Complete-diff review found a child-exit gap in the first test; the test now waits for the killed workerd child to exit, and the repair was squashed into the canonical commit. Repository and focused execution are running. Browser Rendering interaction, exact target receipts, and independent review remain.
 
 Review date: `2026-08-01`
 
@@ -29,14 +29,15 @@ Production change count: one source location in `Miniflare.dispose()`.
 - Public base: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`
 - Fork `main`: verified at the same revision.
 - Clean branch: `upstream/miniflare-runtime-first-disposal`
-- Exact clean head: `56f4df168d7c4707890ca3345e3d4a34ee3fa08a`
+- Exact clean head: `e5ac5d046a8b2ac634027e9da59dec93c61a650e`
 - Canonical owned-fork source PR: `teamleaderleo/workers-sdk#5`
 - Source relation: one commit ahead, zero behind.
 - Changed-file count: three.
-- Diff size: `123` additions, `4` deletions.
-- Legacy carrier: PR `teamleaderleo/workers-sdk#1`, head `7d51105349020151c2efd0a961706c59228ca9fd`
-- Accepted A001 evidence point: `fa39841a98d71edd2df7561beb877f4dacbc6b7c`
-- Retired execution carrier: PR `teamleaderleo/workers-sdk#4`, head `92eeb04c7866775351e184085cc53c0b9d3b1446`
+- Diff size: `136` additions, `4` deletions.
+- Focused execution carrier: `fieldwork/unit15-focused-execution` at `9853642ffa91838a9080b34f072355d95dd12c3d`.
+- Legacy carrier: PR `teamleaderleo/workers-sdk#1`, head `7d51105349020151c2efd0a961706c59228ca9fd`.
+- Accepted A001 evidence point: `fa39841a98d71edd2df7561beb877f4dacbc6b7c`.
+- Retired materialization carrier: PR `teamleaderleo/workers-sdk#4`, head `92eeb04c7866775351e184085cc53c0b9d3b1446`.
 - Materialization run/job: `30674559186` / `91299001548`, success.
 
 ## Repository-policy audit
@@ -44,10 +45,8 @@ Production change count: one source location in `Miniflare.dispose()`.
 Read and applied:
 
 - Fieldwork `AGENTS.md` and `START_HERE.md`;
-- `CHARTER.md`, `CODE_FIRST.md`, `PLAIN_LANGUAGE.md`, `METHOD.md`, and `REFERENCE_POLICY.md`;
-- `PROGRAMMES.md`, `TARGET_HUBS.md`, `EXPERIMENTS.md`, `TESTBEDS.md`, and `INTEGRATION_CONTEXT.md`;
-- `COORDINATION.md`, `REVIEWING.md`, and `BATCHES.md`;
-- packet workflow, unit index, directory rules, and templates;
+- every root document required by `START_HERE.md`;
+- packet workflow, index, directory rules, and templates;
 - Workers SDK `CONTRIBUTING.md`;
 - Miniflare package `AGENTS.md` and `package.json`;
 - Workers SDK target hub `teamleaderleo/fieldwork#3`.
@@ -59,11 +58,11 @@ Policy result: bounded continuation and owned-fork execution are authorized by t
 | Claim | Evidence class | Current limit |
 | --- | --- | --- |
 | current base waits for browser and proxy cleanup before runtime disposal | `source-read` | exact source ordering |
-| `Runtime.dispose()` sends the workerd kill request synchronously | `source-read` | child-exit completion remains asynchronous |
-| early rejection/pending control flow can skip or delay a later ownership action | `model-executed` | dependency-free lifecycle models |
-| clean candidate exists at current base | source materialization receipt | no target assertion in carrier |
+| `Runtime.dispose()` sends the workerd kill request synchronously | `source-read` | child-exit completion is asynchronous |
+| early rejection or pending control flow can skip or delay a later ownership action | `model-executed` | dependency-free lifecycle models |
+| clean candidate exists at current base | source materialization receipt | carrier contains no target assertion |
 | three target-native controls exist | `target-test-prepared` | exact-head execution receipt pending |
-| repository CI started for source PR `#5` | execution initiated | job conclusions pending |
+| repository and focused execution started | execution initiated | conclusions pending |
 
 ## Legacy evidence separation
 
@@ -125,7 +124,7 @@ Pass by source inspection. The rejected-proxy control restores the mock and perf
 
 ### Candidate child-exit completion
 
-Execution/review item. On the candidate, the first rejected-proxy test observes the kill request and then ends without awaiting the retained runtime-exit promise, because the proxy error exits `mf.dispose()` before its final await. Confirm the killed child exits before the runner completes or amend the test to retain and await an exit signal without changing the property under test.
+Repaired. Complete-diff review found that the first candidate test could finish after observing `SIGKILL` while the runtime-exit promise remained unawaited because the proxy rejection exited disposal early. The test now captures the killed workerd child and awaits its `exit` event. The repair is included in canonical head `e5ac5d046a8b2ac634027e9da59dec93c61a650e`.
 
 ### Pending-operation control
 
@@ -147,17 +146,25 @@ Pass.
 
 ## Execution status
 
-Exact source head: `56f4df168d7c4707890ca3345e3d4a34ee3fa08a`
+Exact source head: `e5ac5d046a8b2ac634027e9da59dec93c61a650e`
 
-Started workflows include:
+Started repository workflows include:
 
-- CI — `30690756068`;
-- CI (Other Node Versions) — `30690756037`;
-- Changeset Review — `30690756089`;
-- Semgrep OSS scan — `30690756086`;
+- CI — `30690979156`;
+- CI (Other Node Versions) — `30690979168`;
+- Changeset Review — `30690979176`;
+- Semgrep OSS scan — `30690979141`;
 - target integration suites triggered by source PR `#5`.
 
-At this review snapshot, the disposition-relevant jobs remain pending. Skipped preview and prerelease workflows provide no source validation.
+A narrow execution carrier also runs:
+
+```text
+pnpm install --frozen-lockfile
+pnpm --filter miniflare test -- teardown-lifecycle.spec.ts
+pnpm --filter miniflare check:type
+```
+
+At this review snapshot, disposition-relevant conclusions remain pending. Skipped preview and prerelease workflows provide no source validation.
 
 ## Security and privacy review
 
@@ -165,31 +172,30 @@ At this review snapshot, the disposition-relevant jobs remain pending. Skipped p
 - no network-facing authority change;
 - no public upstream interaction performed;
 - public drafts remain dormant;
-- the owned materialization carrier is closed and absent from the canonical source head.
+- materialization and focused workflow files are absent from the canonical source head.
 
 ## Current clearing conditions
 
-1. Obtain a retained candidate focused-test receipt at exact head `56f4df168d7c4707890ca3345e3d4a34ee3fa08a`.
+1. Obtain a retained candidate focused-test receipt at exact head `e5ac5d046a8b2ac634027e9da59dec93c61a650e`.
 2. Obtain a retained baseline focused-test receipt at exact base `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`.
 3. Classify ordinary Miniflare and repository gate results by actual source coverage.
-4. Clear or repair the first-test child-exit completion concern.
-5. Review Browser Rendering interaction and simultaneous-failure precedence.
-6. Synchronize all packet files and source PR text at the final exact head.
-7. Receive independent final review before `READY`.
+4. Review Browser Rendering interaction and simultaneous-failure precedence.
+5. Synchronize all packet files and source PR text at the final exact head.
+6. Receive independent final review before `READY`.
 
 Public-contact authority is the final submission boundary and does not block execution or packet completion.
 
 ## Continuation checklist
 
-1. Inspect source PR `#5` workflow runs and job logs.
-2. Identify the job that executes Miniflare package tests and confirm the new file ran.
-3. Add a focused execution carrier only when repository CI omits the exact assertion.
-4. Repair the test if child-exit cleanup or TypeScript/lint feedback requires it.
-5. Re-run exact-head focused and ordinary gates after any source movement.
-6. Update `README.md`, `TESTS.md`, `UPSTREAM_PR.md`, source PR `#5`, and issue `#435`.
+1. Inspect source PR `#5` and focused-carrier workflow conclusions.
+2. Confirm the focused lifecycle file ran and record assertion count and duration.
+3. Build a baseline carrier from the same test file after candidate receipt succeeds.
+4. Repair any TypeScript, lint, test, or Browser Rendering feedback on the canonical branch.
+5. Re-squash after source movement and re-run exact-head gates.
+6. Update `README.md`, `TESTS.md`, `UPSTREAM_PR.md`, source PR `#5`, packet PR `#456`, and issue `#435`.
 7. Request independent review against the final source and packet heads.
 8. Keep public upstream drafts dormant until authorization.
 
 ## Disposition rationale
 
-The source mechanism is current, the clean candidate is bounded, the file fence is exact, and the execution carrier is retired. Target-native evidence and two focused review items remain. **EXECUTE** names the current transition accurately.
+The source mechanism is current, the clean candidate is bounded, the file fence is exact, and the test-harness leak found in review is repaired. Target-native evidence and Browser Rendering review remain. **EXECUTE** names the current transition accurately.
