@@ -6,7 +6,7 @@ The regression matrix exercises one invariant: SQL NULL and the literal string `
 
 The current target-native test is:
 
-- [`test/sql/copy/parquet/parquet_hive_default_collision.test`](https://github.com/teamleaderleo/duckdb/blob/upstream/04-hive-default-partition-marker/test/sql/copy/parquet/parquet_hive_default_collision.test)
+- [`test/sql/copy/parquet/parquet_hive_default_collision.test`](https://github.com/teamleaderleo/duckdb/blob/866c8ee8e479789000dbd3acc1fd5a0444af41c2/test/sql/copy/parquet/parquet_hive_default_collision.test)
 
 ## Exact commands
 
@@ -35,7 +35,17 @@ cmake --build build/unit04 --target unittest --parallel 2
 | Fieldwork target characterization | DuckDB `de477da7606fc2d857f81117f0140d0550a5c42c`; Fieldwork executed source `908a9b55...`; Hive test head `520052d13...` | [run `30580996108`](https://github.com/teamleaderleo/fieldwork/actions/runs/30580996108) | pass | established target behavior and retained artifact evidence; integrity runs `30580996072` and `30585895531` |
 | unpatched ordinary control | owned PR #7 head `85a2cf96a2e6fe67157ca0d8d8b7dc1494a8e058`, source left unpatched | [run `30599146006`](https://github.com/teamleaderleo/duckdb/actions/runs/30599146006), job `91065692552` | expected failure | SQLLogic expected two rows and observed one row, SQL NULL with `id=2`; fixed filename collision reproduced |
 | historical applied-patch control | public base `de477da7606fc2d857f81117f0140d0550a5c42c` plus retained patch | [run `30599145476`](https://github.com/teamleaderleo/duckdb/actions/runs/30599145476), job `91057888706` | pass | original 11-assertion regression passed through DuckDB's native runner |
-| current-head materialization | public base `63094a6f725af5045113dda74e291c7d604f6a88`; temporary carrier `a69d945a7b8d42ec17fb716e33a816f7c6b93e58` | [run `30674271134`](https://github.com/teamleaderleo/duckdb/actions/runs/30674271134), job `91298159055` | in progress when this record was created | builds and runs the expanded matrix before publishing the clean source generation |
+| current-head focused materialization | public base `63094a6f725af5045113dda74e291c7d604f6a88`; temporary carrier `a69d945a7b8d42ec17fb716e33a816f7c6b93e58`; clean candidate `866c8ee8e479789000dbd3acc1fd5a0444af41c2` | [run `30674271134`](https://github.com/teamleaderleo/duckdb/actions/runs/30674271134), job `91298159055` | pass | configured DuckDB with Parquet, built the native test runner, passed the expanded fixed-name/UUID/nested/raw-marker matrix, then published the clean generation |
+| clean-head stock Main workflow | clean candidate `866c8ee8e479789000dbd3acc1fd5a0444af41c2` | [run `30675412769`](https://github.com/teamleaderleo/duckdb/actions/runs/30675412769) | action required; zero jobs | GitHub did not start ordinary jobs for the clean force-pushed generation; this remains a CI receipt gap |
+
+## Clean-generation verification
+
+Comparison of public base `63094a6f725af5045113dda74e291c7d604f6a88` with candidate `866c8ee8e479789000dbd3acc1fd5a0444af41c2` shows one commit and exactly two changed files:
+
+1. `src/execution/operator/persistent/physical_copy_to_file.cpp`;
+2. `test/sql/copy/parquet/parquet_hive_default_collision.test`.
+
+The temporary retained patch, temporary workflow, and `fieldwork/` staging path are absent from the clean generation.
 
 ## Test-source review
 
@@ -58,8 +68,9 @@ The UUID control closes a gap in the earlier test: unique files alone can preser
 - no external reader matrix;
 - no Windows run;
 - no remote object-store run;
-- no whole-repository full test suite in the focused materialization workflow.
+- no whole-repository full test suite;
+- no substantive stock Main workflow jobs on clean head `866c8ee8e479789000dbd3acc1fd5a0444af41c2`.
 
-## Receipt update rule
+## Terminal test disposition
 
-The exact clean source head and its ordinary workflow receipts belong in the final generation of this file and the latest unit 04 handoff on Fieldwork issue #435. A current-head result is incomplete while this section still reports the materialization run as active.
+The current-head focused native gate passed. Ordinary clean-head CI remains unavailable in the recorded run and must be rerun on any independently human-authored replacement before public submission is considered.
