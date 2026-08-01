@@ -6,7 +6,7 @@ Selected: restore the `cmd/gomarkdoc` checks selected by the package's existing 
 
 Canonical source: [`569c0c4d11e5a14f3fe6237c0a50dc484f80e744`](https://github.com/teamleaderleo/nixpkgs/commit/569c0c4d11e5a14f3fe6237c0a50dc484f80e744)
 
-Current disposition: `HOLD`. Exact-head Darwin passed; Linux, final packet integrity, carrier closure, independent review, and fresh-head execution remain pending.
+Current disposition: `HOLD`. Exact-head Darwin passed; packet-anchored Linux and integrity, carrier closure, independent review, and fresh-head execution remain pending.
 
 ## Selected approach — command-package checks
 
@@ -103,7 +103,9 @@ The selected source removes the token because the assignment concerns leaked Nix
 
 ## Validation fence
 
-Current carrier head `c95da0c4b3f460df9bc8f342e98d05345da66df8` has established on Darwin:
+### Established on Darwin
+
+Carrier head `c95da0c4b3f460df9bc8f342e98d05345da66df8`, run `30690828310`, job `91345125710` established:
 
 - exact source head `569c0c4d11e5a14f3fe6237c0a50dc484f80e744` and parent;
 - one changed package file and `git diff --check` success;
@@ -112,11 +114,13 @@ Current carrier head `c95da0c4b3f460df9bc8f342e98d05345da66df8` has established 
 - version passthru `1.1.0`;
 - artifact `8815619734`, digest `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`.
 
-Remaining validation:
+### Packet-anchored remaining gates
 
-- the same package/check/help/version controls on x86_64-linux;
-- Linux `nixpkgs-review rev HEAD --no-shell`;
-- final packet-tip Fieldwork integrity;
-- transferred artifacts and closed execution carrier;
-- independent complete-diff review;
-- fresh-head rebase and rerun before authorized submission.
+- Packet base: `527021b7ff1535e8be4f27dc3ba7226b559a1630`
+- Carrier head: `178e6388bf06b965970dd3ab7435db9e756a13e4`
+- Linux run: `30691551270`, job `91347062784` — queued
+- Integrity run: `30691551312`, job `91347062807` — queued
+
+Linux must establish the same source/package/help/version controls plus `nixpkgs-review rev HEAD --no-shell`. Integrity must validate the packet base plus one-file carrier. After terminal receipt transfer, the execution carrier can close.
+
+Further gates are independent complete-diff review and fresh-public-head rebase/rerun before authorized submission.
