@@ -1,0 +1,14 @@
+{
+  "name": "fieldwork-lru-cache-background-fetch-size-probe",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "probe": "node probe.mjs"
+  },
+  "dependencies": {
+    "lru-cache": "11.5.2"
+  }
+}
