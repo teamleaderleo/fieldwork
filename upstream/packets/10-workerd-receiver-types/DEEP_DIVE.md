@@ -1,28 +1,32 @@
 # Deep dive — receiver-aware generated declarations
 
+## In simple words
+
+Ordinary JSG methods already carry an owning runtime receiver. The generated declarations describe their arguments and return values while omitting that receiver, so TypeScript permits some rebindings that workerd rejects with `Illegal invocation`. The selected change carries an internal receiver marker through generation, handwritten overrides, and Worker-global extraction, then removes the marker from public output.
+
+## Exact current source
+
+- public base: `d82c2a45a8695aac30d4d24828ce1ee7fb11909b` (`Release 2026-08-01`)
+- clean owned source: `teamleaderleo/workerd:unit-10/receiver-aware-types`
+- exact head: `8f41da276852ad48735c1d817b7c1a3699ac8beb`
+- compare: https://github.com/teamleaderleo/workerd/compare/d82c2a45a8695aac30d4d24828ce1ee7fb11909b...8f41da276852ad48735c1d817b7c1a3699ac8beb
+- source fence: one commit, ten `types/` source/test files, no workflows
+
+The August 1 release changed only compatibility-date and release-version metadata relative to the prior July 31 base.
+
 ## Problem and runtime contract
 
-Ordinary JSG instance methods are installed with a V8 holder signature. JavaScript property-call syntax supplies the object before the method as `this`; an unrelated holder therefore fails receiver validation before the C++ callback executes. Generated declarations currently describe parameters and return values while omitting the holder requirement.
+Ordinary JSG instance methods are installed with a V8 holder signature. JavaScript property-call syntax supplies the object before the method as `this`; an unrelated holder therefore fails receiver validation before the C++ callback executes. Generated declarations currently omit this holder requirement.
 
-Primary public record: https://github.com/cloudflare/workerd/issues/6904
+Primary public discussion record: `cloudflare/workerd#6904`.
 
-Pinned runtime/source base used by the original investigation:
+Relevant source boundaries:
 
-- workerd release commit: `6aa890be9fa547e3907c805b312e39917a274221`
-- current public base used by the clean branch: `7cdc8c0e089287c8f3643f3a6f668ecdc221722a`
-- base delta: three release commits; relevant source paths unchanged
 - runtime registration: `src/workerd/api/global-scope.h`, `src/workerd/jsg/resource.h`
 - declaration generation: `types/src/generator/structure.ts`
 - handwritten merge: `types/src/transforms/overrides/index.ts`
 - Worker-global extraction: `types/src/transforms/globals.ts`
-
-Exact clean code links:
-
-- generator hook: https://github.com/teamleaderleo/workerd/blob/f167a283fc9f792c427eeded306c38602e60261d/types/src/generator/structure.ts
-- provenance and cleanup: https://github.com/teamleaderleo/workerd/blob/f167a283fc9f792c427eeded306c38602e60261d/types/src/receiver.ts
-- override preservation: https://github.com/teamleaderleo/workerd/blob/f167a283fc9f792c427eeded306c38602e60261d/types/src/transforms/overrides/index.ts
-- global extraction and lexical resolution: https://github.com/teamleaderleo/workerd/blob/f167a283fc9f792c427eeded306c38602e60261d/types/src/transforms/globals.ts
-- transform ordering: https://github.com/teamleaderleo/workerd/blob/f167a283fc9f792c427eeded306c38602e60261d/types/src/index.ts
+- transform ordering and cleanup: `types/src/index.ts`, `types/src/receiver.ts`
 
 ## Final declaration policy
 
@@ -45,79 +49,143 @@ explicit handwritten receiver
 
 full class/interface replacement
 → specialize only with type parameters declared by the replacement
+
+assignment to a receiver-free callback type
+→ allowed by normal TypeScript function assignability; receiver requirement erased
 ```
 
 The internal type `__JSG_GENERATED_RECEIVER__<Owner>` carries origin through print/reparse and transformation. A final cleanup pass emits the owner type without exposing the marker.
 
-## Why the diff extends beyond one parameter
+## Why provenance is required
 
-The initial generator insertion is small. Correct behavior must survive:
+The generated AST is printed and reparsed before later transformations. Object identity and transient node metadata disappear at that boundary. Later passes need to distinguish two semantically different declarations:
 
-- print-and-reparse boundaries;
-- partial member overrides and overload replacement;
-- full class/interface replacement;
-- explicit `this: void` and custom receiver unions;
-- generic owner specialization;
-- inherited Worker-global traversal;
-- same-named declarations in separate namespaces;
-- global receiver widening;
-- static member exclusion.
+- a receiver generated from ordinary JSG ownership, which may be inherited, specialized, or widened for a context global;
+- a handwritten receiver such as `this: void` or a custom union, which is an intentional public contract and must remain authoritative.
+
+The internal wrapper is durable TypeScript syntax during the private pipeline and disappears before public output.
+
+## Transform interaction
+
+### Generation
+
+`createMethodPartial()` prepends a marked owner receiver to every non-static method. Static methods remain receiver-free.
+
+### Handwritten overrides
+
+Partial overrides written before receiver generation inherit a generated receiver when they replace a generated method and omit their own `this` parameter. Explicit receivers remain unchanged.
+
+Full replacements use the replacement declaration's type parameters. This prevents a generic generated owner such as `Owner<T>` from leaking undeclared `T` into a nongeneric replacement.
+
+### Worker-global extraction
+
+Global extraction runs after overrides. Generated context-global receivers widen to:
+
+```ts
+Owner | typeof globalThis | null | void
+```
+
+This accepts bare, detached, actual-global, and nullish calls while rejecting unrelated holders when the exact method type is retained.
+
+Heritage lookup uses the pre-transform TypeScript checker to establish lexical identity. For a top-level declaration, extraction then follows the corresponding transformed declaration so override-added members and receiver markers survive.
+
+### Cleanup
+
+The cleanup transformer unwraps every remaining internal receiver marker before class-to-interface, ambient, and importable output passes.
 
 ## Defect and repair history
 
 ### 1. Static ambient expectations
 
-Review at carrier head `d08e2e968b6db600c220e2babe0a07befa728ba2` found fixtures still expecting static members to become ambient globals. The expectations were removed. Static methods receive no owning receiver and remain on constructors.
+Early fixtures still expected static members to become ambient globals. Those expectations were removed. Static methods live on constructors, receive no owning receiver, and are excluded from ambient extraction.
 
 ### 2. Ambiguous lexical heritage lookup
 
-Review at carrier head `e7b15f8014e8ed49255d2f0c6774f0b3bfe1714a` found that a simple-name declaration map could choose `Other.Base` while resolving top-level `Base`. The repair resolves original heritage expressions through the TypeScript checker first, retains transformed type arguments, and uses generated declarations only as a unique fallback.
+A simple-name declaration map could select `Other.Base` while resolving top-level `Base`. The repair uses the checker for lexical identity and retains transformed type arguments.
 
 ### 3. Generic full replacement
 
-Review at carrier head `54926f86c95185a7b83b2bf1ea901c35876a9a58` found that a generated `Owner<T>` fully replaced by nongeneric `Owner` could emit `this: Owner<T>` without declaring `T`. Repair PR https://github.com/teamleaderleo/workerd/pull/2 changed specialization to use only `override.typeParameters` and added three controls:
+A generated `Owner<T>` fully replaced by nongeneric `Owner` could emit `this: Owner<T>` without declaring `T`. Replacement specialization now uses only `override.typeParameters`, with generic-to-nongeneric, generic-to-generic, and nongeneric-to-generic controls.
 
-- generic generated → nongeneric replacement;
-- generic generated → generic replacement;
-- nongeneric generated → generic replacement.
+### 4. Stale pre-transform heritage declaration
 
-Current carrier head `0ecc0a6632747031a6650c49a401760e511c9f36` contains all three repairs. Review `4827890474` accepted the source repair and required exact-head execution.
+The checker points at the original source tree. After overrides transformed a superclass, global extraction followed that original declaration and discarded transformed members and generated receiver markers.
+
+Validation run `30690050452` distinguished the defect:
+
+- globals, override, and replacement-generic focused targets passed;
+- the end-to-end generator target failed because inherited global methods lost their receiver;
+- emitted `addEventListener` and `plain` declarations lacked the expected `this` parameter.
+
+The repair keeps checker-guided lexical identity, then follows the corresponding transformed top-level declaration. Repaired validation run `30690396598` passed all four focused targets.
+
+## Detachability research
+
+Closed unmerged workerd PR #2352 proposed `JSG_DETACHED_METHOD` and a separate runtime registration path without an owning V8 signature. Current public source contains no equivalent detached-method registration implementation.
+
+This gives a clean policy boundary:
+
+- current ordinary `JSG_METHOD` registration is receiver-owning;
+- current static registration remains receiver-free on the constructor;
+- any future receiver-independent instance operation needs explicit runtime/RTTI metadata and a generator branch.
+
+The generated declaration layer should follow runtime registration metadata once such a distinction exists. It should not guess detachability from method names.
+
+## TypeScript compatibility boundary
+
+Explicit `this` parameters improve diagnostics while the receiver-aware method type is retained. TypeScript intentionally allows assignment to a receiver-free callback type, erasing the receiver requirement. The final fixture records both sides:
+
+- exact `typeof fetch` values reject unrelated holders, `.call()`, `.apply()`, and `.bind()` receivers;
+- assignment to `(...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>` remains accepted;
+- property calls through that widened callback remain accepted by TypeScript and rely on runtime validation.
+
+`Reflect.apply()` also types its receiver as `any`, leaving that path runtime-checked.
+
+This compatibility behavior reduces source breakage for callback APIs while preserving earlier diagnostics in direct receiver-aware use.
 
 ## Runtime and application evidence
 
-The reusable matrix on https://github.com/teamleaderleo/stensibly/pull/482 established:
+The retained native matrix established:
 
 - bare, detached, `undefined`, `null`, `globalThis`, and `self` receiver forms succeed in pinned native workerd;
 - unrelated holder, `call`, `apply`, and `bind` receivers fail with `Illegal invocation`;
-- Bun and Node accept the unrelated receiver forms as their server-global compatibility behavior;
-- the real `HttpGitHubOAuthClient` default wrapper reaches a local outbound Worker under native workerd.
+- Bun and Node accept unrelated receiver forms as their server-global compatibility behavior;
+- the owned production OAuth wrapper reaches a local outbound Worker under native workerd.
 
-Merged safeguard: `f19c2c7aa09fc4d4fdb7e7ae2d4d727d0eedd091`.
+The downstream wrapper and runtime-parity regression remain useful because TypeScript receiver information can be widened away.
 
-## TypeScript boundary
+## Commit organization
 
-TypeScript 5.8.3 supports one explicit union receiver and rejects an unrelated holder while the exact type is retained. Contextual assignment to a plain callback can erase the receiver. Therefore generated declarations improve early diagnostics while the runtime wrapper and native regression remain necessary.
+Keep one atomic source commit.
 
-Research branches and records:
+A generator-only commit leaks incomplete semantics through later transforms. Adding override preservation without global widening makes legal Worker-global calls type-invalid. Global widening and cleanup depend on the generated marker. Matching fixtures must accompany each behavior under workerd's per-commit test discipline.
 
-- https://github.com/teamleaderleo/stensibly/issues/474
-- `research/issue-474-lane-a`
-- `research/issue-474-lane-b`
-- archival execution carrier: https://github.com/teamleaderleo/stensibly/pull/483
-- canonical workerd research carrier: https://github.com/teamleaderleo/workerd/pull/1
+One commit preserves the invariant across generation, transformation, and public output. A file-based three-part split would produce intermediate revisions a reviewer could not safely merge or bisect as complete behavior.
 
-## Prior art
+## Current prior-art and overlap result
 
-- https://github.com/cloudflare/workerd/issues/2716 — receiver-sensitive Web Crypto call reported as illegal invocation.
-- https://github.com/cloudflare/workerd/pull/2730 — compatibility export binds `crypto.getRandomValues`, while `crypto.webcrypto.getRandomValues` remains receiver-sensitive.
-- https://github.com/cloudflare/workerd/pull/2352 — unmerged selective `JSG_DETACHED_METHOD` proposal; supports distinguishing ordinary owning methods from deliberately detachable operations.
-- https://github.com/microsoft/TypeScript/issues/15, https://github.com/microsoft/TypeScript/issues/3694, and https://github.com/microsoft/TypeScript/pull/6739 — explicit invocation-receiver checking precedent.
-- https://github.com/oven-sh/bun/issues/36268 — Bun confirmed Node-compatible receiver-independent global `fetch` behavior.
+- public issue #6904 remains the discussion record;
+- current search found no competing public implementation pull request;
+- issue #2716 and merged PR #2730 demonstrate receiver-sensitive Web Crypto behavior and selective binding at a compatibility boundary;
+- closed PR #2352 documents the unmerged separate detached-method design;
+- TypeScript explicit-`this` precedent establishes the language mechanism used here.
 
-## Compatibility questions for final review
+## Compatibility and review questions
 
-1. Does broad generation annotate any operation that is intentionally detachable despite ordinary JSG registration?
-2. Should the receiver be the declaring owner or leaf generated owner for every inherited API?
-3. Do explicit receiver parameters cause unacceptable source breaks for callback assignment patterns, even though those patterns may fail at runtime?
-4. Does `OwningType | typeof globalThis | null | void` introduce recursive or excessively large generated types on representative real output?
-5. Should the change land as one coherent commit or as a test/provenance sequence, given workerd's preference for small reviewable commits?
+1. How many ambient and importable methods gain receivers in representative generated output?
+2. Does any current ordinary JSG method intentionally tolerate an unrelated receiver at runtime?
+3. Do owner/global/nullish unions create recursive expansion or editor-performance regression?
+4. Are explicit handwritten receiver declarations byte-for-byte unchanged after the full pipeline?
+5. Does every receiver owner resolve in ambient and importable output, including replacement generics?
+6. Does standalone workerd generation require additional snapshot changes when consumed as a submodule of the larger Workers repository?
+
+## Known limits
+
+- callback widening and `Reflect.apply()` can erase or bypass static receiver checking;
+- qualified heritage resolving to a transformed nested declaration remains outside the current top-level generated source model;
+- generated-output size and editor impact remain unmeasured until the compatibility build completes;
+- exact final-head execution remains required because the last source revision adds the callback-erasure type control.
+
+## Rollback
+
+Revert the one clean source commit to restore receiver-free generated declarations. The downstream wrapper and runtime-parity regression remain independently valid.
