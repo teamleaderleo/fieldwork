@@ -34,8 +34,9 @@ The active source therefore recognizes four exact forms: corrected and historica
 - Clean source branch to be republished: `teamleaderleo/uv:upstream/02-busybox-realpath`
 - Public source base and current public main: `79bbface771210df216b738e9bdc7df95e5a9e6b`
 - Superseded clean source head: `c42973ef0490c75df1c7e7f4e9a54d46c6bca059`
-- Active execution carrier head: `f1210594a77cfd3e8dc2a2e1d68b228514e862dd`
+- Active execution carrier head: `a6864420999de948f74e23742683d84de1c489c5`
 - Active execution PR: `teamleaderleo/uv#7` — execution machinery only
+- Active workflow: `30692427701`
 - Public upstream contact authorized: `no`
 
 ## Source boundary under validation
@@ -64,6 +65,7 @@ No workflow, packet, publisher, or harness file belongs in the clean source comm
 - `cargo test -p uv-install-wheel test_shebang`;
 - four-form `copy_entrypoint` unit test;
 - existing `venv::verify_pyvenv_cfg_relocatable` integration test;
+- uv's declared `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings` gate;
 - GNU and Alpine 3.22 BusyBox launcher matrices;
 - GNU and Alpine 3.22 BusyBox sourced-Bash activation matrices;
 - macOS 15 launcher and sourced-Bash activation matrices;
