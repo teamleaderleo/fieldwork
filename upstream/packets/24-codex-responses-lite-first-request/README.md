@@ -2,19 +2,19 @@
 
 ## In simple words
 
-Codex can prewarm a Responses Lite WebSocket by sending the model, reasoning settings, instructions, and tool-manifest prefix with `generate=false`. That response warms the connection; it does not represent a generated turn.
+Codex prewarms a Responses Lite WebSocket by sending its tool/instruction input prefix with `generate=false`. That operation prepares transport and prefix state; it is not a generated turn.
 
-The retained client state treated the warmup response as the predecessor of the first generated request. The candidate ends that warmup response chain before generation. The first generated request therefore sends the complete current logical request with no warmup `previous_response_id`. After that generated response succeeds, ordinary incremental continuation resumes. A failed first generated request retries the same complete request without inheriting warmup state.
-
-The source is now a clean one-commit, three-file child of public `openai/codex` revision `670f69416bf91c5dfd8b58669e78050b584ff053`. Historical exact-source execution passed the source fence and both focused client controls. The full-agent characterization reproduced a default Tokio worker-stack overflow and passed with a 16 MiB worker stack; that runner condition stays outside the product claim. Current-head blocking CI is running and contains repository-wide failures outside this unit's file fence. Fresh focused execution on the clean head remains the delivery gate.
+Generic WebSocket requests may intentionally continue from warmup state with a compressed delta. Responses Lite needs a narrower rule because its complete tools and instructions live in input items: the first generated Lite request ends the warmup response chain, sends the complete current logical input with no warmup `previous_response_id`, and then resumes ordinary incremental reuse from the first generated response. A failed first generation retries the complete request.
 
 ## Current disposition
 
 `REPAIR`
 
+The source has been rebased to the current inspected public-source parent, the complete diff has been reviewed, public prior art and duplicate searches have been refreshed, and a clean execution-only workflow is queued against the immutable current source. The disposition will be reconsidered from that exact run receipt rather than from unrelated repository-wide failures or runner queue state.
+
 Last verified: `2026-08-01`  
 Worker: `GPT-5.6 Thinking`  
-Priority-zero parent: [`teamleaderleo/fieldwork#435`](https://github.com/teamleaderleo/fieldwork/issues/435)  
+Priority-zero parent: `teamleaderleo/fieldwork#435`  
 Upstream contact authorized: `no`
 
 ## Contribution
@@ -22,59 +22,85 @@ Upstream contact authorized: `no`
 - Target project: `openai/codex`
 - Proposed upstream destination: `openai/codex:main`
 - Proposed title: `core: send full first Responses Lite turn after prewarm`
-- Contribution synopsis: terminate the untraced Responses Lite warmup response chain before the first generated request, then prove full-first, incremental-continuation, and failed-first retry behavior with target-native WebSocket tests.
 - Work class: `upstream-fork research`
+- Scope: one request-state transition and three target-native WebSocket controls
 
 ## Exact identities
 
-- Public upstream base inspected: [`670f69416bf91c5dfd8b58669e78050b584ff053`](https://github.com/openai/codex/commit/670f69416bf91c5dfd8b58669e78050b584ff053)
-- Owned target fork: [`teamleaderleo/codex`](https://github.com/teamleaderleo/codex)
-- Canonical source branch: [`fix/responses-lite-first-request`](https://github.com/teamleaderleo/codex/tree/fix/responses-lite-first-request)
-- Canonical source head: [`2c3f21d38056d2d77215cd9dce820a680d11cfe8`](https://github.com/teamleaderleo/codex/commit/2c3f21d38056d2d77215cd9dce820a680d11cfe8)
-- Canonical owned draft PR: [`teamleaderleo/codex#130`](https://github.com/teamleaderleo/codex/pull/130)
-- Fieldwork packet branch: [`p0/435-unit-24-codex-responses-lite-first-request`](https://github.com/teamleaderleo/fieldwork/tree/p0/435-unit-24-codex-responses-lite-first-request/upstream/packets/24-codex-responses-lite-first-request)
-- Fieldwork packet base: `920f87cb25dd0cc7901d59ea2019cd4b4a193b94`
-- Fieldwork packet head: recorded in the latest continuation handoff on [`teamleaderleo/fieldwork#435`](https://github.com/teamleaderleo/fieldwork/issues/435), avoiding a stale self-reference inside the packet commit.
-- Historical exact source: [`teamleaderleo/codex#87`](https://github.com/teamleaderleo/codex/pull/87), base `e6cfd40c3f444aadd6017c9eeab01db70f48961a`, head `e520da008366cd720ef58fa0b489efc0a2867e97`
-- Historical execution carrier: [`teamleaderleo/codex#58`](https://github.com/teamleaderleo/codex/pull/58), head `40a56eefce26ea647a65779faeb783d65a84a49a`
-- Earlier broad carrier: [`teamleaderleo/codex#23`](https://github.com/teamleaderleo/codex/pull/23)
-- Internal transplant carrier: [`teamleaderleo/codex#129`](https://github.com/teamleaderleo/codex/pull/129), merged into the canonical branch
-- Superseded source carriers: owned Codex PRs `#70`, `#79`, and `#87`
+### Current canonical source
 
-## Current code and tests
+- Public-source parent: `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`
+- Candidate head: `9fd4ba575de8dd77bc411362256591ce9e7d8c82`
+- Branch: `teamleaderleo/codex:fix/responses-lite-first-request`
+- Draft PR: `teamleaderleo/codex#130`
+- Compare: one commit, exactly three files, `+301/-1`
 
-### Product code
+### Current execution carrier
 
-- [`codex-rs/core/src/client.rs`](https://github.com/teamleaderleo/codex/blob/2c3f21d38056d2d77215cd9dce820a680d11cfe8/codex-rs/core/src/client.rs#L1609-L1631) — recognizes the first non-warmup Responses Lite request after untraced prewarm, clears the warmup response receiver, and sends a full request.
+- Execution-only PR: `teamleaderleo/codex#135`
+- Carrier head: `fb77d59b2f5d07cebee889851a476ebab57c9e45`
+- Workflow run: `30690825055`
+- Job: `91345120846`
+- Status at this packet revision: queued
 
-### Target-native tests
+### Historical executed source
 
-- [`agent_websocket.rs`](https://github.com/teamleaderleo/codex/blob/2c3f21d38056d2d77215cd9dce820a680d11cfe8/codex-rs/core/tests/suite/agent_websocket.rs) — full-agent request identity after startup prewarm.
-- [`client_websockets.rs`](https://github.com/teamleaderleo/codex/blob/2c3f21d38056d2d77215cd9dce820a680d11cfe8/codex-rs/core/tests/suite/client_websockets.rs) — incremental continuation after the first generated response and full retry after first-generation failure.
+- Source base: `e6cfd40c3f444aadd6017c9eeab01db70f48961a`
+- Source head: `e520da008366cd720ef58fa0b489efc0a2867e97`
+- Execution carrier head: `40a56eefce26ea647a65779faeb783d65a84a49a`
+- Workflow run/job: `30584165709` / `91011486628`
 
-### Required generated or dependency files
+### Fieldwork packet
 
-- `not applicable`
+- Branch: `p0/435-unit-24-codex-responses-lite-first-request`
+- Path: `upstream/packets/24-codex-responses-lite-first-request/`
+- Packet base: `920f87cb25dd0cc7901d59ea2019cd4b4a193b94`
+- Exact packet head: recorded in the latest unit-24 handoff on `teamleaderleo/fieldwork#435`
 
 ## Changed-file fence
 
-| Path | Role | Keep upstream? |
-| --- | --- | --- |
-| `codex-rs/core/src/client.rs` | production | yes |
-| `codex-rs/core/tests/suite/agent_websocket.rs` | regression | yes |
-| `codex-rs/core/tests/suite/client_websockets.rs` | regression | yes |
+| Path | Role |
+| --- | --- |
+| `codex-rs/core/src/client.rs` | production response-chain transition |
+| `codex-rs/core/tests/suite/agent_websocket.rs` | full-agent first generated request identity |
+| `codex-rs/core/tests/suite/client_websockets.rs` | continuation and failed-first retry controls |
 
-The current compare is exactly one commit, three files, `+301/-1` from `670f69416bf91c5dfd8b58669e78050b584ff053` to `2c3f21d38056d2d77215cd9dce820a680d11cfe8`.
+No workflow, publisher, Fieldwork, manifest, lock, generated, snapshot, planner, or tool-registration file appears in the canonical source diff.
+
+## Selected behavior
+
+At the first request where all three facts hold:
+
+```text
+not warmup
+Responses Lite enabled
+last response came from untraced warmup
+```
+
+Codex clears the warmup response receiver and skips generic incremental request preparation. The existing full serializer sends the complete request. After generation, the existing state assignment resets warmup provenance and later turns continue incrementally from generated responses.
 
 ## Evidence summary
 
-| Claim | Evidence class | Exact receipt | Limit |
-| --- | --- | --- | --- |
-| First generated Lite request severs warmup chain | source-read | current three-file diff on `2c3f21d...` | source proves control flow, not provider deployment behavior |
-| Source fence contains exactly three intended files | target-executed | run `30584165709`, job `91011486628`, `FIELDWORK_LITE_SOURCE_FENCE=3/3` | executed on historical source `e520da...` |
-| Both focused client controls pass | target-executed | same job, `FIELDWORK_LITE_CLIENT_EXACT=2/2` | executed on historical source `e520da...` |
-| Full-agent request-identity assertion passes with larger worker stack | target-executed | same job, `FIELDWORK_LITE_AGENT=default:101;large:0` | default-stack overflow is a runner/runtime condition; current clean head still needs renewal |
-| Current branch preserves the exact historical source patch | source-read | one-commit compare from `670f694...` to `2c3f21d...`; upstream drift did not touch the three files | current focused execution pending |
+| Claim | Evidence | Current limit |
+| --- | --- | --- |
+| Candidate is one clean commit and three files | compare `ee0247...9fd4ba...` | source identity only |
+| Public drift did not touch the unit files | compare `670f694...ee0247...` | five inspected commits |
+| Historical exact source fence | `FIELDWORK_LITE_SOURCE_FENCE=3/3` | historical source `e520da...` |
+| Historical client behavior | `FIELDWORK_LITE_CLIENT_EXACT=2/2` | historical source `e520da...` |
+| Historical full-agent behavior | `FIELDWORK_LITE_AGENT=default:101;large:0` | default worker-stack overflow |
+| Complete current diff review | owned PR `#130`, review ID `4834209535` | self-review, not independent acceptance |
+| Fresh current execution | owned PR `#135`, run `30690825055`, job `91345120846` | queued at this revision |
+
+## Public prior art and duplicate result
+
+The refreshed 2026-08-01 search found related but non-equivalent work:
+
+- merged `openai/codex#23581` intentionally preserves generic compressed wire reuse after untraced warmup while recording the complete logical request for trace replay;
+- merged `openai/codex#27946` moves Responses Lite tools and instructions into input items;
+- earlier trace changes `#22825` and `#23278` address unresolved or omitted warmup parents;
+- adjacent Lite PRs cover headers, tools, metadata, images, and normalized names.
+
+No public implementation was found that ends the warmup response chain only for the first generated Responses Lite request while preserving later continuation and failed-first full retry.
 
 ## Packet navigation
 
@@ -83,37 +109,30 @@ The current compare is exactly one commit, three files, `+301/-1` from `670f6941
 - [Tests and receipts](./TESTS.md)
 - [Upstream issue draft](./UPSTREAM_ISSUE.md)
 - [Upstream pull-request draft](./UPSTREAM_PR.md)
-- [Review and human inspection guide](./REVIEW.md)
+- [Review guide](./REVIEW.md)
 
-## Duplicate and prior-art result
+## Current execution gate
 
-- Search date: `2026-08-01`
-- Current upstream issues/PRs checked: searches for `Responses Lite`, `prewarm`, `previous_response_id`, WebSocket warmup, and the candidate symbol/test names in `openai/codex`
-- Equivalent implementation found: `no`
-- Relationship to prior work: the owned broad carrier `#23` supplied early diagnostic evidence; `#87` is the exact historical source; `#58` supplied the exact execution receipt; planner/tool-exposure work linked from Fieldwork issues `#85` and `#239` is adjacent and excluded.
+Execution-only PR `#135` verifies:
 
-## Remaining work
+1. immutable source parent/head and exact source fence;
+2. formatting;
+3. both exact client controls;
+4. full-agent default/16-MiB stack discriminator;
+5. `just test -p codex-core` with a raised worker stack;
+6. `just fix -p codex-core`;
+7. clean worktree and diff.
 
-Complete in this order:
+A failure is to be inspected, classified, and repaired if attributable to the source. Setup, runner, or repository-baseline failures are recorded and the unit continues through another bounded execution attempt.
 
-1. Execute the two exact client tests and the full-agent request-identity test on `2c3f21d38056d2d77215cd9dce820a680d11cfe8`.
-2. Run `just fmt`, `just fix -p codex-core`, and the focused `codex-core` test gate on the same source head, preserving any repository-wide failures as separate receipts.
-3. Obtain independent complete-diff review on `teamleaderleo/codex#130`, then change the packet disposition to `READY` if the focused current-head evidence remains green.
-
-## Blockers and limits
-
-- Current-head focused tests have not completed on `2c3f21d...`.
-- Blocking CI run `30674311295` includes a pre-existing manifest exception failure in `codex-rs/code-mode/Cargo.toml`, outside the changed-file fence, plus platform jobs that are red or still running.
-- The default worker-stack full-agent run overflows; the exact same assertion passes at 16 MiB. That classification limits the ordinary full-agent receipt without rebutting the focused client controls.
-- Current target contribution and AI-disclosure policy needs a fresh filing-time check; no repository-local `CONTRIBUTING.md` was present at the inspected revision.
-- Public filing authority is absent.
-
-## Latest handoff
+## Current handoff
 
 State: `REPAIR`  
-Exact source head: `2c3f21d38056d2d77215cd9dce820a680d11cfe8`  
-Exact packet head: latest `p0/435-unit-24-codex-responses-lite-first-request` head recorded on issue `#435`  
-Tests: historical exact source fence `3/3`; focused client controls `2/2`; full-agent `default:101;large:0`; current-head CI partial/red outside source fence; current-head focused tests pending  
-Temporary machinery remaining: owned draft PR `#130`; historical carriers retained as receipts  
-Next worker action: execute the three focused controls on `2c3f21d...` and attach the exact command/run receipt to `#130` and `#435`  
+Exact source base: `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`  
+Exact source head: `9fd4ba575de8dd77bc411362256591ce9e7d8c82`  
+Exact source PR: `teamleaderleo/codex#130`  
+Exact execution carrier: `teamleaderleo/codex#135@fb77d59b2f5d07cebee889851a476ebab57c9e45`  
+Exact execution run/job: `30690825055` / `91345120846`  
+Tests: historical source fence `3/3`, client controls `2/2`, agent `default:101;large:0`; current exact run queued  
+Review: complete-diff self-review found no source blocker; independent acceptance absent  
 Public upstream interaction: `none`
