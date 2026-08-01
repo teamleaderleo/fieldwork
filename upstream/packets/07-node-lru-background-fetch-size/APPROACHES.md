@@ -2,12 +2,12 @@
 
 ## In simple words
 
-The selected direction validates the option and binds each pending fetch to a captured size receipt. Earlier approaches either validated too early, re-read mutable state after user code, transported the change as a patch, introduced an exported-type compatibility break, or added an unnecessary clock dependency. Their evidence remains useful; their packaging or ownership model lost.
+The selected direction validates the option and binds each pending missing-key fetch to a captured size receipt. Earlier approaches either validated too early, re-read mutable state after user code, transported the change as a patch, introduced an exported-type compatibility break, added an unnecessary clock dependency, or stopped one review pass before the hostile/`undefined`/stale controls. Their evidence remains useful; their packaging or test completeness lost.
 
 ## Decision criteria
 
-1. Pending accounting always receives a primitive finite nonnegative integer.
-2. Zero, stale refresh, same-key coalescing, and no-size behavior remain compatible.
+1. Pending accounting always receives a primitive finite nonnegative integer without coercion.
+2. Zero, omitted/default `undefined`, stale refresh, same-key coalescing, and no-size behavior remain compatible.
 3. Synchronous user callback mutation cannot change the already-dispatched operation.
 4. The upstream diff stays limited to product source and target-native tests.
 5. Exported TypeScript types and cross-platform tests avoid avoidable compatibility costs.
@@ -18,10 +18,10 @@ The selected direction validates the option and binds each pending fetch to a ca
 
 - Design: validate construction; for missing-key size-tracked fetches, capture the current value before Promise construction, assign it to `BackgroundFetch.__size`, and consume that receipt in `#requireSize()`.
 - Owning boundary: `#backgroundFetch()` owns dispatch-time capture; `#requireSize()` owns accounting-time enforcement.
-- Evidence: source review, released probe, callback-mutation tests, zero/no-size/stale controls, internal-receipt control, earlier native executions.
-- Advantages: closes the demonstrated re-entry window; preserves later mutability; keeps unrelated paths unchanged.
+- Evidence: source review, released probe, hostile object control, explicit constructor/mutated `undefined`, callback mutation tests, zero/no-size/stale controls, internal-receipt control, and earlier native executions.
+- Advantages: closes the demonstrated re-entry window; avoids coercion; preserves later mutability; keeps unrelated paths unchanged.
 - Costs and risks: one internal property and validation branch; constructor behavior becomes stricter for invalid runtime values.
-- Remaining controls: exact-head CI, benchmarks, and independent final review.
+- Remaining controls: exact-head CI, benchmarks, focused build/lint/format, and independent final review.
 
 ## Viable alternatives
 
@@ -30,7 +30,7 @@ The selected direction validates the option and binds each pending fetch to a ca
 - Design: expose a read-only field or private backing value.
 - Why it remains plausible: removes all later mutation ambiguity.
 - What it would improve: simpler lifetime contract.
-- What it would widen or complicate: public API compatibility and the documented pattern that mutable options affect later calls.
+- What it would widen or complicate: public API compatibility and the existing mutable-option pattern.
 - Exact discriminator: maintainer preference for immutable configuration.
 - Reopening trigger: maintainers reject per-operation mutation semantics.
 
@@ -65,9 +65,9 @@ The selected direction validates the option and binds each pending fetch to a ca
 
 - Exact branch, patch, or commit: `teamleaderleo/node-lru-cache#1`, branch `fieldwork/background-fetch-size-validation`; Fieldwork PR #135.
 - What ran: `git apply --check`, build/declarations, 70 focused assertions on Node 22/24/26, OXLint, and Prettier.
-- Result: behavior and formatting passed on the final carrier revision.
+- Result: behavior and formatting passed on the final historical carrier revision.
 - Why it lost: `src/index.ts` remained an applied patch artifact, so the branch was an execution surface rather than an upstream-ready diff.
-- Useful evidence retained: baseline probe, candidate contract, focused matrix, and issue draft.
+- Useful evidence retained: baseline probe, candidate contract, focused matrix, issue draft, and review requests for hostile values, `undefined`, and stale usage-bound behavior.
 
 ### Required exported __size field
 
@@ -81,9 +81,17 @@ The selected direction validates the option and binds each pending fetch to a ca
 
 - Exact branch, patch, or commit: target PR #2 at `fef8328c9431b656c0ee48547250e37d6caeabef`.
 - What ran: workflows ended `action_required` before jobs.
-- Result: added `@tapjs/clock`, `package.json`, and lockfile churn despite the test already having a dependency-free route.
+- Result: added `@tapjs/clock`, `package.json`, and lockfile churn despite a dependency-free test route.
 - Why it lost: widened the diff and contradicted source cleanliness.
 - Useful evidence retained: the optional exported field change.
+
+### First clean two-file generation
+
+- Exact branch, patch, or commit: target head `0f4a357a9bc0b09ad413e99fa566317bf4ce283c`.
+- What ran: native CI `30674355332` and Benchmarks `30674355680` were queued before the head moved.
+- Result: source and main test logic were clean, but complete historical review exposed three untransferred controls.
+- Why it lost: no hostile conversion object, no post-construction `undefined` control, and no invalid-field stale refresh control.
+- Useful evidence retained: identical product source and dependency-free timing repairs.
 
 ### Fixed-sleep autopurge control
 
@@ -105,7 +113,19 @@ The selected direction validates the option and binds each pending fetch to a ca
 
 - Temptation: normalize dynamic values.
 - Why it is incomplete: strings, booleans, objects, symbols, and hostile conversion hooks should never enter accounting through coercion.
-- Negative control or source fact: runtime string `'2'` causes demonstrated state corruption.
+- Negative control or source fact: runtime string `'2'` causes demonstrated state corruption; the final hostile object throws from every conversion hook.
+
+### Treat constructor undefined as invalid
+
+- Temptation: apply the runtime domain check before option defaults.
+- Why it is incomplete: an optional property explicitly set to `undefined` has the same constructor semantics as omission in the current destructuring path.
+- Negative control or source fact: final native control accepts constructor `undefined` while rejecting later mutated `undefined` when missing-key accounting consumes it.
+
+### Validate every refresh path
+
+- Temptation: reject the public field on any `fetch()` call.
+- Why it is incomplete: stale refresh reuses an existing entry size and no-size caches have no provisional size accounting.
+- Negative control or source fact: final controls prove invalid values remain irrelevant in those paths.
 
 ### Read the public field again during insertion
 
@@ -136,4 +156,5 @@ The selected direction validates the option and binds each pending fetch to a ca
 | 2026-07-30 | owned PR #1 and Fieldwork PR #135 | select validation plus snapshot | constructor-only validation missed callback re-entry | maintainer contract differs |
 | 2026-07-30 | target PR #2 review `4824064389` | repair exported type | required field risked TS compatibility | type no longer exported |
 | 2026-07-31 | target head `fef8328...` | reject dependency/lock churn | test can use injected time and real timers | target explicitly requires plugin |
-| 2026-08-01 | base `16b3...`, source/test blobs from final reviewed candidate | publish clean head `0f4a357a...` | exact two-file diff over unchanged public base | exact-head execution or review reverses result |
+| 2026-08-01 | base `16b3...`, target head `0f4a357a...` | publish first clean two-file generation | removed all dependency and lock churn | complete prior-art review |
+| 2026-08-01 | PR #1 reviews plus first clean diff | supersede with `70a9e62b0555e6bb68763fb9d32458fa82fd2a70` | add hostile, `undefined`, and stale usage-bound controls | exact-head execution or review reverses result |

@@ -24,11 +24,11 @@ The released implementation read the public mutable field while inserting the pr
 
 | Area | Exact path and symbol | Responsibility | Relevant tests |
 | --- | --- | --- | --- |
-| numeric validation | [`src/index.ts#L45-L50`](https://github.com/teamleaderleo/node-lru-cache/blob/0f4a357a9bc0b09ad413e99fa566317bf4ce283c/src/index.ts#L45-L50) | accept zero and positive integers while rejecting coercive values | constructor matrix in [`test/background-fetch-size.ts`](https://github.com/teamleaderleo/node-lru-cache/blob/0f4a357a9bc0b09ad413e99fa566317bf4ce283c/test/background-fetch-size.ts) |
-| public/internal type | [`BackgroundFetch`](https://github.com/teamleaderleo/node-lru-cache/blob/0f4a357a9bc0b09ad413e99fa566317bf4ce283c/src/index.ts#L114-L122) | optional receipt preserves source compatibility for exported mocks | build/declaration gate |
-| constructor boundary | [`LRUCache` constructor](https://github.com/teamleaderleo/node-lru-cache/blob/0f4a357a9bc0b09ad413e99fa566317bf4ce283c/src/index.ts#L1410-L1470) | validate declared configuration before assignment | invalid constructor controls |
-| consumption boundary | [`#requireSize`](https://github.com/teamleaderleo/node-lru-cache/blob/0f4a357a9bc0b09ad413e99fa566317bf4ce283c/src/index.ts#L1730-L1775) | consume and defensively validate the operation receipt | corrupted internal receipt control |
-| dispatch boundary | [`#backgroundFetch`](https://github.com/teamleaderleo/node-lru-cache/blob/0f4a357a9bc0b09ad413e99fa566317bf4ce283c/src/index.ts#L2490-L2670) | snapshot before synchronous callback invocation and attach receipt | callback mutation and next-fetch controls |
+| numeric validation | [`src/index.ts#L45-L50`](https://github.com/teamleaderleo/node-lru-cache/blob/70a9e62b0555e6bb68763fb9d32458fa82fd2a70/src/index.ts#L45-L50) | accept zero and positive integers while rejecting coercive values | labeled constructor matrix and hostile object control in [`test/background-fetch-size.ts`](https://github.com/teamleaderleo/node-lru-cache/blob/70a9e62b0555e6bb68763fb9d32458fa82fd2a70/test/background-fetch-size.ts) |
+| public/internal type | [`BackgroundFetch`](https://github.com/teamleaderleo/node-lru-cache/blob/70a9e62b0555e6bb68763fb9d32458fa82fd2a70/src/index.ts#L114-L122) | optional receipt preserves source compatibility for exported mocks | build/declaration gate |
+| constructor boundary | [`LRUCache` constructor](https://github.com/teamleaderleo/node-lru-cache/blob/70a9e62b0555e6bb68763fb9d32458fa82fd2a70/src/index.ts#L1410-L1470) | validate declared configuration before assignment; explicit `undefined` keeps default semantics | invalid constructor controls |
+| consumption boundary | [`#requireSize`](https://github.com/teamleaderleo/node-lru-cache/blob/70a9e62b0555e6bb68763fb9d32458fa82fd2a70/src/index.ts#L1730-L1775) | consume and defensively validate the operation receipt | corrupted internal receipt control |
+| dispatch boundary | [`#backgroundFetch`](https://github.com/teamleaderleo/node-lru-cache/blob/70a9e62b0555e6bb68763fb9d32458fa82fd2a70/src/index.ts#L2490-L2670) | snapshot before synchronous callback invocation and attach receipt only for missing-key size-tracked fetches | callback mutation, next-fetch, stale refresh, and no-size controls |
 
 ## Reproduction or characterization
 
@@ -49,7 +49,7 @@ The released implementation read the public mutable field while inserting the pr
 
 ### Candidate result
 
-Earlier exact candidate executions established constructor rejection, pre-dispatch rejection with zero provider calls, immutable pending size during synchronous callback mutation, same-key coalescing, and normal settlement. Current clean head `0f4a357a...` contains the reviewed final source and native controls; its repository CI and benchmark receipts are tracked in `TESTS.md`.
+Earlier exact candidate executions established constructor rejection, pre-dispatch rejection with zero provider calls, immutable pending size during synchronous callback mutation, same-key coalescing, and normal settlement. Current clean head `70a9e62b...` adds the remaining hostile non-coercion, explicit `undefined`, and stale-refresh usage-bound controls. Its repository CI, benchmark, and focused lint/format receipts are tracked in `TESTS.md`.
 
 ## Failure model
 
@@ -73,7 +73,9 @@ All ordering steps are source-confirmed. Production prevalence remains unknown.
 
 - Invalid values can corrupt live accounting and caller-visible fetch behavior on released `11.5.2`.
 - A snapshot taken before dispatch closes the demonstrated synchronous mutation window.
+- Primitive guarding avoids conversion hooks on hostile objects.
 - Zero is a coherent supported value and requires preservation.
+- Stale refresh and no-size paths do not consume the provisional option and retain usage-bound behavior.
 
 ### Inferred
 
@@ -92,11 +94,11 @@ The cache validates declared configuration at construction. During a missing-key
 
 The exported property is optional in the TypeScript type. Internal construction assigns it on every background-fetch object. This preserves compatibility for external typed mocks while retaining the runtime invariant where provisional accounting applies.
 
-Stale refreshes bypass missing-key provisional insertion and continue using the existing entry’s size. Caches without size tracking skip the snapshot and remain insensitive to later irrelevant field mutation. Settlement replaces the provisional charge with the resolved value’s calculated size.
+Stale refreshes bypass missing-key provisional insertion and continue using the existing entry’s size even when the mutable public field currently contains an invalid value. Caches without size tracking skip the snapshot and remain insensitive to later irrelevant field mutation. Settlement replaces the provisional charge with the resolved value’s calculated size.
 
 ## Compatibility analysis
 
-- public API: same option and public mutable field; invalid constructor values now throw `TypeError`
+- public API: same option and public mutable field; invalid constructor values now throw `TypeError`; explicit `undefined` remains omission/default
 - source compatibility: optional `BackgroundFetch.__size` avoids forcing external typed mocks to add a new field
 - binary or wire compatibility: not applicable
 - persistence or format compatibility: not applicable
@@ -109,14 +111,16 @@ Stale refreshes bypass missing-key provisional insertion and continue using the 
 ## Adversarial and edge controls
 
 - re-entry: synchronous `fetchMethod` mutation to string, `NaN`, and negative values
+- hostile values: object conversion hooks throw if invoked; constructor rejects through primitive type guard
+- omitted/default distinction: explicit constructor `undefined` defaults; later mutated `undefined` rejects when consumed
 - concurrency: two same-key callers remain coalesced
 - cancellation or interruption: existing native suite retains eviction and replacement behavior
 - failure before ownership transfer: invalid mutation rejects before provider dispatch and leaves cache state unchanged
 - failure after partial effect: corrupted internal receipt is rejected on reinsertion
 - cleanup failure: not applicable to this in-memory accounting change
 - same-key collision: zero and positive provisional sizes preserve one provider call
-- unrelated-resource isolation: no-size caches ignore the field; stale refresh preserves existing size
-- platform boundary: CI workflow covers Node 24/25 on Linux, macOS, Windows bash, and Windows PowerShell; benchmarks cover Node 22/24/25 on Linux, macOS, and Windows
+- unrelated-resource isolation: no-size caches and stale refresh ignore the invalid field because they do not consume missing-key provisional size
+- platform boundary: CI workflow covers Node 24/25 on Linux, macOS, Windows bash, and Windows PowerShell; benchmarks cover Node 22/24/25 on Linux, macOS, and Windows; focused carrier covers Node 22/24/26 on Ubuntu
 
 ## Review risks
 
@@ -124,6 +128,7 @@ Stale refreshes bypass missing-key provisional insertion and continue using the 
 2. **The internal receipt leaks through an exported type.** Making it optional preserves typed adapters while the accounting boundary enforces presence.
 3. **The autopurge control is adjacent to the product change.** It covers an existing line required by the repository’s complete-coverage gate and changes test behavior only.
 4. **The candidate may widen beyond the bug.** The exact diff contains one source file and the existing focused test file; no dependencies, workflows, snapshots, or lockfiles remain.
+5. **The stale invalid-field control could accidentally await a stale immediate return.** It runs with default `allowStale: false`, so it observes provider settlement and unchanged existing-entry size.
 
 ## Reversing evidence
 
