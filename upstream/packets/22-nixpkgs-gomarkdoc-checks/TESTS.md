@@ -2,7 +2,7 @@
 
 ## Current conclusion
 
-The selected command-package repair now passes its exact-head aarch64-darwin package, command-check, installed-help, and version gates. The corresponding x86_64-linux job, including `nixpkgs-review`, and the carrier integrity job remain queued.
+The selected command-package repair passes its exact-head aarch64-darwin package, command-check, installed-help, and version gates. A clean packet-anchored x86_64-linux gate, including `nixpkgs-review`, and Fieldwork integrity are queued.
 
 A separate exact-head full-discovery experiment failed deterministically in two `lang` exact-text assertions on both platforms. That negative control is retained and the selected source does not hide those failures.
 
@@ -110,17 +110,14 @@ expected: ... returns the resulting *os.File.
 
 Classification: `target-executed negative control`. This is a package/test compatibility failure. Package failure prevented installed-help, version, and Linux `nixpkgs-review` from running.
 
-## Current exact-head command-check execution
+## Current exact-head command-check evidence
 
-- Source head: `569c0c4d11e5a14f3fe6237c0a50dc484f80e744`
-- Carrier PR: [#437](https://github.com/teamleaderleo/fieldwork/pull/437)
+Detailed receipt: [`receipts/2026-08-01-command-checks.md`](./receipts/2026-08-01-command-checks.md)
+
+### aarch64-darwin — executed
+
 - Carrier head: `c95da0c4b3f460df9bc8f342e98d05345da66df8`
-- Target run: [`30690828310`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828310)
-- Carrier integrity run: [`30690828341`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828341)
-- Detailed receipt: [`receipts/2026-08-01-command-checks.md`](./receipts/2026-08-01-command-checks.md)
-
-### aarch64-darwin
-
+- Run: [`30690828310`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828310)
 - Job: `91345125710` — `success`
 - Runner: macOS 14.8.7 arm64; image `macos-14-arm64` version `20260629.0180.1`
 - Nix: 2.35.1
@@ -137,19 +134,43 @@ Classification: `target-executed negative control`. This is a package/test compa
 
 Evidence class: `target-executed`.
 
-### x86_64-linux
+### x86_64-linux — packet-anchored gate
 
-- Job: `91345125742`
+- Packet base: `527021b7ff1535e8be4f27dc3ba7226b559a1630`
+- Carrier head: `178e6388bf06b965970dd3ab7435db9e756a13e4`
+- Carrier relation: one commit and one workflow file
+- Run: [`30691551270`](https://github.com/teamleaderleo/fieldwork/actions/runs/30691551270)
+- Job: `91347062784`
 - State at this packet update: queued
 - Required additional gate: `nixpkgs-review rev HEAD --no-shell`
 
+Prepared assertions:
+
+- carrier parent equals packet base;
+- exact source head and parent;
+- one changed package file and `git diff --check` success;
+- selected command check and exactly one gomarkdoc package result;
+- installed help output;
+- version passthru `1.1.0`;
+- Linux `nixpkgs-review`;
+- exact artifact upload.
+
 Evidence class: `target-test-prepared`.
 
-### Carrier integrity
+### Packet-anchored integrity
 
-- Job: `91345125771`
+- Packet base: `527021b7ff1535e8be4f27dc3ba7226b559a1630`
+- Carrier head: `178e6388bf06b965970dd3ab7435db9e756a13e4`
+- Run: [`30691551312`](https://github.com/teamleaderleo/fieldwork/actions/runs/30691551312)
+- Job: `91347062807`
 - State at this packet update: queued
-- Scope note: the run was created against the packet base present when carrier head `c95da0c4...` was pushed. A final carrier generation must validate the packet tip after receipt transfer.
+
+This integrity generation covers packet content through `527021b7ff1535e8be4f27dc3ba7226b559a1630` plus the one-file carrier. Subsequent packet changes are receipt and status reconciliation and must be identified as such.
+
+### Superseded queued jobs
+
+- Linux job `91345125742` in run `30690828310` remained queued after the carrier branch was rebuilt. It is superseded by job `91347062784`.
+- Integrity job `91345125771` in run `30690828341` is superseded by job `91347062807`.
 
 ## Commands
 
@@ -165,8 +186,8 @@ The active local runtime has no `nix` or `nix-build`; hosted Actions provides th
 
 ## Gates outside the current receipt
 
-- terminal x86_64-linux package/check/help/version/review receipt;
-- final packet-tip integrity generation;
+- terminal packet-anchored x86_64-linux package/check/help/version/review receipt;
+- terminal packet-anchored integrity receipt;
 - carrier closure after evidence transfer;
 - independent complete-diff review;
 - fresh-public-head rebase and exact-head rerun;
