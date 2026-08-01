@@ -1,73 +1,74 @@
-# Approaches — Unit 11: snapshot lifecycle targets before concurrent fanout
+# Approaches — Unit 11: stabilize lifecycle fanout targets
 
 ## Selected boundary
 
-Use the smallest mechanism required at each fanout site:
+Repair supported mutable processor fanouts only:
 
 - `MultiSpanProcessor`: opening snapshot plus eager synchronous safe-call;
-- `TracerProvider.forceFlush`: opening snapshot plus synchronous-throw normalization inside the existing per-processor timeout wrapper;
-- `MultiLogRecordProcessor`: opening snapshot plus eager synchronous safe-call;
-- `MeterProvider`: opening snapshot only, because `MetricCollector` lifecycle methods are already async.
+- public `TracerProvider.forceFlush()`: opening snapshot plus synchronous-error normalization through the existing timeout/error path;
+- `MultiLogRecordProcessor`: opening snapshot plus eager synchronous safe-call.
 
-All paths retain eager invocation, existing outward error behavior, first-rejection semantics, and collection mutation for future operations.
+Metrics is excluded. `MeterProvider` constructs its collector list internally and does not retain the caller's reader array; the prior mutation tests reached private state only. `MetricCollector` lifecycle methods are already async.
 
 ## Why trace has two force-flush sites
 
-Public `TracerProvider.forceFlush()` does not delegate to `MultiSpanProcessor.forceFlush()`. It reaches into the aggregate's processor array and creates one timeout-controlled promise per processor. Therefore repairing only `MultiSpanProcessor` leaves the public provider path vulnerable to live-array removal.
+`TracerProvider.forceFlush()` bypasses `MultiSpanProcessor.forceFlush()` and directly maps the aggregate's processor list. Repairing only the multi-processor leaves the public provider path exposed to live removal.
 
-Its `new Promise` executor already converts a direct processor throw into rejection, but the timeout is armed before invocation and was not cleared on that synchronous path. The repaired provider catches the throw explicitly, clears the timer, and resolves the per-processor result with the error so the existing outer rejection shape is preserved.
+The provider also arms a timeout before processor invocation. A synchronous throw was converted by the Promise executor, but bypassed timeout cleanup. The selected helper converts it to a rejected promise so the existing `.catch()` clears the timer and records the error without changing the provider's error-array contract.
 
-## Package-specific rationale
+## Package decisions
 
 ### Trace aggregate
 
-- copy `_spanProcessors` before the first call;
-- use local try/catch so later opening processors are invoked after a direct throw;
-- preserve the original outer promise and global-error-handler scaffolding.
+- snapshot `_spanProcessors`;
+- protect direct lifecycle calls with an eager local try/catch helper;
+- preserve shutdown rejection and force-flush global-handler/resolve structure.
 
 ### Trace provider
 
-- copy the same processor list before mapping;
-- keep the existing timeout and aggregate result model;
-- catch synchronous invocation/then attachment failures, clear the timeout, and return the error through the existing result list.
+- snapshot the processor list before mapping;
+- call each processor through the same eager helper;
+- retain per-processor timeout, result filtering, and outward rejection shape.
 
 ### Logs
 
-- copy the public processor array;
+- snapshot the public processor array;
 - protect direct processor calls;
-- retain `callWithTimeout()` placement and default timeout.
+- retain timeout wrapping and rejection behavior.
 
-### Metrics
+### Metrics excluded
 
-- copy `metricCollectors`;
-- call async collector methods directly;
-- retain only mutation reversing tests.
+- reader array is transformed into an internal collector list during construction;
+- no supported public mutation path was established;
+- direct reader throws already cross an async collector boundary;
+- private-state mutation is insufficient for an upstream defect claim.
 
 ## Rejected alternatives
 
-- Safe-call over live arrays: still permits removal-based skipping.
-- Metrics safe-call: duplicates the collector async boundary and overstates the defect.
+- Safe-call over live arrays: removal can still skip children.
 - Microtask deferral: changes eager start ordering.
 - Permanent freezing/copying: changes future membership behavior.
 - Sequential awaiting: changes concurrency and latency.
-- Settle-all aggregation: changes error timing and types.
-- Repairing only `MultiSpanProcessor`: misses public `TracerProvider.forceFlush()`.
+- Settle-all aggregation: changes error timing/types.
+- Repairing only `MultiSpanProcessor`: misses public provider force flush.
+- Keeping metrics for symmetry: broadens the patch without a supported reversing path.
 
 ## Decision history
 
-1. Safe-call-only head `80e3b74b...` passed gates but failed review on live mutation.
-2. Snapshot fixture `e19247b...` had test-only TS2322 inference failures.
-3. Clean head `641528c...` passed all named workflows.
-4. Review `4834242586` narrowed metrics to snapshot-only.
-5. Deeper review restored trace aggregate scaffolding and fixed `loggingErrorHandler()` test cleanup.
-6. End-to-end review found the separate provider force-flush fanout and timeout leak.
-7. Final source was collapsed to one commit directly on current public main.
+1. Safe-call-only head passed gates but failed review on live mutation.
+2. First snapshot fixtures had test-only typing failures.
+3. Earlier clean head passed all named workflows.
+4. Review removed redundant metrics safe-call behavior.
+5. Deeper review removed metrics entirely as private-state-only.
+6. Deeper trace review added public provider force flush and timeout cleanup.
+7. Successor source was collapsed to one commit on current public main.
 
 ## Exact current state
 
-- public base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- clean source head: `59f83f889bed06a951d458556b2e7e1695cbea10`;
+- base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- branch: `upstream/unit-11-lifecycle-fanout-v2`;
+- clean source head: `f4910b355d12895edf25372444f76d4def08901c`;
 - relation: ahead 1, behind 0;
-- boundary: four production files and four test files;
-- exact-head workflow set: queued under runs `30694080910` through `30694080955`;
+- boundary: three production files and three tests;
+- validation carrier: PR #19;
 - public upstream contact: unauthorized and not performed.
