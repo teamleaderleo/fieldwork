@@ -5,64 +5,55 @@ Public interaction authorized: `no`
 
 ## Summary
 
-Trace, logs, and metrics lifecycle aggregates iterate mutable child arrays. A child can remove a later indexed child while shutdown or force flush is being started, causing that later child to be skipped even though it belonged to the operation's opening set.
+Trace, logs, and metrics lifecycle fanouts can skip a later child when an earlier callback removes it from the live collection during shutdown or force flush.
 
-Trace and logs have an additional direct-call path: a processor can throw before returning its declared promise, interrupting construction of later promise inputs.
-
-## Reproduction
-
-1. Configure two processors or metric readers.
-2. Have the first lifecycle callback remove the second entry from the aggregate's backing collection.
-3. Call shutdown or force flush.
-4. Observe that the second opening child is not invoked on the current baseline.
-
-For trace/logs, an equivalent reproduction makes the first processor throw synchronously before returning a promise; later processors are not invoked.
+Trace and logs have direct processor-call paths where a synchronous throw can interrupt later invocation. Public `TracerProvider.forceFlush()` has its own fanout, separate from `MultiSpanProcessor.forceFlush()`, and also leaves its per-processor timeout armed when a processor throws synchronously.
 
 ## Expected behavior
 
-A lifecycle aggregate should attempt every child present when the operation begins. Mutations during the operation should affect future operations without shrinking the current opening set. Existing package-specific error behavior should remain unchanged.
+Every child present when the lifecycle operation starts should be attempted. Mutations should affect future operations without shrinking the current opening set. Existing package-specific error behavior should remain unchanged, and synchronous failure should not leave an obsolete timeout armed.
 
-## Proposed direction
-
-- snapshot the opening processor/collector array before invoking children;
-- for trace and logs, convert direct synchronous processor throws into rejected promises while constructing the eager fanout;
-- for metrics, call the existing async `MetricCollector` lifecycle methods directly—the collector already converts reader throws into rejected promises;
-- retain `Promise.all` and current trace/logs/metrics outward behavior.
-
-## Compatibility
-
-- no public API or type changes;
-- one shallow array copy per affected lifecycle call;
-- future mutations remain visible;
-- first-rejection behavior remains;
-- no settle-all aggregation, cancellation, retry, or idempotence change.
-
-## Scope
-
-Affected entrypoints:
+## Affected entrypoints
 
 - `MultiSpanProcessor.shutdown()` / `forceFlush()`;
+- `TracerProvider.forceFlush()`;
 - `MultiLogRecordProcessor.shutdown()` / `forceFlush()`;
 - `MeterProvider.shutdown()` / `forceFlush()`.
 
-Related one-shot shutdown state, final metrics collection, delayed recursion, and telemetry admission after shutdown are separate topics.
+## Candidate direction
 
-## Environment
+- snapshot each opening processor/collector list;
+- protect direct trace/log processor calls with eager try/catch;
+- in `TracerProvider.forceFlush()`, clear the already-armed timeout on synchronous invocation failure and feed the error through the existing per-processor result path;
+- call async metrics collectors directly;
+- retain existing `Promise.all`, timeout, and outward error policies.
 
-- repository revision: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- current public `main` matched that revision during the final repair pass;
-- repository-supported GitHub Actions matrix;
-- focused fixtures use two children and a first-child removal or direct throw.
+## Compatibility
 
-## Prior-art result
+- no public API/type changes;
+- one shallow copy per affected operation;
+- eager invocation retained;
+- future mutation retained;
+- trace aggregate and provider error policies retained;
+- first-rejection/result behavior retained.
 
-Open issue/PR searches during the repair pass for the affected symbols, lifecycle fanout, snapshot wording, and skipped-later-child behavior found no equivalent current fix. Historical PR #802 introduced span-processor force-flush fanout but does not address stable opening membership or direct synchronous throws.
+## Scope limits
+
+No settle-all aggregation, cancellation, retry, idempotence, final metrics collection, delayed recursion, or post-shutdown telemetry admission changes.
+
+## Environment and prior art
+
+- baseline/current main during repair: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- repository-supported Actions matrix;
+- two-child direct-throw/removal fixtures and fake-timer provider control;
+- refreshed open issue/PR searches found no equivalent current repair;
+- historical PR #802 introduced span-processor force-flush fanout but not stable opening membership or synchronous-failure cleanup.
 
 ## Filing checklist
 
-- [ ] repeat current-main and duplicate search immediately before filing;
-- [ ] confirm reproduction on the then-current public revision;
-- [x] keep metrics direct-throw behavior out of the defect claim;
+- [ ] repeat current-main and duplicate search at filing time;
+- [ ] confirm focused controls on the then-current revision;
+- [x] distinguish provider, aggregate, logs, and metrics async boundaries;
 - [x] avoid prevalence/severity claims beyond evidence;
 - [ ] recheck contribution and AI-disclosure policy;
-- [ ] record explicit authority before public interaction.
+- [ ] record explicit public-contact authority.
