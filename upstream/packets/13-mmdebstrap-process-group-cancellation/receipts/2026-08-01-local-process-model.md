@@ -12,6 +12,16 @@ A fresh Linux model repeated the central three-way distinction. Terminating only
 - execution surface: disposable local files under `/tmp`; no network access
 - evidence class: `model-executed`
 
+## Retained exact test source
+
+- [`harness.py`](../fixtures/local-process-model/harness.py)
+- [`driver.py`](../fixtures/local-process-model/driver.py)
+- [`wrapper.py`](../fixtures/local-process-model/wrapper.py)
+- [`child.py`](../fixtures/local-process-model/child.py)
+- [repeat instructions](../fixtures/local-process-model/README.md)
+
+The committed files preserve the exact source used by the recorded run, including the original `/tmp/unit13-probe` source root in `harness.py`.
+
 ## Model
 
 The driver starts a wrapper. The wrapper starts one child. The child waits 0.8 seconds and writes a `later-work` marker.
@@ -30,6 +40,8 @@ python3 harness.py
 ```
 
 ## Exact output
+
+The initial packet run and a fresh closeout rerun on 2026-08-01 produced the same output:
 
 ```text
 variant=baseline rc=0 later_work=true child_live=false
