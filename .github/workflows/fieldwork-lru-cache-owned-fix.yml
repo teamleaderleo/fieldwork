@@ -23,11 +23,11 @@ jobs:
           - 24
           - 26
     steps:
-      - name: Check out owned fork candidate
+      - name: Check out exact owned source head
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: teamleaderleo/node-lru-cache
-          ref: 531da9316dea9107d1a330dfaf26a0c74e07703c
+          ref: 70a9e62b0555e6bb68763fb9d32458fa82fd2a70
           persist-credentials: false
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
@@ -35,11 +35,8 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
-      - name: Apply candidate source patch
-        run: |
-          git apply --check .fieldwork/background-fetch-size-validation.patch
-          git apply .fieldwork/background-fetch-size-validation.patch
-          git diff --check
+      - name: Verify clean source checkout
+        run: git diff --check
 
       - name: Install exact dependencies
         run: npm install
