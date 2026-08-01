@@ -90,32 +90,44 @@ A workflow that intends to delete itself remains an active execution carrier unt
 A pull-request workflow can execute two different Git objects:
 
 - a **head gate** checks out and executes `github.event.pull_request.head.sha`;
-- a **merge-ref gate** checks out and executes GitHub's generated pull-request merge commit for one exact base snapshot.
+- a **merge-ref gate** checks out and executes GitHub's generated pull-request merge commit for one exact event-base snapshot.
 
 Default `actions/checkout` behavior on a `pull_request` event normally selects the generated merge ref. Do not call that run a head gate merely because GitHub associates the check with the pull-request head.
 
-Both modes are useful and may be required together. Their claims and expiration rules differ:
+Both modes are useful and may be required together. Their claims and currentness rules differ:
 
 - a head-gate receipt remains tied to the unchanged proposed head and says nothing about integration with a newer base;
-- a merge-ref receipt is tied to both declared parents and expires when either the head or base generation moves.
+- a merge-ref identity remains tied to its exact event-base and head parents;
+- current integration additionally requires the event base to equal the base branch tip observed by the receipt.
 
 A checkout receipt should name:
 
 - tested checkout SHA;
 - declared pull-request head SHA;
-- declared base SHA;
+- pull-request event-base SHA where applicable;
+- observed base branch tip where applicable;
+- explicit `base_current` equality;
+- push event-before SHA and event-reported update kind where applicable;
 - event SHA;
 - ordered local parent SHAs;
 - classification `exact-head`, `synthetic-merge-ref`, or `other-checkout`;
+- named technical gate and every command outcome;
+- aggregate technical-gate outcome;
+- explicit reusable-evidence result;
+- explicit current-integration result for a merge-ref gate;
 - workflow run and attempt.
 
-A generated merge is valid integration evidence. It must not be cited as literal-head execution. A review may require one mode or both, but it must say which mode actually ran.
+Checkout identity and technical success are independent facts. Identity collection may run after a failed technical step, but reusable evidence requires a successful named command set. A moved base leaves a historical merge identity with `base_current: false`; it does not retain a current integration claim.
+
+A generated merge is valid integration evidence for its exact event-base generation. It must not be cited as literal-head execution. A review may require one mode or both, but it must say which mode actually ran and whether the event base was current when observed.
 
 A promotion review should record:
 
 - repository and pull request;
 - canonical branch and exact head SHA;
 - tested checkout SHA and checkout classification for every disposition-relevant workflow;
+- event-base, observed-base, and base-currentness identities for every pull-request receipt;
+- technical gate name, command outcomes, and reusable-evidence result;
 - exact base or current-main revision used for comparison;
 - changed-file fence or complete-diff scope;
 - work class;
@@ -130,7 +142,9 @@ A promotion review should record:
 
 A code head is not the only possible review input. When the invariant, review ask, state, clearing condition, authority boundary, or promotion request comes from an issue or decision record, the receipt must version that input too. GitHub `updated_at` may be recorded as an explicitly accepted coarse snapshot marker, but it is not a body-specific generation and can expire a receipt after unrelated activity.
 
-Any code-head movement or reviewed-input generation change expires the disposition unless the reviewer explicitly proves the new input is semantically identical within the reviewed fence. Any merge-ref base movement expires that integration receipt even when the proposed head is unchanged.
+A prior disposition may carry forward without fresh review only when every disposition-relevant reviewed path is byte-identical across the old and new generations and every governing input generation named by the prior receipt is unchanged. Record the exact old and new generations, old and new blob identities for every reviewed path, governing-input equality, changed reviewed paths (`none` for carry-forward), and the exact controls and review identities renewed. File-disjoint movement is supporting evidence only. Any changed reviewed byte or governing input requires a fresh review, even when that review later concludes semantic equivalence. An expired receipt never becomes current automatically.
+
+A merge-ref identity remains valid historical evidence for its event base after the live branch moves. Its current-integration claim expires when `base_current` becomes false, even when the proposed head is unchanged.
 
 ## Review dispositions
 
@@ -174,7 +188,7 @@ After evidence transfer:
 - close disposable carrier pull requests;
 - update the canonical pull-request description with the retained result;
 - do not leave execution-only branches in the active merge queue;
-- do not cite a synthetic merge commit as the source revision without also naming the contained source head and base snapshot.
+- do not cite a synthetic merge commit as the source revision without also naming the contained source head and event-base snapshot.
 
 A carrier is retired only when a later exact head proves the temporary workflow or branch is gone and the canonical source diff plus retained receipt are independently reviewable.
 
@@ -190,7 +204,8 @@ Repair or remove wording that says:
 - a review is valid after the reviewed head changed;
 - a review is valid after its issue invariant, review ask, state, clearing condition, or authority input changed;
 - a merge-ref gate is a literal-head gate;
-- a merge-ref receipt is current after its declared base moved;
+- a merge-ref receipt is current integration evidence after its event base differs from the observed base tip;
+- a valid checkout identity means the technical gate passed;
 - an execution carrier is the canonical implementation;
 - a full gate passed when only focused or model evidence ran;
 - a named full gate proves integrations or properties it did not exercise;
@@ -221,7 +236,10 @@ Before moving a pull request out of draft or advancing a Fieldwork issue:
 - [ ] work class is explicit;
 - [ ] canonical branch and exact head are named;
 - [ ] every disposition-relevant workflow names its tested checkout SHA and head/merge-ref classification;
+- [ ] every pull-request receipt separates event base, observed base, and base currentness;
+- [ ] every retained workflow receipt names its technical commands, outcomes, and reusable-evidence result;
 - [ ] reviewed issue or decision inputs are versioned when they affect the disposition;
+- [ ] any carried-forward review proves byte-identical reviewed paths, unchanged governing inputs, and `changed reviewed paths: none`;
 - [ ] self-review confirmed the intended assertion ran and classified harness failures separately;
 - [ ] each disposition-relevant claim has an accurate evidence class;
 - [ ] every `full-gate` claim names the gate and its material coverage limits;

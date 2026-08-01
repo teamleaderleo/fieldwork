@@ -16,11 +16,38 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 PULL_REQUEST_REF_RE = re.compile(r"^refs/pull/[1-9][0-9]*/merge$")
 PUSH_REF_RE = re.compile(r"^refs/heads/[^\s]+$")
 CLASSIFICATIONS = {"exact-head", "synthetic-merge-ref", "other-checkout"}
-SUPPORTED_EVENTS = {"pull_request", "push"}
+TECHNICAL_GATE_OUTCOMES = {"success", "failure", "cancelled", "skipped"}
+ZERO_SHA = "0" * 40
+
+INPUT_KEYS = {
+    "checkout_sha",
+    "head_sha",
+    "event_base_sha",
+    "observed_base_sha",
+    "event_before_sha",
+    "push_forced",
+    "event_sha",
+    "parents",
+    "event_name",
+    "ref",
+    "head_ref",
+    "base_ref",
+    "run_id",
+    "run_attempt",
+    "expected",
+    "technical_gate_name",
+    "technical_gate_commands",
+}
 
 
 class IdentityError(ValueError):
     """Raised when an identity receipt is malformed or contradictory."""
+
+
+@dataclass(frozen=True)
+class TechnicalCommandReceipt:
+    command: str
+    outcome: str
 
 
 @dataclass(frozen=True)
@@ -29,7 +56,11 @@ class IdentityReceipt:
     classification: str
     checkout_sha: str
     head_sha: str
-    base_sha: str
+    event_base_sha: str | None
+    observed_base_sha: str | None
+    base_current: bool | None
+    event_before_sha: str | None
+    push_update_kind: str | None
     event_sha: str
     parents: tuple[str, ...]
     event_name: str
@@ -38,6 +69,11 @@ class IdentityReceipt:
     base_ref: str
     run_id: str
     run_attempt: str
+    technical_gate_name: str
+    technical_gate_commands: tuple[TechnicalCommandReceipt, ...]
+    technical_gate_outcome: str
+    reusable_evidence: bool
+    current_integration_evidence: bool | None
 
 
 def _require_string(value: Any, field: str, *, allow_empty: bool = False) -> str:
@@ -60,54 +96,62 @@ def _require_branch_name(value: str, field: str) -> None:
         raise IdentityError(f"{field} must be a nonempty Git branch name")
 
 
-def _validate_event_metadata(
-    *,
-    event_name: str,
-    ref: str,
-    head_ref: str,
-    base_ref: str,
-    event_sha: str,
-    head_sha: str,
-    base_sha: str,
-) -> None:
-    if event_name not in SUPPORTED_EVENTS:
-        raise IdentityError(f"unsupported event_name: {event_name}")
+def _require_null(value: Any, field: str) -> None:
+    if value is not None:
+        raise IdentityError(f"{field} must be null for this event")
 
-    if event_name == "pull_request":
-        if PULL_REQUEST_REF_RE.fullmatch(ref) is None:
-            raise IdentityError(
-                "pull_request ref must be refs/pull/<positive-number>/merge"
-            )
-        _require_branch_name(head_ref, "head_ref")
-        _require_branch_name(base_ref, "base_ref")
-        if head_sha == base_sha:
-            raise IdentityError("pull_request head_sha and base_sha must differ")
-        if event_sha in {head_sha, base_sha}:
-            raise IdentityError(
-                "pull_request event_sha must identify a generated object, not a parent"
-            )
-        return
 
-    if PUSH_REF_RE.fullmatch(ref) is None:
-        raise IdentityError("push ref must be a refs/heads/<branch> ref")
-    if head_ref or base_ref:
-        raise IdentityError("push receipts require empty head_ref and base_ref")
-    if event_sha != head_sha:
-        raise IdentityError("push event_sha must equal head_sha")
+def _require_commands(value: Any) -> tuple[TechnicalCommandReceipt, ...]:
+    if type(value) is not list or not value:
+        raise IdentityError("technical_gate_commands must be a nonempty exact list")
+    commands: list[TechnicalCommandReceipt] = []
+    for index, item in enumerate(value):
+        if type(item) is not dict or set(item) != {"command", "outcome"}:
+            raise IdentityError(
+                f"technical_gate_commands[{index}] must contain command and outcome"
+            )
+        command = _require_string(
+            item["command"], f"technical_gate_commands[{index}].command"
+        )
+        outcome = _require_string(
+            item["outcome"], f"technical_gate_commands[{index}].outcome"
+        )
+        if outcome not in TECHNICAL_GATE_OUTCOMES:
+            raise IdentityError(f"unsupported technical command outcome: {outcome}")
+        commands.append(TechnicalCommandReceipt(command, outcome))
+    command_names = [item.command for item in commands]
+    if len(command_names) != len(set(command_names)):
+        raise IdentityError("technical_gate_commands must be unique")
+    return tuple(commands)
+
+
+def _gate_outcome(commands: tuple[TechnicalCommandReceipt, ...]) -> str:
+    outcomes = {command.outcome for command in commands}
+    if "failure" in outcomes:
+        return "failure"
+    if "cancelled" in outcomes:
+        return "cancelled"
+    if outcomes == {"success"}:
+        return "success"
+    return "skipped"
 
 
 def classify_identity(
     *,
     checkout_sha: Any,
     head_sha: Any,
-    base_sha: Any,
+    event_base_sha: Any,
     event_sha: Any,
     parents: Any,
 ) -> str:
     checkout = _require_sha(checkout_sha, "checkout_sha")
     head = _require_sha(head_sha, "head_sha")
-    base = _require_sha(base_sha, "base_sha")
     event = _require_sha(event_sha, "event_sha")
+    base = (
+        None
+        if event_base_sha is None
+        else _require_sha(event_base_sha, "event_base_sha")
+    )
     if type(parents) not in {list, tuple}:
         raise IdentityError("parents must be an exact list or tuple")
     parent_values = tuple(
@@ -122,7 +166,8 @@ def classify_identity(
     if checkout == head:
         return "exact-head"
     if (
-        checkout == event
+        base is not None
+        and checkout == event
         and len(parent_values) == 2
         and parent_values[0] == base
         and parent_values[1] == head
@@ -134,58 +179,130 @@ def classify_identity(
 def build_receipt(data: Any) -> IdentityReceipt:
     if type(data) is not dict:
         raise IdentityError("receipt input must be an exact object")
+    unknown = sorted(set(data) - INPUT_KEYS)
+    if unknown:
+        raise IdentityError(f"receipt input has unknown field {unknown[0]!r}")
+    missing = sorted(INPUT_KEYS - set(data))
+    if missing:
+        raise IdentityError(f"receipt input is missing field {missing[0]!r}")
 
-    checkout_sha = _require_sha(data.get("checkout_sha"), "checkout_sha")
-    head_sha = _require_sha(data.get("head_sha"), "head_sha")
-    base_sha = _require_sha(data.get("base_sha"), "base_sha")
-    event_sha = _require_sha(data.get("event_sha"), "event_sha")
-    parents_value = data.get("parents")
+    checkout_sha = _require_sha(data["checkout_sha"], "checkout_sha")
+    head_sha = _require_sha(data["head_sha"], "head_sha")
+    event_sha = _require_sha(data["event_sha"], "event_sha")
+    event_name = _require_string(data["event_name"], "event_name")
+    ref = _require_string(data["ref"], "ref")
+    head_ref = _require_string(data["head_ref"], "head_ref", allow_empty=True)
+    base_ref = _require_string(data["base_ref"], "base_ref", allow_empty=True)
+
+    event_base_sha: str | None
+    observed_base_sha: str | None
+    base_current: bool | None
+    event_before_sha: str | None
+    push_update_kind: str | None
+
+    if event_name == "pull_request":
+        if PULL_REQUEST_REF_RE.fullmatch(ref) is None:
+            raise IdentityError(
+                "pull_request ref must be refs/pull/<positive-number>/merge"
+            )
+        _require_branch_name(head_ref, "head_ref")
+        _require_branch_name(base_ref, "base_ref")
+        event_base_sha = _require_sha(data["event_base_sha"], "event_base_sha")
+        observed_base_sha = _require_sha(
+            data["observed_base_sha"], "observed_base_sha"
+        )
+        _require_null(data["event_before_sha"], "event_before_sha")
+        _require_null(data["push_forced"], "push_forced")
+        event_before_sha = None
+        push_update_kind = None
+        base_current = event_base_sha == observed_base_sha
+        if head_sha == event_base_sha:
+            raise IdentityError(
+                "pull_request head_sha and event_base_sha must differ"
+            )
+        if event_sha in {head_sha, event_base_sha}:
+            raise IdentityError(
+                "pull_request event_sha must identify a generated object, not a parent"
+            )
+    elif event_name == "push":
+        if PUSH_REF_RE.fullmatch(ref) is None:
+            raise IdentityError("push ref must be a refs/heads/<branch> ref")
+        if head_ref or base_ref:
+            raise IdentityError("push receipts require empty head_ref and base_ref")
+        if event_sha != head_sha:
+            raise IdentityError("push event_sha must equal head_sha")
+        _require_null(data["event_base_sha"], "event_base_sha")
+        _require_null(data["observed_base_sha"], "observed_base_sha")
+        event_base_sha = None
+        observed_base_sha = None
+        base_current = None
+        event_before_sha = _require_sha(
+            data["event_before_sha"], "event_before_sha"
+        )
+        if type(data["push_forced"]) is not bool:
+            raise IdentityError("push_forced must be an exact boolean")
+        push_forced = data["push_forced"]
+        if event_before_sha == ZERO_SHA:
+            if push_forced:
+                raise IdentityError(
+                    "branch-creation push cannot also be marked forced"
+                )
+            push_update_kind = "branch-created"
+        elif push_forced:
+            push_update_kind = "forced-update"
+        else:
+            push_update_kind = "ordinary-update"
+    else:
+        raise IdentityError(f"unsupported event_name: {event_name}")
+
+    parents_value = data["parents"]
     classification = classify_identity(
         checkout_sha=checkout_sha,
         head_sha=head_sha,
-        base_sha=base_sha,
+        event_base_sha=event_base_sha,
         event_sha=event_sha,
         parents=parents_value,
     )
     parents = tuple(parents_value)
 
-    event_name = _require_string(data.get("event_name"), "event_name")
-    ref = _require_string(data.get("ref"), "ref")
-    head_ref = _require_string(data.get("head_ref"), "head_ref", allow_empty=True)
-    base_ref = _require_string(data.get("base_ref"), "base_ref", allow_empty=True)
-    _validate_event_metadata(
-        event_name=event_name,
-        ref=ref,
-        head_ref=head_ref,
-        base_ref=base_ref,
-        event_sha=event_sha,
-        head_sha=head_sha,
-        base_sha=base_sha,
-    )
-
-    run_id = _require_string(data.get("run_id"), "run_id")
-    run_attempt = _require_string(data.get("run_attempt"), "run_attempt")
+    run_id = _require_string(data["run_id"], "run_id")
+    run_attempt = _require_string(data["run_attempt"], "run_attempt")
     if not run_id.isdecimal() or int(run_id) <= 0:
         raise IdentityError("run_id must be a positive decimal string")
     if not run_attempt.isdecimal() or int(run_attempt) <= 0:
         raise IdentityError("run_attempt must be a positive decimal string")
 
-    expected = data.get("expected")
-    if expected is not None:
-        expected_value = _require_string(expected, "expected")
-        if expected_value not in CLASSIFICATIONS:
-            raise IdentityError(f"unsupported expected classification: {expected_value}")
-        if classification != expected_value:
-            raise IdentityError(
-                f"expected {expected_value}, observed {classification}"
-            )
+    expected = _require_string(data["expected"], "expected")
+    if expected not in CLASSIFICATIONS:
+        raise IdentityError(f"unsupported expected classification: {expected}")
+    if classification != expected:
+        raise IdentityError(f"expected {expected}, observed {classification}")
+
+    technical_gate_name = _require_string(
+        data["technical_gate_name"], "technical_gate_name"
+    )
+    technical_gate_commands = _require_commands(data["technical_gate_commands"])
+    technical_gate_outcome = _gate_outcome(technical_gate_commands)
+    reusable_evidence = (
+        technical_gate_outcome == "success"
+        and classification in {"exact-head", "synthetic-merge-ref"}
+    )
+    current_integration_evidence = (
+        reusable_evidence and bool(base_current)
+        if classification == "synthetic-merge-ref"
+        else None
+    )
 
     return IdentityReceipt(
-        schema_version=1,
+        schema_version=2,
         classification=classification,
         checkout_sha=checkout_sha,
         head_sha=head_sha,
-        base_sha=base_sha,
+        event_base_sha=event_base_sha,
+        observed_base_sha=observed_base_sha,
+        base_current=base_current,
+        event_before_sha=event_before_sha,
+        push_update_kind=push_update_kind,
         event_sha=event_sha,
         parents=parents,
         event_name=event_name,
@@ -194,6 +311,11 @@ def build_receipt(data: Any) -> IdentityReceipt:
         base_ref=base_ref,
         run_id=run_id,
         run_attempt=run_attempt,
+        technical_gate_name=technical_gate_name,
+        technical_gate_commands=technical_gate_commands,
+        technical_gate_outcome=technical_gate_outcome,
+        reusable_evidence=reusable_evidence,
+        current_integration_evidence=current_integration_evidence,
     )
 
 

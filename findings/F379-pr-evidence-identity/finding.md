@@ -1,182 +1,122 @@
-# F379 — Pull-request checkout evidence identity
+# F379 — Pull-request checkout and gate evidence identity
 
 Issue: #379  
-State: `review-ready`  
+State: `execute`  
 Work class: evidence reliability / repository gate  
-Current main at claim: `c247681f80d3504045e5b34dd99aeda4907a2829`  
+Canonical pull request: #380  
+Repair input head: `97a08852140047e4f9a37a5d4bdc37d4dd9dce7e`  
 Upstream contact authorized: `no`
 
 ## In simple words
 
-A pull-request check can test the proposed commit itself, or GitHub can make a temporary merge with the current base and test that combined commit. Both tests are useful. They answer different questions and expire for different reasons.
+A pull-request check may execute the proposed commit itself or GitHub's generated merge for one pull-request event. A push check executes the pushed event commit. These are different Git objects with different claims.
 
-Fieldwork's main integrity workflow used the default pull-request checkout while many coordination records called its result an exact-head gate. A live checkout log proved that the workflow tested GitHub's generated merge commit instead.
-
-The selected repair keeps both gates and labels them honestly.
-
-## Why we care
-
-A merge-ref success can depend on base-side files, workflow code, helpers, or dependencies that are not present on the proposed head. It also expires when the base snapshot moves even if the proposed head stays unchanged.
-
-A literal-head success proves that the proposed generation itself executes. It does not prove integration with a newer base.
-
-Collapsing both receipts into “exact-head” can:
-
-- attribute a merge-ref result to an unexecuted source head;
-- miss a branch-head failure masked by a base-side helper or workflow change;
-- retain an integration receipt after its base moved;
-- make later review-currentness automation reproduce the wrong object.
+The evidence receipt also needs to say which base generation constructed a pull-request event, which base branch tip was observed later, whether the named technical commands passed, and whether the result can support a reusable evidence claim. A typed checkout identity alone cannot turn a failed gate into reusable evidence.
 
 ## Confirmed predecessor defect
 
-Current main workflow `.github/workflows/fieldwork-integrity.yml` used default `actions/checkout` on `pull_request`.
-
-For Fieldwork PR #378:
+Fieldwork's earlier integrity workflow used the generated pull-request merge by default while coordination records often described its result as exact-head execution. PR #378 established the mismatch:
 
 | Identity | SHA |
 | --- | --- |
 | declared pull-request head | `c642af5e7b934055e8ba6389acddbc8f73be1c58` |
-| declared base snapshot | `c247681f80d3504045e5b34dd99aeda4907a2829` |
+| event base | `c247681f80d3504045e5b34dd99aeda4907a2829` |
 | generated merge checkout | `63eed97c9fd3d350502b50e4ecd6ba91614287c5` |
 
-Integrity run `30635730689`, job `91172725027`, succeeded after fetching `63eed97...` into `refs/remotes/pull/378/merge` and checking out:
+Run `30635730689`, job `91172725027`, tested the generated merge. That is merge-ref integration evidence for the two named parents.
 
-```text
-HEAD is now at 63eed97 Merge c642af5... into c247681...
-```
-
-That is `target-executed` merge-ref integration evidence. It is not literal-head execution.
-
-## Historical precedent
-
-Linux Fieldwork issue 342 and merged PR 344 established the reused contract:
+## Retained checkout contract
 
 - literal proposed head → `exact-head`;
-- generated pull-request merge with ordered parents `[base, head]` → `synthetic-merge-ref`;
-- every other internally valid identity → `other-checkout`.
+- generated pull-request merge with ordered parents `[event base, head]` → `synthetic-merge-ref`;
+- every other internally valid checkout → `other-checkout`.
 
-Reusing that contract avoids a competing vocabulary.
+Names and workflow labels do not establish those classes. Exact SHA and parent identity do.
 
-## Selected contract
+## Repair selected after complete review
 
-### Head gate
+Reviews `4829961152` and `4830554342` found three remaining receipt gaps in the predecessor generation.
 
-A **head gate** checks out and executes `github.event.pull_request.head.sha`.
+### 1. Event base and observed base are separate facts
 
-It proves the named proposed generation ran. Its receipt stays tied to that source head and makes no integration claim about a later base.
+For pull requests, schema v2 records:
 
-### Merge-ref gate
+- `event_base_sha` — `github.event.pull_request.base.sha`, which governed construction of the event merge;
+- `observed_base_sha` — the branch tip read when the receipt is created;
+- `base_current` — exact equality between those generations.
 
-A **merge-ref gate** checks out GitHub's pull-request event SHA and proves the checkout is a two-parent generated merge with ordered parents `[declared base, declared head]`.
+Synthetic merge classification uses `event_base_sha` and ordered parents. A later base move leaves a valid historical merge identity with `base_current: false`. It does not erase the event identity or create a current integration claim.
 
-It proves integration with that exact base snapshot and expires when either parent moves.
+`current_integration_evidence` is true only for a successful synthetic merge gate whose event base still equals the observed branch tip.
 
-### Push gate
+### 2. Technical gate outcome is inside the receipt
 
-A push gate checks out and executes the pushed event SHA. It is classified separately from pull-request merge construction.
+Each workflow command is a separate named step. Schema v2 records:
 
-## Required receipt fields
+- `technical_gate_name`;
+- every command and its exact step outcome;
+- aggregate `technical_gate_outcome`;
+- `reusable_evidence`.
 
-Each receipt records:
+Checkout classification remains independent. Reusable evidence requires a successful named command set and an accepted checkout class. A valid identity with a failed command remains a typed failed receipt.
 
-- tested checkout SHA;
-- declared pull-request head SHA;
-- declared base SHA;
-- event SHA;
-- ordered local parent SHAs;
-- event name and ref;
-- head and base branch refs where applicable;
-- run ID and attempt;
-- classification.
+### 3. Review carry-forward is byte exact
 
-Malformed, contradictory, or unexpectedly classified inputs fail closed.
+A prior disposition can carry forward without fresh review only when every disposition-relevant reviewed path is byte-identical and every named governing input generation is unchanged. The receipt must record old/new generations and blobs, governing-input equality, and `changed reviewed paths: none`.
 
-## Implementation
+Changed reviewed bytes or governing inputs require a fresh receipt. File-disjoint movement is supporting evidence only.
 
-PR #380 changes five files:
+## Push identity boundary
 
-- `scripts/audit_pr_evidence_identity.py` — exact-type and Git-identity classifier;
-- `scripts/test_pr_evidence_identity.py` — literal head, synthetic merge, unrelated merge, malformed identity, contradiction, push, and optimizer-parity controls;
-- `.github/workflows/fieldwork-integrity.yml` — separate merge-ref, literal-head, and push jobs with durable JSON receipts;
-- `REVIEWING.md` — explicit head-gate and merge-ref-gate review language;
-- this finding.
+Push receipts record `event_before_sha` as event metadata rather than calling it a base or parent. They also record one explicit update state:
 
-The existing interaction-reference and Fieldwork-integrity commands run in both pull-request jobs. The repair does not weaken the integration check.
+- `branch-created` for an all-zero `before` SHA;
+- `forced-update` when the event says the push was forced;
+- `ordinary-update` otherwise.
 
-## Executed mechanism result
+This field does not infer ancestry beyond the event facts. Branch-deletion execution remains outside the current workflow.
 
-PR #380 predecessor head `dbfda40c072ab49621d20bce0f2313ce1ab56881` executed workflow `30636532630` successfully.
+## Prepared controls
 
-### Literal-head job
+The focused suite covers:
 
-- job `91175428782`: success;
-- checkout and declared head: `dbfda40c072ab49621d20bce0f2313ce1ab56881`;
-- classification: `exact-head`;
-- artifact `8795551528`;
-- digest `sha256:3a2d3ed24cacd391e6566ccf52a5e6bff30bd3174204f6a60b8d1a709ba97c32`.
-
-### Merge-ref job
-
-- job `91175428722`: success;
-- checkout: `a98113611e0368351158c21045b2a7b880ad55c6`;
-- ordered parents: `[c247681f80d3504045e5b34dd99aeda4907a2829, dbfda40c072ab49621d20bce0f2313ce1ab56881]`;
-- classification: `synthetic-merge-ref`;
-- artifact `8795552208`;
-- digest `sha256:7159346c50f3afeac07a968c3314b190da83a4dc69408854c69185554b1a4f22`.
-
-Both jobs ran the interaction-reference scanner, Fieldwork integrity, and eight classifier controls. The push job was correctly skipped on the pull-request event.
-
-The pull-request front page and issue #379 carry the external dual-checkout receipt for the current exact head. Review must verify those live receipts because embedding a current-head workflow run inside the commit would move the head recursively.
-
-## Alternatives considered
-
-### Keep only the default merge-ref gate
-
-Declined. It preserves integration evidence but leaves the literal source generation unexecuted.
-
-### Replace the default gate with a head-only checkout
-
-Declined. It proves the proposed head but loses useful integration evidence against the exact base snapshot.
-
-### Infer checkout mode from the workflow name
-
-Declined. Names are editable claims. Classification derives from actual SHA, event identity, and Git parents.
-
-### Call both results exact-head
-
-Rejected. The generated merge is an exact commit, but it is not the pull-request head.
-
-### Require both gates for every target repository
-
-Deferred. This finding repairs Fieldwork's own integrity gate. Other repositories may choose different gate combinations, but their receipts still need honest checkout identity.
-
-## Covered edge cases
-
-- lower-case SHA and exact JSON type validation;
+- exact head and synthetic merge classification;
+- reversed and unrelated merges;
+- moved-base historical merge identity with `base_current: false`;
+- moved-base literal-head execution without a current integration claim;
+- valid identity plus failed technical gate producing `reusable_evidence: false`;
+- exact command outcomes and aggregate gate outcome;
+- malformed SHA, type, event/ref, branch metadata, and expected-mode rejection;
 - duplicate and self-parent rejection;
-- generated merge parent order;
-- reversed or unrelated merges remain `other-checkout`;
-- expected-classification mismatch fails closed;
-- ordinary and optimized Python parity;
-- pull-request branch-ref requirements;
-- non-PR push event with empty head/base refs;
-- artifact upload for each executed gate.
+- unknown and missing receipt-field rejection;
+- push branch creation, forced update, and ordinary update states;
+- ordinary and optimized Python parity.
 
-## Deferred edge cases
+Local model execution before publication passed 14/14 focused controls. The repository workflow remains the controlling evidence surface for the committed generation.
 
-- fork pull requests with different checkout permissions;
-- merge queues and `merge_group` events;
-- reusable workflows whose workflow code and tested source use different generations;
-- branch protection policy deciding mandatory gate combinations;
-- action and dependency provenance beyond checkout identity;
-- base-side generated files or caches that create semantic identity beyond Git parents.
+## Historical execution retained
 
-## Uncertainty and expiration
+Predecessor head `97a08852140047e4f9a37a5d4bdc37d4dd9dce7e` passed run `30642857359`:
 
-External current-head receipts can expire after head movement. Merge-ref evidence also expires after base movement. Review must compare the live PR head, declared base, run, artifacts, and classifications rather than relying on this file's historical example alone.
+- literal-head job `91196868451` classified the source head as `exact-head`;
+- merge-ref job `91196868387` classified merge `754b64c8a71b13d44fe0c2b3f4ea5983ed86066f` with ordered parents `[041d29ab9c5e5859cb69518a432354be71b67af8, 97a08852140047e4f9a37a5d4bdc37d4dd9dce7e]` as `synthetic-merge-ref`.
+
+Those runs support the retained checkout distinction. Schema-v2 currentness and technical-outcome claims require execution on the repaired head.
 
 ## Current transition
 
-Obtain one eligible complete-diff review of PR #380's five-file fence after verifying both live current-head receipts. Merge authority remains separate.
+1. execute literal-head and generated merge-ref jobs on the repaired PR #380 head;
+2. inspect the uploaded schema-v2 input, typed receipt, and raw parent identity from both jobs;
+3. verify the receipt names each technical command and outcome;
+4. verify `event_base_sha`, `observed_base_sha`, `base_current`, and `current_integration_evidence` against the live event;
+5. synchronize PR #380, issue #379, review queue #213, and Delivery Desk #160 from the exact result;
+6. request eligible independent complete-diff review only after every controlling job is complete.
 
-No merge, release, deployment, credential, spending, private-data, writer-transfer, or public-upstream authority follows from this finding.
+## Limits
+
+- sibling head and merge artifacts remain correlated by run and exact identities rather than one atomic combined receipt;
+- fork permission behavior, merge queues, reusable-workflow provenance, branch deletion, branch-protection policy, and gate-scheduling optimization remain separate work;
+- a successful checkout identity says nothing beyond the named technical command set;
+- merge and external authority remain separate.
+
+No merge, release, deployment, credentials, private data, spending, writer transfer, or public-upstream interaction follows from this finding.
