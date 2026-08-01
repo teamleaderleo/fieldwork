@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260801-zustand-clear-storage-hydration",
+  "question": "Can a Zustand persist hydration that began before clearStorage() still apply the cleared stored snapshot to live state?",
+  "owner": "chatgpt:gpt-5.6-thinking",
+  "created_at": "2026-08-01",
+  "state": "running",
+  "claim_scope": "mechanism",
+  "integration_context": "Zustand persist middleware with asynchronous storage reads or migrations",
+  "sources": [
+    {
+      "name": "pmndrs/zustand",
+      "url": "https://github.com/pmndrs/zustand",
+      "revision": "beca84e600e4e250f6b244d22878e72948f331c7",
+      "retrieved_at": "2026-08-01",
+      "claim": "Pinned source uses hydrationVersion to invalidate concurrent rehydrate calls but clearStorage does not advance it.",
+      "evidence_label": "Source-read"
+    },
+    {
+      "name": "Zustand PR 3336",
+      "url": "https://github.com/pmndrs/zustand/pull/3336",
+      "revision": "d0cb549ff67ab2ecc62202a5d261f4cffcedb9f4",
+      "retrieved_at": "2026-08-01",
+      "claim": "The current generation mechanism was introduced to make only the latest concurrent rehydrate call authoritative.",
+      "evidence_label": "Project-history"
+    }
+  ],
+  "command": "Run the repository pull-request workflows for characterization head 9c5039ebf594f15b0fbb5d5e39d59f4e70dd6e96 and candidate head d009aa203e357d83a61350ce85d7db29aa05ff8a, then inspect the primary Test jobs.",
+  "environment": {
+    "runtime": "GitHub Actions matrix pending",
+    "platform": "repository-defined",
+    "dependencies": [
+      "zustand repository lockfile at beca84e600e4e250f6b244d22878e72948f331c7"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "The characterization delayed read and migration tests pass.",
+      "interpretation": "A pre-clear hydration retains publication authority on the pinned source."
+    },
+    {
+      "observation": "The candidate suppression and later-rehydrate tests pass.",
+      "interpretation": "Advancing the existing hydration generation at clearStorage narrowly fences the stale work without resetting live state."
+    },
+    {
+      "observation": "A test, type, build, or runner setup fails before the assertions execute.",
+      "interpretation": "No behavioral conclusion; repair the probe without widening scope."
+    }
+  ],
+  "stop_condition": "Stop after exact-head characterization and candidate workflow conclusions and primary test coverage are recorded.",
+  "network_policy": "repository CI only; no public upstream interaction",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260801-zustand-clear-storage-hydration/README.md",
+    "playgrounds/EXP-20260801-zustand-clear-storage-hydration/result.json"
+  ],
+  "promoted_to": null
+}
