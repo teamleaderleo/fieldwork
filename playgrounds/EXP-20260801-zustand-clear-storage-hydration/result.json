@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260801-zustand-clear-storage-hydration",
+  "state": "running",
+  "updated_at": "2026-08-01",
+  "disposition": "HOLD",
+  "characterization": {
+    "repository": "teamleaderleo/zustand",
+    "branch": "scout/persist-clear-storage-hydration-ordering",
+    "head": "9c5039ebf594f15b0fbb5d5e39d59f4e70dd6e96",
+    "pull_request": 4,
+    "changed_files": [
+      "tests/persistClearStorageHydrationOrdering.test.ts"
+    ],
+    "workflow_runs": [
+      30692436573,
+      30692436571,
+      30692436576,
+      30692436570,
+      30692436591,
+      30692436621
+    ],
+    "conclusion": null
+  },
+  "candidate": {
+    "repository": "teamleaderleo/zustand",
+    "branch": "fix/persist-clear-storage-hydration-generation",
+    "head": "d009aa203e357d83a61350ce85d7db29aa05ff8a",
+    "pull_request": 5,
+    "base": "beca84e600e4e250f6b244d22878e72948f331c7",
+    "ahead_by": 2,
+    "behind_by": 0,
+    "changed_files": [
+      {
+        "path": "src/middleware/persist.ts",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "tests/persistClearStorageHydrationGeneration.test.ts",
+        "additions": 139,
+        "deletions": 0
+      }
+    ],
+    "workflow_runs": [
+      30692520832,
+      30692520845,
+      30692520829,
+      30692520839,
+      30692520824,
+      30692520819
+    ],
+    "conclusion": null
+  },
+  "review": {
+    "complete_diff_checked": true,
+    "source_change": "Increment the existing hydrationVersion before clearStorage removes the item.",
+    "excluded": [
+      "resetting already-live state",
+      "storage replacement authority",
+      "ordinary asynchronous write settlement",
+      "public upstream contact"
+    ]
+  },
+  "blockers": [
+    "Characterization workflows are queued.",
+    "Candidate workflows are queued.",
+    "Primary Test job commands and assertions have not yet been inspected."
+  ]
+}
