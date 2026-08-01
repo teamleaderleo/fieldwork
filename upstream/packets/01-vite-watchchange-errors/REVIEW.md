@@ -2,10 +2,11 @@
 
 ## In simple words
 
-Review the exact two-file source diff, then confirm current-head execution. The key question is whether the server can report every plugin notification failure and still complete the file-event work Vite owns, without changing generic hook behavior.
+Review the exact two-file source diff and the retained execution record. The key question is whether the server can report every plugin notification failure and still complete the file-event work Vite owns, without changing generic hook behavior.
 
 ## Review fence
 
+- Work class: upstream-fork source candidate
 - Public base: `e6b6b167afa0a80548829d1f24a0712f9194389a`
 - Canonical source head: `a2ab7ca6183ad74d64066d6706e57a546e355224`
 - Canonical branch: `fix/fieldwork-25-watchchange-error-isolation`
@@ -14,7 +15,7 @@ Review the exact two-file source diff, then confirm current-head execution. The 
 - Expected changed files: exactly two
 - Current self-review receipt: [`comment 5148481573`](https://github.com/teamleaderleo/vite/pull/4#issuecomment-5148481573)
 
-Any head movement expires this review fence.
+Any source-head movement or material reviewed-input change expires this review fence.
 
 ## Complete diff inventory
 
@@ -22,24 +23,24 @@ Any head movement expires this review fence.
 
 [`packages/vite/src/node/server/index.ts`](https://github.com/teamleaderleo/vite/blob/a2ab7ca6183ad74d64066d6706e57a546e355224/packages/vite/src/node/server/index.ts)
 
-Expected semantic diff:
+Reviewed semantic diff:
 
-- one `notifyWatchChange` helper;
-- `Promise.allSettled` over current environments;
-- one logger call per rejected result;
-- change path calls helper with `update`;
-- add path calls helper with `create`;
-- unlink path calls helper with `delete`;
-- existing later work remains in its previous order.
+- one server-local `notifyWatchChange` helper;
+- `Promise.allSettled` over the current environment snapshot;
+- one configured-logger call per rejected result;
+- change calls the helper with `update`;
+- add calls it with `create`;
+- unlink calls it with `delete`;
+- existing later invalidation, public-file, deletion, restart, and HMR work remains in its previous order.
 
 ### Test
 
 [`packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js`](https://github.com/teamleaderleo/vite/blob/a2ab7ca6183ad74d64066d6706e57a546e355224/packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js)
 
-Expected semantic coverage:
+Reviewed coverage:
 
 - change stale-cache reproduction and refreshed-content assertion;
-- exact error object reaches logger;
+- exact error object reaches the logger;
 - change reaches `hotUpdate`;
 - add maps to create and reaches `hotUpdate` after rejection;
 - unlink maps to delete and reaches `hotUpdate` after rejection;
@@ -55,125 +56,124 @@ Expected semantic coverage:
 - [x] All current environments are invoked once for each event.
 - [x] Vite waits for every notification to settle before later work.
 - [x] Every rejected result is logged.
-- [ ] Independent reviewer confirms logger-failure behavior is acceptable under current Vite logger expectations.
 - [x] Change invalidation remains before HMR.
 - [x] Add public-file bookkeeping remains before HMR.
 - [x] Unlink deletion graph work remains before HMR.
 - [x] Config/env restart handling remains governed by existing HMR code.
+- [ ] Independent reviewer confirms logger-failure and multiple-environment logging expectations.
 
 ### Compatibility
 
 - [x] Successful hooks observe unchanged ordering and arguments.
 - [x] Rejected hooks remain visible.
-- [ ] Independent reviewer confirms the multiple-environment logging policy.
-- [x] Continuing after a hook rejection matches Vite ownership of cache coherence.
-- [x] No inspected supported contract grants the rejecting hook veto authority over invalidation/HMR.
-- [x] Experimental bundled-development behavior is outside the claim.
+- [x] Continuing after rejection matches Vite ownership of cache coherence.
+- [x] No inspected supported contract grants a rejecting hook veto authority over invalidation/HMR.
+- [x] Experimental bundled-development behavior is outside the product claim.
+- [ ] Independent reviewer confirms the compatibility boundary.
 
 ### Error handling
 
-- [x] The listener-level catches from #22188 remain present.
-- [x] Later errors from invalidation/public-file/HMR still propagate to the listener catch under existing behavior.
+- [x] Listener-level catches from #22188 remain present.
+- [x] Later invalidation/public-file/HMR failures still propagate under existing behavior.
 - [x] Unit 01 isolates only `watchChange` rejection; it does not swallow unrelated later failures.
-- [x] Error values accepted by the logger match existing Vite practice.
-- [x] `EnvironmentPluginContainer.watchChange` exposes synchronous throws and asynchronous rejections as rejected environment promises.
+- [x] Error values passed to the configured logger match existing Vite practice.
+- [x] Synchronous hook throws and asynchronous rejections become rejected environment promises.
 
 ### Test quality
 
-- [x] The change test would fail on the exact public base because cached `alpha` survives.
+- [x] The change test fails on the exact public base because cached `alpha` survives.
 - [x] The change test proves refreshed content, not only hook reachability.
-- [x] Add and unlink tests would fail on the exact public base because `hotUpdate` is skipped.
-- [x] Add and unlink tests assert the Rollup event and HMR event types independently.
+- [x] Add and unlink tests fail on the exact public base because `hotUpdate` is skipped.
+- [x] Add and unlink assert Rollup and HMR event types independently.
 - [x] Promise resolvers and timeouts are scoped to the exact state file.
-- [x] Test cleanup is registered through `onTestFinished`.
-- [ ] Independent reviewer confirms cleanup ordering cannot mask a product failure.
+- [x] Cleanup is registered through `onTestFinished`.
 - [x] The test file location matches Vite unit-test discovery.
+- [ ] Independent reviewer confirms cleanup ordering cannot mask a product failure.
 
 ## Exact-head execution checklist
 
-- [x] Zizmor run [`30674314445`](https://github.com/teamleaderleo/vite/actions/runs/30674314445) passed at `a2ab7ca6183ad74d64066d6706e57a546e355224`.
-- [x] CI lint job [`91298285154`](https://github.com/teamleaderleo/vite/actions/runs/30674314447/job/91298285154) passed at the exact head.
-- [x] Repository build passed inside the lint job.
-- [x] Repository lint passed inside the lint job.
-- [x] Formatting check passed inside the lint job.
-- [x] Typecheck passed inside the lint job.
-- [x] Documentation tests and workflow-file checks passed inside the lint job.
-- [ ] CI run [`30674314447`](https://github.com/teamleaderleo/vite/actions/runs/30674314447) completes.
-- [ ] Focused regression passes at the final head through Build&Test or a direct retained command.
-- [ ] Supported Node unit matrix passes or each failure is classified.
-- [ ] macOS and Windows results are inspected.
-- [ ] Serve/build/bundled-development results are inspected according to the workflow.
-- [x] Current completed workflow links and job IDs are copied into `TESTS.md`.
+- [x] Zizmor run [`30674314445`](https://github.com/teamleaderleo/vite/actions/runs/30674314445) passed.
+- [x] CI lint pipeline passed, including install, build, lint, formatting, typecheck, docs, and workflow checks.
+- [x] Linux Node 20 Build&Test passed.
+- [x] Linux Node 22 Build&Test passed.
+- [x] Linux Node 24 Build&Test passed.
+- [x] Linux Node 26 Build&Test passed.
+- [x] macOS Node 24 Build&Test passed.
+- [x] Windows repository build passed.
+- [x] Windows unit suite passed.
+- [x] Current focused regression passed: 3/3 tests.
+- [x] Windows ordinary serve passed on rerun.
+- [x] Initial Windows HMR/SSR ordinary-serve failure was inspected and classified.
+- [x] Rerun Windows HMR/SSR bundled-development failures were inspected and classified.
+- [ ] Supplementary third Windows full-job rerun [`91344668365`](https://github.com/teamleaderleo/vite/actions/runs/30674314447/job/91344668365) completes; its status does not alter the current source classification unless it exposes a Unit 01-linked failure.
 
-Queued Build&Test job IDs at this review revision:
+### Accepted Windows failure classification
 
-- Linux Node 20: `91298369819`
-- Linux Node 22: `91298369798`
-- Linux Node 24: `91298369795`
-- Linux Node 26: `91298369809`
-- macOS Node 24: `91298369799`
-- Windows Node 24.15: `91298369805`
+Attempt 1 failed in an existing `playground/hmr-ssr` timing assertion after the Unit 01 focused test passed. Attempt 2 passed ordinary serve, then failed three timing/state assertions in the same HMR/SSR family during bundled-development. The failure location moved while the Unit 01 regression stayed green; all Linux/macOS full jobs passed.
+
+Classification: unrelated Windows HMR/SSR integration flakiness. This remains a recorded ordinary-gate limit, not a reason to modify Unit 01 source.
+
+### Synthetic merge caveat
+
+The PR workflow checkout used a synthetic merge containing source head `a2ab7ca6` on the owned repository's current default branch. The canonical review fence is still the explicit `e6b6b167...a2ab7ca6` source comparison. The synthetic merge is compatibility execution, not the canonical source revision.
 
 ## Prior-art and duplicate checklist
 
 - [x] Read merged upstream PR [`vitejs/vite#22188`](https://github.com/vitejs/vite/pull/22188), its diff, comments, and reviews.
-- [x] Confirm #22188 added error-reporting catches and all-event logging tests.
-- [x] Confirm current public main retains fail-fast inner `Promise.all` before later work.
-- [x] Search current Vite issues and pull requests for overlapping `watchChange` invalidation/HMR error work.
-- [x] Record unit 01 as a distinct continuation fix.
-- [ ] Repeat duplicate search immediately before public submission.
+- [x] Confirm #22188 added listener-level error reporting and all-event logging tests.
+- [x] Confirm inspected public main retains fail-fast inner `Promise.all` before later work.
+- [x] Search current Vite issues and pull requests for overlapping continuation work.
+- [x] Record Unit 01 as a distinct follow-up.
+- [ ] Repeat duplicate search immediately before an authorized public submission.
 
 ## Packet consistency checklist
 
-- [x] `README.md` disposition matches live source and workflow state at this packet head.
-- [x] `DEEP_DIVE.md` exact links point to the current source head.
+- [x] `README.md` disposition matches the current source and classified workflow state.
+- [x] `DEEP_DIVE.md` names the current source head and ownership model.
 - [x] `APPROACHES.md` retains losing and rejected options.
-- [x] `TESTS.md` separates predecessor execution from current-head execution.
-- [x] `UPSTREAM_ISSUE.md` route remains appropriate.
-- [ ] `UPSTREAM_PR.md` test section is refreshed after final Build&Test results.
-- [x] `teamleaderleo/vite#4` body names the current base, head, tests, and limits.
-- [ ] Fieldwork #435 has the final compact handoff for this packet head.
-- [x] No material finding from this session remains chat-only.
+- [x] `TESTS.md` separates reproduction, predecessor, current-head passes, and classified failures.
+- [x] `UPSTREAM_ISSUE.md` preserves the direct-PR/optional-issue route.
+- [x] `UPSTREAM_PR.md` contains a polished public-facing draft and current private validation note.
+- [x] `teamleaderleo/vite#4` names the current base, head, tests, limits, and disposition.
+- [ ] Fieldwork #435 receives the final compact handoff for the new packet head.
+- [x] No material finding remains chat-only.
 
 ## Temporary machinery and branch hygiene
 
 - [x] Canonical source diff contains no workflow files.
 - [x] Canonical source diff contains no research directory.
 - [x] Canonical source diff contains no dependency or lock changes.
-- [x] Replay carrier [`teamleaderleo/vite#15`](https://github.com/teamleaderleo/vite/pull/15) is merged and retained only as history.
-- [ ] Temporary work branch `unit-01/watchchange-rebase-work` may be deleted after final receipts and branch references are reconciled.
-- [ ] Exact-base mirror should remain while the packet cites it.
+- [x] Replay carrier [`teamleaderleo/vite#15`](https://github.com/teamleaderleo/vite/pull/15) is merged and non-canonical.
+- [x] Exact-base mirror remains because the packet cites it.
+- [ ] Temporary work branch `unit-01/watchchange-rebase-work` remains deletable housekeeping; it is not an active candidate or review surface.
 
 ## Human inspection guide
 
-A reviewer should inspect in this order:
+An independent reviewer should:
 
-1. compare the public base to the canonical head and verify only two files changed;
+1. compare public base `e6b6b167` to source head `a2ab7ca6` and verify only two files changed;
 2. read the public-base watcher handlers to see the abort point;
-3. read the helper and confirm it changes only environment failure aggregation;
-4. trace change/add/unlink from watcher callback through later Vite work;
-5. read the stale-cache reproduction and add/unlink continuation controls;
-6. inspect current-head CI and focused test output;
-7. check the PR draft for claim inflation and stale receipts;
+3. confirm the helper changes only environment failure aggregation;
+4. trace change/add/unlink through later Vite-owned work;
+5. read the stale-cache and add/unlink controls;
+6. inspect current CI, including the exact Windows failure logs and classification;
+7. check the draft for claim inflation and stale receipts;
 8. confirm public upstream interaction remains pending explicit authority.
 
-## Current self-review result
+## Current self-review disposition
 
-`REPAIR`
+`ACCEPT`
 
-Source-read review found no blocking product-code defect in the exact two-file diff. Current-head Zizmor and the CI lint job passed, including dependency installation, build, lint, formatting, typecheck, docs, and workflow-file checks. Six cross-platform Build&Test jobs remain queued, so current-head target execution and independent acceptance remain open.
+The exact source candidate is suitable for independent final review. Complete-diff source review found no blocking product-code defect. Current target evidence proves the focused behavior, and ordinary gates pass across Linux and macOS plus the Windows build/unit/focused/ordinary-serve portions. The remaining Windows full-job gap is caused by inspected failures in an existing HMR/SSR integration family and is classified rather than treated as a Unit 01 defect.
 
-The author performed this self-review and is not the eligible independent final accepter.
+The author performed this self-review and is not the sole eligible final accepter. `ACCEPT` here advances the packet to independent review; it does not authorize merge or public submission.
 
-## Promotion criteria
+## Clearing conditions for the next transition
 
-Promote to `READY` only when:
+For public submission after independent acceptance:
 
-- the final exact source head and public base are named;
-- complete diff review finds no blocking defect;
-- current-head focused regression passes;
-- ordinary gates complete with accepted classifications;
-- packet and PR draft match the final head;
-- temporary execution machinery is absent from the canonical source;
-- independent final review is recorded;
-- the only remaining action is an explicitly authorized public submission.
+- source head and current Vite main relation must be refreshed;
+- duplicate and contribution-policy checks must be repeated;
+- any material rebase must rerun focused and ordinary gates;
+- the public draft must remove internal receipt language;
+- the user must authorize the exact upstream interaction.
