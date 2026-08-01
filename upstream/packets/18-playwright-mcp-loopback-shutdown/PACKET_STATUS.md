@@ -2,7 +2,9 @@
 
 Current disposition: `EXECUTE`
 
-Exact source head: `c4c5e2db6f0305237be4de4c167dfb2344abb305`
+Exact source head: `e99e97da2acfc6c1a67749bc749e1d0cb71b5607`
+
+Owned source PR: `teamleaderleo/playwright#40`
 
 Packet branch: `p0/435-unit-18-playwright-mcp-shutdown`
 
