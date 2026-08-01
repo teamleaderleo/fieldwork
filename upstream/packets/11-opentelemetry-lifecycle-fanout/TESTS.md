@@ -3,99 +3,84 @@
 ## Identity
 
 - public base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- repaired candidate head: `1b7609141e87ad226e64bb0238ef602e76812896`;
-- execution carrier: `teamleaderleo/opentelemetry-js#18`;
-- repaired-head workflow set: run number 63;
-- direct local execution: unavailable in the original worker environment; repository GitHub Actions is the execution authority.
+- exact clean candidate: `59f83f889bed06a951d458556b2e7e1695cbea10`;
+- validation carrier: `teamleaderleo/opentelemetry-js#18`;
+- source relation: ahead 1, behind 0;
+- execution authority: repository GitHub Actions matrix.
 
 ## Focused assertion set
 
-### Trace — four tests
+### `MultiSpanProcessor` — four tests
 
-- shutdown direct throw: later opening processor is invoked and aggregate rejects;
-- shutdown live removal: removed later opening processor is still invoked;
-- force-flush direct throw: later opening processor is invoked, error reaches the global handler, and aggregate resolves;
-- force-flush live removal: removed later opening processor is still invoked.
+- shutdown direct throw still attempts later opening processor and rejects;
+- shutdown removal still invokes the removed opening processor;
+- force-flush direct throw still attempts later processor, reports globally, and resolves;
+- force-flush removal still invokes the removed opening processor.
 
-The test cleanup restores `setGlobalErrorHandler(loggingErrorHandler())`. The repaired form prevents leakage of the factory function into later tests.
+Cleanup restores `loggingErrorHandler()`.
+
+### `TracerProvider.forceFlush` — two tests
+
+- direct synchronous throw still attempts the second processor, preserves the existing one-element error-array rejection, and leaves zero fake timers armed;
+- live removal does not shrink the provider force-flush opening set.
+
+These tests cover the public provider path that bypasses `MultiSpanProcessor.forceFlush()`.
 
 ### Logs — four tests
 
-- shutdown direct throw and live-removal controls;
-- force-flush direct throw and live-removal controls;
-- error results remain rejections;
-- timeout wrapping remains in the production path.
+Shutdown and force flush each cover direct throw and live removal. Rejections and timeout wrapping remain unchanged.
 
 ### Metrics — two tests
 
-- shutdown live-removal control;
-- force-flush live-removal control, with the removed collector restored before cleanup shutdown.
+Shutdown and force flush cover live removal. Direct-throw controls were removed because async `MetricCollector` methods already make those cases pass on the baseline.
 
-Metrics synchronous-throw cases were removed. `MetricCollector` is already async, so those cases pass the baseline and do not reverse the source change.
+## Claim matrix
 
-## Claim-to-evidence matrix
+| Claim | Reversing evidence | Current state |
+| --- | --- | --- |
+| direct trace/log throw cannot stop later opening invocation | four aggregate direct-throw controls | final-head Unit queued |
+| provider force flush uses stable opening membership | provider mutation control | final-head Unit queued |
+| provider sync throw clears its timeout | fake-timer count assertion | final-head Unit queued |
+| live removal cannot shrink current operation | eight mutation controls across aggregate/provider/logs/metrics | final-head Unit queued |
+| future operations still observe mutation | backing-array postconditions | final-head Unit queued |
+| metrics is snapshot-only | source chain plus metrics mutation tests | source-reviewed; Unit queued |
+| trace global handler does not leak | cleanup invokes handler factory | Unit/Lint queued |
 
-| Claim | Reversing evidence | Current status | Limit |
-| --- | --- | --- | --- |
-| direct trace/log throw cannot stop later opening invocation | four direct-throw tests | repaired-head Unit run queued | arbitrary thenable behavior not separately tested |
-| live removal cannot shrink current opening set | six mutation tests | repaired-head Unit run queued | additions are guaranteed by snapshot semantics but not separately asserted |
-| future operations observe mutation | backing-array postconditions | repaired-head Unit run queued | no duplicate-child policy |
-| trace force flush still reports and resolves | global-handler assertion plus restored baseline structure | repaired-head Unit run queued | one observed `Promise.all` rejection |
-| metrics needs snapshot but not safe-call | source chain `MeterProvider → MetricCollector → reader`, plus metrics mutation controls | source-reviewed; Unit queued | production prevalence unmeasured |
-| no test global-handler leak | default handler factory invoked during cleanup | repaired-head Unit/Lint queued | repository has no public getter to restore an arbitrary prior handler |
+## Exact final-head workflows
 
-## Exact repaired-head workflows
-
-| Workflow | Run | Current state |
+| Workflow | Run | State |
 | --- | ---: | --- |
-| Unit Tests | `30693695553` | queued |
-| E2E Tests | `30693695548` | queued |
-| Lint | `30693695562` | queued |
-| Bundler tests | `30693695536` | queued |
-| W3C Trace Context Integration Test | `30693695557` | queued |
-| Ensure API Peer Dependency | `30693695533` | queued |
-| CodeQL Analysis | `30693695552` | queued |
-| Zizmor GitHub Actions Security Analysis | `30693695550` | queued |
+| Unit Tests | `30694080939` | queued |
+| E2E Tests | `30694080935` | queued |
+| Lint | `30694080925` | queued |
+| Bundler tests | `30694080933` | queued |
+| W3C Trace Context Integration | `30694080910` | queued |
+| Ensure API Peer Dependency | `30694080929` | queued |
+| CodeQL Analysis | `30694080926` | queued |
+| Zizmor GitHub Actions Security Analysis | `30694080955` | queued |
 
-No pass conclusion is claimed for the repaired head until these settle.
+No final-head pass is claimed until these settle.
 
-## Superseded exact-head receipts
+## Historical evidence
 
-Head `641528c9786f7d027fef4f4a76ae685f7107d394` passed:
+Head `641528c9786f7d027fef4f4a76ae685f7107d394` passed the complete named workflow set, including a 10-job Unit matrix and 7-job E2E matrix. Those receipts validate the earlier six-file generation but are superseded for promotion by the provider repair and clean-history rewrite.
 
-- Unit Tests `30674494793` — 10 jobs;
-- E2E Tests `30674494785` — 7 jobs;
-- Lint `30674494830`;
-- Bundler tests `30674494832`;
-- W3C Trace Context Integration `30674494799`;
-- Ensure API Peer Dependency `30674494801`;
-- CodeQL Analysis `30674494779`;
-- Zizmor GitHub Actions Security Analysis `30674494823`.
+## Failure/repair history
 
-Those receipts validate the broader predecessor behavior but are expired for promotion because source and tests moved during repair.
-
-## Historical setup failures
-
-| Head/attempt | Failure | Classification | Resolution |
+| Generation | Result | Classification | Repair |
 | --- | --- | --- | --- |
-| `80e3b74b...` | product gates passed but review found live-array removal still skipped a child | design insufficiency | add opening snapshots |
-| `e19247b...` | TS2322 from mutation callbacks inferred as `() => never` | test fixture typing | explicitly type callbacks `() => void` |
-| `641528c...` review | metrics helper/regression overclaimed a baseline defect | scope/source review | metrics snapshot-only; remove throw tests |
-| trace test cleanup | installed `loggingErrorHandler` factory rather than returned handler | test harness/global state | call `loggingErrorHandler()` |
+| `80e3b74b...` | gates passed; review found removal skip | design insufficiency | opening snapshots |
+| `e19247b...` | TS2322 in mutation fixture | test typing | explicit callback types |
+| `641528c...` | all gates passed; metrics overclaim found | scope review | metrics snapshot-only |
+| trace cleanup | factory installed as handler | test global-state leak | use `loggingErrorHandler()` |
+| provider deep pass | live fanout plus uncleared sync-throw timer | missed public entrypoint | snapshot provider list and clear timer in catch |
 
-## Ordinary gate and packaging boundary
+## Changelog boundary
 
-The repository workflows cover compile-bearing checks, supported Node/browser/web-worker matrices, E2E, lint, bundler, API peer dependency, trace-context integration, and static/workflow security.
-
-Changelog files are not yet changed. Target guidance requires behavior changes to be listed in both:
-
-- root `CHANGELOG.md` under Unreleased Bug Fixes for sdk-trace/sdk-metrics;
-- `experimental/CHANGELOG.md` under Unreleased Bug Fixes for sdk-logs.
-
-Final entries must use the real authorized upstream PR number and current link format; they should not be fabricated on the owned validation carrier.
+Target policy requires behavior entries in root `CHANGELOG.md` for sdk-trace/sdk-metrics and `experimental/CHANGELOG.md` for sdk-logs. Final entries require the real authorized upstream PR number.
 
 ## Current judgment
 
 `HOLD`
 
-The source repair is complete. Clearing conditions are a successful exact repaired-head matrix, eligible independent complete-diff acceptance, history cleanup, changelog packaging, final current-main/duplicate refresh, and separate public-contact authorization.
+Source repair and history cleanup are complete. Clearing conditions: successful final-head workflows, eligible independent complete-diff acceptance, changelog packaging, final staleness/duplicate refresh, and separate public-contact authorization.
