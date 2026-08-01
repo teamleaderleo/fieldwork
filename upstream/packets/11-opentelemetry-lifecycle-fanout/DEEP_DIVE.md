@@ -1,81 +1,79 @@
-# Deep dive — Unit 11: snapshot lifecycle targets before concurrent fanout
+# Deep dive — Unit 11: stabilize lifecycle fanout targets
 
 ## Governing invariant
 
-Every lifecycle fanout attempts each child present when the operation begins, while preserving package-specific failure behavior and allowing collection changes to affect later operations.
+Every supported lifecycle fanout attempts each processor present when the operation begins, preserves its existing outward failure contract, and releases operation-owned timers after synchronous failure.
 
 ## Exact subject
 
 - upstream base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- clean candidate: `59f83f889bed06a951d458556b2e7e1695cbea10`;
-- source branch: `upstream/unit-11-lifecycle-fanout`;
-- changed-file fence: four production files and four target-native test files.
+- canonical candidate: `a1e604526ea87fc22a91f6b2fe84b02f528e9f88`;
+- source branch: `upstream/unit-11-lifecycle-fanout-v2`;
+- validation carrier: owned draft PR #19;
+- changed-file fence: three production files and three target-native tests.
 
 ## Call-chain analysis
 
 ### `MultiSpanProcessor`
 
-It directly invokes processor shutdown/force-flush methods while constructing a promise array. An implementation can throw before returning its declared promise, exiting the loop before later processors run. The retained constructor array can also be mutated during iteration.
+It retains the constructor processor array and directly invokes processor lifecycle methods while constructing promise inputs. A processor can throw before returning its declared promise, stopping later calls. It can also remove a later processor from the retained live array.
 
-Repair: snapshot the array and use an eager local try/catch helper. The original shutdown rejection and force-flush global-error-handler/resolve structure remains.
+Repair: snapshot the opening array and use an eager local try/catch helper. The original shutdown rejection and force-flush global-error-handler/resolve structure remains.
 
-### `TracerProvider.forceFlush`
+### Public `TracerProvider.forceFlush()`
 
-The public provider does **not** call `MultiSpanProcessor.forceFlush()`. It directly reads `_activeSpanProcessor['_spanProcessors']` and creates one timeout-controlled promise per processor.
+The public provider does not delegate to `MultiSpanProcessor.forceFlush()`. It directly reads `_activeSpanProcessor['_spanProcessors']` and creates one timeout-controlled promise per processor.
 
-Two independent baseline mechanisms exist:
+Two baseline mechanisms matter:
 
-1. mapping the live array allows an earlier processor to remove a later opening processor before its index is visited;
-2. the timeout is armed before `spanProcessor.forceFlush()` is called. A synchronous throw rejects the Promise executor automatically, but bypasses the code that clears the timer, leaving it armed until expiry.
+1. live-array mapping permits an earlier processor to remove a later opening processor;
+2. the timeout is armed before invocation. A synchronous throw rejects the Promise executor, bypasses the processor-result catch, and leaves that timeout armed until expiry.
 
 Repair:
 
-- snapshot the processor array before mapping;
-- retain the existing timeout, result filtering, and outward rejection shape;
-- wrap invocation and handler attachment in try/catch;
-- clear the timeout and resolve the per-processor result with the caught error.
-
-This keeps later opening processors eager, returns the existing error array from the provider, and leaves no timeout after synchronous failure.
+- snapshot the opening processor list;
+- invoke through an eager safe-call;
+- retain the existing timeout and aggregate error-array model;
+- let the existing per-processor catch clear the timeout and record the error.
 
 ### `MultiLogRecordProcessor`
 
-It directly invokes processor lifecycle methods over a public mutable array. Snapshot plus eager safe-call is required. Force-flush timeout wrapping remains unchanged.
+`LoggerProvider` delegates lifecycle operations to this aggregate. Its configured processor array is retained and publicly exposed. Direct throws and live removal are both reachable.
 
-### `MeterProvider`
+Repair: snapshot the array, use eager safe-call, and preserve `callWithTimeout()` placement and timeout options.
 
-It calls async `MetricCollector.shutdown()` / `forceFlush()`. Reader throws are already converted to rejected collector promises, so mapping continues. Only live collector-array removal is defective. Metrics therefore uses snapshot-only.
+### Metrics exclusion
+
+Metrics was removed after deeper source review:
+
+- `MeterProvider` constructs an internal collector list and does not retain the caller's readers array;
+- no supported post-construction collector-removal path was found;
+- `MetricCollector.shutdown()` and `forceFlush()` are async, so reader synchronous throws already become rejections;
+- predecessor mutation tests reached private provider state through casts.
+
+That evidence supports excluding metrics rather than upstreaming speculative private-state hardening.
 
 ## Eager helper rationale
 
-A direct try/catch helper preserves synchronous start order. `Promise.resolve().then(callback)` would catch throws but defer invocation to a microtask.
-
-## Test-harness finding
-
-The added aggregate trace test initially restored the global handler with `loggingErrorHandler` rather than `loggingErrorHandler()`. The factory itself is assignable to a void-returning handler, so type checking did not catch the mistake. The repaired test installs the actual default handler and avoids cross-test global-state leakage.
+A direct try/catch preserves synchronous start order. Deferring through `Promise.resolve().then(...)` would alter invocation timing.
 
 ## Reversing controls
 
-- trace aggregate shutdown and force flush: direct throw and live removal;
-- trace provider force flush: live removal, direct throw, later invocation, existing `[error]` rejection shape, and zero remaining fake timers;
-- logs shutdown and force flush: direct throw and live removal;
-- metrics shutdown and force flush: live removal only.
+- aggregate trace shutdown and force flush: direct throw and live removal;
+- public provider force flush: live removal, direct throw, later invocation, existing one-error array shape, and zero remaining fake timers;
+- logs shutdown and force flush: direct throw and live removal.
 
-Mutation controls verify that the backing collection remains changed, distinguishing stable current membership from permanent freezing.
+Mutation tests assert that the backing array remains changed, distinguishing stable current membership from permanent freezing.
 
 ## Compatibility
 
-- public API and exported types: unchanged;
-- eager concurrency: retained;
-- trace aggregate force flush: still reports globally and resolves;
-- trace provider force flush: still rejects with collected non-resolved results;
-- logs/metrics: still reject;
-- timeout behavior: unchanged except synchronous failure no longer leaves a dead timer;
-- future mutation: retained;
-- allocation: one shallow array copy per affected lifecycle entrypoint.
-
-## Limits
-
-This unit does not add settle-all error aggregation, child cancellation, retries, idempotence, final metric collection, delayed recursion handling, or post-shutdown telemetry admission changes.
+- API and exported types unchanged;
+- eager concurrency retained;
+- aggregate trace force flush still reports globally and resolves;
+- provider force flush retains its array-shaped rejection;
+- logs retain timeout and rejection behavior;
+- future mutation remains visible;
+- the only timeout change is clearing work that has no owner after synchronous failure.
 
 ## Changed files
 
@@ -85,11 +83,9 @@ This unit does not add settle-all error aggregation, child cancellation, retries
 4. `packages/sdk-trace/test/common/TracerProvider.attempt-all.test.ts`
 5. `experimental/packages/sdk-logs/src/MultiLogRecordProcessor.ts`
 6. `experimental/packages/sdk-logs/test/common/MultiLogRecordProcessor.attempt-all.test.ts`
-7. `packages/sdk-metrics/src/MeterProvider.ts`
-8. `packages/sdk-metrics/test/MeterProvider.attempt-all.test.ts`
 
-No workflow, dependency, lock, generated, publisher, or research-only file is present.
+No metrics, workflow, dependency, lock, generated, publisher, or research-only file is present.
 
-## Staleness and overlap
+## Limits and staleness
 
-Public main remained identical to the base during the repair pass. Open issue/PR searches for the affected symbols and lifecycle wording found no replacement work. Repeat immediately before authorized filing.
+This unit does not add settle-all diagnostics, cancellation, retry, child idempotence, delayed recursion, or post-shutdown admission changes. Public main remained at the pinned base and duplicate searches found no equivalent open work during the repair pass; repeat both checks immediately before authorized filing.
