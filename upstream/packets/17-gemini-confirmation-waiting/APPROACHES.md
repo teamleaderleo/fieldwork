@@ -80,7 +80,7 @@ Reason rejected: an observer failure could replace the cancellation or confirmat
 
 ## Approach considered: mutate one scheduler call site only
 
-Reason rejected: current public head `f47d6c6f7a1308d81f9f57acf7d279f0928c5249` has two `resolveConfirmation` call sites. The publication transform requires exactly two replacements and fails if current source drifts from that fence.
+Reason rejected: current public head `f47d6c6f7a1308d81f9f57acf7d279f0928c5249` has two `resolveConfirmation` call sites. The clean source changes both.
 
 ## Approach considered: publish the staged workflow diff
 
@@ -98,18 +98,42 @@ The transform and Prettier completed. The file fence used `git diff --name-only 
 
 Classification: carrier defect. The product transform had reached all six intended paths.
 
-### Current publication repair
+### Exact-base publication carrier repair
 
-Carrier head: `893749cc087fec170956c4f439f36ee1c1888aff`  
-Run: [`30674864738`](https://github.com/teamleaderleo/gemini-cli/actions/runs/30674864738)
+Carrier heads: `893749cc087fec170956c4f439f36ee1c1888aff`, then `f3a92cb60173f7ae88447de99843068c12261509`  
+Runs: [`30674864738`](https://github.com/teamleaderleo/gemini-cli/actions/runs/30674864738), then [`30675261256`](https://github.com/teamleaderleo/gemini-cli/actions/runs/30675261256)
 
-Changes to the carrier only:
+Carrier-only changes:
 
 - base pinned through immutable branch `fieldwork/upstream-f47-waiting-ownership-base`;
 - current exact public base `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`;
 - stage all six files before comparing `git diff --cached --name-only`;
 - publish to `fix/scheduler-confirmation-waiting-ownership`;
-- run the 16 focused controls and core typecheck on the committed source tree.
+- run the 16 focused controls and core typecheck on the committed source tree;
+- broaden the hosted runner label after the explicit Ubuntu job remained queued.
+
+Run `30674864738` was cancelled by the newer carrier commit before a runner started. Run `30675261256`, job `91301036547`, remains queued at the latest recorded check. This is a runner-assignment blocker; no product step has failed in that run.
+
+### Direct clean-source materialization
+
+The same reviewed transform was committed directly from exact base `f47d6c6f7a1308d81f9f57acf7d279f0928c5249` to clean branch `fix/scheduler-confirmation-waiting-ownership`.
+
+Current source head: `7980e0651364593350d21114b3d0552a09506afb`  
+Owned review surface: [`gemini-cli#20`](https://github.com/teamleaderleo/gemini-cli/pull/20)
+
+The exact compare contains six commits and six changed files only:
+
+- two production modifications;
+- one new production tracker;
+- three new focused tests;
+- no workflow or Fieldwork file;
+- no generated, dependency, lock, or unrelated change.
+
+This route separates publication from runner availability. The queued carrier remains useful because it can regenerate, format, execute, and force-publish one tested source commit. Until that receipt clears, the direct source head remains source-reviewed with staged-equivalent test evidence and an open exact-head execution blocker.
+
+## Approach considered: treat the queued run as a product failure
+
+Reason rejected: job `91301036547` has no assigned steps or logs. The product transform has not executed in that run, so the correct classification is an execution-environment blocker.
 
 ## Rejected scope expansions
 
