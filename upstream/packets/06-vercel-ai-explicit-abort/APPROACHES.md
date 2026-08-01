@@ -4,16 +4,16 @@
 
 Use one abort-operation latch, settle public and outward state before observability callbacks, and make later provider outcomes defer to the selected abort.
 
-For a provider stream returned after abort but before registration, request direct cancellation without awaiting provider-controlled completion. Handle rejection locally.
+For a provider stream returned after abort but before registration, cancel the directly owned stream. At the exact clean head, the stream returned by `streamLanguageModelCall()` already provides request-level cancellation settlement: its `cancel()` promise resolves after forwarding the request even when provider cleanup remains pending, and provider cleanup rejection is contained by the existing pipe chain.
 
 ### Why selected
 
 - distinguishes operation abort from consumer cancellation;
 - settles root promises while a provider read remains pending;
-- prevents callback latency from delaying outward closure or cancellation;
+- prevents callback latency from delaying outward closure or cancellation request;
 - prevents an ordinary provider error arriving after abort from replacing the caller-selected result;
 - reaches a provider stream that the empty stitchable owner cannot cancel;
-- releases internal setup even when provider cancellation is hostile.
+- preserves the existing stream cancellation contract without another wrapper layer.
 
 ## Retained prior approach: maintainer candidate
 
@@ -45,23 +45,35 @@ Before registration, the stitchable owner has no reference to the returned provi
 
 Disposition: rejected.
 
-## Current losing implementation: await direct provider-stream cancellation
+## Disproved blocker: the pre-registration `await` joins provider cleanup
 
-The current clean head calls:
+The clean head contains:
 
 ```ts
 await languageModelStream.cancel(getAbortReason());
 ```
 
-This reaches the right stream but grants provider cancellation completion authority over the internal setup task. Rejection can also escape into setup error handling after abort has already won.
+The earlier packet assumed this awaited a provider-controlled cleanup promise. A dependency-free Node Web Streams probe reproduced the exact target layering:
 
-Disposition: repair to a detached, rejection-contained request with hostile tests.
+```ts
+providerStream.pipeThrough(transform).pipeThrough(identityTransform)
+```
+
+The returned cancellation promise resolved after requesting cancellation while the provider cleanup promise remained pending. A rejecting provider cleanup promise produced no unhandled rejection.
+
+Disposition: premise disproved. Retain the direct cancellation call and add target-native regression coverage. Receipt: `receipts/2026-08-01-provider-cancel-promise-model.md`.
+
+## Rejected: add another cancellation wrapper in `streamLanguageModelCall()`
+
+A proposed wrapper attempted to detach cancellation only after explicit abort while preserving awaited ordinary cancellation. The exact Web Streams model showed the ordinary-cancellation negative control already resolves before provider cleanup through the existing pipe chain. The wrapper added a reader and another lifecycle boundary without creating the claimed distinction.
+
+Disposition: rejected and removed. Owned-fork PR #12 preserves the correction in its thread.
 
 ## Deferred: explicit terminal-state enum
 
 Earlier review preferred a named synchronous terminal state over using `abortPromise` existence as the latch. The retained implementation uses one promise identity and current tests distinguish the required races. A wider enum refactor adds review surface without current evidence of a separate defect.
 
-Disposition: defer unless hostile tests expose ambiguous ownership.
+Disposition: defer unless target-native controls expose ambiguous ownership.
 
 ## Deferred: typed incomplete provider close
 
