@@ -1,123 +1,159 @@
-# Unit 16 current-main repair attempts — 2026-08-01
+# Unit 16 current-main repair receipt — 2026-08-01
 
 ## Scope
 
-Repair the confirmation modification call-affinity candidate on exact public base `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`, add a real scheduler-level two-call reverse-order control, run full target validation, and preserve a workflow-free clean source branch. Public upstream interaction remains unauthorized.
+Repair confirmation modification call affinity on exact public base `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`, add a real scheduler-level two-call reverse-order control, execute candidate-owned validation, classify full-preflight limits, and publish a workflow-free clean source branch. Public upstream interaction remained unauthorized.
 
-## Exact inputs
+## Final identity
 
-- predecessor source: `b359ece8a2bd059aef870a084ab9494eff16fa8f`
-- current public/fork base: `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`
-- corrected integration-test provenance: `6804d0b87c196b265c42276f2939573edaf6d89c`
-- current clean source: `0c3a86b0555e152b50ca55fd5f8dc53608571cbe`
-- canonical source branch: `fix/scheduler-confirmation-call-affinity`
-- clean source PR: `teamleaderleo/gemini-cli#24`
-
-## Attempt 1 — transient integration-test generation
-
-- carrier: PR #6
-- carrier head: `12e096c7672c86fd45d45f87c6a3324347559d11`
-- run/job: `30690542009` / `91344358931`
-- completed: checkout, Node `20.19.0`, locked install, predecessor source restore, integration-test generation, Prettier
-- failure: pre-commit ESLint rejected unused `AnyToolInvocation` and local `toolRegistry`
-- classification: test-harness lint failure before product execution
-- product tests/typecheck/preflight/publication: none
-- durable review: PR #6 review `4834204326`
-
-## Corrected integration control
-
-- initial committed head: `6804d0b87c196b265c42276f2939573edaf6d89c`
-- final source file: `packages/core/src/scheduler/scheduler.confirmation-affinity.test.ts` at `0c3a86b0555e152b50ca55fd5f8dc53608571cbe`
-- boundary:
-  - real `Scheduler`;
-  - real scheduler state manager through Scheduler;
-  - real `MessageBus`;
-  - two simultaneously `AwaitingApproval` calls;
-  - call 2 response delivered before call 1;
-  - each modifier input, rebuild, completed result, and argument update required to remain with its correlated call;
-  - controlled policy, executor, and modifier; no model or external service.
-
-## Attempt 2 — fallback publisher
-
-- carrier: PR #22
-- branch/head: `fieldwork/confirmation-call-affinity-repair-v2` / `e41dd92ab680f5eb05370bf7d5263a70f6897e34`
-- run/job: `30690739632` / `91344882192`
-- status: remained in hosted-runner queue
-- disposition: PR closed superseded after direct source materialization
-- product execution: none
-- durable review: PR #22 review `4834204972`
-
-## Source materialization
-
-### Staging
-
-The corrected integration branch started from current base and accumulated the exact source/test diff:
-
-- integration test commit: `6804d0b87c196b265c42276f2939573edaf6d89c`
-- product source commit: `34d6a647783fe5d3d15273d5bbe801934bd6fec4`
-- adjacent fixture commit: `5121459bd1f9c0f8962db15eac68f9566f090c31`
-- focused test commit/final staging head: `789d250f72f4b3dc6ee7ac3bc08789ec45f28e01`
-
-### Squash
-
-Internal source composition PR #23 targeted `repair/16-confirmation-call-affinity-current-main` and squash-merged the four-file diff.
-
-- source composition PR: `teamleaderleo/gemini-cli#23`
 - base: `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`
-- staging head: `789d250f72f4b3dc6ee7ac3bc08789ec45f28e01`
-- squash result: `0c3a86b0555e152b50ca55fd5f8dc53608571cbe`
-- relationship: one commit ahead, zero behind
-- exact files:
-  - `packages/core/src/scheduler/confirmation.ts`
-  - `packages/core/src/scheduler/confirmation.affinity.repair.test.ts`
-  - `packages/core/src/scheduler/confirmation.test.ts`
-  - `packages/core/src/scheduler/scheduler.confirmation-affinity.test.ts`
-- additions/deletions: 778 / 20
-- workflow, dependency, snapshot, generated, or Fieldwork files: none
+- final source: `b6d8e8bb6160aec16555647d81d46a694e44b58b`
+- canonical branch: `fix/scheduler-confirmation-call-affinity`
+- clean review PR: `teamleaderleo/gemini-cli#24`
+- completed carrier: closed `teamleaderleo/gemini-cli#6`
+- final run: `30692554758`
+- candidate job: `91350078426`
+- baseline-control job: `91349770438`
+- environment: Ubuntu 22.04, Node `v20.19.0`, npm `10.8.2`, Git `2.54.0`, Vitest `3.2.4`
 
-The canonical branch was force-updated to this exact source. Clean review PR #24 exposes the one-commit diff.
-
-## Attempt 3 — immutable source on Ubuntu 24.04
-
-- carrier: PR #6
-- carrier head: `5daf74fccef0fda01ca75f5ef17254102cb2d64e`
-- run/job: `30691280000` / `91346341184`
-- behavior: checkout source `0c3a86b` directly, verify parent/fence, install, format check, focused tests, core typecheck, full preflight, clean tree, canonical push
-- status: remained queued without acquiring a runner
-- disposition: superseded by the same immutable-source gate on Ubuntu 22.04
-
-## Attempt 4 — active immutable source gate
-
-- carrier: PR #6
-- carrier head: `51fb36c0c2c7bceb4c954acf918c82c9b966ed4f`
-- run/job: `30691565496` / `91347102291`
-- runner request: Ubuntu 22.04
-- runtime request: Node `20.19.0`
-- exact source: `0c3a86b0555e152b50ca55fd5f8dc53608571cbe`
-- gates:
-  1. exact source head and parent;
-  2. exact four-file fence and diff check;
-  3. locked install;
-  4. Prettier check on four files;
-  5. focused/real-scheduler/adjacent Vitest command;
-  6. core typecheck;
-  7. full `npm run preflight`;
-  8. clean tracked tree;
-  9. canonical source branch push and runtime receipt.
-- current status at this receipt revision: hosted-runner queue
-
-## Execution commands
+## Exact final fence
 
 ```text
-npm run test --workspace @google/gemini-cli-core -- \
-  src/scheduler/confirmation.affinity.repair.test.ts \
-  src/scheduler/scheduler.confirmation-affinity.test.ts \
-  src/scheduler/confirmation.test.ts
-
-npm run typecheck --workspace @google/gemini-cli-core
-npm run preflight
+packages/core/src/scheduler/confirmation.affinity.repair.test.ts
+packages/core/src/scheduler/confirmation.test.ts
+packages/core/src/scheduler/confirmation.ts
+packages/core/src/scheduler/scheduler.confirmation-affinity.test.ts
 ```
+
+Relationship: one commit ahead, zero behind the base. Diff: 775 additions, 20 deletions. No workflow, dependency, generated, snapshot, or Fieldwork file.
+
+## Final candidate result
+
+Run `30692554758`, candidate job `91350078426`:
+
+- exact initial source identity: pass
+- exact parent: pass
+- initial four-file fence: pass
+- locked install and repository prepare/bundle: pass
+- executor response fixture correction: applied
+- Prettier write/check: pass
+- `git diff --check`: pass
+- clean one-commit source creation: pass
+- staged pre-commit Prettier/ESLint: pass
+- final source created: `b6d8e8bb6160aec16555647d81d46a694e44b58b`
+- focused/adjacent command: pass
+  - `confirmation.test.ts`: 8 passed
+  - `confirmation.affinity.repair.test.ts`: 6 passed
+  - `scheduler.confirmation-affinity.test.ts`: 1 passed
+  - total: 3 files, 15 tests
+- posttest core build: pass
+- standalone core typecheck: pass
+- explicit ESLint across all four changed files: pass
+- clean tracked tree: pass
+- canonical branch publication: pass
+
+Publication output:
+
+```text
+source_head=b6d8e8bb6160aec16555647d81d46a694e44b58b
+source_base=f47d6c6f7a1308d81f9f57acf7d279f0928c5249
+node=v20.19.0
+npm=10.8.2
+full_preflight=blocked_by_confirmed_base_SC2031
+```
+
+## Baseline preflight control
+
+A candidate preflight run completed clean/install/format/build, then repository-wide lint stopped on:
+
+```text
+.github/workflows/pr-size-labeler-batch-run.yml
+SC2030 / SC2031
+UPDATED_COUNT and SKIPPED_COUNT modified in a pipeline subshell
+```
+
+The unit changes no workflow file. Final run `30692554758` added a separate control job that checked out exact unchanged base `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`, installed locked dependencies, and ran `npm run lint:ci`. It required a nonzero status plus the same workflow path and `SC2031`.
+
+Control output:
+
+```text
+baseline_head=f47d6c6f7a1308d81f9f57acf7d279f0928c5249
+baseline_lint_status=1
+baseline_blocker=.github/workflows/pr-size-labeler-batch-run.yml:SC2031
+```
+
+Classification: repository baseline blocker outside unit 16. Candidate-owned tests, build, typecheck, formatting, lint, fencing, clean-tree, and publication gates are green.
+
+## Scheduler reverse-order control
+
+- real `Scheduler`
+- real scheduler state manager
+- real `MessageBus`
+- two calls simultaneously observed in `AwaitingApproval`
+- call 2 response delivered before call 1
+- modifier call order required to match response order
+- each modifier required to receive its own original arguments
+- first response required to update only call 2 while call 1 remained waiting
+- final rebuilt invocations and completed arguments required to remain call-scoped
+- controlled policy, executor, and modifier; no model or external service
+
+Result: pass at `b6d8e8bb6160aec16555647d81d46a694e44b58b`.
+
+## Predecessor evidence
+
+- baseline evidence PR #2, run `30505534210`: exact call A versus call B mismatch reached; core typecheck passed
+- predecessor source `b359ece8a2bd059aef870a084ab9494eff16fa8f`, run `30595253180`: 14/14, posttest build, core typecheck, formatting, staged lint, exact three-file fence, clean tree, and publication passed
+
+## Classified current-main attempts
+
+### Run `30690542009`, job `91344358931`
+
+- failure: unused `AnyToolInvocation` and local `toolRegistry` in transiently generated scheduler test
+- classification: harness lint before product execution
+- retained value: corrected integration-test requirements
+
+### Run `30691715651`, job `91347503312`
+
+- passed: source identity, parent, four-file fence, install
+- failure: scheduler test needed Prettier normalization
+- classification: source formatting before behavior execution
+
+### Run `30691895493`, job `91347974377`
+
+- passed: formatting and all 15 behavioral tests
+- failure: posttest TypeScript found the fake executor response lacked `resultDisplay`, `error`, and `errorType`
+- classification: test-fixture typing after behavioral assertions passed
+
+### Run `30692033075`, job `91348335683`
+
+- failure: execution-only fixture patch anchor mismatch
+- classification: carrier setup; source unchanged
+
+### Run `30692147133`, job `91348637042`
+
+- passed: 15 tests, posttest build, standalone core typecheck
+- full preflight reached unrelated workflow `SC2031`
+- classification: candidate gates green; baseline control still required
+
+### Run `30692554758`
+
+- baseline job reproduced exact blocker
+- candidate job completed every unit-owned gate and published final source
+- classification: repair complete
+
+## Cleanup
+
+- canonical source workflow-free: yes
+- carrier PR #6: closed
+- fallback carrier PR #22: closed superseded
+- source composition PR #23: merged/closed
+- clean source PR #24: open draft
+- canonical branch points to final source: yes
+- packet receipt committed: yes
 
 ## Continuation
 
-Classify attempt 4 by its first failing gate or retain its complete green receipt. When complete, update exact test counts, preflight output, runtime versions, source/packet heads, packet PR #443, carrier #6, clean source PR #24, and parent issue #435. No public upstream action is permitted without explicit authority.
+1. Obtain eligible independent complete-diff review at `b6d8e8bb6160aec16555647d81d46a694e44b58b`.
+2. Repeat public duplicate search immediately before authorized filing.
+3. Use issue-first route under the target contribution policy.
+4. Keep public upstream untouched until explicit authority is recorded.
