@@ -2,33 +2,29 @@
 
 ## Current disposition
 
-`EXECUTE`
+`HOLD`
 
-Canonical source: `teamleaderleo/ai` branch `upstream/06-explicit-abort-nonblocking` at `92079da650430d8376a7eeef2436910b44393411`.
+Canonical source: `teamleaderleo/ai` branch `upstream/06-explicit-abort-nonblocking` at `3035f6e5a3ef6ff9236c8d1b08f4ea3dfe852c15`.
 
-Exact cancellation-regression candidate: `teamleaderleo/ai#12` at `7ae1794889d9dd22eeef9faf4f33d01330c0918d`.
+Current-public-base branch: `upstream/06-public-main-base` at `e84b8bc8154030cdb7469b0e0b8cd8b9354f19a0`.
 
-Exact repository CI run: `30691171818`.
+Canonical owned-fork review PR: `teamleaderleo/ai#13`.
+
+Exact Verify Changesets run: `30691402294`.  
+Exact ordinary CI run: `30691402306`.
 
 ## Review fence
 
-### Canonical production candidate
-
-Review exactly five files against public base `e84b8bc8154030cdb7469b0e0b8cd8b9354f19a0`:
+Review exactly six files:
 
 1. `.changeset/slow-streams-abort.md`
 2. `packages/ai/src/generate-text/stream-text.ts`
 3. `packages/ai/src/generate-text/stream-text.test.ts`
 4. `packages/ai/src/generate-text/stream-text-explicit-abort.test.ts`
 5. `packages/ai/src/generate-text/stream-text-explicit-abort-races.test.ts`
-
-### Exact-semantics regression
-
-Review one additional test file on PR #12:
-
 6. `packages/ai/src/generate-text/stream-language-model-call-cancellation.test.ts`
 
-The PR #12 diff contains no production change.
+The canonical diff contains no workflow or publisher file.
 
 ## Corrected cancellation finding
 
@@ -46,7 +42,7 @@ An earlier review treated this as a join on provider-controlled cleanup. Exact n
 
 Review receipt: `receipts/2026-08-01-provider-cancel-promise-model.md`.
 
-The current gate is execution of the target-native regression, rather than a production repair to the cancellation line.
+The target-native regression is now canonical at `3035f6e5…`.
 
 ## Claim-by-claim inspection
 
@@ -60,17 +56,17 @@ Confirm abort enqueue, controller close, listener cleanup, and reader cancellati
 
 ### Later provider outcomes lose
 
-Inspect both the successful `reader.read()` path and catch path. Once abort owns the result, neither a value nor an ordinary provider error may enqueue/error a competing outward outcome.
+Inspect both the successful `reader.read()` path and catch path. Once abort owns the result, neither a value nor an ordinary provider error may enqueue or error a competing outward outcome.
 
 ### Registration-gap ownership
 
-Confirm a provider stream created after abort is directly cancelled because it is absent from the stitchable owner's registered set. Confirm the returned model-call stream cancellation promise has request-level settlement through target-native tests.
+Confirm a provider stream created after abort is directly cancelled because it is absent from the stitchable owner's registered set. Confirm the returned model-call stream cancellation promise has request-level settlement through the canonical regression.
 
 ### Consumer cancellation remains separate
 
 Inspect `cancel(reason)` on the outward `streamText` stream and existing controls. It must preserve operation-signal ownership and avoid invoking `onAbort` by itself.
 
-Do not infer provider cleanup completion from the outer cancellation promise. The target's existing stream layers intentionally decouple those promises.
+Do not infer provider cleanup completion from the outer cancellation promise. The target's existing stream layers decouple those promises.
 
 ### Tool reporting remains truthful
 
@@ -92,14 +88,24 @@ Require both Node and Edge execution where the repository supports them. Record 
 
 ## Rejected approach review
 
-PR #12 previously contained an extra cancellation wrapper. A model-executed negative control showed that wrapper could not preserve the claimed difference between explicit-abort and ordinary provider-cleanup waiting. The branch was reset, and the current PR contains one regression file only.
+PR #12 previously contained an extra cancellation wrapper. A model-executed negative control showed that wrapper could not preserve the claimed difference between explicit-abort and ordinary provider-cleanup waiting. The branch was reset, the wrapper was removed, and PR #12 merged one regression file only.
 
-Confirm the complete current diff before reviewing; stale comments on the discarded head remain historical evidence.
+## Canonical self-review
+
+PR #13 contains an exact-head complete-diff self-review at `3035f6e5…` with a conditional source accept. It records:
+
+- the six-file fence;
+- the historical target-executed repair receipts;
+- the model-executed cancellation correction;
+- the discarded wrapper direction;
+- the queued exact-head CI state;
+- the absence of workflow and publisher files.
+
+This self-review cannot serve as independent final acceptance.
 
 ## Repository hygiene
 
 - no workflow or publisher files in the canonical source branch;
-- no workflow files in PR #12;
 - no generated cache/build output;
 - changeset wording describes user-visible behavior;
 - test timing bounds are discriminating and stable;
@@ -111,15 +117,14 @@ Confirm the complete current diff before reviewing; stale comments on the discar
 
 ## Promotion gate
 
-Keep `EXECUTE` while run `30691171818` is queued or incomplete.
-
-Move to `HOLD` if target-native execution passes but canonical exact-head repository CI, independent review, or contribution routing remains open.
+Keep `HOLD` while either exact-head run remains queued or incomplete.
 
 Move to `READY` only after:
 
-1. PR #12 exact-head regression execution passes;
-2. the regression is merged into the canonical source branch;
-3. ordinary repository CI passes on that exact canonical head;
-4. complete-diff independent review finds no blocking issue;
-5. current duplicate/prior-art refresh and issue/PR drafts are synchronized;
-6. an explicit contribution route accounts for existing upstream PR #16852.
+1. Verify Changesets `30691402294` passes;
+2. ordinary CI `30691402306` passes on exact canonical head `3035f6e5…`;
+3. an independent complete-diff disposition finds no blocking issue;
+4. current duplicate/prior-art refresh and issue/PR drafts remain synchronized;
+5. an explicit contribution route accounts for existing upstream PR #16852.
+
+A product failure returns the unit to `REPAIR` with the exact failing assertion or gate recorded.
