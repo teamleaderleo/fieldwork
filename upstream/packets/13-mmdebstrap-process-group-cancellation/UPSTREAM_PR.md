@@ -40,7 +40,7 @@ The focused regression should compare parent-PID-only SIGINT across three varian
 
 It should retain an ordinary unsignaled success control.
 
-Before publication, replace this paragraph with exact target-native commands and results from the clean current-upstream branch.
+Before publication, replace this paragraph with exact target-native commands and results from the clean current-`master` branch.
 
 ### Compatibility and scope
 
@@ -74,7 +74,7 @@ Excluded from the clean source branch:
 ## Publication checklist
 
 - [ ] owned target fork admitted;
-- [ ] branch `fix/coverage-backend-process-group-current-main` created from current exact upstream head;
+- [ ] branch `fix/coverage-backend-process-group-current-master` created from refreshed exact upstream `master` head;
 - [ ] retained patch applied cleanly;
 - [ ] target-native regression added;
 - [ ] focused baseline/candidate execution recorded;
