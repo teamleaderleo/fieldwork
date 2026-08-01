@@ -1,54 +1,77 @@
-# Upstream pull-request draft — gomarkdoc checks
+# Upstream pull-request draft — unit 22 gomarkdoc checks
 
-Public posting authority: `absent`
+Proposed title:
 
-## Proposed title
+```text
+gomarkdoc: restore full upstream checks
+```
 
-`gomarkdoc: restore full upstream checks`
+Proposed body:
 
-## Draft body
+---
 
-## Description of changes
+Closes #516481.
 
-Restore gomarkdoc 1.1.0's upstream checks with package-local compatibility adjustments:
+gomarkdoc 1.1.0 currently has `doCheck = false`. Restore its Go tests package-locally while preserving the command-only installed output.
 
-- build the package with Go 1.25, matching the release's generated-document golden output;
-- remove only `-mod=vendor` from test-time `GOFLAGS`, because command tests pass that environment value to gomarkdoc's application flag parser;
-- create the empty `.gomarkdoc-empty.yml` fixture omitted from the release tag;
-- clear the build-only `subPackages` selector during `preCheck`, allowing the standard `buildGoModule` check phase to discover the root, `lang`, format, and command test packages.
+The package needs three compatibility adjustments:
 
-The package still builds and installs only `cmd/gomarkdoc`. The source hash and vendor hash remain unchanged, and the standard builder continues to use the materialized vendor tree with offline module resolution.
+- use `buildGo125Module` because the checked v1.1.0 documentation golden matches Go 1.25 output;
+- create the empty `.gomarkdoc-empty.yml` fixture referenced by the tagged command tests;
+- remove Nix's build-only `-mod=vendor` token before gomarkdoc parses `GOFLAGS` as application flags.
+
+`subPackages = [ "cmd/gomarkdoc" ]` is still needed for installation, but `buildGoModule` also uses that selector during `checkPhase`. Clear it in `preCheck` so the standard test discovery runs the root, `lang`, format, and command packages.
+
+The source hash, vendor hash, linker flags, installed program, and version passthru remain unchanged.
 
 ## Things done
 
 - Built on platform:
-  - [ ] x86_64-linux — pending current execution receipt
+  - [ ] x86_64-linux
   - [ ] aarch64-linux
   - [ ] x86_64-darwin
-  - [ ] aarch64-darwin — pending current execution receipt
+  - [ ] aarch64-darwin
 - Tested, as applicable:
-  - [x] Package's upstream Go checks are enabled in the derivation.
-  - [ ] Confirmed root, `lang`, format, and `cmd/gomarkdoc` package results on x86_64-linux — pending current execution receipt.
-  - [ ] Confirmed root, `lang`, format, and `cmd/gomarkdoc` package results on aarch64-darwin — pending current execution receipt.
-  - [ ] Confirmed `gomarkdoc.tests.version` on x86_64-linux — pending current execution receipt.
-  - [ ] Confirmed `gomarkdoc.tests.version` on aarch64-darwin — pending current execution receipt.
+  - [ ] Package build with upstream checks enabled.
+  - [ ] Root, `lang`, format, and `cmd/gomarkdoc` test results observed.
+  - [ ] `gomarkdoc.tests.version` prints `1.1.0`.
 - [ ] Ran `nixpkgs-review` on this change.
-- [ ] Tested basic functionality of the installed binary beyond the existing version passthru.
-- [x] No release-note entry needed for this package check restoration.
-- [x] The change is limited to `pkgs/by-name/go/gomarkdoc/package.nix`.
+- [ ] Tested basic functionality of `gomarkdoc`.
+- Nixpkgs Release Notes:
+  - [x] No release-note entry; package version and interface are unchanged.
+- NixOS Release Notes:
+  - [x] Not applicable.
+- [ ] Fits `CONTRIBUTING.md`, `pkgs/README.md`, and other relevant instructions.
 
-## Reviewer focus
+## Commands
 
-Please check whether resetting `subPackages` inside `preCheck` is the preferred package-local way to retain a narrow install target while letting the generic Go check phase discover every test package.
+```console
+$ nix-build . -A gomarkdoc --no-out-link
+$ nix-build . -A gomarkdoc.tests.version --no-out-link
+```
 
-## Packet-only submission notes
+---
 
-These notes stay outside the upstream body:
+## Draft synchronization notes
 
-- Exact base: `55096b0ce13784d4f6420059c5627475fa26ebb1`
-- Exact source head: `94be3956403ebf368b9d8262fdc9e5a5d2e80683`
-- Clean source branch: `teamleaderleo/nixpkgs:fieldwork/unit-22-gomarkdoc-checks`
-- Complete compare: `55096b0ce13784d4f6420059c5627475fa26ebb1...94be3956403ebf368b9d8262fdc9e5a5d2e80683`
-- Current execution carrier: Fieldwork PR #437 / run 30674476739
-- Update the checklist from terminal receipts before any authorized submission.
-- Recheck the target's current contribution and disclosure requirements immediately before submission.
+The platform and test checkboxes remain empty until the exact repaired source head produces terminal receipts. Prepared execution targets x86_64-linux and aarch64-darwin.
+
+The final authorized submission should:
+
+1. rebase or regenerate the one-file commit on current `master` if relevant paths moved;
+2. replace this note with exact tested platforms and commands;
+3. add `nixpkgs-review` results when executed;
+4. test the installed `gomarkdoc` binary;
+5. recheck the current pull-request template, contribution rules, and any disclosure requirement;
+6. preserve `Closes #516481` unless that issue has changed state or scope.
+
+## Current source identity
+
+- Base: `55096b0ce13784d4f6420059c5627475fa26ebb1`
+- Head: `94be3956403ebf368b9d8262fdc9e5a5d2e80683`
+- Branch: `teamleaderleo/nixpkgs:fieldwork/unit-22-gomarkdoc-checks`
+- Changed file: `pkgs/by-name/go/gomarkdoc/package.nix`
+
+## Public interaction status
+
+This is a retained draft. No public Nixpkgs pull request was opened, and no authority to open one has been granted.
