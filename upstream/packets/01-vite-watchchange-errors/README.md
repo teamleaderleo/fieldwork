@@ -12,7 +12,7 @@ The selected repair collects every environment-level `watchChange` outcome, logs
 
 The exact source candidate is suitable for independent final review. Complete-diff self-review found no blocking product defect. Current-head workflow security, lint/build/type/format/docs checks, Linux Node 20/22/24/26 Build&Test, macOS Node 24 Build&Test, and the Windows unit/focused regression paths passed. Two Windows attempts failed only in the pre-existing HMR/SSR integration playground after the Unit 01 regression passed; those failures are classified as unrelated Windows integration flakiness.
 
-This disposition does not authorize merge or public upstream submission. The author is not the sole eligible final accepter.
+The canonical source PR and packet PR are both out of draft for independent review. This disposition does not authorize merge or public upstream submission. The author is not the sole eligible final accepter.
 
 ## Assignment
 
@@ -26,12 +26,12 @@ This disposition does not authorize merge or public upstream submission. The aut
 
 ## Exact source
 
-- Exact inspected public base: [`e6b6b167afa0a80548829d1f24a0712f9194389a`](https://github.com/vitejs/vite/commit/e6b6b167afa0a80548829d1f24a0712f9194389a)
+- Inspected public base: [`e6b6b167afa0a80548829d1f24a0712f9194389a`](https://github.com/vitejs/vite/commit/e6b6b167afa0a80548829d1f24a0712f9194389a)
 - Owned base mirror: [`upstream/unit-01-vite-main-e6b6b167`](https://github.com/teamleaderleo/vite/tree/upstream/unit-01-vite-main-e6b6b167)
 - Canonical owned branch: [`fix/fieldwork-25-watchchange-error-isolation`](https://github.com/teamleaderleo/vite/tree/fix/fieldwork-25-watchchange-error-isolation)
-- Exact canonical head: [`a2ab7ca6183ad74d64066d6706e57a546e355224`](https://github.com/teamleaderleo/vite/commit/a2ab7ca6183ad74d64066d6706e57a546e355224)
-- Canonical internal draft PR: [`teamleaderleo/vite#4`](https://github.com/teamleaderleo/vite/pull/4)
-- Current relation: two commits ahead, zero behind the exact base; exactly two changed files
+- Canonical head: [`a2ab7ca6183ad74d64066d6706e57a546e355224`](https://github.com/teamleaderleo/vite/commit/a2ab7ca6183ad74d64066d6706e57a546e355224)
+- Canonical internal PR: [`teamleaderleo/vite#4`](https://github.com/teamleaderleo/vite/pull/4) — ready for independent review
+- Relation: two commits ahead, zero behind the exact base; exactly two changed files
 
 ### Changed files
 
@@ -68,7 +68,7 @@ The helper is shared by change, add, and unlink. Generic plugin-hook scheduling,
 
 The merged upstream repair [`vitejs/vite#22188`](https://github.com/vitejs/vite/pull/22188) added listener-level catches and tests requiring `watchChange` errors to be logged for add, change, and unlink. It leaves the inner file-event transaction fail-fast: rejection still prevents later invalidation and HMR.
 
-Searches of current Vite issues and pull requests for `watchChange`, invalidation, HMR, and error combinations found no separate current proposal that continues Vite-owned work after the hook failure. Unit 01 is a follow-up to #22188, not a duplicate of its error-reporting repair. Repeat the search immediately before any authorized public submission.
+Searches of current Vite issues and pull requests found no separate current proposal that continues Vite-owned work after the hook failure. Unit 01 is a follow-up to #22188, not a duplicate. Repeat the search immediately before any authorized public submission.
 
 ## Tests and gates
 
@@ -110,7 +110,7 @@ The CI pull-request checkout used a synthetic merge containing source head `a2ab
 
 ## Next transition
 
-1. Obtain independent complete-diff review at the unchanged source head.
+1. Independent complete-diff review at the unchanged source head.
 2. Re-read live checks and repeat duplicate/current-main/contribution-policy checks immediately before any public submission.
 3. Rebase and rerun only if current Vite `main` or the source head changes materially.
 4. Await explicit authority for the exact public upstream interaction.
