@@ -11,6 +11,7 @@ When a caller-provided `AbortSignal` fires during `streamText`, which state tran
 3. Owned characterization PR #1 at `e685a4c92a5869aec306718ab5a440b7cb4fa5b1` broadened root/derived, pre-abort, local-tool, multi-consumer, callback-stall, and provider-error coverage.
 4. Owned repair PR #7 at `19a9dbe26b48af848f3202fa0c409ed67d034c7d` moved outward terminal mechanics before observability and made post-abort provider values/errors yield to abort.
 5. Internal materialization PR #8 reconciled the five-file candidate onto public main `e84b8bc8154030cdb7469b0e0b8cd8b9354f19a0`, producing clean source head `92079da650430d8376a7eeef2436910b44393411`.
+6. Continued cancellation analysis modeled the exact native Web Streams layers returned by `streamLanguageModelCall()` and encoded the result as a target-native regression on PR #12 at `7ae1794889d9dd22eeef9faf4f33d01330c0918d`.
 
 ## Current control flow
 
@@ -23,7 +24,7 @@ The resilient outward stream installs one abort listener and retains one `abortP
 5. requests cancellation of the stitchable reader;
 6. invokes application and telemetry abort callbacks without awaiting them.
 
-A provider `reader.read()` result or error arriving after the latch exists yields to the same abort path. Ordinary consumer cancellation still cancels only that consumer-owned stream path.
+A provider `reader.read()` result or error arriving after the latch exists yields to the same abort path. Ordinary consumer cancellation remains consumer-scoped.
 
 ## Result ownership
 
@@ -39,20 +40,53 @@ Text, content, final step, output, tool collections, response metadata, and resp
 
 ## Provider registration gap
 
-The provider may return a `ReadableStream` after the caller signal fires but before that stream is registered with the stitchable owner. Cancelling the empty stitchable owner cannot reach this stream later, so the candidate checks the signal and directly cancels the returned provider stream.
-
-Current code awaits that direct cancellation. `ReadableStream.cancel()` is provider-controlled through its underlying source and can reject or remain pending. Awaiting it leaves the internal setup task and captured state retained after public result settlement. The selected repair is a handled cancellation request:
+The provider may return a `ReadableStream` after the caller signal fires but before that stream is registered with the stitchable owner. Cancelling the empty stitchable owner cannot reach this stream later, so the candidate checks the signal and directly cancels the returned model-call stream:
 
 ```ts
-void languageModelStream.cancel(getAbortReason()).catch(() => {});
-return;
+if (abortSignal?.aborted) {
+  cleanupStepTimeouts();
+  await languageModelStream.cancel(getAbortReason());
+  return;
+}
 ```
 
-The exact implementation should keep timeout cleanup before the request and should add target-native controls for rejection and indefinite pending.
+The packet originally treated this `await` as provider cleanup authority. Exact modeling corrected that premise.
+
+## Cancellation promise layers
+
+At source head `92079da650430d8376a7eeef2436910b44393411`, `streamLanguageModelCall()` creates:
+
+```ts
+const standardizedStream = providerStream.pipeThrough(normalizationTransform);
+return createAsyncIterableStream(standardizedStream);
+```
+
+`createAsyncIterableStream()` adds a fresh identity `TransformStream`. A dependency-free Node `v22.17.0` probe reproduced this exact stack.
+
+When the provider source's `cancel()` returned a never-settling promise:
+
+- cancellation reached the provider with the exact reason;
+- the outer returned stream's `cancel()` promise resolved within the bound;
+- provider cleanup remained pending.
+
+When provider `cancel()` rejected:
+
+- the outer cancellation promise resolved;
+- an `unhandledRejection` listener observed zero events.
+
+Therefore the pre-registration `await` joins the request-level outer-stream cancellation promise. It does not join provider-controlled cleanup completion at this exact source revision.
+
+Receipt: `receipts/2026-08-01-provider-cancel-promise-model.md`.
+
+## Discarded wrapper direction
+
+A proposed wrapper around `streamLanguageModelCall()` attempted to detach explicit-abort cancellation while preserving awaited ordinary cancellation. The model showed ordinary cancellation already settles before provider cleanup through the existing pipe layers. The wrapper introduced an extra reader and lifecycle boundary without creating the claimed distinction.
+
+The branch was reset to the clean source head. PR #12 retains the correction in its discussion and now contains one target-native regression file only.
 
 ## Callback boundary
 
-`notify()` catches individual callback failures. Detaching it is appropriate because observability follows terminal selection. A pending or rejecting callback must never hold public settlement, outward closure, or provider cancellation.
+`notify()` catches individual callback failures. Detaching it is appropriate because observability follows terminal selection. A pending or rejecting callback cannot hold public settlement, outward closure, or the provider cancellation request.
 
 ## Tool boundary
 
@@ -69,4 +103,4 @@ The contribution preserves the difference between:
 
 ## Strongest current conclusion
 
-The terminal-ordering direction is supported by exact prior target execution. The current-main branch is source-materialized but still requires one concrete cancellation repair and current-head execution before promotion.
+The terminal-ordering direction is supported by exact prior target execution. The clean current-main production candidate has no newly demonstrated hostile-cancellation defect. The remaining gate is target-native execution of the cancellation-promise regression on exact head `7ae1794889d9dd22eeef9faf4f33d01330c0918d`, followed by ordinary CI on the resulting canonical source head.
