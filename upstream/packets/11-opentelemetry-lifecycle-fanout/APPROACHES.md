@@ -1,91 +1,73 @@
 # Approaches — Unit 11: snapshot lifecycle targets before concurrent fanout
 
-## Decision
+## Selected boundary
 
-The repaired contribution uses the smallest mechanism required by each package:
+Use the smallest mechanism required at each fanout site:
 
-- trace: opening snapshot plus synchronous safe-call;
-- logs: opening snapshot plus synchronous safe-call;
-- metrics: opening snapshot only.
+- `MultiSpanProcessor`: opening snapshot plus eager synchronous safe-call;
+- `TracerProvider.forceFlush`: opening snapshot plus synchronous-throw normalization inside the existing per-processor timeout wrapper;
+- `MultiLogRecordProcessor`: opening snapshot plus eager synchronous safe-call;
+- `MeterProvider`: opening snapshot only, because `MetricCollector` lifecycle methods are already async.
 
-All three retain eager `Promise.all` fanout, existing outward failure behavior, and mutation visibility for future operations.
+All paths retain eager invocation, existing outward error behavior, first-rejection semantics, and collection mutation for future operations.
 
-## Why the packages differ
+## Why trace has two force-flush sites
 
-`SpanProcessor.shutdown()` / `forceFlush()` and `LogRecordProcessor.shutdown()` / `forceFlush()` are interface calls made directly by their aggregate. A conforming object can still throw before returning its declared promise. Without a local safe-call, that throw interrupts promise-list construction and later opening processors are never invoked.
+Public `TracerProvider.forceFlush()` does not delegate to `MultiSpanProcessor.forceFlush()`. It reaches into the aggregate's processor array and creates one timeout-controlled promise per processor. Therefore repairing only `MultiSpanProcessor` leaves the public provider path vulnerable to live-array removal.
 
-`MeterProvider` calls `MetricCollector.shutdown()` and `MetricCollector.forceFlush()`, not readers directly. Both collector methods are `async`; they call and await the reader internally. A synchronous reader throw therefore becomes a rejected collector promise before control returns to `MeterProvider`, and array mapping continues. Metrics needs a stable opening list against mutation, but no additional safe-call wrapper.
+Its `new Promise` executor already converts a direct processor throw into rejection, but the timeout is armed before invocation and was not cleared on that synchronous path. The repaired provider catches the throw explicitly, clears the timer, and resolves the per-processor result with the error so the existing outer rejection shape is preserved.
 
-## Selected implementation
+## Package-specific rationale
 
-### Trace
+### Trace aggregate
 
-- copy `_spanProcessors` with `.slice()`;
-- retain the existing promise array, outer `new Promise`, and `globalErrorHandler` structure;
-- wrap each direct processor lifecycle invocation in `callLifecycle()`.
+- copy `_spanProcessors` before the first call;
+- use local try/catch so later opening processors are invoked after a direct throw;
+- preserve the original outer promise and global-error-handler scaffolding.
 
-This avoids the earlier unnecessary refactor to `Promise.all(...).then(success, failure)` and removes a compatibility review question.
+### Trace provider
+
+- copy the same processor list before mapping;
+- keep the existing timeout and aggregate result model;
+- catch synchronous invocation/then attachment failures, clear the timeout, and return the error through the existing result list.
 
 ### Logs
 
-- copy the public `processors` array with `.slice()`;
-- invoke each direct processor through `callLifecycle()`;
-- keep `callWithTimeout()` and the existing timeout/default behavior.
+- copy the public processor array;
+- protect direct processor calls;
+- retain `callWithTimeout()` placement and default timeout.
 
 ### Metrics
 
-- copy `sharedState.metricCollectors` with `.slice()`;
-- map directly to the existing async collector lifecycle methods;
-- keep only mutation reversing tests.
-
-## Evidence-changing repairs
-
-1. Safe-call-only generation `80e3b74b...` passed gates but failed review because live-array removal could skip a later child.
-2. Snapshot generation `e19247b...` had test-fixture TS2322 failures from callbacks inferred as `() => never`; explicit `() => void` typing repaired the fixture.
-3. Clean generation `641528c...` passed all gates, but complete review found the metrics safe-call and its regression claim redundant.
-4. Repaired source removed metrics helper churn and metrics throw regressions.
-5. Deeper review found the trace test restored `loggingErrorHandler` rather than `loggingErrorHandler()`; repaired head restores the actual default handler.
-6. Deeper baseline comparison restored the original trace outer promise/error-handler scaffolding.
+- copy `metricCollectors`;
+- call async collector methods directly;
+- retain only mutation reversing tests.
 
 ## Rejected alternatives
 
-### Safe-call over live arrays
+- Safe-call over live arrays: still permits removal-based skipping.
+- Metrics safe-call: duplicates the collector async boundary and overstates the defect.
+- Microtask deferral: changes eager start ordering.
+- Permanent freezing/copying: changes future membership behavior.
+- Sequential awaiting: changes concurrency and latency.
+- Settle-all aggregation: changes error timing and types.
+- Repairing only `MultiSpanProcessor`: misses public `TracerProvider.forceFlush()`.
 
-It protects against direct throws but not removal of a later indexed child during iteration.
+## Decision history
 
-### Safe-call in metrics
+1. Safe-call-only head `80e3b74b...` passed gates but failed review on live mutation.
+2. Snapshot fixture `e19247b...` had test-only TS2322 inference failures.
+3. Clean head `641528c...` passed all named workflows.
+4. Review `4834242586` narrowed metrics to snapshot-only.
+5. Deeper review restored trace aggregate scaffolding and fixed `loggingErrorHandler()` test cleanup.
+6. End-to-end review found the separate provider force-flush fanout and timeout leak.
+7. Final source was collapsed to one commit directly on current public main.
 
-It duplicates the async boundary already supplied by `MetricCollector` and falsely suggests a baseline defect.
-
-### Promise microtask deferral
-
-`Promise.resolve().then(callback)` would catch throws but defer child invocation, changing current eager synchronous start order. The local try/catch helper preserves eager invocation.
-
-### Permanent copies or freezing
-
-They would change future membership semantics, especially for the public logs processor array.
-
-### Sequential awaiting
-
-It would serialize lifecycle work and change latency and ordering.
-
-### Settle-all aggregation
-
-It would change caller-visible error timing/types and trace force-flush policy. This unit retains first-rejection `Promise.all` behavior.
-
-### Shared cross-package helper
-
-It would introduce package-boundary and ownership questions for only two direct-call sites. Local helpers keep the patch bounded.
-
-## Current exact state
+## Exact current state
 
 - public base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- repaired source head: `1b7609141e87ad226e64bb0238ef602e76812896`;
-- compare relation: ahead 10, behind 0, six changed files;
-- exact repaired-head workflow set: queued under runs `30693695533` through `30693695562`;
-- independent repaired-head acceptance: pending;
+- clean source head: `59f83f889bed06a951d458556b2e7e1695cbea10`;
+- relation: ahead 1, behind 0;
+- boundary: four production files and four test files;
+- exact-head workflow set: queued under runs `30694080910` through `30694080955`;
 - public upstream contact: unauthorized and not performed.
-
-## Reopening triggers
-
-Reopen the design only if maintainers require live mutation to affect an operation already in progress, request settle-all semantics, identify an equivalent current fix, or request a shared helper after reviewing the narrow patch.
