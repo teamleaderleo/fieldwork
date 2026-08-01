@@ -1,117 +1,91 @@
 # Approaches — Unit 11: snapshot lifecycle targets before concurrent fanout
 
-## In simple words
+## Decision
 
-The selected direction combines two narrow mechanisms: take a shallow copy of the opening child list, then convert synchronous child throws into rejected promises while constructing an eager `Promise.all` fanout. Safe-call alone loses children when live arrays mutate. Permanent copies or frozen arrays change future membership. Sequential awaiting changes latency and ordering. Settle-all aggregation widens the contract.
+The repaired contribution uses the smallest mechanism required by each package:
 
-## Decision criteria
+- trace: opening snapshot plus synchronous safe-call;
+- logs: opening snapshot plus synchronous safe-call;
+- metrics: opening snapshot only.
 
-1. attempt every child present when the lifecycle operation starts;
-2. preserve trace, logs, and metrics outward failure behavior;
-3. keep future membership mutable;
-4. retain eager concurrent fanout and a six-file review boundary;
-5. use standard runtime behavior with bounded allocation.
+All three retain eager `Promise.all` fanout, existing outward failure behavior, and mutation visibility for future operations.
 
-## Selected approach
+## Why the packages differ
 
-### Opening snapshot plus synchronous safe-call
+`SpanProcessor.shutdown()` / `forceFlush()` and `LogRecordProcessor.shutdown()` / `forceFlush()` are interface calls made directly by their aggregate. A conforming object can still throw before returning its declared promise. Without a local safe-call, that throw interrupts promise-list construction and later opening processors are never invoked.
 
-- Design: `.slice()` the child collection before invocation and map the snapshot through `callLifecycle()`.
-- Owning boundary: the three aggregate lifecycle implementations.
-- Evidence: predecessor exact-head full gate pass, mutation and synchronous-throw tests, accepted complete-diff review `4824609621`, and clean current-base compare.
-- Advantages: deterministic current membership, every opening invocation attempted, unchanged public API and future mutation semantics.
-- Costs and risks: one shallow array allocation per lifecycle call; three local helper copies; asynchronous errors remain first-rejection only.
-- Remaining controls: clean-head workflow completion, changelog packaging, and exact clean-head independent review.
+`MeterProvider` calls `MetricCollector.shutdown()` and `MetricCollector.forceFlush()`, not readers directly. Both collector methods are `async`; they call and await the reader internally. A synchronous reader throw therefore becomes a rejected collector promise before control returns to `MeterProvider`, and array mapping continues. Metrics needs a stable opening list against mutation, but no additional safe-call wrapper.
 
-## Viable alternatives
+## Selected implementation
 
-### Shared internal lifecycle helper
+### Trace
 
-- Design: extract snapshot, safe invocation, and `Promise.all` behavior into a shared utility.
-- Why it remains plausible: avoids three local copies of `callLifecycle()`.
-- What it would improve: central naming and future consistency.
-- What it would widen or complicate: cross-package dependency placement, exported/internal utility policy, broader review surface, and package-specific trace error handling.
-- Exact discriminator: maintainer preference for shared utility ownership after reviewing the narrow direct patch.
-- Reopening trigger: requested deduplication or another package needing the identical primitive.
+- copy `_spanProcessors` with `.slice()`;
+- retain the existing promise array, outer `new Promise`, and `globalErrorHandler` structure;
+- wrap each direct processor lifecycle invocation in `callLifecycle()`.
 
-### Settle-all with error aggregation
+This avoids the earlier unnecessary refactor to `Promise.all(...).then(success, failure)` and removes a compatibility review question.
 
-- Design: invoke every child and wait for every settlement, then return an aggregate error.
-- Why it remains plausible: exposes every child failure and makes completion mean all child promises settled.
-- What it would improve: diagnostic completeness and cleanup completion semantics.
-- What it would widen or complicate: caller-visible error types, timing, trace force-flush policy, compatibility, and test matrix.
-- Exact discriminator: an explicit project contract requiring all settlements or all errors.
-- Reopening trigger: maintainer direction or concrete loss from first-rejection behavior.
+### Logs
 
-## Executed losing approaches
+- copy the public `processors` array with `.slice()`;
+- invoke each direct processor through `callLifecycle()`;
+- keep `callWithTimeout()` and the existing timeout/default behavior.
 
-### Synchronous safe-call over live arrays
+### Metrics
 
-- Exact branch, patch, or commit: owned PR #6 predecessor before snapshot repair; executed head `80e3b74baf42300aeab92792ce5ca4dd44c37d95`.
-- What ran: Unit, Lint, E2E, CodeQL, Bundler, W3C, peer-dependency, and workflow security.
-- Result: passed, then complete review found live indexed mutation could skip a later child.
-- Why it lost: “attempt every child” remained false when a first child removed a later indexed entry.
-- Useful evidence retained: synchronous-throw conversion and package error-policy controls.
+- copy `sharedState.metricCollectors` with `.slice()`;
+- map directly to the existing async collector lifecycle methods;
+- keep only mutation reversing tests.
 
-### First snapshot test generation with inferred `never` callbacks
+## Evidence-changing repairs
 
-- Exact branch, patch, or commit: `e19247b801817abaf8c9fff5a39d00783d8c38e6`.
-- What ran: hosted repository workflows.
-- Result: peer dependency, CodeQL, and workflow security passed; compile-bearing gates failed on TS2322 in metrics test scaffolding.
-- Why it lost: mutation callbacks initialized only by `throw` inferred as `() => never`.
-- Useful evidence retained: exact setup-failure classification and proof that product lint completed before test compilation failed.
+1. Safe-call-only generation `80e3b74b...` passed gates but failed review because live-array removal could skip a later child.
+2. Snapshot generation `e19247b...` had test-fixture TS2322 failures from callbacks inferred as `() => never`; explicit `() => void` typing repaired the fixture.
+3. Clean generation `641528c...` passed all gates, but complete review found the metrics safe-call and its regression claim redundant.
+4. Repaired source removed metrics helper churn and metrics throw regressions.
+5. Deeper review found the trace test restored `loggingErrorHandler` rather than `loggingErrorHandler()`; repaired head restores the actual default handler.
+6. Deeper baseline comparison restored the original trace outer promise/error-handler scaffolding.
 
-## Rejected easy answers
+## Rejected alternatives
 
-### Keep direct live iteration
+### Safe-call over live arrays
 
-- Temptation: smallest source diff.
-- Why it is incomplete or unsafe: synchronous throw stops promise-list construction and live mutation can erase opening work.
-- Negative control or source fact: the focused first-child throw and remove-second controls.
+It protects against direct throws but not removal of a later indexed child during iteration.
 
-### Freeze or permanently copy processor arrays
+### Safe-call in metrics
 
-- Temptation: eliminate mutation races globally.
-- Why it is incomplete or unsafe: changes public logs-array behavior and future-operation membership.
-- Negative control or source fact: tests assert the original backing arrays remain mutated after the current operation.
+It duplicates the async boundary already supplied by `MetricCollector` and falsely suggests a baseline defect.
 
-### Sequentially await each child
+### Promise microtask deferral
 
-- Temptation: straightforward try/catch and deterministic completion.
-- Why it is incomplete or unsafe: changes established eager concurrency and increases latency by summing child durations.
-- Negative control or source fact: current implementations build promise inputs eagerly and use `Promise.all`.
+`Promise.resolve().then(callback)` would catch throws but defer child invocation, changing current eager synchronous start order. The local try/catch helper preserves eager invocation.
 
-### Catch only around `Promise.all`
+### Permanent copies or freezing
 
-- Temptation: one outer error handler.
-- Why it is incomplete or unsafe: the synchronous throw occurs while the promise array is still being constructed, before `Promise.all` receives it.
-- Negative control or source fact: direct child invocation is evaluated during map/loop construction.
+They would change future membership semantics, especially for the public logs processor array.
 
-## Prior upstream approaches
+### Sequential awaiting
 
-| Link | Approach | Status | Relationship to this unit |
-| --- | --- | --- | --- |
-| [PR #802](https://github.com/open-telemetry/opentelemetry-js/pull/802) | introduced span-processor force-flush fanout | merged historical work | establishes lifecycle fanout history; no stable-opening or sync-throw repair |
-| [PR #1296](https://github.com/open-telemetry/opentelemetry-js/pull/1296) | exporter force-flush and shutdown callbacks | historical | adjacent lifecycle API work, independent mechanism |
-| [Issue #4611](https://github.com/open-telemetry/opentelemetry-js/issues/4611) | graceful shutdown failure from a gRPC exporter | closed/historical symptom report | different exporter defect despite a stack through `MultiSpanProcessor` |
-| [Issue #4922](https://github.com/open-telemetry/opentelemetry-js/issues/4922) | tracing suppression after batch flush | open/historical symptom report | different context/suppression behavior |
+It would serialize lifecycle work and change latency and ordering.
 
-Searches on 2026-08-01 for `snapshot lifecycle processors`, `MultiSpanProcessor shutdown`, and synchronous lifecycle fanout found no equivalent current implementation or proposal.
+### Settle-all aggregation
 
-## Deferred adjacent work
+It would change caller-visible error timing/types and trace force-flush policy. This unit retains first-rejection `Promise.all` behavior.
 
-- one-shot provider and reader shutdown — changes state and compatibility;
-- reader-owned final metrics collection — changes teardown authority;
-- delayed lifecycle recursion — changes promise provenance and reentry handling;
-- trace delivery after shutdown starts — changes span admission/delivery policy;
-- process-global disposal — changes ownership of global registrations;
-- settle-all error aggregation — changes caller-visible failure behavior.
+### Shared cross-package helper
 
-## Decision history
+It would introduce package-boundary and ownership questions for only two direct-call sites. Local helpers keep the patch bounded.
 
-| Date | Exact inputs | Decision | Reason | Reopening trigger |
-| --- | --- | --- | --- | --- |
-| 2026-07-30 | predecessor `80e3b74b...` plus complete review | repair | safe-call over live arrays could skip a removed later child | stable-opening controls |
-| 2026-07-31 | snapshot generation `e19247b...` | repair test scaffolding | metrics mutation callback inferred as `never` | explicit `() => void` types |
-| 2026-07-31 | exact head `db7a0b3...`, full gates, review `4824609621` | accept technical direction | six-file product/test diff met the invariant | current-base restack |
-| 2026-08-01 | public base `2c931bf...`, clean head `641528c...` | hold for final gates | direct clean restack exists; exact-head matrix and clean-head review remain | all required gates pass and review accepts |
+## Current exact state
+
+- public base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- repaired source head: `1b7609141e87ad226e64bb0238ef602e76812896`;
+- compare relation: ahead 10, behind 0, six changed files;
+- exact repaired-head workflow set: queued under runs `30693695533` through `30693695562`;
+- independent repaired-head acceptance: pending;
+- public upstream contact: unauthorized and not performed.
+
+## Reopening triggers
+
+Reopen the design only if maintainers require live mutation to affect an operation already in progress, request settle-all semantics, identify an equivalent current fix, or request a shared helper after reviewing the narrow patch.
