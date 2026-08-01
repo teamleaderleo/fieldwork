@@ -1,75 +1,75 @@
-# Review — Unit 11: snapshot lifecycle targets before concurrent fanout
+# Review — Unit 11: stabilize lifecycle fanout targets
 
 ## Subject
 
 - target: `open-telemetry/opentelemetry-js`;
 - base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- exact source head: `59f83f889bed06a951d458556b2e7e1695cbea10`;
-- branch: `upstream/unit-11-lifecycle-fanout`;
-- relation: one commit ahead, zero behind;
-- boundary: four production files and four tests;
+- exact source head: `a1e604526ea87fc22a91f6b2fe84b02f528e9f88`;
+- branch: `upstream/unit-11-lifecycle-fanout-v2`;
+- validation carrier: owned draft PR #19;
+- relation: six commits ahead, zero behind;
+- boundary: three production files and three tests;
 - public upstream authority: none.
 
 ## Disposition
 
-`HOLD — complete repair applied; final validation pending`
+`HOLD — complete successor repair applied; exact-head validation pending`
 
-The prior metrics `REPAIR` is resolved. The deeper pass also found and repaired a second trace fanout in public `TracerProvider.forceFlush()`. No further product issue was found in the exact eight-file self-review. This is not independent final acceptance.
+The metrics overclaim is removed, and the separate public `TracerProvider.forceFlush()` path is included. This self-review finds no additional product defect in the successor six-file diff. It is not independent final acceptance.
 
 ## Complete-diff findings
 
 ### `MultiSpanProcessor`
 
-Accepted: opening snapshots, eager safe-call, original aggregate promise/error structure retained, throw/removal tests present.
+Accepted: opening snapshots, eager safe-call, original aggregate promise/error structure retained, and throw/removal tests present.
 
-### `TracerProvider.forceFlush`
+### `TracerProvider.forceFlush()`
 
 Accepted repaired direction:
 
-- provider bypasses `MultiSpanProcessor.forceFlush()` and therefore needs its own opening snapshot;
-- per-processor timeout is still armed before invocation;
-- synchronous invocation/then attachment failures are caught explicitly;
-- caught failure clears the timeout and enters the existing per-processor result list;
-- existing outer error-array rejection shape remains;
-- focused tests assert later invocation, stable opening membership, exact one-error shape, and no timer leak.
+- public provider bypasses aggregate force flush and needs its own opening snapshot;
+- per-processor timeout remains armed before invocation;
+- eager safe-call converts a direct throw into a rejected processor result;
+- the existing catch clears the timeout and records the error;
+- existing outer error-array rejection remains;
+- tests assert later invocation, opening membership, exact one-error shape, and zero timer leak.
 
 ### Logs
 
-Accepted: public mutable processor array is snapshotted; direct calls are protected; timeout behavior remains.
+Accepted: the retained public processor array is snapshotted, direct calls are protected, and timeout behavior remains.
 
 ### Metrics
 
-Accepted: collector list is snapshotted; async collector methods are called directly; redundant helper and non-reversing throw tests are absent.
+Accepted exclusion: no supported post-construction collector mutation path was found; the prior tests used private-state casts; async collector methods already normalize reader throws.
 
 ### Test isolation
 
-Accepted: trace aggregate test restores `loggingErrorHandler()` correctly.
+Accepted: aggregate trace cleanup restores `loggingErrorHandler()`.
 
 ## Source cleanliness
 
-- [x] one commit directly on current public main;
-- [x] eight target-native source/test files only;
-- [x] no workflows, publishers, lock/dependency files, generated output, or research vocabulary;
-- [x] package-specific claims match actual async boundaries;
-- [x] public provider trace force flush is included;
-- [x] public main remained identical to the base during repair;
-- [x] open duplicate/overlap searches found no replacement work;
-- [ ] final exact-head workflow matrix complete;
+- [x] direct child of current public main;
+- [x] six target-native source/test files only;
+- [x] no metrics, workflows, publishers, lock/dependency files, generated output, or research vocabulary;
+- [x] public provider trace force flush included;
+- [x] public main and duplicate searches refreshed during repair;
+- [ ] exact successor workflow matrix complete;
+- [ ] contents-API commits squashed;
 - [ ] eligible independent reviewer accepts exact head;
 - [ ] required changelog entries added with real public PR number.
 
 ## Exact-head workflows
 
-Queued on `59f83f889bed06a951d458556b2e7e1695cbea10`:
+Triggered on `a1e604526ea87fc22a91f6b2fe84b02f528e9f88`:
 
-- Unit `30694080939`;
-- E2E `30694080935`;
-- Lint `30694080925`;
-- Bundler `30694080933`;
-- W3C `30694080910`;
-- API peer dependency `30694080929`;
-- CodeQL `30694080926`;
-- Zizmor `30694080955`.
+- Unit `30694086716`;
+- CodeQL `30694086713`;
+- W3C `30694086725`;
+- Zizmor `30694086726`;
+- API peer dependency `30694086723`;
+- Bundler `30694086727`;
+- E2E `30694086733`;
+- Lint `30694086746`.
 
 Prior green heads are historical only.
 
@@ -77,29 +77,29 @@ Prior green heads are historical only.
 
 - API/types unchanged;
 - eager fanout retained;
-- trace aggregate shutdown rejection and force-flush report/resolve behavior retained;
-- trace provider error-array rejection retained;
-- logs and metrics rejection retained;
-- provider timeout behavior changes only by clearing a timer that no longer owns useful work after synchronous failure;
-- future mutation remains visible;
-- first-rejection/first-result policies remain.
+- aggregate trace shutdown rejection and force-flush report/resolve behavior retained;
+- provider error-array rejection retained;
+- logs rejection and timeout behavior retained;
+- provider timeout changes only by clearing a timer after synchronous failure;
+- future mutation remains visible.
 
 ## Independent reviewer guide
 
-1. Verify the provider try/catch preserves the existing result-array contract and clears only its own timeout.
+1. Verify provider safe-call preserves the current result-array contract and clears only its own timeout.
 2. Verify provider and aggregate snapshots are both necessary because their force-flush paths are distinct.
 3. Verify logs timeout wrapping is unchanged.
-4. Verify metrics remains snapshot-only.
-5. Verify all eight tests reverse a real source mechanism or protect compatibility/isolation.
+4. Verify metrics exclusion is justified by supported reachability.
+5. Verify all ten focused assertions reverse a source mechanism or protect compatibility/isolation.
 
 ## Remaining blockers
 
-1. final-head workflows are queued;
+1. successor workflows must settle;
 2. independent exact-head acceptance is pending;
-3. two changelog entries need the real upstream PR number;
-4. current-main/duplicate/policy checks must be repeated immediately before filing;
-5. public upstream contact remains unauthorized.
+3. six source commits should be squashed;
+4. two changelog entries need the real upstream PR number;
+5. current-main, duplicate, and policy checks must be repeated immediately before filing;
+6. public upstream contact remains unauthorized.
 
 ## Reviewer eligibility
 
-Technical self-review only. It can find and require repair but cannot serve as independent final acceptance.
+Technical self-review only. It can require repair and record evidence but cannot serve as independent final acceptance.
