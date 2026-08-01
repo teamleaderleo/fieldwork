@@ -27,17 +27,17 @@ The unknown-flag diagnostic recorded in #516481 is benign by itself; the missing
 ## Things done
 
 - Built on platform:
-  - [ ] x86_64-linux — current exact-head run pending
+  - [ ] x86_64-linux — exact-head job pending
   - [ ] aarch64-linux
   - [ ] x86_64-darwin
-  - [ ] aarch64-darwin — current exact-head run pending
+  - [x] aarch64-darwin
 - Tested, as applicable:
   - [ ] Package build with selected command checks enabled on x86_64-linux.
-  - [ ] Package build with selected command checks enabled on aarch64-darwin.
+  - [x] Package build with selected command checks enabled on aarch64-darwin.
   - [ ] Installed `gomarkdoc --help` path on x86_64-linux.
-  - [ ] Installed `gomarkdoc --help` path on aarch64-darwin.
+  - [x] Installed `gomarkdoc --help` path on aarch64-darwin.
   - [ ] `gomarkdoc.tests.version` prints `1.1.0` on x86_64-linux.
-  - [ ] `gomarkdoc.tests.version` prints `1.1.0` on aarch64-darwin.
+  - [x] `gomarkdoc.tests.version` prints `1.1.0` on aarch64-darwin.
 - [ ] Ran `nixpkgs-review rev HEAD --no-shell` on x86_64-linux.
 - Nixpkgs Release Notes:
   - [x] No release-note entry; package version and interface are unchanged.
@@ -57,15 +57,15 @@ $ nixpkgs-review rev HEAD --no-shell
 
 ## Draft synchronization notes
 
-The checkboxes remain empty until exact-head run `30690828310` is terminal and its receipts are transferred. Prior Linux and Darwin execution passed the same command-package setup on an older base.
+The aarch64-darwin checkboxes reflect exact-head job `91345125710` from run `30690828310`. Linux remains pending. The Darwin job verified source identity, the one-file fence, command-package check output, installed help, and version `1.1.0`.
 
-A separate full-discovery experiment is intentionally excluded from the public draft. It reached root, command, and formatter tests but failed two `lang` exact-text assertions on both platforms because modern Go standard-library comments use bracketed documentation links. This PR neither skips nor rewrites those library-package tests; it restores the checks selected by the package's existing command build boundary.
+A separate full-discovery experiment is intentionally excluded from the proposed public body. It reached root, command, and formatter tests but failed two `lang` exact-text assertions on both platforms because modern Go standard-library comments use bracketed documentation links. This PR neither skips nor rewrites those library-package tests; it restores the checks selected by the package's existing command build boundary.
 
 The final authorized submission must:
 
 1. rebase or regenerate the one-file commit on a fresh current `master`;
 2. rerun every exact-head gate;
-3. fill checkboxes from the final receipts;
+3. fill Linux checkboxes from the final receipts;
 4. recheck current contribution and disclosure requirements;
 5. preserve `Closes #516481` only if the issue still owns this regression.
 
@@ -75,13 +75,20 @@ The final authorized submission must:
 - Head: `569c0c4d11e5a14f3fe6237c0a50dc484f80e744`
 - Branch: `teamleaderleo/nixpkgs:fieldwork/unit-22-gomarkdoc-checks`
 - Changed file: `pkgs/by-name/go/gomarkdoc/package.nix`
+- Refreshed public head: `63c4c8011115076be7a315edd8f740fd751b168a`
+- Public-head distance: 384 commits from the candidate base
+- Relevant overlap in the checked advance: none
 
 ## Current execution identity
 
 - Fieldwork carrier PR: `#437`
 - Carrier head: `c95da0c4b3f460df9bc8f342e98d05345da66df8`
 - Target run: `30690828310`
-- Integrity run: `30690828341`
+- Darwin job: `91345125710` — success
+- Darwin artifact: `8815619734`
+- Darwin artifact digest: `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`
+- Linux job: `91345125742` — queued at latest check
+- Carrier integrity run: `30690828341`
 - Packet disposition: `HOLD`
 
 ## Public interaction status
