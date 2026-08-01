@@ -10,9 +10,9 @@
 - Complete source fence: `pkgs/by-name/go/gomarkdoc/package.nix`
 - Source relation: one commit above the exact base
 - Packet branch: `p0/435-unit-22-nixpkgs-gomarkdoc-checks`
-- Execution carrier: Fieldwork PR #437, head `c95da0c4b3f460df9bc8f342e98d05345da66df8`
-- Command-check run: `30690828310`
-- Carrier integrity run: `30690828341`
+- Packet-anchored carrier: Fieldwork PR #437, packet base `527021b7ff1535e8be4f27dc3ba7226b559a1630`, head `178e6388bf06b965970dd3ab7435db9e756a13e4`
+- Linux run: `30691551270`
+- Integrity run: `30691551312`
 - Upstream-contact authority: `absent`
 
 ## Complete-diff result
@@ -45,11 +45,11 @@ The candidate premise remains current. The 384-commit distance makes a fresh-hea
 | Claim | Evidence class | Evidence | Limit |
 | --- | --- | --- | --- |
 | The v1.1.0 command tests need the omitted empty fixture | `source-read`, `target-executed` | issue #516481, command test, Darwin job `91345125710` | release-specific |
-| Go 1.25 is compatible with the selected command golden | `target-executed` | current Darwin job and older Linux/Darwin runs | current Linux pending |
+| Go 1.25 is compatible with the selected command golden | `target-executed` | current Darwin job and older Linux/Darwin runs | packet-anchored Linux pending |
 | Removing `-mod=vendor` isolates application parsing from a Nix build flag | `source-read`, `target-executed` | `defaultTags()`, current Darwin job | diagnostic alone is not proven fatal |
 | Broad selector reset reaches all package families | `target-executed` | run `30674969557` on Linux/Darwin | superseded experiment |
 | Broad suite passes on Go 1.25 | disproved | same run | two deterministic `lang` failures |
-| Retaining `subPackages` restores checks for the built command without widening output | `source-read`, Darwin `target-executed`, Linux `target-test-prepared` | source diff and run `30690828310` | Linux pending |
+| Retaining `subPackages` restores checks for the built command without widening output | `source-read`, Darwin `target-executed`, Linux `target-test-prepared` | source diff, Darwin receipt, Linux run `30691551270` | Linux pending |
 | Source is one clean commit and one file | `source-read` | exact compare | current base requires refresh |
 
 ## Negative control review
@@ -65,7 +65,7 @@ The source fence and Nix setup succeeded. This is a target compatibility result.
 
 Detailed receipt: [`receipts/2026-08-01-full-discovery-failure.md`](./receipts/2026-08-01-full-discovery-failure.md).
 
-## Current exact-head review
+## Exact-head Darwin review
 
 Darwin job `91345125710` succeeded on macOS 14.8.7 arm64 with Nix 2.35.1 and Go 1.25.12.
 
@@ -79,7 +79,18 @@ Established:
 - version passthru `1.1.0`;
 - artifact `8815619734`, digest `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`.
 
-Linux job `91345125742`, including `nixpkgs-review`, and carrier-integrity job `91345125771` remain queued. Receipt: [`receipts/2026-08-01-command-checks.md`](./receipts/2026-08-01-command-checks.md).
+## Packet-anchored remaining review
+
+The execution carrier was rebuilt as one commit on packet base `527021b7ff1535e8be4f27dc3ba7226b559a1630`.
+
+- Carrier head: `178e6388bf06b965970dd3ab7435db9e756a13e4`
+- Changed file: `.github/workflows/unit-22-gomarkdoc-checks.yml`
+- Linux run: `30691551270`, job `91347062784` — queued
+- Integrity run: `30691551312`, job `91347062807` — queued
+
+The Linux gate verifies carrier parent, exact source/parent, one-file source fence, selected command result, exactly one package, installed help, version `1.1.0`, Linux `nixpkgs-review`, and artifacts. Integrity validates packet content through `527021b7...` plus the one-file carrier. Later packet commits reconcile receipts and status.
+
+Detailed receipt: [`receipts/2026-08-01-command-checks.md`](./receipts/2026-08-01-command-checks.md).
 
 ## Known risks
 
@@ -87,7 +98,7 @@ Linux job `91345125742`, including `nixpkgs-review`, and carrier-integrity job `
 - The empty fixture is generated in the disposable source tree.
 - `GOFLAGS` token removal is semantically clean but broader than the publicly observed missing-fixture blocker.
 - Selected checks cover the built command package, not every upstream library package.
-- Exact-head Linux and final packet-tip integrity remain pending.
+- Packet-anchored Linux and integrity are queued.
 - The candidate base is 384 public commits behind the refreshed head.
 - Independent acceptance and public authority remain absent.
 
@@ -110,8 +121,9 @@ Linux job `91345125742`, including `nixpkgs-review`, and carrier-integrity job `
 - [x] The selected candidate keeps the package-selected command boundary.
 - [x] Current exact-head Darwin command-package build/check passed.
 - [x] Current Darwin installed-help and version receipts are retained.
-- [ ] Current Linux build/check/help/version/`nixpkgs-review` receipt is retained.
-- [ ] Final packet-tip Fieldwork integrity receipt is retained.
+- [x] Clean carrier is anchored to packet base `527021b7...` with one workflow file.
+- [ ] Packet-anchored Linux build/check/help/version/`nixpkgs-review` receipt is retained.
+- [ ] Packet-anchored Fieldwork integrity receipt is retained.
 - [ ] Execution carrier is closed after transfer.
 
 ## Draft review
@@ -121,7 +133,7 @@ Linux job `91345125742`, including `nixpkgs-review`, and carrier-integrity job `
 - [x] Draft avoids claiming the benign `GOFLAGS` diagnostic alone caused the failure.
 - [x] Draft states the selected-package coverage boundary.
 - [x] Internal Fieldwork process is excluded from the proposed upstream body.
-- [x] Darwin checkbox may be synchronized from the exact-head receipt.
+- [x] Darwin checkbox is synchronized from the exact-head receipt.
 - [ ] Linux checkboxes await terminal evidence.
 - [ ] Submission-time template and disclosure requirements require a fresh check.
 
@@ -130,8 +142,8 @@ Linux job `91345125742`, including `nixpkgs-review`, and carrier-integrity job `
 `HOLD`
 
 Reviewed source head: `569c0c4d11e5a14f3fe6237c0a50dc484f80e744`  
-Reason: the clean source and negative control are coherent, and exact-head Darwin passed; Linux, final packet integrity, carrier closure, independent review, and fresh-head execution remain incomplete.  
-Clearing condition for packet execution: transfer terminal Linux and final-integrity receipts, close PR #437, then obtain independent complete-diff review. Rebase and rerun on a fresh public head before any authorized submission.  
+Reason: the clean source, negative control, exact-head Darwin receipt, and packet-anchored carrier are coherent; Linux, integrity, carrier closure, independent review, and fresh-head execution remain incomplete.  
+Clearing condition for packet execution: transfer terminal runs `30691551270` and `30691551312`, close PR #437, then obtain independent complete-diff review. Rebase and rerun on a fresh public head before any authorized submission.  
 Reviewer eligibility: `self-review only`
 
 ## Human inspection guide
@@ -147,11 +159,10 @@ Focus on:
 
 ## Continuation
 
-1. Inspect Linux job `91345125742` and carrier-integrity job `91345125771`.
+1. Inspect Linux job `91347062784` and integrity job `91347062807`.
 2. Transfer exact job, platform, assertion, artifact, digest, and skipped-step results.
-3. Trigger and retain a final packet-tip integrity generation.
-4. Repair only from a concrete terminal failure.
-5. Close execution PR #437 after transfer.
-6. Obtain independent review.
-7. Rebase onto a fresh public Nixpkgs head and rerun before authorized submission.
-8. Keep public upstream read-only until explicit authority is granted.
+3. Repair only from a concrete terminal failure.
+4. Close execution PR #437 after transfer.
+5. Obtain independent review.
+6. Rebase onto a fresh public Nixpkgs head and rerun before authorized submission.
+7. Keep public upstream read-only until explicit authority is granted.
