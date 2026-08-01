@@ -1,145 +1,124 @@
-# Unit 08 — fix(async): shield shared shutdown from caller cancellation
+# Unit 08 — fix(async): share shutdown completion across callers
 
 ## In simple words
 
-Playwright Python uses one async context manager behind both `async with async_playwright()` and `playwright.stop()`. The old manager sets a one-way exit flag before awaiting cleanup. If that caller is cancelled, cleanup can continue without a joinable owner while later callers return through the flag and observe incomplete connection shutdown.
+Playwright Python uses the same async context manager for `async with async_playwright()` and `playwright.stop()`. The upstream implementation marks shutdown as started before awaiting cleanup. If that caller is cancelled, the marker remains set while cleanup is incomplete, so later callers return instead of joining shutdown.
 
-The repaired candidate gives shutdown one shared task. Caller cancellation still reaches that caller, but the cleanup task remains alive and joinable. Concurrent and later callers receive the same terminal success or failure. If every current waiter leaves before the task fails, the manager reports that unobserved failure once through the event loop and still preserves it for a later caller.
+The repaired source stores the shutdown operation itself. The first caller creates one authoritative task; concurrent and later callers join it. Cancelling a caller does not cancel cleanup. Success and failure remain stable for every caller. If all current waiters leave before cleanup fails, one deferred event-loop report preserves observability while the same failure remains available to a later caller.
 
 ## Current disposition
 
-`REPAIR`
+`ACCEPT` for human review.
 
-The source defect and test defect found during this continuation are repaired. The canonical branch is clean. Promotion remains blocked by the absence of a current-head hosted execution receipt and independent human review.
+The complete pre-review pass is finished. The exact clean source passed repository pre-commit, wheel builds, and all 33 focused cases on Python 3.10, 3.12, and 3.14. The remaining decisions belong to the human reviewer and to explicit authorization before any public upstream interaction.
 
 Last verified: `2026-08-01`  
-Worker: `OpenAI`  
 Priority-zero parent: [`teamleaderleo/fieldwork#435`](https://github.com/teamleaderleo/fieldwork/issues/435)  
 Owning candidate: [`teamleaderleo/fieldwork#149`](https://github.com/teamleaderleo/fieldwork/issues/149)  
-Upstream contact authorized: `no`
+Public upstream contact authorized: `no`
 
 ## Exact identities
 
-- Target project: `microsoft/playwright-python`
-- Public upstream base: [`3b7c24c3e67dc84f7b0eddd0c5fd2ca685705021`](https://github.com/microsoft/playwright-python/commit/3b7c24c3e67dc84f7b0eddd0c5fd2ca685705021)
-- Original candidate base: [`9a10128e0ffc7c7429da3779283a2400c2707575`](https://github.com/microsoft/playwright-python/commit/9a10128e0ffc7c7429da3779283a2400c2707575)
-- Selected historical repair: [`teamleaderleo/playwright-python#6`](https://github.com/teamleaderleo/playwright-python/pull/6), head `beb025b6ee98e4b15b80335039f5d0afec5a7efd`
+- Target: `microsoft/playwright-python`
+- Current public upstream `main` / exact base: [`3b7c24c3e67dc84f7b0eddd0c5fd2ca685705021`](https://github.com/microsoft/playwright-python/commit/3b7c24c3e67dc84f7b0eddd0c5fd2ca685705021)
+- Original candidate base: `9a10128e0ffc7c7429da3779283a2400c2707575`
 - Canonical source PR: [`teamleaderleo/playwright-python#8`](https://github.com/teamleaderleo/playwright-python/pull/8)
 - Canonical source branch: `upstream/08-playwright-python-shared-shutdown`
-- Canonical clean source head: [`1ac8797ab4dc85fd91a38d526c3912a72a8fba23`](https://github.com/teamleaderleo/playwright-python/commit/1ac8797ab4dc85fd91a38d526c3912a72a8fba23)
-- Exact comparison base branch: `upstream/base-3b7c24c`
-- Clean compare: 5 commits, exactly 3 files, 467 additions, 6 deletions
-- Fieldwork packet branch: `p0/435-unit-08-playwright-python-shared-shutdown`
-- Fieldwork packet head: see latest handoff and PR #442
-- Preserved exact-gate branch: `upstream/08-playwright-python-exact-gate-0b34782a`
-- Preserved exact-gate commit: `0b34782a2c2dd4f708ef542e2eb80e71a1d249b3`
-- Execution-only carrier PRs #9, #10, #11, #12, and #13: closed
+- Clean source head: [`4cfc6a9e3e3a5c6dcab04015a1210ce6924d4c27`](https://github.com/teamleaderleo/playwright-python/commit/4cfc6a9e3e3a5c6dcab04015a1210ce6924d4c27)
+- Exact compare: 7 commits, exactly 3 files, 469 additions, 6 deletions
+- Final execution carrier: closed PR [`#15`](https://github.com/teamleaderleo/playwright-python/pull/15), head `79d799ab4cd1948c56144322080898da17ec1e33`
+- Final workflow/job: `30692313951` / `91349092242`
+- Packet branch: `p0/435-unit-08-playwright-python-shared-shutdown`
+- Packet PR: [`teamleaderleo/fieldwork#442`](https://github.com/teamleaderleo/fieldwork/pull/442)
 - Public upstream interaction: none
 
-## Repairs completed after the first handoff
+## Clean changed-file fence
 
-1. Runs `30674333313` and `30674333365` were re-read. Their logs checked out closed base-drift PR #7, not canonical PR #8, so they are not clean-head evidence.
-2. Their lint output exposed one real candidate issue: an unused `# type: ignore[method-assign]` in `test_async_stop_exit_contract.py`. Commit `33cbc587830d2083d43dcdf67339696634c24936` removes it.
-3. Commit `1ac8797ab4dc85fd91a38d526c3912a72a8fba23` strengthens the loop-report control by asserting that context key `task` identifies the authoritative shared stop task.
-4. Docker was removed as a false blocker. The target workflow is path-filtered to its workflow file, `setup.py`, and Dockerfiles; none is changed by unit 08.
-5. The complete state machine and exact compare were re-read. No additional production correction was found.
-6. Temporary workflow commits were removed from the canonical branch. PR #8 is restored to the clean three-file head.
+| Path | Role |
+| --- | --- |
+| `playwright/async_api/_context_manager.py` | production shutdown ownership and failure observation |
+| `tests/async/test_async_stop_cancellation.py` | six direct cancellation, concurrency, idempotence, and shared-failure controls |
+| `tests/async/test_async_stop_exit_contract.py` | five context-manager, precedence, timing, and observability controls |
 
-## Current code and tests
+No workflow, generated API, dependency, packaging, Docker, or configuration file exists on the canonical source branch.
 
-### Product code
+## Final mechanism
 
-- [`playwright/async_api/_context_manager.py`](https://github.com/teamleaderleo/playwright-python/blob/1ac8797ab4dc85fd91a38d526c3912a72a8fba23/playwright/async_api/_context_manager.py) — one shielded shared task, waiter accounting, stable failure retention, and one deferred loop report.
+- `_stop_task` is assigned synchronously before the first suspension.
+- callers join the task through `asyncio.wait({stop_task})`, then await the completed task to receive its exact outcome;
+- cancellation of the waiter removes only the wait callback and does not cancel `stop_task`;
+- `_stop_waiters` tracks active observers;
+- the task done callback stores a failure;
+- zero waiters plus an unobserved failure schedules one `call_soon` report;
+- a late waiter cancels a pending report and receives the same failure;
+- a later caller after reporting still receives that same task failure;
+- pending, observed, and reported flags prevent silence and duplicate reports.
 
-### Target-native tests
+## Repairs found during pre-review
 
-- [`tests/async/test_async_stop_cancellation.py`](https://github.com/teamleaderleo/playwright-python/blob/1ac8797ab4dc85fd91a38d526c3912a72a8fba23/tests/async/test_async_stop_cancellation.py) — six direct stop cancellation, concurrency, idempotence, and failure controls.
-- [`tests/async/test_async_stop_exit_contract.py`](https://github.com/teamleaderleo/playwright-python/blob/1ac8797ab4dc85fd91a38d526c3912a72a8fba23/tests/async/test_async_stop_exit_contract.py) — five context-manager, precedence, pre-timeslice cancellation, abandoned-failure, and loop-context identity controls.
+1. **Base-drift evidence correction.** Runs `30674333313` and `30674333365` checked out closed PR #7, not canonical PR #8. They are not clean-head evidence. Docker is also not path-applicable to this three-file change.
+2. **Exact method typing.** Run `30691401327`, job `91346660311`, reached pre-commit and exposed an incorrect restoration assignment in the observability test. Commit `b0509982c7cb7ef9cfeaa6a65225ec6e64a28b92` preserves the bound method's inferred coroutine type and restores the narrow `method-assign` suppression required by repository mypy.
+3. **Python 3.14 duplicate reporting.** Run `30692014938`, job `91348287797`, passed pre-commit and all cases on Python 3.10/3.12, but Python 3.14 emitted its own `exception in shielded future` context in addition to Playwright's intentional report. Exactly three observability controls failed, one per browser parameter.
+4. **Final runtime-compatible join.** Commit `4cfc6a9e3e3a5c6dcab04015a1210ce6924d4c27` replaces `asyncio.shield` with `asyncio.wait` followed by an ordinary await of the completed task. This preserves cancellation-safe ownership without Python 3.14's automatic shield logger.
+5. **Misleading title corrected.** The internal source PR and upstream draft now say “share shutdown completion” rather than “shield shared shutdown.”
 
-## Changed-file fence
+## Exact final execution
 
-| Path | Role | Keep upstream? |
-| --- | --- | --- |
-| `playwright/async_api/_context_manager.py` | production | yes |
-| `tests/async/test_async_stop_cancellation.py` | regression | yes |
-| `tests/async/test_async_stop_exit_contract.py` | regression | yes |
+Workflow `30692313951`, job `91349092242`, Ubuntu 24.04 ARM:
 
-No generated file, dependency file, or workflow exists on the canonical source head.
+| Gate | Result |
+| --- | --- |
+| exact public-base checkout | passed |
+| editable install | passed |
+| wheel build, Python 3.10.20 | passed |
+| full repository pre-commit | passed |
+| focused controls, Python 3.10 | `33 passed, 2 warnings in 10.10s` |
+| wheel build, Python 3.12.13 | passed |
+| focused controls, Python 3.12 | `33 passed, 2 warnings in 10.09s` |
+| wheel build, Python 3.14.6 | passed |
+| focused controls, Python 3.14 | `33 passed, 2 warnings in 10.08s` |
+| reruns | disabled |
+| tracked diff hygiene | passed |
 
-## Evidence summary
+The pre-commit gate included Black, mypy, flake8, isort, pyright, YAML/TOML/requirements validation, AST and merge-conflict checks, and license checks. The warnings are unrelated pyOpenSSL deprecations.
 
-| Claim | Evidence class | Exact receipt | Limit |
-| --- | --- | --- | --- |
-| Cancellation poisons retry through `_exit_was_called` | target-executed | run `30492906544`, jobs `90714870057` and `90714870025` | Ubuntu, Python 3.10/3.14, no browser launch |
-| Shared-task baseline loses only abandoned-failure reporting | target-executed | run `30595155697`, job `91045840683`: 30 passed, 3 intended failures | focused Python 3.12 Ubuntu |
-| Selected reporting policy passes all retained controls | target-executed | run `30595174700`, job `91045896030`: 33 passed, 2 warnings; Black and diff hygiene passed | historical selected head, Python 3.12 Ubuntu |
-| Six direct candidate tests also passed on Windows 3.12/3.14 | target-executed partial suite | jobs `90729623317`, `90729623318` | broader jobs later timed out in unrelated existing test |
-| Clean candidate applies to current upstream with only three files | source-read | compare `3b7c24c...1ac8797`, PR #8 | exact current-head hosted gate did not receive a runner |
-| Clean source can build/run repository examples | target-executed partial gate | run `30690680740`, Examples job `91344746297` passed | remaining unrelated full matrix intentionally cancelled |
-| Manual loop context carries message, exception, and authoritative task | source-read plus historical execution | current exact assertions; historical run covered message/exception | new task-identity assertion lacks a current-head runner receipt |
+## Evidence lineage
 
-## Hosted-runner attempts
+| Claim | Exact evidence |
+| --- | --- |
+| original boolean loses joinable cleanup after cancellation | run `30492906544`, jobs `90714870057` and `90714870025`, intended assertion fails on Python 3.10 and 3.14 |
+| shared task fixes ownership but silent retention loses abandoned failure | run `30595155697`, job `91045840683`, 30 passed / 3 intended failures |
+| first explicit reporting repair passes focused Python 3.12 controls | run `30595174700`, job `91045896030`, 33 passed / 2 warnings; Black and diff hygiene passed |
+| first clean typing review finds exact test defect | run `30691401327`, job `91346660311` |
+| `asyncio.shield` duplicates reporting on Python 3.14 | run `30692014938`, job `91348287797`; 3.10/3.12 green, exactly three 3.14 failures |
+| final `asyncio.wait` design passes supported versions | run `30692313951`, job `91349092242`; 99 focused cases total, full pre-commit and wheel builds green |
 
-A sequential exact-head gate was prepared to run:
+## Broader review findings kept outside unit 08
 
-1. Python 3.10 wheel build, full repository pre-commit, and all 11 lifecycle tests;
-2. Python 3.12 wheel build and all 11 tests;
-3. Python 3.14 wheel build and all 11 tests;
-4. reruns disabled and tracked diff hygiene.
+These are follow-on leads, not extra changes in PR #8:
 
-GitHub never allocated a runner to the sequential jobs across Ubuntu 24.04, Ubuntu 22.04, `ubuntu-latest`, or Ubuntu 24.04 ARM. The relevant runs/jobs remained queued and never entered setup:
+- [`microsoft/playwright-python#3132`](https://github.com/microsoft/playwright-python/issues/3132): failed async startup can leave the internal `Connection.init` task exception unretrieved. It has a real-driver reproduction and deserves a separate ownership-focused unit.
+- Python `PipeTransport.run()` awaits process communication without an explicit shutdown bound. Java's `PlaywrightImpl.close()` waits at most 30 seconds for the driver process; public Python issue [`#2633`](https://github.com/microsoft/playwright-python/issues/2633) is adjacent historical process-termination evidence. A dedicated deterministic reproduction is required before proposing a Python timeout.
+- Playwright Node's out-of-process wrapper keeps one shared close promise, and .NET funnels disposal through one connection object. Both support the single-terminal-completion model without requiring protocol changes.
 
-- `30691032136` / `91345676497` — cancelled by a superseding carrier;
-- `30691125773` / `91345932225` — cancelled by a superseding carrier;
-- `30691290371` / `91346367232` — cancelled by a superseding carrier;
-- `30691401327` / `91346660311` — never executed;
-- `30691438464` / `91346756903` — never executed.
-
-No queued or cancelled job is represented as a test pass or product failure. The exact gate remains preserved on branch `upstream/08-playwright-python-exact-gate-0b34782a`.
-
-## Review result
-
-Complete worker review found the following invariants coherent:
-
-- the authoritative task is assigned before suspension;
-- `asyncio.shield()` prevents one waiter from cancelling cleanup;
-- waiter accounting preserves observation and late joining;
-- one deferred report prevents silent abandoned failure;
-- pending/report flags prevent duplicate reports;
-- every later caller receives the same original terminal result;
-- context-manager body error/cancellation waits for cleanup and preserves intended precedence.
-
-No further production correction is requested by this review. Independent human review is still required.
-
-## Duplicate and prior-art result
-
-- Search date: `2026-08-01`
-- No matching public upstream open issue, pull request, or equivalent shared `_stop_task` patch was found.
-- Public issue [`microsoft/playwright-python#2581`](https://github.com/microsoft/playwright-python/issues/2581) is adjacent cancellation/cleanup prior art involving `InvalidStateError`, but uses a different mechanism.
-- Relationship: independent repair of a distinct shutdown-owner defect.
+No public issue, pull request, comment, or review was created for these leads.
 
 ## Packet navigation
 
 - [Deep dive](./DEEP_DIVE.md)
-- [Approaches](./APPROACHES.md)
+- [Approaches ledger](./APPROACHES.md)
 - [Tests and receipts](./TESTS.md)
 - [Upstream issue draft](./UPSTREAM_ISSUE.md)
 - [Upstream pull-request draft](./UPSTREAM_PR.md)
-- [Review and human inspection guide](./REVIEW.md)
+- [Human inspection guide](./REVIEW.md)
 
-## Remaining blockers
+## Human review boundary
 
-1. Execute the preserved exact-head gate on an available hosted or explicitly authorized runner.
-2. Obtain independent human complete-diff review.
-3. Re-check current public upstream before any authorized filing.
-4. Obtain explicit authority before any public upstream issue, pull request, comment, or review.
+The pre-review recommendation is `ACCEPT`. The human reviewer should decide:
 
-## Latest handoff
+1. whether one deferred event-loop report is the desired abandoned-failure policy;
+2. whether the message `Playwright stop task failed` is appropriately scoped;
+3. whether the clean seven-commit branch should be rebuilt or squashed before any authorized public submission;
+4. whether to open separate work for startup-task ownership and bounded process shutdown.
 
-State: `REPAIR`  
-Exact source head: `1ac8797ab4dc85fd91a38d526c3912a72a8fba23`  
-Exact packet head: see PR #442 and latest #435 handoff  
-Tests: historical selected repair passed 33 focused controls, Black, and diff hygiene; clean source Examples passed; exact current-head sequential jobs never received runners  
-Temporary machinery remaining: preserved carrier branch only; all carrier PRs closed; none on canonical source  
-Next action: run preserved gate, classify exact output, then obtain independent review  
-Public upstream interaction: none
+Explicit authority is still required before any public upstream action.
