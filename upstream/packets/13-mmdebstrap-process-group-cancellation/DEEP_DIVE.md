@@ -8,14 +8,15 @@
 
 - upstream project: mmdebstrap
 - canonical upstream repository: `https://salsa.debian.org/debian/mmdebstrap.git`
+- canonical selected/default branch: `master`
 - inspected release/tag: `debian/1.5.7-3`
 - resolved source commit: `6fde999741f4fe1e7bf38079acf29432ef87a35e`
 - imported Fieldwork commit: `782774b01002abf37878d834a54d0bbf8b226397`
 - imported `coverage.py` blob: `9a522484aef05deae514a98e4b6adf5feb6c886d`
-- inspected current upstream `main`: `77ec9be5417ee44c96343d2347145585da1b1f94`
+- inspected upstream `master` revision: `77ec9be5417ee44c96343d2347145585da1b1f94`
 - retrieval date: 2026-08-01
 
-The relevant `coverage.py` lifecycle on current upstream main remains byte-equivalent to the imported blob in the inspected mirror: `Popen(argv)`, `proc.terminate()`, `proc.wait()`, then `break`.
+The relevant `coverage.py` lifecycle on the inspected upstream revision remains byte-equivalent to the imported blob: `Popen(argv)`, `proc.terminate()`, `proc.wait()`, then `break`.
 
 Pinned imported source: [coverage.py at `782774b…`](https://github.com/teamleaderleo/linux-fieldwork/blob/782774b01002abf37878d834a54d0bbf8b226397/upstream/mmdebstrap/coverage.py#L412-L423).
 
@@ -89,6 +90,7 @@ The second `proc.wait()` preserves wrapper reaping. It does not prove arbitrary 
 - QEMU topology, refined evidence: [test module at `8253ab2e…`](https://github.com/teamleaderleo/linux-fieldwork/blob/8253ab2ef6fed22b34fc5f5d6d20cda75c25e2c7/tests/test_mmdebstrap_coverage_qemu_process_group.py)
 - sudo topology: [test module at `dfc6d050…`](https://github.com/teamleaderleo/linux-fieldwork/blob/dfc6d0503fb844f4c428ce16a567a9fdcd35280a/tests/test_mmdebstrap_coverage_sudo_process_group.py)
 - canonical investigation: [README at `dfc6d050…`](https://github.com/teamleaderleo/linux-fieldwork/blob/dfc6d0503fb844f4c428ce16a567a9fdcd35280a/investigations/mmdebstrap-coverage-process-group/README.md)
+- packet-time runnable model: [`fixtures/local-process-model/`](./fixtures/local-process-model/)
 
 ## Compatibility
 
@@ -116,10 +118,10 @@ Issue #341 and PR #347 compared TERM resistance, repeated SIGINT, bounded diagno
 
 ## Duplicate and prior-art result
 
-A bounded 2026-08-01 search of the current upstream Gitea/Salsa issue and merge-request surfaces for `SIGINT`, `KeyboardInterrupt`, `killpg`, `process group`, and the `coverage.py` handler found no matching public repair. Current upstream source still contains the imported lifecycle. This is a search result, not a guarantee that private, unindexed, mailing-list, or future work is absent.
+A bounded 2026-08-01 search of the current upstream issue, merge-request, commit, and source surfaces for `SIGINT`, `KeyboardInterrupt`, `killpg`, `process group`, and the `coverage.py` handler found no matching public repair. The inspected upstream source still contains the imported lifecycle. This is a search result, not a guarantee that private, unindexed, mailing-list, or future work is absent.
 
 Internal prior art consists of the status-only repair (#141, #143, #204), the canonical process-group carrier (#306, #313), the QEMU evidence successor (#339), and the deferred escalation comparison (#341, #347, #353).
 
 ## Current technical answer
 
-The bounded mechanism is accepted for group-wide TERM delivery and settlement in the tested responsive topologies. Delivery remains incomplete because the source exists only as a retained patch inside Linux Fieldwork, with no clean target fork branch or current-upstream target-native gate.
+The bounded mechanism is accepted for group-wide TERM delivery and settlement in the tested responsive topologies. Delivery remains incomplete because the source exists only as a retained patch inside Linux Fieldwork, with no clean target fork branch or current-`master` target-native gate.
