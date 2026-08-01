@@ -85,6 +85,46 @@ Original PR #12 CI:
 - Jobs started: zero
 - Classification: execution availability/authorization; no product-test conclusion.
 
+## Adjacent stream lifecycle models
+
+Receipt: `receipts/2026-08-01-adjacent-stream-lifecycle-scout.md`.
+
+Environment: Node `v22.16.0` with native Web Streams.
+
+### Async-iterator source-error cleanup
+
+The model copied the exact `createAsyncIterableStream()` / `asAsyncIterableStream()` control flow and compared it with native async iteration plus a minimal catch-and-release candidate.
+
+Observed:
+
+- current SDK helper propagated `Error('source failed')`;
+- the returned stream remained locked;
+- acquiring another reader failed with `TypeError: Invalid state: ReadableStream is locked`;
+- native iteration propagated the same error and left the stream unlocked;
+- the candidate caught `reader.read()` rejection, called `cleanup(false)`, rethrew the same error, and left the stream unlocked.
+
+Evidence class: `source-read` plus `model-executed`.
+
+Coverage limit: no target-native Node or Edge test has run. The result supports a separate follow-up, not a change to unit 06.
+
+### Stitchable terminate rejection containment
+
+A raw stream whose underlying `cancel()` rejected produced one modeled `unhandledRejection` when its reader cancellation promise was ignored. One or two identity transform layers contained the rejection.
+
+The relevant `streamText` inner streams cross transform layers before stitchable registration. No product-path failure was demonstrated.
+
+Evidence class: `source-read` plus `model-executed`.
+
+Disposition: retained utility-contract hazard and negative result for unit 06.
+
+### Pre-aborted first provider attempt
+
+Source review shows that pre-aborted `streamText` settles outward state while background setup continues and calls `doStream()` with the already-aborted signal. `generateText` follows the same convention on its first provider attempt and guards only later iterations. The provider V4 contract supplies the signal for cancelling the operation.
+
+Evidence class: `source-read`.
+
+Coverage limit: callback and provider invocation counts have no target-native characterization; expected cross-API semantics remain unresolved.
+
 ## Current canonical execution
 
 Exact canonical head: `3035f6e5a3ef6ff9236c8d1b08f4ea3dfe852c15`.
@@ -112,6 +152,8 @@ Owned-fork review PR: `teamleaderleo/ai#13` against current-public-base branch `
 - no normal end/error callback;
 - no later tool result.
 
+The pre-aborted case does not assert counts for `onStart`, `onStepStart`, `onLanguageModelCallStart`, or provider invocation.
+
 ### `stream-text-explicit-abort-races.test.ts`
 
 - pending `onAbort` cannot delay outward closure or provider cancellation;
@@ -127,6 +169,10 @@ Owned-fork review PR: `teamleaderleo/ai#13` against current-public-base branch `
 - pending provider cleanup does not retain the returned cancellation promise;
 - provider cleanup rejection is contained;
 - exact abort reason reaches provider cancellation.
+
+### Shared iterator test blind spot
+
+`async-iterable-stream.test.ts` verifies source-error propagation and collected chunks. It does not assert reader lock release or a second-reader acquisition after the error.
 
 ## Focused commands
 
@@ -151,17 +197,27 @@ pnpm ultracite check \
 git diff --check e84b8bc8154030cdb7469b0e0b8cd8b9354f19a0...3035f6e5a3ef6ff9236c8d1b08f4ea3dfe852c15
 ```
 
+Separate async-iterator follow-up command after a target-native regression exists:
+
+```bash
+pnpm --dir packages/ai test:node -- src/util/async-iterable-stream.test.ts
+pnpm --dir packages/ai test:edge -- src/util/async-iterable-stream.test.ts
+```
+
 ## Remaining execution controls
 
 1. Complete Verify Changesets `30691402294` and ordinary CI `30691402306` on exact canonical head.
 2. Classify any job failure against the intended assertions and repository setup.
 3. Obtain an independent complete-diff disposition on PR #13.
 4. Keep committed external tool side effects outside abort-reversal claims.
+5. Route the async-iterator lock-release finding through a separate target-native characterization.
 
 ## Evidence limits
 
 - The six focused tests exercise target code in Node and Edge at the prior repair diff.
 - The cancellation model proves native Web Streams promise behavior and has a canonical target-native regression, whose jobs remain queued.
+- The adjacent iterator result is a Node model and source review; target-native and Edge execution remain absent.
+- The pre-aborted first-attempt result establishes source ordering, not the intended compatibility contract.
 - Current exact-head repository jobs have produced no product result.
 - A green package run cannot establish rollback of committed external tool effects.
 - Current unit disposition is `HOLD` until exact-head CI and independent acceptance complete.
