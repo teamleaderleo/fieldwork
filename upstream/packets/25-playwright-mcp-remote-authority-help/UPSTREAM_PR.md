@@ -33,7 +33,7 @@ Related to #41915.
 - generated `Playwright MCP --help` semantic checks for all three complete statements
 - `npx eslint packages/playwright-core/src/tools/mcp/program.ts`
 - `npx playwright install --with-deps chromium`
-- `npm run test-mcp tests/mcp/http.spec.ts -- --project=chromium`
+- `npm run test-mcp tests/mcp/http.spec.ts -- --project=chromium` — 17 passed
 
 ## Changed files
 
@@ -43,6 +43,7 @@ Related to #41915.
 
 - Target base prepared from `microsoft/playwright@15b1aec478d90f0293dae7b7b6dafd494d9f0154`.
 - Candidate commit: `745b4dea96ac64eeb1e92d9ce4525b995e64909f`.
+- Exact validation run/job: `30674483330` / `91298776583`.
 - Keep the submitted diff to the one source file above.
 - Exclude the owned-fork execution workflow and all Fieldwork packet files.
 
@@ -54,7 +55,7 @@ Related to #41915.
 - [x] Separates Host validation from authentication.
 - [x] Separates directly executed tab/session behavior from source-backed BrowserContext authority in the retained packet.
 - [x] References the existing relevant upstream issue.
-- [ ] Replace the test list only if the final exact-source receipt differs.
+- [x] Final test list matches the exact-source receipt.
 - [ ] Confirm the public base remains current immediately before submission.
 - [ ] Obtain explicit public-upstream authorization.
 
