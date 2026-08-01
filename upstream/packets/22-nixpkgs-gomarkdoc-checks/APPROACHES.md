@@ -1,32 +1,40 @@
 # Approaches — unit 22 gomarkdoc checks
 
+## In simple words
+
+The selected source keeps the command-only installation target and clears that selector only before standard Go test discovery. It also keeps the previously exercised Go 1.25, fixture, and `GOFLAGS` setup. The major rejected options either leave tests disabled, repeat the one-package false positive, widen the package build, duplicate the Go builder, or turn a one-package repair into a shared-builder change.
+
+One detail remains a legitimate review question: upstream issue #516481 and gomarkdoc source show that `-mod=vendor` produces a benign parser diagnostic. Keeping the token is therefore a viable narrower variant, although the selected candidate removes the build-only flag from the application parser as assigned.
+
 ## Decision
 
-Selected: keep the binary build selector, then clear `subPackages` inside `preCheck` so the standard Nixpkgs Go check phase discovers the full test set.
+Selected: keep `subPackages` for binary installation, then clear it inside `preCheck` so the standard Nixpkgs Go check phase discovers the full test set.
 
 Canonical source: [`94be3956403ebf368b9d8262fdc9e5a5d2e80683`](https://github.com/teamleaderleo/nixpkgs/commit/94be3956403ebf368b9d8262fdc9e5a5d2e80683)
+
+Current disposition: `REPAIR` pending exact-head Linux and Darwin execution.
 
 ## Approach A — leave `doCheck = false`
 
 ### Advantages
 
 - package build remains green;
-- current behavior is already merged and cached;
-- zero execution cost during package builds.
+- current behavior is merged and cached;
+- zero test execution cost during package builds.
 
 ### Problems
 
 - every upstream test remains bypassed;
-- the known incompatibilities stay undocumented by executable package behavior;
-- future toolchain or packaging regressions receive no signal.
+- root, language, formatter, and command regressions receive no package signal;
+- open upstream issue #516481 remains contained rather than repaired.
 
 ### Disposition
 
-Rejected. This is containment, not restoration.
+Rejected. This is the current containment.
 
-## Approach B — retain the old candidate unchanged
+## Approach B — retain the old Fieldwork candidate unchanged
 
-Candidate components:
+Components:
 
 - `buildGo125Module`;
 - `doCheck = true`;
@@ -42,7 +50,7 @@ Candidate components:
 
 ### Problems
 
-`subPackages = [ "cmd/gomarkdoc" ]` also narrowed check discovery. The root, `lang`, and format packages never ran. The old report's full-suite claim was therefore incorrect.
+`subPackages = [ "cmd/gomarkdoc" ]` also narrowed check discovery. The root, `lang`, and format packages never ran. The old report's full-suite claim was incorrect.
 
 ### Disposition
 
@@ -52,14 +60,14 @@ Superseded as a final candidate. Retained as partial execution evidence and comp
 
 ### Advantages
 
-- generic build and test discovery would cover all Go packages;
+- generic build and test discovery would cover every Go package;
 - no custom phase logic.
 
 ### Problems
 
 - installation would attempt every buildable package instead of the intended command package;
 - output contents and build behavior could expand;
-- it mixes the desired test-set repair with a binary-target change.
+- it mixes test restoration with a binary-target change.
 
 ### Disposition
 
@@ -67,7 +75,7 @@ Rejected. It alters the product build fence.
 
 ## Approach D — replace the whole `checkPhase`
 
-A package-local `checkPhase` could call `go test` over a manually specified package list or `go list ./...`.
+A package-local `checkPhase` could call `go test` over a manual list or `go list ./...`.
 
 ### Advantages
 
@@ -77,7 +85,7 @@ A package-local `checkPhase` could call `go test` over a manually specified pack
 ### Problems
 
 - duplicates Nixpkgs' `buildGoDir` behavior;
-- must carry `checkFlags`, tags, parallelism, vet behavior, Nix debug behavior, and future builder changes;
+- must carry `checkFlags`, tags, parallelism, vet behavior, debug output, and future builder changes;
 - raises long-term maintenance cost for a one-package compatibility fix.
 
 ### Disposition
@@ -90,15 +98,15 @@ The package could remain unchecked while `passthru.tests` builds a separate deri
 
 ### Advantages
 
-- normal package builds stay lightweight;
-- package test can use independent configuration.
+- normal package builds stay lighter;
+- test setup can differ independently.
 
 ### Problems
 
-- regular Hydra package builds still skip upstream tests;
+- ordinary Hydra package builds still skip upstream tests;
 - duplicates source and Go setup;
-- leaves the package's own `doCheck` behavior misleading;
-- larger expression and review surface.
+- leaves the package's `doCheck` behavior misleading;
+- expands the expression and review surface.
 
 ### Disposition
 
@@ -106,12 +114,12 @@ Rejected. Direct package checks are the more accurate restoration.
 
 ## Approach F — change generic `buildGoModule`
 
-The builder could gain separate `checkSubPackages` support or always discover test packages independently.
+The builder could gain `checkSubPackages`, or always discover tests separately from build targets.
 
 ### Advantages
 
-- reusable for other packages with narrower build targets than test targets;
-- declarative package expression.
+- declarative package expression;
+- potentially reusable for other packages with narrow build targets.
 
 ### Problems
 
@@ -122,29 +130,72 @@ The builder could gain separate `checkSubPackages` support or always discover te
 
 ### Disposition
 
-Rejected for this contribution. A future generalized builder enhancement would be a separate unit.
+Rejected for this contribution. A generalized builder enhancement belongs in a separate unit.
 
 ## Approach G — update gomarkdoc beyond 1.1.0
 
-A newer upstream revision might avoid one or more compatibility gaps.
+A newer revision might avoid the fixture or golden behavior.
 
 ### Advantages
 
-- could remove the old golden or fixture behavior;
+- could remove compatibility workarounds;
 - delivers upstream features and fixes.
 
 ### Problems
 
 - no newer tagged release was established by this unit;
 - source and vendor hashes would change;
-- update review would need changelog, dependency, behavior, and compatibility analysis;
+- update review would require changelog, dependency, behavior, and compatibility analysis;
 - test restoration becomes entangled with a version update.
 
 ### Disposition
 
-Rejected for unit 22. The current package version remains 1.1.0 upstream.
+Rejected for unit 22. Nixpkgs still packages 1.1.0.
 
-## Approach H — selected check-time selector reset
+## Approach H — patch or regenerate the documentation golden
+
+### Advantages
+
+- could allow the current default Go builder;
+- avoids a package-specific Go pin.
+
+### Problems
+
+- dynamically regenerating expected output from the candidate erases regression value;
+- carrying a static golden patch requires proving Go 1.26 output is intended for gomarkdoc 1.1.0;
+- expands the source patch beyond package configuration;
+- future Go output changes remain an upgrade question.
+
+### Disposition
+
+Rejected with current evidence. Reopen when a gomarkdoc release or maintainer record establishes the newer golden as intended.
+
+## Approach I — keep `-mod=vendor` during checks
+
+### Basis
+
+Open Nixpkgs issue [#516481](https://github.com/NixOS/nixpkgs/issues/516481) calls the unknown-flag messages benign. gomarkdoc's [`defaultTags()`](https://github.com/princjef/gomarkdoc/blob/v1.1.0/cmd/gomarkdoc/command.go) returns `nil` after a parse error.
+
+A narrower variant could therefore use Go 1.25, synthesize the fixture, clear `subPackages`, and leave `GOFLAGS` unchanged.
+
+### Advantages
+
+- fewer environment mutations;
+- preserves Nixpkgs' explicit `-mod=vendor` token throughout the check phase;
+- targets only the observed fixture/golden blockers plus discovery.
+
+### Problems
+
+- gomarkdoc's application parser still receives a Nix build-system option and emits diagnostics;
+- the assignment explicitly calls for avoiding leaked Nix `GOFLAGS`;
+- the previously successful command-package path used token removal;
+- a comparative exact-head full-suite run has not been prepared.
+
+### Disposition
+
+Viable alternative, not selected. Reopen if a reviewer objects to test-time token removal or the selected matrix reveals vendor-mode uncertainty.
+
+## Approach J — selected check-time selector reset
 
 ```nix
 preCheck = ''
@@ -159,26 +210,27 @@ preCheck = ''
 - `buildPhase` has already used `subPackages` to install only `cmd/gomarkdoc`;
 - `checkPhase` invokes `preCheck` before `getGoDirs test`;
 - the empty array makes `getGoDirs test` discover directories containing tests;
-- the standard builder still controls tags, flags, parallelism, vet behavior, output handling, and offline module mode;
-- the source diff remains one file.
+- the standard builder still controls tags, flags, parallelism, vet behavior, output handling, vendor materialization, and offline module mode;
+- the source diff remains one file;
+- it preserves the assignment's semantic boundary between Nix build flags and gomarkdoc application flags.
 
 ### Risks
 
 1. **Shell representation risk**
    - `subPackages` is converted through Nixpkgs' `concatTo` helper.
-   - execution must prove that `subPackages=()` reaches the fallback discovery path on both tested platforms.
+   - execution must prove that `subPackages=()` reaches fallback discovery on both platforms.
 
 2. **Toolchain pin risk**
    - `buildGo125Module` is a compatibility pin for 1.1.0's golden output.
-   - future Nixpkgs cleanup may require an upstream version update instead.
+   - future cleanup may prefer an upstream version update.
 
 3. **Fixture synthesis risk**
-   - the empty config is generated in the build tree because Git omits empty files.
-   - reviewers should confirm the command test expects an empty file rather than absent configuration.
+   - the empty config is generated in the disposable build tree.
+   - reviewers should confirm that an empty file, rather than absent configuration, is the intended fixture.
 
 4. **`GOFLAGS` mutation risk**
-   - the candidate removes the `-mod=vendor` substring only during tests.
-   - execution must continue to show that dependencies come from the materialized vendor tree with `GOPROXY=off`.
+   - the candidate removes one token only during tests.
+   - old execution supports vendor-backed offline build behavior; repaired exact-head execution remains pending.
 
 ## Selected validation fence
 
@@ -196,4 +248,4 @@ The candidate must show all of the following on x86_64-linux and aarch64-darwin:
 - at least four distinct gomarkdoc package result lines;
 - version passthru output `1.1.0`.
 
-Full Nixpkgs merge-queue and Hydra confidence remains a later authorized-upstream gate.
+Full Nixpkgs merge-queue, Hydra, and independent-review confidence remain later gates.
