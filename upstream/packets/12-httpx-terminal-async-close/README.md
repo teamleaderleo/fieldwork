@@ -105,6 +105,7 @@ The retained patch modifies the two production files, updates the elapsed regres
 - [Upstream pull-request draft](./UPSTREAM_PR.md)
 - [Review and human inspection guide](./REVIEW.md)
 - [Original reentrant close model](./receipts/reentrant-close-probe.md)
+- [Exact repair execution receipt](./receipts/repair-execution-2026-08-01.md)
 - [Retained repair patch](./patches/0001-fix-reentrant-close-and-elapsed-sampling.patch)
 
 ## Duplicate and prior-art result
