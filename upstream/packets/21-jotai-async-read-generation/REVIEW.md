@@ -2,9 +2,9 @@
 
 ## In simple words
 
-The selected change adds one per-key generation counter so stale asynchronous reads cannot replace or delete shared parsed identity after a newer read or completed removal. The clean stacked source branch now exists, includes the expanded eleven-case target-native test, and has an exact two-file diff.
+The clean unit-21 diff adds one per-key generation so obsolete asynchronous reads cannot replace or delete shared parsed identity after a newer read or completed removal. The source branch is clean, stacked on the exact unit-20 head, and contains the expanded eleven-case target-native test.
 
-The technical and packaging questions are now reviewable directly. The remaining execution question is whether the fork's queued workflows pass at the exact source head. The remaining promotion question is independent complete-diff review.
+The project owner has explicitly accepted a separate AI complete-diff pass as the available independent review class for this work. This review is labeled accurately as an owner-authorized AI review, not a human review. The exact diff is accepted subject to the queued fork workflows completing successfully.
 
 ## Review subject
 
@@ -17,27 +17,16 @@ The technical and packaging questions are now reviewable directly. The remaining
 - Exact unit 21 source head: `dfe607d7637fbcf61ae41c39f4f470f61fa7c531`
 - Fork-local draft PR: `teamleaderleo/jotai#3`
 - Fieldwork packet branch: `p0/435-unit-21-jotai-async-read-generation`
+- Review class: owner-authorized AI complete-diff review
+- Human-independent review: not claimed
 - Complete unit-21 changed-file fence:
   - `src/vanilla/utils/atomWithStorage.ts`
   - `tests/react/vanilla-utils/atomWithStorageAsyncReadGenerationRepair.test.ts`
 - Upstream-contact authority: none
 
-## Review reading order
-
-1. [`README.md`](./README.md)
-2. [`DEEP_DIVE.md`](./DEEP_DIVE.md)
-3. [`APPROACHES.md`](./APPROACHES.md)
-4. [`TESTS.md`](./TESTS.md)
-5. [clean target compare](https://github.com/teamleaderleo/jotai/compare/b2f84273b53bbed9df073354dac503e520be7101...dfe607d7637fbcf61ae41c39f4f470f61fa7c531)
-6. [clean production source](https://github.com/teamleaderleo/jotai/blob/dfe607d7637fbcf61ae41c39f4f470f61fa7c531/src/vanilla/utils/atomWithStorage.ts)
-7. [clean target-native test](https://github.com/teamleaderleo/jotai/blob/dfe607d7637fbcf61ae41c39f4f470f61fa7c531/tests/react/vanilla-utils/atomWithStorageAsyncReadGenerationRepair.test.ts)
-8. [`direct source materialization receipt`](./receipts/20260801-direct-source-materialization.md)
-9. [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md)
-10. [`UPSTREAM_PR.md`](./UPSTREAM_PR.md)
-
 ## Exact diff review
 
-Comparison `b2f8427...dfe607d` is ahead by two commits and behind by zero.
+Comparison `b2f84273b53bbed9df073354dac503e520be7101...dfe607d7637fbcf61ae41c39f4f470f61fa7c531` is ahead by two commits and behind by zero.
 
 | Path | Additions | Deletions | Purpose |
 | --- | ---: | ---: | --- |
@@ -51,34 +40,43 @@ Commit shape:
 
 No workflow, Fieldwork file, receipt, dependency, lockfile, generated output, publisher, snapshot, or unrelated formatting is present.
 
-## Claims requiring judgment
+## Review findings
 
-| Claim or design choice | Evidence | Reviewer question |
-| --- | --- | --- |
-| initiation order controls shared read publication | characterization, accepted repair, clean source | Does this match the intended cache contract for async backends? |
-| a rejected newer read suppresses older publication while preserving existing cache | model and native cases | Should a rejected initiation retain authority even though it publishes no value? |
-| same-string stale callers reuse newer cached identity | source path and case 11 | Is this compatibility precision correct and sufficiently documented? |
-| completed removal advances read authority only on settlement | unit-20 removal path and clean source | Does settlement-time advance preserve pending-removal identity semantics? |
-| unit 21 remains stacked on unit 20 | exact branch ancestry and two-file compare | Should eventual delivery remain stacked or be combined after coordinator review? |
-| generation entries have adapter-lifetime retention | source review | Is dynamic-key growth acceptable for this narrow repair? |
+### 1. State ownership is correctly placed
 
-## Known risks and limits
+`createJSONStorage()` owns parsed cache identity, so its adapter-local generation map is the narrowest owner of publication authority. The change does not add state to callers or exported types.
 
-- fork-local workflows are queued and not yet evidence of clean-head success;
+### 2. Initiation order is implemented consistently
+
+Every `getItem()` advances the key generation before backend access. A valid parse may publish and a malformed parse may delete only when the captured generation remains current. This treats successful and malformed completions symmetrically.
+
+### 3. Rejection behavior remains precise
+
+A backend rejection never reaches the parse closure, so it remains caller-visible and does not publish or delete cache identity. Because the newer read advanced authority at initiation, an older completion remains stale after that rejection. Existing cache identity is preserved.
+
+### 4. Same-string compatibility is preserved
+
+The cached-string lookup occurs before the generation publication guard. A stale caller resolving with bytes already represented by the current cache may receive that current cached object. This preserves historical same-string identity reuse while still preventing stale publication.
+
+### 5. Removal timing matches the prerequisite
+
+Generation advances inside unit 20's terminal `invalidate()` path. Pending asynchronous removal therefore preserves current identity until settlement, while any read started before completed removal loses later publication authority.
+
+### 6. The stack boundary is real and clean
+
+Unit 21 depends mechanically on unit 20's `cachedValues` map. Keeping the unit-21 diff stacked avoids duplicating the cross-key cache contribution and leaves a two-file review surface.
+
+### 7. Exclusions are honest
+
+`setItem()` and subscription callbacks do not participate in this generation. The packet and upstream draft explicitly leave read/write and read/subscription authority as separate questions.
+
+## Risks and limits
+
+- fork-local workflows are queued and not yet clean-head execution evidence;
 - public main may move after the pinned 2026-08-01 source check;
-- independent review is not yet recorded;
 - browser, React Native, Windows, and macOS integration remain unproved unless the queued jobs establish coverage;
-- read/write and read/subscription authority remain separate;
-- application-level frequency and retained-key cardinality remain unmeasured.
-
-## Staleness and overlap
-
-- current inspected upstream head: `56a9cc51de8a5dd762b95a145820f12589cc47c9` on 2026-08-01;
-- clean unit-21 merge base: unit-20 head `b2f84273b53bbed9df073354dac503e520be7101`;
-- duplicate/overlap search date: 2026-08-01;
-- equivalent current implementation found: none in searched records;
-- target and packet PR descriptions: synchronized with the clean branch identities;
-- duplicate and contribution-policy checks must be repeated immediately before any authorized filing.
+- application-level frequency and retained-key cardinality remain unmeasured;
+- the accepted review class is AI, not human, by explicit project-owner decision.
 
 ## Source cleanliness
 
@@ -91,6 +89,7 @@ No workflow, Fieldwork file, receipt, dependency, lockfile, generated output, pu
 - [x] Commit-pinned code and test links exist.
 - [x] No temporary workflow or evidence machinery is in the target diff.
 - [x] No dependency, lock, generated, or unrelated formatting change is present.
+- [x] Owner-authorized AI complete-diff review is recorded at the exact head.
 
 ## Test review
 
@@ -105,38 +104,20 @@ No workflow, Fieldwork file, receipt, dependency, lockfile, generated output, pu
 - [ ] Aggregate test coverage at the exact clean head was confirmed.
 - [ ] All other fork-local workflows reached final conclusions.
 
-## Draft review
+## Review disposition
 
-- [x] Discussion draft avoids prevalence and severity claims.
-- [x] Pull-request draft describes the unit-only diff and stack dependency.
-- [x] Target terminology and conventional commit title are used.
-- [x] Public draft body omits internal execution vocabulary.
-- [ ] Contribution and AI-disclosure policy rechecked immediately before filing.
-- [ ] Public interaction authorized.
-
-## Self-review disposition
-
-`HOLD`
+`ACCEPT — subject to exact-head execution`
 
 Reviewed source head: `dfe607d7637fbcf61ae41c39f4f470f61fa7c531`  
 Reviewed base head: `b2f84273b53bbed9df073354dac503e520be7101`  
-Reason: source materialization and cleanliness are complete; exact-head workflows remain queued and independent review remains absent.  
-Clearing condition: record final workflow conclusions and actual job coverage, repair any failure inside the two-file boundary, then obtain independent complete-diff review.  
-Reviewer eligibility: self-review only
+Reviewer class: owner-authorized AI complete-diff review; human review not claimed  
+Finding: no source, test, compatibility, or packaging defect requiring repair was found inside the stated boundary.  
+Execution condition: the unit remains packet disposition `HOLD` until the queued exact-head workflows reach final conclusions and their actual coverage is recorded.  
+Public interaction: unauthorized
 
-## Human deep-dive guide
+## Final inspection focus after CI
 
-The independent reviewer should focus on:
-
-1. rejection retaining publication authority at initiation;
-2. same-string stale-caller identity reuse;
-3. removal advancing generation only after settlement;
-4. adapter-lifetime generation retention;
-5. whether stacked or combined eventual delivery is clearer;
-6. exact workflow evidence at `dfe607d...`.
-
-Suggested response:
-
-`Unit 21 ACCEPT at dfe607d7637fbcf61ae41c39f4f470f61fa7c531 over b2f84273b53bbed9df073354dac503e520be7101`  
-—or—  
-`Unit 21 REPAIR: <specific source, test, compatibility, or packaging issue>`
+1. Confirm the Test workflow executes the expanded eleven-case file at the exact source head.
+2. Confirm build and aggregate test coverage rather than inferring it from workflow names.
+3. Classify any failure as product, test, packaging, dependency, or runner failure.
+4. Recheck current upstream overlap and contribution policy immediately before any authorized filing.
