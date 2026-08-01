@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: teamleaderleo/playwright
-          ref: 1d6ec11b5f06df32ce5b4fa0346af7631216e79c
+          ref: 86d32569b47fd9f6e98c11517d1699cea5a2465a
           fetch-depth: 0
           path: playwright
           persist-credentials: false
@@ -43,14 +43,14 @@ jobs:
           cache: npm
           cache-dependency-path: playwright/package-lock.json
 
-      - name: Verify exact identities and two-file fence
+      - name: Verify exact identities and three-file fence
         shell: bash
         run: |
           set -euo pipefail
           carrier="${{ github.event.pull_request.head.sha || github.sha }}"
-          source="1d6ec11b5f06df32ce5b4fa0346af7631216e79c"
+          source="86d32569b47fd9f6e98c11517d1699cea5a2465a"
           base="15b1aec478d90f0293dae7b7b6dafd494d9f0154"
-          expected=$'packages/playwright-core/src/tools/utils/mcp/http.ts\ntests/mcp/fieldwork-stdin-close.spec.ts'
+          expected=$'packages/playwright-core/src/tools/mcp/watchdog.ts\npackages/playwright-core/src/tools/utils/mcp/http.ts\ntests/mcp/fieldwork-stdin-close.spec.ts'
 
           test "$(git -C fieldwork rev-parse HEAD)" = "$carrier"
           test "$(git -C playwright rev-parse HEAD)" = "$source"
@@ -97,6 +97,7 @@ jobs:
         working-directory: playwright
         run: |
           npx eslint \
+            packages/playwright-core/src/tools/mcp/watchdog.ts \
             packages/playwright-core/src/tools/utils/mcp/http.ts \
             tests/mcp/fieldwork-stdin-close.spec.ts
 
@@ -106,8 +107,8 @@ jobs:
         run: |
           set -euo pipefail
           base="15b1aec478d90f0293dae7b7b6dafd494d9f0154"
-          source="1d6ec11b5f06df32ce5b4fa0346af7631216e79c"
-          expected=$'packages/playwright-core/src/tools/utils/mcp/http.ts\ntests/mcp/fieldwork-stdin-close.spec.ts'
+          source="86d32569b47fd9f6e98c11517d1699cea5a2465a"
+          expected=$'packages/playwright-core/src/tools/mcp/watchdog.ts\npackages/playwright-core/src/tools/utils/mcp/http.ts\ntests/mcp/fieldwork-stdin-close.spec.ts'
           test -z "$(git status --short)"
           git diff --check "$base" "$source"
           test "$(git diff --name-only "$base" "$source")" = "$expected"
