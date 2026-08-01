@@ -1,0 +1,110 @@
+name: Unit 22 gomarkdoc Go 1.27 forecast
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/unit-22-gomarkdoc-go127-forecast.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  forecast:
+    name: aarch64-darwin Go 1.27 RC forecast
+    runs-on: macos-14
+    steps:
+      - name: Check out exact forecast carrier
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: p0/435-unit-22-go127-forecast
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Verify carrier fence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "e1f68f48203e7f2ecbb55a745172eb32051305d1"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/unit-22-gomarkdoc-go127-forecast.yml"
+          git diff --check HEAD^ HEAD
+
+      - name: Check out exact current-base candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: teamleaderleo/nixpkgs
+          ref: e8d97d5d8c67a9473a7aaad3961c0630583aa34b
+          path: .target/nixpkgs
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Prepare Go 1.27 RC variant
+        shell: bash
+        run: |
+          set -euo pipefail
+          rel=pkgs/by-name/go/gomarkdoc/package.nix
+          test "$(git -C .target/nixpkgs rev-parse HEAD)" = "e8d97d5d8c67a9473a7aaad3961c0630583aa34b"
+          test "$(git -C .target/nixpkgs rev-parse HEAD^)" = "97d48ba11e7eeb6896e9da8d64b22b306da14103"
+          test "$(git -C .target/nixpkgs diff --name-only HEAD^ HEAD)" = "$rel"
+          git -C .target/nixpkgs diff --check HEAD^ HEAD
+
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.target/nixpkgs/pkgs/by-name/go/gomarkdoc/package.nix')
+          text = path.read_text()
+          text = text.replace('  buildGoModule,\n', '  buildGo127Module,\n')
+          text = text.replace('buildGoModule (finalAttrs: {', 'buildGo127Module (finalAttrs: {')
+          path.write_text(text)
+          PY
+
+          git -C .target/nixpkgs diff -- "$rel" | tee go127-forecast-source-diff.patch
+          grep -F 'buildGo127Module' "$PWD/.target/nixpkgs/$rel"
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342
+        with:
+          extra_nix_config: |
+            sandbox = true
+
+      - name: Execute Go 1.27 RC forecast
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          nix-build .target/nixpkgs -A gomarkdoc --no-out-link \
+            2>&1 | tee gomarkdoc-go127-forecast.log
+
+          result="$(tail -n 1 gomarkdoc-go127-forecast.log)"
+          test -x "$result/bin/gomarkdoc"
+          grep -F 'Running phase: checkPhase' gomarkdoc-go127-forecast.log
+          grep -E 'ok[[:space:]]+github\.com/princjef/gomarkdoc/cmd/gomarkdoc([[:space:]]|$)' gomarkdoc-go127-forecast.log
+          grep -E '^(ok|\?)[[:space:]]+github\.com/princjef/gomarkdoc' gomarkdoc-go127-forecast.log \
+            | sort -u | tee gomarkdoc-go127-packages.txt
+          test "$(wc -l < gomarkdoc-go127-packages.txt)" -eq 1
+
+          status=0
+          "$result/bin/gomarkdoc" --help > gomarkdoc-go127-help.log 2>&1 || status=$?
+          test "$status" -eq 0 -o "$status" -eq 2
+          grep -Ei 'usage|generate markdown documentation' gomarkdoc-go127-help.log
+
+      - name: Build Go 1.27 RC version passthru
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          nix-build .target/nixpkgs -A gomarkdoc.tests.version --no-out-link \
+            2>&1 | tee gomarkdoc-go127-version.log
+          grep -F '1.1.0' gomarkdoc-go127-version.log
+
+      - name: Upload forecast receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: unit-22-gomarkdoc-go127-forecast
+          path: |
+            go127-forecast-source-diff.patch
+            gomarkdoc-go127-forecast.log
+            gomarkdoc-go127-packages.txt
+            gomarkdoc-go127-help.log
+            gomarkdoc-go127-version.log
+          if-no-files-found: warn
+          retention-days: 30
