@@ -1,0 +1,22 @@
+{
+  "actualFieldworkCheckout": "1e7909da440ab631fcea11d4d3777d2bce107277",
+  "actualTargetCheckout": "b55d832d6e3ae0156e32d21ea3863e231dfff9cd",
+  "credentialsUsed": false,
+  "eventSha": "6f6a93e27b1a77ab707189bcb19fcd41292f5b91",
+  "evidenceClass": "target-executed-local-mocked",
+  "expectedFieldworkHead": "1e7909da440ab631fcea11d4d3777d2bce107277",
+  "expectedTargetHead": "b55d832d6e3ae0156e32d21ea3863e231dfff9cd",
+  "fieldworkCheckoutClassification": "exact-head",
+  "hostedProviderCall": false,
+  "patchSha256": "d30874c96f8e39350b9d725c58a6034554c561b073cb04969849ff2778c09e88",
+  "runAttempt": "1",
+  "runId": "30642924979",
+  "schemaVersion": 2,
+  "selectedApi": {
+    "python": "request_cancel() -> frozen shared receipt; cancel() -> None",
+    "typescript": "requestCancel() -> immutable shared receipt; cancel() -> void"
+  },
+  "targetCheckoutMatches": true,
+  "targetRepository": "upstash/box",
+  "technicalGateStatus": "success"
+}
