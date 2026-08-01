@@ -2,78 +2,63 @@
 
 ## Governing invariant
 
-Every supported lifecycle fanout attempts each processor present when the operation begins, preserves its existing outward failure contract, and releases operation-owned timers after synchronous failure.
+Every supported lifecycle fanout attempts each processor present when the operation begins, preserves its outward failure contract, and releases operation-owned timers after synchronous failure.
 
 ## Exact subject
 
-- upstream base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- canonical candidate: `a1e604526ea87fc22a91f6b2fe84b02f528e9f88`;
+- base/current public main: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- exact candidate: `f4910b355d12895edf25372444f76d4def08901c`;
 - source branch: `upstream/unit-11-lifecycle-fanout-v2`;
 - validation carrier: owned draft PR #19;
-- changed-file fence: three production files and three target-native tests.
+- relation: one commit ahead, zero behind;
+- boundary: three production files and three target-native tests.
 
 ## Call-chain analysis
 
 ### `MultiSpanProcessor`
 
-It retains the constructor processor array and directly invokes processor lifecycle methods while constructing promise inputs. A processor can throw before returning its declared promise, stopping later calls. It can also remove a later processor from the retained live array.
+It retains the constructor processor array and directly invokes lifecycle methods while constructing promise inputs. A synchronous throw can stop later calls; an earlier processor can also remove a later processor from the live array.
 
-Repair: snapshot the opening array and use an eager local try/catch helper. The original shutdown rejection and force-flush global-error-handler/resolve structure remains.
+Repair: shallow-copy the opening array and use an eager try/catch helper. The existing shutdown rejection and force-flush global-error-handler/resolve structure remains.
 
 ### Public `TracerProvider.forceFlush()`
 
-The public provider does not delegate to `MultiSpanProcessor.forceFlush()`. It directly reads `_activeSpanProcessor['_spanProcessors']` and creates one timeout-controlled promise per processor.
+The provider bypasses `MultiSpanProcessor.forceFlush()`. It directly maps `_activeSpanProcessor['_spanProcessors']` and creates one timeout-controlled promise per processor.
 
 Two baseline mechanisms matter:
 
-1. live-array mapping permits an earlier processor to remove a later opening processor;
-2. the timeout is armed before invocation. A synchronous throw rejects the Promise executor, bypasses the processor-result catch, and leaves that timeout armed until expiry.
+1. live mapping permits removal of a later opening processor;
+2. a timeout is armed before invocation. A synchronous throw rejects the Promise executor, bypasses the processor-result catch, and leaves the timeout active until expiry.
 
-Repair:
-
-- snapshot the opening processor list;
-- invoke through an eager safe-call;
-- retain the existing timeout and aggregate error-array model;
-- let the existing per-processor catch clear the timeout and record the error.
+Repair: snapshot the opening list and normalize direct throws to rejected promises. The existing per-processor catch then clears the timeout and records the error, preserving the outer error-array rejection.
 
 ### `MultiLogRecordProcessor`
 
-`LoggerProvider` delegates lifecycle operations to this aggregate. Its configured processor array is retained and publicly exposed. Direct throws and live removal are both reachable.
+`LoggerProvider` delegates lifecycle work to this aggregate, which retains a publicly exposed processor array. Direct throws and live removal are reachable.
 
-Repair: snapshot the array, use eager safe-call, and preserve `callWithTimeout()` placement and timeout options.
+Repair: snapshot the array, use eager safe-call, and retain `callWithTimeout()` placement and options.
 
 ### Metrics exclusion
 
-Metrics was removed after deeper source review:
-
-- `MeterProvider` constructs an internal collector list and does not retain the caller's readers array;
-- no supported post-construction collector-removal path was found;
-- `MetricCollector.shutdown()` and `forceFlush()` are async, so reader synchronous throws already become rejections;
-- predecessor mutation tests reached private provider state through casts.
-
-That evidence supports excluding metrics rather than upstreaming speculative private-state hardening.
-
-## Eager helper rationale
-
-A direct try/catch preserves synchronous start order. Deferring through `Promise.resolve().then(...)` would alter invocation timing.
+Metrics was removed because `MeterProvider` owns its collector list internally, no supported post-construction removal path was found, collector lifecycle methods are already async, and predecessor mutation tests reached private state through casts.
 
 ## Reversing controls
 
-- aggregate trace shutdown and force flush: direct throw and live removal;
-- public provider force flush: live removal, direct throw, later invocation, existing one-error array shape, and zero remaining fake timers;
-- logs shutdown and force flush: direct throw and live removal.
+- aggregate trace shutdown/force flush: direct throw and live removal;
+- provider force flush: direct throw, later invocation, one-error array shape, zero fake-clock timers, and live removal;
+- logs shutdown/force flush: direct throw and live removal.
 
-Mutation tests assert that the backing array remains changed, distinguishing stable current membership from permanent freezing.
+Mutation tests verify that the backing array remains changed, distinguishing stable current membership from permanent freezing.
 
 ## Compatibility
 
-- API and exported types unchanged;
+- API/types unchanged;
 - eager concurrency retained;
 - aggregate trace force flush still reports globally and resolves;
-- provider force flush retains its array-shaped rejection;
+- provider force flush retains array-shaped rejection;
 - logs retain timeout and rejection behavior;
 - future mutation remains visible;
-- the only timeout change is clearing work that has no owner after synchronous failure.
+- the provider timeout change only clears work with no owner after synchronous failure.
 
 ## Changed files
 
@@ -84,8 +69,4 @@ Mutation tests assert that the backing array remains changed, distinguishing sta
 5. `experimental/packages/sdk-logs/src/MultiLogRecordProcessor.ts`
 6. `experimental/packages/sdk-logs/test/common/MultiLogRecordProcessor.attempt-all.test.ts`
 
-No metrics, workflow, dependency, lock, generated, publisher, or research-only file is present.
-
-## Limits and staleness
-
-This unit does not add settle-all diagnostics, cancellation, retry, child idempotence, delayed recursion, or post-shutdown admission changes. Public main remained at the pinned base and duplicate searches found no equivalent open work during the repair pass; repeat both checks immediately before authorized filing.
+No metrics or non-product residue remains. Public main and duplicate searches were refreshed during repair and must be repeated immediately before authorized filing.
