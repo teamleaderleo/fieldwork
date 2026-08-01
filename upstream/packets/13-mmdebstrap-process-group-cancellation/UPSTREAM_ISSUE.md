@@ -1,16 +1,16 @@
 # Proposed upstream issue
 
-State: optional — a direct pull request is preferred once the clean source branch and target-native regression exist.
+State: optional — direct pull request preferred after the clean target branch exists.
 
 Public posting authorization: `false`.
 
 ## Title
 
-`coverage.py can leave backend descendants running after SIGINT`
+`coverage.py` can leave the selected backend running after parent-only SIGINT
 
 ## Draft
 
-When SIGINT is delivered to the `coverage.py` process itself, its `KeyboardInterrupt` handler terminates and waits for only the immediate backend wrapper:
+When SIGINT is delivered directly to `coverage.py` instead of the foreground process group, the current handler terminates only the immediate backend wrapper:
 
 ```python
 proc = subprocess.Popen(argv)
@@ -22,39 +22,61 @@ except KeyboardInterrupt:
     break
 ```
 
-Some backend wrappers own nested shells, pipelines, output followers, foreground operations, or privileged workers. Terminating the wrapper PID alone can leave those descendants running after the coverage driver has acknowledged the interruption.
+Nested work behind `run_null.sh`, `run_null.sh SUDO`, or `run_qemu.sh` can remain alive after the wrapper receives TERM. The `break` also enters the ordinary epilogue, so a cancelled run can return status 0.
 
-A status-only change that exits with 130 fixes the suite result while preserving the descendant-survival behavior. The cancellation boundary therefore needs to cover the selected backend operation, not only its immediate wrapper.
+A status-only repair that exits 130 fixes the false-success result while leaving the nested-backend survivor case intact.
 
-A focused direction is to start each backend in a dedicated session/process group and send SIGTERM to that group when the driver catches SIGINT:
+A focused repair gives each selected backend a dedicated session/process group, sends TERM to that group when the coverage parent receives SIGINT, waits for the wrapper, reports the interruption, and exits 130:
 
 ```python
 proc = subprocess.Popen(argv, start_new_session=True)
-...
-os.killpg(proc.pid, signal.SIGTERM)
+try:
+    proc.wait()
+except KeyboardInterrupt:
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    proc.wait()
+    print("interrupted by SIGINT", file=sys.stderr)
+    raise SystemExit(130)
 ```
 
-Expected behavior:
+Focused responsive-topology controls distinguish:
 
-- parent-only SIGINT reaches the complete in-group backend operation;
-- the driver waits for the wrapper and exits 130 with an interruption diagnostic;
-- ordinary unsignaled runs preserve their current result handling.
+- imported baseline: status 0 after deliberate release, nested work survives and performs later work;
+- status-only comparator: status 130 after release, nested work still survives;
+- group candidate: status 130, no live responsive in-group work, no later-work marker;
+- null, QEMU-wrapper, and passwordless-sudo paths;
+- ordinary foreground-group and unsignaled success;
+- cleanup and immediate rerun.
 
-The tested responsive null, QEMU-wrapper, and sudo topologies settle without later work under this approach. Descendants that create another group/session or resist SIGTERM require separate policy and should stay outside the initial repair.
+This issue would cover parent-only SIGINT and TERM-responsive work remaining inside the selected backend group. TERM-resistant descendants, repeated SIGINT during cleanup, timeout/escalation policy, and descendants that create another session remain separate questions.
 
-A pull request can include a focused regression that distinguishes:
+## Evidence prepared internally
 
-1. current wrapper-only termination, where nested work survives;
-2. status-only exit 130, where nested work still survives;
-3. group-wide termination, where tested responsive in-group work stops and the driver returns 130.
+- exact canonical base executed: `77ec9be5417ee44c96343d2347145585da1b1f94`;
+- canonical/imported `coverage.py` blob: `9a522484aef05deae514a98e4b6adf5feb6c886d`;
+- upstream-root patch blob: `f1a2c75adfa009b6f1ac29e5a31bef526400444f`;
+- zero-fuzz patch application and compilation: success twice;
+- packet matrix: 6/6 twice;
+- refined null/QEMU-wrapper/passwordless-sudo matrix: 14/14 twice, no skips;
+- cleanup and immediate rerun: success;
+- internal run: `30689911760`;
+- final packet-head run: `30690101504`.
 
-## Internal publication notes
+## Internal publication checklist
 
 Before posting:
 
-- refresh the exact upstream head and source lines;
-- materialize the clean target-source branch;
-- run target-native focused and ordinary gates;
-- replace internal evidence wording with target-native receipts;
-- follow current project contribution and AI-disclosure policy;
+- create/select a controlled fork of canonical `josch/mmdebstrap`;
+- refresh canonical `main` and record the exact base;
+- create a clean target branch and commit;
+- add an upstream-native regression;
+- run focused and ordinary project gates;
+- refresh overlap and contribution/AI policy;
+- obtain independent clean-target review;
+- replace internal run references with public candidate links where appropriate;
 - obtain explicit authority for this exact public interaction.
+
+No issue has been posted from this workspace.
