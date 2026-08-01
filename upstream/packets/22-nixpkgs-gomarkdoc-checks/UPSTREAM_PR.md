@@ -3,7 +3,7 @@
 Proposed title:
 
 ```text
-gomarkdoc: restore full upstream checks
+gomarkdoc: restore command checks
 ```
 
 Proposed body:
@@ -12,41 +12,38 @@ Proposed body:
 
 Closes #516481.
 
-gomarkdoc 1.1.0 currently has `doCheck = false`. Restore its Go tests package-locally while preserving the command-only installed output.
+gomarkdoc 1.1.0 currently has `doCheck = false`. Restore the checks for the selected `cmd/gomarkdoc` package while preserving the existing command-only build and installed output.
 
-The package needs three compatibility adjustments:
+The tagged command tests need three package-local compatibility adjustments:
 
-- use `buildGo125Module` because the checked v1.1.0 documentation golden matches Go 1.25 output;
-- create the empty `.gomarkdoc-empty.yml` fixture referenced by the tagged command tests;
+- use `buildGo125Module` because the retained v1.1.0 command golden matches Go 1.25 output;
+- create the empty `.gomarkdoc-empty.yml` fixture referenced by the tagged tests;
 - remove Nix's build-only `-mod=vendor` token before gomarkdoc parses `GOFLAGS` as application flags.
 
-The unknown-flag diagnostic recorded in #516481 is benign by itself; the missing empty fixture is the observed public failure. Removing the token keeps build-system flags out of the application parser.
+The unknown-flag diagnostic recorded in #516481 is benign by itself; the missing empty fixture is the observed public failure. Removing the token keeps a build-system flag out of gomarkdoc's application parser.
 
-`subPackages = [ "cmd/gomarkdoc" ]` is still needed for installation, but `buildGoModule` also uses that selector during `checkPhase`. Clear it in `preCheck` so the standard test discovery runs the root, `lang`, format, and command packages.
-
-The source hash, vendor hash, linker flags, installed program, and version passthru remain unchanged.
+`subPackages = [ "cmd/gomarkdoc" ]` remains unchanged, so the standard Go builder runs the tests corresponding to the built command. The source hash, vendor hash, linker flags, installed program, and version passthru are unchanged.
 
 ## Things done
 
 - Built on platform:
-  - [ ] x86_64-linux — exact-head run queued
+  - [ ] x86_64-linux — current exact-head run pending
   - [ ] aarch64-linux
   - [ ] x86_64-darwin
-  - [ ] aarch64-darwin — exact-head run queued
+  - [ ] aarch64-darwin — current exact-head run pending
 - Tested, as applicable:
-  - [ ] Package build with upstream checks enabled at the proposed source head.
-  - [ ] Root, `lang`, format, and `cmd/gomarkdoc` test results observed on x86_64-linux.
-  - [ ] Root, `lang`, format, and `cmd/gomarkdoc` test results observed on aarch64-darwin.
-  - [ ] Installed `gomarkdoc --help` path executed on x86_64-linux.
-  - [ ] Installed `gomarkdoc --help` path executed on aarch64-darwin.
+  - [ ] Package build with selected command checks enabled on x86_64-linux.
+  - [ ] Package build with selected command checks enabled on aarch64-darwin.
+  - [ ] Installed `gomarkdoc --help` path on x86_64-linux.
+  - [ ] Installed `gomarkdoc --help` path on aarch64-darwin.
   - [ ] `gomarkdoc.tests.version` prints `1.1.0` on x86_64-linux.
   - [ ] `gomarkdoc.tests.version` prints `1.1.0` on aarch64-darwin.
-- [ ] Ran `nixpkgs-review rev HEAD --no-shell` on this change — queued on x86_64-linux.
+- [ ] Ran `nixpkgs-review rev HEAD --no-shell` on x86_64-linux.
 - Nixpkgs Release Notes:
   - [x] No release-note entry; package version and interface are unchanged.
 - NixOS Release Notes:
   - [x] Not applicable.
-- [ ] Fits `CONTRIBUTING.md`, `pkgs/README.md`, and other relevant instructions at submission time.
+- [ ] Rechecked current contribution instructions and pull-request template at submission time.
 
 ## Commands
 
@@ -60,33 +57,31 @@ $ nixpkgs-review rev HEAD --no-shell
 
 ## Draft synchronization notes
 
-The platform and test checkboxes remain empty until the exact repaired source head produces terminal receipts. Active execution targets x86_64-linux and aarch64-darwin and also checks installed-binary help plus Linux `nixpkgs-review`.
+The checkboxes remain empty until exact-head run `30690828310` is terminal and its receipts are transferred. Prior Linux and Darwin execution passed the same command-package setup on an older base.
 
-The final authorized submission should:
+A separate full-discovery experiment is intentionally excluded from the public draft. It reached root, command, and formatter tests but failed two `lang` exact-text assertions on both platforms because modern Go standard-library comments use bracketed documentation links. This PR neither skips nor rewrites those library-package tests; it restores the checks selected by the package's existing command build boundary.
+
+The final authorized submission must:
 
 1. rebase or regenerate the one-file commit on a fresh current `master`;
 2. rerun every exact-head gate;
-3. replace queued text with exact tested platforms, commands, and receipts;
-4. recheck the current pull-request template, contribution rules, and any disclosure requirement;
-5. preserve `Closes #516481` unless that issue has changed state or scope.
+3. fill checkboxes from the final receipts;
+4. recheck current contribution and disclosure requirements;
+5. preserve `Closes #516481` only if the issue still owns this regression.
 
 ## Current source identity
 
 - Base: `55096b0ce13784d4f6420059c5627475fa26ebb1`
-- Head: `94be3956403ebf368b9d8262fdc9e5a5d2e80683`
+- Head: `569c0c4d11e5a14f3fe6237c0a50dc484f80e744`
 - Branch: `teamleaderleo/nixpkgs:fieldwork/unit-22-gomarkdoc-checks`
 - Changed file: `pkgs/by-name/go/gomarkdoc/package.nix`
-- Checked later public head: `f8e81fc7eb063db454f563cdd596fb96a5ad1497`
-- Relevant overlap in the checked public advance: none
 
 ## Current execution identity
 
 - Fieldwork carrier PR: `#437`
-- Carrier head: `b6003f2a3523f01880ff5690798b69afcb4e11f5`
-- Target run: `30674969557`
-- Linux job: `91300175276`
-- Darwin job: `91300175296`
-- Fieldwork-integrity run: `30674969559`
+- Carrier head: `c95da0c4b3f460df9bc8f342e98d05345da66df8`
+- Target run: `30690828310`
+- Integrity run: `30690828341`
 - Packet disposition: `HOLD`
 
 ## Public interaction status
