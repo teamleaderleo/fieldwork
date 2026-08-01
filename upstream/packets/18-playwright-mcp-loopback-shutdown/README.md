@@ -31,7 +31,8 @@ Upstream contact authorized: `no`
 - Owned target fork: `teamleaderleo/playwright`
 - Exact-base branch: `fieldwork/435-unit-18-base-15b1aec@15b1aec478d90f0293dae7b7b6dafd494d9f0154`
 - Canonical source branch: `fix/mcp-parent-ipc-shutdown`
-- Canonical source head: `c4c5e2db6f0305237be4de4c167dfb2344abb305`
+- Canonical source head: `e99e97da2acfc6c1a67749bc749e1d0cb71b5607`
+- Owned source PR: [`teamleaderleo/playwright#40`](https://github.com/teamleaderleo/playwright/pull/40)
 - Fieldwork packet branch: `p0/435-unit-18-playwright-mcp-shutdown`
 - Fieldwork packet head: updated by this packet series; see latest handoff
 - Execution carriers: Fieldwork PRs #405, #410, #414, #416, #419, #423, #425, #430, and #432
@@ -41,12 +42,12 @@ Upstream contact authorized: `no`
 
 ### Product code
 
-- [`packages/playwright-core/src/entry/mcp.ts`](https://github.com/teamleaderleo/playwright/blob/c4c5e2db6f0305237be4de4c167dfb2344abb305/packages/playwright-core/src/entry/mcp.ts) — installs a one-shot private IPC listener only when the child has a parent channel and accepts one exact plain-object message.
-- [`packages/playwright-core/src/tools/utils/mcp/http.ts`](https://github.com/teamleaderleo/playwright/blob/c4c5e2db6f0305237be4de4c167dfb2344abb305/packages/playwright-core/src/tools/utils/mcp/http.ts) — removes the special HTTP shutdown route.
+- [`packages/playwright-core/src/entry/mcp.ts`](https://github.com/teamleaderleo/playwright/blob/e99e97da2acfc6c1a67749bc749e1d0cb71b5607/packages/playwright-core/src/entry/mcp.ts) — installs a one-shot private IPC listener only when the child has a parent channel and accepts one exact plain-object message.
+- [`packages/playwright-core/src/tools/utils/mcp/http.ts`](https://github.com/teamleaderleo/playwright/blob/e99e97da2acfc6c1a67749bc749e1d0cb71b5607/packages/playwright-core/src/tools/utils/mcp/http.ts) — removes the special HTTP shutdown route.
 
 ### Target-native tests
 
-- [`tests/mcp/http.spec.ts`](https://github.com/teamleaderleo/playwright/blob/c4c5e2db6f0305237be4de4c167dfb2344abb305/tests/mcp/http.spec.ts) — proves the old HTTP request is inert, malformed/private-message variants are inert, the exact message is one-shot, duplicate delivery closes once, IPC disconnect is inert, and the real-browser graceful SIGINT lifecycle remains active.
+- [`tests/mcp/http.spec.ts`](https://github.com/teamleaderleo/playwright/blob/e99e97da2acfc6c1a67749bc749e1d0cb71b5607/tests/mcp/http.spec.ts) — proves the old HTTP request is inert, malformed/private-message variants are inert, the exact message is one-shot, duplicate delivery closes once, IPC disconnect is inert, and the real-browser graceful SIGINT lifecycle remains active.
 
 ### Required generated or dependency files
 
@@ -68,7 +69,7 @@ Upstream contact authorized: `no`
 | loopback peer checks fail through a local proxy | `integration-executed` | Fieldwork PR #416, run `30656319708`, loopback artifact `8803406788` | Ubuntu local proxy topology |
 | bare parent-owned IPC removes HTTP authority and preserves lifecycle testing | `target-executed` | Fieldwork PR #425, run `30657930500`, 17/17 on Ubuntu/macOS/Windows | exact historical target base |
 | hardened one-shot IPC preserves behavior across platforms | `target-executed` | Fieldwork PR #432, run `30659762667`, 18/18 on Ubuntu/macOS/Windows | validator accepted extension fields at that generation |
-| current-base candidate rejects extra-field and inherited-property messages | `target-test-prepared` | current source head `c4c5e2d...` | exact current-head execution pending |
+| current-base candidate rejects extra-field and inherited-property messages | `target-test-prepared` | current source head `e99e97d...` | exact current-head execution pending |
 
 ## Packet navigation
 
@@ -78,6 +79,7 @@ Upstream contact authorized: `no`
 - [Upstream issue draft](./UPSTREAM_ISSUE.md)
 - [Upstream pull-request draft](./UPSTREAM_PR.md)
 - [Review and human inspection guide](./REVIEW.md)
+- [Continuation handoff](./HANDOFF.md)
 
 ## Duplicate and prior-art result
 
@@ -91,7 +93,7 @@ Upstream contact authorized: `no`
 
 Complete in this order:
 
-1. Run the complete native `tests/mcp/http.spec.ts` suite, focused ESLint, build, and exact three-file diff checks at current source head `c4c5e2d...`.
+1. Run the complete native `tests/mcp/http.spec.ts` suite, focused ESLint, build, and exact three-file diff checks at current source head `e99e97d...`.
 2. Execute the unchanged current-head candidate on Ubuntu, macOS, and Windows or record an explicit platform carry-forward judgment from the disjoint-base proof.
 3. Perform independent complete-diff review and decide issue-first versus direct PR under the current Playwright contribution policy.
 
@@ -99,13 +101,13 @@ Complete in this order:
 
 - The current source head has no exact-head execution receipt yet.
 - Playwright requires a corresponding issue and prior approval/assignment for substantive contributions; public upstream contact remains unauthorized.
-- The current branch has a clean three-file net diff, though its commit history contains transient add/delete cleanup commits; squash before any submission.
+- The current branch has a clean three-file net diff; its commit history still requires squash before any submission.
 - Full Playwright repository CI has not run for this candidate.
 
 ## Latest handoff
 
 State: `EXECUTE`  
-Exact source head: `c4c5e2db6f0305237be4de4c167dfb2344abb305`  
+Exact source head: `e99e97da2acfc6c1a67749bc749e1d0cb71b5607`  
 Exact packet head: see issue #435 handoff comment after packet completion  
 Tests: historical 18/18 native suite across Ubuntu/macOS/Windows passed at the hardened predecessor; current exact-head execution pending  
 Temporary machinery remaining: historical Fieldwork execution carriers remain open; no temporary workflow exists on the target source branch  
