@@ -8,7 +8,9 @@ Nixpkgs builds only `cmd/gomarkdoc`, and its generic Go builder applies the same
 2. recreate the empty config fixture omitted from the release tag;
 3. remove Nix's build-only `-mod=vendor` token before gomarkdoc parses `GOFLAGS` as application flags.
 
-A separate exact-head experiment proved that clearing `subPackages` does reach all upstream test packages. It also proved that the broader suite is not compatible with modern Go 1.25: two `lang` tests compare old standard-library prose against newer bracketed documentation links. Unit 22 retains that failure and does not weaken those tests.
+A separate exact-head experiment proved that clearing `subPackages` reaches all upstream test packages. It also proved that the broader suite is incompatible with modern Go 1.25: two `lang` tests compare old standard-library prose against newer bracketed documentation links. Unit 22 retains that failure and does not weaken those tests.
+
+The selected exact source head has now passed its complete aarch64-darwin package, command-check, installed-help, and version fence. Linux and final packet-integrity evidence remain pending.
 
 ## Scope and exact source
 
@@ -23,7 +25,17 @@ Exact identities:
 - clean head: [`569c0c4d11e5a14f3fe6237c0a50dc484f80e744`](https://github.com/teamleaderleo/nixpkgs/commit/569c0c4d11e5a14f3fe6237c0a50dc484f80e744)
 - compare: [`55096b0c...569c0c4d`](https://github.com/teamleaderleo/nixpkgs/compare/55096b0ce13784d4f6420059c5627475fa26ebb1...569c0c4d11e5a14f3fe6237c0a50dc484f80e744)
 - source fence: one commit, one file
-- later public head checked: `f8e81fc7eb063db454f563cdd596fb96a5ad1497`; no relevant overlap found in the checked advance
+
+## Current public-head relation
+
+Public `master` was refreshed to [`63c4c8011115076be7a315edd8f740fd751b168a`](https://github.com/NixOS/nixpkgs/commit/63c4c8011115076be7a315edd8f740fd751b168a), dated `2026-08-01T08:02:42Z`.
+
+- It is 384 commits ahead of the candidate base.
+- The checked advance contains no change to `pkgs/by-name/go/gomarkdoc/package.nix` or `pkgs/build-support/go/module.nix`.
+- At that head, gomarkdoc remains version 1.1.0 with `subPackages = [ "cmd/gomarkdoc" ]` and `doCheck = false`.
+- The Go builder still converts `subPackages` into the package set, uses that set when nonempty, runs `preCheck`, then calls `getGoDirs test`.
+
+This confirms the technical premise remains current while also establishing significant source staleness. A fresh-head rebase and rerun are required before authorized submission.
 
 ## Public history
 
@@ -48,7 +60,7 @@ The selected candidate removes only that token during checks. This is semantic i
 
 ### Package selection
 
-`subPackages = [ "cmd/gomarkdoc" ]` selects the built command. The Go builder also uses that list for tests when nonempty. The selected source retains this behavior, so the test boundary corresponds to the package output.
+`subPackages = [ "cmd/gomarkdoc" ]` selects the built command. The Go builder also uses that list for tests when nonempty. The selected source retains this behavior, so the check boundary corresponds to the package output.
 
 ## Full-discovery experiment
 
@@ -70,7 +82,7 @@ The failures were:
 
 The tests read Go standard-library documentation and compare exact summaries. Modern Go comments use bracketed links, while gomarkdoc v1.1.0 expectations retain earlier prose. Detailed receipt: [`receipts/2026-08-01-full-discovery-failure.md`](./receipts/2026-08-01-full-discovery-failure.md).
 
-This disproves the former claim that Go 1.25 makes the complete upstream suite pass. It supports a narrower claim: Go 1.25 plus fixture and flag isolation makes the selected command-package tests pass in retained prior execution.
+This disproves the former claim that Go 1.25 makes the complete upstream suite pass. It supports the narrower claim now proven on the current Darwin execution: Go 1.25 plus fixture and flag isolation passes the selected command-package checks.
 
 ## Selected repair
 
@@ -101,7 +113,7 @@ Unchanged:
 
 ## Compatibility and rollback
 
-- Platform: retained older command runs passed Linux and Darwin; current exact-head rerun is queued.
+- Platform: exact-head Darwin passed; exact-head Linux is queued; retained older command runs passed both platforms.
 - API/output: installed program and package interface are unchanged.
 - Performance: package builds now execute selected command tests.
 - Rollback: restore `buildGoModule` and `doCheck = false`; no data migration or generated state is involved.
@@ -113,14 +125,24 @@ Unchanged:
 - Carrier head: `c95da0c4b3f460df9bc8f342e98d05345da66df8`
 - Source head: `569c0c4d11e5a14f3fe6237c0a50dc484f80e744`
 - Command-check run: [`30690828310`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828310)
-- Integrity run: [`30690828341`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828341)
-- State at this update: queued
+- Carrier integrity run: [`30690828341`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828341)
 
-Required controls are exact source/parent, one-file fence, `diff --check`, command-package result on Linux and Darwin, installed help, version `1.1.0`, Linux `nixpkgs-review`, artifacts, and Fieldwork integrity.
+Darwin job `91345125710` succeeded with:
+
+- exact source and parent controls;
+- one-file fence and `diff --check`;
+- `ok github.com/princjef/gomarkdoc/cmd/gomarkdoc`;
+- exactly one selected package result;
+- installed help output;
+- version `1.1.0`;
+- artifact `8815619734`, digest `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`.
+
+Linux job `91345125742` and carrier-integrity job `91345125771` remain queued. A final carrier generation must validate the packet tip after all receipts are transferred.
 
 ## Remaining uncertainty
 
-- current exact-head command execution has not reached terminal state;
+- exact-head Linux command, help, version, and `nixpkgs-review` evidence is pending;
+- final packet-tip integrity is pending;
 - independent review is pending;
 - the source must be rebased onto a fresh public head and rerun before submission;
 - Hydra, ofborg, and merge-queue evidence require a future authorized public PR;
