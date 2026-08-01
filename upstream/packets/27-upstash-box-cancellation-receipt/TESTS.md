@@ -2,16 +2,19 @@
 
 ## In simple words
 
-The retained candidate passed focused and complete TypeScript and Python gates at exact historical source. The artifact is complete and its hash matches. A later exact-source review found one missing complete-path test: the real TypeScript stream iterator still converts cancellation-request observer abort into terminal `cancelled`. Current disposition remains `REPAIR`.
+The retained candidate passed focused and complete TypeScript and Python gates at exact historical source. The artifact is complete and its hash matches. Deeper review now defines the missing complete-path matrix precisely: real pending agent-stream reads, cancellation-specific rejection with `detached`, timeout preservation, both race orders, later controller replacement, same-ID wrapper scope, and explicit command/code stream boundaries.
+
+No new target execution ran during this context pass. Current disposition remains `REPAIR`.
 
 ## Identity
 
 - Executed upstream base: `b55d832d6e3ae0156e32d21ea3863e231dfff9cd`
 - Current upstream inspected: `9f7533c645f6b519f612aa977f6f4acf86655db7`
+- Open CLI compatibility head inspected: `fce8c8cfc269bc09d07eb991ee39d0433029027e`
 - Target-executed carrier head: `1e7909da440ab631fcea11d4d3777d2bce107277`
 - Workflow-free carrier head: `ccaa28e40c5689aec7ad78c7f18c354e9966d7fd`
 - Historical test date: `2026-07-31`
-- Packet verification date: `2026-08-01`
+- Context/repair-plan date: `2026-08-01`
 - Environment: Ubuntu 24.04.4; Node 22.23.1; pnpm 10.34.5; Python 3.12.13
 - Network: local mocked requests; no hosted provider call or credential
 
@@ -24,18 +27,20 @@ The retained candidate passed focused and complete TypeScript and Python gates a
 | Legacy return types preserved | `target-executed` | focused and native tests | pass | target base `b55d832...` |
 | Async waiter cancellation is isolated | `target-executed` | retained Python control | pass | Python async only |
 | Generated sync output is deterministic | `target-executed` | generate twice and `cmp` | pass | one Python/runtime |
-| Complete TS stream lifecycle preserves authoritative status | `target-test-prepared` | review `4830012327` required test | pending | source repair absent |
+| Complete TS agent-stream lifecycle preserves authoritative status | `target-test-prepared` | exact matrix below | pending | source repair absent |
+| Cancellation keeps CLI catch control flow | `source-read` | Box PR #82 head `fce8c8c...` | supported | open PR, not accepted contract |
+| Command/code stream local abort matches agent stream | `source-read` | current constructors | false at inspected source | no controller attached |
 | Current source continuity | `source-read` | compare `b55d832...9f7533c...` | relevant paths unchanged | no current-head rerun |
 | Retained artifact integrity | `model-executed` | local SHA/JSON/path/stat checks | pass | patch receipt only |
 
-## Baseline characterization
+## Historical baseline characterization
 
 - Workflow `30622339900`: exact target characterization.
 - Workflow `30623393254`: composed wording/control refinement.
-- Result: request failure suppressed, local `cancelled` published, concurrent callers issue separate requests, TypeScript observer abort precedes settlement, and a later internal update can replace local status.
+- Result: request failure suppressed, local `cancelled` published, concurrent callers issue separate requests, TypeScript attached observer abort precedes settlement, and a later internal update can replace local status.
 - Limit: hosted continuation, remote termination, and cost remain unknown.
 
-## Candidate-focused tests
+## Historical candidate-focused tests
 
 ### TypeScript focused controls
 
@@ -56,7 +61,7 @@ Result: 2 files and 21 tests passed.
 
 Covered accepted/failure receipts, frozen values, shared Promise identity, later-call no replay, legacy void return, direct status preservation, authoritative updates, and observer abort on an isolated `Run`.
 
-Coverage limit: the real agent stream body-reader catch path did not run.
+Coverage limit: the real agent-stream body-reader catch path did not run.
 
 ### TypeScript complete package gates
 
@@ -119,12 +124,149 @@ mypy \
 
 Result: 185 passed, 12 deselected; parity, Ruff, and MyPy passed.
 
-## Ordinary repository gates
+## Prepared TypeScript repair controls
+
+### Test fixture
+
+Add one target-native helper or inline `Response` whose `ReadableStream`:
+
+- emits a `run_start` event and optional partial text;
+- leaves the next `reader.read()` pending;
+- exposes a test handle that can close or error the stream;
+- is returned by the real mocked `fetch`, so the production `box.agent.stream()` iterator and abort signal execute.
+
+Do not test by directly assigning an arbitrary controller to an isolated `Run` for the decisive lifecycle claim.
+
+### 1. Cancellation before receipt settlement
+
+Setup:
+
+- create `box.agent.stream()` with the pending body response;
+- start consuming the iterator until it reaches the pending read;
+- make the cancel POST return a deferred response;
+- call `run.requestCancel()`.
+
+Required observations before settling the POST:
+
+- the real stream fetch/body read aborts;
+- iterator rejects with cancellation-request-specific prose, not `Stream timed out`;
+- `run.status === "detached"`;
+- partial output is retained;
+- receipt Promise remains pending if the POST remains pending;
+- exactly one cancellation POST has started.
+
+After settling the POST:
+
+- receipt is frozen and reports the selected request state plus remote outcome `unknown`;
+- status remains `detached` until an authoritative update.
+
+### 2. Timeout-only control
+
+Use fake timers or a short deterministic timeout with a pending body read.
+
+Required observations:
+
+- timeout owner records first;
+- iterator rejects with existing `Stream timed out` prose;
+- current timeout status behavior remains unchanged for this bounded repair;
+- no cancellation POST occurs.
+
+This control prevents the fix from turning every abort into local detachment.
+
+### 3. Cancellation-first race
+
+- schedule cancellation first and timeout second against one pending stream;
+- verify the first owner remains `cancel-request` after the timer fires;
+- iterator uses cancellation-specific rejection and `detached`;
+- one shared POST executes.
+
+### 4. Timeout-first race
+
+- fire timeout before calling `requestCancel()`;
+- verify timeout classification remains stable;
+- later cancellation call still sends/joins the cancellation POST receipt;
+- it cannot relabel the already-aborted stream as cancellation-request shutdown.
+
+### 5. Later controller after receipt settlement
+
+- settle one cancellation receipt;
+- attach a fresh controller through the internal test boundary;
+- call legacy `cancel()` again;
+- fresh controller aborts with cancellation-request ownership;
+- cancellation POST count does not increase;
+- legacy return remains `undefined`.
+
+### 6. Same remote ID, two wrappers
+
+- construct two `Run` objects with the same box and run ID;
+- call `requestCancel()` concurrently on both;
+- observe two POSTs and two independent receipt identities;
+- document single-flight as per in-memory object, not per remote run.
+
+### 7. Later authoritative status
+
+After cancellation-request detachment, apply authoritative internal updates for both `completed` and `cancelled` cases. Each must replace `detached` and retain its server-derived result.
+
+### 8. Stream-type boundary
+
+Add source-level or target-native controls showing:
+
+- agent stream receives local abort through its attached controller;
+- command/code stream currently do not receive equivalent local abort from `Run.cancel()`.
+
+Choose one of two honest outcomes before upstream submission:
+
+1. narrow documentation and tests to agent-stream local shutdown; or
+2. deliberately add controllers to command/code streams and execute the same ownership matrix there.
+
+The second outcome is wider and should be selected only with a target consistency decision.
+
+### 9. CLI compatibility control
+
+At minimum, model the open PR #82 flow:
+
+- caller records cancellation intent;
+- `run.cancel()` is invoked;
+- iterator rejects;
+- caller can distinguish cancellation from ordinary error;
+- no ordinary completion event is emitted.
+
+This can be a small SDK-level control; the open CLI branch itself need not be modified in this unit.
+
+## Ordinary repository gates after repair
+
+Run at one exact current target head:
+
+```text
+pnpm install --frozen-lockfile
+pnpm --filter @upstash/box exec vitest run \
+  src/__tests__/run.test.ts \
+  src/__tests__/box-agent-run.test.ts \
+  <renamed receipt test>
+pnpm --filter @upstash/box test
+pnpm --filter @upstash/box build
+pnpm --filter @upstash/box ci:lint
+
+python packages/python-sdk/scripts/generate_sync.py
+# repeat generation and compare outputs
+pytest -q packages/python-sdk/tests/_async/test_run.py \
+  packages/python-sdk/tests/_sync/test_sync_client.py \
+  <renamed receipt test>
+pytest -q packages/python-sdk/tests
+python packages/python-sdk/scripts/check_parity.py
+ruff check <changed Python paths>
+ruff format --check <changed Python paths>
+mypy <changed Python source paths>
+```
+
+Record exact package-manager bootstrap commands from current repository instructions rather than assuming the historical environment is still sufficient.
+
+## Historical ordinary-gate receipt
 
 | Gate | Result | Notes |
 | --- | --- | --- |
 | TypeScript format | pass | package Prettier check |
-| TypeScript focused | 21/21 | includes retained execution control |
+| TypeScript focused | 21/21 | includes retained isolated execution control |
 | TypeScript complete | 385/385 | 29 files |
 | TypeScript compile | pass | `tsc` |
 | Python generation | pass | non-empty identical diff |
@@ -136,36 +278,22 @@ Result: 185 passed, 12 deselected; parity, Ruff, and MyPy passed.
 | Hosted integration | not run | authority and credentials absent |
 | Platform matrix | not run for candidate | one Ubuntu runner |
 
-## Reversing controls
-
-Executed:
-
-- baseline failure assigns `cancelled`; candidate isolated method leaves status unchanged;
-- baseline concurrent calls duplicate requests; candidate callers within one object share one;
-- legacy returns pass;
-- provider detail is injected and absent from receipt output.
-
-Required:
-
-- real `box.agent.stream()` pending read;
-- cancellation-request abort before receipt settlement yields local detachment, not remote cancellation;
-- same after settlement with a newly attached observer;
-- timeout abort remains separately classified;
-- two wrappers with the same run ID prove per-object scope.
-
 ## Setup and harness failures
 
 | Attempt | Failure | Classification | Product claim affected? | Action |
 | --- | --- | --- | --- | --- |
 | artifact `8797603134` | untracked new files absent from plain `git diff` | runner/evidence packaging | replayability only | repaired with intent-to-add and exact inventory |
 | early current-head receipt | live test moved beyond tested head | evidence currentness | yes | rerun as `30642924979` |
-| packet-session clone | container DNS blocked public Git clone | setup/network | no historical claim | artifact verified locally; no current execution claimed |
+| packet-session clone | container DNS blocked public Git clone | setup/network | no historical claim | source and related repositories read through GitHub; no new execution claimed |
 
 ## Checks prepared but not executed
 
-- real TypeScript stream-path reversing test;
-- timeout-origin compatibility test;
+- first-owner `WeakMap` source repair;
+- real agent-stream pending-read controls;
+- timeout and both race-order controls;
 - same-ID/two-wrapper boundary test;
+- stream-type boundary control;
+- CLI compatibility control;
 - current-head full target rerun;
 - hosted integration.
 
@@ -178,7 +306,7 @@ git apply --stat upstash-box-cancel-receipt.patch
 grep '^diff --git ' upstash-box-cancel-receipt.patch
 ```
 
-Result:
+Historical retained result:
 
 - patch SHA-256 matches receipt: `d30874c96f8e39350b9d725c58a6034554c561b073cb04969849ff2778c09e88`;
 - JSON parsed;
@@ -197,6 +325,6 @@ Result:
 
 `REPAIR`
 
-Reason: historical execution is strong and the patch is complete, yet TypeScript cancellation-request observer abort still reaches timeout handling and can publish terminal `cancelled`.
+Reason: historical execution is strong and the retained patch is complete, but the first-owner source repair and real stream-path controls remain unmaterialized and unexecuted.
 
-Clearing condition: repair abort-origin ownership, add the real stream-path and two-wrapper controls, run focused and complete current target gates, and retain a new exact patch/receipt.
+Clearing condition: implement the weak controller-owner repair, settle receipt naming, add the real agent-stream/race/wrapper/boundary controls, run focused and complete current target gates, and retain a new exact patch/receipt.
