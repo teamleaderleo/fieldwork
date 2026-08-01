@@ -6,7 +6,7 @@ Jotai's JSON storage adapter reuses parsed values so unchanged serialized data c
 
 Unit 21 adds one read generation per key. Every read captures authority when it starts. Valid and malformed completions may change shared cache state only while that generation remains current. Completed removal advances the same authority before invalidation. Every caller still receives its own result or rejection.
 
-The owned fork now exists. Unit 20 and unit 21 have been materialized as a clean stacked source series. Unit 21's exact diff contains only the production generation fence and an eleven-case target-native regression file. The fork's ordinary pull-request workflows are currently queued, so the unit remains `HOLD` until exact-head execution concludes and independent review is recorded.
+The owned fork now exists. Unit 20 and unit 21 have been materialized as a clean stacked source series. Unit 21's exact diff contains only the production generation fence and an eleven-case target-native regression file. An owner-authorized AI complete-diff review accepts the exact source boundary subject to execution. The fork's ordinary pull-request workflows are currently queued, so exact-head execution is the remaining active gate.
 
 ## Current disposition
 
@@ -47,6 +47,7 @@ Upstream contact authorized: `no`
 - Unit 20 prerequisite carrier head: `d9dd61c4a0d1f9073c300519990e6ba9ec2855d9`
 - Fieldwork packet branch: `p0/435-unit-21-jotai-async-read-generation`
 - Fieldwork packet base: `920f87cb25dd0cc7901d59ea2019cd4b4a193b94`
+- Review class: owner-authorized AI complete-diff review; human review not claimed
 
 ## Canonical target diff
 
@@ -85,6 +86,7 @@ The two unit-21 commits are:
 - [`receipts/20260801-direct-source-materialization.md`](./receipts/20260801-direct-source-materialization.md) — clean source stack, exact heads, changed-file fence, and fork-local workflow IDs
 - [`receipts/20260801-local-reconciliation.md`](./receipts/20260801-local-reconciliation.md) — patch-order and 11-case local model output
 - [Accepted execution receipt](https://github.com/teamleaderleo/fieldwork/blob/34670f709753668827043bbc76c4159a8b36ade2/programmes/data-durable-workflows/scouts/jotai-json-storage-key-isolation/async-read-generation-execution-receipt.md)
+- [`REVIEW.md`](./REVIEW.md) — owner-authorized AI complete-diff acceptance subject to execution
 
 ## Evidence summary
 
@@ -96,6 +98,7 @@ The two unit-21 commits are:
 | changed-file lint, format, and repository typecheck pass | `target-executed` | Node 24 job `91132389642` | historical focused repair head |
 | unit 21 stacks exactly after unit 20 | `source-read` and `direct-source-materialized` | compare `b2f8427...dfe607d`; materialization receipt | no current-main movement since inspected base |
 | expanded eleven-case test is present on the clean target head | `target-test-materialized` | `dfe607d...` target file | current fork workflows queued |
+| exact source diff is accepted inside the stated boundary | `owner-authorized AI complete-diff review` | `REVIEW.md` at exact source/base heads | human review not claimed; execution pending |
 | complete target workflows pass at clean source head | pending | runs `30690923560`, `30690923561`, `30690923575`, `30690923562`, `30690923564`, `30690923558` | queued when last checked |
 
 ## Packet navigation
@@ -105,7 +108,7 @@ The two unit-21 commits are:
 - [Tests and receipts](./TESTS.md)
 - [Upstream discussion draft](./UPSTREAM_ISSUE.md)
 - [Upstream pull-request draft](./UPSTREAM_PR.md)
-- [Review and human inspection guide](./REVIEW.md)
+- [Review and final inspection guide](./REVIEW.md)
 - [Retained source patch](./patches/0001-fix-utils-fence-stale-async-json-reads.patch)
 - [Expanded target-native test fixture](./fixtures/atomWithStorageAsyncReadGenerationRepair.test.ts)
 - [Executable model](./fixtures/async-read-generation-model.mjs)
@@ -127,25 +130,24 @@ Complete in this order:
 1. Wait for the fork-local workflows on exact head `dfe607d7637fbcf61ae41c39f4f470f61fa7c531` to finish and inspect the primary Test job.
 2. Record exact focused test count, build, lint, format, typecheck, and aggregate suite coverage actually provided by those workflows.
 3. Repair any exact-head failure without widening the two-file unit boundary.
-4. Obtain independent complete-diff review of `b2f8427...dfe607d`.
-5. Repeat duplicate, contribution-policy, and AI-disclosure checks immediately before filing.
-6. Await exact user authority before any public discussion or pull request.
+4. Repeat duplicate, contribution-policy, and AI-disclosure checks immediately before filing.
+5. Await exact user authority before any public discussion or pull request.
 
 ## Blockers and limits
 
 - fork-local workflows are queued and have no final conclusion yet;
-- independent complete-diff review remains absent;
 - write and subscription-event ordering remain outside this unit;
 - Windows, macOS, browser integration, and React Native storage adapters remain unexecuted unless current workflows cover them;
 - public upstream contact remains unauthorized.
 
 ## Latest handoff
 
-State: `HOLD`  
+State: `HOLD — execution only`  
 Exact source head: `dfe607d7637fbcf61ae41c39f4f470f61fa7c531`, stacked on unit-20 head `b2f84273b53bbed9df073354dac503e520be7101`  
 Exact target PR: `teamleaderleo/jotai#3`, draft and fork-local  
+Review: exact diff accepted by owner-authorized AI complete-diff review; human review not claimed  
 Exact packet head: recorded in the latest #435 handoff  
 Tests: historical target-focused Node 22/24/26 repair matrix passed; expanded eleven-case target test is now materialized; ordinary fork workflows are queued at the canonical source head  
 Temporary machinery remaining: none in the target diff; Fieldwork research carriers remain open as evidence records  
-Next worker action: inspect and record the six exact fork workflow conclusions, then obtain independent review  
+Next worker action: inspect and record the six exact fork workflow conclusions  
 Public upstream interaction: none
