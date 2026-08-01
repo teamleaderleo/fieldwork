@@ -35,7 +35,8 @@ Upstream contact authorized: `no`
 - Canonical source base: [`3499c84f7b8e70c86600e7cd2c67a7c65a667f5e`](https://github.com/teamleaderleo/gemini-cli/commit/3499c84f7b8e70c86600e7cd2c67a7c65a667f5e)
 - Original clean publisher branch: [`fieldwork/confirmation-call-affinity-source`](https://github.com/teamleaderleo/gemini-cli/tree/fieldwork/confirmation-call-affinity-source)
 - Fieldwork packet branch: [`p0/435-unit-16-gemini-confirmation-call-affinity`](https://github.com/teamleaderleo/fieldwork/tree/p0/435-unit-16-gemini-confirmation-call-affinity)
-- Exact packet tip: recorded in the final handoff comment on #435; a file cannot embed the SHA of the commit that contains itself.
+- Packet content head before this README synchronization: [`54502215def10a61487152f039c18d30950dd30a`](https://github.com/teamleaderleo/fieldwork/commit/54502215def10a61487152f039c18d30950dd30a)
+- Final exact packet tip: recorded in the handoff comment on #435; a tracked file cannot embed the SHA of the commit containing itself.
 - Execution carrier: [`teamleaderleo/gemini-cli#6`](https://github.com/teamleaderleo/gemini-cli/pull/6) at `07307db4bfbbc66acaa8f58faeb279a1f765b301`
 - Evidence branch: closed [`teamleaderleo/gemini-cli#2`](https://github.com/teamleaderleo/gemini-cli/pull/2) at `a7f5cc934446849e19a08cc8f4527473ada74401`
 - Superseded clean publications: `c707e267ae2053195646f00f495c159484fc6c15` and earlier publisher outputs recorded on #6.
