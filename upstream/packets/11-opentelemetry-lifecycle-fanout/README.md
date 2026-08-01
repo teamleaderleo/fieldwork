@@ -1,81 +1,108 @@
 # Unit 11 — fix: snapshot lifecycle targets before concurrent fanout
 
-## In simple words
-
-OpenTelemetry JS trace, logs, and metrics fan lifecycle calls out to child processors or readers. All three areas can skip a later opening child when an earlier callback removes it from the live array. Trace and logs have an additional problem: a synchronous child throw can stop construction before later processors are invoked.
-
-The current candidate correctly uses opening snapshots everywhere and synchronous safe-call protection for trace and logs. Complete-diff review found that metrics does not need the added safe-call helper because its `MetricCollector` lifecycle methods are already async and already convert reader throws into rejected promises.
-
-All exact-head workflows passed. The unit is in `REPAIR` until metrics is narrowed to snapshot-only and the new exact head is rerun and independently reviewed.
-
 ## Current disposition
 
-`REPAIR`
+`HOLD — repair complete; exact-head validation and independent review pending`
 
-Last reviewed: `2026-08-01`  
-Worker/reviewer: `chatgpt:gpt-5.6-thinking`  
-Priority-zero parent: [`teamleaderleo/fieldwork#435`](https://github.com/teamleaderleo/fieldwork/issues/435)  
+Last refreshed: `2026-08-01`  
+Priority-zero parent: `teamleaderleo/fieldwork#435`  
 Public upstream contact authorized: `no`
+
+## Contribution
+
+OpenTelemetry JS lifecycle aggregates can skip a child that belonged to the operation's opening set when an earlier child removes it from a live array during shutdown or force flush.
+
+Trace and logs have an additional direct-call failure: a processor can throw before returning its declared promise, interrupting later promise-input construction. Metrics already calls async `MetricCollector` methods, so it needs snapshotting but no extra safe-call wrapper.
 
 ## Exact identities
 
-- Reviewed public base: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- Canonical source branch: [`upstream/unit-11-lifecycle-fanout`](https://github.com/teamleaderleo/opentelemetry-js/tree/upstream/unit-11-lifecycle-fanout);
-- Reviewed source head: [`641528c9786f7d027fef4f4a76ae685f7107d394`](https://github.com/teamleaderleo/opentelemetry-js/commit/641528c9786f7d027fef4f4a76ae685f7107d394);
-- Validation PR: [`teamleaderleo/opentelemetry-js#18`](https://github.com/teamleaderleo/opentelemetry-js/pull/18);
-- Packet branch: [`p0/435-unit-11-opentelemetry-lifecycle-fanout`](https://github.com/teamleaderleo/fieldwork/tree/p0/435-unit-11-opentelemetry-lifecycle-fanout);
-- Packet path: `upstream/packets/11-opentelemetry-lifecycle-fanout/`;
-- Changed-file fence: three production files and three target-native test files;
-- Current-main relation: ahead 6, behind 0 at review time.
+- target: `open-telemetry/opentelemetry-js`;
+- public base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- source branch: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout`;
+- exact repaired source head: `1b7609141e87ad226e64bb0238ef602e76812896`;
+- owned validation PR: `teamleaderleo/opentelemetry-js#18`;
+- packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout`;
+- proposed title: `fix: snapshot lifecycle targets before concurrent fanout`.
 
-## Review result by package
+The source is ahead 10, behind 0. The ten commits are contents-API file writes and should be squashed before authorized public submission.
 
-| Package | Snapshot needed? | Safe-call needed? | Review judgment |
-| --- | --- | --- | --- |
-| trace | yes | yes | current direction accepted |
-| logs | yes | yes | current direction accepted |
-| metrics | yes | no | remove redundant safe-call helper; keep snapshot |
+## Final code boundary
 
-Metrics synchronous-throw tests may remain only as compatibility controls. They must not be described as regressions proving the metrics production change.
+| Area | Production change | Focused tests |
+| --- | --- | --- |
+| trace | snapshot opening processors; eager safe-call; retain original outer promise/error-handler structure | shutdown/force-flush direct throw and live removal; global handler restoration |
+| logs | snapshot opening processors; eager safe-call; retain timeout wrapping | shutdown/force-flush direct throw and live removal |
+| metrics | snapshot opening collectors only | shutdown/force-flush live removal |
 
-## Exact-head validation
+Changed files:
 
-All named workflows passed on source head `641528c9786f7d027fef4f4a76ae685f7107d394`:
+1. `packages/sdk-trace/src/MultiSpanProcessor.ts`
+2. `packages/sdk-trace/test/common/MultiSpanProcessor.attempt-all.test.ts`
+3. `experimental/packages/sdk-logs/src/MultiLogRecordProcessor.ts`
+4. `experimental/packages/sdk-logs/test/common/MultiLogRecordProcessor.attempt-all.test.ts`
+5. `packages/sdk-metrics/src/MeterProvider.ts`
+6. `packages/sdk-metrics/test/MeterProvider.attempt-all.test.ts`
 
-- Unit Tests `30674494793` — success, 10 jobs;
-- E2E Tests `30674494785` — success, 7 jobs;
-- Lint `30674494830` — success;
-- Bundler `30674494832` — success;
-- W3C Trace Context Integration `30674494799` — success;
-- Ensure API Peer Dependency `30674494801` — success;
-- CodeQL `30674494779` — success;
-- Zizmor `30674494823` — success.
+No workflow, dependency, lock, generated, publisher, or research-only file is present.
 
-These receipts are exact to the reviewed source head. Any repair invalidates them for promotion and requires a new complete run.
+## Repair history
 
-## Durable packet
+- safe-call-only generation passed gates but review found live removal could still skip children;
+- first snapshot tests had TS2322 fixture inference failures and were repaired;
+- clean head `641528c...` passed all repository workflow groups;
+- review `4834242586` found metrics safe-call scope redundant;
+- repaired source removed the metrics helper and throw tests;
+- deeper comparison restored the baseline trace outer promise/error structure;
+- deeper test review corrected `loggingErrorHandler` to `loggingErrorHandler()` during cleanup.
 
-- [`DEEP_DIVE.md`](./DEEP_DIVE.md) — mechanism and claim boundary;
-- [`APPROACHES.md`](./APPROACHES.md) — selected and rejected approaches;
-- [`TESTS.md`](./TESTS.md) — exact receipts and evidence classification;
-- [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md) — fallback draft requiring metrics narrowing;
-- [`UPSTREAM_PR.md`](./UPSTREAM_PR.md) — public draft requiring metrics narrowing;
-- [`REVIEW.md`](./REVIEW.md) — complete-diff `REPAIR` review;
-- [`HANDOFF.md`](./HANDOFF.md) — continuation steps.
+## Current validation
 
-## Required repair
+Queued on exact repaired head `1b7609141e87ad226e64bb0238ef602e76812896`:
 
-1. In `packages/sdk-metrics/src/MeterProvider.ts`, retain opening `.slice()` snapshots but remove the metrics-local `callLifecycle()` helper and wrappers.
-2. Map snapshots directly to `collector.forceFlush(options)` and `collector.shutdown(options)`.
-3. Retain metrics mutation controls as reversing regressions; reclassify or remove metrics synchronous-throw controls.
-4. Narrow every durable and public-facing claim to distinguish trace/logs safe-call behavior from metrics snapshot-only behavior.
-5. Rerun the complete workflow set on the repaired exact head.
-6. Obtain an eligible independent complete-diff review of that repaired head.
-7. Before authorized filing, refresh current main and duplicate search, squash the file-level commits if appropriate, and add required changelog entries using the real PR number.
+- Unit `30693695553`;
+- E2E `30693695548`;
+- Lint `30693695562`;
+- Bundler `30693695536`;
+- W3C `30693695557`;
+- API peer dependency `30693695533`;
+- CodeQL `30693695552`;
+- Zizmor `30693695550`.
 
-## Evidence and authority limits
+No repaired-head pass conclusion is claimed yet. The previous head's full pass is retained as historical evidence only.
 
-- The current workflow matrix is green but the reviewed source still needs repair.
-- This review was performed by the branch builder and is not independent final acceptance.
-- Production frequency, ecosystem impact, and extreme child-count allocation costs remain unmeasured.
-- Public upstream interaction remains unauthorized and none was performed.
+## Current-main and duplicate result
+
+Public `main` remained identical to the pinned base during the repair pass. Open issue/PR searches for the affected symbols, lifecycle fanout, snapshot wording, and skipped-later-child behavior found no replacement contribution. Repeat immediately before filing.
+
+## Changelog boundary
+
+Target guidance requires behavior changes to be listed in:
+
+- root `CHANGELOG.md` for sdk-trace/sdk-metrics;
+- `experimental/CHANGELOG.md` for sdk-logs.
+
+Final entries need the real upstream PR number and current repository link format. Draft wording is preserved in `UPSTREAM_PR.md`.
+
+## Remaining work
+
+1. settle all repaired-head workflows;
+2. obtain eligible independent complete-diff acceptance;
+3. squash source history;
+4. repeat current-main/duplicate/policy checks;
+5. add both changelog entries using the real authorized PR number;
+6. obtain explicit authority before any public upstream action.
+
+## Packet navigation
+
+- [Deep dive](./DEEP_DIVE.md)
+- [Approaches](./APPROACHES.md)
+- [Tests and receipts](./TESTS.md)
+- [Upstream issue fallback](./UPSTREAM_ISSUE.md)
+- [Upstream PR draft](./UPSTREAM_PR.md)
+- [Review](./REVIEW.md)
+- [Handoff](./HANDOFF.md)
+
+## Contact boundary
+
+Public upstream interaction authorized: `false`.  
+Public upstream interaction performed: `false`.
