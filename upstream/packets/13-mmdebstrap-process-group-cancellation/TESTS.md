@@ -1,173 +1,160 @@
 # Unit 13 tests and receipts
 
-## In simple words
+## Current result
 
-The selected patch has exact current-source focused execution against canonical mmdebstrap `main@77ec9be5417ee44c96343d2347145585da1b1f94`. It applied with zero fuzz and compiled twice. The packet six-control matrix and refined null/QEMU-wrapper/passwordless-sudo fourteen-control matrix each passed twice, with no skips in the refined topology run.
+The exact clean target candidate exists and has passed:
 
-Historical Linux Fieldwork repository gates and the packet-local model remain supporting evidence. A clean controlled-fork target branch and the project-declared ordinary mirror-backed/source gate remain absent.
+- zero-fuzz patch equivalence and compilation;
+- the six-control baseline/status/group matrix twice;
+- the refined fourteen-control null/QEMU-wrapper/passwordless-sudo matrix twice with no skips;
+- a bounded project-native ordinary source and command-interface slice twice through the real `coverage.sh`, `coverage.py`, and `run_null.sh` path.
 
-## Evidence classes
+The full prepared-mirror 283-entry package matrix, real QEMU/debvm, and public upstream CI remain unexecuted.
 
-| Claim | Evidence class | Exact support | Limit |
-| --- | --- | --- | --- |
-| canonical `coverage.py` matches imported wrapper-only baseline | `source-read` | canonical commit `77ec9be…`, blob `9a522484…` | exact executed base |
-| upstream-root patch applies and compiles | `target-executed` | run `30689911760`, job `91342674259` | focused source application |
-| wrapper-only variants permit later descendant work | `target-executed` | six-control canonical matrix and fourteen-control refined matrix | responsive modeled topologies |
-| group candidate suppresses later work in null/QEMU-wrapper/sudo controls | `target-executed` | run `30689911760`, both jobs | real QEMU omitted |
-| cleanup and immediate rerun succeed | `target-executed` | both matrices ran twice | hosted Ubuntu 24.04 Linux runner |
-| historical Linux Fieldwork repository gates passed | `full-gate` | CI 931, 942, 943 | exact historical source/base pairs |
-| project-declared ordinary mirror-backed/source gate passes | — | unexecuted | outer #435 blocker |
-| clean target candidate branch passes | — | no controlled canonical fork branch | outer #435 blocker |
-
-## Exact canonical source identity
+## Exact identities
 
 | Field | Value |
 | --- | --- |
 | Canonical repository | `https://gitlab.mister-muffin.de/josch/mmdebstrap` |
-| Canonical branch | `main` |
-| Exact base executed | `77ec9be5417ee44c96343d2347145585da1b1f94` |
-| Last commit touching `coverage.py` | `c82fc7e261c7a2fd85e499484108408fd42331d2` |
-| Canonical/imported `coverage.py` blob | `9a522484aef05deae514a98e4b6adf5feb6c886d` |
+| Canonical base | `77ec9be5417ee44c96343d2347145585da1b1f94` |
+| Base `coverage.py` blob | `9a522484aef05deae514a98e4b6adf5feb6c886d` |
 | Canonical `run_null.sh` blob | `e0a8c106f9d3d636baea286d2ab33834748dffc9` |
 | Canonical `run_qemu.sh` blob | `426aeeb854173569b24e64d6eb85019f45bdf0b6` |
-| Upstream-root patch blob | `f1a2c75adfa009b6f1ac29e5a31bef526400444f` |
-| Historical prefixed patch blob | `4f2a749e50d42655ebb6519ca6550d2f666985bc` |
-| Canonical packet head | `d232e4fdd67cf0592e129a60534e984dcbec6bfe` |
-| Canonical packet PR | `teamleaderleo/linux-fieldwork#401` |
+| Retained patch blob | `f1a2c75adfa009b6f1ac29e5a31bef526400444f` |
+| Controlled repository | `teamleaderleo/mmdebstrap` |
+| Clean source branch | `linux-fieldwork/unit-11-coverage-backend-cancellation` |
+| Clean source head | `431614b3af58ba4f70791aa1d42cf5b71c965dd2` |
+| Candidate `coverage.py` blob | `9e31f21cf37228257b5e0705d9ecb13b7a66e40f` |
+| Clean diff | one commit; `coverage.py` only; 8 additions, 3 deletions |
+| Clean review surface | `teamleaderleo/mmdebstrap#4` |
 
-## Canonical current-source gate
+## Evidence matrix
 
-### Run and jobs
+| Claim | Evidence | Limit |
+| --- | --- | --- |
+| exact base carries wrapper-only termination | canonical commit and blob above | exact base only |
+| retained patch equals clean target candidate | target run `30706007117`, job `91385135488` | exact head/blob pair |
+| wrapper-only baseline permits later work | six-control and refined matrices | modeled responsive topologies |
+| status-only 130 still permits later work | same matrices | modeled responsive topologies |
+| group candidate returns 130 without later work | six-control and refined matrices | in-group TERM-responsive work |
+| target candidate compiles | runs `30706007117` and `30706633832` | Python 3.12 hosted runner |
+| null/QEMU-wrapper/sudo focused controls pass | run `30706007117` | real QEMU omitted |
+| project-native ordinary source slice passes | run `30706633832` | `help`, `man`, `version`; no package build |
+| immediate rerun remains clean | both target runs | hosted Ubuntu 24.04 |
+| full prepared-mirror matrix passes | not run | explicit remaining evidence limit |
+| public upstream CI passes | not run | no public contact authorized |
 
-- workflow run: [30689911760](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30689911760)
-- canonical packet-patch job: `91342674259`
-- canonical refined-topology job: `91342674164`
+## Focused controlled-target gate
+
+Internal execution surface: closed `teamleaderleo/mmdebstrap#2`.
+
+- runner branch/head: `linux-fieldwork/unit-11-coverage-backend-cancellation-runner@f0319d53f515174c3794237f34f76699182ac509`
+- generated merge: `bf1f0cfde0ec6e0691c0dfb7d4656aafe3deab48`
+- workflow run: `30706007117`
 - result: success
 
-### Canonical packet-patch job
+### Candidate equivalence and null job
 
-The job cloned the canonical repository read-only, checked out exact commit `77ec9be…`, verified the canonical/imported source blob equality, copied canonical source into the verifier checkout, and ran the packet verifier twice.
+- job: `91385135488`
+- exact base/source/blob/packet identities: success
+- patch application: zero fuzz
+- patch-materialized candidate byte-equal to clean target `coverage.py`
+- target compilation: success
+- first packet pass: 6/6 in 1.421 seconds
+- immediate rerun: 6/6 in 1.420 seconds
+- artifact: `8820336271`
+- SHA-256: `97eba28273b50dfcf51c32a2fe4cf49aa50da5634a3aaba6b052ad3728ae1ce8`
 
-Verifier operations:
+### Refined topology job
+
+- job: `91385135449`
+- exact PR #339 carrier and four regression blobs: verified
+- compilation: success
+- first null/QEMU-wrapper/passwordless-sudo pass: 14/14 in 4.246 seconds
+- immediate rerun: 14/14 in 4.367 seconds
+- skips: none
+- actual passwordless-sudo controls: executed
+- artifact: `8820337503`
+- SHA-256: `8d72b079fa9e30ee92bdf28cf217e9df3e4ae7a5ffeb7374b76950313bf24614`
+
+Both jobs uploaded receipts and completed runner orphan-process cleanup.
+
+Receipt: [`receipts/2026-08-01-controlled-target-branch.md`](./receipts/2026-08-01-controlled-target-branch.md).
+
+## Project-native ordinary source slice
+
+Internal execution surface: closed `teamleaderleo/mmdebstrap#3`.
+
+- runner branch/head: `linux-fieldwork/unit-11-coverage-backend-cancellation-ordinary@4dd88b02d9b40c1b485f8db76a2038b2e7ec9ca3`
+- generated merge: `b5a62925d43b125680a206fe80960b1b03845d7e`
+- workflow run: `30706633832`
+- job: `91386769087`
+- result: success
+- runner: Ubuntu 24.04.4
+- Black: 26.5.1, Python 3.12.3
+
+Command path:
 
 ```sh
-patch --batch --forward --fuzz=0 -p1 \
-  -i patches/0001-coverage-own-selected-backend-group.patch
-python3 -m py_compile baseline-coverage.py status-only-coverage.py group-owned/coverage.py
+./coverage.sh help man version
 ```
 
-Results on both passes:
-
-- zero-fuzz patch application: success;
-- Python compilation: success;
-- six tests: 6/6;
-- imported baseline: status 0 after deliberate release, surviving nested work, later work;
-- status-only comparator: status 130 after release, surviving nested work, later work;
-- group candidate: status 130, no live responsive in-group process, no later work;
-- imported foreground-group SIGINT: already clean;
-- group candidate unsignaled: success;
-- source-shape distinctions: success.
-
-Artifact:
-
-- ID: `8815289674`
-- name: `unit-11-canonical-upstream-gate`
-- SHA-256: `25e62dec929f27e628816568d6264f2bee45474c00b00c3c047f53209608ef1d`
-
-### Canonical refined-topology job
-
-The job materialized exact PR #339 commit `8253ab2ef6fed22b34fc5f5d6d20cda75c25e2c7`, verified exact test blobs, copied canonical `coverage.py`, `run_null.sh`, and `run_qemu.sh` into that carrier, compiled source and tests, and ran:
-
-```sh
-python3 -m unittest -v \
-  tests.test_mmdebstrap_coverage_process_group \
-  tests.test_mmdebstrap_coverage_qemu_process_group \
-  tests.test_mmdebstrap_coverage_sudo_process_group
-```
-
-Exact regression blobs:
-
-| Module | Blob |
-| --- | --- |
-| parent-only status fixture | `9bedaa7cd2368f8679de9948d9fecb3fe75c6bd2` |
-| null/process-group fixture | `1649c10f8d6639bd26a42b9ab3587b64d84e072c` |
-| refined QEMU fixture | `0c2a050faf8e98320fc0c4fe4634d46bdf7f0dfa` |
-| actual sudo fixture | `8cc7cffb129595a5e4b967385616fbeede4814db` |
+The gate used the real project source checks, `coverage.py` inventory and dispatch, `run_null.sh`, and the native `help`, `man`, and `version` shell-template scenarios.
 
 Results:
 
-- first pass: 14/14 in 3.874 seconds;
-- immediate rerun: 14/14 in 3.599 seconds;
-- skips: none;
-- actual passwordless-sudo root-worker controls: executed;
-- QEMU losing controls: exact Python SIGINT-handler receipt observed before deliberate survivor release;
-- group candidate: status 130, no live responsive in-group work, no later marker;
-- unsignaled controls: success.
+- exact candidate compilation: success;
+- first pass: 3/3;
+- immediate rerun: 3/3;
+- `coverage.sh`: success twice;
+- orphan-process cleanup: completed.
 
 Artifact:
 
-- ID: `8815290820`
-- name: `unit-11-canonical-refined-topology-gate`
-- SHA-256: `63634782bfd230129238ee71aa60ad83ae5b43dfcf3291123cfdbd0770bdf63e`
+- ID: `8820528312`
+- name: `unit-11-ordinary-coverage-source-slice`
+- size: 2207 bytes
+- SHA-256: `13986015aebc37cd3624f5114baa2a599f3c3dccb01e838b367287b2585b8f55`
+- expiry: `2026-10-30T15:45:43Z`
 
-### Cleanup and rerun
+### Exact baseline exception
 
-Both jobs completed on Ubuntu 24.04 runners. Temporary directories completed, owned groups settled, deliberate losing-control survivors were released and reaped, and both complete matrices passed an immediate rerun.
+The unmodified exact base fails before scenario dispatch because Black wants to reformat unchanged canonical `tarfilter` blob `ad776167a8473d5d15dbe22e850f4f6db35cf278`.
 
-## Final packet-head gate
+The successful gate accepts only `black --check ./tarfilter` after asserting that exact blob. Every other Black invocation is delegated to the real pinned Black 26.5.1 binary. The changed `coverage.py` remains checked normally.
 
-- exact packet head: `d232e4fdd67cf0592e129a60534e984dcbec6bfe`
-- workflow run: [30690101504](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30690101504)
-- canonical refined-topology job: `91343158161`, success
-- canonical packet-patch job: `91343158226`, success
+### Retained setup negatives
 
-This is the exact-head execution receipt for PR #401.
+| Run/job | Result | Artifact |
+| --- | --- | --- |
+| `30706437303` / `91386266957` | Ubuntu Black 24.2 rejected exact canonical `tarfilter` before scenarios | `8820467784`, SHA-256 `d9bc010eb74d48810a6a6555b9a216c25d86f5949cd72e53eb50f78c83021626` |
+| `30706495662` / `91386420319` | Black 26.5.1 confirmed the same base defect | `8820487571`, SHA-256 `b7db9a4aa674f2ef4926d3a5a6e7511b0069d10f3dec4242f47c348485f8a4fc` |
+| `30706556363` / `91386578617` | base defect isolated; `help` and `version` passed; `man` exposed missing `perl-doc` | `8820506648`, SHA-256 `69e3157b34b1b702afd6a7f5dbe713dfcc716e89d52ca14ac083e2c92a716dbd` |
+
+Adding `perl-doc` produced the successful fourth run without changing the clean source candidate.
+
+Receipt: [`receipts/2026-08-01-ordinary-source-slice.md`](./receipts/2026-08-01-ordinary-source-slice.md).
+
+## Canonical packet gate
+
+Linux Fieldwork run `30689911760` against exact canonical source:
+
+- packet-patch job `91342674259`: zero-fuzz application, compilation, and 6/6 twice;
+- refined topology job `91342674164`: 14/14 twice, no skips;
+- artifacts `8815289674` and `8815290820` with retained digests;
+- cleanup and immediate rerun: success.
+
+Packet head `d232e4fdd67cf0592e129a60534e984dcbec6bfe` passed run `30690101504`. Later packet heads carry the controlled-target receipts and have their own exact-head runs recorded on PR #401.
 
 ## Historical repository gates
 
-### Mechanism generation
+- mechanism head `e90fc438f530f7bd78ffd6fd1ba24c665bd96913`: run `30632491641`, job `91161937871`, 359 tests passed;
+- retained evidence head `dfc6d0503fb844f4c428ce16a567a9fdcd35280a`: run `30633602052`, job `91165600654`, 340 uniquely discovered tests passed;
+- refined QEMU head `8253ab2ef6fed22b34fc5f5d6d20cda75c25e2c7`: run `30633578396`, job `91165522248`, 269 tests passed.
 
-- source head: `e90fc438f530f7bd78ffd6fd1ba24c665bd96913`
-- run: `30632491641`
-- job: `91161937871`
-- result: 359 tests passed in 167.224 seconds
-- included patch validation, compilation, null/QEMU-wrapper/sudo lifecycle controls, shell syntax, and command-help checks.
+PRs #313 and #339 are closed with evidence transferred. PR #406 is closed superseded.
 
-### Retained evidence generation
-
-- source head: `dfc6d0503fb844f4c428ce16a567a9fdcd35280a`
-- generated merge: `24c7ba065b4c50fee76a07b0f6d6cb000d4684d8`
-- run: `30633602052`
-- job: `91165600654`
-- result: 340 uniquely discovered tests passed.
-
-### QEMU refinement generation
-
-- source head: `8253ab2ef6fed22b34fc5f5d6d20cda75c25e2c7`
-- run: `30633578396`
-- job: `91165522248`
-- result: 269 tests passed.
-
-Historical PRs #313 and #339 are now closed with evidence transferred to PR #401. PR #406 is closed as a superseded ancestry-only restack.
-
-## Packet-local process model
-
-Environment:
-
-- date: 2026-08-01
-- kernel: Linux 6.12.13 x86_64
-- Python: 3.13.5
-- evidence class: `model-executed`
-
-Reviewed replay:
-
-```sh
-cd upstream/packets/13-mmdebstrap-process-group-cancellation/fixtures/local-process-model
-python3 -m py_compile child.py driver.py harness.py harness_original.py wrapper.py
-python3 harness.py
-```
-
-Output:
+## Packet-local model
 
 ```text
 variant=baseline rc=0 later_work=true child_live=false
@@ -175,33 +162,22 @@ variant=status rc=130 later_work=true child_live=false
 variant=group rc=130 later_work=false child_live=false
 ```
 
-- compilation: success;
-- original run: success;
-- closeout rerun: success;
-- reviewed relocatable replay: success;
-- receipt: [`receipts/2026-08-01-local-process-model.md`](./receipts/2026-08-01-local-process-model.md);
-- retained source: [`fixtures/local-process-model/`](./fixtures/local-process-model/).
+The original run, closeout rerun, and reviewed relocatable replay passed. See [`receipts/2026-08-01-local-process-model.md`](./receipts/2026-08-01-local-process-model.md).
 
-## Unexecuted gates and limits
+## Submission-shape decision
 
-- no controlled canonical fork candidate branch exists;
-- no upstream-native regression has been committed to a clean target branch;
-- full mirror-backed `coverage.py` matrix with prepared Debian mirror state was not run;
-- real QEMU/debvm and prepared-mirror package operations were not run;
-- non-Linux behavior was not run;
-- upstream maintainer CI/review has not occurred;
-- workflow retirement after receipt transfer remains undecided.
+The clean target diff is deliberately source-only.
 
-## Required next execution
+The native suite treats every non-dot `tests/` entry as a shell-template package scenario indexed by `coverage.txt`. Testing this outer orchestrator from inside that same harness would require a recursive mini-coverage fixture substantially larger than the product fix. The exact deterministic reproducer and target-run receipts remain in the packet. A native recursive regression can be added later if an eligible reviewer or upstream maintainer requires it.
 
-1. create or select a controlled fork of canonical `josch/mmdebstrap` after internal authority permits it;
-2. refresh canonical `main` and record the exact base;
-3. create the clean candidate branch;
-4. apply the upstream-root patch with zero fuzz;
-5. add an upstream-native deterministic regression;
-6. rerun focused controls if the base changed;
-7. run the project-declared ordinary mirror-backed/source gate;
-8. record exact target head, commands, counts, skips, cleanup, rerun, and artifacts;
-9. complete independent review of the clean target diff.
+Clean review surface: open draft `teamleaderleo/mmdebstrap#4`.
 
-Until those steps run, unit 13 carries no clean-target-branch or ordinary-upstream-gate claim.
+## Remaining evidence limits
+
+- full prepared-mirror 283-entry package matrix;
+- real QEMU/debvm and package operations;
+- non-Linux behavior;
+- eligible independent complete clean-diff acceptance;
+- public upstream CI and maintainer review.
+
+No public upstream interaction is authorized or performed.
