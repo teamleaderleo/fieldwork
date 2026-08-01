@@ -60,6 +60,8 @@ These are promising and remain linked from #435, but they do not have unit numbe
 - DuckDB secondary ART checkpoint corruption validation;
 - uv PEP 723 symlink lock authority.
 
+Current dated candidate intake: [`2026-08-01-rust-typescript-candidates.md`](./intake/2026-08-01-rust-typescript-candidates.md), coordinated through Fieldwork issue #457. It records Biome, uv, Jujutsu, Oxc, and ty leads without assigning unit numbers or authorizing implementation or upstream contact.
+
 Do not renumber the 27 units when one of these becomes ready. Assign the next unused number.
 
 ## Claim and handoff
