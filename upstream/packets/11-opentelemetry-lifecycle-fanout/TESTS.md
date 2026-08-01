@@ -1,98 +1,101 @@
 # Tests and receipts — Unit 11: snapshot lifecycle targets before concurrent fanout
 
-## In simple words
-
-The exact clean source head passed the full named OpenTelemetry JS workflow set. Those green workflows establish that the current six-file candidate builds and passes the repository matrix. Complete-diff review nevertheless found that metrics is over-fixed: metrics needs opening-list snapshots, but its existing async `MetricCollector` methods already convert synchronous reader throws into rejected promises.
-
-The current receipts remain accurate for head `641528c9786f7d027fef4f4a76ae685f7107d394`. Any source repair creates a new head and expires them for promotion.
-
 ## Identity
 
-- Reviewed upstream base: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- Exact candidate head: `641528c9786f7d027fef4f4a76ae685f7107d394`;
-- Validation carrier: [`teamleaderleo/opentelemetry-js#18`](https://github.com/teamleaderleo/opentelemetry-js/pull/18);
-- Test date: `2026-08-01`;
-- Environment: repository GitHub Actions matrix.
+- public base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- repaired candidate head: `1b7609141e87ad226e64bb0238ef602e76812896`;
+- execution carrier: `teamleaderleo/opentelemetry-js#18`;
+- repaired-head workflow set: run number 63;
+- direct local execution: unavailable in the original worker environment; repository GitHub Actions is the execution authority.
 
-## Exact-head workflow receipts
+## Focused assertion set
 
-| Gate | Run | Result | Material coverage limit |
-| --- | --- | --- | --- |
-| Unit Tests | `30674494793` | success; 10 jobs successful | repository unit matrix across supported Node/browser/worker jobs |
-| E2E Tests | `30674494785` | success; 7 jobs successful | repository-declared E2E matrix |
-| Lint | `30674494830` | success | formatting, lint, and compile-bearing checks declared by workflow |
-| Bundler tests | `30674494832` | success | repository bundler checks |
-| W3C Trace Context Integration | `30674494799` | success | named trace-context integration only |
-| Ensure API Peer Dependency | `30674494801` | success | declared peer-dependency check |
-| CodeQL Analysis | `30674494779` | success | configured static analysis only |
-| Zizmor GitHub Actions Security Analysis | `30674494823` | success | workflow-security analysis only |
+### Trace — four tests
 
-Evidence class: `full-gate` for this named workflow set at this exact head. It does not prove independent acceptance, changelog completeness, ecosystem prevalence, or behavior outside the executed repository paths.
+- shutdown direct throw: later opening processor is invoked and aggregate rejects;
+- shutdown live removal: removed later opening processor is still invoked;
+- force-flush direct throw: later opening processor is invoked, error reaches the global handler, and aggregate resolves;
+- force-flush live removal: removed later opening processor is still invoked.
+
+The test cleanup restores `setGlobalErrorHandler(loggingErrorHandler())`. The repaired form prevents leakage of the factory function into later tests.
+
+### Logs — four tests
+
+- shutdown direct throw and live-removal controls;
+- force-flush direct throw and live-removal controls;
+- error results remain rejections;
+- timeout wrapping remains in the production path.
+
+### Metrics — two tests
+
+- shutdown live-removal control;
+- force-flush live-removal control, with the removed collector restored before cleanup shutdown.
+
+Metrics synchronous-throw cases were removed. `MetricCollector` is already async, so those cases pass the baseline and do not reverse the source change.
 
 ## Claim-to-evidence matrix
 
-| Claim | Evidence class | Exact evidence | Judgment and limit |
+| Claim | Reversing evidence | Current status | Limit |
 | --- | --- | --- | --- |
-| trace synchronous throw cannot stop later opening invocation | `target-executed` | trace throw controls in Unit `30674494793` | reversing regression for trace |
-| logs synchronous throw cannot stop later opening invocation | `target-executed` | logs throw controls in Unit `30674494793` | reversing regression for logs |
-| trace/logs opening membership survives live removal | `target-executed` | mutation controls in Unit `30674494793` | reversing regression for current-operation membership |
-| metrics opening membership survives live removal | `target-executed` | metrics mutation controls in Unit `30674494793` | reversing regression for metrics snapshot |
-| metrics later collectors run after synchronous reader throw | `target-executed compatibility control` | metrics throw controls in Unit `30674494793` | already true on baseline because `MetricCollector` lifecycle methods are async; does not justify metrics safe-call source code |
-| trace force flush retains global error reporting and resolution | `target-executed compatibility control` | trace handler test in Unit `30674494793` | focused first-error behavior only |
-| current branch is direct from reviewed public base | `source-read` | compare `2c931bf4...641528c` | ahead 6, behind 0; public main may later advance |
+| direct trace/log throw cannot stop later opening invocation | four direct-throw tests | repaired-head Unit run queued | arbitrary thenable behavior not separately tested |
+| live removal cannot shrink current opening set | six mutation tests | repaired-head Unit run queued | additions are guaranteed by snapshot semantics but not separately asserted |
+| future operations observe mutation | backing-array postconditions | repaired-head Unit run queued | no duplicate-child policy |
+| trace force flush still reports and resolves | global-handler assertion plus restored baseline structure | repaired-head Unit run queued | one observed `Promise.all` rejection |
+| metrics needs snapshot but not safe-call | source chain `MeterProvider → MetricCollector → reader`, plus metrics mutation controls | source-reviewed; Unit queued | production prevalence unmeasured |
+| no test global-handler leak | default handler factory invoked during cleanup | repaired-head Unit/Lint queued | repository has no public getter to restore an arbitrary prior handler |
 
-## Baseline characterization
+## Exact repaired-head workflows
 
-### Trace and logs
+| Workflow | Run | Current state |
+| --- | ---: | --- |
+| Unit Tests | `30693695553` | queued |
+| E2E Tests | `30693695548` | queued |
+| Lint | `30693695562` | queued |
+| Bundler tests | `30693695536` | queued |
+| W3C Trace Context Integration Test | `30693695557` | queued |
+| Ensure API Peer Dependency | `30693695533` | queued |
+| CodeQL Analysis | `30693695552` | queued |
+| Zizmor GitHub Actions Security Analysis | `30693695550` | queued |
 
-The baseline directly invokes child lifecycle methods while constructing promise inputs from live arrays. Two independent mechanisms exist:
+No pass conclusion is claimed for the repaired head until these settle.
 
-1. a synchronous child throw interrupts construction before later child calls;
-2. removal from the live indexed array can skip a later opening child.
+## Superseded exact-head receipts
 
-The candidate's safe-call plus snapshot tests reverse both mechanisms.
+Head `641528c9786f7d027fef4f4a76ae685f7107d394` passed:
 
-### Metrics
+- Unit Tests `30674494793` — 10 jobs;
+- E2E Tests `30674494785` — 7 jobs;
+- Lint `30674494830`;
+- Bundler tests `30674494832`;
+- W3C Trace Context Integration `30674494799`;
+- Ensure API Peer Dependency `30674494801`;
+- CodeQL Analysis `30674494779`;
+- Zizmor GitHub Actions Security Analysis `30674494823`.
 
-`MeterProvider` also maps a live collector array, so live removal can skip a later opening collector. The metrics mutation tests reverse this defect.
+Those receipts validate the broader predecessor behavior but are expired for promotion because source and tests moved during repair.
 
-The synchronous-throw characterization differs. `MetricCollector.forceFlush()` and `MetricCollector.shutdown()` are async wrappers around reader lifecycle methods. A reader's synchronous throw becomes a rejected promise before control returns to `MeterProvider`, so later collector calls are already attempted by the baseline map. The metrics synchronous-throw test is therefore a compatibility control, not a failing baseline regression.
+## Historical setup failures
 
-## Focused test files
-
-- `packages/sdk-trace/test/common/MultiSpanProcessor.attempt-all.test.ts`;
-- `experimental/packages/sdk-logs/test/common/MultiLogRecordProcessor.attempt-all.test.ts`;
-- `packages/sdk-metrics/test/MeterProvider.attempt-all.test.ts`.
-
-All ran successfully as part of Unit Tests `30674494793` at the exact candidate head.
-
-## Reversing controls
-
-- trace/logs: first child throws synchronously; later opening child is still invoked by the candidate;
-- all three packages: first child removes the second from the backing array; snapshot still invokes the second for the current operation;
-- original backing arrays remain mutated, proving future operations still observe mutation;
-- trace force flush reports through the global handler and resolves;
-- logs and metrics retain rejection behavior.
-
-The metrics synchronous-throw case does not reverse the source change and must not be presented as such.
-
-## Harness history
-
-| Attempt | Result | Classification | Product claim affected? |
+| Head/attempt | Failure | Classification | Resolution |
 | --- | --- | --- | --- |
-| `e19247b801817abaf8c9fff5a39d00783d8c38e6` | TS2322 from callbacks inferred as `() => never` | test fixture typing | no; repaired with explicit `() => void` typing |
-| worker local clone | DNS resolution for `github.com` unavailable | runner/network | no; exact execution retained through owned GitHub Actions |
+| `80e3b74b...` | product gates passed but review found live-array removal still skipped a child | design insufficiency | add opening snapshots |
+| `e19247b...` | TS2322 from mutation callbacks inferred as `() => never` | test fixture typing | explicitly type callbacks `() => void` |
+| `641528c...` review | metrics helper/regression overclaimed a baseline defect | scope/source review | metrics snapshot-only; remove throw tests |
+| trace test cleanup | installed `loggingErrorHandler` factory rather than returned handler | test harness/global state | call `loggingErrorHandler()` |
 
-## Cleanup and packaging
+## Ordinary gate and packaging boundary
 
-- Temporary workflows in source diff: none;
-- Publisher/evidence-only files in source diff: none;
-- Generated/dependency churn: none;
-- Changelog files: not yet present; required packaging remains pending a real authorized PR number and current contribution-policy check;
-- Validation carrier: retain draft PR #18 until repaired evidence replaces this generation.
+The repository workflows cover compile-bearing checks, supported Node/browser/web-worker matrices, E2E, lint, bundler, API peer dependency, trace-context integration, and static/workflow security.
 
-## Current test judgment
+Changelog files are not yet changed. Target guidance requires behavior changes to be listed in both:
 
-`REPAIR`
+- root `CHANGELOG.md` under Unreleased Bug Fixes for sdk-trace/sdk-metrics;
+- `experimental/CHANGELOG.md` under Unreleased Bug Fixes for sdk-logs.
 
-The exact current head is green, but green execution does not cure the metrics scope defect. Repair metrics to snapshot-only, synchronize the tests and claims, then rerun every required gate on the new exact head.
+Final entries must use the real authorized upstream PR number and current link format; they should not be fabricated on the owned validation carrier.
+
+## Current judgment
+
+`HOLD`
+
+The source repair is complete. Clearing conditions are a successful exact repaired-head matrix, eligible independent complete-diff acceptance, history cleanup, changelog packaging, final current-main/duplicate refresh, and separate public-contact authorization.
