@@ -1,154 +1,126 @@
 # Deep dive — unit 22 gomarkdoc checks
 
-## Current technical answer
+## Technical conclusion
 
-Nixpkgs builds only `cmd/gomarkdoc`, and its generic Go builder applies the same nonempty `subPackages` list to check discovery. Unit 22 restores that selected command-package check path with three package-local compatibility adjustments:
+The regression is a Go-toolchain compatibility failure, not a missing test fixture or a fatal leaked `GOFLAGS` token.
 
-1. use Go 1.25 for gomarkdoc 1.1.0's retained command golden;
-2. recreate the empty config fixture omitted from the release tag;
-3. remove Nix's build-only `-mod=vendor` token before gomarkdoc parses `GOFLAGS` as application flags.
+The clean repair pins gomarkdoc 1.1.0 to Go 1.25 and restores the default selected-package checks. It deliberately does not mutate the test environment.
 
-A separate exact-head experiment proved that clearing `subPackages` reaches all upstream test packages. It also proved that the broader suite is incompatible with modern Go 1.25: two `lang` tests compare old standard-library prose against newer bracketed documentation links. Unit 22 retains that failure and does not weaken those tests.
+## Historical comparison
 
-The selected exact source head passes its complete aarch64-darwin package, command-check, installed-help, and version fence. The remaining Linux and Fieldwork integrity gates are queued from a clean carrier anchored to packet base `527021b7ff1535e8be4f27dc3ba7226b559a1630`.
+The public issue compares two revisions that are not a linear before/after pair:
 
-## Scope and exact source
+- `4590696c8693fea477850fe379a01544293ca4e2` is a `release-25.11` backport dated 2026-03-23.
+- `acd02b8771d0546f96ee281ac45c3a6f81b9bfba` is a master revision dated 2026-05-01.
+- Their histories diverge.
 
-Changed file:
+At the release revision:
 
-- [`pkgs/by-name/go/gomarkdoc/package.nix`](https://github.com/teamleaderleo/nixpkgs/blob/569c0c4d11e5a14f3fe6237c0a50dc484f80e744/pkgs/by-name/go/gomarkdoc/package.nix)
+```nix
+go = go_1_25;
+buildGoModule = buildGo125Module;
+```
 
-Exact identities:
+At the master revision:
 
-- public base: [`55096b0ce13784d4f6420059c5627475fa26ebb1`](https://github.com/NixOS/nixpkgs/commit/55096b0ce13784d4f6420059c5627475fa26ebb1)
-- clean branch: `teamleaderleo/nixpkgs:fieldwork/unit-22-gomarkdoc-checks`
-- clean head: [`569c0c4d11e5a14f3fe6237c0a50dc484f80e744`](https://github.com/teamleaderleo/nixpkgs/commit/569c0c4d11e5a14f3fe6237c0a50dc484f80e744)
-- compare: [`55096b0c...569c0c4d`](https://github.com/teamleaderleo/nixpkgs/compare/55096b0ce13784d4f6420059c5627475fa26ebb1...569c0c4d11e5a14f3fe6237c0a50dc484f80e744)
-- source fence: one commit, one file
+```nix
+go = go_1_26;
+buildGoModule = buildGo126Module;
+```
 
-## Current public-head relation
+The gomarkdoc package remains version 1.1.0 with the same source hash, vendor hash, and command-only `subPackages`. The expression was refactored from `rec` to `finalAttrs`, but that does not explain the golden mismatch.
 
-Public `master` was refreshed to [`63c4c8011115076be7a315edd8f740fd751b168a`](https://github.com/NixOS/nixpkgs/commit/63c4c8011115076be7a315edd8f740fd751b168a), dated `2026-08-01T08:02:42Z`.
+## Why the visible diagnostics were misleading
 
-- It is 384 commits ahead of the candidate base.
-- The checked advance contains no change to `pkgs/by-name/go/gomarkdoc/package.nix` or `pkgs/build-support/go/module.nix`.
-- At that head, gomarkdoc remains version 1.1.0 with `subPackages = [ "cmd/gomarkdoc" ]` and `doCheck = false`.
-- The Go builder still converts `subPackages` into the package set, uses that set when nonempty, runs `preCheck`, then calls `getGoDirs test`.
+### Missing empty config
 
-This confirms the technical premise remains current while also establishing significant source staleness. A fresh-head rebase and rerun are required before authorized submission.
+`command_test.go` requests `../.gomarkdoc-empty.yml`, and the release tag does not contain that file. However, `buildConfig` prints `viper.ReadInConfig` errors and does not return them. The command test can pass with the file absent.
 
-## Public history
+The isolation run confirmed this: the Go 1.25 variant without the fixture passed.
 
-- Open issue [NixOS/nixpkgs#516481](https://github.com/NixOS/nixpkgs/issues/516481) records unknown-flag output and the missing `.gomarkdoc-empty.yml` failure. It treats the flag diagnostic as benign.
-- Merged PR [#516792](https://github.com/NixOS/nixpkgs/pull/516792) disables checks as containment.
-- Merged PR [#279440](https://github.com/NixOS/nixpkgs/pull/279440) introduced gomarkdoc 1.1.0 with `subPackages = [ "cmd/gomarkdoc" ]`.
-- No equivalent restoration PR was found on 2026-08-01.
+### Unknown `GOFLAGS`
 
-No public interaction occurred.
+`defaultTags()` parses `GOFLAGS`, accepts only `-tags`, prints an error for unknown flags, and returns no tags. The tests intentionally include unknown `GOFLAGS` cases and expect command success.
 
-## Source behavior
+The isolation run confirmed that retaining Nix's inherited flags under Go 1.25 still passes.
 
-### Application parsing of `GOFLAGS`
+Go suppresses output from successful tests. When the Go 1.26 golden assertion fails, captured diagnostics from other successful subtests become visible in the package failure log. The public issue identified the last visible messages rather than the failing assertion.
 
-gomarkdoc v1.1.0's `defaultTags()` reads `GOFLAGS`, accepts only `-tags`, emits a diagnostic for unknown tokens, and returns no default tags after parse failure. Nixpkgs' `-mod=vendor` is a build-system option, not a gomarkdoc application option.
+## Exact failing behavior under Go 1.26
 
-The selected candidate removes only that token during checks. This is semantic isolation; available evidence does not establish the diagnostic as the sole failing condition.
+The command package fails `TestCommand/./docs` because generated markdown changes. One observed difference is link resolution for a field reference:
 
-### Omitted fixture
+```text
+GetField gets [\\\*AnotherStruct.Field](<#AnotherStruct>).
+```
 
-`cmd/gomarkdoc/command_test.go` changes into `testData` and references `../.gomarkdoc-empty.yml`. The tagged release omits the file. `touch .gomarkdoc-empty.yml` restores the expected empty fixture in the disposable build tree.
+versus the retained expected text:
 
-### Package selection
+```text
+GetField gets \[\*AnotherStruct.Field\].
+```
 
-`subPackages = [ "cmd/gomarkdoc" ]` selects the built command. The Go builder also uses that list for tests when nonempty. The selected source retains this behavior, so the check boundary corresponds to the package output.
+The default-Go variant failed even with both the empty fixture and `GOFLAGS` cleanup present.
 
-## Full-discovery experiment
+## Broader test packages
 
-Superseded source head `94be3956403ebf368b9d8262fdc9e5a5d2e80683` added `subPackages=()` inside `preCheck`.
-
-Run [`30674969557`](https://github.com/teamleaderleo/fieldwork/actions/runs/30674969557) verified on x86_64-linux and aarch64-darwin that:
-
-- exact source and one-file fence were correct;
-- `preCheck` ran before test selection;
-- root, command, `format`, and `format/formatcore` passed;
-- `lang` failed identically on both platforms.
-
-The failures were:
+Clearing `subPackages` reaches the complete upstream package set. On Go 1.25, root, command, and formatter packages pass, while `lang` fails on standard-library prose:
 
 ```text
 [Scanner] != Scanner
 *[os.File] != *os.File
 ```
 
-The tests read Go standard-library documentation and compare exact summaries. Modern Go comments use bracketed links, while gomarkdoc v1.1.0 expectations retain earlier prose. Detailed receipt: [`receipts/2026-08-01-full-discovery-failure.md`](./receipts/2026-08-01-full-discovery-failure.md).
+Version boundary review found:
 
-This disproves the former claim that Go 1.25 makes the complete upstream suite pass. It supports the narrower claim now proven on Darwin: Go 1.25 plus fixture and flag isolation passes the selected command-package checks.
+- Go 1.21 uses plain `Scanner` and plain `*os.File` in the relevant comments.
+- Go 1.22 introduces the `*[os.File]` link.
+- Go 1.23 introduces the `[Scanner]` link.
 
-## Selected repair
+Both old expectations therefore require Go 1.21 or older. Current Nixpkgs retains Go 1.25 and Go 1.26, and its policy removes fixed builders after their Go line reaches end of life. Broad restoration by pinning an ancient Go release is not a viable Nixpkgs repair.
 
-Commit [`569c0c4d11e5a14f3fe6237c0a50dc484f80e744`](https://github.com/teamleaderleo/nixpkgs/commit/569c0c4d11e5a14f3fe6237c0a50dc484f80e744):
+## Upstream intent
 
-- changes `buildGoModule` to `buildGo125Module`;
-- enables checks;
-- removes `-mod=vendor` during checks;
-- creates `.gomarkdoc-empty.yml`;
-- retains `subPackages = [ "cmd/gomarkdoc" ]` for build and checks.
+gomarkdoc v1.1.0 declares Go 1.18 and its own CI pins Go 1.20.x on Linux, macOS, and Windows. The repository has seen no substantive maintenance since 2023. Its exact documentation goldens were written for an older Go documentation corpus.
 
-Unchanged:
+## Selected source
 
-- source and vendor hashes;
-- command-only output;
-- linker flags;
-- version passthru;
-- generic Go build/check implementation.
+- Base: `55096b0ce13784d4f6420059c5627475fa26ebb1`
+- Head: `5c17b14e271611c3418e3e2f572366766f6aa3cc`
+- File: `pkgs/by-name/go/gomarkdoc/package.nix`
 
-## Why broader repairs were rejected
+The source:
 
-- Skipping the two `lang` tests would weaken upstream coverage without maintainer policy.
-- Patching exact expected prose would bind the package to current Go standard-library wording.
-- Removing `subPackages` globally would widen installation.
-- Replacing `checkPhase` would duplicate Nixpkgs Go-builder behavior.
-- A shared-builder option would not solve the demonstrated language-test incompatibility.
-- Updating gomarkdoc would introduce separate version, dependency, and hash scope.
+1. changes `buildGoModule` to `buildGo125Module`;
+2. removes the stale disable-tests comment and `doCheck = false`;
+3. leaves source/vendor hashes, command selection, linker flags, version test, and metadata unchanged.
 
-## Compatibility and rollback
+## Product compatibility effect
 
-- Platform: exact-head Darwin passed; packet-anchored exact-head Linux is queued; retained older command runs passed both platforms.
-- API/output: installed program and package interface are unchanged.
-- Performance: package builds now execute selected command tests.
-- Rollback: restore `buildGoModule` and `doCheck = false`; no data migration or generated state is involved.
-- Future cleanup: update gomarkdoc or revisit the Go pin when upstream tests accommodate current Go documentation syntax.
+The Go pin affects the installed executable, not only checkPhase. `go/build.Default` falls back to the compiled code's GOROOT. gomarkdoc reads package source and documentation through Go APIs, so its generated output may differ between Go 1.25 and Go 1.26.
 
-## Execution receipts
+The selected choice restores a tested, supported toolchain close to upstream's pinned Go 1.20 line. It also creates a future upgrade obligation. The packet no longer claims output is unchanged.
 
-### Darwin
+## Alternatives
 
-- Carrier head: `c95da0c4b3f460df9bc8f342e98d05345da66df8`
-- Run: [`30690828310`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828310)
-- Job: `91345125710` — success
-- Artifact: `8815619734`
-- Digest: `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`
+### Patch Go 1.26 goldens
 
-Established exact source controls, one-file fence, selected command check, exactly one package result, installed help, and version `1.1.0`.
+This would keep the current production toolchain and validate its output. It would add source patches tied to evolving Go documentation semantics and likely require updates on future Go bumps. Viable, but wider than the selected one-file package repair.
 
-### Packet-anchored Linux and integrity
+### Test with Go 1.25 and build with Go 1.26
 
-- Carrier PR: [Fieldwork #437](https://github.com/teamleaderleo/fieldwork/pull/437)
-- Packet base: `527021b7ff1535e8be4f27dc3ba7226b559a1630`
-- Carrier head: `178e6388bf06b965970dd3ab7435db9e756a13e4`
-- Carrier relation: one commit and one workflow file
-- Linux run: [`30691551270`](https://github.com/teamleaderleo/fieldwork/actions/runs/30691551270), job `91347062784` — queued
-- Integrity run: [`30691551312`](https://github.com/teamleaderleo/fieldwork/actions/runs/30691551312), job `91347062807` — queued
+This separates the checked toolchain from the shipped toolchain. The tests would no longer validate the production binary's documentation behavior. Rejected.
 
-The Linux gate adds `nixpkgs-review rev HEAD --no-shell`. The integrity generation covers the packet through `527021b7ff1535e8be4f27dc3ba7226b559a1630`; later packet commits reconcile receipt and status data.
+### Restore every upstream package
 
-## Remaining uncertainty
+Requires unsupported Go 1.21-or-older semantics or patches/skips for language goldens. Rejected for this unit.
 
-- packet-anchored Linux command, help, version, and `nixpkgs-review` evidence is pending;
-- packet-anchored integrity is pending;
-- carrier closure and independent review are pending;
-- the source must be rebased onto a fresh public head and rerun before submission;
-- Hydra, ofborg, and merge-queue evidence require a future authorized public PR;
-- public-contact authority is absent.
+### Update gomarkdoc
 
-Current disposition: `HOLD`.
+No newer tagged release exists. Moving to an arbitrary revision changes source, dependencies, and hashes and needs a separate update review. Rejected here.
+
+## Current uncertainty
+
+The simplified exact Git head still requires fresh Linux and Darwin execution. Submission also requires regeneration on a current public Nixpkgs head because the retained base is stale.
+
+No public upstream interaction occurred.

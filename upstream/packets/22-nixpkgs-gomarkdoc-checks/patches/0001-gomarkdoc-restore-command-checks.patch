@@ -1,16 +1,16 @@
-From 569c0c4d11e5a14f3fe6237c0a50dc484f80e744 Mon Sep 17 00:00:00 2001
+From 5c17b14e271611c3418e3e2f572366766f6aa3cc Mon Sep 17 00:00:00 2001
 From: teamleaderleo <teamleaderleo@users.noreply.github.com>
-Date: Sat, 1 Aug 2026 07:57:00 +0000
+Date: Sat, 1 Aug 2026 08:55:00 +0000
 Subject: [PATCH] gomarkdoc: restore command checks
 
 Base: 55096b0ce13784d4f6420059c5627475fa26ebb1
 Source: teamleaderleo/nixpkgs fieldwork/unit-22-gomarkdoc-checks
 ---
- pkgs/by-name/go/gomarkdoc/package.nix | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ pkgs/by-name/go/gomarkdoc/package.nix | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
 
 diff --git a/pkgs/by-name/go/gomarkdoc/package.nix b/pkgs/by-name/go/gomarkdoc/package.nix
-index 149e1cf1908f..5e13ebcf9654 100644
+index 149e1cf1908f..95b031206da5 100644
 --- a/pkgs/by-name/go/gomarkdoc/package.nix
 +++ b/pkgs/by-name/go/gomarkdoc/package.nix
 @@ -1,12 +1,12 @@
@@ -28,7 +28,7 @@ index 149e1cf1908f..5e13ebcf9654 100644
    pname = "gomarkdoc";
    version = "1.1.0";
  
-@@ -21,10 +21,15 @@ buildGoModule (finalAttrs: {
+@@ -21,10 +21,8 @@ buildGoModule (finalAttrs: {
  
    vendorHash = "sha256-gCuYqk9agH86wfGd7k6QwLUiG3Mv6TrEd9tdyj8AYPs=";
  
@@ -36,15 +36,8 @@ index 149e1cf1908f..5e13ebcf9654 100644
 -  # environment. nixpkgs sets GOFLAGS=-mod=vendor, but gomarkdoc's own flag
 -  # parser only accepts -tags, so -mod triggers "flag provided but not defined".
 -  doCheck = false;
-+  doCheck = true;
-+
-+  # v1.1.0's command-package golden still matches Go 1.25 output. Its tests
-+  # also parse GOFLAGS as application flags and reference an empty config
-+  # fixture omitted from the release tag.
-+  preCheck = ''
-+    export GOFLAGS="''${GOFLAGS//-mod=vendor/}"
-+    touch .gomarkdoc-empty.yml
-+  '';
++  # gomarkdoc 1.1.0's command tests compare generated documentation that
++  # changed with Go 1.26. Keep the oldest supported Go toolchain for now.
  
    ldflags = [
      "-s"

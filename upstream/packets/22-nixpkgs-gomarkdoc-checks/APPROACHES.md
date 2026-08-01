@@ -2,125 +2,92 @@
 
 ## Decision
 
-Selected: restore the `cmd/gomarkdoc` checks selected by the package's existing `subPackages = [ "cmd/gomarkdoc" ]` boundary.
+Selected: pin gomarkdoc 1.1.0 to `buildGo125Module` and restore the default command-package checks by removing `doCheck = false`.
 
-Canonical source: [`569c0c4d11e5a14f3fe6237c0a50dc484f80e744`](https://github.com/teamleaderleo/nixpkgs/commit/569c0c4d11e5a14f3fe6237c0a50dc484f80e744)
+Canonical source: [`5c17b14e271611c3418e3e2f572366766f6aa3cc`](https://github.com/teamleaderleo/nixpkgs/commit/5c17b14e271611c3418e3e2f572366766f6aa3cc)
 
-Current disposition: `HOLD`. Exact-head Darwin passed; packet-anchored Linux and integrity, carrier closure, independent review, and fresh-head execution remain pending.
+Current disposition: `EXECUTE`.
 
-## Selected approach — command-package checks
+## Selected approach — Go 1.25 pin only
 
 ```nix
-buildGo125Module (finalAttrs: {
-  subPackages = [ "cmd/gomarkdoc" ];
-  doCheck = true;
+{
+  buildGo125Module,
+  # ...
+}:
 
-  preCheck = ''
-    export GOFLAGS="''${GOFLAGS//-mod=vendor/}"
-    touch .gomarkdoc-empty.yml
-  '';
+buildGo125Module (finalAttrs: {
+  # gomarkdoc 1.1.0's command tests compare generated documentation that
+  # changed with Go 1.26. Keep the oldest supported Go toolchain for now.
 })
 ```
 
-### Why it fits
+`buildGoModule` enables checks by default, so removing the explicit disable restores `cmd/gomarkdoc` tests.
 
-- It restores tests for the program Nixpkgs builds and installs.
-- It preserves the package's existing build and check target selection.
-- It reuses the standard Nixpkgs Go check phase.
-- It recreates the fixture omitted from the v1.1.0 tag.
-- It keeps Nix's build-only `-mod=vendor` token out of gomarkdoc's application flag parser.
-- It keeps source/vendor hashes, linker flags, output contents, and version passthru unchanged.
-- Exact-head aarch64-darwin passed package build, selected command check, installed help, and version `1.1.0`.
-- Retained older execution also passed this command-package path on Linux and Darwin.
+### Why selected
+
+- The repair-isolation run proves Go 1.25 alone passes.
+- The same run proves Go 1.26 fails even after fixture and flag cleanup.
+- It preserves the existing command-only package selection.
+- It uses the standard Nixpkgs Go build and check phases.
+- It adds no test patch, custom check phase, fixture, or shell mutation.
+- Versioned Go builders are the documented Nixpkgs response for toolchain-sensitive packages.
 
 ### Risks
 
-- `buildGo125Module` is a compatibility pin and creates future update work.
-- Public issue #516481 calls the unknown-flag diagnostic benign, so `GOFLAGS` token removal remains semantic isolation rather than a proven sole blocker.
-- The fixture is synthesized in the disposable build tree.
-- Root, `lang`, and formatter tests are outside this package-selected check boundary.
-- The candidate base is 384 commits behind refreshed public head `63c4c8011115076be7a315edd8f740fd751b168a`, although the checked advance has no relevant package or builder overlap.
+- The installed binary changes from Go 1.26 to Go 1.25, which can change generated documentation.
+- Go 1.25 is temporary and will eventually leave the supported Nixpkgs window.
+- Selected checks cover the built command package, not the complete upstream library suite.
+- The package is dormant upstream, making a future clean update uncertain.
 
-## Executed losing approach — clear `subPackages` for full discovery
+## Executed rejected approach — fixture and `GOFLAGS` cleanup as fixes
 
-Superseded source head: `94be3956403ebf368b9d8262fdc9e5a5d2e80683`  
-Run: [`30674969557`](https://github.com/teamleaderleo/fieldwork/actions/runs/30674969557)  
-Receipt: [`receipts/2026-08-01-full-discovery-failure.md`](./receipts/2026-08-01-full-discovery-failure.md)
+Run [`30692403974`](https://github.com/teamleaderleo/fieldwork/actions/runs/30692403974) tested all combinations.
 
-### Result
+Go 1.25 passed with:
 
-Clearing `subPackages` inside `preCheck` successfully reached the broad package set on Linux and Darwin. Root, command, and formatter packages passed. `lang` failed the same two exact-text tests on both platforms because modern Go 1.25 standard-library comments contain bracketed documentation links:
+- both cleanups;
+- only fixture creation;
+- only `GOFLAGS` cleanup;
+- neither cleanup.
 
-- `[Scanner]` instead of `Scanner`;
-- `*[os.File]` instead of `*os.File`.
+The cleanups are not required repairs. They were removed to satisfy the smallest-proven-diff rule.
 
-### Disposition
+## Executed rejected approach — current Go with both cleanups
 
-Rejected for this unit. The result proves the selector reset mechanism, while also proving that a claimed full upstream restoration requires additional upstream-test compatibility policy. Unit 22 does not skip or rewrite those language assertions.
+Go 1.26 plus the empty fixture and `GOFLAGS` cleanup failed `TestCommand/./docs`. This disproves the original causal theory.
 
-### Reopening trigger
+## Executed rejected approach — full package discovery
 
-Reopen broad discovery only when one of these is established:
+Run [`30674969557`](https://github.com/teamleaderleo/fieldwork/actions/runs/30674969557) cleared `subPackages` and reached the broad suite on Linux and Darwin. `lang` failed deterministic standard-library documentation goldens.
 
-- a newer gomarkdoc release updates the exact-text expectations;
-- gomarkdoc maintainers define bracketed Go doc links as the intended v1.1.0 output;
-- Nixpkgs maintainers request a package patch or narrowly justified test skip;
-- a supported older Go toolchain is accepted for the whole suite.
+Both expected strings align only with Go 1.21 or older. Current Nixpkgs does not retain such an old supported builder. Rejected.
 
-## Rejected approach — leave `doCheck = false`
+## Viable future approach — patch current-Go goldens
 
-Current containment leaves the built command untested. Rejected.
+Patch the gomarkdoc v1.1.0 expected documentation for Go 1.26 and retain the default builder. This would validate the currently shipped toolchain but adds test-data patches coupled to Go's evolving documentation output. Consider when the Go 1.25 pin ages out.
 
-## Rejected approach — remove `subPackages` from the package expression
+## Rejected approach — split build and test toolchains
 
-This would widen build/install behavior beyond the command package. Rejected.
+Building the product with Go 1.26 while running tests with Go 1.25 would make the checks pass without validating production behavior. Rejected.
 
-## Rejected approach — replace `checkPhase`
+## Rejected approach — custom checkPhase
 
-A manual `go test` phase would duplicate Nixpkgs Go-builder handling for tags, flags, parallelism, vet behavior, and output. Rejected while the standard selected-package phase works.
+The standard selected-package check phase works under Go 1.25. A custom phase adds unnecessary divergence. Rejected.
 
-## Rejected approach — skip the two `lang` tests
+## Rejected approach — update to an untagged gomarkdoc revision
 
-A `-skip` expression could make broad discovery green, but it would weaken upstream coverage specifically to accommodate evolving standard-library prose. No maintainer policy supports that choice. Rejected.
-
-## Rejected approach — patch exact `lang` expectations
-
-Replacing `Scanner` with `[Scanner]` and `*os.File` with `*[os.File]` would bind gomarkdoc 1.1.0 tests to current Go standard-library wording and expand the Nixpkgs patch beyond package configuration. Rejected.
-
-## Rejected approach — generic `buildGoModule` enhancement
-
-A separate `checkSubPackages` option could express different build and test sets, but the full-discovery result shows that broader tests still fail. A shared-builder change would not solve the package compatibility issue and exceeds unit scope. Rejected.
-
-## Rejected approach — newer gomarkdoc revision
-
-No newer tagged release was established for this package. A version update changes source/vendor hashes and requires independent changelog and dependency review. Rejected for unit 22.
-
-## Viable narrower variant — retain `-mod=vendor`
-
-The public issue and gomarkdoc source indicate the unknown token is diagnostic rather than fatal. A reviewer could request Go 1.25 plus fixture synthesis while leaving `GOFLAGS` unchanged.
-
-The selected source removes the token because the assignment concerns leaked Nix flags and passing command-package execution used this setup. Reopen only on reviewer request or comparative evidence.
+No newer tagged release exists. An untagged update changes dependencies and hashes and exceeds unit 22. Rejected.
 
 ## Validation fence
 
-### Established on Darwin
+The next execution carrier must prove for source head `5c17b14e...`:
 
-Carrier head `c95da0c4b3f460df9bc8f342e98d05345da66df8`, run `30690828310`, job `91345125710` established:
-
-- exact source head `569c0c4d11e5a14f3fe6237c0a50dc484f80e744` and parent;
-- one changed package file and `git diff --check` success;
-- selected command-package build/check and exactly one package result;
-- installed executable and help output;
-- version passthru `1.1.0`;
-- artifact `8815619734`, digest `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`.
-
-### Packet-anchored remaining gates
-
-- Packet base: `527021b7ff1535e8be4f27dc3ba7226b559a1630`
-- Carrier head: `178e6388bf06b965970dd3ab7435db9e756a13e4`
-- Linux run: `30691551270`, job `91347062784` — queued
-- Integrity run: `30691551312`, job `91347062807` — queued
-
-Linux must establish the same source/package/help/version controls plus `nixpkgs-review rev HEAD --no-shell`. Integrity must validate the packet base plus one-file carrier. After terminal receipt transfer, the execution carrier can close.
-
-Further gates are independent complete-diff review and fresh-public-head rebase/rerun before authorized submission.
+- exact parent `55096b0c...`;
+- one changed package file and `git diff --check`;
+- package build and `cmd/gomarkdoc` check on x86_64-linux and aarch64-darwin;
+- exactly one gomarkdoc package result;
+- installed help output;
+- version `1.1.0`;
+- Linux `nixpkgs-review rev HEAD --no-shell`;
+- retained artifacts and current packet integrity.

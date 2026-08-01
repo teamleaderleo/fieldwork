@@ -12,35 +12,33 @@ Proposed body:
 
 Closes #516481.
 
-gomarkdoc 1.1.0 currently has `doCheck = false`. Restore the checks for the selected `cmd/gomarkdoc` package while preserving the existing command-only build and installed output.
+gomarkdoc 1.1.0's checks pass on the Go 1.25 release line and fail on current Go 1.26 because the command tests compare generated documentation output.
 
-The tagged command tests need three package-local compatibility adjustments:
+Pin the package to `buildGo125Module` and remove `doCheck = false`. The existing `subPackages = [ "cmd/gomarkdoc" ]` selection remains unchanged, so the standard Go builder runs the tests for the command that Nixpkgs builds and installs.
 
-- use `buildGo125Module` because the retained v1.1.0 command golden matches Go 1.25 output;
-- create the empty `.gomarkdoc-empty.yml` fixture referenced by the tagged tests;
-- remove Nix's build-only `-mod=vendor` token before gomarkdoc parses `GOFLAGS` as application flags.
+A comparison of the issue's reproducer revisions shows that the passing revision is a `release-25.11` backport using Go 1.25, while the failing revision is on master using Go 1.26. A five-variant run also shows that creating `.gomarkdoc-empty.yml` and removing Nix's `-mod=vendor` flag are not required: Go 1.25 passes without either, and Go 1.26 fails with both.
 
-The unknown-flag diagnostic recorded in #516481 is benign by itself; the missing empty fixture is the observed public failure. Removing the token keeps a build-system flag out of gomarkdoc's application parser.
+The package version, source hash, vendor hash, command selection, linker flags, and version passthru remain unchanged.
 
-`subPackages = [ "cmd/gomarkdoc" ]` remains unchanged, so the standard Go builder runs the tests corresponding to the built command. The source hash, vendor hash, linker flags, installed program, and version passthru are unchanged.
+This pin changes the Go toolchain used by the installed binary and can affect generated documentation. It is a compatibility pin for the dormant v1.1.0 release and should be revisited when gomarkdoc is updated or Go 1.25 is removed from Nixpkgs.
 
 ## Things done
 
 - Built on platform:
-  - [ ] x86_64-linux — packet-anchored exact-head job pending
+  - [ ] x86_64-linux — simplified exact head pending
   - [ ] aarch64-linux
   - [ ] x86_64-darwin
-  - [x] aarch64-darwin
+  - [ ] aarch64-darwin — simplified exact head pending
 - Tested, as applicable:
-  - [ ] Package build with selected command checks enabled on x86_64-linux.
-  - [x] Package build with selected command checks enabled on aarch64-darwin.
-  - [ ] Installed `gomarkdoc --help` path on x86_64-linux.
-  - [x] Installed `gomarkdoc --help` path on aarch64-darwin.
-  - [ ] `gomarkdoc.tests.version` prints `1.1.0` on x86_64-linux.
-  - [x] `gomarkdoc.tests.version` prints `1.1.0` on aarch64-darwin.
+  - [ ] `cmd/gomarkdoc` checks on x86_64-linux.
+  - [ ] `cmd/gomarkdoc` checks on aarch64-darwin.
+  - [ ] Installed `gomarkdoc --help` on x86_64-linux.
+  - [ ] Installed `gomarkdoc --help` on aarch64-darwin.
+  - [ ] Version passthru prints `1.1.0` on x86_64-linux.
+  - [ ] Version passthru prints `1.1.0` on aarch64-darwin.
 - [ ] Ran `nixpkgs-review rev HEAD --no-shell` on x86_64-linux.
 - Nixpkgs Release Notes:
-  - [x] No release-note entry; package version and interface are unchanged.
+  - [x] No release-note entry; package version and CLI are unchanged.
 - NixOS Release Notes:
   - [x] Not applicable.
 - [ ] Rechecked current contribution instructions and pull-request template at submission time.
@@ -57,50 +55,10 @@ $ nixpkgs-review rev HEAD --no-shell
 
 ## Draft synchronization notes
 
-The aarch64-darwin checkboxes reflect exact-head job `91345125710` from run `30690828310`. The packet-anchored Linux gate is run `30691551270`, job `91347062784`, currently queued. It verifies source identity, the one-file source fence, command-package check output, installed help, version `1.1.0`, and `nixpkgs-review`.
+The checklist remains empty until exact source head `5c17b14e271611c3418e3e2f572366766f6aa3cc` produces terminal receipts.
 
-A separate full-discovery experiment is intentionally excluded from the proposed public body. It reached root, command, and formatter tests but failed two `lang` exact-text assertions on both platforms because modern Go standard-library comments use bracketed documentation links. This PR neither skips nor rewrites those library-package tests; it restores the checks selected by the package's existing command build boundary.
-
-The final authorized submission must:
-
-1. rebase or regenerate the one-file commit on a fresh current `master`;
-2. rerun every exact-head gate;
-3. fill Linux checkboxes from the final receipts;
-4. recheck current contribution and disclosure requirements;
-5. preserve `Closes #516481` only if the issue still owns this regression.
-
-## Current source identity
-
-- Base: `55096b0ce13784d4f6420059c5627475fa26ebb1`
-- Head: `569c0c4d11e5a14f3fe6237c0a50dc484f80e744`
-- Branch: `teamleaderleo/nixpkgs:fieldwork/unit-22-gomarkdoc-checks`
-- Changed file: `pkgs/by-name/go/gomarkdoc/package.nix`
-- Refreshed public head: `63c4c8011115076be7a315edd8f740fd751b168a`
-- Public-head distance: 384 commits from the candidate base
-- Relevant overlap in the checked advance: none
-
-## Current execution identity
-
-### Darwin receipt
-
-- Carrier head: `c95da0c4b3f460df9bc8f342e98d05345da66df8`
-- Run: `30690828310`
-- Job: `91345125710` — success
-- Artifact: `8815619734`
-- Artifact digest: `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`
-
-### Packet-anchored Linux and integrity
-
-- Fieldwork carrier PR: `#437`
-- Packet base: `527021b7ff1535e8be4f27dc3ba7226b559a1630`
-- Carrier head: `178e6388bf06b965970dd3ab7435db9e756a13e4`
-- Carrier relation: one commit changing `.github/workflows/unit-22-gomarkdoc-checks.yml`
-- Linux run: `30691551270`
-- Linux job: `91347062784` — queued at latest check
-- Integrity run: `30691551312`
-- Integrity job: `91347062807` — queued at latest check
-- Packet disposition: `HOLD`
+The broader root/library suite is outside the package's existing command-only selection and contains standard-library documentation expectations requiring Go 1.21 or older. This PR does not skip, patch, or claim coverage for those packages.
 
 ## Public interaction status
 
-This is a retained draft. No public Nixpkgs pull request, comment, reaction, or maintainer contact occurred, and no authority to perform one has been granted.
+This is a retained draft. No public Nixpkgs pull request, issue comment, reaction, or maintainer contact occurred.

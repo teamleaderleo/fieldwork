@@ -2,65 +2,49 @@
 
 ## Status
 
-`NO NEW ISSUE — EXISTING ISSUE #516481`
+`NO NEW ISSUE — USE EXISTING NixOS/nixpkgs#516481`
 
-A new public issue would duplicate [`NixOS/nixpkgs#516481`](https://github.com/NixOS/nixpkgs/issues/516481), which already records the gomarkdoc 1.1.0 command-check regression, missing empty fixture, and disable-tests workaround.
+A new issue would duplicate the existing regression report. The existing issue should be linked by a future authorized pull request, while its causal explanation should be corrected in the PR body.
 
-Public upstream contact remains unauthorized. This file preserves routing analysis without posting anything.
+Public upstream contact remains unauthorized.
 
-## Existing issue fit
+## Corrected diagnosis
 
-Relevant facts already recorded by the issue:
+The issue compares:
 
-- gomarkdoc 1.1.0 checks regressed while the package expression stayed unchanged;
-- command tests emit unknown-flag diagnostics while parsing `GOFLAGS`;
-- the observed failing condition is the absent `../.gomarkdoc-empty.yml` fixture;
-- disabling checks is the current workaround;
-- the issue points to `buildGoModule`, Go, and stdenv as investigation boundaries;
-- no competing repair is present.
+- a `release-25.11` backport using Go 1.25;
+- a master revision using Go 1.26.
 
-## Refined claim boundary
+The package source, vendor hash, and command selection remain the same. A comparative target run proves:
 
-Source review and retained execution support these statements:
+- Go 1.25 passes without adding the missing fixture and without removing Nix `GOFLAGS`;
+- Go 1.26 fails even when both cleanups are applied.
 
-- `-mod=vendor` reaches gomarkdoc's application parser and produces a diagnostic;
-- gomarkdoc returns no default tags after that parse error;
-- the public issue treats the diagnostic as benign;
-- the missing empty fixture is the observed command-test blocker;
-- Go 1.25 plus fixture synthesis and flag isolation passed the selected command package in retained Linux and Darwin runs;
-- a separate full-discovery experiment failed two `lang` exact-text tests because modern Go standard-library comments use bracketed documentation links.
+The visible missing-file and unknown-flag messages are captured output printed when the package test fails. They are not established failure causes.
 
-The selected repair therefore restores the checks corresponding to the package's existing `cmd/gomarkdoc` build target. It does not claim a passing complete upstream library suite.
+## Preferred authorized route
 
-## Preferred upstream route after authorization
-
-Open a direct PR against `master` with:
+Open a direct pull request against current `master` and use:
 
 ```text
 Closes #516481
 ```
 
-The PR should change only `pkgs/by-name/go/gomarkdoc/package.nix` and describe:
+The PR should explain that gomarkdoc 1.1.0's generated-documentation tests are toolchain-sensitive and that Nixpkgs' Go 1.25 release branch passes while Go 1.26 master does not.
 
-1. Go 1.25 compatibility for the selected v1.1.0 command golden;
-2. creation of the omitted empty fixture in the disposable build tree;
-3. removal of Nix's build-only `-mod=vendor` token before application flag parsing;
-4. unchanged `subPackages = [ "cmd/gomarkdoc" ]` build and check selection;
-5. unchanged source/vendor hashes and installed output.
+## Optional future issue comment
 
-## Optional issue comment draft
+A separate issue comment is unnecessary if a direct PR accurately explains the result. If maintainers ask, a concise correction would be:
 
-A direct PR is preferable. This comment remains unposted and would require exact authorization:
+> The two reproducer revisions are from different Nixpkgs lines: the passing release-25.11 snapshot maps buildGoModule to Go 1.25, while the failing master snapshot maps it to Go 1.26. A variant matrix shows Go 1.25 passes without fixture or GOFLAGS changes, and Go 1.26 fails with both. The visible diagnostics are captured output, not the failing assertion.
 
-> I reproduced the command-package failure and prepared a package-local repair that uses Go 1.25, recreates the omitted empty config fixture, and keeps Nix's `-mod=vendor` option out of gomarkdoc's application flag parser during checks. The existing `subPackages = [ "cmd/gomarkdoc" ]` boundary remains unchanged, so the restored checks correspond to the built command.
->
-> I also tested broader Go package discovery separately. Root, command, and formatter packages passed, while two `lang` exact-text assertions failed because current Go standard-library comments contain bracketed documentation links. The proposed package repair does not skip or rewrite those tests.
+This text is retained only for future explicit authorization.
 
 ## Authority checklist
 
-- [x] Existing public issue found.
-- [x] New issue avoided.
-- [x] No public comment posted.
-- [x] No reaction or maintainer contact performed.
-- [ ] Exact authorization obtained for any future public interaction.
-- [ ] Current contribution and disclosure requirements rechecked at filing time.
+- [x] Existing issue found.
+- [x] Duplicate issue avoided.
+- [x] Causal claim independently checked.
+- [x] No public comment, reaction, or maintainer contact performed.
+- [ ] Explicit authorization obtained for any future public action.
+- [ ] Current issue state and contribution policy rechecked at submission time.
