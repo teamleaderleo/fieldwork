@@ -6,7 +6,7 @@ Selected: restore the `cmd/gomarkdoc` checks selected by the package's existing 
 
 Canonical source: [`569c0c4d11e5a14f3fe6237c0a50dc484f80e744`](https://github.com/teamleaderleo/nixpkgs/commit/569c0c4d11e5a14f3fe6237c0a50dc484f80e744)
 
-Current disposition: `HOLD` pending current exact-head execution, receipt transfer, carrier closure, and independent review.
+Current disposition: `HOLD`. Exact-head Darwin passed; Linux, final packet integrity, carrier closure, independent review, and fresh-head execution remain pending.
 
 ## Selected approach — command-package checks
 
@@ -30,7 +30,8 @@ buildGo125Module (finalAttrs: {
 - It recreates the fixture omitted from the v1.1.0 tag.
 - It keeps Nix's build-only `-mod=vendor` token out of gomarkdoc's application flag parser.
 - It keeps source/vendor hashes, linker flags, output contents, and version passthru unchanged.
-- Prior Linux and Darwin runs passed this command-package path; a fresh exact-head run is queued.
+- Exact-head aarch64-darwin passed package build, selected command check, installed help, and version `1.1.0`.
+- Retained older execution also passed this command-package path on Linux and Darwin.
 
 ### Risks
 
@@ -38,6 +39,7 @@ buildGo125Module (finalAttrs: {
 - Public issue #516481 calls the unknown-flag diagnostic benign, so `GOFLAGS` token removal remains semantic isolation rather than a proven sole blocker.
 - The fixture is synthesized in the disposable build tree.
 - Root, `lang`, and formatter tests are outside this package-selected check boundary.
+- The candidate base is 384 commits behind refreshed public head `63c4c8011115076be7a315edd8f740fd751b168a`, although the checked advance has no relevant package or builder overlap.
 
 ## Executed losing approach — clear `subPackages` for full discovery
 
@@ -67,7 +69,7 @@ Reopen broad discovery only when one of these is established:
 
 ## Rejected approach — leave `doCheck = false`
 
-Current containment avoids failures but leaves the built command untested. Rejected.
+Current containment leaves the built command untested. Rejected.
 
 ## Rejected approach — remove `subPackages` from the package expression
 
@@ -97,18 +99,24 @@ No newer tagged release was established for this package. A version update chang
 
 The public issue and gomarkdoc source indicate the unknown token is diagnostic rather than fatal. A reviewer could request Go 1.25 plus fixture synthesis while leaving `GOFLAGS` unchanged.
 
-The selected source removes the token because the assignment concerns leaked Nix flags and prior passing command-package execution used this setup. Reopen only on reviewer request or comparative evidence.
+The selected source removes the token because the assignment concerns leaked Nix flags and passing command-package execution used this setup. Reopen only on reviewer request or comparative evidence.
 
 ## Validation fence
 
-Current carrier head `c95da0c4b3f460df9bc8f342e98d05345da66df8` must show:
+Current carrier head `c95da0c4b3f460df9bc8f342e98d05345da66df8` has established on Darwin:
 
 - exact source head `569c0c4d11e5a14f3fe6237c0a50dc484f80e744` and parent;
 - one changed package file and `git diff --check` success;
-- package build on x86_64-linux and aarch64-darwin;
-- successful `cmd/gomarkdoc` check result and exactly one selected package result;
+- selected command-package build/check and exactly one package result;
 - installed executable and help output;
 - version passthru `1.1.0`;
+- artifact `8815619734`, digest `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`.
+
+Remaining validation:
+
+- the same package/check/help/version controls on x86_64-linux;
 - Linux `nixpkgs-review rev HEAD --no-shell`;
-- current Fieldwork integrity;
-- transferred artifacts and closed execution carrier.
+- final packet-tip Fieldwork integrity;
+- transferred artifacts and closed execution carrier;
+- independent complete-diff review;
+- fresh-head rebase and rerun before authorized submission.
