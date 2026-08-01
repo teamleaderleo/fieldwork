@@ -4,19 +4,17 @@
 
 Nixpkgs disabled gomarkdoc 1.1.0 checks after a Go-toolchain transition exposed a generated-documentation golden mismatch. The visible missing-config and unknown-flag diagnostics were captured output, not the failing assertion.
 
-The selected repair keeps the current Go 1.26 builder and updates the one command-test golden line whose link resolution changed. It removes `doCheck = false`, restores the package-selected `cmd/gomarkdoc` tests, and leaves product source and package metadata unchanged.
-
-A patch-equivalent aarch64-darwin comparison proved the checks-enabled installed binary is byte-for-byte identical to the checks-disabled baseline. The canonical commit has now been regenerated on the current public Nixpkgs head and requires exact-head Linux/Darwin acceptance.
+The accepted repair keeps the current Go 1.26 builder, updates the one command-test golden line whose link resolution changed, and removes `doCheck = false`. The package-selected `cmd/gomarkdoc` checks now pass on Linux and Darwin. The changed file is a test-only expected-output fixture: tests generate `README-test.md` and compare it with `testData/docs/README.md`.
 
 ## Disposition
 
-`EXECUTE`
+`ACCEPT`
 
-Independent review accepts the source direction. Current-base exact-head target execution and packet integrity remain before `ACCEPT`.
+Independent complete-diff review and current-base target execution are complete. The packet is ready for the user's final-mile public-upstream decision.
 
 Upstream contact authorized: `no`.
 
-## Exact current source
+## Exact source
 
 - Repository: [`teamleaderleo/nixpkgs`](https://github.com/teamleaderleo/nixpkgs)
 - Branch: [`fieldwork/unit-22-gomarkdoc-checks`](https://github.com/teamleaderleo/nixpkgs/tree/fieldwork/unit-22-gomarkdoc-checks)
@@ -25,7 +23,7 @@ Upstream contact authorized: `no`.
 - Compare: [`97d48ba1...e8d97d5d`](https://github.com/teamleaderleo/nixpkgs/compare/97d48ba11e7eeb6896e9da8d64b22b306da14103...e8d97d5d8c67a9473a7aaad3961c0630583aa34b)
 - Changed file: `pkgs/by-name/go/gomarkdoc/package.nix`
 - Fence: one commit, one file, six additions and four deletions
-- Regenerated: 2026-08-01 after confirming the public package still had blob `149e1cf1908f421132ba3f9bbe08588f9d424a92`
+- Final package blob: `53f4eef322e84133c2c867070a55c60bb14e09ae`
 
 ## Selected source change
 
@@ -40,45 +38,45 @@ postPatch = ''
 
 Removing `doCheck = false` restores the generic Go builder's selected command-package check. `subPackages = [ "cmd/gomarkdoc" ]` remains unchanged.
 
-## Why this is preferred over the Go 1.25 pin
+## Why this repair
 
-A Go 1.25 pin also passes, but it changes the compiler and standard-library view used by the installed documentation generator and creates a near-term lifecycle obligation.
+A five-variant target run disproved fixture creation and `GOFLAGS` cleanup as causes. Go 1.26 still failed with both cleanups; the actual failure was the one generated markdown line.
 
-The selected Go 1.26 repair changes only test data under `testData`. A target comparison built both the checks-disabled baseline and checks-enabled candidate with Go 1.26, then proved their installed binaries are byte-identical:
+A patch-equivalent Go 1.26 comparison then proved the checks-enabled installed binary is byte-for-byte identical to the checks-disabled baseline. Current-base Darwin repeated the binary-identity control. The repair therefore validates the shipped toolchain without changing the executable.
 
-```text
-b8bc993930c3a8af5ebf141d0fa5e2f422b117a420630f532296e20e4428e93e
-```
+## Current-base acceptance
 
-## Strongest evidence
+### aarch64-darwin
 
-### Repair isolation
+- Run: [`30693522616`](https://github.com/teamleaderleo/fieldwork/actions/runs/30693522616)
+- Job: `91352347312` — success
+- Exact source fence, command check, one-package count, installed help, version `1.1.0`: success
+- Checks-disabled baseline/candidate binary identity: success
+- Binary SHA-256: `199ac9faabb41a65e784ac6128f38c3ccb6d97040e4f69d2b3bbd9b79baa817d`
+- Artifact: [`8816500818`](https://github.com/teamleaderleo/fieldwork/actions/runs/30693522616/artifacts/8816500818)
+- Digest: `sha256:313220b9f7ffff28a8023c249232ba0114eba457d1da38dad7122719bcc0d3e2`
 
-Run [`30692403974`](https://github.com/teamleaderleo/fieldwork/actions/runs/30692403974) proved that fixture creation and `GOFLAGS` cleanup are unnecessary, while Go 1.26 still fails with both. Artifact `8816151764`, digest `sha256:8597cc8e25daa9975c20a36c1a824d939820f373bc8a0521d2a022ac60e5471e`.
+### x86_64-linux
 
-### Go 1.26 golden comparison
+- Run: [`30694249810`](https://github.com/teamleaderleo/fieldwork/actions/runs/30694249810)
+- Job: `91354242933` — success
+- Exact source fence, command check, one-package count, installed help, version `1.1.0`: success
+- `nixpkgs-review rev -b 97d48ba11e7eeb6896e9da8d64b22b306da14103 HEAD --no-shell`: success; one package built (`gomarkdoc`)
+- Artifact: [`8816799835`](https://github.com/teamleaderleo/fieldwork/actions/runs/30694249810/artifacts/8816799835)
+- Digest: `sha256:a5ab307bc9102b1c8ccea478dde8c58b21c8dcf6ce56a617ca13c9c6cd8c4cb6`
 
-Patch-equivalent source `3a036ab91fa1de2fbbd038b2b212552cff1cc5bf` ran in [`30692966149`](https://github.com/teamleaderleo/fieldwork/actions/runs/30692966149), job `91350898702`, on aarch64-darwin. Command check, help, version, and binary identity passed. Artifact `8816337182`, digest `sha256:14ae794f8160a5f6c68bcf113dd430d628fa4b8399ad9ceb65f1d5f33770e5e1`.
+Detailed receipt: [`receipts/2026-08-01-current-base-acceptance.md`](./receipts/2026-08-01-current-base-acceptance.md).
 
-The canonical current-base commit uses the same final package blob `53f4eef322e84133c2c867070a55c60bb14e09ae`.
+## Additional evidence
 
-Detailed receipt: [`receipts/2026-08-01-go126-golden-comparison.md`](./receipts/2026-08-01-go126-golden-comparison.md).
+- Repair isolation: run `30692403974`, artifact `8816151764`.
+- Patch-equivalent Go 1.26 binary comparison: run `30692966149`, artifact `8816337182`.
+- Broad-suite negative control: run `30674969557`.
+- Go 1.27 RC2 forecast: run `30693795784`, artifact `8816586391`; command check, help, and version passed.
+- Independent review: [`receipts/2026-08-01-independent-code-review.md`](./receipts/2026-08-01-independent-code-review.md).
 
-### Broader-suite negative control
+## Final-mile notes
 
-Run [`30674969557`](https://github.com/teamleaderleo/fieldwork/actions/runs/30674969557) proved broad discovery reaches root, command, formatter, and language packages. `lang` then failed standard-library prose goldens whose two expectations jointly align only with Go 1.21 or older. Broad restoration remains outside this command-selected package repair.
-
-## Independent review
-
-The complete final diff, target comparisons, installed-output identity, builder behavior, upstream tests, and drafts were reviewed as the assigned independent lane. No separate external-review dependency remains.
-
-Receipt: [`receipts/2026-08-01-independent-code-review.md`](./receipts/2026-08-01-independent-code-review.md).
-
-## Remaining sequence
-
-1. Run exact current source `e8d97d5d...` on x86_64-linux and aarch64-darwin.
-2. Preserve source fence, command result, help, version, Linux `nixpkgs-review`, Darwin baseline/candidate binary identity, artifacts, and Fieldwork integrity.
-3. Transfer receipts and retire temporary carriers.
-4. Mark the research packet `ACCEPT` for the user's final-mile public decision.
+The source is current enough for this packet: the checked public advance after the base had no gomarkdoc or Go-builder overlap. Recheck public master, contribution instructions, PR template, and issue state immediately before authorized submission.
 
 No public upstream interaction occurred.

@@ -2,9 +2,9 @@
 
 ## Current disposition
 
-`EXECUTE`
+`ACCEPT`
 
-Independent review selected the current-Go golden repair and regenerated it on the current public Nixpkgs head. Exact current-base execution remains.
+Independent review and current-base acceptance execution are complete. The packet is ready for the user's final-mile public-upstream decision.
 
 ## Exact source
 
@@ -24,21 +24,39 @@ Independent review selected the current-Go golden repair and regenerated it on t
 - do not create a fixture;
 - do not rewrite `GOFLAGS`.
 
-## Preserved evidence
+## Terminal current-base evidence
 
-- Repair isolation: run `30692403974`, job `91349338842`.
-- Go 1.26 patch-equivalent acceptance: run `30692966149`, job `91350898702`, artifact `8816337182`, binary SHA-256 `b8bc993930c3a8af5ebf141d0fa5e2f422b117a420630f532296e20e4428e93e`.
-- Broad-suite negative control: run `30674969557`.
-- Comparison carrier PR #490 closed after receipt transfer.
-- Unit 01 PR #438 remains unrelated and intact.
+### Darwin
 
-## Required continuation
+- Run `30693522616`, job `91352347312`: success
+- Package/check/help/version and baseline/candidate binary identity: success
+- Artifact `8816500818`
+- Digest `sha256:313220b9f7ffff28a8023c249232ba0114eba457d1da38dad7122719bcc0d3e2`
+- Binary SHA-256 `199ac9faabb41a65e784ac6128f38c3ccb6d97040e4f69d2b3bbd9b79baa817d`
 
-1. Launch a clean carrier anchored to the packet revision containing this handoff.
-2. Run current source `e8d97d5d...` on x86_64-linux and aarch64-darwin.
-3. Preserve source fence, command result, help, version, Darwin baseline/candidate binary identity, Linux `nixpkgs-review`, artifacts, and integrity.
-4. Transfer receipts and retire canonical execution PR #437.
-5. Mark the packet `ACCEPT` for the user's final-mile public decision if all gates pass.
+### Linux
+
+- Run `30694249810`, job `91354242933`: success
+- Package/check/help/version: success
+- Exact-parent `nixpkgs-review`: success; one package built (`gomarkdoc`)
+- Artifact `8816799835`
+- Digest `sha256:a5ab307bc9102b1c8ccea478dde8c58b21c8dcf6ce56a617ca13c9c6cd8c4cb6`
+
+## Supporting evidence
+
+- Repair isolation run `30692403974`.
+- Patch-equivalent binary comparison run `30692966149`.
+- Broad-suite negative control run `30674969557`.
+- Go 1.27 RC forecast run `30693795784`.
+- Independent review receipt `receipts/2026-08-01-independent-code-review.md`.
+- Current-base acceptance receipt `receipts/2026-08-01-current-base-acceptance.md`.
+
+## Final continuation
+
+1. Record exact packet-tip Fieldwork integrity in issue #435.
+2. Retire execution PR #437 after receipt transfer.
+3. Recheck public master, contribution instructions, PR template, and issue state.
+4. Submit or communicate publicly only under the user's explicit authority.
 
 ## Public interaction
 

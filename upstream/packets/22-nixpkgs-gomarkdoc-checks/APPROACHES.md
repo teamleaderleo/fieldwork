@@ -2,11 +2,11 @@
 
 ## Decision
 
-Selected: keep the current Go builder, update the one Go 1.26 command golden under `testData`, and restore the default selected command-package checks.
+Selected and accepted: keep the current Go builder, update the one Go 1.26 command golden under `testData`, and restore the default selected command-package checks.
 
 Canonical source: [`e8d97d5d8c67a9473a7aaad3961c0630583aa34b`](https://github.com/teamleaderleo/nixpkgs/commit/e8d97d5d8c67a9473a7aaad3961c0630583aa34b)
 
-Current disposition: `EXECUTE`.
+Disposition: `ACCEPT`.
 
 ## Selected approach — current-Go golden repair
 
@@ -23,43 +23,46 @@ Removing `doCheck = false` restores the standard selected-package check.
 ### Why selected
 
 - Go 1.26 command checks pass after one exact golden update.
-- The change touches test data, not product source.
-- A patch-equivalent installed candidate is byte-identical to the checks-disabled Go 1.26 baseline.
+- The change touches a test-only expected-output file, not product source.
+- Current-base checks-disabled and checks-enabled executables are byte-identical.
 - It preserves the default supported toolchain.
 - It avoids a fixed-builder lifecycle pin.
 - It keeps the existing command-only package selection and standard Go phases.
 - `--replace-fail` makes future source drift explicit.
-- The final commit is regenerated on public `master` head `97d48ba1...`.
+- Linux and Darwin exact-head gates and Linux `nixpkgs-review` pass.
+- The same golden passes an advisory Go 1.27rc2 forecast.
 
-### Risks
+### Risks retained
 
-- The expected markdown is coupled to current Go documentation-link semantics.
-- A future Go bump may change additional golden output.
+- The expected markdown is coupled to Go documentation-link semantics.
+- A future Go bump can change another golden.
 - Selected checks cover the built command package, not every upstream library package.
 - The package is dormant upstream.
 
-## Executed rejected approach — fixture and `GOFLAGS` cleanup
+## Executed rejected approaches
 
-Run `30692403974` tested all combinations. Go 1.25 passed with neither cleanup, and Go 1.26 failed with both. They are not repair ingredients.
+### Fixture and `GOFLAGS` cleanup
 
-## Executed rejected approach — Go 1.25 pin
+Run `30692403974` proved both edits unnecessary.
 
-Source `5c17b14e...` changed to `buildGo125Module` and restored checks. Exact aarch64-darwin execution passed.
+### Go 1.25 pin
 
-Rejected because it changes the shipped toolchain and the final Go 1.26 repair preserves installed bytes and avoids a lifecycle pin.
+The pin passed but changed the shipped toolchain and introduced lifecycle work. Rejected after the current-Go binary-identity comparison.
 
-## Executed rejected approach — full package discovery
+### Full package discovery
 
-Run `30674969557` reached the broad suite on Linux and Darwin. `lang` failed standard-library documentation goldens whose combined expectations require Go 1.21 or older. Rejected.
+Run `30674969557` reached the broad suite but failed language goldens requiring Go 1.21-or-older standard-library prose. Rejected.
 
-## Validation fence
+### Split build/test toolchains, custom checkPhase, untagged update
 
-Final acceptance requires:
+Rejected because they either fail to test production behavior or add unnecessary scope.
 
-- exact source head `e8d97d5d...` and parent `97d48ba1...`;
-- one changed package file and `git diff --check`;
-- command check, help, and version on x86_64-linux and aarch64-darwin;
-- Darwin checks-disabled baseline/candidate binary identity;
-- Linux `nixpkgs-review rev HEAD --no-shell`;
-- retained artifacts and current packet integrity;
-- clean retirement of temporary execution carriers.
+## Acceptance fence
+
+- exact source head and parent: pass;
+- one changed package file and `diff --check`: pass;
+- x86_64-linux command/help/version: pass;
+- aarch64-darwin command/help/version: pass;
+- Darwin baseline/candidate executable identity: pass;
+- exact-parent Linux `nixpkgs-review`: pass;
+- independent complete-diff review: pass.

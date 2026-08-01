@@ -16,34 +16,28 @@ gomarkdoc 1.1.0's selected command tests compare generated markdown. Go 1.26 now
 
 Update that single expected line and remove `doCheck = false`. The existing `subPackages = [ "cmd/gomarkdoc" ]` selection remains unchanged, so the standard Go builder runs the tests for the command Nixpkgs builds and installs.
 
-A comparison of the issue's reproducer revisions shows that the passing revision is a `release-25.11` snapshot using Go 1.25, while the failing revision is master using Go 1.26. A separate variant matrix shows that creating `.gomarkdoc-empty.yml` and removing Nix's `-mod=vendor` flag are not required.
+The issue's passing reproducer is a `release-25.11` snapshot using Go 1.25, while the failing revision is master using Go 1.26. A separate variant matrix shows that creating `.gomarkdoc-empty.yml` and removing Nix's `-mod=vendor` flag are not required.
 
-A patch-equivalent candidate was compared with the checks-disabled Go 1.26 package. Their installed `gomarkdoc` binaries are byte-for-byte identical and share SHA-256:
+The changed file under `testData` is an expected-output fixture: tests generate `README-test.md` and compare it with `README.md`. Current-base baseline and candidate installed `gomarkdoc` binaries are byte-for-byte identical.
 
-```text
-b8bc993930c3a8af5ebf141d0fa5e2f422b117a420630f532296e20e4428e93e
-```
-
-The final one-file commit is regenerated on current master head `97d48ba11e7eeb6896e9da8d64b22b306da14103`.
-
-The package version, source hash, vendor hash, build toolchain, command selection, linker flags, and version passthru remain unchanged.
+The package version, source hash, vendor hash, Go toolchain, command selection, linker flags, and version passthru remain unchanged.
 
 ## Things done
 
 - Built on platform:
-  - [ ] x86_64-linux — current-base exact head pending
+  - [x] x86_64-linux
   - [ ] aarch64-linux
   - [ ] x86_64-darwin
-  - [ ] aarch64-darwin — current-base exact head pending
+  - [x] aarch64-darwin
 - Tested, as applicable:
-  - [ ] `cmd/gomarkdoc` checks on x86_64-linux.
-  - [ ] `cmd/gomarkdoc` checks on aarch64-darwin.
-  - [ ] Installed `gomarkdoc --help` on both target platforms.
-  - [ ] Version passthru prints `1.1.0` on both target platforms.
-  - [ ] Current-base installed binary matches the checks-disabled baseline on aarch64-darwin.
-- [ ] Ran `nixpkgs-review rev HEAD --no-shell` on x86_64-linux.
+  - [x] `cmd/gomarkdoc` checks on x86_64-linux.
+  - [x] `cmd/gomarkdoc` checks on aarch64-darwin.
+  - [x] Installed `gomarkdoc --help` on both tested platforms.
+  - [x] Version passthru prints `1.1.0` on both tested platforms.
+  - [x] Current-base installed binary matches the checks-disabled baseline on aarch64-darwin.
+- [x] Ran `nixpkgs-review rev -b 97d48ba11e7eeb6896e9da8d64b22b306da14103 HEAD --no-shell` on x86_64-linux; one package built (`gomarkdoc`).
 - Nixpkgs Release Notes:
-  - [x] No release-note entry expected; product source and toolchain are unchanged.
+  - [x] No release-note entry expected; product source, toolchain, and installed executable are unchanged.
 - NixOS Release Notes:
   - [x] Not applicable.
 - [ ] Rechecked current contribution instructions and pull-request template at submission time.
@@ -53,16 +47,17 @@ The package version, source hash, vendor hash, build toolchain, command selectio
 ```console
 $ nix-build . -A gomarkdoc --no-out-link
 $ nix-build . -A gomarkdoc.tests.version --no-out-link
-$ nixpkgs-review rev HEAD --no-shell
+$ nixpkgs-review rev -b 97d48ba11e7eeb6896e9da8d64b22b306da14103 HEAD --no-shell
 ```
 
 ---
 
 ## Draft synchronization notes
 
-The checkboxes remain empty until exact current source head `e8d97d5d8c67a9473a7aaad3961c0630583aa34b` produces terminal receipts.
-
-The broader root/library suite is outside the package's existing command-only selection and contains additional standard-library documentation expectations. This PR does not skip, patch, or claim coverage for those packages.
+- Source head: `e8d97d5d8c67a9473a7aaad3961c0630583aa34b`
+- Linux run/job: `30694249810` / `91354242933`
+- Darwin run/job: `30693522616` / `91352347312`
+- Broader root/library packages are outside the existing command-only selection and are not claimed here.
 
 ## Public interaction status
 

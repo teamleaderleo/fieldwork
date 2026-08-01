@@ -17,7 +17,7 @@ The source is one commit and one file. It:
 - adds one `postPatch` replacement for the Go 1.26 command golden;
 - uses `--replace-fail` to reject unexpected source drift.
 
-It does not change the Go builder, package version, hashes, dependencies, command selection, linker flags, metadata, or generic check implementation.
+It does not change the Go builder, package version, hashes, dependencies, command selection, linker flags, metadata, product source, or generic check implementation. The modified fixture is test-only: tests generate `README-test.md` and compare it with `README.md`.
 
 ## Findings repaired during review
 
@@ -26,24 +26,32 @@ It does not change the Go builder, package version, hashes, dependencies, comman
 3. A passing Go 1.25 pin was rejected because the current-Go repair preserves installed bytes and avoids lifecycle work.
 4. Broad-suite claims were limited to the package-selected command boundary.
 5. The final commit was regenerated on current public master after confirming the package path was unchanged.
+6. The initial `nixpkgs-review rev HEAD` harness was corrected to use the exact parent, avoiding shallow remote-master ancestry.
 
-## Evidence table
+## Acceptance evidence
 
-| Claim | Evidence class | Result | Limit |
-| --- | --- | --- | --- |
-| fixture and flag cleanup unnecessary | target matrix | established | Darwin experiment |
-| Go 1.26 fails before golden update | negative control | established | command package |
-| one-line golden update passes | target executed | established | patch-equivalent Darwin |
-| baseline/candidate binary identical | comparative control | established | patch-equivalent Darwin |
-| current source is one clean commit/file | source-read | established | exact execution pending |
-| current Linux/Darwin gates pass | prepared | pending | next carrier |
+| Claim | Evidence class | Result |
+| --- | --- | --- |
+| fixture and flag cleanup unnecessary | target matrix | established |
+| Go 1.26 fails before golden update | negative control | established |
+| one-line golden update passes | Linux/Darwin target execution | established |
+| baseline/candidate binary identical | Darwin comparative control | established |
+| exact current source is one clean commit/file | source fence | established |
+| installed help and version pass | Linux/Darwin target execution | established |
+| exact-parent `nixpkgs-review` passes | Linux integration review | established |
+| Go 1.27 RC command check remains green | advisory forecast | established |
 
 ## Independent disposition
 
-`EXECUTE`
+`ACCEPT`
 
-The source design and complete current-base diff are accepted. Exact current-base target execution and packet integrity remain. No additional independent-review dependency exists.
+No source, test, coverage, compatibility, or review blocker remains in the assigned unit. The packet is ready for the user's final-mile decision and any explicitly authorized public submission.
 
-Clearing condition: `e8d97d5d...` passes Linux/Darwin package/check/help/version, Darwin binary identity, Linux `nixpkgs-review`, and packet integrity. Then issue `ACCEPT` for the user's final-mile upstream decision.
+## Final-mile cautions
+
+- Recheck current public master and issue state immediately before posting.
+- Preserve the selected command-package coverage wording; do not claim every upstream library package passes.
+- Keep the Go 1.27 forecast advisory until a final Go 1.27 becomes the default builder.
+- Recheck contribution-template and disclosure requirements.
 
 No public interaction is authorized by this review.

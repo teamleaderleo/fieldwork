@@ -2,9 +2,9 @@
 
 ## Current conclusion
 
-The selected Go 1.26 golden content passes patch-equivalent aarch64-darwin command, help, version, and binary-identity controls. The canonical source is now regenerated on current public Nixpkgs head `97d48ba1...` as `e8d97d5d...`; exact current-base execution remains.
+The canonical current-base source passes x86_64-linux and aarch64-darwin package, selected command-check, installed-help, and version gates. Darwin proves checks-disabled baseline/candidate binary identity. Linux `nixpkgs-review` against the exact source parent succeeds.
 
-Disposition: `EXECUTE`.
+Disposition: `ACCEPT`.
 
 ## Canonical source fence
 
@@ -14,59 +14,73 @@ Disposition: `EXECUTE`.
 - Relation: one commit, one file, six additions, four deletions
 - Final package blob: `53f4eef322e84133c2c867070a55c60bb14e09ae`
 
-## Repair-isolation execution
+## Current-base aarch64-darwin
 
-- Run: `30692403974`
-- Job: `91349338842` — success
-- Artifact: `8816151764`
-- Digest: `sha256:8597cc8e25daa9975c20a36c1a824d939820f373bc8a0521d2a022ac60e5471e`
+- Run: `30693522616`
+- Job: `91352347312` — success
+- Runner: macOS 14.8.7 arm64; image `macos-14-arm64` version `20260629.0180.1`
+- Nix: 2.35.1
+- Go: 1.26.5
+- Source head/parent, one-file fence, `diff --check`: success
+- `cmd/gomarkdoc` check and exactly one package result: success
+- Installed help and version `1.1.0`: success
+- Current-base checks-disabled baseline/candidate executable `cmp`: success
+- Shared executable SHA-256: `199ac9faabb41a65e784ac6128f38c3ccb6d97040e4f69d2b3bbd9b79baa817d`
+- Artifact: `8816500818`
+- Digest: `sha256:313220b9f7ffff28a8023c249232ba0114eba457d1da38dad7122719bcc0d3e2`
+- Size: 6260 bytes; eight files
+- Expires: 2026-08-31T09:21:19Z
 
-Go 1.25 passed with neither fixture nor flag cleanup; Go 1.26 failed with both. Conclusion: the environment edits are unnecessary and the Go 1.26 golden differs.
+## Current-base x86_64-linux
 
-## Go 1.26 golden comparison
-
-Patch-equivalent source `3a036ab91fa1de2fbbd038b2b212552cff1cc5bf` ran in `30692966149`, job `91350898702`, on macOS 14.8.7 arm64 with Nix 2.35.1 and Go 1.26.5.
-
-Established:
-
-```text
-Running phase: checkPhase
-ok github.com/princjef/gomarkdoc/cmd/gomarkdoc
-```
-
-Additional controls:
-
-- exactly one gomarkdoc package result;
-- installed help accepted;
-- version passthru `1.1.0`;
-- baseline/candidate executables passed `cmp`;
-- shared SHA-256 `b8bc993930c3a8af5ebf141d0fa5e2f422b117a420630f532296e20e4428e93e`.
-
-Artifact `8816337182`, digest `sha256:14ae794f8160a5f6c68bcf113dd430d628fa4b8399ad9ceb65f1d5f33770e5e1`, expires 2026-08-31T09:05:52Z.
-
-The canonical current-base commit uses the same package blob but needs exact execution because its surrounding Nixpkgs tree changed.
-
-## Full-discovery negative control
-
-Run `30674969557` reached root, command, formatter, and language packages on Linux/Darwin. `lang` failed `[Scanner] != Scanner` and `*[os.File] != *os.File`. Evidence class: target-executed negative control.
-
-## Superseded pin execution
-
-The Go 1.25 source `5c17b14e...` passed exact aarch64-darwin gates in run `30692796676`. It is not canonical.
-
-## Required current-base commands
+- Run: `30694249810`
+- Job: `91354242933` — success
+- Runner: Ubuntu 22.04.5 LTS; image `ubuntu-22.04` version `20250720.1`
+- Nix: 2.35.1
+- Go: 1.26.5
+- Source head/parent, one-file fence, `diff --check`: success
+- `cmd/gomarkdoc` check and exactly one package result: success
+- Installed help and version `1.1.0`: success
+- Exact-parent review command:
 
 ```bash
-nix-build .candidate/nixpkgs -A gomarkdoc --no-out-link
-nix-build .candidate/nixpkgs -A gomarkdoc.tests.version --no-out-link
-nixpkgs-review rev HEAD --no-shell  # Linux
+nixpkgs-review rev \
+  -b 97d48ba11e7eeb6896e9da8d64b22b306da14103 \
+  HEAD --no-shell
 ```
 
-Darwin must also build the checks-disabled current-base package and compare its installed binary with the candidate.
+- `nixpkgs-review`: success; report lists one package built, `gomarkdoc`
+- Artifact: `8816799835`
+- Digest: `sha256:a5ab307bc9102b1c8ccea478dde8c58b21c8dcf6ce56a617ca13c9c6cd8c4cb6`
+- Size: 11433 bytes
+- Expires: 2026-08-31T09:51:21Z
 
-## Missing evidence
+## Repair isolation
 
-- x86_64-linux exact head `e8d97d5d...`;
-- aarch64-darwin exact head `e8d97d5d...` plus current-base binary identity;
-- Linux `nixpkgs-review`;
-- Fieldwork integrity covering the packet consuming final receipts.
+Run `30692403974`, job `91349338842`, proved:
+
+- Go 1.25 passes with both, either, or neither fixture/flag cleanup;
+- Go 1.26 fails even with both;
+- the cleanups are not repair requirements.
+
+Artifact `8816151764`, digest `sha256:8597cc8e25daa9975c20a36c1a824d939820f373bc8a0521d2a022ac60e5471e`.
+
+## Patch-equivalent Go 1.26 comparison
+
+Run `30692966149`, job `91350898702`, passed the command check, help, version, and checks-disabled baseline/candidate binary comparison. Shared executable SHA-256: `b8bc993930c3a8af5ebf141d0fa5e2f422b117a420630f532296e20e4428e93e`.
+
+Artifact `8816337182`, digest `sha256:14ae794f8160a5f6c68bcf113dd430d628fa4b8399ad9ceb65f1d5f33770e5e1`.
+
+## Broad-discovery negative control
+
+Run `30674969557` reached root, command, formatter, and language packages on Linux and Darwin. `lang` failed `[Scanner] != Scanner` and `*[os.File] != *os.File`. These expectations jointly require Go 1.21-or-older standard-library prose. This result limits coverage claims to the package-selected command.
+
+## Go 1.27 RC forecast
+
+Run `30693795784`, job `91353047424`, passed the selected command check, installed help, and version under Go 1.27rc2. Artifact `8816586391`, digest `sha256:7e838a7596cfecda65876899bd5c5b8ee9cbd2907e8aef6c022fb4a1cd2653dd`.
+
+This is advisory; the canonical base still uses Go 1.26.
+
+## Evidence conclusion
+
+The one-line command-golden update is causal, sufficient, current-toolchain compatible, and product-neutral at the executable-byte level. Exact packet-tip Fieldwork integrity is recorded in the final issue #435 handoff because writing that receipt into the packet would create a new tip.
