@@ -1,0 +1,27 @@
+name: Unit 22 final packet integrity
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/unit-22-final-integrity.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  fence:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out exact carrier
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: p0/435-unit-22-execution
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify final packet base
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "1fdef70e6bbbc02bf01d206becbb20f704abc9b0"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/unit-22-final-integrity.yml"
+          git diff --check HEAD^ HEAD
