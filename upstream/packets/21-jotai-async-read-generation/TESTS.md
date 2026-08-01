@@ -2,19 +2,20 @@
 
 ## In simple words
 
-The stale-publication behavior and the selected generation repair both ran against exact Jotai source with Node 22, 24, and 26. The accepted repair matrix covers six read/read and read/removal cases, adjacent unit-20 cache controls, the existing storage suite, changed-file lint and formatting, and TypeScript checking.
+The stale-publication behavior and the selected generation repair already ran against exact Jotai source on Node 22, 24, and 26. The owned fork now contains the clean stacked source and the expanded eleven-case target-native test at exact head `dfe607d7637fbcf61ae41c39f4f470f61fa7c531`.
 
-This session added a passing 11-case Node model and an expanded target-native test draft for rejected reads and same-string identity. A clean direct source branch, the expanded native run, `pnpm run build`, and the repository's complete `pnpm run test` gate remain outstanding.
+Opening fork-local draft PR #3 triggered Jotai's existing pull-request workflows. They are queued. Until their final conclusions and job contents are recorded, this packet keeps the exact distinction between historical focused target execution and current clean-head execution.
 
 ## Identity
 
-- Exact upstream base: `56a9cc51de8a5dd762b95a145820f12589cc47c9`
-- Exact accepted repair execution head: `e99c7d2e9e3b16c04b1738397ad6109758ad481e`
-- Exact workflow-free repair carrier head: `34670f709753668827043bbc76c4159a8b36ade2`
+- Exact public/fork base: `56a9cc51de8a5dd762b95a145820f12589cc47c9`
+- Unit 20 clean prerequisite head: `b2f84273b53bbed9df073354dac503e520be7101`
+- Unit 21 clean source head: `dfe607d7637fbcf61ae41c39f4f470f61fa7c531`
+- Unit 21 fork-local draft PR: `teamleaderleo/jotai#3`
+- Accepted repair execution head: `e99c7d2e9e3b16c04b1738397ad6109758ad481e`
+- Workflow-free repair carrier: `34670f709753668827043bbc76c4159a8b36ade2`
 - Characterization head: `2fb60bd0497d5557afb54d11c3d6d1a31020b312`
-- Unit 20 prerequisite head: `d9dd61c4a0d1f9073c300519990e6ba9ec2855d9`
-- Test dates: 2026-07-31 target execution; 2026-08-01 local reconciliation
-- Environments: GitHub Actions Ubuntu 24.04 with Node 22/24/26; local Linux container with Node `v22.16.0`
+- Environments already executed: GitHub Actions Ubuntu 24.04 with Node 22/24/26; local Linux with Node `v22.16.0`
 
 ## Claim-to-evidence matrix
 
@@ -23,17 +24,17 @@ This session added a passing 11-case Node model and an expanded target-native te
 | completion-order publication exists on the unit-20 base | `target-executed` | PR #284 run `30588753020` | pass on Node 22/24/26 | focused source stack, Linux only |
 | per-key generation fences the six accepted stale-publication transitions | `target-executed` | PR #317 run `30623229098` | pass on Node 22/24/26 | focused matrix, not complete repository CI |
 | unit-20 adjacent cache behavior remains green | `target-executed` | run `30623229114` | success | selected cache matrix only |
-| changed source and tests satisfy lint, formatting, and TypeScript | `target-executed` | inspected Node 24 job `91132389642` | pass | changed-file ESLint/Prettier; repository-wide `tsc --noEmit` |
-| unit 21 depends mechanically on unit 20 | `source-read` plus source-segment execution | local patch-order check | direct apply fails; stacked apply passes | exact function segment, not full checkout |
-| rejected-read semantics and same-string precision are coherent | `model-executed` | 11-case Node model | 11/11 pass | model mirrors source algorithm; target runtime pending |
-| expanded native controls compile and pass | `target-test-prepared` | packet fixture | prepared | never run in Jotai checkout yet |
-| full Jotai contribution gates pass on clean source branch | none | `pnpm run fix:format`, `pnpm run build`, `pnpm run test` | not run | clean source branch absent |
+| changed source and tests satisfy lint, formatting, and TypeScript | `target-executed` | Node 24 job `91132389642` | pass | historical focused head |
+| unit 21 depends mechanically on unit 20 | `source-read`, `source-segment-executed`, and `direct-source-materialized` | patch-order receipt and clean branch comparison | direct apply fails; stacked source is exact | current base still pinned to `56a9cc...` |
+| expanded eleven-case controls are coherent | `model-executed` | Node model | 11/11 pass | model execution |
+| expanded eleven-case target test is on the clean source head | `target-test-materialized` | target file at `dfe607d...` | present, exact packet bytes | fork workflows queued |
+| ordinary target workflows pass on the clean source head | pending | six fork-local workflow runs | queued | no final conclusions yet |
 
-## Baseline characterization
+## Historical target execution
 
-### Command or workflow
+### Baseline characterization
 
-Workflow at characterization head `2fb60bd0497d5557afb54d11c3d6d1a31020b312`:
+Workflow at `2fb60bd0497d5557afb54d11c3d6d1a31020b312` ran:
 
 ```text
 pnpm vitest run \
@@ -46,49 +47,27 @@ pnpm prettier --check <four changed files>
 pnpm tsc --noEmit
 ```
 
-### Assertions
+Result:
 
-- older same-key completion replaces newer cached identity;
-- pre-removal read repopulates after removal settlement;
-- older valid completion restores after newer missing storage;
-- older valid completion restores after newer malformed JSON;
-- unrelated key remains stable.
+- workflow `30588753020`: success on Node 22, 24, and 26;
+- inspected Node 24 job: four files, 42 tests, ESLint, Prettier, and TypeScript passed;
+- observed behavior: the selected unit-20 cache publishes shared identity by async completion order.
 
-### Result
+### Accepted repair
 
-- status: success
-- workflow: `30588753020`
-- adjacent unit-20 workflow: `30588753001`, success
-- Fieldwork integrity: `30588752988`, success
-- platform matrix: Node 22, 24, and 26
-- inspected Node 24 job: four files, 42 tests, ESLint, Prettier, and TypeScript passed
-- observed behavior: the selected unit-20 cache publishes by completion order
+At exact repair head `e99c7d2e9e3b16c04b1738397ad6109758ad481e`:
 
-## Candidate-focused tests
+- workflow `30623229098`: success on Node 22, 24, and 26;
+- adjacent unit-20 workflow `30623229114`: success;
+- inspected Node 24 job `91132389642`: four files, 43 tests, ESLint, Prettier, and TypeScript passed;
+- covered transitions: newer valid, completed removal, newer missing, newer malformed, stale malformed, unrelated key;
+- explicit limit: read/read and read/completed-removal only; write and subscription authority are separate questions.
 
-### Accepted six-case repair matrix
+## Local reconciliation
 
-- Exact source head: `e99c7d2e9e3b16c04b1738397ad6109758ad481e`
-- Workflow: `30623229098`
-- Tests and assertions:
-  - newer same-key completion remains authoritative;
-  - pre-removal completion cannot repopulate after settlement;
-  - older valid completion cannot restore after newer missing storage;
-  - older valid completion cannot restore after newer malformed storage;
-  - stale malformed completion cannot delete newer valid identity;
-  - unrelated key remains stable.
-- Result: success on Node 22, 24, and 26
-- Adjacent cache workflow: `30623229114`, success
-- Fieldwork integrity: `30623229093`, success
-- Inspected Node 24 job `91132389642`: four files, 43 tests, ESLint, Prettier, and TypeScript passed
-- Coverage limit: read/read and read/completed-removal only; no write/subscription ordering
+### Patch order
 
-### Local patch-order reconciliation
-
-- Exact source: `56a9cc51de8a5dd762b95a145820f12589cc47c9` function segment
-- Unit 20 patch: `d9dd61c4a0d1f9073c300519990e6ba9ec2855d9`
-- Unit 21 patch: `34670f709753668827043bbc76c4159a8b36ade2`
-- Command:
+On the exact `createJSONStorage()` source segment from `56a9cc...`:
 
 ```text
 git apply --check unit21.patch
@@ -99,98 +78,102 @@ git apply unit21.patch
 git diff --check
 ```
 
-- Result: unit 21 direct apply failed; unit 20 followed by unit 21 passed
-- Failure classification: expected dependency/packaging result, not a product failure
-- Receipt: [`20260801-local-reconciliation.md`](./receipts/20260801-local-reconciliation.md)
+Result:
 
-### Expanded 11-case model
+- unit 21 direct application failed because `cachedValues` was absent;
+- unit 20 applied;
+- unit 21 then applied;
+- final diff check passed.
 
-- Command: `node executed-model.mjs`
-- Environment: Node `v22.16.0`
-- Result: 11/11 passed
-- Added assertions:
-  - cached identity survives a newer rejected read while an older read remains stale;
-  - without prior cache, a newer rejection prevents an older read from establishing shared identity;
-  - a later successful read establishes identity after rejection;
-  - rejection remains caller-visible and unrelated-key identity remains stable;
-  - a stale caller resolving with current serialized bytes reuses the newer cached identity.
-- Retained model: [`fixtures/async-read-generation-model.mjs`](./fixtures/async-read-generation-model.mjs)
-- Coverage limit: model execution, not target package execution
+Receipt: [`receipts/20260801-local-reconciliation.md`](./receipts/20260801-local-reconciliation.md)
 
-### Expanded target-native draft
+### Expanded model
 
-- Intended target path: `tests/react/vanilla-utils/atomWithStorageAsyncReadGenerationRepair.test.ts`
-- Retained draft: [`fixtures/atomWithStorageAsyncReadGenerationRepair.test.ts`](./fixtures/atomWithStorageAsyncReadGenerationRepair.test.ts)
-- Assertions: eleven cases matching the executed model and accepted six-case matrix
-- Result: prepared, never executed in a direct Jotai checkout
+- command: `node executed-model.mjs`
+- environment: Node `v22.16.0`
+- result: 11/11 passed
+- additional semantics: rejection remains caller-visible; rejection does not transfer publication authority backward; later success can establish identity; unrelated keys remain stable; same serialized bytes preserve the newer cached identity.
+
+## Clean direct source execution
+
+### Source and test
+
+- source: `teamleaderleo/jotai:fix/utils-async-read-generation`
+- exact head: `dfe607d7637fbcf61ae41c39f4f470f61fa7c531`
+- exact merge base: `b2f84273b53bbed9df073354dac503e520be7101`
+- target test: `tests/react/vanilla-utils/atomWithStorageAsyncReadGenerationRepair.test.ts`
+- target test assertions: eleven
+- diff: two files, 295 additions, 2 deletions
+- commit count: two
+
+### Existing pull-request workflows triggered
+
+| Workflow | Run | Current status |
+| --- | --- | --- |
+| Test Multiple Versions | `30690923560` | queued |
+| Test Old TypeScript | `30690923561` | queued |
+| Test | `30690923575` | queued |
+| Compressed Size | `30690923562` | queued |
+| Test Multiple Builds | `30690923564` | queued |
+| Preview Release | `30690923558` | queued |
+
+The exact final status and job contents must be recorded rather than inferred from workflow names.
+
+Materialization receipt: [`receipts/20260801-direct-source-materialization.md`](./receipts/20260801-direct-source-materialization.md)
 
 ## Ordinary repository gates
 
-| Gate | Exact command or workflow | Result | Notes |
-| --- | --- | --- | --- |
-| format | focused `pnpm prettier --check` at `e99c7d2...` | pass | changed files only; contribution guide's `pnpm run fix:format` pending on clean branch |
-| lint | focused `pnpm eslint` at `e99c7d2...` | pass | changed files only; complete `pnpm run test:lint` pending |
-| typecheck | `pnpm tsc --noEmit` at `e99c7d2...` | pass | repository-wide typecheck in focused workflow |
-| focused package tests | four-file Vitest command at `e99c7d2...` | pass | Node 22/24/26, 43 tests in inspected Node 24 job |
-| complete target-declared suite | `pnpm run test` | not run | required on clean direct source head |
-| build | `pnpm run build` | not run | required by Jotai contribution guide |
-| platform matrix | focused Ubuntu Node 22/24/26 | pass | no Windows, macOS, browser integration, or React Native matrix |
+| Gate | Existing evidence | Clean-head result |
+| --- | --- | --- |
+| focused target regression | historical six-case matrix passed | eleven-case file materialized; queued workflow |
+| formatting | historical changed-file Prettier passed | queued workflow; `pnpm run fix:format` conclusion not yet known |
+| lint | historical changed-file ESLint passed | queued workflow; exact clean-head command not yet known |
+| typecheck | historical repository `tsc --noEmit` passed | queued workflow; exact clean-head command not yet known |
+| build | not previously run | queued workflows may cover builds; inspect jobs |
+| aggregate test | not previously run | queued Test workflow; inspect jobs |
+| multiple versions/builds | focused Node 22/24/26 previously passed | dedicated clean-head workflows queued |
 
 ## Reversing controls
 
 - characterization fails the intended invariant and repair passes it;
-- existing `atomWithStorage.test.tsx` remains green;
-- malformed and missing outcomes exercise cache deletion authority;
-- rejection controls preserve the backend error;
+- existing `atomWithStorage.test.tsx` stayed green in historical focused execution;
+- missing and malformed outcomes exercise deletion authority;
+- backend rejection stays visible;
 - unrelated-key controls reject cross-key generation interference;
-- same-string control preserves historical identity reuse.
+- same-string control preserves historical identity reuse;
+- clean target diff excludes temporary workflow or evidence machinery.
 
-## Soak, leak, and cleanup controls
+## Setup and harness history
 
-- iterations: one deterministic run per case; no soak loop
-- resources observed: adapter-local maps and promises only
-- timers/tasks/processes/files/listeners before and after: not measured
-- cancellation or interruption behavior: not applicable at this boundary
-- immediate rerun result: no immediate target rerun in this session
-
-## Setup and harness failures
-
-| Attempt | Failure | Classification | Product claim affected? | Repair or stop |
-| --- | --- | --- | --- | --- |
-| unit-21 patch directly on public main | missing `cachedValues` prerequisite | packaging/dependency | no; establishes stack dependency | base source branch on unit 20 |
-| historical unit-20 PR #236 run `30553976771` | malformed patch at line 38 before install | packaging | no unit-20 target result transferred | superseded by PR #252 |
-| this session full target execution | owned fork and complete checkout absent | repository access/setup | expanded cases remain prepared | create owned fork and clean branches |
-
-## Checks prepared but not executed
-
-- expanded native 11-case test — waits on clean unit-20 and unit-21 source branches;
-- `pnpm install --frozen-lockfile` — direct checkout pending;
-- `pnpm run fix:format` — direct checkout pending;
-- `pnpm run build` — direct checkout pending;
-- `pnpm run test` — direct checkout pending;
-- complete-diff target review — direct source head pending.
+| Attempt | Result | Classification | Effect on claim |
+| --- | --- | --- | --- |
+| unit-21 patch directly on public main | prerequisite context absent | packaging/dependency | established stack requirement |
+| historical unit-20 PR #236 run `30553976771` | malformed patch before install | packaging | no product result transferred |
+| local clone in this session | container DNS blocked GitHub | runner/network setup | direct GitHub object writes used instead |
+| fork-local PR workflows | queued | execution pending | current exact-head gate remains open |
 
 ## Platform and integration gaps
 
-- Windows and macOS;
-- browsers and real `StorageEvent` ordering;
+- Windows and macOS unless current workflow jobs prove coverage;
+- browser and real `StorageEvent` ordering;
 - React Native storage adapters;
-- custom thenables and unusual storage backends;
+- custom thenables and unusual backends;
 - application-level frequency and dynamic-key retention;
 - read versus write and subscription-event ordering.
 
 ## Cleanup receipt
 
-- Temporary repair workflow removed from workflow-free carrier head `34670f709753668827043bbc76c4159a8b36ade2`: yes
-- Publisher or execution-only files removed from that carrier: yes for the unit-21 workflow; PR #317 remains an open Fieldwork carrier
-- Generated residue checked: patch and test files only
-- Immediate target rerun after workflow removal: no; receipts belong to `e99c7d2...`
-- Remaining temporary branches or PRs: Fieldwork PRs #284 and #317; no target-source branch exists
+- target source contains temporary workflows: no;
+- target source contains Fieldwork files or receipts: no;
+- target source contains dependency or lock changes: no;
+- unit 21 diff is exactly two files: yes;
+- branch is two conventional commits: yes;
+- public upstream interaction: none.
 
 ## Current test judgment
 
 `HOLD`
 
-Reason: the accepted repair has strong focused target evidence, but unit 21 lacks a clean target-source head, depends on unit 20's future clean source branch, and has five newly retained native cases that remain unexecuted in Jotai.
+Reason: the clean branch and expanded target-native test now exist, but the exact-head fork workflows are queued and independent complete-diff review is absent.
 
-Clearing condition: create the owned Jotai fork, materialize unit 20 on a clean branch, stack unit 21 with the expanded native test, then run focused tests plus `pnpm run build` and `pnpm run test` at the exact unit-21 head.
+Clearing condition: record final conclusions and actual job coverage for all six exact-head workflow runs, repair any failures inside the two-file boundary, then obtain independent review.
