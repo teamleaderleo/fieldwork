@@ -1,200 +1,265 @@
-# Deep dive — Vite `watchChange` errors and file-event continuation
+# Deep dive — Vite `watchChange` settlement and file-event continuation
 
-## In simple words
+## Current disposition
 
-Vite's dev server owns cache invalidation and HMR after filesystem events. Plugins receive an earlier `watchChange` notification. On the inspected public base, one plugin rejection exits the inner event handler, so Vite logs the plugin error yet skips its own later work. The selected fix keeps the error visible and lets Vite finish the work it owns.
+`REPAIR`
+
+The original reproduction remains valid: a rejected plugin notification can preserve stale transformed output by aborting Vite-owned invalidation and HMR. A second adversarial pass found that the first repair stopped one layer too early.
 
 ## Governing invariant
 
 After Vite accepts a filesystem change, add, or unlink event:
 
-- every relevant plugin environment should receive its `watchChange` notification;
-- each notification failure should remain observable;
-- one plugin failure should not prevent other environments from settling;
-- Vite-owned cache, public-file, deletion, and HMR work should proceed under Vite's existing rules.
+- every applicable plugin hook should be invoked under existing filtering rules;
+- every asynchronous hook should settle before Vite-owned invalidation/HMR begins;
+- synchronous throws and asynchronous rejections should remain observable;
+- one plugin failure should not skip sibling hooks, sequential barriers, other environments, or later Vite-owned work;
+- environment close should wait still-running notification hooks;
+- successful parallelism and Rollup-compatible ordering should remain intact.
 
-A plugin hook failure can affect plugin-produced state. It should not silently preserve a stale Vite transform cache merely because the hook ran before invalidation.
+A plugin may leave its own state incomplete. It should not gain an undocumented veto over Vite's cache coherence merely by rejecting an earlier notification.
 
 ## Exact source map
 
-- Inspected public base: [`e6b6b167afa0a80548829d1f24a0712f9194389a`](https://github.com/vitejs/vite/commit/e6b6b167afa0a80548829d1f24a0712f9194389a)
-- Current source: [`a2ab7ca6183ad74d64066d6706e57a546e355224`](https://github.com/teamleaderleo/vite/commit/a2ab7ca6183ad74d64066d6706e57a546e355224)
-- Source PR: [`teamleaderleo/vite#4`](https://github.com/teamleaderleo/vite/pull/4)
+- Inspected public base: `e6b6b167afa0a80548829d1f24a0712f9194389a`
+- Last clean but incomplete source: `a2ab7ca6183ad74d64066d6706e57a546e355224`
+- Source branch: `fix/fieldwork-25-watchchange-error-isolation`
+- Source PR: `teamleaderleo/vite#4`
 
-Primary implementation:
+Primary owners:
 
-- [`packages/vite/src/node/server/index.ts`](https://github.com/teamleaderleo/vite/blob/a2ab7ca6183ad74d64066d6706e57a546e355224/packages/vite/src/node/server/index.ts)
-  - watcher entrypoints: `change`, `add`, `unlink`
-  - event workers: `onFileChange`, `onFileAddUnlink`
-  - selected helper: `notifyWatchChange`
-  - later Vite-owned work: module-graph callbacks and `onHMRUpdate`
+### `server/index.ts`
 
-Related state owner:
+Owns:
 
-- [`packages/vite/src/node/server/moduleGraph.ts`](https://github.com/vitejs/vite/blob/e6b6b167afa0a80548829d1f24a0712f9194389a/packages/vite/src/node/server/moduleGraph.ts)
-  - change invalidation clears transform results and propagates invalidation;
-  - delete processing removes importer relations.
+- watcher entrypoints for change, add, and unlink;
+- fanout across current environments;
+- later module-graph, public-file, deletion, restart, and HMR work.
 
-HMR owner:
+### `server/pluginContainer.ts`
 
-- [`packages/vite/src/node/server/hmr.ts`](https://github.com/vitejs/vite/blob/e6b6b167afa0a80548829d1f24a0712f9194389a/packages/vite/src/node/server/hmr.ts)
-  - creates event-typed update contexts;
-  - invokes `hotUpdate` for create, delete, and update;
-  - invokes legacy `handleHotUpdate` only for update;
-  - contains its own plugin error handling after the watcher transaction reaches it.
+Owns:
 
-Plugin notification owner:
+- plugin selection within one environment;
+- parallel hook groups;
+- `sequential: true` barriers;
+- promise tracking through `handleHookPromise`;
+- waiting tracked work during environment close;
+- the backward-compatible direct plugin-container wrapper.
 
-- [`packages/vite/src/node/server/pluginContainer.ts`](https://github.com/vitejs/vite/blob/e6b6b167afa0a80548829d1f24a0712f9194389a/packages/vite/src/node/server/pluginContainer.ts)
-  - `watchChange` is asynchronous and awaits `hookParallel`;
-  - synchronous hook throws and asynchronous rejections reach server orchestration as rejected environment promises.
+### `server/moduleGraph.ts`
 
-Target-native regression:
+Owns change invalidation and delete graph maintenance.
 
-- [`packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js`](https://github.com/teamleaderleo/vite/blob/a2ab7ca6183ad74d64066d6706e57a546e355224/packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js)
+### `server/hmr.ts`
 
-## Current behavior on the inspected public base
+Owns event-typed hot-update execution after watcher notification and graph work reach it.
 
-The change path performs these operations in order:
+## Public-base failure
 
-1. normalize the file path;
-2. check whether tsconfig changes require restart behavior;
-3. await `Promise.all` of each environment's `pluginContainer.watchChange` call;
-4. call each environment module graph's `onFileChange`;
-5. run HMR update processing.
+For change, the inspected server flow is:
 
-The add/unlink path has the same fail-fast plugin notification before public-file bookkeeping, deletion graph work, and HMR.
+1. normalize path;
+2. process restart-sensitive files;
+3. await every environment's `pluginContainer.watchChange()` through fail-fast `Promise.all`;
+4. invalidate each module graph;
+5. run HMR.
 
-The watcher listener attaches a catch that logs the escaped rejection. That catch executes after the inner event worker has already exited. Logging occurs; the later transaction steps do not.
+Add/unlink has the same notification boundary before public-file bookkeeping, delete handling, and HMR.
 
-## Deterministic reproduction
+A listener catch logs the escaped rejection only after the inner worker exits. Visibility is preserved, continuation is not.
 
-The retained reproduction creates a disposable Vite project with:
+## Original deterministic reproduction
+
+A disposable project contains:
 
 - a virtual module;
-- a text file read by the virtual module's `load` hook;
-- `this.addWatchFile(textFile)` to bind the external file to the module;
-- initial content `alpha`;
-- replacement content `beta`;
+- a text backing file registered with `this.addWatchFile()`;
+- initial `alpha` and replacement `beta` content;
 - a `watchChange` hook that either succeeds or rejects.
 
-Control result:
+On the public-base behavior with rejection:
 
-- file event reaches Vite;
-- module transform cache clears;
-- next transform reads `beta`.
+- the error reaches the configured logger;
+- the cached transform remains;
+- HMR plugin work is skipped;
+- the next transform still returns `alpha`.
 
-Rejecting-hook result on the pinned research revision:
+The corrected target-native reproduction ran across Ubuntu Node 20/22/24/26, macOS Node 24, and Windows Node 24.
 
-- exact plugin error reaches the configured logger;
-- module transform cache remains populated;
-- plugin HMR work is skipped;
-- next transform still returns `alpha`.
+## First repair layer: environment settlement
 
-Runtime evidence lives in [`teamleaderleo/vite#1`](https://github.com/teamleaderleo/vite/pull/1), exact research head `882e62169e2cc4a8ac91d63aca2337fda4f69e1e`, and the Fieldwork #25 execution updates.
+The old clean candidate introduced a server-local helper that used `Promise.allSettled` across environments and logged rejected environment results before returning to existing Vite work.
 
-The reproduction passed on Ubuntu Node 20/22/24/26, macOS Node 24, and Windows Node 24. The original direct-transform probe was corrected to use the plugin-facing virtual ID rather than the browser-encoded URL before the result was accepted.
+This fixed:
 
-## Consequence and claim boundary
+- cross-environment fail-fast behavior;
+- stale-cache continuation with one failing plugin;
+- add/change/unlink continuation with one failure.
 
-The proved consequence is stale transformed module output in development after a real watched-file change. The reproduction directly exercises the plugin API and Vite module graph through a virtual module backed by a plugin-added watch file.
+It passed full ordinary gates after a final Windows rerun.
 
-The packet does not claim:
+## Second failure layer: plugin settlement inside an environment
 
-- measured prevalence across the Vite ecosystem;
-- a production-build defect;
-- browser-visible stale state for every plugin;
-- recovery from arbitrary partial side effects inside a failing plugin hook;
-- identical behavior under experimental bundled development;
-- that every add public-file or unlink graph mutation is individually asserted.
+`EnvironmentPluginContainer.watchChange()` still delegated to generic `hookParallel()`. Ordinary parallel batches end with fail-fast `Promise.all`.
 
-## Selected implementation
+With fast and slow failing sibling hooks:
 
-The helper accepts the normalized file and Rollup event name:
+```text
+fast:start
+slow:start
+fast:reject
+logged:fast
+vite:continues
+slow:reject
+```
 
-- `create` for add;
-- `update` for change;
-- `delete` for unlink.
+The outer environment-level `allSettled` sees one rejected environment promise and resumes. It does not know that a sibling plugin hook is still running.
 
-It maps the current environment snapshot to each `watchChange` promise, awaits `Promise.allSettled`, and logs every rejected result through `server.config.logger.error`.
+### Consequences
 
-Returning normally transfers control back to the existing event worker. No later Vite-owned code is duplicated or moved. This keeps the patch local to the ownership boundary that currently combines plugin notification with Vite's event transaction.
+- HMR can overtake a slower notification hook.
+- Only the first rejection per environment is available to the server result set.
+- A synchronous throw can stop later plugin invocation.
+- A failed ordinary group can skip a later sequential hook and all following hooks.
+- environment close may need to wait a hook that server orchestration already treated as finished.
 
-## Why this boundary owns the failure
+The original and prior-art controls used one failing plugin, so they did not distinguish this case.
 
-The failure arises from orchestration in `server/index.ts`, not from generic plugin-hook ordering:
+## Rollup-compatible barrier model
 
-- environment plugin containers own execution within one environment;
-- the server owns fanout across environments;
-- the server owns module-graph and HMR continuation after fanout;
-- the listener catch can report only after the event worker has aborted.
+`watchChange` is an asynchronous parallel hook. Hook objects can request `sequential: true`.
 
-The server-level helper preserves per-environment semantics while changing only cross-environment failure aggregation and continuation.
+The compatible model is:
 
-## Multiple environments
+1. start the current ordinary group in parallel;
+2. wait the whole group;
+3. run the sequential hook alone;
+4. start the next ordinary group;
+5. wait the final group.
 
-`Promise.all` rejects on the first observed rejection. Other promises continue running, but the server stops waiting for their complete result set and reports only the rejection propagated out of the event worker.
+Failure isolation must treat each failed hook as settled without removing these barriers.
 
-`Promise.allSettled` gives the server one stable result per environment. The candidate logs every rejected result and waits for every notification to settle before invalidation/HMR. The successful-path ordering boundary remains unchanged: Vite-owned work begins after all environment notifications finish.
+## Selected implementation boundary
 
-## Add and unlink
+The specialized path is activated only when watcher-driven server orchestration supplies an internal error callback to `EnvironmentPluginContainer.watchChange()`.
 
-The helper is shared by all event kinds. The current target-native controls distinguish the behavior:
+When supplied, the plugin container:
 
-- add: `watchChange` receives `create`, its rejection is logged, and `hotUpdate` receives `create`;
-- unlink: `watchChange` receives `delete`, its rejection is logged, and `hotUpdate` receives `delete`.
+- applies the existing per-environment filter;
+- invokes every eligible hook;
+- wraps asynchronous results with `handleHookPromise`;
+- catches each synchronous throw or rejection;
+- reports each failure through the callback;
+- preserves sequential barriers;
+- waits all groups before returning.
 
-These controls establish continuation through the event-typed HMR boundary. The change control additionally establishes cache invalidation and refreshed content.
+Without the callback, the existing generic fail-fast path remains. This preserves direct `server.pluginContainer.watchChange()` compatibility.
 
-## Compatibility
+The server still uses environment-level settlement as a final guard for failures outside ordinary hook rejection.
 
-### Plugin API
+## Lifecycle integration
 
-No signature, option, hook order, or success-path behavior changes.
+`EnvironmentPluginContainer.close()` sets the container closed and waits `Promise.allSettled(Array.from(_processesing))` before build-end and close-bundle work.
 
-### Failure behavior
+Using `handleHookPromise` in the specialized watcher path means close and restart participate in the same existing lifecycle tracker. No second registry is introduced.
 
-A rejecting plugin can no longer abort Vite's later file-event work. The rejection remains visible. Multiple environment rejections may produce multiple logger calls.
+## Expanded target-native controls
 
-### Timing
+The focused suite now has five cases under the repair carrier.
 
-The server waits for all environment notifications to settle, as it already does on the successful path. A first rejection no longer ends the await early.
+### Change stale-cache case
+
+Proves exact error visibility, HMR reachability, cache invalidation, and refreshed `beta` output.
+
+### Add and unlink cases
+
+Prove create/delete mapping, exact error visibility, and event-typed HMR continuation.
+
+### Multi-plugin and sequential-barrier case
+
+Proves:
+
+- fast and slow hooks both start;
+- fast failure is reported while slow remains blocked;
+- HMR has not run;
+- slow failure is reported after release;
+- sequential and later ordinary hooks run in order;
+- HMR runs last.
+
+### Synchronous-throw case
+
+Proves a later hook still runs, the error is reported, and HMR continues.
+
+The repair execution passed formatting, full Vite build, all 5 focused tests, and ESLint. The first clean-packaging attempt then failed because a depth-one checkout did not contain the exact public-base tree used to restore the original CI workflow. A full-history packaging run is correcting only that execution detail.
+
+## Compatibility analysis
+
+### Successful hooks
+
+Parallel groups, arguments, environment filtering, and sequential barriers remain unchanged.
+
+### Failing hooks
+
+Watcher-driven server events now continue to later hooks and Vite-owned work after reporting failures. This is the intended behavior change.
+
+### Direct compatibility wrapper
+
+Calls without the internal callback retain existing fail-fast behavior. The callback is not a new public option.
+
+### Error shape
+
+Errors are reported individually. No aggregate error is introduced, so original error identity is retained. Relative ordering between nearly simultaneous failures is not promised.
+
+### Logger failure
+
+A configured logger that throws can still interrupt reporting. Existing Vite listener catches also assume logger calls return. Changing this would be a broader logging contract and remains outside Unit 01.
 
 ### Performance
 
-The successful path still performs parallel environment notifications followed by the same Vite-owned work. `Promise.allSettled` adds a small result allocation at the environment fanout boundary.
+Successful ordinary hooks remain parallel. The specialized path adds per-hook error handling and small promise bookkeeping only for watcher notifications.
 
 ### Rollback
 
-Reverting the helper and restoring the two `Promise.all` calls returns inspected public-base behavior. No persisted format, generated artifact, lockfile, or migration is involved.
+Reverting the specialized helper/callback and server callback restores the prior environment-only candidate. Reverting both repair layers restores public-base behavior. No persisted format, migration, dependency, or generated artifact is involved.
+
+## Adjacent concurrency question
+
+Vite launches separate filesystem event workers independently. Two events can overlap even after every event waits its own hooks.
+
+Unit 01 does not serialize, debounce, or coalesce separate events. Those policies may affect latency, ordering, and plugin expectations and require their own reproduction and contract decision.
 
 ## Prior art
 
-[`vitejs/vite#22188`](https://github.com/vitejs/vite/pull/22188) repaired dropped/unhandled watcher promises by attaching listener catches and added error-logging controls for all event kinds. Its review traced `watchChange` as the escaping hook in these handlers.
+Vite PR `#22188` added listener-level catches and error-logging controls for add/change/unlink. It solved dropped watcher rejections but left the event worker fail-fast.
 
-Unit 01 keeps that result and closes the later continuation gap. It does not reopen the listener-level error-handling design.
+Unit 01 retains that listener behavior and closes two deeper continuation layers:
 
-## Current execution interpretation
+1. environment-level settlement;
+2. plugin-level settlement within each environment.
 
-At source head `a2ab7ca6183ad74d64066d6706e57a546e355224`:
+## Evidence limits
 
-- workflow security passed;
-- repository build/lint/format/type/docs/workflow checks passed;
-- full Linux Node 20/22/24/26 Build&Test passed;
-- full macOS Node 24 Build&Test passed;
-- Windows build, unit, and the three-case Unit 01 regression passed;
-- Windows ordinary serve passed on rerun.
+The packet does not claim:
 
-Two Windows full-job attempts later failed in the pre-existing HMR/SSR integration playground. The first failure was an ordinary-serve timeout waiting for an HMR console update. The rerun passed ordinary serve and then failed three timing/state assertions in the same family during bundled-development. The moving failure location, unchanged green Unit 01 regression, two-file diff boundary, and green Linux/macOS full matrix support classification as unrelated Windows HMR/SSR integration flakiness.
+- prevalence across the ecosystem;
+- recovery of arbitrary partial state inside a failing plugin;
+- global serialization of file events;
+- a production-build defect;
+- deterministic ordering of simultaneous errors;
+- safety when a custom logger throws;
+- exhaustive public-file and delete-graph side-effect coverage.
 
-GitHub's PR workflow used a synthetic merge containing the exact source head on the owned repository's current default branch. That is useful compatibility evidence but does not replace the canonical public-base-to-source comparison.
+## Reversal evidence
 
-## Remaining uncertainty
+The selected conclusion should reverse only if supported evidence shows one of these:
 
-- An independent reviewer must confirm the configured-logger behavior for multiple environment rejections and the compatibility boundary.
-- A maintainer may prefer a different helper location or name while retaining the same ownership rule.
-- Maintainers may request stronger add public-file or unlink graph-state assertions.
-- Windows HMR/SSR integration timing remains noisy outside the changed files.
-- The then-current Vite main, duplicate landscape, and contribution policy must be refreshed immediately before any authorized public submission.
+- rejecting `watchChange` is contractually intended to veto sibling hooks or Vite invalidation/HMR;
+- preserving sequential barriers while continuing after failure violates a supported plugin contract;
+- tracked notification promises create a supported close/restart regression;
+- direct compatibility calls accidentally switch to settle-and-continue behavior;
+- the exact target-native controls fail on a clean committed head for a Unit 01-linked reason.
 
-Evidence that would reverse the selected conclusion would need to show that a rejected `watchChange` hook is contractually intended to veto Vite-owned invalidation/HMR, or that continuation creates a larger correctness failure under a supported plugin contract. No inspected source, test, issue, review, or prior-art record states that veto contract.
+No inspected source, documentation, prior art, or current duplicate record establishes such a veto contract.
+
+See [`ADVERSARIAL_AUDIT.md`](./ADVERSARIAL_AUDIT.md) and [`APPROACHES.md`](./APPROACHES.md) for the retained mechanism and decision history.
