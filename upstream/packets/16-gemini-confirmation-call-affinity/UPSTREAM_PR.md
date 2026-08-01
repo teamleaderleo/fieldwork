@@ -1,7 +1,7 @@
 # Upstream pull-request draft — Bind confirmation modification to correlated call
 
 Draft status: `issue first`  
-Proposed head: `teamleaderleo/gemini-cli:fix/scheduler-confirmation-call-affinity` at `0c3a86b0555e152b50ca55fd5f8dc53608571cbe`  
+Proposed head: `teamleaderleo/gemini-cli:fix/scheduler-confirmation-call-affinity` at `b6d8e8bb6160aec16555647d81d46a694e44b58b`  
 Proposed base: `google-gemini/gemini-cli:main` at or after `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`  
 Public interaction authorized: `no`
 
@@ -36,41 +36,48 @@ The adjacent confirmation fixture now reflects the real `Validating` to `Awaitin
 ## Exact diff
 
 - base: `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`
-- head: `0c3a86b0555e152b50ca55fd5f8dc53608571cbe`
+- head: `b6d8e8bb6160aec16555647d81d46a694e44b58b`
 - commits: one
+- relationship: one ahead, zero behind
 - files:
   - `packages/core/src/scheduler/confirmation.ts`
   - `packages/core/src/scheduler/confirmation.affinity.repair.test.ts`
   - `packages/core/src/scheduler/confirmation.test.ts`
   - `packages/core/src/scheduler/scheduler.confirmation-affinity.test.ts`
+- additions/deletions: 775 / 20
 - generated/dependency/workflow files: none
 
 ## Tests
-
-Focused/current command:
 
 ```text
 npm run test --workspace @google/gemini-cli-core -- \
   src/scheduler/confirmation.affinity.repair.test.ts \
   src/scheduler/scheduler.confirmation-affinity.test.ts \
   src/scheduler/confirmation.test.ts
-```
 
-Additional gates:
-
-```text
 npm run typecheck --workspace @google/gemini-cli-core
-npm run preflight
+
+npx eslint --max-warnings 0 --no-warn-ignored \
+  packages/core/src/scheduler/confirmation.ts \
+  packages/core/src/scheduler/confirmation.affinity.repair.test.ts \
+  packages/core/src/scheduler/confirmation.test.ts \
+  packages/core/src/scheduler/scheduler.confirmation-affinity.test.ts
 ```
 
-Retained predecessor result at `b359ece8a2bd059aef870a084ab9494eff16fa8f`:
+Final run `30692554758`, candidate job `91350078426`, Ubuntu 22.04, Node `v20.19.0`, npm `10.8.2`:
 
-- six focused authority tests passed;
+- exact parent and four-file fence passed;
+- Prettier and staged pre-commit ESLint passed;
+- six focused authority/stale-generation tests passed;
 - eight adjacent confirmation tests passed;
-- core posttest build and typecheck passed;
-- Prettier, staged ESLint, exact fencing, clean tree, and source publication passed.
+- one real scheduler reverse-order test passed;
+- posttest core build passed;
+- standalone core typecheck passed;
+- explicit ESLint across all four changed files passed;
+- clean tracked tree passed;
+- canonical source publication passed.
 
-Current exact-head execution is owned by the immutable-source carrier in the owned fork. Insert its final test count, preflight result, and run link before submission.
+Full repository preflight reaches `.github/workflows/pr-size-labeler-batch-run.yml` shellcheck `SC2031`. Baseline-control job `91349770438` checked out exact unchanged base and reproduced the same workflow path and warning. The PR changes no workflow.
 
 ## Compatibility
 
@@ -91,10 +98,10 @@ Current exact-head execution is owned by the immutable-source carrier in the own
 
 ## Limits
 
-- Current exact-head focused execution and full preflight receipt are pending at this draft revision.
 - The scheduler test controls policy, modifier, and executor.
 - macOS, Windows, and a real external editor process are untested.
 - Production frequency is unmeasured.
+- Eligible independent review remains pending.
 - The contribution guide requires an existing issue and maintainer alignment before a public code PR.
 
 ## Related work
@@ -106,17 +113,19 @@ Current exact-head execution is owned by the immutable-source carrier in the own
 
 ## Submission checklist
 
-- [x] Branch is a direct child of the inspected current public head.
+- [x] Branch is a direct child of the inspected public head.
 - [x] Diff contains only product source and target-native tests.
 - [x] Temporary workflows, publishers, receipts, and Fieldwork files are absent.
-- [x] Every changed file was self-reviewed at `0c3a86b0555e152b50ca55fd5f8dc53608571cbe`.
+- [x] Every changed file was self-reviewed at `b6d8e8bb6160aec16555647d81d46a694e44b58b`.
 - [x] Baseline regression reaches the wrong-call assertion.
-- [x] Predecessor focused candidate passes inline/editor/stale-authority controls.
-- [x] Real two-call reverse-order scheduler control is committed.
-- [ ] Real two-call reverse-order scheduler control passes on the proposed head.
-- [ ] Core typecheck and `npm run preflight` pass on the proposed head.
-- [ ] Clean-tree and exact publication receipt recorded.
+- [x] Inline/editor/stale-authority controls pass.
+- [x] Real two-call reverse-order scheduler control passes.
+- [x] Core build and typecheck pass.
+- [x] Changed-file formatting and lint pass.
+- [x] Clean-tree and exact publication receipt recorded.
+- [x] Repository preflight blocker reproduced on unchanged base.
+- [ ] Eligible independent review completed.
 - [ ] Current duplicate and overlap search repeated.
 - [x] Commit title follows Conventional Commits.
 - [ ] Current contribution and AI-disclosure policies checked at filing time.
-- [ ] Exact user authorization to file issue/open public PR recorded.
+- [ ] Exact authorization to file issue/open public PR recorded.
