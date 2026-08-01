@@ -1,202 +1,93 @@
 # Tests and receipts — Unit 18 Playwright MCP shutdown authority
 
-## In simple words
+## Canonical identity
 
-The authority model and its alternatives have retained target-native execution. Baseline characterization passed, a local proxy disproved direct loopback identity, and parent-owned IPC passed the complete native MCP HTTP file across Ubuntu, macOS, and Windows in the predecessor generation. The exact current source head has now passed the same complete file and declared gates on macOS and Windows. Ubuntu is queued before runner allocation, so the current disposition remains `EXECUTE`.
+- Current inspected base: `15b1aec478d90f0293dae7b7b6dafd494d9f0154`
+- Exact canonical candidate: `e99e97da2acfc6c1a67749bc749e1d0cb71b5607`
+- Canonical fence: `mcp.ts`, `http.ts`, `http.spec.ts`
+- Exact-current workflow: `30690674059`
+- Environments: Ubuntu 24.04, macOS 15 ARM64, Windows Server 2025 x64; Node 22.23.1; Chromium
 
-For the live exact-head state, start with [`CURRENT_EXECUTION.md`](./CURRENT_EXECUTION.md).
+## Claim-to-evidence summary
 
-## Exact identities
+| Claim | Evidence | Result | Limit |
+| --- | --- | --- | --- |
+| accepted non-browser HTTP caller can terminate reachable MCP | run `30649849111`, job `91220131763` | 3/3 passed | deliberate Ubuntu non-loopback/wildcard Host setup |
+| local proxy defeats direct loopback identity | run `30656319708`, job `91241456610` | direct 19/19 plus proxy 1/1 passed | one Ubuntu local proxy topology |
+| parent IPC removes route and preserves lifecycle | run `30657930500` | 17/17 and declared gates on all three platforms | bare message generation |
+| one-shot structured IPC works cross-platform | run `30659762667` | 18/18 and declared gates on all three platforms | loose object validator generation |
+| strict exact-message canonical candidate works | run `30690674059` | 18/18 and every declared gate on all three platforms | focused MCP HTTP file, Node 22 |
+| naïve stdin-close ownership works | run `30704410449` | failed identically on all three platforms | watchdog listened for `close`, parent EOF did not trigger it |
+| repaired stdin-EOF ownership works in HTTP experiment | run `30704592268` | 17/17 and declared gates on all three platforms | global stdin consumption has unresolved stdio-race risk |
 
-- Historical executed public base: `368941457a82da112aa8610107e25f4bde94339a`
-- Current inspected public base: `15b1aec478d90f0293dae7b7b6dafd494d9f0154`
-- Canonical current source: `teamleaderleo/playwright:fix/mcp-parent-ipc-shutdown@e99e97da2acfc6c1a67749bc749e1d0cb71b5607`
-- Net source fence: exactly `mcp.ts`, `http.ts`, and `http.spec.ts`
-- Current carrier: `teamleaderleo/fieldwork#455@0323aeaadc391575b572e869258e5e1ac3c4652c`
-- Current workflow: `30690674059`
-- Environments represented: Ubuntu 24.04, macOS 15, Windows 2025; Node 22; Chromium
+## Exact-current canonical execution
 
-## Claim-to-evidence matrix
+Each job performed exact checkout/fence verification, `npm ci`, complete `npm run build`, Chromium installation, the complete native MCP HTTP file, focused ESLint, clean-tree verification, exact diff verification, and receipt upload.
 
-| Claim | Evidence class | Exact receipt | Result | Limit |
+| Platform | Job | Test result | Artifact | Digest |
 | --- | --- | --- | --- | --- |
-| accepted non-loopback HTTP request terminates MCP | `target-executed` | PR #405, run `30649849111`, job `91220131763` | 3/3 passed | Ubuntu; deliberately permissive listener/Host configuration |
-| direct loopback check blocks a direct remote peer | `target-executed` | PR #410, run `30651626301`, job `91226004779` | 19/19 passed | direct topology only |
-| local proxy defeats loopback authority | `integration-executed` | PR #416, run `30656319708`, job `91241456610` | 19/19 direct plus 1/1 proxy passed | one Ubuntu local proxy topology |
-| environment capability hides route by default | `target-executed` | PR #416, job `91241456488` | 17/17 plus 2/2 plus 1/1 passed | enabled route remains a network primitive |
-| bare parent IPC works cross-platform | `target-executed` | PRs #423/#425, run `30657930500` | 17/17 and declared gates on Ubuntu/macOS/Windows | bare string and persistent listener generation |
-| one-shot structured IPC works cross-platform | `target-executed` | PRs #430/#432, run `30659762667` | 18/18 and declared gates on Ubuntu/macOS/Windows | validator accepted extension fields |
-| strict exact-own-property generation works on macOS | `target-executed` | PR #455, run `30690674059`, job `91344705071` | 18/18 plus all declared gates passed | macOS 15 ARM64, Node 22.23.1 |
-| strict exact-own-property generation works on Windows | `target-executed` | PR #455, run `30690674059`, job `91344705088` | 18/18 plus all declared gates passed | Windows Server 2025 x64, Node 22.23.1 |
-| strict exact-own-property generation works on Ubuntu | `runner-pending` | PR #455, job `91344705054` | queued before allocation | no source execution yet |
-| complete Playwright repository is green | `not-claimed` | none | not run | focused MCP HTTP file and build only |
+| Ubuntu 24.04 | `91344705054` | 18/18 and all declared gates passed | `8815924825` | `sha256:80ea42882f0c6ce9255d57d1a21b23e622b8f68aedda9478caacad818c124e4f` |
+| macOS 15 ARM64 | `91344705071` | 18/18 in 32.6s and all declared gates passed | `8815562250` | `sha256:80a6f32f6b8a560924af3a562c0af5bcc16ee4993cd2fdf05306b3bc67bd2d54` |
+| Windows Server 2025 x64 | `91344705088` | 18/18 in 34.0s and all declared gates passed | `8815574235` | `sha256:804ed03b8a52765366cdec5737cc0f9b3d7f90714b9939b8e613cb39af20bdf4` |
 
-## Baseline characterization
+### Canonical assertions
 
-Fieldwork PR #405 ran workflow `30649849111` at exact Playwright `368941457a82da112aa8610107e25f4bde94339a`.
+- old POST/header `/killkillkill` request does not return 200;
+- MCP remains responsive after the old request;
+- wrong string, wrong version, extra-field object, and inherited-property object are inert;
+- exact plain-object message initiates graceful shutdown;
+- duplicate valid delivery records one graceful close;
+- IPC disconnect is inert;
+- every other test in the native HTTP file remains green.
 
-Assertions:
+## Parent stdin EOF research
 
-- an accepted non-loopback exact POST with `x-pw-mcp-kill: 1` returns 200 and exits through graceful cleanup;
-- GET, missing header, and wrong header leave MCP live;
-- default Host policy rejects non-loopback before route handling;
-- loopback exact request retains behavior.
+### First generation
 
-Receipt: 3/3 passed; job `91220131763`; artifact `8800945684`; digest `sha256:ce7c9a2d02affa71367c2f1fdc56a0a338b2afcb5d50d72d72a0f6a50310cf8b`.
+- source: `1d6ec11b5f06df32ce5b4fa0346af7631216e79c`
+- workflow: `30704410449`
+- result: Ubuntu, macOS, and Windows all failed the same discriminator after successful setup/build/browser installation
+- observation: closing `cp.stdin` did not trigger watchdog `process.stdin.on('close')`
 
-Judgment: listener and Host reachability granted access to the route; the fixed method/header was not caller authorization.
+### Repaired generation
 
-## Losing repair execution
+- source: `86d32569b47fd9f6e98c11517d1699cea5a2465a`
+- carrier: `2e32e643cdc6af0a322d49499b0cece3ee9e0699`
+- workflow: `30704592268`
+- change: listen for stdin `end` and consume stdin so EOF is observable
+- matrix: ordinary `http.spec.ts` controls except the superseded route-based SIGINT case, plus `fieldwork-stdin-close.spec.ts`
 
-### Direct loopback and capability comparison
+| Platform | Result | Artifact | Digest |
+| --- | --- | --- | --- |
+| Ubuntu 24.04 | 17/17 in 21.5s; build, Chromium, lint, clean diff passed | `8819925107` | `sha256:e05bcd01a8f7d1d43eb516fbc7891cdb310245c68d9d8450420a85f4a9454307` |
+| macOS 15 | complete success | `8819927910` | `sha256:b1099fc064a80e1a8db32c6a17e298f0c9018419ed26cb2823a43214e8fc29f9` |
+| Windows 2025 | complete success | `8819934140` | `sha256:6833261278e27a3a8b1670bffdc58b2fa9eeaf4f3a03582efe4537fe32600f99` |
 
-- Comparison head: `f40f316224ebb526150fc87fc336486dfdf9f9bd`
-- Workflow: `30651626301`
-- Loopback job `91226004779`: 19/19 in 30.6s; artifact `8801633779`; digest `sha256:11c19ee26756e11167dc9a0567ce73f975dd0de01e02ee4a19e2bd1c3c9b4c7d`
-- Capability job `91226004861`: 17/17 upstream plus 2/2 focused; artifact `8801643332`; digest `sha256:0dcc2345a6d3198bfe205961aa6d8fac0c58f90243ad8700e3c11365fd90dba5`
-- Limit: direct topology did not reveal proxy identity loss.
+### Limit
 
-### Local proxy discriminator
+The watchdog runs before transport mode is chosen. Stdio mode already owns stdin-`end` handling through `StdioServerTransport`. Global `process.stdin.resume()` may put stdin into flowing mode before that transport attaches and discard early protocol bytes. The HTTP result is valid, but the implementation is not promoted without mode-aware placement and stdio controls.
 
-- Executed head: `6ad6ff2b25a2ab8d3fd0bb7cbcb0fe8ce03b67f7`
-- Workflow: `30656319708`
-- Loopback job `91241456610`: 19/19 direct plus 1/1 proxy; artifact `8803406788`; digest `sha256:85f09ee517eabbc258472a9deeb168f8c4f89fb495f353ac2d125b07c7a87fbb`
-- Capability job `91241456488`: 17/17 plus 2/2 plus 1/1; artifact `8803413811`; digest `sha256:0d2e30c9a05ef11748771c294b8ec0ff4811602a933a188277cff40b672abbb8`
-- Discriminator: the proxy-relayed request appeared loopback and terminated the loopback candidate; the default-disabled capability candidate returned 404 and stayed live.
+## Ordinary gates and gaps
 
-## Selected parent-IPC execution history
+| Gate | Canonical result |
+| --- | --- |
+| `git diff --check` | passed on all three platforms |
+| focused ESLint | passed on all three platforms |
+| complete build | passed on all three platforms |
+| complete native MCP HTTP file | 18/18 on all three platforms |
+| exact changed-file fence | passed on all three platforms |
+| full Playwright repository CI | not run |
+| Node versions outside 22 | not run |
+| non-test parent embeddings with IPC | not run |
+| stdio early-message control for stdin alternative | not run; required before promotion |
 
-### Bare parent IPC
+## Packet integrity
 
-- Candidate: PR #423 `bcceeadc2c806ab6e60e013d2278b7515339036d`
-- Platform carrier: PR #425, workflow `30657930500`
-- Ubuntu: job `91246869531`, artifact `8804013479`, digest `sha256:ebf70a898d2821ff1b5f77988bc008926b558bb58b0d2df9992d7c7af16b0cbf`
-- macOS: job `91246869639`, artifact `8804012978`, digest `sha256:226ca6682054d8ec7ae241ce5e732740bad467a2246870b5776756c7133b4495`
-- Windows: job `91246869591`, artifact `8804032483`, digest `sha256:5d1dd6c6ed51fe99dfab840ee4e55646a2555d3b75720a5aa5c1a3beb4af04e9`
-- Result: complete 17-test native file, build, Chromium, focused lint, and exact diff passed on all three platforms.
-
-### Hardened one-shot IPC
-
-- Candidate carrier: PR #430 `59899a28503cbe9d97811cbed103b6fc831e6663`
-- Linux workflow/job: `30659209256` / `91251086538`
-- Linux result: 18/18; build, focused ESLint, and exact diff passed; artifact `8804497263`; digest `sha256:74fdf6ebb8bfbea1ccda6ab5c26d87bd469003fe0ff26d8f359997af6eeb17c5`
-- Cross-platform carrier: PR #432 `481c5b4a912106b4760082a061fe4ed13338bf5a`
-- Workflow: `30659762667`
-- Ubuntu: job `91252909934`, artifact `8804703627`, digest `sha256:57599b2e736b10426134c424fc0a68b5af29c5bbf2e1875c188cc0dd037c67e7`
-- macOS: job `91252909953`, artifact `8804712909`, digest `sha256:415d974f4d1db447b50e41a934102dde08fe9402f0b4c817d64e520749fcd826`
-- Windows: job `91252909976`, artifact `8804735269`, digest `sha256:ea70fb39180a87e3cb55d0d43ce771049ed9accfd82dd09ecc5d5fb2cbbc0d8b`
-- Result: exact identity, locked install, complete build, Chromium, 18/18 native file, focused ESLint, and exact three-file diff passed on all platforms.
-- Review finding after execution: matching type/version objects with extra fields or inherited values were accepted, so exact-message wording was too broad.
-
-## Exact current-head execution
-
-Carrier #455 pins source `e99e97da2acfc6c1a67749bc749e1d0cb71b5607`, base `15b1aec478d90f0293dae7b7b6dafd494d9f0154`, and the exact three-file fence.
-
-Declared per-platform command sequence:
-
-1. verify carrier and source SHAs;
-2. verify base exists, `git diff --check`, and exact changed filenames;
-3. `npm ci`;
-4. `npm run build`;
-5. `npx playwright install --with-deps chromium` on Linux or `npx playwright install chromium` elsewhere;
-6. `npm run test-mcp tests/mcp/http.spec.ts -- --project=chromium`;
-7. focused `npx eslint` on the three changed files;
-8. verify clean source tree, `git diff --check`, and exact changed filenames;
-9. upload receipt, test log, binary diff, and commit list.
-
-### macOS 15
-
-- Job: `91344705071`
-- Runner: macOS 15.7.7, ARM64
-- Node: 22.23.1
-- Native result: 18/18 passed in 32.6s
-- Other gates: all passed
-- Artifact: `8815562250`
-- Digest: `sha256:80a6f32f6b8a560924af3a562c0af5bcc16ee4993cd2fdf05306b3bc67bd2d54`
-
-### Windows Server 2025
-
-- Job: `91344705088`
-- Runner: Windows Server 2025, x64
-- Node: 22.23.1
-- Native result: 18/18 passed in 34.0s
-- Other gates: all passed
-- Artifact: `8815574235`
-- Digest: `sha256:804ed03b8a52765366cdec5737cc0f9b3d7f90714b9939b8e613cb39af20bdf4`
-
-### Ubuntu 24.04
-
-- Job: `91344705054`
-- State: queued before runner allocation
-- Test count: none yet
-- Classification: runner queue; no product result
-
-## Current strict assertions
-
-The exact current 18-test file exercises:
-
-- old `/killkillkill` POST/header request does not return 200;
-- MCP client remains responsive after that request;
-- wrong string is inert;
-- wrong version is inert;
-- matching object with an extra own field is inert;
-- inherited-only matching properties are inert;
-- exact plain-object type/version message sent twice yields one graceful close;
-- IPC disconnect leaves HTTP operation live;
-- ordinary isolated, persistent, multi-client, shared-context, Host, SSE, streamable, roots, and lifecycle cases in the file remain green on completed platforms.
-
-## Setup and harness failure classifications
-
-| Attempt | Failure | Class | Product claim | Resolution |
-| --- | --- | --- | --- | --- |
-| PR #414 Windows | Bash continuation under PowerShell broke focused lint after tests passed | runner shell | no source failure | PR #419 reran with correct shell |
-| PR #425 predecessor run `30657528090` Windows | CRLF prevented patch application before tests | packaging | no source failure | normalized disposable input; replacement passed unchanged candidate bytes |
-| PR #430 predecessor `3c3cad4...` | stale unified-diff hunk counts | packaging | no source failure | regenerated carrier; Linux passed |
-| PR #455 Ubuntu current | no runner allocation yet | runner queue | no result | keep queued status explicit |
-
-## Ordinary gates and current coverage
-
-| Gate | macOS current | Windows current | Ubuntu current | Broader limit |
-| --- | --- | --- | --- | --- |
-| exact source/base identity | pass | pass | not started | — |
-| `git diff --check` and exact three-file fence | pass | pass | not started | — |
-| locked install | pass | pass | not started | dependency audit warnings are not candidate-specific failures |
-| complete `npm run build` | pass | pass | not started | full repository test suite not run |
-| Chromium installation | pass | pass | not started | other browsers not required by this focused file |
-| complete native MCP HTTP file | 18/18 | 18/18 | not started | focused file only |
-| focused ESLint | pass | pass | not started | repository-wide lint not run |
-| clean source tree after gates | pass | pass | not started | — |
-
-## Reversing and cleanup controls
-
-- The historical exact HTTP request succeeds on baseline; the current candidate rejects it and remains live on completed platforms.
-- Malformed/private-message variants leave the client responsive.
-- Duplicate valid delivery produces one close.
-- IPC disconnect is inert.
-- Local proxy distinguishes peer-locality from route absence.
-- Message listener is removed before SIGINT.
-- No dedicated soak or repeated same-workspace rerun was performed.
-
-## Packet and source cleanup
-
-- Canonical target net diff contains no temporary workflow or evidence file.
-- Packet head `7fe2bb3b619e6b1675c260d0304fd262eca71f1f` passed Fieldwork integrity in run `30675345841` before the current evidence transfer.
-- Updated packet integrity remains required.
-- Execution carrier #455 must be closed after evidence transfer and completion/classification of Ubuntu.
-- Source history remains seven commits and requires squash before any authorized submission.
-
-## Remaining gaps
-
-1. Ubuntu exact-current-head execution or explicit reviewed carry-forward.
-2. Updated packet integrity.
-3. Independent complete-diff acceptance.
-4. Source history squash with tree-equivalence proof or rerun.
-5. Full Playwright repository CI only if required; it has not run and is not claimed.
-6. Node versions outside 22 and non-test parent embeddings remain untested.
-7. Playwright issue approval/assignment and explicit public-contact authority.
+- packet head `ca95ff2bc643c040ad48a73bb1dc80cdfc64fe8c`: run `30691135221`, success
+- latest packet head after adjacent research: fresh integrity run required
 
 ## Current test judgment
 
-`EXECUTE`
+`ISSUE FIRST`
 
-Reason: exact-current-head macOS and Windows execution is fully green; Ubuntu has no product result because the job is still queued. Clearing condition: Ubuntu success or an explicit independently reviewed carry-forward decision, followed by updated packet integrity and independent complete-diff acceptance. The contribution route after that gate is `ISSUE FIRST`.
+The exact canonical implementation gate is cleared. Remaining work is independent review, maintainer direction on the ownership mechanism, source-history squash/tree-equivalence proof, and authorization before public contact.
