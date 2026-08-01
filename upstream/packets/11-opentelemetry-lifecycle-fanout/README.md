@@ -24,7 +24,7 @@ The same deeper review found a missing public trace path: `TracerProvider.forceF
 - exact source head: `a1e604526ea87fc22a91f6b2fe84b02f528e9f88`;
 - owned validation PR: `teamleaderleo/opentelemetry-js#19`;
 - superseded carrier: closed PR `teamleaderleo/opentelemetry-js#18`;
-- packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout`;
+- canonical packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout-v2`;
 - proposed title: `fix: stabilize lifecycle fanout targets`.
 
 The source is ahead 6, behind 0. Its six contents-API commits should be squashed before any authorized public submission.
@@ -57,11 +57,11 @@ No metrics, workflow, dependency, lock, generated, publisher, or research-only f
 - deeper review then found metrics mutation was private-state-only and removed metrics entirely;
 - deeper trace review found public `TracerProvider.forceFlush()` bypassed the repaired multi-processor method;
 - the successor adds that public path and clears its timeout after synchronous failure;
-- concurrent rewrites made PR #18 non-authoritative, so clean successor PR #19 was created from the pinned public base.
+- concurrent rewrites made PR #18 non-authoritative, so clean successor PR #19 and a successor packet branch were created from stable bases.
 
 ## Current validation
 
-Queued on exact successor head `a1e604526ea87fc22a91f6b2fe84b02f528e9f88`:
+Triggered on exact successor head `a1e604526ea87fc22a91f6b2fe84b02f528e9f88`:
 
 - Unit Tests `30694086716`;
 - CodeQL Analysis `30694086713`;
