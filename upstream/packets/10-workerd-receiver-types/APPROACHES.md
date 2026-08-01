@@ -11,9 +11,35 @@ Why selected:
 - keeps explicit handwritten receiver choices authoritative;
 - supports inherited and generic declarations;
 - makes global widening an explicit transformation;
-- supports targeted regression fixtures.
+- supports targeted regression fixtures;
+- preserves ordinary callback assignment compatibility when TypeScript widens the method to a receiver-free function type.
 
-Exact source: https://github.com/teamleaderleo/workerd/compare/7cdc8c0e089287c8f3643f3a6f668ecdc221722a...f167a283fc9f792c427eeded306c38602e60261d
+Exact source: https://github.com/teamleaderleo/workerd/compare/d82c2a45a8695aac30d4d24828ce1ee7fb11909b...8f41da276852ad48735c1d817b7c1a3699ac8beb
+
+## Selected commit presentation: one atomic commit
+
+Keep the source and target-native tests in one commit.
+
+The seams are coupled:
+
+1. The generator marker and cleanup must land together or internal receiver types leak into output.
+2. Override preservation must land with generation or handwritten replacements silently erase receiver policy.
+3. Worker-global widening must land with generation or legal bare/global/nullish calls become type-invalid.
+4. The end-to-end and type fixtures must land with the implementation to satisfy workerd's per-commit build/test discipline.
+
+A generator / overrides / globals split creates knowingly incomplete intermediate semantics and repeated output churn. The one-commit diff is larger, yet it represents one declaration-fidelity invariant and every changed file participates in that invariant.
+
+## Current detachability conclusion
+
+Current public workerd contains no `JSG_DETACHED_METHOD` or `registerDetachedMethod` implementation. Closed unmerged PR #2352 proposed a separate macro and runtime registration path for receiver-independent instance operations.
+
+This supports the selected default:
+
+- ordinary `JSG_METHOD` → owning receiver;
+- `JSG_STATIC_METHOD` → static receiver-free member;
+- any future detached instance registration → new RTTI flag and generator branch, outside this unit until such runtime support exists.
+
+Reopen broad-generation policy only if current source identifies an ordinary `JSG_METHOD` whose runtime registration deliberately omits the owning V8 signature.
 
 ## Considered alternatives
 
@@ -43,7 +69,11 @@ A replacement emits its own type parameters. Inheriting hidden generated paramet
 
 ### Resolve inherited globals from a simple-name map
 
-Same-named declarations in separate namespaces make the lookup ambiguous. Rejected after exact source review. The selected implementation uses the checker first and a unique generated fallback.
+Same-named declarations in separate namespaces make the lookup ambiguous. Rejected after exact source review. The selected implementation uses the checker for lexical identity and the transformed top-level declaration for post-override members.
+
+### Use only the pre-transform checker declaration
+
+The checker points at the original source tree. After an override transforms a superclass, following the old declaration discards transformed members and generated receiver markers. Rejected by the end-to-end failure reproduced in validation run `30690050452` and repaired by transformed top-level lookup.
 
 ### Rely on runtime checks alone
 
@@ -69,15 +99,9 @@ Both intentionally use receiver-independent server-global `fetch` behavior. Reje
 
 The runtime behavior follows ordinary host-operation ownership and browser-compatible precedent. Rejected and outside unit scope.
 
-## Commit-series recommendation
+## Known boundary
 
-The current clean branch uses one commit so the exact semantically reviewed carrier blobs remain easy to verify. Before public publication, a human may choose to split it into reviewable commits while preserving green tests at every commit:
-
-1. receiver marker, generator hook, cleanup, and direct generator fixture;
-2. override preservation plus generic replacement controls;
-3. global extraction, lexical heritage resolution, static controls, and fetch call matrix.
-
-Any split creates new exact heads and requires rerunning the target gates and complete-diff review.
+Qualified heritage that resolves to a transformed nested declaration is outside the current generated source model. The globals transformer preserves checker-resolved nested lexical identity but only substitutes transformed top-level declarations. Reopen this boundary if workerd begins generating namespace-nested classes used in `ServiceWorkerGlobalScope` heritage.
 
 ## Rollback
 
