@@ -6,7 +6,7 @@ Do not post without explicit authorization.
 
 ## Proposed title
 
-`streamText explicit abort can wait on callbacks or provider cancellation after terminal selection`
+`streamText explicit abort terminal mechanics can wait on observability or lose arbitration`
 
 ## Draft
 
@@ -14,9 +14,9 @@ An explicit caller abort should become the single terminal outcome for `streamTe
 
 The existing report in #15430 and candidate PR #16852 cover the primary hang where `result.text` and `result.steps` remain pending after the caller signal fires. Additional target-native characterization identifies three narrower lifecycle requirements:
 
-1. `onAbort` and telemetry callback completion must not delay root-result rejection, outward abort publication, stream closure, or provider cancellation.
+1. `onAbort` and telemetry callback completion must not delay root-result rejection, outward abort publication, stream closure, or the provider cancellation request.
 2. A provider value or ordinary provider error arriving after caller abort must yield to the already-selected abort outcome.
-3. A provider stream returned after abort but before internal registration must receive a direct cancellation request, and a rejecting or never-settling provider `cancel()` must not keep public state or the internal setup task pending.
+3. A provider stream returned after abort but before internal registration must receive a direct cancellation request.
 
 Expected behavior:
 
@@ -25,9 +25,11 @@ Expected behavior:
 - each active consumer receives one abort part;
 - `onAbort` runs once;
 - later provider values/errors do not claim a competing terminal outcome;
-- provider cancellation is requested without granting a provider-controlled cancellation promise authority over public settlement;
+- provider cancellation is requested during the registration gap;
 - ordinary reader cancellation remains consumer-scoped;
-- already committed external tool effects are reported truthfully and are not represented as reversed.
+- already committed external tool effects are reported truthfully and are never represented as reversed.
+
+The stream returned by `streamLanguageModelCall()` has request-level cancellation settlement at the reviewed revision. Native Web Streams modeling and a target-native regression show that its outer `cancel()` promise settles after forwarding cancellation while provider cleanup remains pending, and provider cleanup rejection is contained. This result removes the earlier proposed sub-issue about a hostile provider-controlled cancellation promise retaining setup.
 
 Suggested tests:
 
@@ -35,11 +37,11 @@ Suggested tests:
 - provider error immediately after caller abort;
 - multiple active consumers;
 - provider stream returned during the registration gap;
-- direct provider `cancel()` rejection;
-- direct provider `cancel()` that never settles;
+- model-call cancellation while provider cleanup remains pending;
+- model-call cancellation when provider cleanup rejects;
 - listener, reader, timer, and unhandled-rejection cleanup;
 - ordinary consumer cancellation negative control.
 
 ## Posting decision
 
-Prefer commenting on or revising the existing issue/PR only after maintainer direction. A new issue would duplicate the main report unless maintainers want the narrower cancellation-promise problem split out.
+Prefer commenting on or revising the existing issue/PR only after maintainer direction. A new issue would duplicate the main report. The cancellation-promise investigation produced a negative result rather than a separate defect.
