@@ -1,0 +1,121 @@
+name: Unit 22 gomarkdoc Go 1.26 golden comparison
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/unit-22-gomarkdoc-go126-golden.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: aarch64-darwin Go 1.26 golden comparison
+    runs-on: macos-14
+    steps:
+      - name: Check out exact comparison carrier
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: p0/435-unit-22-go126-golden-execution
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Verify carrier fence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "ba9f5ba05adfee77733da793cc3ed1659935ab27"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/unit-22-gomarkdoc-go126-golden.yml"
+          git diff --check HEAD^ HEAD
+
+      - name: Check out checks-disabled baseline
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: teamleaderleo/nixpkgs
+          ref: 55096b0ce13784d4f6420059c5627475fa26ebb1
+          path: .baseline/nixpkgs
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check out Go 1.26 golden candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: teamleaderleo/nixpkgs
+          ref: 3a036ab91fa1de2fbbd038b2b212552cff1cc5bf
+          path: .candidate/nixpkgs
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Verify source identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C .baseline/nixpkgs rev-parse HEAD)" = "55096b0ce13784d4f6420059c5627475fa26ebb1"
+          test "$(git -C .candidate/nixpkgs rev-parse HEAD)" = "3a036ab91fa1de2fbbd038b2b212552cff1cc5bf"
+          test "$(git -C .candidate/nixpkgs rev-parse HEAD^)" = "55096b0ce13784d4f6420059c5627475fa26ebb1"
+          test "$(git -C .candidate/nixpkgs diff --name-only HEAD^ HEAD)" = "pkgs/by-name/go/gomarkdoc/package.nix"
+          git -C .candidate/nixpkgs diff --check HEAD^ HEAD
+          git -C .candidate/nixpkgs diff HEAD^ HEAD -- pkgs/by-name/go/gomarkdoc/package.nix | tee go126-golden-source-diff.patch
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342
+        with:
+          extra_nix_config: |
+            sandbox = true
+
+      - name: Build baseline and candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -o pipefail
+
+          nix-build .baseline/nixpkgs -A gomarkdoc --no-out-link \
+            2>&1 | tee gomarkdoc-go126-baseline.log
+          baseline="$(tail -n 1 gomarkdoc-go126-baseline.log)"
+          test -x "$baseline/bin/gomarkdoc"
+
+          nix-build .candidate/nixpkgs -A gomarkdoc --no-out-link \
+            2>&1 | tee gomarkdoc-go126-golden.log
+          candidate="$(tail -n 1 gomarkdoc-go126-golden.log)"
+          test -x "$candidate/bin/gomarkdoc"
+
+          grep -F "Running phase: checkPhase" gomarkdoc-go126-golden.log
+          grep -E 'ok[[:space:]]+github\.com/princjef/gomarkdoc/cmd/gomarkdoc([[:space:]]|$)' gomarkdoc-go126-golden.log
+          grep -E '^(ok|\?)[[:space:]]+github\.com/princjef/gomarkdoc' gomarkdoc-go126-golden.log \
+            | sort -u | tee gomarkdoc-go126-packages.txt
+          test "$(wc -l < gomarkdoc-go126-packages.txt)" -eq 1
+
+          cmp "$baseline/bin/gomarkdoc" "$candidate/bin/gomarkdoc"
+          shasum -a 256 "$baseline/bin/gomarkdoc" "$candidate/bin/gomarkdoc" \
+            | tee gomarkdoc-go126-binary-sha256.txt
+          test "$(awk '{print $1}' gomarkdoc-go126-binary-sha256.txt | sort -u | wc -l)" -eq 1
+
+          "$candidate/bin/gomarkdoc" --help > gomarkdoc-go126-help.log 2>&1 || status=$?
+          status="${status:-0}"
+          test "$status" -eq 0 -o "$status" -eq 2
+          grep -Ei 'usage|generate markdown documentation' gomarkdoc-go126-help.log
+
+      - name: Build candidate version passthru
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          nix-build .candidate/nixpkgs -A gomarkdoc.tests.version --no-out-link \
+            2>&1 | tee gomarkdoc-go126-version.log
+          grep -F "1.1.0" gomarkdoc-go126-version.log
+
+      - name: Upload comparison receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: unit-22-gomarkdoc-go126-golden-comparison
+          path: |
+            go126-golden-source-diff.patch
+            gomarkdoc-go126-baseline.log
+            gomarkdoc-go126-golden.log
+            gomarkdoc-go126-packages.txt
+            gomarkdoc-go126-binary-sha256.txt
+            gomarkdoc-go126-help.log
+            gomarkdoc-go126-version.log
+          if-no-files-found: warn
+          retention-days: 30
