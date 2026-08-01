@@ -1,62 +1,68 @@
-# Upstream issue draft — lifecycle fanout can skip opening children after mutation or direct synchronous failure
+# Upstream issue draft — lifecycle fanout can skip opening processors
 
-Draft status: `not applicable — direct PR preferred after repair`  
+Draft status: `fallback only — direct PR preferred`  
 Public interaction authorized: `no`
-
-A direct pull request remains preferable once the owned candidate is repaired. This fallback draft deliberately distinguishes the trace/logs synchronous-invocation defect from the metrics snapshot-only defect.
-
----
 
 ## Summary
 
-Trace, logs, and metrics lifecycle fanout iterates mutable arrays. An earlier child can remove a later indexed child during shutdown or force flush, causing the current operation to skip a child that belonged to its opening set.
+Trace, logs, and metrics lifecycle aggregates iterate mutable child arrays. A child can remove a later indexed child while shutdown or force flush is being started, causing that later child to be skipped even though it belonged to the operation's opening set.
 
-Trace and logs additionally invoke processor lifecycle methods directly while constructing promise inputs. A synchronous processor throw can stop construction before later opening processors are invoked.
-
-Metrics already calls async `MetricCollector` lifecycle methods, so synchronous reader throws already become rejected promises. Metrics needs stable opening membership, not an extra synchronous safe-call layer.
+Trace and logs have an additional direct-call path: a processor can throw before returning its declared promise, interrupting construction of later promise inputs.
 
 ## Reproduction
 
-1. Configure two processors or readers.
-2. Make the first remove the second from the backing collection during shutdown or force flush.
-3. Invoke the aggregate lifecycle method.
-4. Observe that live indexed iteration can skip the removed opening child.
+1. Configure two processors or metric readers.
+2. Have the first lifecycle callback remove the second entry from the aggregate's backing collection.
+3. Call shutdown or force flush.
+4. Observe that the second opening child is not invoked on the current baseline.
 
-For trace and logs, a second control makes the first processor throw synchronously and verifies whether the later opening processor is invoked.
+For trace/logs, an equivalent reproduction makes the first processor throw synchronously before returning a promise; later processors are not invoked.
 
 ## Expected behavior
 
-A lifecycle aggregate should attempt every child present when the operation begins. Mutation during the call should affect future operations while leaving current opening membership stable. Existing package-specific error behavior should remain unchanged.
+A lifecycle aggregate should attempt every child present when the operation begins. Mutations during the operation should affect future operations without shrinking the current opening set. Existing package-specific error behavior should remain unchanged.
 
-## Candidate direction
+## Proposed direction
 
-- Trace and logs: copy the opening processor array and convert direct synchronous throws into rejected promises before applying the existing `Promise.all` policy.
-- Metrics: copy the opening collector array and continue calling the existing async collector lifecycle methods directly.
+- snapshot the opening processor/collector array before invoking children;
+- for trace and logs, convert direct synchronous processor throws into rejected promises while constructing the eager fanout;
+- for metrics, call the existing async `MetricCollector` lifecycle methods directly—the collector already converts reader throws into rejected promises;
+- retain `Promise.all` and current trace/logs/metrics outward behavior.
 
-## Compatibility and limits
+## Compatibility
 
-- Public APIs and method signatures remain unchanged.
-- Future operations continue to observe mutations to the original collections.
-- Existing eager concurrency and first-rejection behavior remain.
-- The proposal does not aggregate every asynchronous child error.
-- Production frequency and ecosystem prevalence are unmeasured.
-- Delayed recursion, one-shot shutdown state, final metrics collection, and retry semantics remain separate.
+- no public API or type changes;
+- one shallow array copy per affected lifecycle call;
+- future mutations remain visible;
+- first-rejection behavior remains;
+- no settle-all aggregation, cancellation, retry, or idempotence change.
 
-## Versions and evidence
+## Scope
 
-- Reviewed project commit: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- Owned candidate head reviewed: `641528c9786f7d027fef4f4a76ae685f7107d394`;
-- Repository workflow matrix: all named groups passed on the owned candidate;
-- Complete-diff result: candidate requires metrics narrowing before filing.
+Affected entrypoints:
 
----
+- `MultiSpanProcessor.shutdown()` / `forceFlush()`;
+- `MultiLogRecordProcessor.shutdown()` / `forceFlush()`;
+- `MeterProvider.shutdown()` / `forceFlush()`.
+
+Related one-shot shutdown state, final metrics collection, delayed recursion, and telemetry admission after shutdown are separate topics.
+
+## Environment
+
+- repository revision: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- current public `main` matched that revision during the final repair pass;
+- repository-supported GitHub Actions matrix;
+- focused fixtures use two children and a first-child removal or direct throw.
+
+## Prior-art result
+
+Open issue/PR searches during the repair pass for the affected symbols, lifecycle fanout, snapshot wording, and skipped-later-child behavior found no equivalent current fix. Historical PR #802 introduced span-processor force-flush fanout but does not address stable opening membership or direct synchronous throws.
 
 ## Filing checklist
 
-- [ ] Metrics source repaired to snapshot-only and every claim synchronized.
-- [ ] Repaired exact head passes the complete required workflow set.
-- [ ] Eligible independent complete-diff review accepts the repaired head.
-- [ ] Current upstream issue and PR search repeated immediately before filing.
-- [ ] Changelog packaging completed using a real PR number.
-- [ ] Target contribution and AI-disclosure policies rechecked.
-- [ ] Exact user authorization to file recorded.
+- [ ] repeat current-main and duplicate search immediately before filing;
+- [ ] confirm reproduction on the then-current public revision;
+- [x] keep metrics direct-throw behavior out of the defect claim;
+- [x] avoid prevalence/severity claims beyond evidence;
+- [ ] recheck contribution and AI-disclosure policy;
+- [ ] record explicit authority before public interaction.
