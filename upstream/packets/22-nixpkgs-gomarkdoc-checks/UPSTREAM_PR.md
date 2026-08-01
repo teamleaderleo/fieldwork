@@ -27,7 +27,7 @@ The unknown-flag diagnostic recorded in #516481 is benign by itself; the missing
 ## Things done
 
 - Built on platform:
-  - [ ] x86_64-linux — exact-head job pending
+  - [ ] x86_64-linux — packet-anchored exact-head job pending
   - [ ] aarch64-linux
   - [ ] x86_64-darwin
   - [x] aarch64-darwin
@@ -57,7 +57,7 @@ $ nixpkgs-review rev HEAD --no-shell
 
 ## Draft synchronization notes
 
-The aarch64-darwin checkboxes reflect exact-head job `91345125710` from run `30690828310`. Linux remains pending. The Darwin job verified source identity, the one-file fence, command-package check output, installed help, and version `1.1.0`.
+The aarch64-darwin checkboxes reflect exact-head job `91345125710` from run `30690828310`. The packet-anchored Linux gate is run `30691551270`, job `91347062784`, currently queued. It verifies source identity, the one-file source fence, command-package check output, installed help, version `1.1.0`, and `nixpkgs-review`.
 
 A separate full-discovery experiment is intentionally excluded from the proposed public body. It reached root, command, and formatter tests but failed two `lang` exact-text assertions on both platforms because modern Go standard-library comments use bracketed documentation links. This PR neither skips nor rewrites those library-package tests; it restores the checks selected by the package's existing command build boundary.
 
@@ -81,14 +81,24 @@ The final authorized submission must:
 
 ## Current execution identity
 
-- Fieldwork carrier PR: `#437`
+### Darwin receipt
+
 - Carrier head: `c95da0c4b3f460df9bc8f342e98d05345da66df8`
-- Target run: `30690828310`
-- Darwin job: `91345125710` — success
-- Darwin artifact: `8815619734`
-- Darwin artifact digest: `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`
-- Linux job: `91345125742` — queued at latest check
-- Carrier integrity run: `30690828341`
+- Run: `30690828310`
+- Job: `91345125710` — success
+- Artifact: `8815619734`
+- Artifact digest: `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`
+
+### Packet-anchored Linux and integrity
+
+- Fieldwork carrier PR: `#437`
+- Packet base: `527021b7ff1535e8be4f27dc3ba7226b559a1630`
+- Carrier head: `178e6388bf06b965970dd3ab7435db9e756a13e4`
+- Carrier relation: one commit changing `.github/workflows/unit-22-gomarkdoc-checks.yml`
+- Linux run: `30691551270`
+- Linux job: `91347062784` — queued at latest check
+- Integrity run: `30691551312`
+- Integrity job: `91347062807` — queued at latest check
 - Packet disposition: `HOLD`
 
 ## Public interaction status
