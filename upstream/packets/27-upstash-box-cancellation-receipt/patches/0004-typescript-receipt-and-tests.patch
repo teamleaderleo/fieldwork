@@ -1,0 +1,250 @@
+diff --git a/packages/sdk/src/__tests__/fieldwork-cancel-receipt-repair.test.ts b/packages/sdk/src/__tests__/fieldwork-cancel-receipt-repair.test.ts
+new file mode 100644
+index 0000000..9444a13
+--- /dev/null
++++ b/packages/sdk/src/__tests__/fieldwork-cancel-receipt-repair.test.ts
+@@ -0,0 +1,119 @@
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++
++import { Run } from "../client.js";
++import { createTestBox, mockResponse } from "./helpers.js";
++
++function deferred<T>(): {
++  promise: Promise<T>;
++  resolve: (value: T) => void;
++} {
++  let resolve!: (value: T) => void;
++  const promise = new Promise<T>((settle) => {
++    resolve = settle;
++  });
++  return { promise, resolve };
++}
++
++describe("Fieldwork shared cancellation receipt repair", () => {
++  beforeEach(() => {
++    vi.stubGlobal("fetch", vi.fn());
++  });
++
++  afterEach(() => vi.restoreAllMocks());
++
++  it("shares one accepted request and aborts every current observer", async () => {
++    const { box, fetchMock } = await createTestBox();
++    const response = deferred<Response>();
++    fetchMock.mockReturnValueOnce(response.promise);
++
++    const abortController = new AbortController();
++    const run = new Run(box, "agent", "run-accepted");
++    Run._update(run, { abortController });
++
++    const first = run.requestCancel();
++    const second = run.requestCancel();
++
++    expect(first).toBe(second);
++    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
++    expect(abortController.signal.aborted).toBe(true);
++    expect(run.status).toBe("running");
++
++    response.resolve(mockResponse({}));
++    const [firstReceipt, secondReceipt] = await Promise.all([first, second]);
++
++    expect(firstReceipt).toBe(secondReceipt);
++    expect(firstReceipt).toEqual({
++      requestState: "accepted",
++      outcomeState: "unknown",
++    });
++    expect(Object.isFrozen(firstReceipt)).toBe(true);
++    expect(run.status).toBe("running");
++
++    const laterReceipt = await run.requestCancel();
++    expect(laterReceipt).toBe(firstReceipt);
++    expect(fetchMock).toHaveBeenCalledTimes(2);
++
++    const laterAbortController = new AbortController();
++    Run._update(run, { abortController: laterAbortController });
++    await expect(run.cancel()).resolves.toBeUndefined();
++    expect(laterAbortController.signal.aborted).toBe(true);
++    expect(fetchMock).toHaveBeenCalledTimes(2);
++
++    Run._update(run, { status: "completed", result: "natural completion" });
++    expect(run.status).toBe("completed");
++    expect(await run.requestCancel()).toBe(firstReceipt);
++    expect(fetchMock).toHaveBeenCalledTimes(2);
++  });
++
++  it("keeps a later authoritative cancelled update", async () => {
++    const { box, fetchMock } = await createTestBox();
++    fetchMock.mockResolvedValueOnce(mockResponse({}));
++
++    const run = new Run(box, "agent", "run-authoritative-cancelled");
++    const receipt = await run.requestCancel();
++    expect(run.status).toBe("running");
++
++    Run._update(run, { status: "cancelled" });
++
++    expect(run.status).toBe("cancelled");
++    expect(await run.requestCancel()).toBe(receipt);
++    expect(fetchMock).toHaveBeenCalledTimes(2);
++  });
++
++  it("publishes fixed failure prose without claiming a terminal outcome", async () => {
++    const { box, fetchMock } = await createTestBox();
++    fetchMock.mockResolvedValueOnce(
++      mockResponse({ error: "raw provider detail must not escape" }, 503),
++    );
++
++    const run = new Run(box, "command", "run-failed");
++    const receipt = await run.requestCancel();
++
++    expect(receipt).toEqual({
++      requestState: "failed",
++      outcomeState: "unknown",
++      diagnostic: "cancellation request failed",
++    });
++    expect(JSON.stringify(receipt)).not.toContain("raw provider detail");
++    expect(Object.isFrozen(receipt)).toBe(true);
++    expect(run.status).toBe("running");
++    expect(fetchMock).toHaveBeenCalledTimes(2);
++  });
++
++  it("preserves the legacy void return and shares its request", async () => {
++    const { box, fetchMock } = await createTestBox();
++    fetchMock.mockResolvedValueOnce(mockResponse({}));
++
++    const run = new Run(box, "code", "run-legacy");
++    const legacy = run.cancel();
++    const receipt = run.requestCancel();
++
++    await expect(legacy).resolves.toBeUndefined();
++    await expect(receipt).resolves.toEqual({
++      requestState: "accepted",
++      outcomeState: "unknown",
++    });
++    expect(run.status).toBe("running");
++    expect(fetchMock).toHaveBeenCalledTimes(2);
++  });
++});
+diff --git a/packages/sdk/src/__tests__/run.test.ts b/packages/sdk/src/__tests__/run.test.ts
+index a7b7675..44a0c82 100644
+--- a/packages/sdk/src/__tests__/run.test.ts
++++ b/packages/sdk/src/__tests__/run.test.ts
+@@ -67,15 +67,21 @@ describe("Run", () => {
+     expect(cost.totalUsd).toBe(0);
+   });
+ 
+-  it("cancels a run", async () => {
++  it("requests cancellation without claiming the remote outcome", async () => {
+     const { box, fetchMock } = await createTestBox();
+     fetchMock.mockResolvedValueOnce(mockResponse({}));
+ 
+     const run = new Run(box, "agent", "run-1");
+     Run._update(run, { abortController: new AbortController() });
+ 
+-    await run.cancel();
+-    expect(run.status).toBe("cancelled");
++    await expect(run.cancel()).resolves.toBeUndefined();
++    expect(run.status).toBe("running");
++    await expect(run.requestCancel()).resolves.toEqual({
++      requestState: "accepted",
++      outcomeState: "unknown",
++    });
++    // One Box.get request plus one shared cancellation request.
++    expect(fetchMock).toHaveBeenCalledTimes(2);
+   });
+ 
+   it("fetches logs for the run", async () => {
+diff --git a/packages/sdk/src/client.ts b/packages/sdk/src/client.ts
+index 188f6f2..5ba10bb 100644
+--- a/packages/sdk/src/client.ts
++++ b/packages/sdk/src/client.ts
+@@ -13,6 +13,7 @@ import {
+   type StreamOptions,
+   type Chunk,
+   type RunStatus,
++  type RunCancellationReceipt,
+   type RunCost,
+   type RunLog,
+   type ExecResult,
+@@ -238,6 +239,7 @@ export class Run<T = string> {
+   private _computeMs = 0;
+   private _box: Box;
+   private _abortController?: AbortController;
++  private _cancelRequest?: Promise<RunCancellationReceipt>;
+   private _startTime: number;
+ 
+   /** The run ID. Initially a local UUID, replaced by backend run_id from run_start event. */
+@@ -307,14 +309,39 @@ export class Run<T = string> {
+   }
+ 
+   /**
+-   * Cancel a running execution.
++   * Request cancellation and observe the shared local request result.
++   *
++   * The receipt deliberately does not claim that the remote run reached a
++   * terminal cancelled state. Later authoritative run updates remain the
++   * source of truth for `status`. Repeated callers share one request.
+    */
+-  async cancel(): Promise<void> {
++  requestCancel(): Promise<RunCancellationReceipt> {
+     this._abortController?.abort();
+-    await this._box
+-      ._request("POST", `/v2/box/${this._box.id}/runs/${this._id}/cancel`)
+-      .catch(() => {});
+-    this._status = "cancelled";
++    if (this._cancelRequest === undefined) {
++      this._cancelRequest = Promise.resolve()
++        .then(() => this._box._request("POST", `/v2/box/${this._box.id}/runs/${this._id}/cancel`))
++        .then(
++          () =>
++            Object.freeze({
++              requestState: "accepted" as const,
++              outcomeState: "unknown" as const,
++            }),
++          () =>
++            Object.freeze({
++              requestState: "failed" as const,
++              outcomeState: "unknown" as const,
++              diagnostic: "cancellation request failed" as const,
++            }),
++        );
++    }
++    return this._cancelRequest;
++  }
++
++  /**
++   * Request cancellation while preserving the legacy void return contract.
++   */
++  async cancel(): Promise<void> {
++    await this.requestCancel();
+   }
+ 
+   /**
+diff --git a/packages/sdk/src/index.ts b/packages/sdk/src/index.ts
+index 0b412e8..2b3ac75 100644
+--- a/packages/sdk/src/index.ts
++++ b/packages/sdk/src/index.ts
+@@ -40,6 +40,7 @@ export type {
+   StreamOptions,
+   Chunk,
+   RunStatus,
++  RunCancellationReceipt,
+   RunCost,
+   RunLog,
+   PullRequest,
+diff --git a/packages/sdk/src/types.ts b/packages/sdk/src/types.ts
+index 32586f5..057b2b2 100644
+--- a/packages/sdk/src/types.ts
++++ b/packages/sdk/src/types.ts
+@@ -688,6 +688,13 @@ export type BoxStatus = "creating" | "idle" | "running" | "paused" | "error" | "
+ 
+ export type RunStatus = "running" | "completed" | "failed" | "cancelled" | "detached";
+ 
++/** One local cancellation request observation. Remote run outcome remains unknown. */
++export type RunCancellationReceipt = Readonly<{
++  requestState: "accepted" | "failed";
++  outcomeState: "unknown";
++  diagnostic?: "cancellation request failed";
++}>;
++
+ export interface RunCost {
+   /** Input tokens consumed */
+   inputTokens: number;
