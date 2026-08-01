@@ -2,14 +2,15 @@
 
 ## In simple words
 
-The defect has an exact two-version negative reproduction. The selected repair has a paired focused comparison covering direct stop calls, context-manager exit, concurrency, cancellation timing, failure precedence, and abandoned-failure reporting. The clean current-base head has repository CI queued and therefore remains short of a full-gate receipt.
+The defect has an exact two-version negative reproduction. The selected repair has a paired focused comparison covering direct stop calls, context-manager exit, concurrency, cancellation timing, failure precedence, and abandoned-failure reporting. The repaired clean current-base head is now under the repository's native full CI through an exact-base `release-*` carrier.
 
 ## Evidence classes
 
 - Source reading: current public context manager and connection shutdown ordering.
 - Target-executed negative reproduction: Python 3.10 and 3.14.
 - Target-executed focused comparison: Python 3.12, Ubuntu, Chromium/Firefox/WebKit parameters.
-- Clean-head ordinary gates: queued.
+- Repaired clean-head ordinary gate: native CI run `30690680740`, pending.
+- Invalid base-drift runs: `30674333313` and `30674333365`; both checked out PR #7's merge, not PR #8's exact-base merge.
 
 ## Negative reproduction
 
@@ -130,22 +131,55 @@ pytest tests/async/test_async_stop_cancellation.py tests/async/test_async_stop_e
 
 Supported conclusion: one deferred loop report closes the baseline's only failing control while preserving stable failure for later callers.
 
-## Clean current-base source
+## Clean current-base source and repair commits
 
-- PR: [`teamleaderleo/playwright-python#8`](https://github.com/teamleaderleo/playwright-python/pull/8)
+- canonical PR: [`teamleaderleo/playwright-python#8`](https://github.com/teamleaderleo/playwright-python/pull/8)
 - exact base: `3b7c24c3e67dc84f7b0eddd0c5fd2ca685705021`
-- exact head: `54c17acaa1189bca3cf66da0bd9c22dae224b1ec`
+- exact head: `1ac8797ab4dc85fd91a38d526c3912a72a8fba23`
 - changed files: three
-- temporary workflows: zero
+- temporary workflows on canonical source: zero
 
-Current runs:
+Follow-up repairs:
 
-| Workflow | Run | State at 2026-08-01 |
+| Commit | Change | Reason |
 | --- | --- | --- |
-| CI | `30674333313` | queued |
-| Test Docker | `30674333365` | queued |
+| `33cbc587830d2083d43dcdf67339696634c24936` | remove unused `# type: ignore[method-assign]` on restoration of `connection.stop_async` | repository mypy reported `unused-ignore` on the first clean head |
+| `1ac8797ab4dc85fd91a38d526c3912a72a8fba23` | assert `contexts[0]["task"] is manager._stop_task` | make the manual loop exception context identify the authoritative task and force a fresh exact-head CI event |
 
-No combined status contexts were present at the first exact-head check.
+The production state machine is unchanged by these two commits.
+
+## Invalid first clean-head classification
+
+Runs originally associated with head `54c17acaa1189bca3cf66da0bd9c22dae224b1ec`:
+
+| Workflow | Run | Actual checkout | Classification |
+| --- | --- | --- | --- |
+| CI | `30674333313` | closed PR #7 merge `ef04e3d1...` | base-drift run, not exact PR #8 evidence |
+| Test Docker | `30674333365` | closed PR #7 merge | base-drift run, not exact PR #8 evidence |
+
+The CI lint job exposed the unused suppression above, so that diagnostic was repaired. Other failures from these runs are not attributed to the clean three-file candidate because the checkout included PR #7's widened comparison surface.
+
+Test Docker is not expected for a clean upstream version of this candidate. Its workflow path filter includes only `.github/workflows/test_docker.yml`, `setup.py`, and Dockerfiles; none is changed by unit 08.
+
+## Valid native exact-base ordinary CI
+
+- execution PR: [`teamleaderleo/playwright-python#11`](https://github.com/teamleaderleo/playwright-python/pull/11)
+- base branch: `release-unit08-exact-base`
+- base SHA: `3b7c24c3e67dc84f7b0eddd0c5fd2ca685705021`
+- head branch: `upstream/08-playwright-python-shared-shutdown`
+- head SHA: `1ac8797ab4dc85fd91a38d526c3912a72a8fba23`
+- diff: same three files as PR #8
+- workflow: native repository `CI`
+- run: [`30690680740`](https://github.com/teamleaderleo/playwright-python/actions/runs/30690680740)
+- state at this packet commit: queued
+
+The `release-*` base name activates the unchanged native workflow while preserving the exact public-base commit. The matrix contains:
+
+- repository `Lint` / full pre-commit gate on Python 3.10;
+- build, wheel, common, reference-count, installation, sync, and async suites on Linux, Windows, and macOS;
+- Python 3.10 and 3.14 across Chromium, Firefox, and WebKit where supported;
+- Chromium coverage on Python 3.11, 3.12, and 3.13;
+- stable Chrome/Edge channels and examples.
 
 ## Repository-declared ordinary gates
 
@@ -159,10 +193,10 @@ pre-commit run --all-files
 
 Current state:
 
-- `pytest --browser chromium`: expected within CI; exact job coverage must be confirmed after run completion.
-- `mypy playwright`: exact clean-head receipt pending.
-- `pre-commit run --all-files`: exact clean-head receipt pending.
-- Test Docker: queued; relevance must be described by actual jobs after completion.
+- `pytest --browser chromium`: included in native CI run `30690680740`; final jobs pending.
+- `mypy playwright`: part of the repository pre-commit configuration; final `Lint` job `91344746279` pending.
+- `pre-commit run --all-files`: native `Lint` job `91344746279` pending.
+- Test Docker: not path-applicable to this three-file candidate.
 
 ## Assertions prepared and executed
 
@@ -179,7 +213,8 @@ Current state:
 | cleanup failure precedence and context | yes | `30595174700` |
 | caller cancellation before stop task timeslice | yes | `30595174700` |
 | abandoned failure reaches loop handler once | yes | baseline fail `30595155697`, repair pass `30595174700` |
-| same three-file candidate on current upstream | source applied | ordinary execution queued |
+| exception context identifies authoritative shared task | source assertion added | current-head run `30690680740` pending |
+| same three-file candidate on current upstream | source applied | PR #8 / PR #11 exact head `1ac8797...`; ordinary execution pending |
 | underlying authoritative task cancellation | no | outside current scope |
 
 ## Coverage limits
@@ -188,15 +223,15 @@ Current state:
 - Browser parameters exercise fixture setup and package paths; this shutdown behavior concerns the Python connection and does not claim browser-engine-specific semantics.
 - Negative reproduction: Ubuntu, Python 3.10 and 3.14.
 - Inspected Windows PR #3 jobs passed candidate tests, while their broader jobs later timed out elsewhere.
-- macOS execution for the selected repair is absent.
+- Current native exact-base CI supplies the missing cross-platform and supported-version coverage when complete.
 - No production workload, process-leak measurement, benchmark, or ecosystem-frequency study exists.
 
 ## Next receipt update
 
-After runs `30674333313` and `30674333365` settle, record:
+After run `30690680740` settles, record:
 
-- every job name, platform, Python version, command, and result that affects this candidate;
-- whether the 11 candidate tests executed and how many parametrized cases ran;
-- exact mypy and pre-commit status;
-- any setup failure separately from product failure;
-- final full-gate claim only when the named repository gate completed on `54c17ac...`.
+- every failed or cancelled job name, platform, Python version, command, and exact assertion or setup failure;
+- whether the 11 candidate tests executed in each relevant async suite;
+- exact `Lint` status, including mypy and pre-commit;
+- any unrelated existing-suite failure separately from product failure;
+- final source disposition only after the exact-head run is classified and the three-file diff is re-read.
