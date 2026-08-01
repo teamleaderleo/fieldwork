@@ -2,109 +2,187 @@
 
 ## In simple words
 
-The selected repair changes one overflow fallback from the partition beginning to the partition end. It follows the meaning of a following frame that has moved beyond all rows and matches the existing frame-end overflow treatment. Broader arithmetic refactors offer little value for this bounded defect. The technical direction leads; upstream submission remains paused for independent human authorship under DuckDB's contribution policy.
+The selected product repair changes one overflow fallback from the partition beginning to the partition end. It follows the meaning of a following frame that has moved beyond every row and matches the existing frame-end overflow treatment. Broader arithmetic refactors widen the review without evidence of a second defect.
+
+The test-gate work also produced two useful losing approaches: a bare directory filter and a full wildcard that included unchanged slow tests. The current gate follows DuckDB's pull-request policy for a regular `.test` change.
 
 ## Decision criteria
 
-1. A frame start beyond a partition must produce an empty frame.
-2. Ordinary bounded following frames and partition isolation must stay unchanged.
-3. The repair should live where `ROWS` frame starts are computed.
-4. The upstream diff should contain only the production line and target-native regression.
-5. No extra allocation, public API change, or broad window refactor.
+1. A frame start beyond a partition produces an empty frame.
+2. Ordinary bounded following frames and partition isolation stay unchanged.
+3. The repair lives where `ROWS` frame starts are computed.
+4. The source diff contains only the production line and target-native regression.
+5. The ordinary gate matches DuckDB's current pull-request test selection.
+6. No extra allocation, public API change, or broad window refactor.
 
-## Selected approach
+## Selected product approach
 
 ### Saturate the overflowing FOLLOWING start at the current partition end
 
 - Design: in `FrameBegin`, change the `TryAddOperator` failure fallback for `EXPR_FOLLOWING_ROWS` from `partition_begin_data[chunk_idx]` to `partition_end_data[chunk_idx]`.
 - Owning boundary: `WindowBoundariesState::FrameBegin`.
-- Evidence: historical native repair run [`30595242656`](https://github.com/teamleaderleo/duckdb/actions/runs/30595242656); current-main clean run [`30674257475`](https://github.com/teamleaderleo/duckdb/actions/runs/30674257475).
+- Evidence: historical native repair run `30595242656`; current-main focused pass in `30689967043`.
 - Advantages: one-line product change, per-partition correctness, direct symmetry with frame-end overflow, easy review and revert.
-- Costs and risks: relies on partition end as the internal empty-frame sentinel; target-native tests cover that contract.
-- Remaining controls: current-main affected-suite and formatting completion; independent human authorship before any upstream submission.
+- Cost: relies on partition end as the internal empty-frame sentinel; target-native tests cover that contract.
 
-## Viable alternatives
+## Selected regression
 
-### Introduce a shared saturating row-boundary helper
+Add `test/sql/window/test_rows_following_overflow.test` with:
 
-- Design: centralize signed add/subtract conversion and saturation for all `ROWS` frame boundaries.
-- Why it remains plausible: several branches perform related arithmetic.
-- What it would improve: consistency and a single place for overflow policy.
-- What it would widen or complicate: PRECEDING start/end semantics, current-row `+1` handling, and unrelated branches would enter the same review.
-- Exact discriminator: evidence of a second incorrect branch that requires the same atomic contract.
-- Reopening trigger: a new native regression demonstrates another arithmetic fallback is wrong.
+1. `INT64_MAX FOLLOWING` for both frame bounds, expecting empty frames;
+2. ordinary `1 FOLLOWING`, preserving next-row behavior;
+3. two partitions, verifying row-local partition-end saturation.
 
-### Compute in a wider integer type before clamping
+## Selected current-main gate
 
-- Design: use a wider signed or unsigned intermediate and clamp after conversion.
-- Why it remains plausible: it can represent `row_idx + INT64_MAX` for practical relation sizes.
-- What it would improve: fewer explicit overflow branches.
-- What it would widen or complicate: type conversion rules, negative boundary validation, platform/compiler support, and all row-boundary paths.
-- Exact discriminator: maintainers prefer a general arithmetic model over a local correction.
-- Reopening trigger: project direction or existing wide-integer utility makes the change smaller than the local fix.
+Run:
 
-## Executed losing approaches
+- an exact two-file materialization fence that includes tracked and untracked paths;
+- Ubuntu 24.04 Debug native `unittest` build;
+- the exact focused regression;
+- every regular `test/sql/window/*.test`;
+- `make format-check`;
+- clean two-file publication only after every gate succeeds.
 
-### Keep the patch as an execution-only carrier
+DuckDB's current Main workflow enables slow tests on pull requests when `.test_slow` files change. Unit 03 adds a regular `.test`. The carrier records the excluded slow paths separately.
 
-- Exact branch, patch, or commit: `fieldwork/window-rows-following-overflow@2cfe22d250f5501a097b5f994ca01498513b939c`.
-- What ran: a workflow applied the patch at execution time and ran the focused repair test.
-- Result: candidate behavior passed, while the PR diff still lacked production source.
-- Why it lost: the branch was unsuitable as a clean review or continuation surface.
-- Useful evidence retained: focused native success, baseline red result from the synthetic merge, and exact historical test.
+## Viable product alternatives
 
-### Treat the generic Main workflow failure as a product failure
+### Shared saturating row-boundary helper
 
-- Exact branch, patch, or commit: synthetic merge `914d14b862136fab1b7b4fc8c6d68bf3e55789ab` for owned PR `#8`.
-- What ran: DuckDB smoke CI with the regression file but without applying the retained source patch.
-- Result: 252 tests passed and the intended regression failed with the exact baseline whole-partition result.
-- Why it lost: the execution topology tested the baseline carrier, not the repaired product source.
-- Useful evidence retained: a reversing baseline control on DuckDB's ordinary CI runner.
+Centralize signed add/subtract conversion and saturation for all `ROWS` frame boundaries.
 
-## Rejected easy answers
+Advantages:
 
-### Clamp overflow to zero or the global input end
+- one arithmetic policy;
+- potential future consistency.
 
-- Temptation: use a generic numeric sentinel.
-- Why it is incomplete or unsafe: frames are partition-local; global values can cross partition boundaries or depend on later clamping in opaque ways.
-- Negative control or source fact: the state already supplies each row's exact `partition_end_data`.
+Costs:
 
-### Remove only the regression test from the carrier
+- expands scope into PRECEDING and other branches without a reproduced defect;
+- raises regression and review cost;
+- hides the one-line causal correction.
 
-- Temptation: treat the historical custom workflow success as sufficient.
-- Why it is incomplete or unsafe: reviewers need the target-native test and production source together on one clean head.
-- Negative control or source fact: owned PR `#8` changed only a workflow, patch artifact, and test.
+Reopening trigger: a native regression demonstrates another arithmetic fallback is wrong.
+
+### Wider intermediate arithmetic
+
+Compute in a wider integer type and clamp afterward.
+
+Advantages:
+
+- represents the mathematical sum before clamping;
+- may reduce explicit overflow branches.
+
+Costs:
+
+- widens type and conversion review;
+- adds compiler/platform considerations;
+- offers little benefit over the existing checked-add contract.
+
+Reopening trigger: maintainers request a general boundary-arithmetic model.
+
+### Clamp through a synthetic maximum
+
+Assign the largest `idx_t` on overflow and rely on common clamping.
+
+Advantages:
+
+- reuses the clamp path.
+
+Costs:
+
+- weakens the direct row-local partition invariant;
+- adds conversion concerns;
+- reads less clearly than assigning partition end.
+
+## Executed losing gate approaches
+
+### Bare directory filter
+
+```text
+./build/fieldwork/test/run 'test/sql/window'
+```
+
+Run `30674257475` failed without a retained exact failure. The accepted explicit wildcard in run `30689967043` classified the bare directory as an unsuitable filter.
+
+Useful evidence retained: materialization, Debug build, and focused regression passed.
+
+### Full wildcard inside a bounded Debug job
+
+```text
+./build/fieldwork/test/run 'test/sql/window/*'
+```
+
+Run `30689967043` passed the focused candidate test in three seconds, then selected unchanged `.test_slow` cases. Three slow tests exceeded the wrapper's 600-second timeout, and the job reached its 60-minute limit.
+
+Artifact `8815977625`, digest `sha256:69ceb3c4720921b31b7b6c3ee03c61df4319fadc19538120cf0b1f5be6bd7642`, retains the exact partial output.
+
+Useful evidence retained:
+
+- wildcard selection works;
+- candidate test passes on current main;
+- exact slow-test capacity limits are known;
+- always-run artifact retention works.
+
+Reason superseded: DuckDB's ordinary pull-request path for a regular `.test` change excludes unchanged `.test_slow` files.
+
+### Synthetic Main carrier merge
+
+Historical Main run `30595243144` contained the regression but lacked the production patch in the synthetic merge. The regression failed with the baseline result while 252 smoke tests passed.
+
+Useful evidence retained: baseline reversal and proof that the test catches the defect.
+
+Reason superseded: it did not evaluate the repaired source.
+
+## Rejected product approaches
+
+### Saturate at partition beginning
+
+This is the defective behavior. It converts a frame beyond the partition into the whole partition.
+
+### Saturate at global input end
+
+A global sentinel can cross partition boundaries. The required invariant is row-local partition containment.
+
+### Change SQL frame semantics or parser validation
+
+The offset is a valid signed 64-bit value. The defect is execution arithmetic, so parser rejection would alter valid SQL behavior and avoid the causal correction.
 
 ### File a second public issue
 
-- Temptation: satisfy an issue-first expectation before code review.
-- Why it is incomplete or unsafe: public issue [`duckdb/duckdb#24307`](https://github.com/duckdb/duckdb/issues/24307) already contains the exact reproduction and remains open.
-- Negative control or source fact: duplicate searches found no separate implementation PR.
+Public issue `duckdb/duckdb#24307` already records the reproduction.
 
-### Submit the generated branch upstream
+### Submit the generated research branch
 
-- Temptation: the diff is small and technically supported.
-- Why it is incomplete or unsafe: DuckDB's current `CONTRIBUTING.md` asks contributors to avoid LLM-generated pull requests. A human must independently author or reimplement and review the change.
-- Negative control or source fact: current policy at upstream commit `63094a6f...`.
+DuckDB's current contribution guide asks contributors to avoid LLM-generated pull requests. A human must independently derive, author or reimplement, and review the change.
 
-## Prior upstream approaches
+## Prior work
 
-| Link | Approach | Status | Relationship to this unit |
+| Link | Approach | Status | Relationship |
 | --- | --- | --- | --- |
-| [`duckdb/duckdb#24307`](https://github.com/duckdb/duckdb/issues/24307) | exact public reproduction | open, reproduced | public problem record; no implementation |
-| [`teamleaderleo/duckdb#8`](https://github.com/teamleaderleo/duckdb/pull/8) | test plus execution-applied patch | historical carrier | evidence source; superseded by clean branch |
-| [`teamleaderleo/fieldwork#253`](https://github.com/teamleaderleo/fieldwork/pull/253) | immutable reproduction report | open retained record | prior-art and exact receipt |
+| `duckdb/duckdb#24307` | exact public reproduction | open | public problem record |
+| `teamleaderleo/duckdb#8` | test plus execution-applied patch | historical carrier | evidence source |
+| `teamleaderleo/fieldwork#253` | immutable reproduction report | retained | exact receipt |
+| `teamleaderleo/duckdb#17` | current-main materialization and gates | active | current execution carrier |
 
-## Deferred adjacent work
+## Deferred work
 
-- Audit every `ROWS` arithmetic fallback — separate unit unless another defect is demonstrated.
-- Consider wider boundary arithmetic — design-level change requiring maintainer direction.
-- Add platform matrix coverage — valuable only after an eligible human-authored candidate exists.
+- full `make unit` and `make allunit`;
+- release and relassert complete suites;
+- macOS and Windows execution;
+- broader arithmetic-helper cleanup;
+- production prevalence measurement;
+- public issue comment or pull request.
 
 ## Decision history
 
 | Date | Exact inputs | Decision | Reason | Reopening trigger |
 | --- | --- | --- | --- | --- |
 | 2026-07-31 | `de477da...`, run `30580996108` | accept defect | exact native baseline result and ordinary control | baseline no longer reproduces |
-| 2026-07-31 | carrier `2cfe22d...`, run `30595242656` | select partition-end fallback | focused repair passed with one-line change | current-main failure or maintainer contract conflict |
-| 2026-08-01 | upstream `63094a6f...`, current policy | disposition `HOLD` | source still affected; AI-generated PR policy requires human authorship | independent human implementation/review or policy change |
+| 2026-07-31 | carrier `2cfe22d...`, run `30595242656` | select partition-end fallback | focused repair passed with one-line change | current-main candidate failure or maintainer contract conflict |
+| 2026-08-01 | run `30674257475` | reject bare directory filter | unusable suite selection and no retained failure | explicit test specification |
+| 2026-08-01 | run `30689967043`, artifact `8815977625` | retain wildcard diagnostic, supersede as ordinary gate | focused pass plus unrelated slow-test timeouts | `.test_slow` source change or dedicated slow-suite run |
+| 2026-08-01 | carrier `243ff392...`, run `30692119355` | select regular window PR-equivalent gate | aligns with target workflow for regular `.test` changes | target policy change or successor failure |
+
+Public work remains behind independent human authorship/reimplementation, review, and explicit contact authority.
