@@ -1,0 +1,166 @@
+name: Fieldwork unit 02 uv materializer
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/fieldwork-unit-02-uv-materializer.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fieldwork-unit-02-uv-materializer-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out carrier
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Check out exact public uv source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: astral-sh/uv
+          ref: 79bbface771210df216b738e9bdc7df95e5a9e6b
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Apply exact unit 02 source patch
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          expected = {
+              Path("crates/uv-install-wheel/src/wheel.rs"): {"realpath --": 2, "dirname --": 2},
+              Path("crates/uv-virtualenv/src/virtualenv.rs"): {"realpath --": 2, "dirname --": 4},
+              Path("crates/uv/src/commands/project/run.rs"): {"realpath --": 1, "dirname --": 1},
+          }
+          totals = {"realpath --": 0, "dirname --": 0}
+          for path, counts in expected.items():
+              text = path.read_text()
+              actual = {needle: text.count(needle) for needle in counts}
+              if actual != counts:
+                  raise SystemExit(f"{path}: {actual} != {counts}")
+              path.write_text(text.replace("realpath --", "realpath").replace("dirname --", "dirname"))
+              for needle, count in actual.items():
+                  totals[needle] += count
+              print(f"{path}: {actual}")
+          if totals != {"realpath --": 5, "dirname --": 7}:
+              raise SystemExit(f"unexpected totals: {totals}")
+          print("UNIT_02_PATCH=realpath:5,dirname:7")
+          PY
+          git diff --check
+          git diff --name-only | sort | tee "${{ runner.temp }}/changed-files.txt"
+          cat > "${{ runner.temp }}/expected-files.txt" <<'EOF'
+          crates/uv-install-wheel/src/wheel.rs
+          crates/uv-virtualenv/src/virtualenv.rs
+          crates/uv/src/commands/project/run.rs
+          EOF
+          diff -u "${{ runner.temp }}/expected-files.txt" "${{ runner.temp }}/changed-files.txt"
+          git diff > "${{ runner.temp }}/candidate.patch"
+
+      - name: Check formatting
+        working-directory: source
+        run: cargo fmt --all --check
+
+      - name: Compile affected crates
+        working-directory: source
+        run: cargo check -p uv-install-wheel -p uv-virtualenv -p uv
+
+      - name: Run target-native shebang test
+        working-directory: source
+        run: cargo test -p uv-install-wheel test_shebang
+
+      - name: Run launcher behavior matrix
+        working-directory: source
+        run: |
+          set -euo pipefail
+          cat > "${{ runner.temp }}/matrix.sh" <<'SH'
+          #!/bin/sh
+          set -eu
+          mode=${1:?mode}
+          root=$(mktemp -d "${TMPDIR:-/tmp}/unit02.XXXXXX")
+          trap 'rm -rf "$root"' EXIT HUP INT TERM
+          mkdir -p "$root/bin" "$root/links"
+          cat > "$root/bin/python" <<'PY'
+          #!/bin/sh
+          printf 'python=%s\narg=%s\n' "$0" "${2-}"
+          PY
+          chmod +x "$root/bin/python"
+          write_launcher() {
+            variant=$1
+            destination=$2
+            if [ "$variant" = current ]; then
+              cat > "$destination" <<'EOF'
+          #!/bin/sh
+          '''exec' "$(dirname -- "$(realpath -- "$0")")"/'python' "$0" "$@"
+          ' '''
+          EOF
+            else
+              cat > "$destination" <<'EOF'
+          #!/bin/sh
+          '''exec' "$(dirname "$(realpath "$0")")"/'python' "$0" "$@"
+          ' '''
+          EOF
+            fi
+            chmod +x "$destination"
+          }
+          run_case() {
+            variant=$1; label=$2; shift 2
+            out="$root/$variant-$label.out"; err="$root/$variant-$label.err"
+            set +e; "$@" >"$out" 2>"$err"; status=$?; set -e
+            test "$status" -eq 0
+            grep -F "python=$root/bin/python" "$out" >/dev/null
+            grep -F 'arg=probe' "$out" >/dev/null
+            case "$mode:$variant" in
+              busybox:current) grep -F 'realpath: --' "$err" >/dev/null ;;
+              *) test ! -s "$err" ;;
+            esac
+            printf 'mode=%s variant=%s case=%s status=%s\n' "$mode" "$variant" "$label" "$status"
+          }
+          for variant in current candidate; do
+            write_launcher "$variant" "$root/bin/tool"
+            write_launcher "$variant" "$root/bin/tool with space"
+            write_launcher "$variant" "$root/bin/-tool"
+            ln -sf ../bin/tool "$root/links/tool-link"
+            run_case "$variant" absolute "$root/bin/tool" probe
+            run_case "$variant" relative sh -c 'cd "$1" && ./bin/tool probe' sh "$root"
+            run_case "$variant" path sh -c 'cd "$1" && PATH="$1/bin:$PATH" tool probe' sh "$root"
+            run_case "$variant" space sh -c 'cd "$1" && "./bin/tool with space" probe' sh "$root"
+            run_case "$variant" leading-hyphen sh -c 'cd "$1/bin" && ./-tool probe' sh "$root"
+            run_case "$variant" symlink "$root/links/tool-link" probe
+          done
+          printf 'UNIT_02_MATRIX=%s\n' "$mode"
+          SH
+          chmod +x "${{ runner.temp }}/matrix.sh"
+          /bin/sh "${{ runner.temp }}/matrix.sh" gnu | tee "${{ runner.temp }}/matrix.txt"
+          docker run --rm -v "${{ runner.temp }}:/evidence:ro" alpine:3.22 \
+            /bin/sh /evidence/matrix.sh busybox | tee -a "${{ runner.temp }}/matrix.txt"
+          grep -F 'UNIT_02_MATRIX=gnu' "${{ runner.temp }}/matrix.txt"
+          grep -F 'UNIT_02_MATRIX=busybox' "${{ runner.temp }}/matrix.txt"
+
+      - name: Upload complete tested source files and receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: unit-02-uv-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            source/crates/uv-install-wheel/src/wheel.rs
+            source/crates/uv-virtualenv/src/virtualenv.rs
+            source/crates/uv/src/commands/project/run.rs
+            ${{ runner.temp }}/candidate.patch
+            ${{ runner.temp }}/changed-files.txt
+            ${{ runner.temp }}/matrix.txt
+          if-no-files-found: warn
+          retention-days: 14
