@@ -2,158 +2,191 @@
 
 ## In simple words
 
-The process-group mechanism has strong bounded evidence. The original Linux Fieldwork delivery receipt expired after `main` changed governing workflow and test-discovery inputs. A byte-identical nine-file current-main restack now exists on PR #406 and is awaiting its gate and renewed review.
+Canonical current-source focused execution is complete on Linux Fieldwork PR #401. The process-group mechanism is accepted for tested TERM-responsive null, QEMU-wrapper, and passwordless-sudo topologies.
 
-Final upstream delivery still requires a clean mmdebstrap branch, target-native regression, ordinary gates, and precise wording around TERM-responsive versus resistant descendants.
+Under the stricter #435 completion rules, unit 13 remains `REPAIR`: the controlled canonical fork branch, full clean target diff, upstream-native regression, project ordinary gate, workflow-retirement decision, and independent final target review remain incomplete.
 
 ## Current self-review disposition
 
 `REPAIR`
 
-Technical content: accepted for group-wide TERM delivery and settlement in the tested responsive topologies.
+Accepted:
 
-Linux Fieldwork delivery identity: reconciliation active on PR #406.
+- exact canonical source identity;
+- zero-fuzz patch application and compilation;
+- six-control packet matrix twice;
+- refined fourteen-control topology matrix twice with no skips;
+- actual sudo controls;
+- cleanup and immediate rerun;
+- exact packet-head rerun;
+- bounded claim and polished drafts.
 
-Upstream delivery identity: incomplete; no owned mmdebstrap source branch or target-native current-`master` execution exists.
+Pending:
+
+- clean target branch/head;
+- ordinary mirror-backed/source gate;
+- final clean-target diff review;
+- controlled-fork and public authority decisions.
 
 ## Exact reviewed inputs
 
-- Fieldwork backlog issue: `teamleaderleo/fieldwork#435`
-- unit: 13
-- canonical retained carrier: `teamleaderleo/linux-fieldwork#313`
-- retained carrier branch/head: `fix/coverage-backend-process-group@dfc6d0503fb844f4c428ce16a567a9fdcd35280a`
-- executed mechanism head: `e90fc438f530f7bd78ffd6fd1ba24c665bd96913`
-- current-main reconciliation: `teamleaderleo/linux-fieldwork#406`
-- reconciliation base: `6cc74d846c50b9bbb88247e8a128b67e8c174c1e`
-- reconciliation branch/head: `repair/313-current-main-reconciliation@e82b9b059850fce1efcf8daadef89049495a8b27`
-- reconciliation CI: `30690801852` / run 1151, queued at packet update
-- imported target source: `debian/1.5.7-3@6fde999741f4fe1e7bf38079acf29432ef87a35e`
-- canonical upstream selected/default branch: `master`
-- previously inspected upstream revision: `77ec9be5417ee44c96343d2347145585da1b1f94`; refresh required
-- QEMU evidence successor: `8253ab2ef6fed22b34fc5f5d6d20cda75c25e2c7`
+- outer routing issue: `teamleaderleo/fieldwork#435`, unit 13
+- outer packet PR: `teamleaderleo/fieldwork#439`
+- canonical internal packet PR: `teamleaderleo/linux-fieldwork#401`
+- canonical packet branch/head: `upstream/unit-11-coverage-backend-cancellation@d232e4fdd67cf0592e129a60534e984dcbec6bfe`
+- canonical Linux Fieldwork base: `6cc74d846c50b9bbb88247e8a128b67e8c174c1e`
+- canonical upstream repository: `https://gitlab.mister-muffin.de/josch/mmdebstrap`
+- canonical upstream base executed: `77ec9be5417ee44c96343d2347145585da1b1f94`
+- canonical/imported `coverage.py` blob: `9a522484aef05deae514a98e4b6adf5feb6c886d`
+- upstream-root patch blob: `f1a2c75adfa009b6f1ac29e5a31bef526400444f`
+- current-source run: `30689911760`
+- final packet-head run: `30690101504`
+- historical mechanism head: `e90fc438f530f7bd78ffd6fd1ba24c665bd96913`
+- historical evidence head: `dfc6d0503fb844f4c428ce16a567a9fdcd35280a`
+- refined QEMU head: `8253ab2ef6fed22b34fc5f5d6d20cda75c25e2c7`
 - escalation comparison: `615bd4f5256d9851f682e48e037169ceeb7bb98c`
 
-## Current candidate fences
+## Current source/package fence
 
-### Clean product intent
+Canonical packet PR #401 contains:
 
-- `coverage.py`
-- one target-native focused regression, path pending current upstream convention
+- upstream-root source patch;
+- durable null/source verifier;
+- exact canonical Actions carrier;
+- README, SOURCE_MAP, DEEP_DIVE, TESTS, DECISIONS, HANDOFF;
+- issue and pull-request drafts;
+- index update.
 
-### Linux Fieldwork research carrier
+Future clean target branch should contain only:
 
-1. `investigations/mmdebstrap-coverage-process-group/0000-materialize-status-only.patch`
-2. `investigations/mmdebstrap-coverage-process-group/0001-own-backend-process-group.patch`
-3. `investigations/mmdebstrap-coverage-process-group/README.md`
-4. `investigations/mmdebstrap-coverage-process-group/QEMU_WRAPPER.md`
-5. `investigations/mmdebstrap-coverage-process-group/SUDO_WRAPPER.md`
-6. `notes/processes/callers-must-own-complete-backend-process-groups.md`
-7. `tests/test_mmdebstrap_coverage_process_group.py`
-8. `tests/test_mmdebstrap_coverage_qemu_process_group.py`
-9. `tests/test_mmdebstrap_coverage_sudo_process_group.py`
+- `coverage.py`;
+- one accepted upstream-native regression;
+- unavoidable project-native generated or metadata changes.
 
-PR #406 uses the exact nine blob SHAs from PR #313. Only the product hunk and a target-native regression belong in a future mmdebstrap source branch.
+It must exclude Linux Fieldwork packet documents, workflows, receipts, and research fixtures.
 
-## Review finding: expired current-base identity
+## Complete-diff findings
 
-The latest complete review of PR #313 accepted the bounded mechanism and changed the delivery disposition to `REPAIR CURRENT-BASE DELIVERY IDENTITY`.
+### Technical mechanism
 
-Reason: after CI 943, Linux Fieldwork `main` changed material governing inputs, including:
+Accepted within the stated boundary:
 
-- `.github/workflows/linux-fieldwork-ci.yml`;
-- unittest discovery and duplicate handling;
-- retained-patch validation;
-- process-group kill and zero-status controls;
-- signal/result-precedence suites.
+- caller creates group before backend execution;
+- `killpg` targets the owned group;
+- `ProcessLookupError` is bounded;
+- wrapper is reaped;
+- driver exits 130 with diagnostic;
+- ordinary unsignaled controls succeed;
+- responsive groups settle without later work.
 
-Historical CI 931/943 remains evidence for its exact source/base pair. It is no longer a current-main integration receipt.
+### Canonical source execution
 
-The review mentioned PR #358 as a routing surface. Live inspection shows #358 is a closed, unrelated mmdebstrap broad-fixture contract repair. Unit 13 does not edit or depend on it. PR #406 is the explicit current-base reconciliation carrier for this unit.
+Accepted:
+
+- canonical `coverage.py` equals the retained import blob;
+- patch applies with zero fuzz twice;
+- compilation succeeds;
+- six-control packet matrix passes twice;
+- fourteen-control refined matrix passes twice;
+- passwordless sudo tests run with no skips;
+- exact QEMU handler-entry refinement runs;
+- cleanup and immediate rerun pass;
+- final packet-head jobs pass.
+
+### Delivery packaging
+
+Incomplete under #435:
+
+- controlled canonical fork: `NEEDS FORK`;
+- clean candidate branch/head: absent;
+- upstream-native regression committed to that branch: absent;
+- ordinary mirror-backed/source gate: unexecuted;
+- independent complete clean-target diff acceptance: absent.
+
+### Workflow retention
+
+PR #401 retains `.github/workflows/unit-11-coverage-backend-cancellation.yml` as the exact reproducible execution carrier. #435 guidance says temporary workflows should be removed after receipts transfer.
+
+Before outer promotion, choose one:
+
+1. retain it explicitly as a permanent packet verifier and document that policy exception; or
+2. transfer its recipe into packet scripts/receipts, remove the workflow, and establish exact-head integrity for the packaging-only change.
+
+This decision does not affect the demonstrated product mechanism.
 
 ## Claim-by-claim review
 
-| Claim | Current evidence | Review question |
+| Claim | Evidence | Review result |
 | --- | --- | --- |
-| wrapper-only termination can leave nested work | exact imported-wrapper controls and packet model | Do the negative controls prove later work after parent SIGINT? |
-| status 130 alone leaves the cancellation defect | exact status-only controls | Are result status and operation settlement kept separate? |
-| caller-owned group sends TERM to nested in-group work | code review and null/QEMU/sudo controls | Is the group created before every backend launch? |
-| tested responsive groups settle without later work | CI 931/942 | Are claims limited to executed topologies? |
-| current Linux Fieldwork integration is compatible | PR #406 / CI 1151 | Did the exact nine-file restack pass current discovery and controls? |
-| ordinary execution remains successful | unsignaled controls | Do all current-base unsignaled controls pass? |
-| previously inspected upstream revision carried old lifecycle | source read at `77ec9be5…` | Refresh canonical `master` before materialization. |
-| no duplicate public repair found | bounded search on 2026-08-01 | Refresh issue/MR, Debian bug, and recent commit search before publication. |
+| canonical source has wrapper-only lifecycle | exact commit/blob checkout | accepted |
+| wrapper-only termination permits later work | packet/refined negative controls | accepted |
+| status 130 alone preserves survivor defect | status-only comparator | accepted |
+| caller-owned group reaches nested in-group work | source and three topology modules | accepted |
+| tested responsive groups settle | canonical matrices twice | accepted |
+| ordinary execution remains successful | unsignaled controls | accepted |
+| target ordinary gate passes | none | blocked |
+| clean target branch is submission-ready | none | blocked |
+| no equivalent public work exists | current packet overlap search | refresh before send |
 
-## Required PR #406 review
+## Historical carrier cleanup
 
-1. confirm base `6cc74d846c50b9bbb88247e8a128b67e8c174c1e` is the current Linux Fieldwork `main` used by the run;
-2. confirm all nine file blobs match PR #313 head `dfc6d050…`;
-3. record literal source head and generated merge separately;
-4. inspect patch validation and Python compilation;
-5. record exact unittest discovery count;
-6. prove the null, QEMU, and sudo modules execute once each;
-7. inspect all lifecycle control results and skips;
-8. inspect shell syntax and command-help checks;
-9. review the complete current diff;
-10. preserve same-account review as self-review only.
+- PR #313: closed, superseded for delivery by PR #401;
+- PR #339: closed, evidence transferred to PR #401;
+- PR #406: closed, superseded duplicate ancestry restack;
+- PRs #332/#336: already closed superseded;
+- PRs #347/#353: closed stronger-policy evidence.
 
-## Packet fixture review
+Unique evidence remains discoverable through PR #401 and its source map.
 
-The original local model harness used an absolute `/tmp/unit13-probe` path and waited only for `child-ready` before reading `wrapper-ready`.
+## Required clean-target review
 
-The packet now preserves that exact source as `harness_original.py` and provides a relocatable `harness.py` that:
+After controlled-fork materialization:
 
-- resolves sibling files from `__file__`;
-- waits for both readiness markers;
-- diagnoses early driver exit;
-- cleans all modeled processes in `finally`.
-
-Compilation and replay passed with unchanged output. This repair affects packet reproducibility only.
-
-## Required clean-upstream review
-
-After target materialization:
-
-1. verify branch ancestry begins at the refreshed canonical upstream `master` SHA;
-2. compare the complete branch diff against upstream;
-3. confirm Fieldwork vocabulary, receipts, temporary workflows, and research files are absent;
-4. confirm the source patch touches only the owning lifecycle path;
-5. inspect `start_new_session=True` portability against supported Python/platform policy;
-6. confirm `killpg(proc.pid, SIGTERM)` targets only the dedicated backend group;
-7. confirm `ProcessLookupError` preserves exit 130;
-8. inspect behavior when the wrapper exits before SIGINT;
-9. ensure the regression proves handler entry or equivalent causal ordering;
-10. keep fixture escalation inside teardown;
-11. run focused and ordinary gates at the exact target head;
-12. refresh drafts and pinned links.
+1. confirm branch begins at refreshed exact canonical `main` SHA;
+2. compare full branch against canonical upstream;
+3. confirm only target-native files exist;
+4. apply patch with zero fuzz or recreate equivalent source directly;
+5. inspect `start_new_session=True` against supported platforms and interactive paths;
+6. confirm the group cannot contain unrelated work;
+7. test `ProcessLookupError` behavior;
+8. test wrapper exit before SIGINT;
+9. use causal readiness/handler ordering rather than timing-only assumptions;
+10. keep fixture escalation outside product source;
+11. run focused and ordinary project gates;
+12. record cleanup and immediate rerun;
+13. obtain eligible independent review;
+14. synchronize all drafts and exact links.
 
 ## Human inspection focus
 
-- Is a new session acceptable for all supported backends, especially interactive debug paths?
-- Which upstream-native test location gives a maintainable deterministic regression?
-- Should exit-130 correction and group delivery be one coherent upstream patch?
-- Does the project prefer an issue first or direct merge request for coverage-harness lifecycle fixes?
+- Does the project accept a new session for every backend, including debug paths?
+- Which upstream-native test location is maintainable?
+- Should the status-130 correction and group delivery remain one patch? Current decision: yes.
+- Is the full mirror-backed gate required before submission or acceptable as maintainer CI? #435 currently treats it as a blocker.
+- Should the unit-specific workflow remain permanent?
 - What current contribution and AI-disclosure policy applies?
 
 ## Known limits requiring visible wording
 
-- `proc.wait()` proves wrapper exit, not arbitrary process-group drain.
-- TERM-resistant descendants and repeated SIGINT remain outside the selected patch.
-- group/session escape remains outside a group-local policy.
-- real QEMU/debvm and direct `/dev/tty` behavior remain unexecuted.
-- Linux Fieldwork CI is supporting research evidence, not the upstream ordinary gate.
+- wrapper wait does not prove arbitrary group drain;
+- TERM resistance and repeated SIGINT remain excluded;
+- group/session escape remains excluded;
+- real QEMU/debvm and direct `/dev/tty` remain unexecuted;
+- prepared-mirror package operations remain unexecuted;
+- non-Linux behavior remains unexecuted;
+- upstream maintainer review has not occurred.
 
 ## Clearing conditions for `READY`
 
-- PR #406 current-main gate and complete-diff review pass;
-- owned target repository/fork exists;
-- clean current-`master` target branch exists with exact base and head;
-- changed-file list is product-native;
-- retained patch applies cleanly or is recreated directly;
-- target-native focused regression passes;
-- project-declared ordinary gates pass;
-- duplicate/prior-art search is refreshed;
-- complete exact target diff receives independent review;
-- packet and drafts match the clean target head;
-- exact public action awaits explicit authority.
+- controlled canonical fork exists;
+- clean candidate branch has exact refreshed base/head;
+- target-native changed-file inventory is complete;
+- focused regression passes on that branch;
+- ordinary project gate passes or an explicit #435 decision accepts its deferral;
+- workflow retention/retirement is resolved;
+- overlap and contribution policy are refreshed;
+- complete clean-target diff receives eligible independent acceptance;
+- outer packet and drafts match the exact source head;
+- only the exact public action remains awaiting authority.
 
-Upstream contact remains unauthorized.
+Public upstream contact remains unauthorized.
