@@ -2,197 +2,208 @@
 
 ## In simple words
 
-The current five-file candidate has strong exact-head execution: direct repository CI passed, and a separate executor ran the complete suite, static checks, build/docs, coverage, and 16 focused controls across Python 3.9 and 3.13. Those tests establish the terminal-unknown behavior they exercise.
+The current five-file source head passed its focused and ordinary HTTPX gates, but those tests omitted same-owner re-entry and successful elapsed sampling. Reconstructed exact source blobs fail four new discriminators: three re-entry cases time out and the successful elapsed value includes cleanup latency. The retained repair patch passes all five local package controls under Python 3.13 with AnyIO's asyncio backend.
 
-A source-equivalent asyncio model then reproduced same-owner re-entry waiting on its own event. This is the largest current gap and changes the test judgment to `REPAIR`.
+The repaired patch still needs direct materialization and the target's complete asyncio/Trio and Python matrix. Existing green receipts remain valid only for source head `18256f10...`.
 
 ## Identity
 
 - Exact upstream base: `b5addb64f0161ff6bfe94c124ef76f6a1fba5254`
-- Exact candidate head: `18256f10d1b306bdf87a1bab24b214c15839147b`
+- Exact current candidate head: `18256f10d1b306bdf87a1bab24b214c15839147b`
 - Exact execution carrier head: `b0d72d521aa88c32f5ae48d5ce8943c1eb8ba8f5`
-- Test dates: `2026-07-31` target execution; `2026-08-01` re-entry model
-- Target platforms: GitHub Actions Python 3.9 and 3.13; local model Python 3.13.5
-- Target dependency set: repository `requirements.txt` during exact executor; source metadata requires AnyIO and `httpcore==1.*`
-- Local model: AnyIO 4.13.0, asyncio backend
+- Retained repair patch: [`patches/0001-fix-reentrant-close-and-elapsed-sampling.patch`](./patches/0001-fix-reentrant-close-and-elapsed-sampling.patch)
+- Test date: `2026-08-01`
+- Local environment: Linux, Python `3.13.5`, AnyIO `4.13.0`, asyncio backend, installed HTTPX dependencies from the container
+- Network: unavailable in the container
+
+## Exact reconstruction fence
+
+The local current-candidate reconstruction started from installed `httpx==0.28.1`, applied the four known upstream grammatical changes between tag `0.28.1` and base `b5addb64...`, then applied PR #6's source diff.
+
+The resulting source blobs matched GitHub exactly before repair:
+
+| File | Reconstructed blob | GitHub blob at `18256f10...` | Result |
+| --- | --- | --- | --- |
+| `httpx/_models.py` | `3ccb5290ceb95d96e24047bcec2897c52de16176` | `3ccb5290ceb95d96e24047bcec2897c52de16176` | exact |
+| `httpx/_client.py` | `79934d050cd77414fb6f9c1024f42f6029c924e0` | `79934d050cd77414fb6f9c1024f42f6029c924e0` | exact |
+
+The reconstruction did not claim an exact full repository checkout; it established exactness for the two production files under the new discriminators.
 
 ## Claim-to-evidence matrix
 
 | Claim | Evidence class | Test or source | Result | Coverage limit |
 | --- | --- | --- | --- | --- |
-| arbitrary retry can duplicate committed cleanup | `target-executed` | owned PR #1, focused `30550892544`, suite `30550886069` | passed characterization; duplicate effect observed | custom stream model |
-| one owner and external waiters share one successful attempt | `target-executed` | `test_concurrent_close_waits_for_successful_cleanup` in terminal-unknown file | passed in exact executor | excludes same-owner call |
-| owner ordinary/control-flow failure stays original; observers are fresh neutral errors | `target-executed` | terminal-unknown focused controls | passed | exact candidate head only |
-| backend cancellation identity stays with owner | `target-executed` | terminal cancellation file | passed under executor matrix | exact backend/dependency set |
-| owner traceback graph is not retained | `target-executed` | frame-local weakref/GC control | passed | one synthetic frame-local object |
-| requestless terminal observer failure remains valid | `target-executed` | requestless control | passed | response model only |
-| failed client-bound cleanup leaves elapsed unavailable | `target-executed` | client elapsed failure test | passed | one custom transport |
-| candidate passes direct source Test Suite | `full-gate` | run `30631127167` | success | current suite omits re-entry |
-| candidate passes exact executor matrix | `full-gate` and `target-executed` | run `30631155839` | success | Python 3.9 full suite excluded after unrelated base warning; focused passed |
-| same-owner re-entry waits on its own event | `source-read`, `model-executed` | retained re-entry probe | timeout reproduced | asyncio model, no HTTPX import |
+| Retry after ambiguous close can duplicate committed cleanup | `target-executed` | PR #1 runs `30550892544` and `30550886069` | pass: duplicate effect characterized | synthetic public stream; lower layers separate |
+| Current source invokes arbitrary cleanup once and isolates observer exceptions | `target-executed` | executor run `30631155839` | pass | exact old head; re-entry absent |
+| Current source passes HTTPX's direct Test Suite | `full-gate` | run `30631127167` | success | old head; missing new discriminators |
+| Current source deadlocks on requestless and request-bound same-task re-entry | `target-executed` on exact reconstructed production blobs | local pytest command below | fail by timeout in both cases | asyncio/Python 3.13 local |
+| Current source deadlocks when the stream intends to catch re-entry while an external waiter joins | `target-executed` on exact reconstructed production blobs | local pytest command below | fail by timeout | asyncio/Python 3.13 local |
+| Current source includes stream cleanup latency in successful `elapsed` | `target-executed` on exact reconstructed production blobs | local deterministic clock control | fail: `10.0`, expected `2.0` | client wrapper path, synthetic transport |
+| Retained repair makes re-entry prompt and preserves the external waiter | `target-executed` on repaired local package | local pytest command below | pass | patch not on GitHub source branch |
+| Retained repair samples elapsed before cleanup and publishes after success | `target-executed` on repaired local package | local deterministic clock control | pass | patch not on GitHub source branch |
 
-## Baseline characterization
+## Current-head ordinary and focused execution
 
-### Command or workflow
+### Exact executor run `30631155839`
 
-Owned research PR #1 carried target-native controls against the pinned base and retryable candidate. Exact workflow identifiers:
+Canonical source: `18256f10d1b306bdf87a1bab24b214c15839147b`.
+
+Python 3.13 job `91157545025` passed:
+
+- exact source and five-file fence;
+- repository dependency installation;
+- `scripts/check`;
+- package and documentation build;
+- complete repository suite;
+- `scripts/coverage` at 100%;
+- 16 focused terminal-close controls;
+- diff and clean-tree hygiene.
+
+Python 3.9 job `91157545125` passed:
+
+- exact source and five-file fence;
+- dependency installation;
+- the same 16 focused controls;
+- diff and clean-tree hygiene.
+
+### Direct source Test Suite `30631127167`
+
+Status: success at `18256f10...`.
+
+Limit: the direct suite did not contain the same-owner re-entry or successful pre-cleanup elapsed-sample assertions.
+
+### Historical Python 3.9 full-suite red
+
+A predecessor run reproduced the existing Trio async-generator `ResourceWarning` in unrelated `test_write_timeout`. The exact focused Python 3.9 controls passed. This remains a repository/harness compatibility note, not evidence for the new repair.
+
+## New baseline discriminators
+
+### Command
 
 ```text
-focused: 30550892544
-repository Test Suite: 30550886069
+PYTHONPATH=/tmp/httpx-current pytest -q \
+  tests/models/test_async_response_close_reentry.py \
+  tests/client/test_async_client_terminal_close_elapsed.py
 ```
 
 ### Assertions
 
-- owner enters custom stream close;
-- cleanup commits a synthetic effect;
-- owner receives a custom `BaseException`;
-- waiter becomes retry owner under the retryable design;
-- delegated close and cleanup commit counts are observed.
+- requestless same-task re-entry returns a prompt `CloseError`;
+- request-bound same-task re-entry returns a prompt request-associated `CloseError`;
+- a stream may catch the re-entry error and complete while an unrelated waiter joins normally;
+- failed cleanup still leaves elapsed unavailable;
+- successful elapsed excludes delegated cleanup latency.
+
+### Result on exact current production blobs
+
+```text
+4 failed, 1 passed in 3.28s
+```
+
+Failures:
+
+1. requestless re-entry timed out;
+2. request-bound re-entry timed out;
+3. caught re-entry/external waiter case timed out;
+4. elapsed was `10.0` seconds instead of the pre-cleanup `2.0` seconds.
+
+The separate direct probe printed:
+
+```text
+REENTRY_TIMEOUT 1 False True
+ELAPSED_SECONDS 10.0
+```
+
+## Repaired patch execution
+
+### Command
+
+```text
+PYTHONPATH=/tmp/httpx-repaired pytest -q \
+  tests/models/test_async_response_close_reentry.py \
+  tests/client/test_async_client_terminal_close_elapsed.py
+```
 
 ### Result
 
-- status: passed characterization
-- observed behavior: two close calls and two cleanup commits
-- interpretation: a generic retry contract can repeat arbitrary effects
-- limit: this does not establish real socket duplication or every HTTPCore failure point
-
-## Candidate-focused tests
-
-### Terminal unknown — ordinary and control-flow failures
-
-- Exact source head: `18256f10d1b306bdf87a1bab24b214c15839147b`
-- File: [`tests/models/test_async_response_close_terminal_unknown.py`](https://github.com/teamleaderleo/httpx/blob/18256f10d1b306bdf87a1bab24b214c15839147b/tests/models/test_async_response_close_terminal_unknown.py)
-- Tests and assertions:
-  - at-most-once delegated cleanup;
-  - original owner exception identity;
-  - distinct observer exception, cause, and traceback objects;
-  - terminal later calls;
-  - close-start read barrier;
-  - successful concurrent join;
-  - requestless response;
-  - frame-local object collection;
-  - pickle reset.
-- Result: included in 16 focused controls, passed Python 3.9 and 3.13.
-- Coverage limit: no owner-task re-entry.
-
-### Terminal unknown — real backend cancellation
-
-- Exact source head: same
-- File: [`tests/models/test_async_response_close_terminal_cancellation.py`](https://github.com/teamleaderleo/httpx/blob/18256f10d1b306bdf87a1bab24b214c15839147b/tests/models/test_async_response_close_terminal_cancellation.py)
-- Tests and assertions:
-  - AnyIO backend-native cancellation object reaches owner unchanged;
-  - observers get fresh neutral errors/causes;
-  - stream close runs once;
-  - reads stay blocked;
-  - public `is_closed` remains false after uncertain cleanup.
-- Result: passed exact focused matrix.
-- Coverage limit: owner is cancelled externally; delegated stream does not re-enter response close.
-
-### Client elapsed publication
-
-- Exact source head: same
-- File: [`tests/client/test_async_client_terminal_close_elapsed.py`](https://github.com/teamleaderleo/httpx/blob/18256f10d1b306bdf87a1bab24b214c15839147b/tests/client/test_async_client_terminal_close_elapsed.py)
-- Tests and assertions:
-  - first close failure reaches owner;
-  - second close is terminal and does not re-run stream cleanup;
-  - elapsed remains unavailable after failed cleanup.
-- Result: passed exact focused matrix.
-- Coverage limit: the successful blocking-close/pre-cleanup sample control was reviewed in source history; confirm its exact retained location when repairing the branch.
-
-### Same-owner re-entry model
-
-- Exact source modeled: same
-- Receipt: [`receipts/reentrant-close-probe.md`](./receipts/reentrant-close-probe.md)
-- Command:
-
 ```text
-python /tmp/reentrant_probe.py
+5 passed in 0.12s
 ```
 
-- Environment: Python 3.13.5, AnyIO 4.13.0, asyncio
-- Result:
+The five cases are:
+
+- requestless escaping re-entry;
+- request-bound escaping re-entry;
+- caught re-entry with an external waiter;
+- failed cleanup elapsed remains unavailable;
+- successful elapsed preserves the pre-cleanup sample.
+
+### Syntax check
 
 ```text
-TIMEOUT 1 False True
+python -m py_compile \
+  /tmp/httpx-repaired/httpx/_models.py \
+  /tmp/httpx-repaired/httpx/_client.py
 ```
 
-- Failure classification: product-design blocker demonstrated at mechanism scope
-- Coverage limit: dependency-free model; target-native asyncio/Trio tests still required
+Result: passed.
 
 ## Ordinary repository gates
 
 | Gate | Exact command or workflow | Result | Notes |
 | --- | --- | --- | --- |
-| format/lint/typecheck | executor run `30631155839`, Python 3.13 job `91157545025`, repository-native `scripts/check` | passed | exact five-file fence |
-| focused package tests | same run, both jobs | 16 passed | Python 3.9 and 3.13 |
-| complete target-declared suite | same run, Python 3.13 | passed | Python 3.9 full-suite predecessor hit unrelated Trio async-generator warning |
-| direct source Test Suite | run `30631127167` | passed | current PR head |
-| coverage | executor Python 3.13 | 100% | repository coverage gate |
-| package build | executor Python 3.13 | passed | target packaging |
-| documentation build | executor Python 3.13 | passed | target docs |
-| clean diff/tree | executor both jobs | passed | five-file source fence |
-| Python 3.9 compatibility | executor job `91157545125` | focused passed | full suite omitted after isolated base/candidate warning classification |
-| Python 3.10–3.12 | direct Test Suite `30631127167` | passed through repository matrix | exact job details remain in GitHub Actions |
+| format | old head executor `30631155839` | passed | repair patch has no target formatter receipt |
+| lint | old head `scripts/check` | passed | rerun after materialization required |
+| typecheck | old head `scripts/check` / Mypy | passed | `anyio.get_current_task().id` needs target Mypy confirmation |
+| focused package tests | local repaired pytest, 5 cases | passed | asyncio only |
+| complete target-declared suite | old head `30631127167` / executor | passed | expired for repaired source |
+| build/docs | old head executor | passed | expired for repaired source |
+| coverage | old head executor, 100% | passed | new test/source lines require rerun |
+| Python 3.9 | old head focused executor | passed | repair patch needs Python 3.9 execution |
+| Trio | old head cancellation/focused controls | passed | repair re-entry tests have not run under Trio |
 
 ## Reversing controls
 
-- baseline retry characterization duplicates cleanup; terminal candidate runs it once
-- successful concurrent external close callers join one attempt
-- ordinary, control-flow, and cancellation owner outcomes preserve original identity
-- observer exceptions and causes are distinct and neutral
-- GC control releases delegated-frame local objects while response remains reachable
-- requestless response path avoids invented request association
-- re-entry model times out on current logic and must return promptly on repair
-
-## Soak, leak, and cleanup controls
-
-- iterations: no broad soak retained for this unit
-- resources observed: weak-referenceable delegated-frame local; response remains reachable
-- cancellation behavior: owner cancellation terminalizes uncertain cleanup and wakes observers
-- immediate rerun: direct source Test Suite and executor focused matrix completed at exact head
-- missing: repeated target-native re-entry loop, task/event collection after repaired re-entry, Trio re-entry execution
+- Current source fails request-bound and requestless re-entry; repaired patch passes.
+- Current source reports `10.0` elapsed seconds; repaired patch reports `2.0` with the same deterministic clock.
+- Existing failed-close elapsed test passes on both generations.
+- Existing at-most-once/fresh-observer/GC/cancellation controls remain required after materialization.
 
 ## Setup and harness failures
 
 | Attempt | Failure | Classification | Product claim affected? | Repair or stop |
 | --- | --- | --- | --- | --- |
-| predecessor executor run `30624543942` | cancelled after source generation advanced | runner/staleness | no | superseded by exact run |
-| earlier Python 3.9 full suite | Trio async-generator `ResourceWarning` in unrelated `test_write_timeout` | repository/dependency | no for focused candidate claims | exact focused Python 3.9 retained; Python 3.13 full gate passed |
-| local re-entry Trio attempt | `ModuleNotFoundError: No module named 'trio'` | setup | no | target executor must run repaired test under Trio |
-| local repository clone | environment DNS unavailable | setup | no | GitHub source and exact prior CI used; no local target claim added |
+| `git clone https://github.com/teamleaderleo/httpx.git` | container DNS/network unavailable | setup | no | reconstructed exact changed-source blobs through installed tag plus GitHub diff |
+| local Trio execution | Trio absent | dependency | repair's Trio claim remains open | run target CI after materialization |
+| direct source write | connected GitHub write surface offers full-file replacement but no patch application | tooling/safety | source branch remains unchanged | retained exact patch for safe application in a checkout or patch-capable worker |
 
 ## Checks prepared but not executed
 
-- request-bound same-owner re-entry target test — absent from current source
-- requestless same-owner re-entry target test — absent from current source
-- external waiter plus owner re-entry target test — absent from current source
-- delegated stream catches re-entry error and completes — absent
-- delegated stream raises a later distinct cleanup error after catching re-entry — absent
-- repaired-source Python 3.9/3.13 matrix — awaits source repair
+- `tests/models/test_async_response_close_reentry.py` in the retained patch — target-native asyncio and Trio execution after patch application.
+- successful elapsed sampling control — target-native Python matrix after patch application.
+- existing 16 focused controls — rerun against repaired head.
+- `scripts/check`, `scripts/test`, `scripts/coverage`, package build, and docs build — rerun against repaired head.
 
 ## Platform and integration gaps
 
-- repaired behavior under AnyIO asyncio and Trio
-- minimum supported AnyIO version for owner task identity
-- arbitrary custom transports beyond deterministic streams
-- real HTTPCore post-delegation HTTP/1.1/HTTP/2 interruption
-- same-socket reuse and capacity recovery
-- multi-transport client shutdown
-- production prevalence
+- Python 3.9 repaired source.
+- Trio repaired source.
+- direct child-task re-entry provenance; the retained patch detects the exact same-task cycle only.
+- real custom transports that re-enter close.
+- HTTPCore trace and protocol retirement, intentionally separate.
 
 ## Cleanup receipt
 
 - Temporary workflows removed from canonical source head: `yes`
 - Publisher or execution-only files removed: `yes`
-- Generated residue checked: `yes`, by exact executor clean-tree gate
-- Immediate rerun performed: `yes`, on current source head before re-entry finding
-- Remaining temporary branches or PRs: closed executor PR #4 and historical research PRs remain as evidence; none are canonical delivery surfaces
+- Generated residue checked: `yes` on old exact-head executor
+- Immediate rerun performed: local repaired focused controls only
+- Remaining temporary branches or PRs: source PR #6 remains open; retired executor PR #4 remains closed
 
 ## Current test judgment
 
 `REPAIR`
 
-Reason: the exact candidate has strong focused and full-gate evidence for its tested contract, while the in-flight event lacks owner provenance. Source inspection and an executed model show same-task re-entry waits on an event only the suspended owner can set. Green existing CI cannot cover an absent discriminator.
+Reason: two source-visible defects remain on the canonical branch. The retained patch makes the new discriminators pass locally, but no exact repaired GitHub source head or target CI receipt exists.
 
-Clearing condition: advance the clean source branch with cycle-free owner-reentry handling, add target-native request-bound/requestless/external-waiter controls, and pass the complete exact-head matrix plus renewed independent complete-diff review.
+Clearing condition: apply the retained patch to `fieldwork/171-terminal-close-source`, then run the complete focused and ordinary HTTPX gates under Python 3.9 and 3.13 with asyncio and Trio on the resulting exact head.
