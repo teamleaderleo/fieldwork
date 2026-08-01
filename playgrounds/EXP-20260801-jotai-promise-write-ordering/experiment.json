@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260801-jotai-promise-write-ordering",
+  "question": "When atomWithStorage receives overlapping promised and direct updates, does final atom and storage authority follow invocation order or promise resolution order?",
+  "owner": "chatgpt:gpt-5.6-thinking",
+  "created_at": "2026-08-01",
+  "state": "running",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "Jotai atomWithStorage implementation",
+      "url": "https://github.com/pmndrs/jotai/blob/56a9cc51de8a5dd762b95a145820f12589cc47c9/src/vanilla/utils/atomWithStorage.ts",
+      "revision": "56a9cc51de8a5dd762b95a145820f12589cc47c9",
+      "retrieved_at": "2026-08-01",
+      "claim": "Promised updates call set(baseAtom, resolvedValue) and storage.setItem only after their promise resolves, with no invocation-generation guard.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Owned-fork characterization branch",
+      "url": "https://github.com/teamleaderleo/jotai/tree/scout/atom-with-storage-promise-write-ordering",
+      "revision": "09e7964e5da9423920eedb736feb30a347eaec89",
+      "retrieved_at": "2026-08-01",
+      "claim": "Three target-native controls characterize older promised updates against a newer direct update, reset, and promised update.",
+      "evidence_label": "Observed"
+    }
+  ],
+  "command": "Jotai fork pull-request workflows at head 09e7964e5da9423920eedb736feb30a347eaec89; focused test path tests/react/vanilla-utils/atomWithStoragePromiseWriteOrdering.test.ts",
+  "environment": {
+    "runtime": "Jotai repository GitHub Actions matrix",
+    "platform": "owned fork; exact job platforms recorded after completion",
+    "dependencies": [
+      "repository lockfile and declared pnpm workflow"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "Older promised updates become final after newer operations.",
+      "interpretation": "Promised update authority follows resolution order; retain a finding candidate and evaluate a narrow invocation-generation repair."
+    },
+    {
+      "observation": "Newer direct, reset, or promised updates remain final after the older promise resolves.",
+      "interpretation": "The suspected race is already prevented by Jotai store semantics; retain a negative result."
+    },
+    {
+      "observation": "Only setup, type, or harness failures occur.",
+      "interpretation": "Repair the probe without drawing a product conclusion."
+    }
+  ],
+  "stop_condition": "Stop after the three exact ordering controls execute against the pinned Jotai source and the result is classified; do not expand into asynchronous backend settlement ordering.",
+  "network_policy": "Owned-fork CI may install declared dependencies; no public upstream interaction.",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260801-jotai-promise-write-ordering/README.md",
+    "playgrounds/EXP-20260801-jotai-promise-write-ordering/atomWithStoragePromiseWriteOrdering.test.ts"
+  ],
+  "promoted_to": null
+}
