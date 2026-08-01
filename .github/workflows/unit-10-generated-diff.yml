@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - execution/435-unit-10-generated-diff
+  pull_request:
+    branches:
+      - p0/435-unit-10-workerd-receiver-types
+    paths:
+      - .github/workflows/unit-10-generated-diff.yml
   workflow_dispatch:
 
 permissions:
