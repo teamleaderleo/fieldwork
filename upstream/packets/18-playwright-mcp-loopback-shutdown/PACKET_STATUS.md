@@ -12,9 +12,9 @@ Canonical finding: `teamleaderleo/fieldwork#404`
 
 Exact-current execution carrier: `teamleaderleo/fieldwork#455@0323aeaadc391575b572e869258e5e1ac3c4652c`
 
-Exact-current result: Ubuntu 24.04, macOS 15, and Windows 2025 each passed 18/18 native MCP HTTP tests plus exact identity, locked install, complete build, Chromium, focused ESLint, clean tree, and exact diff in workflow `30690674059`.
+Current exact-head result: Ubuntu 24.04, macOS 15, and Windows 2025 each passed 18/18 native MCP HTTP tests plus exact identity, locked install, complete build, Chromium, focused ESLint, clean tree, and exact diff in workflow `30690674059`.
 
-Packet integrity: head `ca95ff2bc643c040ad48a73bb1dc80cdfc64fe8c` passed run `30691135221`; the latest packet update requires a fresh integrity run.
+Packet integrity: packet head `2ed6f016b767569f27945a7ad6f0e935b6ffdc5c` passed run `30705107786`. This status-record update creates the next packet head, which must also pass integrity before final handoff.
 
 Adjacent research: stdin-owner EOF repair head `86d32569b47fd9f6e98c11517d1699cea5a2465a` passed a 17-test three-platform matrix in run `30704592268`, but global stdin consumption can race stdio MCP input. It remains a mode-aware alternative, not the canonical source.
 
