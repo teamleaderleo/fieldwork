@@ -2,70 +2,45 @@
 
 ## Selected boundary
 
-Use the smallest mechanism at each supported fanout site:
-
 - `MultiSpanProcessor`: opening snapshot plus eager synchronous safe-call;
 - `TracerProvider.forceFlush()`: opening snapshot plus safe-call inside the existing timeout wrapper;
 - `MultiLogRecordProcessor`: opening snapshot plus eager synchronous safe-call;
-- metrics: excluded after deeper reachability review.
+- metrics: excluded after supported-reachability review.
 
-All retained paths preserve eager invocation, existing outward error behavior, and future array mutation.
+All retained paths preserve eager invocation, outward error behavior, and future array mutation.
 
 ## Why trace has two force-flush sites
 
-Public `TracerProvider.forceFlush()` bypasses `MultiSpanProcessor.forceFlush()` and directly fans out over the processor list. Repairing only the aggregate leaves the public provider path exposed to live removal.
+Public `TracerProvider.forceFlush()` bypasses `MultiSpanProcessor.forceFlush()` and directly fans out over the processor list. Repairing only the aggregate misses live removal and synchronous-failure timer cleanup on the public provider path.
 
-The provider's Promise executor already turns a synchronous throw into rejection, but that path bypasses timer cleanup. The selected safe-call sends the failure through the existing per-processor catch, which clears the timer and preserves the current outer errors-array rejection.
-
-## Package-specific rationale
-
-### Trace aggregate
-
-- copy `_spanProcessors` before the first child call;
-- use local eager try/catch so later opening processors are invoked;
-- preserve the original outer promise and global-error-handler structure.
-
-### Trace provider
-
-- copy the processor list before mapping;
-- retain the timeout and result filtering model;
-- normalize synchronous invocation failure so the existing catch clears the timeout.
-
-### Logs
-
-- copy the public processor array;
-- protect direct lifecycle calls;
-- retain `callWithTimeout()` placement and default timeout.
-
-### Metrics exclusion
-
-The predecessor metrics proposal relied on mutation of private collector state. `MeterProvider` owns its collector list and exposes no supported mutation route; collector lifecycle methods are already async. Keeping metrics would broaden the patch without a demonstrated supported defect.
+The provider's Promise executor already converts a direct throw into rejection, but that path bypasses its timer-clearing result catch. The selected helper routes the failure through that existing catch and preserves the current outer errors-array rejection.
 
 ## Rejected alternatives
 
-- Safe-call over live arrays: still permits removal-based skipping.
-- Microtask deferral: changes eager start ordering.
-- Permanent freezing/copying: changes future membership behavior.
-- Sequential awaiting: changes concurrency and latency.
-- Settle-all aggregation: changes outward error timing and types.
-- Repairing only `MultiSpanProcessor`: misses public provider force flush.
-- Metrics snapshot-only: private-state hardening without supported reachability.
+- safe-call over live arrays: still permits removal-based skipping;
+- microtask deferral: changes eager start ordering;
+- permanent freezing: changes future membership behavior;
+- sequential awaiting: changes concurrency and latency;
+- settle-all aggregation: changes error timing and types;
+- aggregate-only trace repair: misses the public provider path;
+- metrics snapshot-only: hardens private state without supported reachability evidence.
 
 ## Decision history
 
-1. Safe-call-only head passed gates but failed review on live mutation.
-2. First snapshot fixture had test-only TS2322 inference failures.
-3. Clean predecessor `641528c...` passed all named workflows.
-4. Review `4834242586` removed the metrics safe-call claim.
-5. Deeper review removed metrics entirely and found public provider force flush.
-6. Concurrent branch rewrites made PR #18 non-authoritative.
-7. Successor branch `upstream/unit-11-lifecycle-fanout-v2` and PR #19 were created directly from current public main.
+1. Safe-call-only generation passed gates but failed review on live mutation.
+2. Snapshot fixtures had test-only TS2322 inference failures and were repaired.
+3. Predecessor `641528c...` passed all named workflows.
+4. Review `4834242586` exposed the metrics overclaim.
+5. Deeper review removed metrics and added public provider force flush plus timer cleanup.
+6. Concurrent rewrites made the original source/packet carriers non-authoritative.
+7. Isolated successors were created; source was then cleanly squashed.
 
 ## Exact current state
 
-- public base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- successor source head: `a1e604526ea87fc22a91f6b2fe84b02f528e9f88`;
-- relation: ahead 6, behind 0;
+- base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- source head: `f4910b355d12895edf25372444f76d4def08901c`;
+- relation: ahead 1, behind 0;
 - boundary: three production files and three tests;
-- exact-head workflows: runs `30694086713` through `30694086746`, initially queued;
+- validation PR: #19;
+- workflow runs: `30694264703`, `30694264708`, `30694264710`, `30694264711`, `30694264717`, `30694264729`, `30694264735`, `30694264748`;
 - public upstream contact: unauthorized and not performed.
