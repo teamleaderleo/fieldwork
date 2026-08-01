@@ -10,7 +10,7 @@ The process-group mechanism has strong bounded evidence. Final delivery review s
 
 Technical content: accepted for group-wide TERM delivery and settlement in the tested responsive topologies.
 
-Delivery identity: incomplete. The canonical candidate remains a retained patch inside `teamleaderleo/linux-fieldwork`, with no owned mmdebstrap source branch or target-native current-main execution.
+Delivery identity: incomplete. The canonical candidate remains a retained patch inside `teamleaderleo/linux-fieldwork`, with no owned mmdebstrap source branch or target-native current-`master` execution.
 
 ## Exact reviewed inputs
 
@@ -20,7 +20,8 @@ Delivery identity: incomplete. The canonical candidate remains a retained patch 
 - carrier branch/head: `fix/coverage-backend-process-group@dfc6d0503fb844f4c428ce16a567a9fdcd35280a`
 - executed mechanism head: `e90fc438f530f7bd78ffd6fd1ba24c665bd96913`
 - imported target source: `debian/1.5.7-3@6fde999741f4fe1e7bf38079acf29432ef87a35e`
-- current inspected upstream main: `77ec9be5417ee44c96343d2347145585da1b1f94`
+- canonical upstream selected/default branch: `master`
+- inspected upstream revision: `77ec9be5417ee44c96343d2347145585da1b1f94`
 - QEMU evidence successor: `8253ab2ef6fed22b34fc5f5d6d20cda75c25e2c7`
 - escalation comparison: `615bd4f5256d9851f682e48e037169ceeb7bb98c`
 
@@ -54,14 +55,14 @@ Only the product hunk and a target-native regression belong in a future source b
 | caller-owned group sends TERM to nested in-group work | code review and null/QEMU/sudo controls | Is the group created before every backend launch? |
 | tested responsive groups settle without later work | CI 931/942 | Are claims limited to executed topologies? |
 | ordinary execution remains successful | unsignaled controls | Does the clean target regression retain ordinary success? |
-| current upstream still carries the old lifecycle | source read at `77ec9be5…` | Refresh before publication. |
-| no duplicate public repair found | bounded search on 2026-08-01 | Refresh issue/MR and recent commit search before publication. |
+| inspected upstream revision still carries the old lifecycle | source read at `77ec9be5…` | Refresh `master` immediately before materialization and publication. |
+| no duplicate public repair found | bounded search on 2026-08-01 | Refresh issue/MR, Debian bug, and recent commit search before publication. |
 
 ## Required clean-source review
 
 After target materialization:
 
-1. verify branch ancestry begins at the named current upstream SHA;
+1. verify branch ancestry begins at the refreshed named upstream `master` SHA;
 2. compare complete branch diff against upstream;
 3. confirm Fieldwork vocabulary, receipts, temporary workflows, and research files are absent;
 4. confirm the patch touches only the owning lifecycle path;
@@ -95,7 +96,7 @@ The highest-value questions are:
 ## Clearing conditions for `READY`
 
 - owned target repository/fork exists;
-- clean current-upstream branch exists with exact base and head;
+- clean current-`master` branch exists with exact base and head;
 - complete changed-file list is product-native;
 - retained patch applies cleanly or is recreated directly;
 - target-native focused regression passes;
