@@ -31,7 +31,7 @@ Upstream contact authorized: `no`
 - Owned target fork: `repository admission needed`; the connected account has read-only access to `upstash/box` and no owned Box fork was available
 - Intended clean source branch: `fix/shared-cancellation-request-receipt`
 - Canonical source head: `none — clean target branch unavailable`
-- Retained source candidate: patch SHA-256 `d30874c96f8e39350b9d725c58a6034554c561b073cb04969849ff2778c09e88`
+- Retained source candidate: [ordered exact patch series](./patches/README.md), reconstructed SHA-256 `d30874c96f8e39350b9d725c58a6034554c561b073cb04969849ff2778c09e88`
 - Target-executed Fieldwork carrier head: [`1e7909da440ab631fcea11d4d3777d2bce107277`](https://github.com/teamleaderleo/fieldwork/commit/1e7909da440ab631fcea11d4d3777d2bce107277)
 - Workflow-free carrier head: [`ccaa28e40c5689aec7ad78c7f18c354e9966d7fd`](https://github.com/teamleaderleo/fieldwork/commit/ccaa28e40c5689aec7ad78c7f18c354e9966d7fd)
 - Fieldwork packet branch: `p0/435-unit-27-upstash-box-cancellation-receipt`
@@ -82,7 +82,7 @@ The retained target-executed patch contains 15 unique paths, 471 insertions, and
 | --- | --- | --- | --- |
 | Baseline suppresses request failure, publishes local terminal `cancelled`, and duplicates concurrent requests | `target-executed` | Fieldwork #329; runs `30622339900` and `30623393254` | local mocked target tests only |
 | Shared receipt API passes focused and full TS/Python gates | `target-executed` | run `30642924979`, job `91197101877`, artifact `8798217638` | executed at historical base `b55d832d...` |
-| Retained patch matches receipt hash and contains 15 unique paths | `model-executed` | packet receipt and patch; local SHA/inventory check on 2026-08-01 | patch integrity only |
+| Retained patch matches receipt hash and contains 15 unique paths | `model-executed` | packet receipt and ordered patch series; local SHA/inventory check on 2026-08-01 | patch integrity only |
 | Current relevant source remains byte-continuous from executed base | `source-read` | compare `b55d832d...9f7533c...` | no renewed target execution at current head |
 | Complete TS stream lifecycle preserves server-authoritative status | `target-test-prepared` | required control described in review `4830012327` | control and source repair remain absent |
 | Single-flight applies to remote run identity | `source-read` | constructors accept the same run ID in multiple objects | current candidate supports one in-memory `Run` instance only |
@@ -95,7 +95,7 @@ The retained target-executed patch contains 15 unique paths, 471 insertions, and
 - [Upstream issue draft](./UPSTREAM_ISSUE.md)
 - [Upstream pull-request draft](./UPSTREAM_PR.md)
 - [Review and human inspection guide](./REVIEW.md)
-- [Retained exact target patch](./patches/target-executed-b55d832.patch)
+- [Retained exact target patch series](./patches/README.md)
 - [Retained execution receipt](./receipts/target-executed-b55d832.json)
 
 ## Duplicate and prior-art result
@@ -128,7 +128,7 @@ Complete in this order:
 ## Latest handoff
 
 State: `REPAIR`  
-Exact source head: `none`; retained candidate is patch `d30874c96f8e39350b9d725c58a6034554c561b073cb04969849ff2778c09e88` from carrier head `1e7909da440ab631fcea11d4d3777d2bce107277`  
+Exact source head: `none`; retained candidate is ordered patch series SHA `d30874c96f8e39350b9d725c58a6034554c561b073cb04969849ff2778c09e88` from carrier head `1e7909da440ab631fcea11d4d3777d2bce107277`  
 Exact packet head: see latest #435 handoff  
 Tests: historical target run green; current unit verified receipt JSON, patch SHA, 15-path inventory, 471/27 diff stats, current-source continuity, and prior-art state  
 Temporary machinery remaining: no workflow on workflow-free carrier; old carrier branch and PR #389 remain open research records  
