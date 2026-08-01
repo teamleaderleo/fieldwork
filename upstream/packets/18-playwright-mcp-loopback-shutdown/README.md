@@ -2,56 +2,48 @@
 
 ## In simple words
 
-Playwright MCP exposes an HTTP-only test route that emits `SIGINT` and ends the process. Characterization proved any caller accepted by the configured listener and Host policy can invoke that route with a fixed method and header. A loopback-only repair passed direct controls, then failed a realistic local-proxy discriminator because the proxy's connection appears loopback. An explicit environment capability avoided default exposure while retaining an operator-enabled network shutdown route.
+Playwright MCP exposes an HTTP-only test route that emits `SIGINT` and ends the process. Characterization proved any non-browser caller accepted by listener and Host policy can invoke that route with the fixed method and header. A loopback-only repair passed direct controls, then failed a local-proxy discriminator because the proxy connection appears loopback. An environment capability hid the route by default but retained an operator-enabled network termination primitive.
 
-The selected direction removes the HTTP shutdown route entirely. The spawning Playwright test process requests the existing graceful `SIGINT` path through its private Node IPC channel. The clean current-source candidate also tightens the private message contract to one plain object with exactly two own keys, accepts it once, ignores duplicates and malformed variants, and keeps HTTP serving after IPC disconnect.
+The selected candidate removes the HTTP shutdown route. The spawning Playwright test process requests the existing graceful SIGINT path through its private Node IPC channel. The private message is accepted once only when it is a plain ordinary object with exactly own `type` and `version` keys and exact values. Malformed messages, extension fields, inherited properties, duplicate valid delivery, and IPC disconnect have native controls.
 
 ## Current disposition
 
 `EXECUTE`
 
 Last verified: `2026-08-01`  
-Worker: `OpenAI Codex session for unit 18`  
+Scope: unit 18 only  
 Priority-zero parent: [`teamleaderleo/fieldwork#435`](https://github.com/teamleaderleo/fieldwork/issues/435)  
-Upstream contact authorized: `no`
+Public upstream contact authorized/performed: `no` / `none`
+
+Reason: exact current-head macOS and Windows execution is fully green; Ubuntu 24.04 remains queued before runner allocation. No product failure has appeared. After Ubuntu success or an explicit reviewed carry-forward decision, the contribution route becomes `ISSUE FIRST` under Playwright's current contribution guidance.
 
 ## Contribution
 
-- Target project: `microsoft/playwright`
-- Proposed upstream destination: `microsoft/playwright`, base `main`
+- Target project and proposed destination: `microsoft/playwright`, base `main`
 - Proposed title: `fix(mcp): replace HTTP shutdown route with parent IPC`
-- Contribution synopsis: remove the special `/killkillkill` HTTP route and preserve the cross-platform graceful-shutdown lifecycle test through a one-shot private parent-child IPC message.
+- Synopsis: remove `/killkillkill` from the MCP HTTP transport and preserve the cross-platform graceful-shutdown lifecycle test through a one-shot private parent-child IPC message.
 - Work class: `upstream-fork research`
 
 ## Exact identities
 
-- Previously executed public base: [`368941457a82da112aa8610107e25f4bde94339a`](https://github.com/microsoft/playwright/commit/368941457a82da112aa8610107e25f4bde94339a)
+- Historical executed public base: [`368941457a82da112aa8610107e25f4bde94339a`](https://github.com/microsoft/playwright/commit/368941457a82da112aa8610107e25f4bde94339a)
 - Current public base inspected: [`15b1aec478d90f0293dae7b7b6dafd494d9f0154`](https://github.com/microsoft/playwright/commit/15b1aec478d90f0293dae7b7b6dafd494d9f0154)
-- Current-base relation: two commits ahead of the executed base; changed paths are disjoint from the three-file candidate fence.
-- Owned target fork: `teamleaderleo/playwright`
-- Exact-base branch: `fieldwork/435-unit-18-base-15b1aec@15b1aec478d90f0293dae7b7b6dafd494d9f0154`
-- Canonical source branch: `fix/mcp-parent-ipc-shutdown`
+- Exact-base branch: `teamleaderleo/playwright:fieldwork/435-unit-18-base-15b1aec@15b1aec478d90f0293dae7b7b6dafd494d9f0154`
+- Canonical source branch: `teamleaderleo/playwright:fix/mcp-parent-ipc-shutdown`
 - Canonical source head: `e99e97da2acfc6c1a67749bc749e1d0cb71b5607`
 - Owned source PR: [`teamleaderleo/playwright#40`](https://github.com/teamleaderleo/playwright/pull/40)
-- Fieldwork packet branch: `p0/435-unit-18-playwright-mcp-shutdown`
-- Fieldwork packet head: updated by this packet series; see latest handoff
-- Execution carriers: Fieldwork PRs #405, #410, #414, #416, #419, #423, #425, #430, and #432
-- Superseded source branch: `teamleaderleo/playwright#37`, loopback-only head `a834222d585371636eea7fd013e551fb819d9f7d`
+- Packet branch: `p0/435-unit-18-playwright-mcp-shutdown`
+- Packet PR: [`teamleaderleo/fieldwork#451`](https://github.com/teamleaderleo/fieldwork/pull/451)
+- Current execution carrier: [`teamleaderleo/fieldwork#455@0323aeaadc391575b572e869258e5e1ac3c4652c`](https://github.com/teamleaderleo/fieldwork/pull/455)
+- Current workflow: [`30690674059`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690674059)
+- Superseded loopback source: `teamleaderleo/playwright#37@a834222d585371636eea7fd013e551fb819d9f7d`
 
 ## Current code and tests
 
-### Product code
-
-- [`packages/playwright-core/src/entry/mcp.ts`](https://github.com/teamleaderleo/playwright/blob/e99e97da2acfc6c1a67749bc749e1d0cb71b5607/packages/playwright-core/src/entry/mcp.ts) — installs a one-shot private IPC listener only when the child has a parent channel and accepts one exact plain-object message.
-- [`packages/playwright-core/src/tools/utils/mcp/http.ts`](https://github.com/teamleaderleo/playwright/blob/e99e97da2acfc6c1a67749bc749e1d0cb71b5607/packages/playwright-core/src/tools/utils/mcp/http.ts) — removes the special HTTP shutdown route.
-
-### Target-native tests
-
-- [`tests/mcp/http.spec.ts`](https://github.com/teamleaderleo/playwright/blob/e99e97da2acfc6c1a67749bc749e1d0cb71b5607/tests/mcp/http.spec.ts) — proves the old HTTP request is inert, malformed/private-message variants are inert, the exact message is one-shot, duplicate delivery closes once, IPC disconnect is inert, and the real-browser graceful SIGINT lifecycle remains active.
-
-### Required generated or dependency files
-
-- `not applicable`
+- [`packages/playwright-core/src/entry/mcp.ts`](https://github.com/teamleaderleo/playwright/blob/e99e97da2acfc6c1a67749bc749e1d0cb71b5607/packages/playwright-core/src/entry/mcp.ts) — one-shot strict parent-IPC listener, removed before SIGINT.
+- [`packages/playwright-core/src/tools/utils/mcp/http.ts`](https://github.com/teamleaderleo/playwright/blob/e99e97da2acfc6c1a67749bc749e1d0cb71b5607/packages/playwright-core/src/tools/utils/mcp/http.ts) — special HTTP shutdown branch removed.
+- [`tests/mcp/http.spec.ts`](https://github.com/teamleaderleo/playwright/blob/e99e97da2acfc6c1a67749bc749e1d0cb71b5607/tests/mcp/http.spec.ts) — old request inert, malformed and non-exact messages inert, valid message one-shot, duplicate close once, IPC disconnect inert, and real-browser graceful shutdown retained.
+- Required generated or dependency files: none.
 
 ## Changed-file fence
 
@@ -61,55 +53,59 @@ Upstream contact authorized: `no`
 | `packages/playwright-core/src/tools/utils/mcp/http.ts` | production | yes |
 | `tests/mcp/http.spec.ts` | regression | yes |
 
+Temporary workflows, receipts, Fieldwork files, dependencies, locks, snapshots, and generated output are absent from the target net diff.
+
 ## Evidence summary
 
-| Claim | Evidence class | Exact receipt | Limit |
-| --- | --- | --- | --- |
-| accepted non-loopback HTTP caller could terminate MCP on the historical base | `target-executed` | Fieldwork PR #405, run `30649849111`, job `91220131763`, 3/3 | Ubuntu only; deliberate non-loopback listener and wildcard Host policy |
-| loopback peer checks fail through a local proxy | `integration-executed` | Fieldwork PR #416, run `30656319708`, loopback artifact `8803406788` | Ubuntu local proxy topology |
-| bare parent-owned IPC removes HTTP authority and preserves lifecycle testing | `target-executed` | Fieldwork PR #425, run `30657930500`, 17/17 on Ubuntu/macOS/Windows | exact historical target base |
-| hardened one-shot IPC preserves behavior across platforms | `target-executed` | Fieldwork PR #432, run `30659762667`, 18/18 on Ubuntu/macOS/Windows | validator accepted extension fields at that generation |
-| current-base candidate rejects extra-field and inherited-property messages | `target-test-prepared` | current source head `e99e97d...` | exact current-head execution pending |
+| Claim | Evidence | Current result or limit |
+| --- | --- | --- |
+| accepted non-loopback HTTP caller could terminate MCP | Fieldwork PR #405, run `30649849111`, job `91220131763` | 3/3 passed on Ubuntu with deliberate non-loopback listener/wildcard Host policy |
+| direct loopback identity fails through a local proxy | Fieldwork PR #416, run `30656319708`, job `91241456610` | direct suite 19/19 plus proxy discriminator 1/1 passed; loopback candidate terminated |
+| bare parent IPC works cross-platform | Fieldwork PRs #423/#425, run `30657930500` | 17/17 plus build, browser setup, focused lint, and diff on Ubuntu/macOS/Windows |
+| hardened one-shot IPC works cross-platform | Fieldwork PRs #430/#432, run `30659762667` | 18/18 plus all declared gates on Ubuntu/macOS/Windows; predecessor accepted extension fields |
+| current strict validator works on macOS | carrier #455, run `30690674059`, job `91344705071` | exact source `e99e97d...`; 18/18 in 32.6s; all declared gates passed; artifact `8815562250`, digest `sha256:80a6f32f6b8a560924af3a562c0af5bcc16ee4993cd2fdf05306b3bc67bd2d54` |
+| current strict validator works on Windows | carrier #455, run `30690674059`, job `91344705088` | exact source `e99e97d...`; 18/18 in 34.0s; all declared gates passed; artifact `8815574235`, digest `sha256:804ed03b8a52765366cdec5737cc0f9b3d7f90714b9939b8e613cb39af20bdf4` |
+| current strict validator works on Ubuntu | carrier #455, job `91344705054` | queued before runner allocation; no execution and no product failure yet |
+| full repository CI | none | not run and not claimed |
+
+The previous packet head `7fe2bb3b619e6b1675c260d0304fd262eca71f1f` passed Fieldwork integrity in run `30675345841`. This updated packet must complete a fresh integrity run.
 
 ## Packet navigation
 
 - [Deep dive](./DEEP_DIVE.md)
 - [Approaches](./APPROACHES.md)
-- [Tests and receipts](./TESTS.md)
+- [Tests and retained receipts](./TESTS.md)
+- [Current exact-head execution](./CURRENT_EXECUTION.md)
+- [Canonical source generation](./CURRENT_SOURCE.md)
 - [Upstream issue draft](./UPSTREAM_ISSUE.md)
 - [Upstream pull-request draft](./UPSTREAM_PR.md)
 - [Review and human inspection guide](./REVIEW.md)
 - [Continuation handoff](./HANDOFF.md)
+- [Compact packet status](./PACKET_STATUS.md)
 
 ## Duplicate and prior-art result
 
-- Search date: `2026-08-01`
-- Current upstream source and history checked through public head `15b1aec478d90f0293dae7b7b6dafd494d9f0154`.
-- Prior upstream repair: merged PR `microsoft/playwright#40551`, commit `4a80eed396071d6ed15a74c32723f2bc66849988`, changed the route from GET to POST plus a custom header for browser-CSRF resistance.
-- Equivalent implementation found: `no`
-- Relationship to prior work: complementary authority repair; the prior patch protects against browser-coerced requests, while this unit removes the network shutdown authority used only by the test lifecycle.
+- Checked through public head `15b1aec478d90f0293dae7b7b6dafd494d9f0154` on `2026-08-01`.
+- Prior merged repair `microsoft/playwright#40551`, commit `4a80eed396071d6ed15a74c32723f2bc66849988`, changed the route from GET to POST plus a custom header for browser-CSRF resistance.
+- Equivalent route-removal/parent-IPC implementation found: none in the checked source, history, issues, and pull requests.
+- Relationship: complementary authority repair. The prior patch addresses browser-coerced requests; this candidate removes the test-only network termination authority.
 
-## Remaining work
+## Remaining work in order
 
-Complete in this order:
+1. Complete Ubuntu exact-head execution or record an explicit reviewed carry-forward decision.
+2. Complete Fieldwork integrity at the updated packet head.
+3. Obtain independent complete-diff review and final acceptance.
+4. Squash the seven-commit source history before any authorized submission, then prove exact tree equivalence or rerun declared gates at the resulting head.
+5. Seek Playwright issue approval/assignment only after explicit public-contact authority.
+6. Open no public issue, PR, comment, or reaction without separate explicit authority.
 
-1. Run the complete native `tests/mcp/http.spec.ts` suite, focused ESLint, build, and exact three-file diff checks at current source head `e99e97d...`.
-2. Execute the unchanged current-head candidate on Ubuntu, macOS, and Windows or record an explicit platform carry-forward judgment from the disjoint-base proof.
-3. Perform independent complete-diff review and decide issue-first versus direct PR under the current Playwright contribution policy.
-
-## Blockers and limits
-
-- The current source head has no exact-head execution receipt yet.
-- Playwright requires a corresponding issue and prior approval/assignment for substantive contributions; public upstream contact remains unauthorized.
-- The current branch has a clean three-file net diff; its commit history still requires squash before any submission.
-- Full Playwright repository CI has not run for this candidate.
+Evidence limits: full Playwright repository CI has not run; Node versions outside 22 and non-test parent embeddings remain untested.
 
 ## Latest handoff
 
 State: `EXECUTE`  
 Exact source head: `e99e97da2acfc6c1a67749bc749e1d0cb71b5607`  
-Exact packet head: see issue #435 handoff comment after packet completion  
-Tests: historical 18/18 native suite across Ubuntu/macOS/Windows passed at the hardened predecessor; current exact-head execution pending  
-Temporary machinery remaining: historical Fieldwork execution carriers remain open; no temporary workflow exists on the target source branch  
-Next worker action: execute and review the exact current source head without changing the three-file fence  
+Exact packet head: use the latest `p0/435-unit-18-playwright-mcp-shutdown` head and issue #435 handoff after this packet update  
+Current exact-head tests: macOS 18/18 and Windows 18/18 plus complete build, Chromium, focused ESLint, clean tree, and exact diff; Ubuntu queued before allocation  
+Next action: inspect run `30690674059`, classify Ubuntu separately, transfer its exact receipt if it runs, then move to `ISSUE FIRST` only when the platform gate is cleared  
 Public upstream interaction: none; unauthorized
