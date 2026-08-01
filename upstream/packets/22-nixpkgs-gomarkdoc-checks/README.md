@@ -8,7 +8,7 @@ A full-discovery experiment cleared the selector and ran the broader suite on Li
 
 The clean candidate restores the command-package checks corresponding to the installed program. It uses Go 1.25, recreates the empty config fixture omitted from the release tag, and removes Nix's build-only `-mod=vendor` token before gomarkdoc parses `GOFLAGS` as application flags.
 
-The exact clean head now passes its complete aarch64-darwin package, command-check, installed-help, and version fence. Linux and Fieldwork integrity remain queued.
+The exact clean head passes its complete aarch64-darwin package, command-check, installed-help, and version fence. A clean packet-anchored Linux gate and Fieldwork integrity generation are queued.
 
 ## Current disposition
 
@@ -18,7 +18,7 @@ Last verified: `2026-08-01`
 Priority-zero parent: [`teamleaderleo/fieldwork#435`](https://github.com/teamleaderleo/fieldwork/issues/435)  
 Upstream contact authorized: `no`
 
-Clearing condition: Linux job `91345125742` in run [`30690828310`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828310) must complete the package, command check, help, version, and `nixpkgs-review` gates; a final packet-tip integrity generation must pass; receipts must be transferred; execution carrier #437 must be closed; and an independent reviewer must inspect the final source diff. A fresh public-head rebase and rerun remain required before authorized submission.
+Clearing condition: Linux run [`30691551270`](https://github.com/teamleaderleo/fieldwork/actions/runs/30691551270) must complete the package, command check, help, version, and `nixpkgs-review` gates; integrity run [`30691551312`](https://github.com/teamleaderleo/fieldwork/actions/runs/30691551312) must pass; receipts must be transferred; execution carrier #437 must be closed; and an independent reviewer must inspect the final source diff. A fresh public-head rebase and rerun remain required before authorized submission.
 
 ## Contribution
 
@@ -86,22 +86,28 @@ Run [`30674969557`](https://github.com/teamleaderleo/fieldwork/actions/runs/3067
 
 Receipt: [`receipts/2026-08-01-full-discovery-failure.md`](./receipts/2026-08-01-full-discovery-failure.md).
 
-### Current exact-head command checks
+### Exact-head Darwin receipt
 
-- Carrier PR: [#437](https://github.com/teamleaderleo/fieldwork/pull/437)
-- Carrier head: `c95da0c4b3f460df9bc8f342e98d05345da66df8`
-- Run: [`30690828310`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828310)
-- Carrier integrity: [`30690828341`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828341)
-
-Darwin job `91345125710` completed successfully on macOS 14.8.7 arm64 with Nix 2.35.1 and Go 1.25.12. It verified the exact head and parent, one-file fence, `git diff --check`, selected command check, exactly one gomarkdoc package result, installed help, and version `1.1.0`.
+Darwin job `91345125710` in run [`30690828310`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828310) completed successfully on macOS 14.8.7 arm64 with Nix 2.35.1 and Go 1.25.12. It verified the exact source head and parent, one-file fence, `git diff --check`, selected command check, exactly one gomarkdoc package result, installed help, and version `1.1.0`.
 
 - Artifact: [`8815619734`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828310/artifacts/8815619734)
 - Digest: `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`
 - Size: 5478 bytes; five files
 
-Receipt: [`receipts/2026-08-01-command-checks.md`](./receipts/2026-08-01-command-checks.md).
+### Packet-anchored Linux and integrity gates
 
-Linux job `91345125742` and carrier-integrity job `91345125771` remain queued. The current integrity run was created against the packet base present when carrier head `c95da0c4...` was pushed; a final packet-tip generation remains required after receipt transfer.
+- Carrier PR: [#437](https://github.com/teamleaderleo/fieldwork/pull/437)
+- Packet base: `527021b7ff1535e8be4f27dc3ba7226b559a1630`
+- Carrier head: `178e6388bf06b965970dd3ab7435db9e756a13e4`
+- Carrier fence: one commit changing `.github/workflows/unit-22-gomarkdoc-checks.yml`
+- Linux run: [`30691551270`](https://github.com/teamleaderleo/fieldwork/actions/runs/30691551270), job `91347062784` — queued
+- Integrity run: [`30691551312`](https://github.com/teamleaderleo/fieldwork/actions/runs/30691551312), job `91347062807` — queued
+
+The Linux job asserts the carrier parent, exact source identity, one-file source fence, selected command check, exactly one gomarkdoc package result, installed help, version `1.1.0`, `nixpkgs-review rev HEAD --no-shell`, and artifact upload.
+
+The integrity generation covers packet content through `527021b7ff1535e8be4f27dc3ba7226b559a1630` plus the one-file carrier. Later packet commits are receipt and status reconciliation.
+
+Receipt: [`receipts/2026-08-01-command-checks.md`](./receipts/2026-08-01-command-checks.md).
 
 ## Duplicate and prior art
 
@@ -128,19 +134,19 @@ Search date: `2026-08-01`
 
 ## Remaining work
 
-1. Read the terminal Linux and carrier-integrity results.
+1. Read terminal Linux run `30691551270` and integrity run `30691551312`.
 2. Transfer Linux package/check/help/version/`nixpkgs-review`, artifact, and integrity receipts.
-3. Trigger and retain a final packet-tip integrity generation.
-4. Repair only from a concrete failure.
-5. Close PR #437 after receipt transfer.
-6. Obtain independent complete-diff review.
-7. Rebase onto a fresh public Nixpkgs head and rerun before authorized submission.
-8. Seek explicit authority for public upstream interaction.
+3. Repair only from a concrete failure.
+4. Close PR #437 after receipt transfer.
+5. Obtain independent complete-diff review.
+6. Rebase onto a fresh public Nixpkgs head and rerun before authorized submission.
+7. Seek explicit authority for public upstream interaction.
 
 ## Latest handoff
 
 State: `HOLD`  
 Exact source head: `569c0c4d11e5a14f3fe6237c0a50dc484f80e744`  
 Executed current evidence: aarch64-darwin package, selected command check, installed help, and version passed  
-Pending: x86_64-linux including `nixpkgs-review`, final packet integrity, receipt transfer, carrier closure, independent review, fresh-head execution  
+Queued packet-anchored evidence: x86_64-linux including `nixpkgs-review`, Fieldwork integrity  
+Additional blockers: receipt transfer, carrier closure, independent review, fresh-head execution, public-contact authority  
 Public upstream interaction: none
