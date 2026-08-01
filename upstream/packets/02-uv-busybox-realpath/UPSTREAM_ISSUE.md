@@ -1,46 +1,54 @@
-# Upstream issue draft — BusyBox `realpath` diagnostic in relocatable launchers
+# Upstream issue inputs — BusyBox `realpath` diagnostic in relocatable launchers
 
-Draft status: `not applicable — existing public issue #16209`  
+Status: `existing public issue #16209; duplicate filing rejected`  
 Public interaction authorized: `no`
-
----
 
 ## Existing issue
 
 The canonical public report is [`astral-sh/uv#16209`](https://github.com/astral-sh/uv/issues/16209), “Generated shebang lines output 'realpath: --: No such file or directory'.” It contains an Alpine reproduction, expected and actual output, the BusyBox utility explanation, and the leading-hyphen trade-off.
 
-The issue remained open when checked on 2026-08-01. Its discussion includes maintainer acknowledgement, a suggestion to consider a BusyBox-specific branch, later Alpine reproduction, and a 2026 confirmation that the behavior still occurs in the Alpine image.
+The issue remained open when checked on 2026-08-01. A second issue would duplicate the report.
 
-## Internal issue-first assessment
+## Verified additional evidence
 
-A second public issue would duplicate the existing report. The contribution path should use #16209 as related work and focus human review on the bounded source correction and its compatibility evidence.
+A human may use these facts when deciding whether a comment adds value:
 
-## Additional evidence available for a human-authored comment
+- the generated pattern is owned by wheel and virtualenv source, with an exact project-run recognizer;
+- final source commit `c42973ef0490c75df1c7e7f4e9a54d46c6bca059` changes exactly those three source files;
+- newly generated launchers omit the unsupported utility delimiters;
+- project-run keeps recognizing both corrected and previously generated historical shebangs;
+- `cargo fmt --all --check`, affected-crate compilation, the wheel shebang test, and a direct current/legacy recognizer test pass;
+- GNU, Alpine 3.22 BusyBox, and macOS 15 matrices pass across absolute, relative, PATH, spaces, `./-tool`, and external symlink invocation;
+- BusyBox current cases succeed with the expected diagnostic while corrected cases remain quiet;
+- direct shebang probes on Linux and macOS show shell `$0` is the script path even when caller argv0 is forced to `-tool` or `--help`.
 
-A human may choose to summarize, in their own words:
+## Exact private receipt
 
-- the pattern has three current owners: wheel generation, activation generation, and project-run recognition;
-- a 24-case GNU/BusyBox matrix preserves status, interpreter selection, arguments, spaces, `./-tool`, relative/PATH invocation, and external symlinks;
-- removing the delimiters makes BusyBox quiet and leaves tested GNU behavior unchanged;
-- the synchronized source candidate removes five `realpath --` and seven `dirname --` occurrences across exactly three source files;
-- bare option-like `$0`, macOS, and BSD remain explicit limits.
+- Public source base/current main: `79bbface771210df216b738e9bdc7df95e5a9e6b`
+- Clean private source head: `c42973ef0490c75df1c7e7f4e9a54d46c6bca059`
+- Execution carrier: `teamleaderleo/uv#7@6fbdf4d7fb0ff577f5be24972b1a5bba73111793`
+- Workflow: `30690034279`
+- Linux/source job: `91342987834`
+- macOS job: `91342987814`
+- Publication job: `91343684491`
 
-## Versions and environment
+Private fork and Fieldwork links should stay out of public issue text unless the human author deliberately chooses otherwise.
 
-- public source checked: `79bbface771210df216b738e9bdc7df95e5a9e6b`;
-- Alpine fixture: `alpine:3.22`, BusyBox 1.37.0;
-- GNU fixture: GitHub-hosted Ubuntu 24.04;
-- current execution carrier: `teamleaderleo/uv#5@1e1a66d96b4ef827ef470848cd19c504a6bdd739`.
+## Human comment decision
 
-## Filing checklist
+A public issue comment is optional. A clean pull request referencing #16209 may carry the useful technical evidence without adding another issue message.
+
+Recommended default: keep #16209 untouched until the human author decides a pre-PR comment helps maintainers.
+
+## Checklist
 
 - [x] Current upstream issue search repeated on 2026-08-01.
-- [x] Existing issue found and read with all comments.
+- [x] Existing issue and comments read.
 - [x] Duplicate filing rejected.
-- [x] Severity and prevalence remain bounded.
-- [x] Private and Fieldwork-only links excluded from any proposed public text.
-- [x] Target contribution and AI policies read.
-- [ ] Human author decides whether any comment adds value.
-- [ ] Exact user authorization obtained before any public interaction.
+- [x] Severity and prevalence kept bounded.
+- [x] Final source, migration behavior, platform tests, and option-like `$0` evidence recorded privately.
+- [x] Target contribution and AI policies recorded.
+- [ ] Human author decides whether a public comment adds value.
+- [ ] Explicit authorization obtained before any public interaction.
 
 No public issue comment, reaction, assignment, or other upstream interaction occurred.
