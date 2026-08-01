@@ -4,7 +4,7 @@
 
 The clean source candidate is a one-file Nixpkgs package repair. It preserves command-only installation, restores checks, creates the missing empty fixture, uses Go 1.25 for the retained v1.1.0 golden, keeps Nix's build-only vendor token out of gomarkdoc's application parser, and clears the package selector only before test discovery.
 
-The source and packet repair the earlier coverage claim. The decisive full-discovery Linux and Darwin run remains queued. Unit 22 therefore stays `REPAIR` until exact-head receipts show the root, `lang`, format, command, and version controls.
+The source and packet repair the earlier coverage claim. Exact-head Linux, Darwin, installed-binary, version, Linux `nixpkgs-review`, and Fieldwork-integrity jobs remain queued. The source has no known defect from the completed review; required execution evidence is unavailable, so unit 22 is `HOLD`.
 
 ## Review subject
 
@@ -17,7 +17,11 @@ The source and packet repair the earlier coverage claim. The decisive full-disco
 - Fieldwork packet branch: `p0/435-unit-22-nixpkgs-gomarkdoc-checks`
 - Exact packet head: recorded by the final unit-22 handoff on Fieldwork issue #435
 - Complete changed-file fence: `pkgs/by-name/go/gomarkdoc/package.nix`
-- Execution carrier: Fieldwork PR #437, head `5c9d932276679836547b79a38aaf6b951dbdad02`, run `30674476739`
+- Execution carrier: Fieldwork PR #437, head `b6003f2a3523f01880ff5690798b69afcb4e11f5`
+- Target run: `30674969557`
+- Linux job: `91300175276`
+- Darwin job: `91300175296`
+- Fieldwork integrity run: `30674969559`
 - Reviewed coordination inputs: Fieldwork issue #435, issue #241, PR #265, open Nixpkgs issue #516481
 - Upstream-contact authority: `absent`
 
@@ -44,7 +48,7 @@ The source and packet repair the earlier coverage claim. The decisive full-disco
 
 | Claim or design choice | Evidence class | Evidence | Reviewer question |
 | --- | --- | --- | --- |
-| Go 1.25 is the compatibility toolchain for v1.1.0's checked golden | `target-executed` for old command-package candidate, `source-read` for renewed head | run `30598687251`, exact source diff | Is a versioned builder preferable to carrying a golden-output patch? |
+| Go 1.25 is the compatibility toolchain for v1.1.0's checked golden | `target-executed` for old command-package candidate, `source-read` for renewed head | runs `30598626867` and `30598687251`; exact source diff | Is a versioned builder preferable to carrying a golden-output patch? |
 | removing `-mod=vendor` keeps a build-only option out of gomarkdoc's application parser | `source-read`, old path `target-executed` | `defaultTags()`, issue #516481, old logs | Since the diagnostic is benign, should the token stay for a narrower repair? |
 | `.gomarkdoc-empty.yml` should be synthesized in `preCheck` | `source-read`, old command-package path `target-executed` | v1.1.0 command test, issue #516481, old logs | Should the fixture be carried as a source patch instead? |
 | `subPackages=()` in `preCheck` restores full check discovery without widening installation | `source-read`, `target-test-prepared` | current builder ordering and PR #437 assertions | Does shell-level selector reset fit Nixpkgs Go conventions? |
@@ -56,24 +60,27 @@ The source and packet repair the earlier coverage claim. The decisive full-disco
 - The Go 1.25 pin creates a future upgrade obligation.
 - The empty fixture is reconstructed in the disposable source tree.
 - The `GOFLAGS` token removal is semantic isolation; upstream issue history treats the diagnostic itself as benign.
-- The focused native builds do not provide Hydra, ofborg, merge-queue, or `nixpkgs-review` evidence.
+- The queued focused builds have no terminal receipt and provide no Hydra, ofborg, or merge-queue evidence.
 - The author can prepare and self-review the packet; independent acceptance remains required before promotion.
 
 ## Evidence limits
 
 - Old successful jobs ran only `cmd/gomarkdoc`; they support compatibility claims, not full-suite coverage.
-- Renewed full-discovery execution is queued at run `30674476739`.
-- No local Nix execution was possible in this runtime.
+- Renewed full-discovery execution is queued at run `30674969557`.
+- Installed-binary help, version, and Linux `nixpkgs-review` controls are prepared in that run and unexecuted.
+- Fieldwork integrity run `30674969559` remains queued.
+- No local Nix execution was possible in the available runtime.
 - Public upstream integration requires separate authorization.
 
 ## Staleness check
 
-- Current upstream head checked: `f8e81fc7eb063db454f563cdd596fb96a5ad1497` on 2026-08-01
-- Candidate base relationship: one commit above `55096b0ce13784d4f6420059c5627475fa26ebb1`; five public commits behind checked head
-- Relevant source paths changed since candidate creation: `no`; package and builder blob SHAs are unchanged
+- Public upstream head checked: `f8e81fc7eb063db454f563cdd596fb96a5ad1497` on 2026-08-01
+- Candidate base relationship: one commit above `55096b0ce13784d4f6420059c5627475fa26ebb1`; nine public commits behind the checked head
+- Relevant source paths changed since candidate creation: `no` in the compared public advance
 - Duplicate/overlap search date: `2026-08-01`
 - Open replacement work found: no implementation; issue `NixOS/nixpkgs#516481` owns the regression report
 - Packet and PR draft synchronized: yes, pending terminal execution receipts
+- Submission-time requirement: rebase onto a fresh public head and rerun exact-head gates
 
 ## Source cleanliness
 
@@ -87,14 +94,15 @@ The source and packet repair the earlier coverage claim. The decisive full-disco
 
 ## Test review
 
-- [ ] Intended full-discovery assertion actually ran at source head `94be3956...`.
+- [ ] Intended full-discovery assertion ran at source head `94be3956...`.
 - [x] Baseline/candidate relationship is clear.
 - [x] Setup, product, and coverage-assertion failures are separated.
 - [x] Coverage controls reject the prior one-package result.
 - [x] Compatibility controls cover Go series, `GOFLAGS`, fixture, package discovery, vendor-backed build, and version behavior.
+- [x] Installed binary and Linux `nixpkgs-review` controls are prepared.
 - [x] Platform and integration limits are explicit.
-- [x] Ordinary target gates are named accurately.
-- [ ] Terminal run, job, package-list, and artifact receipts transferred into `TESTS.md`.
+- [ ] Terminal run, job, package-list, review, help, and artifact receipts transferred into `TESTS.md`.
+- [ ] Current Fieldwork-integrity receipt retained.
 
 ## Draft review
 
@@ -108,22 +116,23 @@ The source and packet repair the earlier coverage claim. The decisive full-disco
 
 ## Reviewer disposition
 
-`REPAIR`
+`HOLD`
 
 Reviewed source head: `94be3956403ebf368b9d8262fdc9e5a5d2e80683`  
 Reviewed packet head: final branch tip recorded on issue #435  
-Reason: the source, prior-art framing, coverage claim, and drafts are repaired, while the exact full-discovery Linux/Darwin execution has no terminal receipt.  
-Clearing condition: run `30674476739` must show root, `lang`, format, `cmd/gomarkdoc`, and version success on both platforms; transfer exact jobs and artifacts into the packet; close PR #437; then obtain independent complete-diff review.  
+Reason: source, prior-art framing, coverage claim, and drafts are coherent; required exact-head target and repository-gate execution has no terminal receipt.  
+Clearing condition: run `30674969557` must reach terminal state with root, `lang`, format, `cmd/gomarkdoc`, binary-help, version, and Linux `nixpkgs-review` controls; integrity run `30674969559` must complete or be replaced by a current packet-head run; transfer receipts, close PR #437, and obtain independent complete-diff review.  
 Reviewer eligibility: `self-review only`
 
 ## Continuation-ready guide
 
-1. Inspect run `30674476739`, Linux job `91298756809`, and Darwin job `91298756825`.
-2. On terminal completion, record every gomarkdoc package line, version output, run/job conclusion, artifact ID, digest, size, and expiry in `TESTS.md`.
-3. Classify failures as checkout/setup, Nix installation, source fence, package build, test package, coverage assertion, version, or artifact publication.
-4. If both platforms pass, update all packet files from `REPAIR` to the disposition supported by the receipts, close execution PR #437, and request independent review.
-5. If the matrix stays queued, preserve that exact state; this runtime lacks `nix` and could not retrieve the official installer.
-6. Keep public upstream read-only until exact authorization is granted.
+1. Inspect run `30674969557`, Linux job `91300175276`, Darwin job `91300175296`, and integrity run `30674969559`.
+2. On terminal completion, record every gomarkdoc package line, help result, version output, `nixpkgs-review` result, run/job conclusion, artifact ID, digest, size, and expiry in `TESTS.md`.
+3. Classify failures as checkout/setup, Nix installation, source fence, package build, test package, coverage assertion, binary help, version, `nixpkgs-review`, artifact publication, or Fieldwork integrity.
+4. Repair only from concrete terminal evidence; rerun exact source head after any source change.
+5. Close execution PR #437 after evidence transfer.
+6. Obtain independent review, rebase onto a fresh public Nixpkgs head, and rerun before authorized submission.
+7. Keep public upstream read-only until exact authorization is granted.
 
 ## Human deep-dive guide
 
