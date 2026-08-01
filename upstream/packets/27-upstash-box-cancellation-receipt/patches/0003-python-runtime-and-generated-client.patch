@@ -1,0 +1,201 @@
+diff --git a/packages/python-sdk/upstash_box/__init__.py b/packages/python-sdk/upstash_box/__init__.py
+index 625c965..a539cb2 100644
+--- a/packages/python-sdk/upstash_box/__init__.py
++++ b/packages/python-sdk/upstash_box/__init__.py
+@@ -101,6 +101,7 @@ from .types import (
+     PublicURL,
+     PullRequest,
+     ReasoningChunk,
++    RunCancellationReceipt,
+     RunCost,
+     RunLog,
+     RunOptions,
+@@ -207,6 +208,7 @@ __all__ = [
+     "Runtime",
+     "BoxSize",
+     "RunStatus",
++    "RunCancellationReceipt",
+     "ScheduleStatus",
+     # Response models / chunks
+     "BoxData",
+diff --git a/packages/python-sdk/upstash_box/_async/client.py b/packages/python-sdk/upstash_box/_async/client.py
+index 98817ec..234f74a 100644
+--- a/packages/python-sdk/upstash_box/_async/client.py
++++ b/packages/python-sdk/upstash_box/_async/client.py
+@@ -33,6 +33,7 @@ import httpx
+ from typing_extensions import Unpack
+ 
+ from .. import _common as common
++from .._cancellation import AsyncCancellationCoordinator
+ from ..errors import BoxError
+ from ..types import (
+     Agent,
+@@ -68,6 +69,7 @@ from ..types import (
+     PullRequest,
+     ReasoningChunk,
+     ResponseSchema,
++    RunCancellationReceipt,
+     RunCost,
+     RunLog,
+     RunStatus,
+@@ -136,6 +138,7 @@ class AsyncRun(Generic[T]):
+         self._cached_input_tokens = 0
+         self._total_usd = 0.0
+         self._compute_ms = 0.0
++        self._cancel_coordinator = AsyncCancellationCoordinator[RunCancellationReceipt]()
+         self._start_time = time.time() * 1000
+ 
+     @property
+@@ -176,12 +179,23 @@ class AsyncRun(Generic[T]):
+             total_usd=self._total_usd,
+         )
+ 
+-    async def cancel(self) -> None:
++    async def _request_cancel(self) -> RunCancellationReceipt:
+         try:
+             await self._box._request("POST", f"/v2/box/{self._box.id}/runs/{self._id}/cancel")
+         except Exception:
+-            pass
+-        self._status = "cancelled"
++            return RunCancellationReceipt(
++                request_state="failed",
++                diagnostic="cancellation request failed",
++            )
++        return RunCancellationReceipt(request_state="accepted")
++
++    async def request_cancel(self) -> RunCancellationReceipt:
++        """Return one shared request receipt without claiming a remote outcome."""
++        return await self._cancel_coordinator.run(self._request_cancel)
++
++    async def cancel(self) -> None:
++        """Request cancellation while preserving the legacy None return contract."""
++        await self.request_cancel()
+ 
+     async def logs(self) -> List[RunLog]:
+         all_logs = await self._box.logs()
+diff --git a/packages/python-sdk/upstash_box/_cancellation.py b/packages/python-sdk/upstash_box/_cancellation.py
+new file mode 100644
+index 0000000..68692a5
+--- /dev/null
++++ b/packages/python-sdk/upstash_box/_cancellation.py
+@@ -0,0 +1,45 @@
++"""Runtime-specific at-most-once cancellation request coordination."""
++
++from __future__ import annotations
++
++import asyncio
++import threading
++from concurrent.futures import Future
++from typing import Any, Callable, Coroutine, Generic, Optional, TypeVar
++
++T = TypeVar("T")
++
++
++class AsyncCancellationCoordinator(Generic[T]):
++    """Share one task while isolating it from cancellation of any waiter."""
++
++    def __init__(self) -> None:
++        self._task: Optional[asyncio.Task[T]] = None
++
++    async def run(self, operation: Callable[[], Coroutine[Any, Any, T]]) -> T:
++        if self._task is None:
++            self._task = asyncio.create_task(operation())
++        return await asyncio.shield(self._task)
++
++
++class SyncCancellationCoordinator(Generic[T]):
++    """Share one operation and result across concurrent synchronous callers."""
++
++    def __init__(self) -> None:
++        self._lock = threading.Lock()
++        self._future: Optional[Future[T]] = None
++
++    def run(self, operation: Callable[[], T]) -> T:
++        with self._lock:
++            owner = self._future is None
++            if owner:
++                self._future = Future()
++            future = self._future
++
++        assert future is not None
++        if owner:
++            try:
++                future.set_result(operation())
++            except BaseException as error:
++                future.set_exception(error)
++        return future.result()
+diff --git a/packages/python-sdk/upstash_box/_sync/client.py b/packages/python-sdk/upstash_box/_sync/client.py
+index 4559b3c..b17a69d 100644
+--- a/packages/python-sdk/upstash_box/_sync/client.py
++++ b/packages/python-sdk/upstash_box/_sync/client.py
+@@ -32,6 +32,7 @@ import httpx
+ from typing_extensions import Unpack
+ 
+ from .. import _common as common
++from .._cancellation import SyncCancellationCoordinator
+ from ..errors import BoxError
+ from ..types import (
+     Agent,
+@@ -67,6 +68,7 @@ from ..types import (
+     PullRequest,
+     ReasoningChunk,
+     ResponseSchema,
++    RunCancellationReceipt,
+     RunCost,
+     RunLog,
+     RunStatus,
+@@ -135,6 +137,7 @@ class Run(Generic[T]):
+         self._cached_input_tokens = 0
+         self._total_usd = 0.0
+         self._compute_ms = 0.0
++        self._cancel_coordinator = SyncCancellationCoordinator[RunCancellationReceipt]()
+         self._start_time = time.time() * 1000
+ 
+     @property
+@@ -175,12 +178,23 @@ class Run(Generic[T]):
+             total_usd=self._total_usd,
+         )
+ 
+-    def cancel(self) -> None:
++    def _request_cancel(self) -> RunCancellationReceipt:
+         try:
+             self._box._request("POST", f"/v2/box/{self._box.id}/runs/{self._id}/cancel")
+         except Exception:
+-            pass
+-        self._status = "cancelled"
++            return RunCancellationReceipt(
++                request_state="failed",
++                diagnostic="cancellation request failed",
++            )
++        return RunCancellationReceipt(request_state="accepted")
++
++    def request_cancel(self) -> RunCancellationReceipt:
++        """Return one shared request receipt without claiming a remote outcome."""
++        return self._cancel_coordinator.run(self._request_cancel)
++
++    def cancel(self) -> None:
++        """Request cancellation while preserving the legacy None return contract."""
++        self.request_cancel()
+ 
+     def logs(self) -> List[RunLog]:
+         all_logs = self._box.logs()
+diff --git a/packages/python-sdk/upstash_box/types.py b/packages/python-sdk/upstash_box/types.py
+index cb5c3e7..5444442 100644
+--- a/packages/python-sdk/upstash_box/types.py
++++ b/packages/python-sdk/upstash_box/types.py
+@@ -386,6 +386,15 @@ CodeLanguage = Literal["js", "ts", "python"]
+ RunStatus = Literal["running", "completed", "failed", "cancelled", "detached"]
+ 
+ 
++@dataclass(frozen=True)
++class RunCancellationReceipt:
++    """One local cancellation request observation; remote outcome remains unknown."""
++
++    request_state: Literal["accepted", "failed"]
++    outcome_state: Literal["unknown"] = "unknown"
++    diagnostic: Optional[Literal["cancellation request failed"]] = None
++
++
+ @dataclass
+ class RunCost:
+     input_tokens: int = 0
