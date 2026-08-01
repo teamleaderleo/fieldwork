@@ -34,7 +34,7 @@ The invariant is one cleanup owner after each transition: the invocation owns th
 
 `ExecutionLifecycleService.background()` now returns whether one background claim was accepted. It reserves the execution ID while a synchronous `onBackgroundClaim` callback runs, rejects re-entry, catches callback failure, and revalidates the same resolver and execution object before settling the background result.
 
-A callback that throws or settles/replaces the execution leaves backgrounding rejected and the foreground execution retryable. Background-start listeners run independently after acceptance so one failing listener cannot undo ownership.
+A callback that throws rejects backgrounding and leaves the still-pending foreground execution retryable. Callback activity that settles or replaces the execution also rejects the background claim while preserving that resulting execution state. Background-start listeners run independently after acceptance so one failing listener cannot undo ownership.
 
 ### Shell adapter
 
@@ -119,7 +119,7 @@ The current public-base delta touched none of the changed files. Before submissi
 - [ ] Branch is replayed or rebased directly onto the public head current at submission time; internal merge commit removed from public history.
 - [x] Current owned source diff contains only three product files and three target-native test files.
 - [x] Fieldwork wording, temporary workflows, publishers, receipts, and evidence-only files are absent from the target source diff.
-- [ ] Every changed file independently reviewed at the exact proposed public head.
+- [x] Every changed file received a fresh-instance complete-diff review at exact source head `f754eafde164420b43df5a58861d874cfb73acde`; retained review `teamleaderleo/gemini-cli#19` review `4834163401`.
 - [x] Focused baseline/candidate relationship is retained for the request-intent leak and adversarial claim paths.
 - [ ] Formatter, focused tests, adjacent suites, core build/typecheck, and `npm run preflight` pass at the exact public candidate head.
 - [ ] Current PTY/cancellation/Windows gaps are executed or accepted as bounded follow-up by maintainers.
