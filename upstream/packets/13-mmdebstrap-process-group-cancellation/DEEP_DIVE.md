@@ -1,28 +1,25 @@
 # Unit 13 deep dive
 
-## In simple words
+## Question
 
-`coverage.py` launches one selected backend wrapper per test. A wrapper can own nested shells, pipelines, a QEMU-style foreground operation, or a privileged sudo worker. When SIGINT reaches only the Python driver, terminating the immediate wrapper leaves nested work able to continue. The selected patch creates a dedicated session/process group before backend execution and sends TERM to that complete in-group operation.
+When SIGINT is delivered only to the `coverage.py` driver, does cancellation stop the complete selected backend operation and report a conventional interrupted status?
 
-The mechanism has exact canonical-source focused execution. Under the #435 completion contract, the remaining work is delivery packaging: controlled fork, clean target branch, upstream-native regression, ordinary source gate, and final target-diff review.
+Canonical source terminated only the immediate wrapper and then broke into the ordinary epilogue. Nested work could survive. A status-only correction returned 130 while preserving the survivor defect.
 
-## Canonical source
+## Exact source
 
-- project: mmdebstrap
+- canonical project: mmdebstrap
 - canonical repository: `https://gitlab.mister-muffin.de/josch/mmdebstrap`
-- canonical branch: `main`
-- exact base executed: `77ec9be5417ee44c96343d2347145585da1b1f94`
-- last commit touching `coverage.py`: `c82fc7e261c7a2fd85e499484108408fd42331d2`
-- canonical/imported `coverage.py` blob: `9a522484aef05deae514a98e4b6adf5feb6c886d`
-- canonical `run_null.sh` blob: `e0a8c106f9d3d636baea286d2ab33834748dffc9`
-- canonical `run_qemu.sh` blob: `426aeeb854173569b24e64d6eb85019f45bdf0b6`
-- Debian packaging VCS: `https://salsa.debian.org/debian/mmdebstrap.git`
+- branch/base: `main@77ec9be5417ee44c96343d2347145585da1b1f94`
+- base `coverage.py` blob: `9a522484aef05deae514a98e4b6adf5feb6c886d`
+- clean controlled source: `teamleaderleo/mmdebstrap:linux-fieldwork/unit-11-coverage-backend-cancellation@431614b3af58ba4f70791aa1d42cf5b71c965dd2`
+- candidate `coverage.py` blob: `9e31f21cf37228257b5e0705d9ecb13b7a66e40f`
+- complete clean diff: `coverage.py` only; 8 additions, 3 deletions
+- clean review surface: `teamleaderleo/mmdebstrap#4`
 
-The earlier packet treated Salsa as the canonical source host. Current project records and exact execution identify Forgejo `josch/mmdebstrap` as the proposed contribution destination; Salsa remains packaging context.
+## Source mechanism
 
-## Current behavior and invariant
-
-Canonical source launches and interrupts each backend with:
+Canonical source:
 
 ```python
 proc = subprocess.Popen(argv)
@@ -34,39 +31,7 @@ except KeyboardInterrupt:
     break
 ```
 
-The governing invariant is:
-
-> A cancellation acknowledged by the coverage driver must reach the complete backend operation boundary created by that driver, while ordinary execution preserves the existing result path.
-
-Exit status and operation cancellation are separate. A status-only repair can return 130 while nested work survives.
-
-## Source ownership map
-
-### Entrypoint
-
-`coverage.py` parses `coverage.txt`, selects a backend command, starts one wrapper, waits for it, and owns final suite status.
-
-### Backend wrappers
-
-- `run_null.sh` can create nested shells, `tee`, a status reader, and generated test work.
-- `run_qemu.sh` can create an output follower and foreground `timeout --foreground` operation.
-- `run_null.sh SUDO` can create a sudo command and UID-0 worker.
-
-### Side effects
-
-Surviving descendants can continue writing logs, status files, generated artifacts, package state, mounts, or other outputs after the driver reports cancellation.
-
-## Deterministic distinction
-
-Under SIGINT sent only to the driver PID:
-
-| Variant | Driver result | Responsive nested operation | Later work |
-| --- | ---: | --- | --- |
-| imported baseline | 0 after deliberate release | survives wrapper TERM | yes |
-| status-only predecessor | 130 after deliberate release | survives wrapper TERM | yes |
-| caller-owned group | 130 | TERM reaches and settles tested group | no |
-
-Selected design:
+Selected source:
 
 ```python
 proc = subprocess.Popen(argv, start_new_session=True)
@@ -82,99 +47,100 @@ except KeyboardInterrupt:
     raise SystemExit(130)
 ```
 
-Retained upstream-root patch blob: `f1a2c75adfa009b6f1ac29e5a31bef526400444f`.
+The driver owns the repair because it selects the backend and can establish one operation identity before wrapper code creates shells, pipelines, QEMU-like foreground operations, or privileged workers.
 
-## Why the caller owns the repair
+`start_new_session=True` makes the wrapper session and process-group leader. `proc.pid` therefore identifies the group used by `killpg`.
 
-The caller chooses the backend and can establish one backend-independent operation identity before wrapper code creates descendants. This avoids backend-specific process-tree enumeration.
+`ProcessLookupError` accepts the group disappearing between interruption and delivery. The second wait reaps the wrapper. It does not prove arbitrary resistant-descendant drain.
 
-`start_new_session=True` makes the child both session leader and process-group leader, allowing `proc.pid` to identify the owned group.
+## Deterministic distinction
 
-`ProcessLookupError` covers the race where the group exits before signal delivery.
+| Variant | Parent-only SIGINT result | Nested responsive work | Later work |
+| --- | ---: | --- | --- |
+| imported baseline | 0 after deliberate release | survives wrapper TERM | yes |
+| status-only predecessor | 130 after release | survives wrapper TERM | yes |
+| selected group candidate | 130 | group receives TERM and settles | no |
 
-The second `proc.wait()` reaps the wrapper. It does not prove arbitrary group quiescence; topology-specific tests support settlement only for the tested TERM-responsive groups.
+## Focused target execution
 
-## Canonical delivery packet
+Run `30706007117` on the controlled exact target source:
 
-Linux Fieldwork PR [#401](https://github.com/teamleaderleo/linux-fieldwork/pull/401) is the current durable source package:
+- zero-fuzz patch application;
+- patch-materialized source byte-equal to clean target source;
+- candidate compilation;
+- six-control matrix 6/6 twice;
+- refined null/QEMU-wrapper/passwordless-sudo matrix 14/14 twice;
+- no skips;
+- actual sudo controls;
+- cleanup and immediate rerun.
 
-- branch/head: `upstream/unit-11-coverage-backend-cancellation@d232e4fdd67cf0592e129a60534e984dcbec6bfe`
-- base: `main@6cc74d846c50b9bbb88247e8a128b67e8c174c1e`
-- canonical upstream base executed: `77ec9be5417ee44c96343d2347145585da1b1f94`
-- upstream-root patch blob: `f1a2c75adfa009b6f1ac29e5a31bef526400444f`
-- exact current-source run: `30689911760`
-- exact final packet-head run: `30690101504`
-- internal initiative disposition: `READY FOR AUTHORIZATION`
+Artifacts:
 
-The outer #435 packet keeps `REPAIR` because its `READY` definition additionally requires a clean target branch/head, project ordinary gates, and final clean-target review.
+- `8820336271`, SHA-256 `97eba28273b50dfcf51c32a2fe4cf49aa50da5634a3aaba6b052ad3728ae1ce8`;
+- `8820337503`, SHA-256 `8d72b079fa9e30ee92bdf28cf217e9df3e4ae7a5ffeb7374b76950313bf24614`.
 
-## Exact current-source execution
+## Project-native ordinary source slice
 
-Canonical packet-patch job `91342674259`:
+Run `30706633832`, job `91386769087`:
 
-- canonical/imported source identity: exact;
-- patch application with zero fuzz: success twice;
-- compilation: success;
-- six-control matrix: 6/6 twice;
-- artifact `8815289674`, SHA-256 `25e62dec929f27e628816568d6264f2bee45474c00b00c3c047f53209608ef1d`.
+- native `./coverage.sh help man version` entrypoint;
+- real source checks, `coverage.py` inventory, `run_null.sh`, and shell-template scenarios;
+- first pass 3/3;
+- immediate rerun 3/3;
+- candidate compilation and cleanup;
+- artifact `8820528312`, SHA-256 `13986015aebc37cd3624f5114baa2a599f3c3dccb01e838b367287b2585b8f55`.
 
-Canonical refined-topology job `91342674164`:
+The exact base has an unrelated existing Black failure on canonical `tarfilter` blob `ad776167a8473d5d15dbe22e850f4f6db35cf278`. The successful gate isolates only that exact blob and keeps real Black 26.5.1 enforcement for the changed `coverage.py` and all other checked Python files.
 
-- exact PR #339 regression carrier materialized;
-- canonical wrappers inserted;
-- null/QEMU-wrapper/passwordless-sudo matrix: 14/14 twice;
-- skips: none;
-- actual sudo root-worker controls executed;
-- first pass 3.874 seconds, rerun 3.599 seconds;
-- artifact `8815290820`, SHA-256 `63634782bfd230129238ee71aa60ad83ae5b43dfcf3291123cfdbd0770bdf63e`.
+## Submission-shape decision
 
-Final packet head run `30690101504` passed both canonical jobs.
+The clean contribution is source-only.
 
-## Carrier lineage
+The target suite treats every non-dot `tests/` entry as a `coverage.txt`-indexed shell-template package scenario. A native regression for the outer coverage orchestrator would require recursively constructing and launching a miniature coverage suite, substantially exceeding the size and stability of the product change.
 
-- issue #141 / PRs #143 and #204: status-only predecessor;
-- issue #306 / closed PR #313: selected mechanism development and historical repository execution;
-- closed PRs #332 and #336: superseded carrier repairs;
-- closed PR #339: refined QEMU causal evidence, transferred to PR #401;
-- issue #341 / closed PRs #347 and #353: TERM resistance, repeated SIGINT, publication, and escalation comparison;
-- closed PR #406: duplicate current-main ancestry restack, superseded by PR #401;
-- PR #401: canonical current-source packet and execution.
+The deterministic external reproducer was executed against the exact target source and remains retained with full receipts. A recursive target-native test is a reopen item if independent review or upstream policy requires it.
 
-## Packet model review repair
-
-The original local harness is preserved as `fixtures/local-process-model/harness_original.py`. It depended on `/tmp/unit13-probe` and waited only for the child marker before reading wrapper identity.
-
-The reviewed `harness.py` resolves sibling files through `__file__`, waits for both markers, detects early driver exit, and cleans modeled processes in `finally`. Compilation and replay passed with unchanged output. This changes packet reproducibility only.
-
-## Compatibility and limits
+## Compatibility analysis
 
 Supported by evidence:
 
 - Linux/POSIX process groups;
-- canonical null wrapper;
-- canonical QEMU wrapper with the expensive foreground payload substituted;
+- exact canonical null wrapper;
+- exact canonical QEMU wrapper with expensive payload substituted;
 - actual passwordless sudo path;
-- ordinary unsignaled success;
+- inherited standard descriptors;
+- ordinary source/interface scenarios;
 - cleanup and immediate rerun.
 
-Limits:
+Risks and exclusions:
 
 - descendants can escape with `setsid()` or a new group;
 - TERM-resistant descendants can outlive the wrapper;
-- repeated SIGINT can replace the first result during cleanup;
-- a new session loses controlling-terminal association, so direct `/dev/tty` remains unproved;
-- real QEMU/debvm, prepared mirrors, package operations, and non-Linux execution remain unexecuted;
-- PGID reuse was outside the tests;
-- the full mirror-backed project gate was not run.
+- repeated SIGINT can interrupt cleanup;
+- direct controlling-terminal access remains unproved;
+- PGID reuse was not formally proved impossible;
+- real QEMU/debvm package operations and non-Linux execution remain unexecuted.
 
-Issue #341 demonstrated synthetic TERM-to-KILL sufficiency but supplied no real-backend necessity, grace interval, or acceptable state-loss evidence. Escalation remains outside this unit.
+Issue #341 and closed PRs #347/#353 retain stronger cleanup-policy research. Synthetic TERM-to-KILL sufficiency did not provide real-backend necessity or a justified grace interval. Escalation remains unselected.
 
-## Duplicate and destination result
+## Why the full package matrix is an evidence limit
 
-The canonical unit-11 packet records no visible equivalent public issue or pull request at the time of preparation. Refresh overlap immediately before submission.
+The source change belongs to the outer orchestration boundary, not package extraction, mirror construction, or package-manager semantics. Exact wrapper topology tests distinguish the changed behavior directly, while the native ordinary source slice exercises the actual source-check and dispatch path.
 
-Proposed delivery method: controlled Forgejo fork and pull request. Controlled fork and candidate branch remain absent. Public contact remains unauthorized.
+The full prepared-mirror 283-entry matrix could expand environment coverage but does not add a sharper discriminator for parent-only signal ownership. It remains visible and may be required by independent review or maintainer policy, but is not treated as a current blocker for the narrow source-only unit.
+
+## Carrier and packet routing
+
+- canonical packet: `teamleaderleo/linux-fieldwork#401`;
+- outer packet: `teamleaderleo/fieldwork#439`;
+- clean target review: `teamleaderleo/mmdebstrap#4`;
+- focused runner PR #2: closed after evidence transfer;
+- ordinary runner PR #3: closed after evidence transfer;
+- historical PRs #313 and #339: closed after evidence transfer;
+- duplicate PR #406: closed superseded.
 
 ## Current technical answer
 
-The caller-owned process group is the selected bounded repair. Exact canonical-source focused execution supports the responsive-topology claim. Delivery under #435 remains `REPAIR` until the controlled fork branch, upstream-native regression, ordinary gate, and independent clean-target review exist.
+The caller-owned process group is the selected bounded repair. The clean one-file source diff is ready for eligible independent review.
+
+Unit 13 remains `REPAIR` under #435 only because eligible independent complete-diff acceptance is absent. Public canonical-upstream contact remains unauthorized.
