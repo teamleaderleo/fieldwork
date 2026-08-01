@@ -1,93 +1,62 @@
-# Upstream issue draft — lifecycle fanout can skip opening processors after synchronous failure or mutation
+# Upstream issue draft — lifecycle fanout can skip opening children after mutation or direct synchronous failure
 
-Draft status: `not applicable — direct PR preferred`  
+Draft status: `not applicable — direct PR preferred after repair`  
 Public interaction authorized: `no`
 
-A direct pull request is preferred because the affected behavior, bounded correction, focused tests, and compatibility boundary are already concrete. Retain this issue draft only as a fallback if maintainers request design discussion before code review.
+A direct pull request remains preferable once the owned candidate is repaired. This fallback draft deliberately distinguishes the trace/logs synchronous-invocation defect from the metrics snapshot-only defect.
 
 ---
 
 ## Summary
 
-The trace, logs, and metrics SDK lifecycle aggregators invoke child processors or readers while iterating mutable arrays. A synchronous child throw can stop later invocations before the aggregate promise is built. A child can also remove a later indexed child during iteration, causing the current shutdown or force-flush operation to skip a child that belonged to the opening set.
+Trace, logs, and metrics lifecycle fanout iterates mutable arrays. An earlier child can remove a later indexed child during shutdown or force flush, causing the current operation to skip a child that belonged to its opening set.
 
-This can leave an opening processor or reader without its lifecycle call.
+Trace and logs additionally invoke processor lifecycle methods directly while constructing promise inputs. A synchronous processor throw can stop construction before later opening processors are invoked.
+
+Metrics already calls async `MetricCollector` lifecycle methods, so synchronous reader throws already become rejected promises. Metrics needs stable opening membership, not an extra synchronous safe-call layer.
 
 ## Reproduction
 
-1. Configure two child processors or readers.
-2. Make the first child synchronously throw, or remove the second child from the backing collection during `shutdown()` or `forceFlush()`.
-3. Invoke the aggregate lifecycle method and count calls to the second child.
+1. Configure two processors or readers.
+2. Make the first remove the second from the backing collection during shutdown or force flush.
+3. Invoke the aggregate lifecycle method.
+4. Observe that live indexed iteration can skip the removed opening child.
 
-Minimal pattern:
-
-```ts
-const children = [first, second];
-first.shutdown = () => {
-  children.splice(1, 1);
-  return Promise.resolve();
-};
-
-await aggregate.shutdown();
-assert.equal(secondShutdownCalls, 1);
-```
-
-Equivalent controls apply to synchronous throws and to force flush across trace, logs, and metrics.
-
-## Observed behavior
-
-At commit `2c931bf4eec18a234a28706567c6977f08139abd`, the affected entrypoints iterate live arrays and invoke child methods directly while constructing promise inputs. A synchronous throw stops later construction. Live indexed mutation can remove a later child before iteration reaches it.
+For trace and logs, a second control makes the first processor throw synchronously and verifies whether the later opening processor is invoked.
 
 ## Expected behavior
 
-A lifecycle aggregate should attempt every child present when the operation starts. Mutations during the operation should affect future operations while leaving current opening membership stable. Existing package-specific error behavior should remain unchanged.
-
-## Current source observation
-
-The relevant entrypoints are:
-
-- `MultiSpanProcessor.shutdown()` and `forceFlush()`;
-- `MultiLogRecordProcessor.shutdown()` and `forceFlush()`;
-- `MeterProvider.shutdown()` and `forceFlush()`.
-
-They use eager promise fanout but do not combine an opening snapshot with synchronous invocation protection.
+A lifecycle aggregate should attempt every child present when the operation begins. Mutation during the call should affect future operations while leaving current opening membership stable. Existing package-specific error behavior should remain unchanged.
 
 ## Candidate direction
 
-Take a shallow copy of the child array before the first invocation, then invoke every snapshot entry through a helper that converts synchronous throws into rejected promises. Continue using `Promise.all` and preserve each package's current outward error policy.
+- Trace and logs: copy the opening processor array and convert direct synchronous throws into rejected promises before applying the existing `Promise.all` policy.
+- Metrics: copy the opening collector array and continue calling the existing async collector lifecycle methods directly.
 
-## Compatibility and risks
+## Compatibility and limits
 
-- One shallow array allocation occurs per affected shutdown or force-flush call.
-- Future operations continue to observe mutations to the original collections.
-- The proposal keeps first-rejection behavior; it does not aggregate every asynchronous child error.
 - Public APIs and method signatures remain unchanged.
-
-## Evidence limits
-
+- Future operations continue to observe mutations to the original collections.
+- Existing eager concurrency and first-rejection behavior remain.
+- The proposal does not aggregate every asynchronous child error.
 - Production frequency and ecosystem prevalence are unmeasured.
-- No extreme child-count performance benchmark has been run.
-- Delayed lifecycle recursion, one-shot shutdown state, final metrics collection, and span delivery after shutdown starts are separate questions.
+- Delayed recursion, one-shot shutdown state, final metrics collection, and retry semantics remain separate.
 
-## Versions and environment
+## Versions and evidence
 
-- project commit: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- platform: repository-supported GitHub Actions matrix;
-- runtime/compiler: repository-declared versions;
-- relevant configuration: two processors or readers with a synchronous throw or backing-array mutation in the first child.
-
-## Additional context
-
-Historical lifecycle work includes span-processor force-flush support in PR #802. Searches for an existing stable-opening lifecycle fanout repair found no equivalent current issue or pull request as of 2026-08-01.
+- Reviewed project commit: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- Owned candidate head reviewed: `641528c9786f7d027fef4f4a76ae685f7107d394`;
+- Repository workflow matrix: all named groups passed on the owned candidate;
+- Complete-diff result: candidate requires metrics narrowing before filing.
 
 ---
 
 ## Filing checklist
 
+- [ ] Metrics source repaired to snapshot-only and every claim synchronized.
+- [ ] Repaired exact head passes the complete required workflow set.
+- [ ] Eligible independent complete-diff review accepts the repaired head.
 - [ ] Current upstream issue and PR search repeated immediately before filing.
-- [ ] Reproduction works on a current public revision.
-- [x] Severity and prevalence wording stays within evidence.
-- [x] Private, internal, or evidence-only links removed from the public draft.
-- [ ] Target issue template and contribution policy rechecked at filing time.
-- [ ] AI disclosure handled according to current project policy.
-- [ ] Exact user authorization to file this issue recorded.
+- [ ] Changelog packaging completed using a real PR number.
+- [ ] Target contribution and AI-disclosure policies rechecked.
+- [ ] Exact user authorization to file recorded.
