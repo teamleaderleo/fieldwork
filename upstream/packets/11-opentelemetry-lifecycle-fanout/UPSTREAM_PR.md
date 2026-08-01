@@ -9,62 +9,63 @@ Public interaction authorized: `no`
 
 ## Summary
 
-- Snapshot the processors or collectors present when shutdown or force flush begins.
-- Prevent direct synchronous trace/log processor throws from stopping later opening invocations.
-- Preserve eager fanout, existing package-specific error behavior, and mutation for future operations.
+- Attempt every processor or collector present when shutdown or force flush begins.
+- Protect direct trace/log processor calls from synchronous throws.
+- Clear `TracerProvider.forceFlush()` timeouts when a processor throws synchronously.
+- Preserve eager fanout, existing error behavior, and future collection mutation.
 
 ## Problem
 
-The trace, logs, and metrics lifecycle aggregates iterate mutable child arrays while starting lifecycle calls. A first child can remove a later indexed child before iteration reaches it, causing an opening child to be skipped.
+Several lifecycle entrypoints iterate live child arrays while starting work. An earlier child can remove a later opening child before its index is reached.
 
-Trace and logs invoke processors directly. A processor that throws before returning its declared promise also interrupts construction of later promise inputs.
+`MultiSpanProcessor` and `MultiLogRecordProcessor` directly call child methods, so a synchronous throw can stop later invocation. Public `TracerProvider.forceFlush()` performs a separate processor fanout instead of delegating to `MultiSpanProcessor.forceFlush()`; its synchronous-throw path also leaves the already-armed timeout pending.
 
-Metrics differs: `MeterProvider` invokes async `MetricCollector` methods, so reader throws are already converted into rejected promises. Metrics only needs the opening snapshot.
+Metrics calls async `MetricCollector` methods, so metrics needs only the opening snapshot.
 
 ## Change
 
-- `MultiSpanProcessor`: copy the opening processor array and protect direct lifecycle calls with an eager try/catch helper. Keep the original outer promise and global-error-handler structure.
-- `MultiLogRecordProcessor`: copy the opening processor array and protect direct calls while keeping timeout wrapping unchanged.
-- `MeterProvider`: copy the opening collector array and call the existing async collector methods directly.
-- Add focused shutdown and force-flush tests for direct throws where applicable and live removal in all three packages.
+- snapshot `MultiSpanProcessor` shutdown/force-flush targets and protect direct calls;
+- snapshot `TracerProvider.forceFlush()` targets, catch synchronous call/then failures, clear the timeout, and retain the existing result-array rejection model;
+- snapshot log processor targets and protect direct calls without moving timeout wrapping;
+- snapshot metric collectors and call their async lifecycle methods directly;
+- add focused aggregate/provider/logs/metrics tests.
 
 ## Behavior retained
 
-- trace shutdown rejects;
-- trace force flush reports through `globalErrorHandler` and resolves;
+- trace aggregate shutdown rejects;
+- trace aggregate force flush reports globally and resolves;
+- trace provider force flush rejects with its collected error/result array;
 - logs and metrics reject;
-- child calls start eagerly before awaiting aggregate completion;
-- original collections remain mutable for future operations;
-- `Promise.all` retains first-rejection behavior.
+- calls begin eagerly;
+- future operations observe collection mutation;
+- first-rejection/result semantics remain.
 
 ## Tests
 
-Exact repaired head: `1b7609141e87ad226e64bb0238ef602e76812896`.
+Exact clean head: `59f83f889bed06a951d458556b2e7e1695cbea10`.
 
-Queued repository workflows:
+Queued workflows:
 
-- Unit Tests `30693695553`;
-- E2E Tests `30693695548`;
-- Lint `30693695562`;
-- Bundler tests `30693695536`;
-- W3C Trace Context Integration `30693695557`;
-- Ensure API Peer Dependency `30693695533`;
-- CodeQL Analysis `30693695552`;
-- Zizmor GitHub Actions Security Analysis `30693695550`.
-
-The previous clean head passed the complete named set. The repaired head must pass independently before this draft is ready.
+- Unit `30694080939`;
+- E2E `30694080935`;
+- Lint `30694080925`;
+- Bundler `30694080933`;
+- W3C `30694080910`;
+- API peer dependency `30694080929`;
+- CodeQL `30694080926`;
+- Zizmor `30694080955`.
 
 ## Compatibility
 
-- public API/types: unchanged;
-- allocation: one shallow list copy per lifecycle call;
-- timing: existing eager start and package error policies retained;
-- migration: none;
-- rollback: revert the six-file patch.
+- API/types unchanged;
+- one shallow list copy per affected operation;
+- provider timeout cleanup changes only the obsolete synchronous-failure timer;
+- no migration;
+- revert the one-commit eight-file patch to roll back.
 
 ## Changelog packaging
 
-Target guidance requires behavior changes in both changelogs. After an authorized public PR number exists, add entries under Unreleased Bug Fixes using the repository's current link format, for example:
+After an authorized public PR number exists, add Unreleased Bug Fix entries:
 
 ```md
 <!-- root CHANGELOG.md -->
@@ -74,33 +75,23 @@ Target guidance requires behavior changes in both changelogs. After an authorize
 * fix(sdk-logs): attempt every opening lifecycle processor [#PR](https://github.com/open-telemetry/opentelemetry-js/pull/PR) @teamleaderleo
 ```
 
-Final wording should be checked against maintainer preference; do not invent a number on the owned validation carrier.
-
-## Alternatives
-
-- Safe-call over live arrays still permits removal-based skipping.
-- A metrics safe-call duplicates the existing async collector boundary.
-- Microtask deferral changes eager start ordering.
-- Permanent freezing changes future membership.
-- Sequential awaiting changes concurrency/latency.
-- Settle-all aggregation changes outward error semantics.
+Final wording and subject grouping remain maintainer-reviewable; do not invent a PR number on the owned carrier.
 
 ## Limits
 
-This patch does not provide settle-all error aggregation, child idempotence, retry, cancellation, final metrics collection, delayed recursion handling, or post-shutdown telemetry admission changes.
+No settle-all aggregation, cancellation, retry, idempotence, final metric collection, delayed recursion, or post-shutdown admission changes.
 
 ---
 
 ## Submission checklist
 
-- [x] exact source is based directly on current public main `2c931bf4...`;
-- [x] six target source/test files only;
+- [x] one commit directly on current public main;
+- [x] four production and four test files only;
+- [x] public trace provider force-flush path included;
 - [x] metrics narrowed to snapshot-only;
-- [x] trace outer promise/error-handler structure retained;
-- [x] trace test global handler cleanup repaired;
-- [ ] exact repaired-head matrix passes;
-- [ ] eligible independent complete-diff review accepts the repaired head;
-- [ ] ten contents-API commits are squashed;
-- [ ] root and experimental changelog entries are added with the real PR number;
-- [ ] duplicate/current-main and policy checks are repeated at filing time;
-- [ ] explicit public-contact authorization is recorded.
+- [x] global handler test cleanup repaired;
+- [ ] exact final-head matrix passes;
+- [ ] independent complete-diff review accepts the exact head;
+- [ ] root and experimental changelog entries added with real PR number;
+- [ ] duplicate/current-main and policies refreshed at filing time;
+- [ ] explicit public-contact authorization recorded.
