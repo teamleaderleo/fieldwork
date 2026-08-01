@@ -1,73 +1,70 @@
-# Handoff — Unit 11: snapshot lifecycle targets before concurrent fanout
+# Handoff — Unit 11: stabilize lifecycle fanout targets
 
 ## Current disposition
 
-`HOLD — source repair complete`
+`HOLD — clean successor validating`
 
-The bounded repair is applied. The exact repaired head is running its complete repository workflow set. Independent acceptance, source-history cleanup, changelog packaging, final current-main/duplicate refresh, and public-contact authority remain open.
+The supported-path repair is complete and clean. Exact-head workflows are queued. Independent acceptance, changelog packaging, final staleness checks, and public-contact authority remain open.
 
 ## Exact identities
 
-- public upstream base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- owned source branch: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout`;
-- exact repaired source head: `1b7609141e87ad226e64bb0238ef602e76812896`;
-- validation carrier: `teamleaderleo/opentelemetry-js#18`;
+- public base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- canonical source branch: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout-v2`;
+- exact clean source head: `f4910b355d12895edf25372444f76d4def08901c`;
+- validation carrier: `teamleaderleo/opentelemetry-js#19`;
+- superseded carrier: closed PR #18 and branch `upstream/unit-11-lifecycle-fanout`;
 - packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout`;
 - packet path: `upstream/packets/11-opentelemetry-lifecycle-fanout/`;
 - exact packet head: record in issue #435 after the final packet write.
 
 ## Repair completed
 
-1. Metrics keeps opening `.slice()` snapshots but maps directly to async `MetricCollector.shutdown()` / `forceFlush()`.
-2. Metrics synchronous-throw tests were removed; mutation tests remain as reversing controls.
-3. Trace retains safe-call and snapshot behavior but restores the baseline outer `new Promise` / `globalErrorHandler` scaffolding.
-4. Trace test cleanup now installs `loggingErrorHandler()` rather than the factory function.
-5. Packet and validation PR claims now distinguish trace/log direct-call behavior from the metrics async boundary.
-6. Public main was rechecked and remained identical to the pinned base.
-7. Open public issue/PR searches found no replacement contribution during the repair pass.
+1. `MultiSpanProcessor` snapshots opening processors and protects direct shutdown/force-flush calls.
+2. Public `TracerProvider.forceFlush()` snapshots its own fanout targets and routes synchronous throws through existing timeout/error cleanup.
+3. `MultiLogRecordProcessor` snapshots opening processors and protects direct calls without changing timeout wrapping.
+4. Trace test cleanup installs `loggingErrorHandler()` correctly.
+5. Metrics was removed: provider collector mutation required private-state access and no supported public path was established.
+6. Public main remained identical to the pinned base and refreshed overlap searches found no replacement contribution.
+7. Successor history was collapsed to one commit.
 
 ## Final source boundary
 
-- trace: snapshot plus eager direct-call protection;
-- logs: snapshot plus eager direct-call protection and unchanged timeout wrapping;
-- metrics: snapshot only;
-- six source/test files;
-- no workflows, dependency files, generated output, publishers, or research residue.
-
-The source compare is ahead 10, behind 0. The ten commits are contents-API writes and should be squashed before authorized filing.
+- three production files and three target-native tests;
+- trace aggregate, public trace provider, and logs only;
+- no metrics, workflows, dependency/lock files, generated output, publishers, or research residue;
+- source relation ahead 1, behind 0.
 
 ## Current exact-head validation
 
-Queued on source head `1b7609141e87ad226e64bb0238ef602e76812896`:
+Queued on `f4910b355d12895edf25372444f76d4def08901c`:
 
-- Unit Tests `30693695553`;
-- E2E Tests `30693695548`;
-- Lint `30693695562`;
-- Bundler tests `30693695536`;
-- W3C Trace Context Integration `30693695557`;
-- Ensure API Peer Dependency `30693695533`;
-- CodeQL Analysis `30693695552`;
-- Zizmor GitHub Actions Security Analysis `30693695550`.
+- Unit `30694264703`;
+- W3C `30694264710`;
+- Bundler `30694264711`;
+- API peer dependency `30694264708`;
+- CodeQL `30694264717`;
+- E2E `30694264735`;
+- Zizmor `30694264748`;
+- Lint `30694264729`.
 
-The prior exact head passed all named groups, but those receipts are superseded for promotion by source movement.
+No successor-head pass is claimed until these settle. Earlier green receipts are historical only.
 
 ## Changelog packaging
 
-Target contribution guidance requires:
+Target guidance requires:
 
-- root `CHANGELOG.md` Unreleased Bug Fixes entry for sdk-trace/sdk-metrics;
-- `experimental/CHANGELOG.md` Unreleased Bug Fixes entry for sdk-logs.
+- root `CHANGELOG.md` Unreleased Bug Fix entry for sdk-trace;
+- `experimental/CHANGELOG.md` Unreleased Bug Fix entry for sdk-logs.
 
-`UPSTREAM_PR.md` preserves draft wording. Final entries must use the real upstream PR number and current link format.
+Draft wording is preserved in `UPSTREAM_PR.md`. Final entries require the real authorized upstream PR number.
 
 ## Continuation steps
 
-1. Refresh the eight repaired-head workflow conclusions and inspect any failure at job/log level.
-2. If all pass, update `TESTS.md`, `REVIEW.md`, `README.md`, this handoff, PR #18, and issue #435 with exact success receipts.
-3. Obtain eligible independent complete-diff review of `1b760914...`; self-review is not final acceptance.
-4. Squash the source commit series before public submission.
-5. Repeat current-main, duplicate/overlap, contribution-policy, and AI-disclosure checks immediately before filing.
-6. After explicit authorization and a real upstream PR number, add both changelog entries and update all identities.
+1. Refresh all successor workflow conclusions and inspect any failure at job/log level.
+2. If all pass, update packet receipts, PR #19, and issue #435 with exact results.
+3. Obtain eligible independent complete-diff review of `f4910b355...`; self-review is not final acceptance.
+4. Repeat current-main, duplicate/overlap, contribution-policy, and AI-disclosure checks immediately before filing.
+5. After explicit authorization and a real upstream PR number, add both changelog entries and update all identities.
 
 ## Contact boundary
 
