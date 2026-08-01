@@ -2,7 +2,7 @@
 
 ## In simple words
 
-A direct pull request is preferred because the behavior is reproduced, the owning code path is narrow, and the repair has target-native regression coverage. This file retains standalone issue text in case Vite maintainers prefer discussion before source review.
+A direct pull request is preferred because the behavior is reproduced, the owning code path is narrow, the repair has target-native regression coverage, and the source packet is ready for independent review. This file retains standalone issue text only in case Vite maintainers prefer discussion before source review.
 
 ## Route
 
@@ -10,11 +10,11 @@ A direct pull request is preferred because the behavior is reproduced, the ownin
 
 Reason:
 
-- the failure follows directly from current watcher control flow;
+- the failure follows directly from inspected watcher control flow;
 - a deterministic Vite-native reproduction exists;
 - the change is two files with no public API addition;
 - the proposed behavior extends the error-isolation intent of merged PR #22188;
-- the remaining work is execution and review, not an unresolved product-design choice.
+- the remaining transition is independent acceptance and authorization, not an unresolved product-design choice.
 
 ## Optional issue title
 
@@ -67,7 +67,7 @@ The same policy should apply to change, add, and unlink.
 
 Settle every environment-level `watchChange` notification, log each rejection, then continue the existing event-specific Vite path.
 
-This can remain local to the dev server watcher orchestration and preserve generic plugin hook ordering and success-path behavior.
+This can remain local to the dev-server watcher orchestration and preserve generic plugin hook ordering and success-path behavior.
 
 ### Compatibility
 
@@ -75,21 +75,25 @@ This changes the failure path only. A plugin rejection no longer suppresses late
 
 ### Tests
 
-A focused regression can require:
+A focused regression requires:
 
 - exact error logging;
 - change-path cache invalidation and refreshed virtual-module content;
 - add/create continuation into `hotUpdate`;
 - unlink/delete continuation into `hotUpdate`.
 
+The retained candidate includes and has executed those controls.
+
 ## Publication notes
 
 Before posting:
 
-- replace shorthand `#22188` with the target repository's preferred reference style if needed;
-- confirm the final public base and Vite version;
+- use the target repository's preferred reference style for #22188;
+- refresh the final public base and Vite version;
+- repeat duplicate and contribution-policy checks;
 - include only public-repository reproduction details;
 - remove this route note and every Fieldwork reference;
-- confirm whether Vite's current AI-contribution policy requires disclosure.
+- confirm whether Vite's current AI-contribution policy requires disclosure;
+- obtain explicit authority for the exact public interaction.
 
 Public posting remains unauthorized.
