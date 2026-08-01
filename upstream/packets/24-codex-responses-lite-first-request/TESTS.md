@@ -1,166 +1,209 @@
 # Tests and receipts — unit 24 Responses Lite first request after prewarm
 
-## In simple words
+## Exact identities
 
-The retained three-file source has one executed historical receipt and one current-source CI attempt. Historical execution proved the exact file fence, both isolated client state controls, and the full-agent request assertion with a larger Tokio worker stack. The same full-agent assertion overflowed the default worker stack, which is recorded as a runner/runtime discriminator.
+### Current source
 
-The clean current source at `2c3f21d38056d2d77215cd9dce820a680d11cfe8` has entered ordinary repository CI through draft PR [`teamleaderleo/codex#130`](https://github.com/teamleaderleo/codex/pull/130). Its inspected `repo-checks` failure comes from a stale manifest-feature exception for `codex-rs/code-mode/Cargo.toml`, outside this unit's three-file fence. Several current jobs remain red or incomplete and need classification. The three exact current-head controls remain unexecuted.
+- Public-source parent: `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`
+- Candidate head: `9fd4ba575de8dd77bc411362256591ce9e7d8c82`
+- Canonical branch: `teamleaderleo/codex:fix/responses-lite-first-request`
+- Canonical draft PR: `teamleaderleo/codex#130`
+- Compare: one commit, exactly three files, `+301/-1`
 
-## Identity
+### Historical executed source
 
-- Exact public upstream base: `670f69416bf91c5dfd8b58669e78050b584ff053`
-- Exact current candidate head: `2c3f21d38056d2d77215cd9dce820a680d11cfe8`
-- Exact historical source base: `e6cfd40c3f444aadd6017c9eeab01db70f48961a`
-- Exact historical source head: `e520da008366cd720ef58fa0b489efc0a2867e97`
-- Exact historical execution carrier head: `40a56eefce26ea647a65779faeb783d65a84a49a`
-- Historical test date: `2026-07-30`
-- Current CI date: `2026-08-01`
-- Environment and platform: GitHub Actions; historical exact controls on Linux; current blocking CI spans Linux, macOS, and Windows
+- Base: `e6cfd40c3f444aadd6017c9eeab01db70f48961a`
+- Head: `e520da008366cd720ef58fa0b489efc0a2867e97`
+- Execution carrier: `40a56eefce26ea647a65779faeb783d65a84a49a`
+- Workflow run: `30584165709`
+- Job: `91011486628`
+- Date: `2026-07-30`
 
-## Claim-to-evidence matrix
+### Fresh current-head execution
 
-| Claim | Evidence class | Test or source | Result | Coverage limit |
-| --- | --- | --- | --- | --- |
-| Source candidate changes exactly three intended files | target-executed | [`run 30584165709`, job `91011486628`](https://github.com/teamleaderleo/codex/actions/runs/30584165709/job/91011486628), `FIELDWORK_LITE_SOURCE_FENCE=3/3` | pass | historical source `e520da...` |
-| First generated Lite request is full and later continuation uses the generated response | target-executed | `responses_lite_reuses_generated_response_after_full_first_turn` in the same job | pass | historical source `e520da...` |
-| Failed first generation retries the same full request | target-executed | `responses_lite_retries_full_first_turn_after_failed_generation` in the same job | pass | historical source `e520da...` |
-| Full agent path emits the complete current request after prewarm | target-executed | `websocket_first_responses_lite_turn_sends_exact_current_request_after_startup_prewarm` in the same job | default stack exit `101`; 16 MiB exit `0` | stack overflow limits ordinary-runner evidence |
-| Current source is a clean direct child of current public base | source-read | [`670f694...2c3f21d`](https://github.com/teamleaderleo/codex/compare/670f69416bf91c5dfd8b58669e78050b584ff053...2c3f21d38056d2d77215cd9dce820a680d11cfe8) | one commit; three files; `+301/-1` | execution renewal pending |
-| Current ordinary CI includes a repository-wide manifest failure outside the unit fence | full-gate | [`run 30674311295`, job `91298276097`](https://github.com/teamleaderleo/codex/actions/runs/30674311295/job/91298276097) | fail in `verify_cargo_workspace_manifests.py` for `codex-rs/code-mode/Cargo.toml` exception | other current red jobs need separate classification |
+- Execution-only PR: `teamleaderleo/codex#135`
+- Carrier branch: `fieldwork/435-unit-24-exec-9fd4ba5`
+- Carrier head: `fb77d59b2f5d07cebee889851a476ebab57c9e45`
+- Workflow run: `30690825055`
+- Job: `91345120846`
+- Date: `2026-08-01`
+- Status at this packet revision: queued for a hosted runner
 
-## Baseline characterization
+## Changed-file fence
 
-### Source and fixture
-
-The baseline path at `670f694...` retains the generic response-chain preparation state and no unit-specific control that severs the untraced warmup response before the first generated Lite request. The candidate tests observe outbound request JSON through the repository WebSocket fixture.
-
-### Assertions
-
-- warmup uses `generate=false`;
-- warmup input starts with a nonempty `additional_tools` manifest;
-- first generated request omits `previous_response_id`;
-- first generated input carries the complete current prefix and user input;
-- second generated turn uses `previous_response_id = resp-1` and only the incremental suffix;
-- retry after a failed first generation omits `previous_response_id` and repeats the complete request.
-
-### Result
-
-- status: source-characterized; candidate tests supply the behavioral discriminator
-- test count: three target-native tests in the candidate
-- baseline failure-on-old-head: not executed as a standalone current-head negative control
-- coverage limit: current public base was inspected; exact current baseline/candidate A/B execution remains open
-
-## Candidate-focused tests
-
-### Exact source fence
-
-- Exact source head: `e520da008366cd720ef58fa0b489efc0a2867e97`
-- Workflow: [`30584165709`](https://github.com/teamleaderleo/codex/actions/runs/30584165709)
-- Assertion: changed files equal:
-  - `codex-rs/core/src/client.rs`
-  - `codex-rs/core/tests/suite/agent_websocket.rs`
-  - `codex-rs/core/tests/suite/client_websockets.rs`
-- Result: `FIELDWORK_LITE_SOURCE_FENCE=3/3`
-- Coverage limit: historical exact source
-
-### Focused client controls
-
-- Exact source head: `e520da008366cd720ef58fa0b489efc0a2867e97`
-- Command family:
+Expected source files:
 
 ```text
-cargo test -p codex-core --test all --locked <resolved-full-test-name> -- --exact --nocapture
+codex-rs/core/src/client.rs
+codex-rs/core/tests/suite/agent_websocket.rs
+codex-rs/core/tests/suite/client_websockets.rs
 ```
 
-- Tests:
-  - `responses_lite_reuses_generated_response_after_full_first_turn`
-  - `responses_lite_retries_full_first_turn_after_failed_generation`
-- Result: each test passed; aggregate marker `FIELDWORK_LITE_CLIENT_EXACT=2/2`
-- Coverage limit: local WebSocket fixture on historical source
+The current compare from `ee0247...` to `9fd4ba...` is one commit and exactly these three files. Public drift from the prior parent `670f694...` to `ee0247...` did not touch them.
 
-### Full-agent request identity
+## Behavioral controls
 
-- Exact source head: `e520da008366cd720ef58fa0b489efc0a2867e97`
-- Test: `websocket_first_responses_lite_turn_sends_exact_current_request_after_startup_prewarm`
-- Result: default worker stack aborted with stack overflow, exit `101`; `RUST_MIN_STACK=16777216` passed, exit `0`; aggregate marker `FIELDWORK_LITE_AGENT=default:101;large:0`
-- Failure classification: runner/runtime stack pressure in the broader agent path; focused client controls passed under the ordinary runner
-- Coverage limit: ordinary default-stack full-agent acceptance remains absent
+### 1. Full first generation, then generated-response continuation
 
-### Current clean-head CI
+Test suffix:
 
-- Exact source head: `2c3f21d38056d2d77215cd9dce820a680d11cfe8`
-- Draft PR: [`teamleaderleo/codex#130`](https://github.com/teamleaderleo/codex/pull/130)
-- Blocking run: [`30674311295`](https://github.com/teamleaderleo/codex/actions/runs/30674311295)
-- Inspected results:
-  - `cargo-deny`: pass
-  - `codespell`: pass
-  - blob size policy: pass
-  - changed-area detection: pass
-  - repository manifest check: fail on `codex-rs/code-mode/Cargo.toml` stale exception, outside this unit fence
-  - several Bazel, SDK, and Windows jobs: red or incomplete at inspection; exact cause unclassified here
-- Coverage limit: ordinary CI does not replace the three exact current-head test commands
+```text
+responses_lite_reuses_generated_response_after_full_first_turn
+```
 
-## Ordinary repository gates
+Assertions:
 
-| Gate | Exact command or workflow | Result | Notes |
-| --- | --- | --- | --- |
-| format | current PR `rust-ci / Format / etc` | queued at inspection | historical workflow performed formatting before the source fence |
-| lint | blocking CI Bazel clippy jobs | mixed/incomplete | Windows red; Linux/macOS incomplete at inspection |
-| typecheck or compile | blocking CI Bazel build/test jobs | mixed/incomplete | several platform jobs red or running |
-| focused package tests | `cargo test -p codex-core --test all --locked <exact test> -- --exact --nocapture` | historical 2/2 client pass; current head pending | full-agent requires stack discriminator |
-| complete target-declared suite | blocking CI `30674311295` | red/incomplete | one inspected failure is outside unit fence |
-| build or generated output | Bazel release verification | mixed/incomplete | no generated files in unit |
-| platform matrix | blocking CI Linux/macOS/Windows | mixed/incomplete | current failures need per-job classification |
+- prewarm and first generation use one WebSocket connection;
+- the first generated request has no `previous_response_id`;
+- the first generated input equals the complete warmup input for the direct client fixture;
+- the following turn uses `previous_response_id = resp-1`;
+- the following turn sends only the new suffix and no `additional_tools` item.
 
-## Reversing controls
+Historical result: pass.
 
-- behavioral control: first generated request has no warmup `previous_response_id` and carries complete input
-- compatibility control: post-generation continuation uses `resp-1` and sends only the new suffix
-- failure-path control: failed first generation retries the same complete request without warmup state
-- isolation control: exact three-file fence excludes planner, Code Mode, manifests, workflows, and generated output
+### 2. Failed first generation retries the complete request
 
-## Soak, leak, and cleanup controls
+Test suffix:
 
-- iterations: one success sequence and one failure/retry sequence per focused test
-- resources observed: WebSocket handshakes and captured request bodies
-- timers/tasks/processes/files/listeners before and after: no dedicated leak accounting
-- cancellation or interruption behavior: no dedicated cancellation test
-- immediate rerun result: historical exact tests ran once in the retained receipt
+```text
+responses_lite_retries_full_first_turn_after_failed_generation
+```
 
-## Setup and harness failures
+Assertions:
 
-| Attempt | Failure | Classification | Product claim affected? | Repair or stop |
-| --- | --- | --- | --- | --- |
-| historical full-agent default stack | Tokio worker stack overflow | runner/runtime | limits full-agent ordinary-runner acceptance; does not erase 2/2 client result | rerun at 16 MiB passed; retain discriminator |
-| current `repo-checks` job `91298276097` | stale manifest exception for `codex-rs/code-mode/Cargo.toml` | base/repository gate outside unit fence | no direct product contradiction | record and avoid modifying unrelated file |
-| current Windows/Bazel/SDK red jobs | cause not fully inspected | unclassified | unknown | classify before promotion |
+- first generation sends no warmup predecessor;
+- the synthetic first-generation failure closes the first connection;
+- retry opens a new connection;
+- retry sends no `previous_response_id`;
+- retry input and model match the failed complete request.
 
-## Checks prepared but not executed
+Historical result: pass.
 
-- [`websocket_first_responses_lite_turn_sends_exact_current_request_after_startup_prewarm`](https://github.com/teamleaderleo/codex/blob/2c3f21d38056d2d77215cd9dce820a680d11cfe8/codex-rs/core/tests/suite/agent_websocket.rs) — execute on current head under default and 16 MiB worker stacks
-- [`responses_lite_reuses_generated_response_after_full_first_turn`](https://github.com/teamleaderleo/codex/blob/2c3f21d38056d2d77215cd9dce820a680d11cfe8/codex-rs/core/tests/suite/client_websockets.rs) — execute exactly on current head
-- [`responses_lite_retries_full_first_turn_after_failed_generation`](https://github.com/teamleaderleo/codex/blob/2c3f21d38056d2d77215cd9dce820a680d11cfe8/codex-rs/core/tests/suite/client_websockets.rs) — execute exactly on current head
+### 3. Full-agent request identity after startup prewarm
 
-## Platform and integration gaps
+Test suffix:
 
-- live Responses Lite provider path
-- proxy and reconnect behavior outside the repository fixture
-- long-running WebSocket soak
-- ordinary full-agent pass with default worker stack
-- complete current Linux/macOS/Windows gate classification
+```text
+websocket_first_responses_lite_turn_sends_exact_current_request_after_startup_prewarm
+```
 
-## Cleanup receipt
+Assertions:
 
-- Temporary workflows removed from canonical source head: `yes`
-- Publisher or execution-only files removed: `yes`
-- Generated residue checked: current source diff has none
-- Immediate rerun performed: `no` on current clean head
-- Remaining temporary branches or PRs: owned draft source PR `#130`; historical execution PR `#58`; accidental Fieldwork branch `tmp-do-not-use` created during packet work and awaiting deletion because the available connector exposes no branch-delete action
+- warmup uses `generate=false`;
+- warmup begins with a nonempty `additional_tools` manifest;
+- first generated request omits `previous_response_id` and top-level `tools`;
+- generated input starts with the exact warmup input and appends the submitted user message;
+- model, reasoning, and parallel-tool settings match.
+
+Historical result:
+
+```text
+FIELDWORK_LITE_AGENT=default:101;large:0
+```
+
+The default Tokio worker stack overflowed. The same assertion passed with `RUST_MIN_STACK=16777216`. This is retained as a runner/runtime discriminator and not presented as a product repair.
+
+## Historical receipt
+
+The authoritative historical workflow recorded:
+
+```text
+FIELDWORK_LITE_SOURCE_FENCE=3/3
+FIELDWORK_LITE_CLIENT_EXACT=2/2
+FIELDWORK_LITE_AGENT=default:101;large:0
+```
+
+Coverage limit: exact behavior was executed on source `e520da...`, not the current source head.
+
+## Fresh exact-head workflow
+
+Execution carrier `teamleaderleo/codex#135` is deliberately separate from the clean source PR. It runs these steps against immutable source head `9fd4ba...`:
+
+1. verify the carrier parent equals the source head;
+2. verify the source parent equals `ee0247...`;
+3. verify the carrier changes one workflow file only;
+4. verify the source changes the exact three-file fence;
+5. run `cargo fmt --all -- --check`;
+6. resolve each exact test name from `cargo test -- --list`;
+7. run the two exact client controls;
+8. run the full-agent control on default and 16-MiB stacks;
+9. require the 16-MiB run to pass and require any default failure to contain a stack-overflow signature;
+10. run `RUST_MIN_STACK=33554432 just test -p codex-core`;
+11. run `just fix -p codex-core`;
+12. require a clean worktree and `git diff --check`.
+
+Expected markers:
+
+```text
+FIELDWORK_LITE_CURRENT_SOURCE_FENCE=3/3
+FIELDWORK_LITE_CURRENT_FORMAT=PASS
+FIELDWORK_LITE_CURRENT_CLIENT_EXACT=2/2
+FIELDWORK_LITE_CURRENT_AGENT=default:<status>;large:0
+FIELDWORK_LITE_CURRENT_CORE_RAISED_STACK=PASS
+FIELDWORK_LITE_CURRENT_FIX=PASS
+FIELDWORK_LITE_CURRENT_WORKTREE=CLEAN
+```
+
+Any failure is to be inspected and classified. Source-attributable failures require a source repair and a new exact run; setup or repository-baseline failures remain recorded with their limits and do not terminate the unit.
+
+## Ordinary repository CI
+
+### Previous clean-head attempt
+
+On predecessor head `2c3f21d38056d2d77215cd9dce820a680d11cfe8`:
+
+- v8-canary passed;
+- format, cargo-deny, codespell, blob-size policy, changed-area detection, and cargo-shear checks passed;
+- repository manifest verification failed on a stale exception for `codex-rs/code-mode/Cargo.toml`, outside the unit fence;
+- additional Bazel, SDK, macOS, and Windows jobs were red, cancelled, or incomplete and were not used as a focused unit receipt.
+
+The unit continued by rebasing to the newer public parent and creating an exact execution carrier rather than modifying unrelated manifest or platform files.
+
+### Current source CI
+
+Automatic runs were created for source head `9fd4ba...`:
+
+- v8-canary run `30690616645`;
+- blocking-ci run `30690616756`.
+
+At this packet revision both were queued. Their results will be classified after completion. The exact execution workflow remains the authoritative focused receipt.
+
+## Prior-art controls
+
+- Generic warmup wire compression is intentional under merged `openai/codex#23581`; the unit predicate must remain Responses Lite-specific.
+- Responses Lite input-item identity was introduced by merged `openai/codex#27946`; the first-generated full-input assertions test that contract.
+- No equivalent public implementation was found in refreshed issue, PR, and code searches on `2026-08-01`.
+
+## Reversing and isolation controls
+
+- Non-Lite isolation: `use_responses_lite` is required by the production predicate.
+- Warmup isolation: the candidate branch is inactive when `warmup` is true.
+- Post-generation compatibility: later continuation uses `resp-1` and the suffix only.
+- Failure recovery: failed first generation retries full on a new connection.
+- Reconnect cleanup: existing connection replacement clears all response-chain state.
+- Source isolation: no planner, tool-registration, manifest, workflow, generated, lock, or snapshot file in the source diff.
+
+## Gaps outside the current claim
+
+- live provider deployment and proxy behavior;
+- production prevalence;
+- long-running WebSocket soak and dedicated leak accounting;
+- cancellation during the first generated Lite request;
+- root cause of broad agent-test worker-stack pressure;
+- full cross-platform repository acceptance where baseline jobs remain unhealthy.
+
+## Cleanup state
+
+- Canonical source contains no execution workflow: yes.
+- Superseded execution PR `#133`: closed.
+- Superseded execution branch `fieldwork/435-unit-24-exec-2c3f21d`: repointed to the clean current source head.
+- Rebase materialization PR `#134`: merged internally.
+- Temporary rebase destination branch `fix/responses-lite-first-request-ee0247`: repointed to the exact public-source parent.
+- Current execution PR `#135`: open until receipt transfer, then close and repoint its branch to the clean source head.
+- Fieldwork branch `tmp-do-not-use`: still cannot be deleted through the available connector; it points at retained packet history and remains an explicit cleanup item.
 
 ## Current test judgment
 
 `REPAIR`
 
-Reason: the selected source remains coherent and its historical exact controls passed, while the clean current head still lacks the three exact focused executions and complete classification of its current ordinary CI failures.
-
-Clearing condition: execute all three exact tests on `2c3f21d38056d2d77215cd9dce820a680d11cfe8`, retain the default-versus-large stack discriminator for the agent test, and obtain a complete-diff review that finds no source blocker.
+Reason: the source and review are coherent, and current exact execution is actively queued. The next disposition will be based on the completed run and failure classification, not on queue state or unrelated repository failures.
