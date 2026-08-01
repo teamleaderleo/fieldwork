@@ -2,7 +2,7 @@
 
 ## In simple words
 
-The failure and predecessor repair have run inside Vite. The current source head is rebased onto public main and adds dedicated add/unlink controls. Zizmor has passed at the current head; the ordinary CI matrix remains queued at this packet revision.
+The failure and predecessor repair have run inside Vite. The current source head is rebased onto public main and adds dedicated add/unlink controls. Current-head Zizmor and the CI lint job passed; the six cross-platform Build&Test jobs remain queued at this packet revision.
 
 ## Evidence classes
 
@@ -29,9 +29,10 @@ Inspected at `e6b6b167afa0a80548829d1f24a0712f9194389a`:
 - [`server/index.ts`](https://github.com/vitejs/vite/blob/e6b6b167afa0a80548829d1f24a0712f9194389a/packages/vite/src/node/server/index.ts): change/add/unlink await environment `watchChange` through `Promise.all` before later Vite work; listener catches log the escaped rejection.
 - [`server/moduleGraph.ts`](https://github.com/vitejs/vite/blob/e6b6b167afa0a80548829d1f24a0712f9194389a/packages/vite/src/node/server/moduleGraph.ts): change invalidation clears cached transform results; delete processing removes importer relations.
 - [`server/hmr.ts`](https://github.com/vitejs/vite/blob/e6b6b167afa0a80548829d1f24a0712f9194389a/packages/vite/src/node/server/hmr.ts): `hotUpdate` receives create/delete/update types after the watcher worker reaches HMR.
+- [`server/pluginContainer.ts`](https://github.com/vitejs/vite/blob/e6b6b167afa0a80548829d1f24a0712f9194389a/packages/vite/src/node/server/pluginContainer.ts): `watchChange` is asynchronous and awaits `hookParallel`; synchronous hook throws reach server orchestration as rejected environment promises.
 - [`CONTRIBUTING.md`](https://github.com/vitejs/vite/blob/e6b6b167afa0a80548829d1f24a0712f9194389a/CONTRIBUTING.md): pnpm setup, build, unit, serve, build-mode, and bundled-development commands.
 
-Result: source confirms the failure path remains present on current public main.
+Result: source confirms the failure path remains present on current public main, and the selected `Promise.allSettled` boundary covers synchronous hook throws plus asynchronous rejections.
 
 ## Runtime reproduction
 
@@ -52,13 +53,14 @@ Rejecting-hook assertions:
 - HMR is skipped;
 - next transform still contains `alpha`.
 
-Execution result recorded in Fieldwork #25:
+Execution result recorded in Fieldwork #25 and Fieldwork PR #48:
 
 - target-native reproduction passed on Ubuntu with Node 20, 22, 24, and 26;
 - passed on macOS with Node 24;
 - passed on Windows with Node 24;
 - lint, formatting, typecheck, docs, unit, serve, and bundled-development checks passed for the research change;
-- one broad Windows production-build HMR/SSR timeout was classified as unrelated to the focused result.
+- one broad Windows production-build HMR/SSR timeout was classified as unrelated to the focused result;
+- the original browser-encoded direct transform request was corrected to the plugin-facing virtual ID before accepting the runtime result.
 
 Evidence class: target-executed reproduction with a stated broad-matrix limit.
 
@@ -101,7 +103,7 @@ Exact file: [`watchChange-error-isolation.spec.js`](https://github.com/teamleade
 
 ### Change case
 
-Prepared assertions:
+Assertions:
 
 - initial virtual transform contains `alpha`;
 - rejecting `watchChange` error reaches the configured logger;
@@ -113,7 +115,7 @@ This case is semantically retained from the executed predecessor test after curr
 
 ### Add case
 
-Prepared assertions:
+Assertions:
 
 - watcher add maps to `watchChange` event `create`;
 - exact rejection reaches the logger;
@@ -122,7 +124,7 @@ Prepared assertions:
 
 ### Unlink case
 
-Prepared assertions:
+Assertions:
 
 - watcher unlink maps to `watchChange` event `delete`;
 - exact rejection reaches the logger;
@@ -131,21 +133,50 @@ Prepared assertions:
 
 The add/unlink cases were added in commit [`a2ab7ca6183ad74d64066d6706e57a546e355224`](https://github.com/teamleaderleo/vite/commit/a2ab7ca6183ad74d64066d6706e57a546e355224).
 
-Evidence class at packet creation: prepared on the current exact head, pending CI execution.
+Evidence class at this packet revision: prepared on the current exact head, pending Build&Test execution. The current-head CI lint job compiled the repository but did not execute these unit assertions.
 
 ## Current-head workflows
 
 Exact source: `a2ab7ca6183ad74d64066d6706e57a546e355224`
 
-| Workflow | Run | Status at this packet revision | Claim |
+| Workflow | Run | Current result | Claim |
 | --- | --- | --- | --- |
 | Zizmor | [`30674314445`](https://github.com/teamleaderleo/vite/actions/runs/30674314445) | success | current-head workflow-security check passed |
-| CI | [`30674314447`](https://github.com/teamleaderleo/vite/actions/runs/30674314447) | queued | no current-head CI result yet |
+| CI | [`30674314447`](https://github.com/teamleaderleo/vite/actions/runs/30674314447) | partial | changed-files and lint jobs passed; six Build&Test jobs queued |
 | Preview release | [`30674314449`](https://github.com/teamleaderleo/vite/actions/runs/30674314449) | skipped | expected for this internal source PR; no product claim |
 
-## Commands required for direct focused renewal
+### Completed CI jobs
 
-Run from the Vite repository root at the final exact source head:
+- `Get changed files`, job [`91298285131`](https://github.com/teamleaderleo/vite/actions/runs/30674314447/job/91298285131): success.
+- `Lint: node-24, ubuntu-latest`, job [`91298285154`](https://github.com/teamleaderleo/vite/actions/runs/30674314447/job/91298285154): success.
+
+The lint job completed these named steps successfully at the exact current head:
+
+1. checkout;
+2. pnpm installation;
+3. Node 24 setup;
+4. dependency installation;
+5. repository build;
+6. lint;
+7. formatting check;
+8. typecheck;
+9. documentation tests;
+10. workflow-file checks.
+
+Evidence class: current-head ordinary job execution for those named checks. This partial CI result does not establish the unit-test, serve, build-mode, bundled-development, macOS, or Windows claims owned by the queued Build&Test jobs.
+
+### Queued Build&Test jobs
+
+- Linux Node 20: `91298369819`
+- Linux Node 22: `91298369798`
+- Linux Node 24: `91298369795`
+- Linux Node 26: `91298369809`
+- macOS Node 24: `91298369799`
+- Windows Node 24.15: `91298369805`
+
+## Commands for direct focused renewal
+
+Run from the Vite repository root at the final exact source head when the ordinary jobs do not provide an unambiguous focused receipt:
 
 ```sh
 corepack enable
@@ -160,34 +191,31 @@ Use the exact package-manager version declared by Vite's `packageManager` field.
 
 ## Ordinary gates to inspect
 
-The current CI workflow should establish the exact jobs it runs. At minimum, inspect:
+The remaining current CI jobs should establish:
 
 - supported Node unit-test matrix;
 - macOS and Windows unit coverage;
-- lint;
-- formatting;
-- typecheck;
-- documentation checks;
 - serve-mode integration tests;
 - build-mode integration tests;
 - bundled-development tests;
-- package build.
+- package build paths assigned to Build&Test.
 
 A job failure must be classified as product, test, fixture, setup, runner, unrelated baseline, or packaging before changing source.
 
-## Checks prepared but unexecuted at this packet revision
+## Checks prepared or still unexecuted at this packet revision
 
 - current-head direct focused Vitest command;
-- current-head direct formatter and ESLint commands;
 - stronger add public-file bookkeeping assertion;
 - stronger unlink graph-relation assertion;
 - explicit multiple-environment/multiple-rejection logging control;
 - independent exact-head review.
 
+The direct formatter and ESLint commands were not run as separate local commands at this head; equivalent repository CI steps passed in job `91298285154`.
+
 ## Evidence limits
 
-- The predecessor test executed only the change case; add/unlink source controls are current-head additions.
-- Workflow success should be reported only for jobs that actually complete at the exact final head.
+- The predecessor test executed only the change case; add/unlink source controls are current-head additions awaiting Build&Test execution.
+- The successful current-head lint job covers its named checks only.
 - Add/unlink hook reachability proves continuation into HMR, not every downstream state mutation.
 - The reproduction establishes a stale virtual transform; it does not measure prevalence or production impact.
 - Any source-head movement expires the current workflow and review fence.
