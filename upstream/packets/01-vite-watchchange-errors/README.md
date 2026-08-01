@@ -60,6 +60,7 @@ The helper is shared by change, add, and unlink. Generic plugin hook scheduling,
 - Current-base replay carrier: [`teamleaderleo/vite#15`](https://github.com/teamleaderleo/vite/pull/15), squash commit [`5f513983f155a1bb59671b5eb9bc78b76f4ad889`](https://github.com/teamleaderleo/vite/commit/5f513983f155a1bb59671b5eb9bc78b76f4ad889)
 - Add/unlink controls: [`a2ab7ca6183ad74d64066d6706e57a546e355224`](https://github.com/teamleaderleo/vite/commit/a2ab7ca6183ad74d64066d6706e57a546e355224)
 - Current exact-head self-review: [`teamleaderleo/vite#4` comment `5148481573`](https://github.com/teamleaderleo/vite/pull/4#issuecomment-5148481573)
+- Immutable packet receipt: [`receipts/current-head-2026-08-01.md`](./receipts/current-head-2026-08-01.md)
 
 ## Duplicate and prior-art result
 
@@ -94,6 +95,7 @@ Current-head workflow runs:
 - [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md) — issue-first disposition and optional issue text
 - [`UPSTREAM_PR.md`](./UPSTREAM_PR.md) — polished upstream pull-request draft
 - [`REVIEW.md`](./REVIEW.md) — exact-head review and human inspection guide
+- [`receipts/current-head-2026-08-01.md`](./receipts/current-head-2026-08-01.md) — compact immutable current-head receipt
 
 ## Remaining work in strict order
 
