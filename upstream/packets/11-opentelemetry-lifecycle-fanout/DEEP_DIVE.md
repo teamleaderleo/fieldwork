@@ -1,122 +1,119 @@
 # Deep dive — Unit 11: snapshot lifecycle targets before concurrent fanout
 
-## In simple words
-
-Trace, logs, and metrics all build lifecycle fanout from mutable child arrays. If an earlier child removes a later array entry, live indexed iteration can skip a child that belonged to the operation when it began.
-
-Trace and logs also invoke user-controlled lifecycle methods directly while constructing the promise list. A synchronous throw there can stop construction before later processors are invoked. Metrics is different: `MetricCollector` lifecycle methods are already async wrappers, so synchronous reader throws already become rejected promises before control returns to `MeterProvider`.
-
-The correct bounded direction is therefore:
-
-- trace and logs: opening snapshot plus synchronous safe-call;
-- metrics: opening snapshot only.
-
 ## Governing invariant
 
-> A lifecycle aggregate attempts every child in its opening membership set while preserving package-specific outward failure behavior and future membership mutation.
+A lifecycle aggregate attempts every child present when the operation begins, while preserving the package's existing outward failure policy and allowing collection mutations to affect later operations.
 
-## Reviewed source boundary
+## Exact subject
 
-- Public base: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- Candidate head: `641528c9786f7d027fef4f4a76ae685f7107d394`;
-- Trace entrypoints: `MultiSpanProcessor.shutdown()` and `forceFlush()`;
-- Logs entrypoints: `MultiLogRecordProcessor.shutdown()` and `forceFlush()`;
-- Metrics entrypoints: `MeterProvider.shutdown()` and `forceFlush()`;
-- Metrics async boundary: `MetricCollector.shutdown()` and `forceFlush()`.
+- upstream repository: `open-telemetry/opentelemetry-js`;
+- current public main and reviewed base: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- repaired owned source: `1b7609141e87ad226e64bb0238ef602e76812896`;
+- source branch: `upstream/unit-11-lifecycle-fanout`;
+- changed-file fence: three production files and three target-native test files.
 
-## Failure models
+## Call-chain analysis
 
-### Live-array mutation — all three packages
+### Trace
 
-1. The aggregate begins mapping the mutable child array.
-2. The first child removes a later indexed child from that same backing array.
-3. Array iteration reaches the shortened array and skips the removed opening child.
-4. That child receives no lifecycle call for the current operation.
+`MultiSpanProcessor` directly invokes `SpanProcessor.forceFlush()` and `SpanProcessor.shutdown()` while constructing its promise array. Type declarations promise `Promise<void>`, but arbitrary implementations can throw before returning. A direct throw exits the loop before later processors are invoked.
 
-A shallow copy before the first invocation fixes this while leaving the original collection mutable for future operations.
+The processor array is retained from the constructor, so external mutation of the same array can also remove a later indexed processor during the current loop.
 
-### Synchronous throw — trace and logs
+Repair:
 
-1. The aggregate directly invokes a child while constructing `Promise.all` inputs.
-2. The child throws before returning a promise.
-3. Mapping aborts immediately.
-4. Later opening processors are never invoked.
+1. shallow-copy `_spanProcessors` before the first child call;
+2. invoke each direct child through a local eager try/catch helper;
+3. retain the original outer promise and `globalErrorHandler` scaffolding.
 
-A small safe-call helper converts the throw into a rejected promise, allowing mapping to finish before `Promise.all` applies the existing package-specific error policy.
+### Logs
 
-### Synchronous throw — metrics baseline already safe
+`MultiLogRecordProcessor` directly invokes `LogRecordProcessor.forceFlush()` and `shutdown()`. The same direct-throw mechanism applies. Its processor array is public, making live mutation an explicit runtime possibility.
 
-`MeterProvider` calls `MetricCollector.shutdown()` or `forceFlush()`. Those methods are async and await the underlying reader. If the reader throws synchronously, the async method returns a rejected promise rather than throwing through the `MeterProvider` map. Later collectors are therefore already invoked on the baseline.
+Repair:
 
-This means the metrics-local `callLifecycle()` helper in the reviewed candidate is redundant. The metrics production repair should retain only the snapshot.
+1. shallow-copy `processors`;
+2. call each processor through the eager helper;
+3. keep force-flush timeout wrapping unchanged.
 
-## Package-specific result model
+### Metrics
 
-| Package | Current outward policy | Required implementation |
-| --- | --- | --- |
-| trace shutdown | reject | snapshot + safe-call + `Promise.all` |
-| trace force flush | report one failure through `globalErrorHandler`, then resolve | snapshot + safe-call + existing handler path |
-| logs shutdown/force flush | reject | snapshot + safe-call + existing timeout behavior |
-| metrics shutdown/force flush | reject | snapshot; existing async collector boundary already normalizes reader throws |
+`MeterProvider` invokes `MetricCollector.shutdown()` and `forceFlush()`. Those collector methods are already `async` and await the reader internally. A reader that throws synchronously causes the collector async function to return a rejected promise; it does not throw out of `MeterProvider`'s mapping callback. Later collectors are already attempted on the baseline.
 
-## Exact-head execution
+The collector method does execute synchronously until its first await. A reader can mutate the live shared collector array during that prefix, causing a later collector to be skipped by live indexed mapping.
 
-All current repository workflow groups passed at candidate head `641528c9786f7d027fef4f4a76ae685f7107d394`:
+Repair:
 
-- Unit `30674494793`;
-- E2E `30674494785`;
-- Lint `30674494830`;
-- Bundler `30674494832`;
-- W3C `30674494799`;
-- API peer dependency `30674494801`;
-- CodeQL `30674494779`;
-- Zizmor `30674494823`.
+1. shallow-copy `metricCollectors`;
+2. map the snapshot directly to the existing async collector methods;
+3. do not add another safe-call helper.
 
-The pass proves the current candidate executes successfully, not that every line is necessary. Complete-diff review is what exposed the redundant metrics helper.
+## Why the helper is eager
 
-## Tests and evidence classification
+The retained helper is:
 
-- Trace/logs synchronous-throw controls: reversing regressions.
-- Trace/logs/metrics live-removal controls: reversing regressions.
-- Metrics synchronous-throw controls: baseline compatibility controls; they should not be used to claim a metrics source defect.
-- Trace force-flush global-handler control: compatibility control.
+```ts
+function callLifecycle(callback: () => Promise<void>): Promise<void> {
+  try {
+    return callback();
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+```
 
-## Selected repair
+Using `Promise.resolve().then(callback)` would also convert throws, but would defer invocation to a microtask. The direct try/catch preserves the existing eager start order while allowing promise-list construction to continue.
 
-1. Keep the trace and logs source and focused tests as currently designed.
-2. In `MeterProvider.ts`, keep `.slice()` for shutdown and force flush.
-3. Remove the metrics-local safe-call helper and map directly to the async collector lifecycle methods.
-4. Keep the metrics mutation tests.
-5. Reclassify or remove metrics throw tests.
-6. Rerun the complete exact-head workflow set and obtain independent review.
+## Trace compatibility refinement
 
-## Compatibility analysis
+The earlier clean generation rewrote trace force flush to `Promise.all(...).then(success, failure)`. Although focused tests showed equivalent behavior, the rewrite was unnecessary. The repaired head restores the baseline structure:
 
-- Public API: unchanged.
-- Future membership mutation: preserved because only the current opening array is copied.
-- Concurrency: eager `Promise.all` fanout remains.
-- Error model: unchanged per package.
-- Allocation: one shallow array allocation per affected lifecycle operation.
-- Generated output and dependencies: none.
-- Changelog: required packaging remains pending a real authorized PR number.
+- the original `new Promise(resolve => ...)` remains;
+- the original `globalErrorHandler` call remains;
+- force flush still resolves after reporting failure;
+- shutdown still rejects through the original outer promise.
 
-## Claim boundary
+Only snapshot selection and direct-call protection now differ from the baseline.
 
-Established:
+## Test-harness refinement
 
-- live removal can skip a later opening child in all three packages;
-- synchronous direct invocation can stop later opening processors in trace and logs;
-- metrics already normalizes reader synchronous throws through its async collector boundary;
-- the candidate exact head passes all named repository workflow groups.
+The added trace tests temporarily restored global error handling with `setGlobalErrorHandler(loggingErrorHandler)`. `loggingErrorHandler` is a factory; passing it without invocation installs the factory itself as the delegate. Because callback return values are assignable to `void`, TypeScript accepts the mistake, but later errors would not be logged by the intended handler.
 
-Not established:
+The repaired test uses `setGlobalErrorHandler(loggingErrorHandler())`, matching existing repository convention and preventing cross-test global-state leakage.
 
-- production frequency or ecosystem impact;
-- settle-all completion or aggregate diagnostics;
-- idempotent or retry-safe child shutdown;
-- delayed lifecycle recursion, final metrics collection, or provider one-shot state;
-- extreme child-count allocation cost.
+## Reversing controls
 
-## Adjacent work excluded
+- trace shutdown: first processor throws; second opening processor is still invoked; aggregate rejects;
+- trace force flush: first processor throws; second is invoked; error is reported; aggregate resolves;
+- trace shutdown/force flush: first removes second from backing array; second opening processor is still invoked;
+- logs shutdown/force flush: equivalent direct-throw and removal controls; aggregate rejects on error;
+- metrics shutdown/force flush: removal controls prove snapshot behavior; synchronous-throw controls were removed because they pass the baseline without source changes.
 
-Provider/reader one-shot shutdown state, final metrics collection, delayed same-owner recursion, spans ending after shutdown begins, process-global disposal, and aggregation of every asynchronous child failure remain separate units.
+All mutation controls also assert that the original collection remains changed, distinguishing stable current membership from permanent freezing.
+
+## Compatibility and limits
+
+- public API and exported types: unchanged;
+- concurrency: eager `Promise.all` retained;
+- error policy: trace shutdown rejects; trace force flush reports and resolves; logs and metrics reject;
+- allocation: one shallow child-list copy per affected lifecycle operation;
+- future mutation: retained;
+- settle-all completion/error aggregation: not provided;
+- child idempotence, one-shot ownership, final metrics collection, delayed recursion, and post-shutdown telemetry admission: separate units.
+
+## Current source cleanliness
+
+The exact compare contains only:
+
+1. `packages/sdk-trace/src/MultiSpanProcessor.ts`
+2. `packages/sdk-trace/test/common/MultiSpanProcessor.attempt-all.test.ts`
+3. `experimental/packages/sdk-logs/src/MultiLogRecordProcessor.ts`
+4. `experimental/packages/sdk-logs/test/common/MultiLogRecordProcessor.attempt-all.test.ts`
+5. `packages/sdk-metrics/src/MeterProvider.ts`
+6. `packages/sdk-metrics/test/MeterProvider.attempt-all.test.ts`
+
+No workflow, dependency, lock, generated, publisher, or research-only file is present.
+
+## Staleness and overlap
+
+During the repair pass, public `main` remained identical to the pinned base. Open pull-request and issue searches for the affected symbols, shutdown/force-flush fanout, snapshot wording, and skipped-later-child behavior found no replacement contribution. Repeat immediately before any authorized filing.
