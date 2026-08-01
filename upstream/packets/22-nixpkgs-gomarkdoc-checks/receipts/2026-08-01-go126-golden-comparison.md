@@ -13,7 +13,7 @@ Compare the current checks-disabled Go 1.26 package with a checks-enabled candid
 - Candidate relation: one commit, one file
 - Carrier branch: `p0/435-unit-22-go126-golden-execution`
 - Carrier head: `9bdb7ce730010ac953e4f6d66cba752bdfb9449a`
-- Pull request: `teamleaderleo/fieldwork#438`
+- Pull request: `teamleaderleo/fieldwork#490`
 
 ## Execution
 
