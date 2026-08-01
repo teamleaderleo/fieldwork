@@ -2,7 +2,9 @@
 
 ## Current conclusion
 
-The command-package repair has prior Linux and Darwin execution evidence on an older base. A renewed full-discovery candidate ran at an exact clean source head and failed deterministically in two `lang` exact-text assertions on both platforms. The narrowed clean head is queued for current Linux/Darwin package, help, version, Linux `nixpkgs-review`, and Fieldwork-integrity execution.
+The selected command-package repair now passes its exact-head aarch64-darwin package, command-check, installed-help, and version gates. The corresponding x86_64-linux job, including `nixpkgs-review`, and the carrier integrity job remain queued.
+
+A separate exact-head full-discovery experiment failed deterministically in two `lang` exact-text assertions on both platforms. That negative control is retained and the selected source does not hide those failures.
 
 Disposition: `HOLD`.
 
@@ -16,16 +18,18 @@ Disposition: `HOLD`.
 - Changed-file fence: `pkgs/by-name/go/gomarkdoc/package.nix`
 - Commit relation: one commit above the exact base
 
+## Current public-head check
+
+- Public `master` head checked: [`63c4c8011115076be7a315edd8f740fd751b168a`](https://github.com/NixOS/nixpkgs/commit/63c4c8011115076be7a315edd8f740fd751b168a)
+- Checked at: `2026-08-01T08:02:42Z`
+- Distance from candidate base: 384 commits ahead
+- Relevant overlap in that advance: none for `pkgs/by-name/go/gomarkdoc/package.nix` or `pkgs/build-support/go/module.nix`
+- Current public package state: version `1.1.0`, `subPackages = [ "cmd/gomarkdoc" ]`, `doCheck = false`
+- Current builder state: nonempty `subPackages` still controls test selection; `preCheck` still runs before `getGoDirs test`
+
+This is a staleness assessment, not execution at the public head. A fresh-head rebase and exact-head rerun remain mandatory before authorized submission.
+
 ## Source-read results
-
-### Nixpkgs package and builder
-
-- The package uses `subPackages = [ "cmd/gomarkdoc" ]` and currently has `doCheck = false` on the inspected public source.
-- Generic Go check discovery uses `subPackages` when nonempty.
-- `preCheck` runs before test directory selection.
-- Clearing the shell array in `preCheck` reaches the broader test set; retaining it runs the selected command package only.
-
-Evidence class: `source-read`, with execution confirmation from the full-discovery negative control.
 
 ### gomarkdoc v1.1.0
 
@@ -104,7 +108,7 @@ actual:   ... returns the resulting *[os.File].
 expected: ... returns the resulting *os.File.
 ```
 
-Classification: `target-executed negative control`. This is a package/test compatibility failure, not a checkout, Nix installation, source-fence, or runner failure. Package failure prevented installed-help, version, and Linux `nixpkgs-review` steps from running.
+Classification: `target-executed negative control`. This is a package/test compatibility failure. Package failure prevented installed-help, version, and Linux `nixpkgs-review` from running.
 
 ## Current exact-head command-check execution
 
@@ -112,10 +116,42 @@ Classification: `target-executed negative control`. This is a package/test compa
 - Carrier PR: [#437](https://github.com/teamleaderleo/fieldwork/pull/437)
 - Carrier head: `c95da0c4b3f460df9bc8f342e98d05345da66df8`
 - Target run: [`30690828310`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828310)
-- Integrity run: [`30690828341`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828341)
-- Current state at packet update: queued
+- Carrier integrity run: [`30690828341`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828341)
+- Detailed receipt: [`receipts/2026-08-01-command-checks.md`](./receipts/2026-08-01-command-checks.md)
 
-### Commands
+### aarch64-darwin
+
+- Job: `91345125710` — `success`
+- Runner: macOS 14.8.7 arm64; image `macos-14-arm64` version `20260629.0180.1`
+- Nix: 2.35.1
+- Go: 1.25.12
+- Source head, parent, one-file fence, and `git diff --check`: success
+- Selected package result count: exactly one
+- Check result: `ok github.com/princjef/gomarkdoc/cmd/gomarkdoc`
+- Installed help: `generate markdown documentation for golang code` and `Usage:`
+- Version passthru: `1.1.0`
+- Artifact: [`8815619734`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690828310/artifacts/8815619734)
+- Digest: `sha256:db5516d38b64307b5d67ffb6bc23c33028dbdeaeb2b681b60a1cc7440958021a`
+- Size: 5478 bytes; five files
+- Linux-only review step: skipped as designed
+
+Evidence class: `target-executed`.
+
+### x86_64-linux
+
+- Job: `91345125742`
+- State at this packet update: queued
+- Required additional gate: `nixpkgs-review rev HEAD --no-shell`
+
+Evidence class: `target-test-prepared`.
+
+### Carrier integrity
+
+- Job: `91345125771`
+- State at this packet update: queued
+- Scope note: the run was created against the packet base present when carrier head `c95da0c4...` was pushed. A final carrier generation must validate the packet tip after receipt transfer.
+
+## Commands
 
 ```bash
 nix-build .target/nixpkgs -A gomarkdoc --no-out-link
@@ -123,35 +159,16 @@ nix-build .target/nixpkgs -A gomarkdoc.tests.version --no-out-link
 nixpkgs-review rev HEAD --no-shell  # x86_64-linux
 ```
 
-The workflow also executes the installed `gomarkdoc --help` path.
-
-### Required assertions
-
-Each platform must prove:
-
-- exact source head and parent;
-- one changed package file and `git diff --check` success;
-- `Running phase: checkPhase`;
-- successful `github.com/princjef/gomarkdoc/cmd/gomarkdoc` result;
-- exactly one selected gomarkdoc package result line;
-- installed executable and usable help output;
-- version passthru output `1.1.0`.
-
-Linux additionally runs `nixpkgs-review rev HEAD --no-shell`.
-
-Evidence class while queued: `target-test-prepared`.
-
 ## Runtime limit
 
-The active local runtime has no `nix` or `nix-build`; no local target-native command ran. Hosted Actions provides the target evidence.
+The active local runtime has no `nix` or `nix-build`; hosted Actions provides the target evidence.
 
 ## Gates outside the current receipt
 
+- terminal x86_64-linux package/check/help/version/review receipt;
+- final packet-tip integrity generation;
+- carrier closure after evidence transfer;
 - independent complete-diff review;
 - fresh-public-head rebase and exact-head rerun;
 - Hydra, ofborg, and merge-queue evidence after an authorized public Nixpkgs PR;
 - explicit public-contact authority.
-
-## Continuation receipt
-
-After run `30690828310` is terminal, preserve runner images, job conclusions, source controls, command-package line, help output, version output, Linux `nixpkgs-review`, artifact IDs/digests/expiry, and the exact packet head consuming the result. Classify each skipped or failed step separately.
