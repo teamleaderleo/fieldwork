@@ -1,120 +1,147 @@
 # Unit 01 — Vite `watchChange` error isolation
 
-## In simple words
-
-A Vite plugin can reject its `watchChange` hook after the dev server observes a real filesystem event. The rejection is logged, but the current inner event transaction exits before Vite performs its own cache invalidation and HMR work. A virtual module can therefore keep serving old content after its backing file changed.
-
-The selected repair collects every environment-level `watchChange` outcome, logs each rejection, and then continues Vite's existing change, add, or unlink path. The clean owned source is based on the inspected public Vite main head and has target-native controls for all three event kinds.
-
 ## Current disposition
 
-`ACCEPT`
+`REPAIR`
 
-The exact source candidate is suitable for independent final review. Complete-diff self-review found no blocking product defect. Current-head workflow security, lint/build/type/format/docs checks, Linux Node 20/22/24/26 Build&Test, macOS Node 24 Build&Test, and the Windows unit/focused regression paths passed. Two Windows attempts failed only in the pre-existing HMR/SSR integration playground after the Unit 01 regression passed; those failures are classified as unrelated Windows integration flakiness.
+A second adversarial review invalidated the earlier environment-only `ACCEPT` fence. The old repair waited every environment, but each environment could still reject on the first plugin failure while slower sibling hooks remained live.
 
-The canonical source PR and packet PR are both out of draft for independent review. This disposition does not authorize merge or public upstream submission. The author is not the sole eligible final accepter.
+The clean three-file repair at `0cf30aa19e0ecf4053b7c6bf9be5d59e5733218b` fixes plugin-level settlement and passed formatting, full Vite build, an expanded 5/5 focused suite, and ESLint. One final source refinement is under execution: keep the watcher-only failure callback behind a stripped `@internal` method so the documented Environment API's public `watchChange(id, change)` signature remains unchanged.
+
+Both canonical PRs remain draft. No merge or public upstream interaction is authorized.
 
 ## Assignment
 
 - Unit: `01`
-- Backlog: [`teamleaderleo/fieldwork#435`](https://github.com/teamleaderleo/fieldwork/issues/435)
-- Target: [`vitejs/vite`](https://github.com/vitejs/vite)
-- Proposed destination: pull request to Vite `main`
+- Routing board: `teamleaderleo/fieldwork#435`
+- Target: `vitejs/vite`
 - Proposed title: `fix(dev): continue invalidation after watchChange errors`
-- Upstream contact authorized: `no`
-- Public upstream interaction during this unit: `none`
+- Source PR: `teamleaderleo/vite#4`
+- Packet PR: `teamleaderleo/fieldwork#438`
+- Public upstream contact authorized: `no`
+- Public upstream interactions: `zero`
 
-## Exact source
+## Exact revisions
 
-- Inspected public base: [`e6b6b167afa0a80548829d1f24a0712f9194389a`](https://github.com/vitejs/vite/commit/e6b6b167afa0a80548829d1f24a0712f9194389a)
-- Owned base mirror: [`upstream/unit-01-vite-main-e6b6b167`](https://github.com/teamleaderleo/vite/tree/upstream/unit-01-vite-main-e6b6b167)
-- Canonical owned branch: [`fix/fieldwork-25-watchchange-error-isolation`](https://github.com/teamleaderleo/vite/tree/fix/fieldwork-25-watchchange-error-isolation)
-- Canonical head: [`a2ab7ca6183ad74d64066d6706e57a546e355224`](https://github.com/teamleaderleo/vite/commit/a2ab7ca6183ad74d64066d6706e57a546e355224)
-- Canonical internal PR: [`teamleaderleo/vite#4`](https://github.com/teamleaderleo/vite/pull/4) — ready for independent review
-- Relation: two commits ahead, zero behind the exact base; exactly two changed files
+- Inspected public Vite base: `e6b6b167afa0a80548829d1f24a0712f9194389a`
+- Last clean environment-only head: `a2ab7ca6183ad74d64066d6706e57a546e355224`
+- Clean plugin-settlement head under API review: `0cf30aa19e0ecf4053b7c6bf9be5d59e5733218b`
+- Canonical source branch: `fix/fieldwork-25-watchchange-error-isolation`
+- Packet branch: `p0/435-unit-01-vite-watchchange-errors`
 
-### Changed files
+The source head will move once more only if the `@internal` declaration-leak control passes. Any source movement expires the current review fence and requires exact-head reconciliation.
 
-1. [`packages/vite/src/node/server/index.ts`](https://github.com/teamleaderleo/vite/blob/a2ab7ca6183ad74d64066d6706e57a546e355224/packages/vite/src/node/server/index.ts)
-2. [`packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js`](https://github.com/teamleaderleo/vite/blob/a2ab7ca6183ad74d64066d6706e57a546e355224/packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js)
+## Failure model
 
-No temporary workflow, publisher, research fixture, lockfile, dependency, generated output, or Fieldwork vocabulary is present in the canonical source diff.
+### Public-base layer
 
-## Contribution synopsis
+A rejecting `watchChange` hook escapes the event worker before module invalidation, public-file/delete work, and HMR. The listener catches and logs the error after the worker has already aborted.
 
-The current watcher handlers await `Promise.all(...)` over environment `watchChange` hooks. Any rejection reaches the outer listener catch and logger, but skips later Vite-owned work.
+### First repair layer
 
-The candidate introduces one server-local `notifyWatchChange` helper that:
+Server-level `Promise.allSettled` across environments allows Vite-owned work to continue after an environment rejection.
 
-1. invokes each environment's plugin container;
-2. awaits all outcomes with `Promise.allSettled`;
-3. logs every rejected outcome;
-4. returns normally so the existing invalidation, public-file bookkeeping, deletion handling, and HMR path continues.
+### Deeper plugin layer
 
-The helper is shared by change, add, and unlink. Generic plugin-hook scheduling, hook order, and successful-hook semantics remain unchanged.
+Inside each environment, generic `hookParallel()` still uses fail-fast `Promise.all` for ordinary parallel hook groups.
 
-## Durable evidence and history
+With fast and slow sibling failures:
 
-- Original scout and handoff: [`teamleaderleo/fieldwork#25`](https://github.com/teamleaderleo/fieldwork/issues/25)
-- Research and runtime reproduction: [`teamleaderleo/vite#1`](https://github.com/teamleaderleo/vite/pull/1), exact head [`882e62169e2cc4a8ac91d63aca2337fda4f69e1e`](https://github.com/teamleaderleo/vite/commit/882e62169e2cc4a8ac91d63aca2337fda4f69e1e)
-- Reviewed predecessor source: [`8b5d1ae237bf61031a7436ed8fb0fc1e436b6d78`](https://github.com/teamleaderleo/vite/commit/8b5d1ae237bf61031a7436ed8fb0fc1e436b6d78)
-- Predecessor exact-head review: [`teamleaderleo/vite#4` review `4822979298`](https://github.com/teamleaderleo/vite/pull/4#pullrequestreview-4822979298)
-- Current-base replay carrier: [`teamleaderleo/vite#15`](https://github.com/teamleaderleo/vite/pull/15), squash commit [`5f513983f155a1bb59671b5eb9bc78b76f4ad889`](https://github.com/teamleaderleo/vite/commit/5f513983f155a1bb59671b5eb9bc78b76f4ad889)
-- Add/unlink controls: [`a2ab7ca6183ad74d64066d6706e57a546e355224`](https://github.com/teamleaderleo/vite/commit/a2ab7ca6183ad74d64066d6706e57a546e355224)
-- Current exact-head self-review: [`teamleaderleo/vite#4` comment `5148481573`](https://github.com/teamleaderleo/vite/pull/4#issuecomment-5148481573)
-- Current receipt: [`receipts/current-head-2026-08-01.md`](./receipts/current-head-2026-08-01.md)
+```text
+fast:start
+slow:start
+fast:reject
+logged:fast
+vite:continues
+slow:reject
+```
 
-## Duplicate and prior-art result
+That permits HMR to overtake a pending hook, hides later failures, and can skip later hooks or `sequential: true` barriers.
 
-The merged upstream repair [`vitejs/vite#22188`](https://github.com/vitejs/vite/pull/22188) added listener-level catches and tests requiring `watchChange` errors to be logged for add, change, and unlink. It leaves the inner file-event transaction fail-fast: rejection still prevents later invalidation and HMR.
+## Selected repair
 
-Searches of current Vite issues and pull requests found no separate current proposal that continues Vite-owned work after the hook failure. Unit 01 is a follow-up to #22188, not a duplicate. Repeat the search immediately before any authorized public submission.
+For watcher-driven server events only:
 
-## Tests and gates
+- run every applicable plugin notification;
+- catch synchronous throws and asynchronous rejections per plugin;
+- report each failure individually;
+- preserve ordinary parallel groups and `sequential: true` barriers;
+- wait all applicable hooks before invalidation/HMR;
+- track asynchronous hook promises so environment close waits them;
+- retain the generic fail-fast path for direct compatibility calls.
 
-See [`TESTS.md`](./TESTS.md) for exact commands, revisions, jobs, classifications, and limits.
+The final refinement moves this specialized path to `watchChangeWithErrorHandler()` marked `/** @internal */`. Vite's node tsconfig uses `stripInternal: true`; execution additionally checks generated declarations and fails if the internal method leaks.
 
-Current-head workflow summary:
+## Source scope
 
-- CI: [`30674314447`](https://github.com/teamleaderleo/vite/actions/runs/30674314447)
-  - lint/build/type/format/docs/workflow checks: success
-  - Linux Node 20/22/24/26 Build&Test: success
-  - macOS Node 24 Build&Test: success
-  - Windows build/unit/focused Unit 01 test: success
-  - Windows ordinary serve: success on rerun
-  - two failures confined to the existing Windows `playground/hmr-ssr` integration family; classified unrelated to Unit 01
-  - a further Windows full-job rerun was requested as supplementary evidence
-- Zizmor: [`30674314445`](https://github.com/teamleaderleo/vite/actions/runs/30674314445) — success
-- Preview release: [`30674314449`](https://github.com/teamleaderleo/vite/actions/runs/30674314449) — skipped as expected for this internal source PR
+The clean plugin-settlement candidate contains exactly three files:
 
-The CI pull-request checkout used a synthetic merge containing source head `a2ab7ca6` on the owned repository's current default branch. The canonical review fence remains the explicit public-base comparison `e6b6b167...a2ab7ca6`; the merge ref is compatibility evidence, not the source revision.
+1. `packages/vite/src/node/server/index.ts`
+2. `packages/vite/src/node/server/pluginContainer.ts`
+3. `packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js`
 
-## Compatibility and evidence limits
+No workflow, dependency, lockfile, generated output, research fixture, or Fieldwork-only file is allowed in the canonical source diff.
 
-- The repair changes failure handling only after a plugin `watchChange` rejection.
-- All environments are allowed to settle, so multiple rejections can be logged instead of only the first one.
-- Vite-owned invalidation and HMR continue even when plugin notification failed; this is the intended invariant and main behavior change.
-- A plugin that relied on throwing to suppress Vite's later cache/HMR work would observe different behavior. No inspected supported contract grants that veto authority.
-- The change-path test proves refreshed virtual-module content. Add/unlink tests prove error visibility and continuation into event-typed `hotUpdate`; they do not claim every public-file or module-deletion side effect across every platform.
-- Windows HMR/SSR integration timing remains noisy outside the changed files. Unit 01's focused regression remained green in those jobs.
+## Target-native tests
+
+The focused suite now covers five cases:
+
+1. change rejection still logs, invalidates the virtual-module cache, reaches HMR, and refreshes `alpha` to `beta`;
+2. add rejection still reaches create-typed HMR;
+3. unlink rejection still reaches delete-typed HMR;
+4. two failing sibling hooks both settle and both errors are reported before a sequential barrier, later hook, and HMR;
+5. a synchronous throw does not skip a later hook or HMR.
+
+Execution on the clean plugin-settlement carrier:
+
+- dependency install: success;
+- formatting: success;
+- full Vite build and type generation: success;
+- focused suite: 5/5 passed;
+- ESLint on implementation and tests: success;
+- clean packaging: success.
+
+The earlier source head also eventually passed the complete ordinary matrix, including the third Windows rerun. Those receipts remain valid for the original change/add/unlink behavior but do not replace exact-head ordinary validation after the API-boundary refinement.
+
+## Prior art and duplicate result
+
+Merged Vite PR `#22188` added listener-level catches and logging tests for add/change/unlink. It does not continue the inner event transaction after hook failure and does not settle sibling plugin hooks.
+
+No inspected current issue or pull request provides the same plugin-level continuation repair. Repeat duplicate and current-main checks immediately before any authorized public submission.
+
+## Compatibility limits
+
+- Plugin failures remain visible but no longer veto sibling notifications or Vite-owned invalidation/HMR.
+- Successful hooks retain parallel execution and sequential barriers.
+- Simultaneous error ordering is not promised.
+- A custom logger that throws can still interrupt reporting; logger-failure policy is separate.
+- Separate filesystem events remain independently concurrent; Unit 01 does not serialize or coalesce them.
+- The repair does not recover arbitrary partial state inside a failing plugin.
+- Add/unlink controls prove event mapping and continuation, not every platform-specific graph or public-file side effect.
 
 ## Packet navigation
 
-- [`DEEP_DIVE.md`](./DEEP_DIVE.md) — current behavior, ownership, failure model, and selected design
-- [`APPROACHES.md`](./APPROACHES.md) — selected, losing, rejected, and deferred options
-- [`TESTS.md`](./TESTS.md) — exact execution record and limits
-- [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md) — issue-first disposition and optional issue text
-- [`UPSTREAM_PR.md`](./UPSTREAM_PR.md) — polished upstream pull-request draft
-- [`REVIEW.md`](./REVIEW.md) — exact-head self-review and human inspection guide
-- [`receipts/current-head-2026-08-01.md`](./receipts/current-head-2026-08-01.md) — compact current-head receipt
+- [`ADVERSARIAL_AUDIT.md`](./ADVERSARIAL_AUDIT.md) — newly discovered plugin-level race and repair contract
+- [`DEEP_DIVE.md`](./DEEP_DIVE.md) — ownership, lifecycle, compatibility, and evidence model
+- [`APPROACHES.md`](./APPROACHES.md) — selected, losing, rejected, and deferred approaches
+- [`TESTS.md`](./TESTS.md) — exact execution ledger and classifications
+- [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md) — optional issue route
+- [`UPSTREAM_PR.md`](./UPSTREAM_PR.md) — public-facing draft
+- [`REVIEW.md`](./REVIEW.md) — exact-head inspection guide
+- [`receipts/current-head-2026-08-01.md`](./receipts/current-head-2026-08-01.md) — compact receipt, pending final-head rewrite
 
 ## Next transition
 
-1. Independent complete-diff review at the unchanged source head.
-2. Re-read live checks and repeat duplicate/current-main/contribution-policy checks immediately before any public submission.
-3. Rebase and rerun only if current Vite `main` or the source head changes materially.
-4. Await explicit authority for the exact public upstream interaction.
+1. Complete the stripped-internal-method build, declaration-leak, focused, and lint run.
+2. Inspect the resulting clean source diff and exact base relation.
+3. Run and classify ordinary exact-head cross-platform gates.
+4. Rewrite `TESTS.md`, `REVIEW.md`, the receipt, drafts, and PR bodies to one final source head.
+5. Close temporary execution PR/branches.
+6. Advance only after independent complete-diff review.
+7. Await explicit authorization before any public upstream interaction.
 
 ## Continuation-ready handoff
 
-Treat `a2ab7ca6183ad74d64066d6706e57a546e355224` as the source fence until the branch moves. Start with this file, then read the linked packet files, `teamleaderleo/vite#4`, `teamleaderleo/vite#1`, Fieldwork #25, upstream Vite #22188, and workflow run `30674314447`. The source is accepted for independent review; ordinary Windows HMR/SSR flake data is classified and must not trigger unrelated source churn. Any source-head movement expires this disposition and requires test, diff, draft, and review reconciliation.
+Start with this file, then read `ADVERSARIAL_AUDIT.md`, `DEEP_DIVE.md`, `APPROACHES.md`, source PR `teamleaderleo/vite#4`, packet PR `teamleaderleo/fieldwork#438`, and the routing updates on `teamleaderleo/fieldwork#435`.
+
+Do not treat queued runners, unrelated integration flakes, or temporary packaging commits as product blockers. Do treat source-head movement, public API leakage, failing target-native controls, or a real compatibility contradiction as evidence requiring repair and exact-head reconciliation.
