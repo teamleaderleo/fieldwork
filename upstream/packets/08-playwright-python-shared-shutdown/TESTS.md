@@ -1,15 +1,14 @@
 # Unit 08 tests and receipts
 
-## Evidence classes
+## Final evidence classification
 
-- Source reading: current public context manager, connection shutdown ordering, and exact clean compare.
-- Target-executed negative reproduction: Ubuntu, Python 3.10 and 3.14.
-- Target-executed focused comparison: Ubuntu, Python 3.12, Chromium/Firefox/WebKit parameters.
-- Target-executed partial Windows candidate coverage: Python 3.12 and 3.14.
-- Target-executed clean-source partial gate: Examples job only.
-- Current-head sequential gate: prepared exactly, but hosted jobs never received runners.
+- Target-executed negative reproduction: Python 3.10 and 3.14.
+- Target-executed paired baseline and first repair: Python 3.12, Chromium/Firefox/WebKit parameters.
+- Target-executed partial Windows candidate evidence: Python 3.12 and 3.14.
+- Target-executed final clean-source gate: Python 3.10, 3.12, and 3.14; full repository pre-commit; wheel build on every version; 99 focused cases total.
+- Exact clean compare: current public base to `4cfc6a9e3e3a5c6dcab04015a1210ce6924d4c27`, exactly three files.
 
-## Negative reproduction
+## Original negative reproduction
 
 - source PR: [`teamleaderleo/playwright-python#1`](https://github.com/teamleaderleo/playwright-python/pull/1)
 - source head: `c81f671af0adac2b866d8255e2f802ae0aba9ece`
@@ -22,72 +21,61 @@
 | 3.10 | `90714870057` | failed at intended `manager._connection._closed_error is not None` assertion |
 | 3.14 | `90714870025` | failed at the same intended assertion |
 
-Dependency installation and driver assembly succeeded. No browser launched.
+Dependencies and driver assembly succeeded; no browser launched. Supported claim: cancelling the first `stop()` waiter while transport shutdown is blocked lets a later call return through `_exit_was_called` before connection cleanup completes.
 
-Supported claim: cancelling the first `playwright.stop()` waiter while transport shutdown is blocked lets a later stop return through `_exit_was_called` before connection cleanup completes.
-
-## Six direct shared-task controls
+## Six direct ownership controls
 
 Historical PR #3 final head: `dbbc8834acd69dc1f7f122ba1d3f49360565e7ef`.
 
-Controls:
-
 1. cancelled stop can be retried;
 2. concurrent callers share one operation;
-3. cancelling one waiter leaves the shared stop and another waiter alive;
+3. cancelling one waiter leaves the shared task and another waiter alive;
 4. repeated successful stop reuses completion;
-5. concurrent and later callers receive one stable shutdown failure;
+5. concurrent and later callers receive one stable failure;
 6. failure after a cancelled waiter remains visible to a later caller.
 
-Run `30497487411` ended cancelled. The six candidate tests passed in inspected Windows async jobs before both jobs later timed out in unrelated existing page-evaluation coverage:
+Run `30497487411` ended cancelled. The six candidate tests passed in inspected Windows jobs before unrelated existing page-evaluation timeouts:
 
 - Python 3.12 job `90729623317`;
-- Python 3.14 job `90729623318`;
-- unrelated later test: `tests/async/test_page_evaluate.py::test_evaluate_throw_when_evaluation_triggers_reload[chromium]`.
+- Python 3.14 job `90729623318`.
 
-Classification: candidate assertions passed; complete repository gate absent.
+Classification: candidate assertions passed; no complete repository-gate claim.
 
-## Lifecycle and observability comparison
+## Eleven tests / 33-case lifecycle matrix
 
-The six controls above plus five lifecycle controls were parametrized across Chromium, Firefox, and WebKit, for 33 cases:
+The six direct controls plus five lifecycle controls are parametrized across Chromium, Firefox, and WebKit:
 
 1. body error waits for successful context-manager cleanup;
 2. body cancellation waits for cleanup and preserves cancellation;
 3. cleanup failure takes precedence and chains body error;
-4. outer cancellation before the shared task's first timeslice preserves one cleanup owner;
-5. unjoined stop failure reaches the loop exception handler once and remains joinable afterward.
+4. cancellation before the shared task's first timeslice preserves one cleanup owner;
+5. an abandoned failure reaches the loop exception handler exactly once and remains joinable afterward.
 
-### Invalid first run
+### Invalid first lifecycle run
 
 - workflow `30590715257`, job `91032218906`
 - formatting passed
 - driver assembly omitted
-- existing tests failed during startup/reran
-- first context-manager control timed out waiting for entry
+- existing tests failed at startup and reran
 - classification: setup/harness only
 
-### Corrected baseline
+### Silent shared-task baseline
 
-- PR #5 head: `13848d073c9d23629a9a8300c89262a4d8b42411`
-- workflow: `30595155697`
-- job: `91045840683`
+- PR #5 head `13848d073c9d23629a9a8300c89262a4d8b42411`
+- workflow `30595155697`, job `91045840683`
 - Ubuntu 24.04, Python 3.12
-- repository requirements, editable install, `python -m build --wheel`
-- reruns disabled
+- wheel build passed; reruns disabled
 - result: 30 passed, 3 failed
-- exact failures: abandoned stop failure did not reach the loop exception handler, once per browser
-- Black: passed
-- tracked diff hygiene: passed
+- exact failures: the abandoned failure did not reach the loop handler, once per browser
+- Black and tracked diff hygiene passed
 
-Supported conclusion: shared ownership, shielding, context-manager ordering, pre-timeslice cancellation, stable success, and stable failure pass. Silent abandoned failure is the sole executed loss.
+Supported conclusion: shared ownership and cancellation behavior pass; silent exception retention is the only executed loss.
 
-### Selected repair
+### First explicit reporting repair
 
-- PR #6 head: `beb025b6ee98e4b15b80335039f5d0afec5a7efd`
-- workflow: `30595174700`
-- job: `91045896030`
+- PR #6 head `beb025b6ee98e4b15b80335039f5d0afec5a7efd`
+- workflow `30595174700`, job `91045896030`
 - Ubuntu 24.04, Python 3.12
-- reruns disabled
 - command:
 
 ```text
@@ -95,125 +83,124 @@ pytest tests/async/test_async_stop_cancellation.py tests/async/test_async_stop_e
 ```
 
 - result: `33 passed, 2 warnings in 7.20s`
-- Black: passed
-- tracked diff hygiene: passed
+- Black and tracked diff hygiene passed
 - review `4827700772`: ACCEPT for the bounded mechanism
 
-Supported conclusion: one deferred loop report closes the baseline's only failing control while retaining the same failure for later callers.
+## Clean-source evidence corrections
 
-## Repaired clean current-base source
+### Base-drift runs
+
+Runs `30674333313` and `30674333365` checked out closed PR #7, not canonical PR #8. They are not current-source evidence. Docker is not path-applicable because unit 08 changes no Docker workflow, `setup.py`, or Dockerfile path.
+
+### Exact method-typing failure
+
+- source at the start of this check: `1ac8797ab4dc85fd91a38d526c3912a72a8fba23`
+- carrier run `30691401327`, job `91346660311`
+- setup, editable install, and wheel build passed
+- repository pre-commit reached mypy and failed at the final restoration of `connection.stop_async`
+- diagnostics: assignment to method plus incompatibility between a broad `Callable[[], Awaitable[None]]` annotation and the bound coroutine method type
+
+Repair `b0509982c7cb7ef9cfeaa6a65225ec6e64a28b92`:
+
+- allow the bound method's exact type to be inferred;
+- restore the narrow `# type: ignore[method-assign]` on monkeypatch restoration.
+
+### Python 3.14 shield compatibility failure
+
+- source: `b0509982c7cb7ef9cfeaa6a65225ec6e64a28b92`
+- carrier PR #14, head `762e424a9fed259c13181f7643036a65f6bfdf1f`
+- workflow `30692014938`, job `91348287797`
+
+Results:
+
+| Gate | Result |
+| --- | --- |
+| full repository pre-commit | passed |
+| Python 3.10 wheel + focused matrix | `33 passed, 2 warnings in 10.10s` |
+| Python 3.12 wheel + focused matrix | `33 passed, 2 warnings in 10.09s` |
+| Python 3.14 wheel + focused matrix | `30 passed, 3 failed, 9 rerun` |
+| tracked diff hygiene | passed |
+
+The three Python 3.14 failures were the same observability case, once per browser. The custom handler received two contexts:
+
+1. Python 3.14's automatic `RuntimeError exception in shielded future` context;
+2. Playwright's intentional `Playwright stop task failed` context.
+
+CPython source review confirmed that Python 3.14's `asyncio.shield` installs `_log_on_exception` when the outer waiter is cancelled, while earlier supported versions retrieve the inner exception without producing that second report.
+
+## Final clean source
 
 - canonical PR: [`teamleaderleo/playwright-python#8`](https://github.com/teamleaderleo/playwright-python/pull/8)
-- exact base: `3b7c24c3e67dc84f7b0eddd0c5fd2ca685705021`
-- exact clean head: `1ac8797ab4dc85fd91a38d526c3912a72a8fba23`
-- compare: 5 commits, exactly 3 files, 467 additions, 6 deletions
-- temporary workflows on canonical source: zero
+- exact base / current public `main`: `3b7c24c3e67dc84f7b0eddd0c5fd2ca685705021`
+- exact head: `4cfc6a9e3e3a5c6dcab04015a1210ce6924d4c27`
+- compare: 7 commits, exactly 3 files, 469 additions, 6 deletions
+- temporary workflows: none
 
-Follow-up repairs:
+Final production repair:
 
-| Commit | Change | Reason |
-| --- | --- | --- |
-| `33cbc587830d2083d43dcdf67339696634c24936` | remove unused `method-assign` suppression | stale lint run reported `unused-ignore` |
-| `1ac8797ab4dc85fd91a38d526c3912a72a8fba23` | assert loop context `task` is `manager._stop_task` | verify the report identifies the authoritative task |
-
-The production mechanism is unchanged by these two commits.
-
-## Invalid first clean-head classification
-
-| Workflow | Run | Actual checkout | Classification |
-| --- | --- | --- | --- |
-| CI | `30674333313` | closed PR #7 merge | base-drift, not PR #8 evidence |
-| Test Docker | `30674333365` | closed PR #7 merge | base-drift, not PR #8 evidence |
-
-Only the unused suppression diagnostic was carried forward and repaired. Other failures are not attributed to the clean candidate.
-
-Test Docker is not path-applicable. Its workflow paths cover its workflow file, `setup.py`, and Dockerfiles; unit 08 changes none of them.
-
-## Clean-source native partial gate
-
-Exact-base PR #11 activated the unchanged native CI workflow against the clean source.
-
-- run: `30690680740`
-- exact clean source: `1ac8797ab4dc85fd91a38d526c3912a72a8fba23`
-- Examples job: `91344746297`, passed
-- remaining 29 jobs: intentionally cancelled to release the repository's effectively serial runner from unrelated broad coverage
-
-Supported conclusion: the exact clean source checked out and passed the repository Examples job. No broader full-matrix claim is made.
-
-## Preserved exact-head sequential gate
-
-The final carrier is preserved at:
-
-- branch: `upstream/08-playwright-python-exact-gate-0b34782a`
-- carrier commit: `0b34782a2c2dd4f708ef542e2eb80e71a1d249b3`
-- clean source ancestor: `1ac8797ab4dc85fd91a38d526c3912a72a8fba23`
-- carrier-only path: `.github/workflows/ci.yml`
-- execution PR #13: closed after runner allocation failed
-
-The gate performs sequentially:
-
-1. Python 3.10: dependencies, editable install, wheel build, full repository pre-commit, all 11 lifecycle tests;
-2. Python 3.12: dependencies, editable install, wheel build, all 11 tests;
-3. Python 3.14: dependencies, editable install, wheel build, all 11 tests;
-4. reruns disabled;
-5. `git diff --check` and tracked-worktree hygiene.
-
-Hosted runners did not start the jobs:
-
-| Run | Job | Pool/iteration | Result |
-| --- | --- | --- | --- |
-| `30691032136` | `91345676497` | Ubuntu 24.04 | cancelled before setup by superseding run |
-| `30691125773` | `91345932225` | Ubuntu 22.04 | cancelled before setup by superseding run |
-| `30691290371` | `91346367232` | `ubuntu-latest` | cancelled before setup by superseding run |
-| `30691401327` | `91346660311` | Ubuntu 24.04 ARM | remained queued; no setup/test execution |
-| `30691438464` | `91346756903` | preserved PR #13 event | remained queued; no setup/test execution |
-
-No queued/cancelled job is counted as a pass or failure. The blocker is hosted runner allocation, not an observed product assertion.
-
-## Repository-declared gates
-
-Current target guidance names:
-
-```text
-pytest --browser chromium
-mypy playwright
-pre-commit run --all-files
+```python
+await asyncio.wait({stop_task})
+await stop_task
 ```
 
-Status:
+`asyncio.wait` does not cancel the supplied task when its own waiter is cancelled. The second await receives the task's exact terminal result after the wait completes. This leaves the candidate's explicit observation policy in sole control and avoids Python 3.14 shield logging.
 
-- historical selected repair: focused pytest, Black, and diff hygiene passed;
-- current clean head: the unused mypy suppression is repaired by source inspection;
-- current clean head full pre-commit/mypy: prepared but unexecuted because no hosted runner started;
-- current clean head broad Chromium suite: not claimed;
-- Docker: not applicable by path filter.
+## Final exact-head gate
+
+- execution carrier: closed PR #15
+- carrier head: `79d799ab4cd1948c56144322080898da17ec1e33`
+- workflow: `30692313951`
+- job: `91349092242`
+- runner: Ubuntu 24.04 ARM
+- clean source ancestor: `4cfc6a9e3e3a5c6dcab04015a1210ce6924d4c27`
+- exact public base: `3b7c24c3e67dc84f7b0eddd0c5fd2ca685705021`
+
+| Python | Build | Focused result |
+| --- | --- | --- |
+| 3.10.20 | wheel passed | `33 passed, 2 warnings in 10.10s` |
+| 3.12.13 | wheel passed | `33 passed, 2 warnings in 10.09s` |
+| 3.14.6 | wheel passed | `33 passed, 2 warnings in 10.08s` |
+
+Additional gates:
+
+- full repository pre-commit: passed;
+- Black: passed;
+- mypy: passed;
+- flake8: passed;
+- isort: passed;
+- pyright: passed;
+- YAML/TOML/requirements/configuration checks: passed;
+- AST, merge-conflict, executable/shebang, license checks: passed;
+- reruns: disabled;
+- tracked diff hygiene: passed.
+
+The two warnings per version are unrelated pyOpenSSL deprecations. Total focused current-head evidence: 99 passed cases.
 
 ## Assertion ledger
 
-| Assertion | Executed? | Receipt |
-| --- | --- | --- |
-| original cancelled retry defect | yes | `30492906544` |
-| concurrent stop owns one operation | yes | `30595174700` |
-| cancelling one waiter preserves another | yes | `30595174700` |
-| repeated success reuses task | yes | `30595174700` |
-| shared failure reaches all callers | yes | `30595174700` |
-| failure after cancelled waiter remains joinable | yes | `30595174700` |
-| async-with body error waits for cleanup | yes | `30595174700` |
-| async-with body cancellation waits for cleanup | yes | `30595174700` |
-| cleanup failure precedence/context | yes | `30595174700` |
-| cancellation before stop task first timeslice | yes | `30595174700` |
-| abandoned failure reaches loop handler once | yes | baseline fail `30595155697`, repair pass `30595174700` |
-| context identifies authoritative shared task | source assertion added | current-head execution unavailable due runner allocation |
-| exact current-base candidate is only three files | yes, source compare | `3b7c24c...1ac8797` |
-| authoritative task cancellation itself | no | outside this caller-cancellation unit |
+| Assertion | Final evidence |
+| --- | --- |
+| original cancelled retry defect | negative run `30492906544` |
+| one authoritative stop operation | final run `30692313951` on all three versions |
+| cancelling one waiter preserves cleanup and other waiters | final run `30692313951` |
+| repeated success reuses completion | final run `30692313951` |
+| stable failure reaches concurrent and later callers | final run `30692313951` |
+| failure after cancelled waiter remains joinable | final run `30692313951` |
+| body error waits for cleanup | final run `30692313951` |
+| body cancellation waits for cleanup | final run `30692313951` |
+| cleanup failure precedence and context | final run `30692313951` |
+| cancellation before first stop-task timeslice | final run `30692313951` |
+| abandoned failure reports exactly once | negative baseline `30595155697`; shield compatibility failure `30692014938`; final pass `30692313951` |
+| report context identifies authoritative task | final run `30692313951` |
+| exact source passes typing and formatting | final full pre-commit in `30692313951` |
+| authoritative task itself being cancelled externally | outside this unit |
 
-## Coverage limits and next execution
+## Coverage limits
 
-- Accepted focused repair execution is Ubuntu/Python 3.12.
-- Negative reproduction covers Ubuntu/Python 3.10 and 3.14.
-- Partial Windows evidence covers Python 3.12 and 3.14 candidate tests.
-- Current-head Python 3.10/3.12/3.14 sequential execution is still required.
-- Independent human review is still required.
-- No production workload, leak measurement, benchmark, or frequency study exists.
+- Final current-head gate is Ubuntu 24.04 ARM, not the entire repository OS/browser matrix.
+- Browser parameters exercise the target-native fixture paths; the behavior under test is Python-side connection shutdown ownership.
+- Historical partial Windows evidence covers the direct controls on Python 3.12 and 3.14.
+- No production workload frequency study, benchmark, or process-leak measurement exists.
+- Public upstream authorization remains absent.
 
-Next executor should open the preserved carrier branch, run the exact sequential gate on an available authorized runner, record every step/result, then update README, REVIEW, PR #8, PR #442, issue #149, and parent #435 together.
+Pre-review execution disposition: `ACCEPT`.
