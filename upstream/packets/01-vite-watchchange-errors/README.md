@@ -10,7 +10,7 @@ The selected repair collects every environment-level `watchChange` outcome, logs
 
 `REPAIR`
 
-The source is current and bounded. Promotion requires current-head focused execution, ordinary CI/Zizmor completion, and a fresh complete-diff review at the exact source head.
+The source is current and bounded. Current-head Zizmor and the CI lint job passed. Promotion requires the remaining cross-platform Build&Test matrix, final receipt reconciliation, and independent exact-head review.
 
 ## Assignment
 
@@ -59,6 +59,7 @@ The helper is shared by change, add, and unlink. Generic plugin hook scheduling,
 - Predecessor exact-head review: [`teamleaderleo/vite#4` review `4822979298`](https://github.com/teamleaderleo/vite/pull/4#pullrequestreview-4822979298)
 - Current-base replay carrier: [`teamleaderleo/vite#15`](https://github.com/teamleaderleo/vite/pull/15), squash commit [`5f513983f155a1bb59671b5eb9bc78b76f4ad889`](https://github.com/teamleaderleo/vite/commit/5f513983f155a1bb59671b5eb9bc78b76f4ad889)
 - Add/unlink controls: [`a2ab7ca6183ad74d64066d6706e57a546e355224`](https://github.com/teamleaderleo/vite/commit/a2ab7ca6183ad74d64066d6706e57a546e355224)
+- Current exact-head self-review: [`teamleaderleo/vite#4` comment `5148481573`](https://github.com/teamleaderleo/vite/pull/4#issuecomment-5148481573)
 
 ## Duplicate and prior-art result
 
@@ -72,8 +73,8 @@ See [`TESTS.md`](./TESTS.md) for exact commands, revisions, environments, workfl
 
 Current-head workflow runs:
 
-- CI: [`30674314447`](https://github.com/teamleaderleo/vite/actions/runs/30674314447) — queued at packet creation
-- Zizmor: [`30674314445`](https://github.com/teamleaderleo/vite/actions/runs/30674314445) — queued at packet creation
+- CI: [`30674314447`](https://github.com/teamleaderleo/vite/actions/runs/30674314447) — lint job [`91298285154`](https://github.com/teamleaderleo/vite/actions/runs/30674314447/job/91298285154) passed; six Build&Test jobs remain queued
+- Zizmor: [`30674314445`](https://github.com/teamleaderleo/vite/actions/runs/30674314445) — success
 - Preview release: [`30674314449`](https://github.com/teamleaderleo/vite/actions/runs/30674314449) — skipped as expected for this internal source PR
 
 ## Compatibility and evidence limits
@@ -83,7 +84,7 @@ Current-head workflow runs:
 - Vite-owned invalidation and HMR continue even when plugin notification failed; this is the intended invariant and the main behavior change.
 - A plugin that relied on throwing to suppress Vite's later cache/HMR work would observe different behavior. That reliance conflicts with the server's ownership of cache coherence, but it remains the principal compatibility risk.
 - The change-path test proves refreshed virtual-module content. Add/unlink tests prove error visibility and continuation into event-typed `hotUpdate`; they do not claim every public-file or module-deletion side effect across every platform.
-- Current-head ordinary execution and independent exact-head review remain pending.
+- Current-head cross-platform Build&Test execution and independent exact-head acceptance remain pending.
 
 ## Packet navigation
 
@@ -96,14 +97,14 @@ Current-head workflow runs:
 
 ## Remaining work in strict order
 
-1. Inspect current-head CI and Zizmor run conclusions and failing jobs, if any.
-2. Repair only unit 01 source or target-native tests when a current-head failure identifies a product/test defect.
-3. Run the focused test directly at the final head if ordinary CI does not expose a clear focused receipt.
-4. Review the complete exact diff against `e6b6b167afa0a80548829d1f24a0712f9194389a`.
-5. Synchronize this packet and draft PR with the final exact head and receipts.
-6. Obtain independent final review.
+1. Inspect the six queued Build&Test jobs in CI run `30674314447`.
+2. Classify any failure before changing unit 01 source or tests.
+3. Run the focused test directly at the final head if the ordinary jobs do not expose an unambiguous focused receipt.
+4. Reconcile `TESTS.md`, `REVIEW.md`, the source PR, and this README with final job conclusions.
+5. Obtain independent complete-diff review at the unchanged source head.
+6. Change disposition to `READY` only when the acceptance criteria are met.
 7. Await explicit authority for the exact public upstream action.
 
 ## Continuation-ready handoff
 
-Start from this file, then read the linked packet files, `teamleaderleo/vite#4`, `teamleaderleo/vite#1`, Fieldwork #25, upstream Vite #22188, and the current-head workflow runs. Treat `a2ab7ca6183ad74d64066d6706e57a546e355224` as the source fence until the branch moves. Any source-head movement expires the current disposition and requires test, diff, draft, and review reconciliation.
+Start from this file, then read the linked packet files, `teamleaderleo/vite#4`, `teamleaderleo/vite#1`, Fieldwork #25, upstream Vite #22188, and current-head CI/Zizmor runs. Treat `a2ab7ca6183ad74d64066d6706e57a546e355224` as the source fence until the branch moves. The immediate action is to inspect CI run `30674314447`; any source-head movement expires the current disposition and requires test, diff, draft, and review reconciliation.
