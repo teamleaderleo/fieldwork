@@ -2,15 +2,15 @@
 
 ## In simple words
 
-`coverage.py` launches backend wrappers that can own nested work. On parent-only SIGINT, terminating only the wrapper can leave descendants running. The selected patch starts each backend in its own session/process group, sends TERM to that group, waits for the wrapper, and exits 130.
+`coverage.py` launches backend wrappers that can own nested work. On parent-only SIGINT, terminating only the immediate wrapper can leave descendants running. The selected patch starts each backend in its own session/process group, sends TERM to that group, waits for the wrapper, prints an interruption diagnostic, and exits 130.
 
-Exact null, QEMU-wrapper, and sudo controls support this bounded repair. The old Linux Fieldwork delivery receipt expired after `main` changed. A byte-identical current-main restack now exists on PR #406 and is awaiting its gate. A clean mmdebstrap source branch and target-native gate remain absent.
+Canonical current-source execution now exists in Linux Fieldwork PR #401. The patch applied with zero fuzz to canonical mmdebstrap `main@77ec9be5417ee44c96343d2347145585da1b1f94`; the six-control packet matrix and refined fourteen-control null/QEMU-wrapper/passwordless-sudo matrix each passed twice. Under the stricter #435 packet contract, delivery remains `REPAIR` because no controlled canonical fork branch, complete target-source diff, ordinary mirror-backed source gate, or independent final target-diff acceptance exists.
 
 ## Current disposition
 
 `REPAIR`
 
-The bounded mechanism is technically coherent and historically exercised. Current Linux Fieldwork integration is active. Upstream delivery remains incomplete.
+The bounded mechanism and focused current-source execution are accepted. Clean upstream delivery remains incomplete.
 
 ## Assignment
 
@@ -18,65 +18,58 @@ The bounded mechanism is technically coherent and historically exercised. Curren
 - proposed contribution: `fix: cancel backend process groups during interruption`
 - assigned packet: `upstream/packets/13-mmdebstrap-process-group-cancellation/`
 - packet branch: `p0/435-unit-13-mmdebstrap-process-group`
-- packet branch base at claim: `920f87cb25dd0cc7901d59ea2019cd4b4a193b94`
+- packet base: `920f87cb25dd0cc7901d59ea2019cd4b4a193b94`
+- packet review surface: [`teamleaderleo/fieldwork#439`](https://github.com/teamleaderleo/fieldwork/pull/439)
 - exact packet head: recorded in the latest unit-13 handoff on `teamleaderleo/fieldwork#435`
 - public upstream contact: `false`
 
-## Target identity
+## Canonical target identity
 
-- target: mmdebstrap
-- canonical upstream repository: `https://salsa.debian.org/debian/mmdebstrap.git`
-- canonical selected/default branch: `master`
-- imported release/tag: `debian/1.5.7-3`
-- imported upstream commit: `6fde999741f4fe1e7bf38079acf29432ef87a35e`
-- Linux Fieldwork import commit: `782774b01002abf37878d834a54d0bbf8b226397`
-- imported `coverage.py` blob: `9a522484aef05deae514a98e4b6adf5feb6c886d`
-- previously inspected upstream revision: `77ec9be5417ee44c96343d2347145585da1b1f94`
-- relevant lifecycle on that revision: unchanged from the imported blob
-- refresh requirement: resolve the live canonical `master` head before target materialization or public action
+- project: mmdebstrap
+- canonical repository: `https://gitlab.mister-muffin.de/josch/mmdebstrap`
+- canonical branch: `main`
+- exact canonical base executed: `77ec9be5417ee44c96343d2347145585da1b1f94`
+- last canonical commit touching `coverage.py`: `c82fc7e261c7a2fd85e499484108408fd42331d2`
+- canonical/imported `coverage.py` blob: `9a522484aef05deae514a98e4b6adf5feb6c886d`
+- canonical `run_null.sh` blob: `e0a8c106f9d3d636baea286d2ab33834748dffc9`
+- canonical `run_qemu.sh` blob: `426aeeb854173569b24e64d6eb85019f45bdf0b6`
+- Debian packaging VCS: `https://salsa.debian.org/debian/mmdebstrap.git`
+- controlled canonical fork: `NEEDS FORK`
+- intended clean source branch: `fix/coverage-backend-process-group-current-main`
 
-## Canonical source and packaging
+The earlier packet identified Salsa as the canonical source surface. The current project packet and exact execution establish Forgejo `josch/mmdebstrap` as the contribution destination; Salsa remains packaging context.
 
-### Retained technical carrier
+## Canonical source package
 
-- pull request: [`teamleaderleo/linux-fieldwork#313`](https://github.com/teamleaderleo/linux-fieldwork/pull/313)
-- live state/title: `[REPAIR] coverage: deliver cancellation to the selected backend group`
-- branch: `fix/coverage-backend-process-group`
-- exact retained head: `dfc6d0503fb844f4c428ce16a567a9fdcd35280a`
-- exact executed mechanism head: `e90fc438f530f7bd78ffd6fd1ba24c665bd96913`
-- candidate patch blob: `4f2a749e50d42655ebb6519ca6550d2f666985bc`
-- packet patch: [`patches/0001-own-backend-process-group.patch`](./patches/0001-own-backend-process-group.patch)
+### Current delivery packet
 
-### Current Linux Fieldwork delivery reconciliation
+- pull request: [`teamleaderleo/linux-fieldwork#401`](https://github.com/teamleaderleo/linux-fieldwork/pull/401)
+- branch: `upstream/unit-11-coverage-backend-cancellation`
+- exact head: `d232e4fdd67cf0592e129a60534e984dcbec6bfe`
+- Linux Fieldwork base: `6cc74d846c50b9bbb88247e8a128b67e8c174c1e`
+- upstream-root patch blob: `f1a2c75adfa009b6f1ac29e5a31bef526400444f`
+- packet copy: [`patches/0001-own-backend-process-group.patch`](./patches/0001-own-backend-process-group.patch)
+- internal initiative state: `READY FOR AUTHORIZATION`
+- outer #435 state: `REPAIR`
 
-- pull request: [`teamleaderleo/linux-fieldwork#406`](https://github.com/teamleaderleo/linux-fieldwork/pull/406)
-- base: `main@6cc74d846c50b9bbb88247e8a128b67e8c174c1e`
-- branch: `repair/313-current-main-reconciliation`
-- exact source head: `e82b9b059850fce1efcf8daadef89049495a8b27`
-- changed-file fence: nine files
-- relation to #313: exact blob-for-blob restack
-- workflow: `30690801852` / run 1151
-- workflow state at packet update: queued
+The two state labels use different completion contracts. PR #401 has current-source focused execution and a send/hold packet. #435 also requires a clean fork source head, ordinary target gates, and final clean-target review before `READY`.
 
-This branch repairs ancestry and current-gate identity. It changes no accepted mechanism, test, or evidence byte.
+### Historical carriers
 
-### Clean mmdebstrap target-source branch
+- mechanism/evidence history: closed [`linux-fieldwork#313`](https://github.com/teamleaderleo/linux-fieldwork/pull/313), head `dfc6d0503fb844f4c428ce16a567a9fdcd35280a`
+- exact historically executed mechanism: `e90fc438f530f7bd78ffd6fd1ba24c665bd96913`
+- refined QEMU evidence: closed [`linux-fieldwork#339`](https://github.com/teamleaderleo/linux-fieldwork/pull/339), head `8253ab2ef6fed22b34fc5f5d6d20cda75c25e2c7`
+- superseded ancestry-only restack: closed [`linux-fieldwork#406`](https://github.com/teamleaderleo/linux-fieldwork/pull/406), head `e82b9b059850fce1efcf8daadef89049495a8b27`
 
-- owned fork: absent from accessible repositories
-- preferred fork name: `teamleaderleo/mmdebstrap`
-- intended branch: `fix/coverage-backend-process-group-current-master`
-- intended base: refreshed exact canonical upstream `master` head
-- materialization state: blocked on fork/repository admission
-
-No target branch is claimed where repository access is absent.
+PRs #313 and #339 are closed with unique evidence transferred to PR #401. PR #406 is closed as duplicate ancestry evidence.
 
 ## Proposed upstream title
 
-`coverage.py: terminate the selected backend process group on SIGINT`
+`coverage: cancel the selected backend process group on SIGINT`
 
 ## Contribution synopsis
 
-Current behavior starts a backend with `subprocess.Popen(argv)`. On `KeyboardInterrupt`, the driver terminates and waits for only the immediate wrapper. Nested shells, pipelines, output followers, foreground operations, or privileged workers can continue.
+Current source starts a backend with `subprocess.Popen(argv)`. On `KeyboardInterrupt`, it terminates and waits for only the immediate wrapper, then breaks into the ordinary epilogue. Nested shells, pipelines, output followers, foreground operations, or privileged workers can continue.
 
 The selected patch:
 
@@ -85,81 +78,79 @@ The selected patch:
 - sends `SIGTERM` to `os.killpg(proc.pid, ...)`;
 - tolerates an already-exited group;
 - waits for the wrapper;
-- prints an interruption diagnostic;
+- prints `interrupted by SIGINT`;
 - exits 130;
 - preserves ordinary result handling.
 
-## Intended clean upstream changed-file inventory
+## Intended clean upstream diff
 
 Known product file:
 
 - `coverage.py`
 
-Required target-native test:
-
-- path pending inspection of current upstream test convention and direct materialization.
-
-The clean target branch must exclude Linux Fieldwork investigations, notes, receipts, publishers, and temporary workflows.
+A maintainable upstream-native regression path remains to be selected. Linux Fieldwork fixtures and packet workflows do not belong in the clean target-source branch.
 
 ## Exact tests and receipts
 
-### Historical mechanism gate
+### Canonical current-source execution
 
-- source head: `e90fc438f530f7bd78ffd6fd1ba24c665bd96913`
-- CI: [30632491641](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30632491641)
-- job: [91161937871](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30632491641/job/91161937871)
-- result: success
-- recorded result: 359 tests passed; null, QEMU-wrapper, actual-sudo, foreground-group, source-shape, and unsignaled controls passed; compilation, shell syntax, and command-help checks passed.
+Linux Fieldwork run [30689911760](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30689911760) executed the selected patch against canonical mmdebstrap commit `77ec9be5417ee44c96343d2347145585da1b1f94`.
 
-### Historical retained-head gate
+Canonical packet-patch job `91342674259`:
 
-- source head: `dfc6d0503fb844f4c428ce16a567a9fdcd35280a`
-- generated merge: `24c7ba065b4c50fee76a07b0f6d6cb000d4684d8`
-- CI: [30633602052](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30633602052)
-- job: [91165600654](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30633602052/job/91165600654)
-- result: success
-- recorded result: 340 uniquely discovered tests plus patch validation, compilation, shell syntax, and command-help checks.
+- canonical/imported blob equality: success;
+- patch application with `--fuzz=0`: success twice;
+- Python compilation: success;
+- six null/source/status controls: 6/6 twice;
+- artifact: `8815289674`;
+- SHA-256: `25e62dec929f27e628816568d6264f2bee45474c00b00c3c047f53209608ef1d`.
 
-These receipts remain valid for their exact source/base pairs. They no longer prove current-main compatibility.
+Canonical refined-topology job `91342674164`:
 
-### Current-main gate
+- exact PR #339 regression carrier materialized: success;
+- canonical source and wrappers inserted: success;
+- null/QEMU-wrapper/passwordless-sudo controls: 14/14 twice;
+- skips: none;
+- actual passwordless-sudo root-worker controls: executed;
+- first pass: 3.874 seconds;
+- immediate rerun: 3.599 seconds;
+- artifact: `8815290820`;
+- SHA-256: `63634782bfd230129238ee71aa60ad83ae5b43dfcf3291123cfdbd0770bdf63e`.
 
-- source head: `e82b9b059850fce1efcf8daadef89049495a8b27`
-- pull request: [#406](https://github.com/teamleaderleo/linux-fieldwork/pull/406)
-- CI: [30690801852](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30690801852)
-- run: 1151
-- current result: queued at packet update
+Final packet head `d232e4fdd67cf0592e129a60534e984dcbec6bfe` passed exact-head run [30690101504](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30690101504); both canonical jobs succeeded.
 
-### QEMU evidence refinement
+### Historical repository execution
 
-- pull request: [`teamleaderleo/linux-fieldwork#339`](https://github.com/teamleaderleo/linux-fieldwork/pull/339)
-- head: `8253ab2ef6fed22b34fc5f5d6d20cda75c25e2c7`
-- CI: [30633578396](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30633578396)
-- job: [91165522248](https://github.com/teamleaderleo/linux-fieldwork/actions/runs/30633578396/job/91165522248)
-- result: success; 269 tests recorded
-- independent evidence review: comment `5143736054`
+- mechanism CI `30632491641`, job `91161937871`: 359 tests passed, including fourteen focused lifecycle controls, compilation, shell syntax, and command-help checks;
+- retained-head CI `30633602052`, job `91165600654`: 340 uniquely discovered tests passed;
+- QEMU evidence CI `30633578396`, job `91165522248`: 269 tests passed.
+
+These remain exact-head historical evidence. Canonical run `30689911760` is the current-source focused receipt.
 
 ### Packet model
 
-- environment: Linux 6.12.13 x86_64, Python 3.13.5
-- original run, closeout rerun, and reviewed relocatable replay: success
-- result: baseline 0 with later work; status-only 130 with later work; group candidate 130 without later work
-- compile check: success for all five retained Python files
-- receipt: [`receipts/2026-08-01-local-process-model.md`](./receipts/2026-08-01-local-process-model.md)
-- source: [`fixtures/local-process-model/`](./fixtures/local-process-model/)
+- Linux 6.12.13 x86_64, Python 3.13.5;
+- original run, closeout rerun, and reviewed relocatable replay: success;
+- compile check: success for all retained Python files;
+- baseline: status 0 with later work;
+- status-only: status 130 with later work;
+- group candidate: status 130 without later work;
+- receipt: [`receipts/2026-08-01-local-process-model.md`](./receipts/2026-08-01-local-process-model.md);
+- source: [`fixtures/local-process-model/`](./fixtures/local-process-model/).
 
-The exact original harness is preserved as `harness_original.py`. The reviewed `harness.py` repairs path portability, readiness ordering, early-exit diagnosis, and cleanup only.
+Full detail: [`TESTS.md`](./TESTS.md).
 
-Full details: [`TESTS.md`](./TESTS.md).
+## Claim boundary
 
-## Evidence limits and compatibility risk
+Established:
 
-Established at exact historical heads:
-
+- canonical current `coverage.py` matches the imported baseline blob;
+- the upstream-root patch applies with zero fuzz and compiles;
 - caller-owned group exists before backend execution;
 - parent-only SIGINT sends TERM to that group;
 - tested TERM-responsive null, QEMU-wrapper, and sudo groups settle without later work;
-- ordinary unsignaled controls succeed.
+- ordinary unsignaled controls succeed;
+- cleanup and immediate rerun succeed.
 
 Limits:
 
@@ -167,78 +158,77 @@ Limits:
 - TERM-resistant or TERM-deferring descendants can survive;
 - repeated SIGINT can interrupt cleanup;
 - descendants can escape by creating another group/session;
-- direct `/dev/tty`, real QEMU/debvm, mounts, network, package operations, and non-Linux semantics remain unexecuted;
-- current Linux Fieldwork gate remains pending;
-- upstream target-native and ordinary gates remain pending.
+- real QEMU/debvm, prepared-mirror package operations, direct `/dev/tty`, and non-Linux execution remain unexecuted;
+- the full mirror-backed/project-declared ordinary source gate was not run;
+- no clean controlled-fork candidate branch or target commit exists;
+- upstream maintainer review has not occurred.
 
-The stronger synthetic policy comparison is retained in [issue #341](https://github.com/teamleaderleo/linux-fieldwork/issues/341) and [PR #347](https://github.com/teamleaderleo/linux-fieldwork/pull/347). Escalation remains unselected.
+Issue #341 and closed PR #347 retain stronger cleanup-policy research. Escalation remains unselected.
 
 ## Duplicate and prior-art result
 
-A bounded search on 2026-08-01 across upstream source, issue, merge-request, recent-commit, and Debian bug surfaces found no matching public `SIGINT`/`KeyboardInterrupt`/`killpg`/process-group repair. Refresh this search immediately before public action.
+The canonical unit-11 packet records a current visible overlap search with no equivalent public repair. Refresh issue, pull-request, commit, and Debian bug searches immediately before any authorized submission.
 
 Internal prior art:
 
-- status-only finding: [issue #141](https://github.com/teamleaderleo/linux-fieldwork/issues/141)
-- historical status-only candidate: [PR #143](https://github.com/teamleaderleo/linux-fieldwork/pull/143)
-- merged Fieldwork restack: [PR #204](https://github.com/teamleaderleo/linux-fieldwork/pull/204)
-- canonical process-group investigation: [issue #306](https://github.com/teamleaderleo/linux-fieldwork/issues/306) / [PR #313](https://github.com/teamleaderleo/linux-fieldwork/pull/313)
-- superseded context repair: [PR #332](https://github.com/teamleaderleo/linux-fieldwork/pull/332)
-- superseded QEMU refinement: [PR #336](https://github.com/teamleaderleo/linux-fieldwork/pull/336)
-- refined QEMU evidence: [PR #339](https://github.com/teamleaderleo/linux-fieldwork/pull/339)
-- deferred cleanup comparison: [issue #341](https://github.com/teamleaderleo/linux-fieldwork/issues/341), [PR #347](https://github.com/teamleaderleo/linux-fieldwork/pull/347), [PR #353](https://github.com/teamleaderleo/linux-fieldwork/pull/353)
-- current-main reconciliation: [PR #406](https://github.com/teamleaderleo/linux-fieldwork/pull/406)
-
-A later review mentioned PR #358. Live inspection shows #358 is a closed, unrelated broad mmdebstrap fixture contract repair. Unit 13 excludes it.
+- status-only finding: issue #141; PRs #143 and #204;
+- process-group finding and carrier: issue #306 and closed PR #313;
+- superseded carrier repairs: PRs #332 and #336;
+- refined QEMU evidence: closed PR #339;
+- stronger cleanup comparison: issue #341 and closed PRs #347/#353;
+- canonical current-source packet: PR #401;
+- superseded current-main restack: closed PR #406.
 
 ## Packet navigation
 
-- [`DEEP_DIVE.md`](./DEEP_DIVE.md) — source map, invariant, design, compatibility, and current answer
-- [`APPROACHES.md`](./APPROACHES.md) — selected, losing, rejected, superseded, and deferred directions
-- [`TESTS.md`](./TESTS.md) — exact commands, runs, jobs, evidence classes, limits, and next execution
-- [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md) — optional polished issue draft
-- [`UPSTREAM_PR.md`](./UPSTREAM_PR.md) — polished PR draft and publication checklist
-- [`REVIEW.md`](./REVIEW.md) — exact-head review and final human inspection guide
-- [`patches/`](./patches/) — retained source patch
-- [`receipts/`](./receipts/) — compact execution receipts
-- [`fixtures/local-process-model/`](./fixtures/local-process-model/) — original and reviewed packet model source
+- [`DEEP_DIVE.md`](./DEEP_DIVE.md)
+- [`APPROACHES.md`](./APPROACHES.md)
+- [`TESTS.md`](./TESTS.md)
+- [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md)
+- [`UPSTREAM_PR.md`](./UPSTREAM_PR.md)
+- [`REVIEW.md`](./REVIEW.md)
+- [`patches/`](./patches/)
+- [`receipts/`](./receipts/)
+- [`fixtures/local-process-model/`](./fixtures/local-process-model/)
+- canonical Linux Fieldwork packet: [`PR #401`](https://github.com/teamleaderleo/linux-fieldwork/pull/401)
 
 ## Remaining work in strict order
 
-1. finish PR #406 current-main CI;
-2. record literal source head, generated merge, counts, skips, and lifecycle results;
-3. renew complete-diff review of PR #406;
-4. obtain or create an owned mmdebstrap fork through the authorized repository-admission path;
-5. refresh canonical upstream `master` and record the exact base SHA;
-6. create `fix/coverage-backend-process-group-current-master` directly from that base;
-7. apply or recreate the one-file source patch;
-8. select and add a target-native deterministic regression;
-9. decide whether the refined QEMU causal control from #339 should be adapted;
-10. run focused baseline/candidate execution and project-declared ordinary gates;
-11. refresh duplicate, contribution-policy, and AI-disclosure checks;
-12. review the complete clean target diff independently;
-13. update packet and drafts with exact target head and receipts;
-14. request explicit authority for the exact public interaction.
+1. obtain an eligible independent complete-diff review of PR #401 and this outer packet;
+2. decide whether the unit-specific execution workflow is retained as a permanent reproducible gate or retired after receipt transfer;
+3. obtain or create a controlled fork of canonical `josch/mmdebstrap`;
+4. refresh canonical `main` and record the exact base;
+5. create `fix/coverage-backend-process-group-current-main` from that base;
+6. apply the upstream-root patch with zero fuzz;
+7. select and add an upstream-native deterministic regression;
+8. run the focused regression and project-declared ordinary mirror-backed/source gates;
+9. review the complete clean target diff independently;
+10. refresh duplicate, contribution-policy, and AI-disclosure checks;
+11. synchronize packet and drafts with the exact target head;
+12. request explicit authority for the exact public interaction.
 
 ## Current blockers
 
-- PR #406 current-main gate and renewed review remain pending;
-- no accessible owned mmdebstrap repository or target branch;
-- no clean upstream source head carrying the patch;
-- no target-native focused regression;
-- no upstream ordinary-gate receipt;
-- independent final clean-target-diff acceptance remains pending;
-- public contact authority remains `false`.
+- controlled canonical fork and clean source branch: absent;
+- exact clean target candidate head: absent;
+- upstream-native regression committed to a target branch: absent;
+- project-declared ordinary source gate: unexecuted;
+- workflow retention/retirement decision: pending;
+- independent final target-diff acceptance: pending;
+- public contact authority: `false`.
 
 ## Continuation-ready handoff
 
-Resume from this packet, Linux Fieldwork PR #406, and the latest unit-13 comment on `teamleaderleo/fieldwork#435`.
+Resume from this packet, outer packet PR #439, canonical Linux Fieldwork PR #401, and the latest unit-13 handoff on `teamleaderleo/fieldwork#435`.
 
-Preserve `REPAIR` until PR #406 is green and reviewed, then continue to clean mmdebstrap materialization. Treat:
+Use these exact identities:
 
-- `linux-fieldwork#313@dfc6d050…` as retained technical history;
-- `linux-fieldwork#406@e82b9b05…` as active current-main delivery reconciliation;
-- `e90fc438…` as the exact historically executed mechanism generation;
-- `linux-fieldwork#339@8253ab2e…` as the refined QEMU evidence successor.
+- canonical upstream base executed: `77ec9be5417ee44c96343d2347145585da1b1f94`;
+- canonical delivery packet: `linux-fieldwork#401@d232e4fdd67cf0592e129a60534e984dcbec6bfe`;
+- upstream-root patch blob: `f1a2c75adfa009b6f1ac29e5a31bef526400444f`;
+- historical mechanism: `e90fc438f530f7bd78ffd6fd1ba24c665bd96913`;
+- refined QEMU test head: `8253ab2ef6fed22b34fc5f5d6d20cda75c25e2c7`;
+- canonical focused run: `30689911760`;
+- final packet run: `30690101504`.
 
-Keep escalation research separate unless a real backend supplies reopening evidence. Perform no public upstream interaction without explicit authority.
+Preserve `REPAIR` under #435 until the clean target branch, ordinary gate, and final target review exist. Keep escalation separate. Perform no public upstream interaction without explicit authority.
