@@ -24,13 +24,13 @@ The bounded mechanism is technically coherent and heavily exercised. Delivery re
 
 - target: mmdebstrap
 - canonical upstream repository: `https://salsa.debian.org/debian/mmdebstrap.git`
-- upstream default branch: `main`
+- canonical selected/default branch: `master`
 - imported release/tag: `debian/1.5.7-3`
 - imported upstream commit: `6fde999741f4fe1e7bf38079acf29432ef87a35e`
 - Linux Fieldwork import commit: `782774b01002abf37878d834a54d0bbf8b226397`
 - imported `coverage.py` blob: `9a522484aef05deae514a98e4b6adf5feb6c886d`
-- current upstream main inspected 2026-08-01: `77ec9be5417ee44c96343d2347145585da1b1f94`
-- relevant lifecycle on current main: unchanged from the imported blob in the inspected public mirror
+- upstream `master` revision inspected 2026-08-01: `77ec9be5417ee44c96343d2347145585da1b1f94`
+- relevant lifecycle on the inspected revision: unchanged from the imported blob
 
 ## Canonical source and packaging
 
@@ -47,8 +47,8 @@ The bounded mechanism is technically coherent and heavily exercised. Delivery re
 
 - owned fork: absent from the accessible repositories
 - preferred fork name: `teamleaderleo/mmdebstrap`
-- intended branch: `fix/coverage-backend-process-group-current-main`
-- intended exact base: refresh current upstream `main`; presently `77ec9be5417ee44c96343d2347145585da1b1f94`
+- intended branch: `fix/coverage-backend-process-group-current-master`
+- intended base: refresh the exact canonical upstream `master` head; inspected revision is `77ec9be5417ee44c96343d2347145585da1b1f94`
 - materialization state: blocked on fork/repository admission
 
 No branch is claimed where repository access is absent.
@@ -114,8 +114,9 @@ The clean target branch must exclude Linux Fieldwork investigations, notes, rece
 ### Fresh packet-time model
 
 - environment: Linux 6.12.13 x86_64, Python 3.13.5
-- result: baseline 0 with later work; status-only 130 with later work; group candidate 130 without later work
+- initial run and closeout rerun: baseline 0 with later work; status-only 130 with later work; group candidate 130 without later work
 - receipt: [`receipts/2026-08-01-local-process-model.md`](./receipts/2026-08-01-local-process-model.md)
+- exact retained source: [`fixtures/local-process-model/`](./fixtures/local-process-model/)
 
 Full details: [`TESTS.md`](./TESTS.md).
 
@@ -141,7 +142,7 @@ The stronger synthetic policy comparison is retained in [issue #341](https://git
 
 ## Duplicate and prior-art result
 
-A bounded search on 2026-08-01 across the current public upstream source, issue, and merge-request surfaces found the old lifecycle still present and no matching public `SIGINT`/`KeyboardInterrupt`/`killpg`/process-group repair. Refresh this search immediately before any public action.
+A bounded search on 2026-08-01 across the current public upstream source, issue, merge-request, recent-commit, and Debian bug surfaces found the old lifecycle still present and no matching public `SIGINT`/`KeyboardInterrupt`/`killpg`/process-group repair. Refresh this search immediately before any public action.
 
 Internal prior art:
 
@@ -164,12 +165,13 @@ Internal prior art:
 - [`REVIEW.md`](./REVIEW.md) — exact-head review and final human inspection guide
 - [`patches/`](./patches/) — retained source patch
 - [`receipts/`](./receipts/) — compact packet-time execution receipt
+- [`fixtures/local-process-model/`](./fixtures/local-process-model/) — exact retained packet-time model source
 
 ## Remaining work in strict order
 
 1. obtain or create an owned mmdebstrap fork through the authorized repository-admission path;
-2. refresh current upstream main and record the exact base SHA;
-3. create `fix/coverage-backend-process-group-current-main` directly from that base;
+2. refresh canonical upstream `master` and record the exact base SHA;
+3. create `fix/coverage-backend-process-group-current-master` directly from that base;
 4. apply or recreate the one-file source patch;
 5. select and add a target-native deterministic regression;
 6. decide whether the refined QEMU causal control from #339 should be adapted into the target regression evidence;
@@ -191,4 +193,4 @@ Internal prior art:
 
 ## Continuation-ready handoff
 
-Resume from this packet and the latest unit-13 comment on `teamleaderleo/fieldwork#435`. Preserve the `REPAIR` disposition until a clean current-upstream target branch and target-native execution exist. Treat `linux-fieldwork#313@dfc6d050…` as the canonical retained technical carrier, `e90fc438…` as the exact executed mechanism generation, and `linux-fieldwork#339@8253ab2e…` as the accepted QEMU evidence successor. Keep escalation research separate unless a real backend supplies the reopening evidence. Perform no public upstream interaction without explicit authority.
+Resume from this packet and the latest unit-13 comment on `teamleaderleo/fieldwork#435`. Preserve the `REPAIR` disposition until a clean current-`master` target branch and target-native execution exist. Treat `linux-fieldwork#313@dfc6d050…` as the canonical retained technical carrier, `e90fc438…` as the exact executed mechanism generation, and `linux-fieldwork#339@8253ab2e…` as the accepted QEMU evidence successor. Keep escalation research separate unless a real backend supplies the reopening evidence. Perform no public upstream interaction without explicit authority.
