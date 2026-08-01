@@ -1,49 +1,69 @@
-# Upstream issue draft — gomarkdoc checks
+# Upstream issue route — unit 22 gomarkdoc checks
 
-## Route recommendation
+## Status
 
-Direct pull request preferred. The repair is one package file, the failing behavior and prior containment are documented in Nixpkgs history, and the candidate has an executable acceptance test. Use this issue draft only when a maintainer requests issue-first discussion.
+`NO NEW ISSUE — EXISTING ISSUE #516481`
 
-Public posting authority: `absent`
+A new public issue draft would duplicate [`NixOS/nixpkgs#516481`](https://github.com/NixOS/nixpkgs/issues/516481), which already records the gomarkdoc 1.1.0 check regression, exact missing-fixture failure, reproduction window, and current disable-tests workaround.
 
-## Proposed title
+Public upstream contact remains unauthorized. This file preserves the issue analysis and future routing text without posting it.
 
-`gomarkdoc: restore disabled upstream checks`
+## Existing issue fit
 
-## Draft body
+Existing title:
 
-The `gomarkdoc` 1.1.0 package currently disables its upstream Go tests after they failed in the Nixpkgs build environment.
+> gomarkdoc 1.1.0 checkPhase regressed between nixpkgs commits 4590696 (2026-03-23) and acd02b8 (2026-05-01)
 
-The failure has three package-specific causes:
+Existing issue facts relevant to the candidate:
 
-- the v1.1.0 documentation golden output aligns with Go 1.25 symbol resolution;
-- command tests call gomarkdoc's flag parser directly, so Nixpkgs' test environment `GOFLAGS=-mod=vendor ...` is interpreted as application flags;
-- the release tag omits the empty `.gomarkdoc-empty.yml` fixture referenced by command tests.
+- gomarkdoc 1.1.0 check execution regressed while the package expression stayed unchanged;
+- command tests emit unknown-flag diagnostics for `GOFLAGS`;
+- the observed failing assertion is the absent `../.gomarkdoc-empty.yml` fixture;
+- disabling checks is the current workaround;
+- the issue names `buildGoModule`, Go, and stdenv as likely investigation boundaries;
+- no comments or competing repair are present.
 
-There is one additional coverage detail: the expression builds only `cmd/gomarkdoc` through `subPackages`. The generic `buildGoModule` check phase also uses that selector, so simply enabling checks exercises only the command package.
+## Packet correction derived from the issue
 
-A package-local restoration can:
+The Fieldwork assignment title emphasizes leaked Nix `GOFLAGS`. Source and existing-issue review support a narrower statement:
 
-1. use `buildGo125Module` for the v1.1.0 golden output;
-2. remove only `-mod=vendor` from `GOFLAGS` during checks while retaining the materialized vendor tree and offline module mode;
-3. create the omitted empty config fixture in `preCheck`;
-4. clear the build-only package selector in `preCheck`, allowing the standard check phase to discover all packages containing tests.
+- `-mod=vendor` reaches gomarkdoc's application parser and produces a diagnostic;
+- gomarkdoc returns no default tags after the parse error;
+- the public issue treats that output as benign;
+- the missing empty fixture is the observed failure blocker;
+- Fieldwork's negative Go 1.26 execution found an additional documentation-golden difference.
 
-Acceptance criteria:
+The candidate still removes `-mod=vendor` during checks to keep a build-system option out of the application parser. The future PR should avoid claiming that this diagnostic alone caused the failed derivation.
 
-- `gomarkdoc` still installs only the command binary;
-- source and vendor hashes remain unchanged;
-- package checks pass on Linux and Darwin;
-- the check log includes the root package, `lang`, a format package, and `cmd/gomarkdoc`;
-- `gomarkdoc.tests.version` still reports `1.1.0`.
+## Preferred upstream route after authorization
 
-## Maintainer questions
+Open a direct PR against `master` and link the existing issue with:
 
-- Is pinning this package to `buildGo125Module` acceptable until gomarkdoc publishes a release with updated generated-document fixtures?
-- Does clearing `subPackages` inside `preCheck` fit current Nixpkgs Go packaging practice, or would maintainers prefer a separate declarative test-package selector?
+```text
+Closes #516481
+```
 
-## Draft limits
+The PR should contain only `pkgs/by-name/go/gomarkdoc/package.nix` and describe:
 
-- This draft describes gomarkdoc 1.1.0 at the inspected Nixpkgs base.
-- A newer gomarkdoc release could change the preferred repair.
-- Hydra and merge-queue results require an authorized upstream pull request.
+1. Go 1.25 compatibility for the v1.1.0 checked golden;
+2. creation of the omitted empty test fixture in the disposable build tree;
+3. removal of Nix's build-only `-mod=vendor` token before gomarkdoc parses application flags;
+4. check-time clearing of `subPackages` so root, language, formatter, and command packages run;
+5. unchanged source/vendor hashes and command-only installation output.
+
+## Optional issue comment draft
+
+This draft is retained only for a future explicitly authorized comment on the existing issue. A direct PR with `Closes #516481` remains preferable.
+
+> I reproduced the package behavior and found one additional Nixpkgs packaging detail: `subPackages = [ "cmd/gomarkdoc" ]` also limits the generic `checkPhase`, so a successful command-package run can still skip the root, `lang`, and format packages.
+>
+> A package-local candidate keeps the command-only build selector, clears it in `preCheck`, recreates the omitted empty config fixture, and uses Go 1.25 for the v1.1.0 documentation golden. The final validation should show root, `lang`, format, command, and version results on Linux and Darwin.
+
+## Authority and disclosure checklist
+
+- [x] Existing public issue found.
+- [x] New issue avoided.
+- [x] No public comment posted.
+- [x] No reaction or maintainer contact performed.
+- [ ] Exact authorization obtained for any future public interaction.
+- [ ] Current Nixpkgs contribution and disclosure requirements rechecked at filing time.
