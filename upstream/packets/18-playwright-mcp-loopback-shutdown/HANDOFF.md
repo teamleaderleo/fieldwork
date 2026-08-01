@@ -29,7 +29,9 @@ The special MCP HTTP shutdown route grants process termination authority to any 
 - Packet directory: `upstream/packets/18-playwright-mcp-loopback-shutdown/`
 - Packet branch: `p0/435-unit-18-playwright-mcp-shutdown`
 - Source base: `fieldwork/435-unit-18-base-15b1aec@15b1aec478d90f0293dae7b7b6dafd494d9f0154`
-- Source candidate: `fix/mcp-parent-ipc-shutdown@c4c5e2db6f0305237be4de4c167dfb2344abb305`
+- Source candidate: `fix/mcp-parent-ipc-shutdown@e99e97da2acfc6c1a67749bc749e1d0cb71b5607`
+- Owned source PR: `teamleaderleo/playwright#40`
+- Net source fence: three files, with incidental comment/newline churn removed
 
 ## Failed and losing hypotheses
 
@@ -47,7 +49,7 @@ The current source validator requires a plain object with prototype `Object.prot
 ## Unresolved uncertainty
 
 - Exact current-head execution has not run.
-- Complete source diff still needs a final review for incidental comment/newline churn and squash hygiene.
+- Source history still requires squash before any authorized submission.
 - Full Playwright repository CI has not run.
 - Maintainer preference and issue approval are unknown.
 
