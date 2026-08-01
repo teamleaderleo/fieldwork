@@ -2,7 +2,7 @@
 
 ## In simple words
 
-The leading approach removes the unsupported `--` operands from every current launcher owner while keeping the existing quoting and `realpath`-before-`dirname` sequence. It won because the executable matrices preserve the tested behavior on GNU and BusyBox and because it keeps generator and recognizer text synchronized.
+The selected approach removes the unsupported `--` operands from every current launcher owner while keeping the existing quoting and `realpath`-before-`dirname` sequence. It won because current-head GNU and BusyBox execution preserve the intended behavior, the affected crates compile, the native shebang assertion passes, and generator and recognizer text remain synchronized.
 
 ## Decision criteria
 
@@ -10,18 +10,21 @@ The leading approach removes the unsupported `--` operands from every current la
 2. Remove the BusyBox diagnostic on successful commands.
 3. Preserve quoting for spaces and ordinary leading-hyphen invocation.
 4. Keep wheel, virtualenv, and project-run text synchronized.
-5. Keep the source diff narrow and reviewable.
+5. Keep the source diff narrow, formatted, and reviewable.
+6. Publish one source-only commit directly on the reviewed public base.
 
 ## Selected approach
 
 ### Remove unsupported delimiters in all three owners
 
-- Design: replace `realpath --` with `realpath` and `dirname --` with `dirname` in the wheel generator and snapshot, POSIX/fish activation generators, and project-run recognizer.
+- Design: replace `realpath --` with `realpath` and `dirname --` with `dirname` in the wheel generator and assertion, POSIX/fish activation generators, and project-run recognizer.
+- Exact source: [`c43b126`](https://github.com/teamleaderleo/uv/commit/c43b1262be71d9fc0b60ca613700ef7ae60bf69d).
+- Exact compare: [`79bbface...c43b126`](https://github.com/teamleaderleo/uv/compare/79bbface771210df216b738e9bdc7df95e5a9e6b...c43b1262be71d9fc0b60ca613700ef7ae60bf69d).
 - Owning boundary: the existing string-literal owners.
-- Evidence: prior 24-case matrix and synchronized source candidate at [`teamleaderleo/uv#3`](https://github.com/teamleaderleo/uv/pull/3); current-head carrier at [`teamleaderleo/uv#5`](https://github.com/teamleaderleo/uv/pull/5).
-- Advantages: smallest executable change; no runtime detection; preserves symlink canonicalization; exact textual synchronization.
-- Costs and risks: a bare option-like `$0` remains unproved; BSD/macOS execution remains pending human validation.
-- Remaining controls: current-head run, human source review, and macOS/BSD gate before public submission.
+- Evidence: prior 24-case discriminator at PR #2, synchronized source candidate at PR #3, and successful current-head execution at PR #6 / workflow `30676914631`.
+- Advantages: smallest executable change; no runtime detection; preserves symlink canonicalization; exact textual synchronization; one clean source commit.
+- Costs and risks: a bare option-like `$0` remains unproved; BSD/macOS execution remains a human review decision; old generated text can persist.
+- Remaining controls: independent human source review, platform-gap acceptance or execution, public-policy compliance, and explicit authorization.
 
 ## Viable alternatives
 
@@ -70,6 +73,22 @@ The leading approach removes the unsupported `--` operands from every current la
 - Why it lost: fails synchronized-contract criterion.
 - Useful evidence retained: exact owner and replacement counts.
 
+### Unformatted delimiter-only virtualenv replacement
+
+- Exact carrier: `76cdc876678e6bb517f543f1021aaeb87e6d0f4a`.
+- What ran: exact candidate generation followed by rustfmt.
+- Result: `cargo fmt --all --check` required the relocatable activation match arm to use a braced form.
+- Why it lost: failed the target formatter.
+- Useful evidence retained: final virtualenv hunk is +4/-4 while the semantic replacement remains two `realpath` and four `dirname` delimiters.
+
+### Broad carrier against stale fork main
+
+- Exact carrier: PR #5.
+- Result: carrier-wide comparison included unrelated upstream history and ordinary CI load.
+- Why it lost: poor evidence isolation.
+- Useful evidence retained: exact current source artifact and setup-failure receipt.
+- Repair: isolated execution base `d2ebfd9` with a two-file carrier and one focused workflow.
+
 ## Rejected easy answers
 
 ### Redirect `realpath` stderr
@@ -88,7 +107,7 @@ The leading approach removes the unsupported `--` operands from every current la
 
 - Temptation: retain `--` elsewhere.
 - Why incomplete: adds shell detection, runtime branching, and failure modes to every generated launcher.
-- Negative control: the delimiter-free fragment already preserves all executed GNU cases.
+- Negative control: the delimiter-free fragment preserves all executed GNU cases.
 
 ### Assume `$0` can never begin with a hyphen
 
@@ -96,22 +115,25 @@ The leading approach removes the unsupported `--` operands from every current la
 - Why incomplete: the executed control proves `./-tool`, not every possible process argument.
 - Evidence limit: bare option-like `$0` remains unmeasured.
 
-## Prior upstream approaches
+## Prior upstream and owned approaches
 
 | Link | Approach | Status | Relationship to this unit |
 | --- | --- | --- | --- |
 | [`astral-sh/uv#8058`](https://github.com/astral-sh/uv/issues/8058) | Canonicalize the launcher before taking its directory | closed | Defines the symlink invariant retained here |
-| [`astral-sh/uv#8079`](https://github.com/astral-sh/uv/pull/8079) | Replace shell-only directory resolution with nested `realpath`/`dirname` and add symlink tests | merged | Direct implementation lineage; delimiters came from this change |
-| [`astral-sh/uv#16209`](https://github.com/astral-sh/uv/issues/16209) | Report BusyBox diagnostic and discuss compatibility trade-off | open | Public issue this unit addresses |
-| [`teamleaderleo/uv#2`](https://github.com/teamleaderleo/uv/pull/2) | Executable current-vs-no-delimiter discriminator | open evidence carrier | Establishes behavior matrix |
-| [`teamleaderleo/uv#3`](https://github.com/teamleaderleo/uv/pull/3) | Synchronized generated three-owner source candidate | open evidence carrier | Establishes exact patch and affected-crate compile result |
+| [`astral-sh/uv#8079`](https://github.com/astral-sh/uv/pull/8079) | Nested `realpath`/`dirname` plus symlink tests | merged | Direct implementation lineage; delimiters came from this change |
+| [`astral-sh/uv#16209`](https://github.com/astral-sh/uv/issues/16209) | BusyBox diagnostic report and trade-off discussion | open | Public issue this unit addresses |
+| [`teamleaderleo/uv#2`](https://github.com/teamleaderleo/uv/pull/2) | Executable current-vs-no-delimiter discriminator | evidence carrier | Establishes behavior matrix |
+| [`teamleaderleo/uv#3`](https://github.com/teamleaderleo/uv/pull/3) | Synchronized generated three-owner source candidate | evidence carrier | Establishes original exact patch and compile result |
+| [`teamleaderleo/uv#5`](https://github.com/teamleaderleo/uv/pull/5) | Current-head artifact carrier against stale fork main | closed without merge | Retained exact files and setup failures |
+| [`teamleaderleo/uv#6`](https://github.com/teamleaderleo/uv/pull/6) | Isolated current-head tests and clean publication | closed without merge | Final successful execution carrier |
 
 ## Deferred adjacent work
 
 - shared launcher helper — broader refactor;
 - legacy generated-script migration — separate compatibility question;
 - generalized shell utility portability — wider than this defect;
-- full system-test expansion — useful follow-up after maintainer direction.
+- complete project suite expansion — reviewer or maintainer direction;
+- native macOS/BSD validation — platform follow-up.
 
 ## Decision history
 
@@ -119,4 +141,6 @@ The leading approach removes the unsupported `--` operands from every current la
 | --- | --- | --- | --- | --- |
 | 2026-07-31 | PR #2 at `f8adfc6`, workflow `30625826268` | Promote delimiter-free fragment | 24/24 matrix, BusyBox quiet, GNU retained | supported bare option-like `$0` |
 | 2026-07-31 | PR #3 at `0aad1cc`, workflow `30650924197` | Synchronize all three owners | exact 3-file fence and affected-crate compile passed | current source drift |
-| 2026-08-01 | public base `79bbface`, carrier PR #5 | Reconcile and materialize clean branch | old candidate base was 34 commits behind | current-head test failure or upstream overlap |
+| 2026-08-01 | public base `79bbface`, PR #5 artifact `8810498589` | Retain exact current-head files | old candidate base was 34 commits behind | source overlap or failed current test |
+| 2026-08-01 | workflow `30676820652` | Adopt rustfmt braced virtualenv arm | target formatter rejected the unbraced candidate | formatter behavior changes |
+| 2026-08-01 | PR #6 at `9c1465a`, workflow `30676914631` | Publish source head `c43b126` | format, compile, native test, GNU/BusyBox matrices, and exact publication fence passed | human review or platform evidence reverses conclusion |
