@@ -1,0 +1,109 @@
+diff --git a/packages/python-sdk/PARITY.md b/packages/python-sdk/PARITY.md
+index 5408c5e..ac2608e 100644
+--- a/packages/python-sdk/PARITY.md
++++ b/packages/python-sdk/PARITY.md
+@@ -14,6 +14,7 @@ JS `Run`/`StreamRun` → Python `Run`/`StreamRun` (+ `AsyncRun`/`AsyncStreamRun`
+ | ---------------------- | ---------------------------- |
+ | `Box` / `EphemeralBox` | `Box` / `EphemeralBox` (+ `Async*`) |
+ | `Run` / `StreamRun`    | `Run` / `StreamRun` (+ `Async*`) |
++| `RunCancellationReceipt` | same (frozen dataclass in Python) |
+ | `BoxError`             | `BoxError`                   |
+ | `inferDefaultProvider` | `infer_default_provider`     |
+ | `runCustomHarness`     | `run_custom_harness`         |
+@@ -103,7 +104,8 @@ statics `create`, `from_snapshot`, `get_by_name`, `delete_boxes`,
+ - Polling loops (2s/300s) in `create`, `from_snapshot`, `snapshot`.
+ - `is_agent_configured`: `bool(data.agent)` on `create`; `bool(data.model)` on `get`/`from_snapshot`.
+ - `Run.logs()`: epoch→ISO, **lower-bound-only** time filter.
+-- `Run.cancel()`: swallows endpoint errors, always sets `cancelled`.
++- `Run.cancel()`: preserves the void/None contract and delegates to the shared at-most-once cancellation request.
++- `Run.requestCancel()` / `request_cancel()`: returns an immutable accepted/failed request receipt while leaving authoritative run status unchanged.
+ - `files.download` destination: `./{basename}` | `./workspace` | `./{basename(cwd)}`.
+ - 3-mode run request: file paths → multipart, base64 objects → JSON `files`, else plain JSON.
+ 
+diff --git a/packages/python-sdk/scripts/generate_sync.py b/packages/python-sdk/scripts/generate_sync.py
+index 1a81b48..817a10d 100644
+--- a/packages/python-sdk/scripts/generate_sync.py
++++ b/packages/python-sdk/scripts/generate_sync.py
+@@ -49,6 +49,7 @@ _RULES = [
+             "AsyncBox": "Box",
+             "AsyncEphemeralBox": "EphemeralBox",
+             "AsyncRun": "Run",
++            "AsyncCancellationCoordinator": "SyncCancellationCoordinator",
+             "AsyncStreamRun": "StreamRun",
+             "AsyncTab": "Tab",
+             "AsyncBrowserNamespace": "BrowserNamespace",
+diff --git a/packages/python-sdk/tests/_async/test_run.py b/packages/python-sdk/tests/_async/test_run.py
+index ac1b71d..2fe2d58 100644
+--- a/packages/python-sdk/tests/_async/test_run.py
++++ b/packages/python-sdk/tests/_async/test_run.py
+@@ -7,7 +7,7 @@ RUN_URL = f"{BASE}/run/stream"
+ 
+ 
+ @respx.mock
+-async def test_run_cancel_sets_status_and_swallows_errors():
++async def test_run_cancel_preserves_status_and_shared_failure_receipt():
+     box = await make_async_box(respx.mock)
+     respx.post(RUN_URL).mock(
+         return_value=sse_response(
+@@ -18,12 +18,19 @@ async def test_run_cancel_sets_status_and_swallows_errors():
+         )
+     )
+     run = await box.agent.run(prompt="x")
+-    # Cancel endpoint returns an error — cancel() must not raise.
+-    respx.post(f"{BASE}/runs/r1/cancel").mock(
+-        return_value=httpx.Response(500, json={"error": "nope"})
++    route = respx.post(f"{BASE}/runs/r1/cancel").mock(
++        return_value=httpx.Response(500, json={"error": "provider detail"})
+     )
+-    await run.cancel()
+-    assert run.status == "cancelled"
++
++    assert await run.cancel() is None
++    receipt = await run.request_cancel()
++
++    assert run.status == "completed"
++    assert receipt.request_state == "failed"
++    assert receipt.outcome_state == "unknown"
++    assert receipt.diagnostic == "cancellation request failed"
++    assert "provider detail" not in repr(receipt)
++    assert route.call_count == 1
+     await box.aclose()
+ 
+ 
+diff --git a/packages/python-sdk/tests/_sync/test_sync_client.py b/packages/python-sdk/tests/_sync/test_sync_client.py
+index 6e8c336..4aab2ce 100644
+--- a/packages/python-sdk/tests/_sync/test_sync_client.py
++++ b/packages/python-sdk/tests/_sync/test_sync_client.py
+@@ -165,7 +165,7 @@ def test_stream_failed_preserves_partial():
+ 
+ 
+ @respx.mock
+-def test_run_cancel_swallows_errors():
++def test_run_cancel_preserves_status_and_shared_failure_receipt():
+     box = make_sync_box(respx.mock)
+     respx.post(RUN_URL).mock(
+         return_value=sse_response(
+@@ -176,11 +176,19 @@ def test_run_cancel_swallows_errors():
+         )
+     )
+     run = box.agent.run(prompt="x")
+-    respx.post(f"{BASE}/runs/r1/cancel").mock(
+-        return_value=httpx.Response(500, json={"error": "no"})
++    route = respx.post(f"{BASE}/runs/r1/cancel").mock(
++        return_value=httpx.Response(500, json={"error": "provider detail"})
+     )
+-    run.cancel()
+-    assert run.status == "cancelled"
++
++    assert run.cancel() is None
++    receipt = run.request_cancel()
++
++    assert run.status == "completed"
++    assert receipt.request_state == "failed"
++    assert receipt.outcome_state == "unknown"
++    assert receipt.diagnostic == "cancellation request failed"
++    assert "provider detail" not in repr(receipt)
++    assert route.call_count == 1
+     box.close()
+ 
+ 
