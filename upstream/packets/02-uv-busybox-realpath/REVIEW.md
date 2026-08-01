@@ -2,119 +2,120 @@
 
 ## Current disposition
 
-`HOLD — independent human review required`
+`READY FOR LAST-MILE LOOK`
 
-The exact source candidate and focused current-head tests are complete. The remaining reviewer work is judgment: supported `$0` forms, macOS/BSD utility behavior, persisted old launcher recognition, test sufficiency, and Astral's human-ownership policy.
+The source and focused technical validation are complete. This file is the human inspection checklist, not a request for more exploratory work.
 
 ## Review subject
 
-- Work class: upstream bug-fix preparation
 - Target repository: `astral-sh/uv`
-- Public source base: `79bbface771210df216b738e9bdc7df95e5a9e6b`
+- Public source base/current main: `79bbface771210df216b738e9bdc7df95e5a9e6b`
 - Canonical source branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
-- Exact source head: `c43b1262be71d9fc0b60ca613700ef7ae60bf69d`
-- Complete compare: [`79bbface...c43b126`](https://github.com/teamleaderleo/uv/compare/79bbface771210df216b738e9bdc7df95e5a9e6b...c43b1262be71d9fc0b60ca613700ef7ae60bf69d)
-- Fieldwork packet branch: `teamleaderleo/fieldwork:upstream/02-uv-busybox-realpath-packet`
+- Exact source head: `c42973ef0490c75df1c7e7f4e9a54d46c6bca059`
+- Exact source tree: `fdcbe687e0afaaf499e5098b3308525e03000526`
+- Complete compare: [`79bbface...c42973e`](https://github.com/teamleaderleo/uv/compare/79bbface771210df216b738e9bdc7df95e5a9e6b...c42973ef0490c75df1c7e7f4e9a54d46c6bca059)
+- Packet branch: `teamleaderleo/fieldwork:upstream/02-uv-busybox-realpath-packet`
 - Packet path: `upstream/packets/02-uv-busybox-realpath/`
-- Complete changed-file fence: wheel.rs, virtualenv.rs, project/run.rs
-- Upstream-contact authority: none
+- Public upstream authority: none
 
-## Review reading order
+## Reading order
 
 1. [`README.md`](./README.md)
-2. [`DEEP_DIVE.md`](./DEEP_DIVE.md)
-3. [`APPROACHES.md`](./APPROACHES.md)
-4. [`TESTS.md`](./TESTS.md)
-5. exact source compare above
-6. [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md)
-7. [`UPSTREAM_PR.md`](./UPSTREAM_PR.md)
+2. exact source compare above
+3. [`TESTS.md`](./TESTS.md)
+4. [`DEEP_DIVE.md`](./DEEP_DIVE.md)
+5. [`APPROACHES.md`](./APPROACHES.md)
+6. [`UPSTREAM_PR.md`](./UPSTREAM_PR.md)
 
 ## Exact source links
 
-| Area | Exact link | Role |
+| Area | Exact link | Review focus |
 | --- | --- | --- |
-| Wheel generator and native assertion | [`wheel.rs@c43b126`](https://github.com/teamleaderleo/uv/blob/c43b1262be71d9fc0b60ca613700ef7ae60bf69d/crates/uv-install-wheel/src/wheel.rs) | Generates relocatable shebang and asserts exact text |
-| Virtualenv activation generators | [`virtualenv.rs@c43b126`](https://github.com/teamleaderleo/uv/blob/c43b1262be71d9fc0b60ca613700ef7ae60bf69d/crates/uv-virtualenv/src/virtualenv.rs) | Generates POSIX and fish relocatable activation paths |
-| Project-run recognizer | [`run.rs@c43b126`](https://github.com/teamleaderleo/uv/blob/c43b1262be71d9fc0b60ca613700ef7ae60bf69d/crates/uv/src/commands/project/run.rs) | Recognizes the corrected generated shebang |
+| Wheel generator/assertion | [`wheel.rs@c42973e`](https://github.com/teamleaderleo/uv/blob/c42973ef0490c75df1c7e7f4e9a54d46c6bca059/crates/uv-install-wheel/src/wheel.rs) | Delimiter removal and exact generated text |
+| Virtualenv activation | [`virtualenv.rs@c42973e`](https://github.com/teamleaderleo/uv/blob/c42973ef0490c75df1c7e7f4e9a54d46c6bca059/crates/uv-virtualenv/src/virtualenv.rs) | POSIX/fish forms and rustfmt-required braced arm |
+| Project-run recognizer/test | [`run.rs@c42973e`](https://github.com/teamleaderleo/uv/blob/c42973ef0490c75df1c7e7f4e9a54d46c6bca059/crates/uv/src/commands/project/run.rs) | Dual historical/current recognition and direct unit test |
 
-## Claims requiring judgment
+## Decisions already made
 
-| Claim or design choice | Evidence | Reviewer question |
-| --- | --- | --- |
-| Removing both delimiters is the narrow repair | current-head GNU and Alpine BusyBox matrices | Does any supported invocation supply a bare option-like `$0`? |
-| All three owners must change together | exact three-file source fence | Should project-run recognize both historical and corrected forms? |
-| Symlink behavior is retained | external-symlink matrix and upstream PR #8079 lineage | Is the controlled fixture sufficient? |
-| Runtime BusyBox detection adds needless complexity | GNU candidate matrix remains clean | Does upstream prefer explicit platform branching? |
-| The source diff should remain three files | one-commit clean compare | Would maintainers prefer a shared helper in the same contribution? |
+### Remove utility delimiters from generated launchers
+
+Approved technical direction. BusyBox baseline emits the diagnostic; corrected GNU, BusyBox, and macOS cases pass.
+
+### Preserve historical shebang recognition
+
+Selected direction. Existing environments may contain delimiter-bearing launchers generated before this change. `copy_entrypoint` now accepts historical and corrected forms. A direct test covers both exact strings, interpreter replacement, body retention, and mode retention.
+
+Human question: does upstream want this migration compatibility in the same patch? The packet recommends yes.
+
+### Option-like `$0`
+
+Closed for the actual launcher entry path. Linux and macOS direct shebang probes requested argv0 `-tool` and `--help`; shell `$0` became the script path. Synthetic shell injection remains outside the supported direct entry behavior.
+
+### macOS
+
+Closed for the tested contract. Corrected launcher passed all six invocation forms on macOS 15.
 
 ## Source cleanliness
 
 - [x] Exact source head recorded.
-- [x] One commit directly on public base `79bbface`.
-- [x] One commit ahead and zero behind.
+- [x] One commit directly on current public main.
+- [x] One commit ahead, zero behind.
 - [x] Exactly three source files changed.
-- [x] No Fieldwork-only files in target source diff.
-- [x] No temporary workflows or publishers in target source diff.
-- [x] No execution receipts or stale artifacts in target source diff.
+- [x] No execution workflow or harness in source diff.
+- [x] No packet or receipt file in source diff.
 - [x] No unrelated generated churn.
-- [x] Commit-pinned links resolve to source head `c43b126`.
-- [ ] Every changed line independently reviewed by a human.
+- [x] Exact source links resolve to `c42973e`.
+- [ ] Human has read every changed line.
 
-## Test review
+## Test checklist
 
-- [x] Exact replacement fence ran: five `realpath --`, seven `dirname --`.
-- [x] `git diff --check` passed.
-- [x] `cargo fmt --all --check` passed.
-- [x] `cargo check -p uv-install-wheel -p uv-virtualenv -p uv` passed.
-- [x] `cargo test -p uv-install-wheel test_shebang` passed.
-- [x] GNU matrix passed 12/12.
-- [x] Alpine 3.22 BusyBox matrix passed 12/12.
-- [x] External symlink, spaces, relative, PATH, absolute, and `./-tool` controls passed.
-- [x] Setup failures and source failures are separated in `TESTS.md`.
-- [ ] macOS/BSD platform gap accepted or closed.
-- [ ] Full project suite or clippy requested by reviewer, if needed.
+- [x] `git diff --check`
+- [x] `cargo fmt --all --check`
+- [x] `cargo check -p uv-install-wheel -p uv-virtualenv -p uv`
+- [x] `cargo test -p uv-install-wheel test_shebang`
+- [x] `cargo test -p uv copy_entrypoint_accepts_current_and_legacy_relocatable_shebangs`
+- [x] GNU matrix 12/12
+- [x] Alpine 3.22 BusyBox matrix 12/12
+- [x] macOS 15 matrix 12/12
+- [x] Linux direct-shebang `$0` probe
+- [x] macOS direct-shebang `$0` probe
+- [x] exact three-file publication fence
+- [ ] Human decides whether full clippy or complete suite is desirable before submission
 
-## Final execution receipt
+## Final receipt
 
-- Execution-only carrier: `9c1465a8beff5e44053756523a053dbc64abc047`
-- Workflow/job: [`30676914631`](https://github.com/teamleaderleo/uv/actions/runs/30676914631) / `91305994591`
-- Artifact: `8810846105`
-- Artifact digest: `sha256:88af531d65679b1a756541d598c8c8fc85d250dd03ee32b58ede2d8a883ad45c`
-- Published source tree: `63c644c8bba5a5cb3376401f64bd1ce561aa674e`
-- Published source commit: `c43b1262be71d9fc0b60ca613700ef7ae60bf69d`
-- Execution PR #6: closed without merge
+- Execution carrier: `6fbdf4d7fb0ff577f5be24972b1a5bba73111793`
+- Closed PR: [`teamleaderleo/uv#7`](https://github.com/teamleaderleo/uv/pull/7)
+- Workflow: [`30690034279`](https://github.com/teamleaderleo/uv/actions/runs/30690034279)
+- Linux/source job: `91342987834`
+- macOS job: `91342987814`
+- publication job: `91343684491`
+- Linux artifact: `8815417615`
+- macOS artifact: `8815330073`
+- publication artifact: `8815424130`
 
-## Known limits
+## Human judgment prompts
 
-- bare option-like `$0` remains outside executed evidence;
-- native macOS and BSD utility behavior remains unexecuted;
-- older generated shebangs can remain after uv updates;
-- production prevalence remains unmeasured;
-- the full project suite and clippy were outside the focused run.
+1. **Migration policy:** Keep both exact relocatable shebang forms in `copy_entrypoint`?
+2. **Test placement:** Is the private-function unit test in `run.rs` appropriate, or would upstream prefer a project-run integration test?
+3. **Scope:** Is three files the right contribution boundary, or should constant sharing wait for a follow-up?
+4. **Submission gates:** Request full clippy or complete suite, or accept the focused gates?
+5. **Public wording:** Rewrite the issue/PR text in the human author's own voice.
 
-## Draft and policy review
+## Suggested disposition
 
-- [x] Existing public issue #16209 selected instead of duplicate filing.
-- [x] Internal PR draft matches the exact source diff and test receipt.
-- [x] Public upstream remained untouched.
-- [x] Astral contribution and AI policies are recorded.
-- [ ] Human independently understands and reviews the code.
-- [ ] Human rewrites all public wording in their own words.
-- [ ] Explicit authorization exists before any public interaction.
+Approve:
 
-## Reviewer disposition
+`Unit 02 source c42973e is approved for human upstream preparation.`
 
-`HOLD`
+Request a change:
 
-Reviewed source head: `c43b1262be71d9fc0b60ca613700ef7ae60bf69d`  
-Reason: source preparation and focused tests are complete; independent human judgment and public authorization remain.  
-Clearing condition: human review records an affirmative disposition, accepts or closes the named compatibility gaps, authors public wording, and receives explicit authorization.  
-Reviewer eligibility: a human who has independently read and understood the exact diff.
+`Unit 02 concern: <specific line, compatibility decision, test request, or wording issue>.`
 
-## Suggested human response
+## Public-action gate
 
-`Unit 02 source c43b126 is approved for human upstream preparation; the documented platform limits are accepted.`
+Source readiness and public authorization are separate. Even after source approval:
 
-—or—
-
-`Unit 02 concern: <specific source, test, compatibility, or framing issue>`
+- a human must independently understand the code;
+- a human must author the public communication in their own words;
+- explicit permission must exist before any public upstream action.
