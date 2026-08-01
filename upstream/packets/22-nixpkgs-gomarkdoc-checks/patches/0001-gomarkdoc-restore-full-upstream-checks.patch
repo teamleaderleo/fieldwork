@@ -1,0 +1,54 @@
+From 94be3956403ebf368b9d8262fdc9e5a5d2e80683 Mon Sep 17 00:00:00 2001
+From: teamleaderleo <teamleaderleo@users.noreply.github.com>
+Date: Sat, 1 Aug 2026 00:00:36 +0000
+Subject: [PATCH] gomarkdoc: restore full upstream checks
+
+Base: 55096b0ce13784d4f6420059c5627475fa26ebb1
+Source: teamleaderleo/nixpkgs fieldwork/unit-22-gomarkdoc-checks
+---
+ pkgs/by-name/go/gomarkdoc/package.nix | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/pkgs/by-name/go/gomarkdoc/package.nix b/pkgs/by-name/go/gomarkdoc/package.nix
+index 149e1cf1908f..5e1ebe3a1a9c 100644
+--- a/pkgs/by-name/go/gomarkdoc/package.nix
++++ b/pkgs/by-name/go/gomarkdoc/package.nix
+@@ -1,12 +1,12 @@
+ {
+   lib,
+-  buildGoModule,
++  buildGo125Module,
+   fetchFromGitHub,
+   testers,
+   gomarkdoc,
+ }:
+ 
+-buildGoModule (finalAttrs: {
++buildGo125Module (finalAttrs: {
+   pname = "gomarkdoc";
+   version = "1.1.0";
+ 
+@@ -21,10 +21,17 @@ buildGoModule (finalAttrs: {
+ 
+   vendorHash = "sha256-gCuYqk9agH86wfGd7k6QwLUiG3Mv6TrEd9tdyj8AYPs=";
+ 
+-  # Tests call gomarkdoc's main() directly, which reads GOFLAGS from the
+-  # environment. nixpkgs sets GOFLAGS=-mod=vendor, but gomarkdoc's own flag
+-  # parser only accepts -tags, so -mod triggers "flag provided but not defined".
+-  doCheck = false;
++  doCheck = true;
++
++  # v1.1.0's docs golden expects Go 1.25 symbol-resolution output. Its command
++  # tests also parse GOFLAGS as application flags and reference an empty config
++  # fixture omitted from the release tag. Clear the build-only package selector
++  # so buildGoModule discovers every package containing tests during checkPhase.
++  preCheck = ''
++    export GOFLAGS="''${GOFLAGS//-mod=vendor/}"
++    touch .gomarkdoc-empty.yml
++    subPackages=()
++  '';
+ 
+   ldflags = [
+     "-s"
+-- 
+2.54.0
