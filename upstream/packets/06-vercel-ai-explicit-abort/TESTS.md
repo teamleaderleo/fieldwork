@@ -4,9 +4,11 @@
 
 - Characterization head: `e685a4c92a5869aec306718ab5a440b7cb4fa5b1`
 - Repair head tested through carriers: `19a9dbe26b48af848f3202fa0c409ed67d034c7d`
-- Current clean source head: `92079da650430d8376a7eeef2436910b44393411`
-- Target-native cancellation-regression head: `7ae1794889d9dd22eeef9faf4f33d01330c0918d`
+- Initial clean source head: `92079da650430d8376a7eeef2436910b44393411`
+- Target-native cancellation-regression head before merge: `7ae1794889d9dd22eeef9faf4f33d01330c0918d`
+- Current canonical source head: `3035f6e5a3ef6ff9236c8d1b08f4ea3dfe852c15`
 - Current public base: `e84b8bc8154030cdb7469b0e0b8cd8b9354f19a0`
+- Canonical review PR: `teamleaderleo/ai#13`
 
 ## Executed target-native receipts
 
@@ -69,17 +71,32 @@ Observed controls:
 
 Evidence class: `model-executed`. This clears the earlier premise that the pre-registration `await languageModelStream.cancel(...)` joins provider-controlled cleanup.
 
-## Current target-native execution
+## Target-native cancellation regression
 
-Owned-fork PR #12 adds `stream-language-model-call-cancellation.test.ts` at exact head `7ae1794889d9dd22eeef9faf4f33d01330c0918d`.
+Owned-fork PR #12 encoded the model result in `stream-language-model-call-cancellation.test.ts` at head `7ae1794889d9dd22eeef9faf4f33d01330c0918d`.
 
-Repository CI run `30691171818` is queued. The relevant assertions are:
+The PR was squash-merged into the canonical source branch as `3035f6e5a3ef6ff9236c8d1b08f4ea3dfe852c15` after exact-head self-review.
 
-- returned cancellation settles after requesting pending provider cleanup;
-- exact abort reason reaches provider cancellation;
-- rejected provider cleanup produces no unhandled rejection.
+Original PR #12 CI:
 
-Until this run completes, classify the new file as `target-test-prepared`; the historical six-test repair remains `target-executed` at its earlier exact diff.
+- Run: `30691171818`
+- State: queued
+- Jobs created: full repository matrix
+- Jobs started: zero
+- Classification: execution availability/authorization; no product-test conclusion.
+
+## Current canonical execution
+
+Exact canonical head: `3035f6e5a3ef6ff9236c8d1b08f4ea3dfe852c15`.
+
+Owned-fork review PR: `teamleaderleo/ai#13` against current-public-base branch `upstream/06-public-main-base` at `e84b8bc8154030cdb7469b0e0b8cd8b9354f19a0`.
+
+- Verify Changesets run: `30691402294`
+- Ordinary CI run: `30691402306`
+- State: queued
+- Jobs created: changeset job plus full ordinary repository matrix
+- Jobs started: zero
+- Classification: execution availability/authorization; no product-test conclusion.
 
 ## Existing test coverage
 
@@ -111,13 +128,6 @@ Until this run completes, classify the new file as `target-test-prepared`; the h
 - provider cleanup rejection is contained;
 - exact abort reason reaches provider cancellation.
 
-## Remaining execution controls
-
-1. Complete repository CI run `30691171818` on exact test head `7ae1794889d9dd22eeef9faf4f33d01330c0918d`.
-2. After merging the test into the canonical source branch, run ordinary repository CI on that exact canonical head.
-3. Confirm current complete diff contains no temporary workflow or trigger files.
-4. Keep committed external tool side effects outside abort-reversal claims.
-
 ## Focused commands
 
 ```bash
@@ -132,15 +142,26 @@ pnpm --dir packages/ai test:edge -- \
   src/generate-text/stream-text-explicit-abort-races.test.ts
 
 pnpm --dir packages/ai type-check
-pnpm ultracite check packages/ai/src/generate-text/stream-language-model-call-cancellation.test.ts
+pnpm ultracite check \
+  packages/ai/src/generate-text/stream-language-model-call-cancellation.test.ts \
+  packages/ai/src/generate-text/stream-text.ts \
+  packages/ai/src/generate-text/stream-text-explicit-abort.test.ts \
+  packages/ai/src/generate-text/stream-text-explicit-abort-races.test.ts
 
-git diff --check e84b8bc8154030cdb7469b0e0b8cd8b9354f19a0...HEAD
+git diff --check e84b8bc8154030cdb7469b0e0b8cd8b9354f19a0...3035f6e5a3ef6ff9236c8d1b08f4ea3dfe852c15
 ```
+
+## Remaining execution controls
+
+1. Complete Verify Changesets `30691402294` and ordinary CI `30691402306` on exact canonical head.
+2. Classify any job failure against the intended assertions and repository setup.
+3. Obtain an independent complete-diff disposition on PR #13.
+4. Keep committed external tool side effects outside abort-reversal claims.
 
 ## Evidence limits
 
 - The six focused tests exercise target code in Node and Edge at the prior repair diff.
-- The cancellation model proves the native Web Streams promise behavior but does not replace package execution.
-- The new target-native test head has no completed receipt yet.
+- The cancellation model proves native Web Streams promise behavior and has a canonical target-native regression, whose jobs remain queued.
+- Current exact-head repository jobs have produced no product result.
 - A green package run cannot establish rollback of committed external tool effects.
-- Current disposition remains `EXECUTE` until the exact-head target test and ordinary canonical CI complete.
+- Current unit disposition is `HOLD` until exact-head CI and independent acceptance complete.
