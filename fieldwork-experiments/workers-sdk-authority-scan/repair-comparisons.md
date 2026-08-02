@@ -6,6 +6,8 @@ Current public source: `cloudflare/workers-sdk@20470fa8b09761c50b5c2c1d6a5f2652b
 
 Native reproduction carrier: `teamleaderleo/workers-sdk#6@4c8d79f2a2abfe2dce0b501cb6de2874aedbfc89`, based on `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`.
 
+Dedicated #471 regression: `teamleaderleo/workers-sdk#12@f1db75c385792f0d95119d68ece242fdd5333bf4`.
+
 ## Executed comparison
 
 ```sh
@@ -16,6 +18,8 @@ Output:
 
 ```text
 PASS: cached account is reused only after current-credential validation
+PASS: inaccessible cached account falls back to ordinary account selection
+PASS: transient or inconsistent validation fails closed without replacing cache
 PASS: explicit config and environment account IDs retain precedence
 PASS: async auth operation context preserves profile and temporary account
 PASS: forwarding adapters preserve deploy-helper operation ownership
@@ -29,18 +33,57 @@ No real credentials, accounts, network calls, deployments, or prompts were used.
 
 Treat the cached account as a hint. Before reusing it, validate that the current credentials can access that exact account ID. Explicit configuration and `CLOUDFLARE_ACCOUNT_ID` retain their documented precedence and remain the user's way to skip automatic selection.
 
-A direct account validation request is preferred over fetching every account merely to check one cache entry. The target prototype must classify authentication failure, inaccessible account, transient API failure, and malformed response separately:
+A direct account validation request is preferred over fetching every account merely to check one cache entry. Cloudflare's existing account-details operation is `GET /accounts/{account_id}` and returns information about a specific account available to the current authentication context. Current Workers SDK fetch plumbing already preserves HTTP status and API error code through `APIError`.
 
-- inaccessible under current credentials: discard the hint and run normal account selection;
-- transient or indeterminate request failure: preserve the error and do not silently choose another account;
-- accessible: reuse the cache;
-- explicit config/env ID: return without cache validation, preserving current contract.
+The intended ordering is:
+
+1. temporary account, explicit config `account_id`, and `CLOUDFLARE_ACCOUNT_ID` keep current precedence and return without cache validation;
+2. a cached account triggers one exact-account request under the current credentials, compliance region, API environment, and API base;
+3. a successful response must contain the exact requested account ID; refresh the cached display name and reuse the ID;
+4. only a response conclusively meaning “this authentication context cannot use this account” may discard the hint and enter ordinary account selection;
+5. authentication failure, rate limiting, server failure, network failure, malformed response, or a mismatched returned account ID must propagate and leave the cache unchanged.
+
+This preserves the distinction between stale authority and unavailable evidence. A transient validation failure must not silently select a different account, because that could route a command under an unintended account after an infrastructure error.
+
+### Exact current-source fit
+
+At public head `20470fa8...`:
+
+- `getActiveAccountId()` still resolves temporary account, config, account-ID environment, then the profile-only cache;
+- `getOrSelectAccountId()` still returns that cached ID before any current-credential account request;
+- the five commits after the original reproduction base do not touch the auth factory, Wrangler adapter, account cache, or focused test owner;
+- `fetchResultBase()` exposes a typed result or throws `APIError` with HTTP `status`, API `code`, structured metadata, and retry information;
+- the account cache payload contains only `{ account }`, so credential, compliance, and API-environment identity are absent.
+
+### Open target discriminator
+
+The API documentation establishes the exact-account operation but does not define one universal “not accessible to this authentication context” error envelope for every token class. Before source repair, target-native MSW controls must pin the intended classification:
+
+- confirmed absent/inaccessible account response enters ordinary selection;
+- invalid or expired credentials propagate rather than clearing the cache;
+- 429 and retryable 5xx responses propagate with retry metadata;
+- malformed success and mismatched account identity fail closed;
+- global key/email, user token, account token, OAuth, public/FedRAMP, staging/production, and custom API-base paths use the same authority rule.
+
+If no narrow status/code classification is reliable, fall back to the existing `fetchAllAccounts()` result and check membership in that authoritative list. That is more expensive but safer than treating a broad 403 class as stale cache.
+
+### Required target controls
+
+- credential A validates cached account A;
+- credential B cannot access cached A and selects B;
+- credential C receives a transient validation error and neither selects nor rewrites the cache;
+- exact-account response with a different ID is rejected;
+- validation refreshes a changed account display name without changing ID;
+- explicit config and account-ID environment skip validation;
+- profile and compliance/API-environment changes cannot reuse unvalidated cache state;
+- no raw credential, credential hash, API response body, or secret-derived identifier is persisted or logged.
 
 ### Rejected directions
 
 - Persist raw or hashed credentials with the cache: unnecessary secret-derived state and rotation ambiguity.
 - Purge only on login/logout: environment credentials can change without either operation.
 - Trust profile name alone: environment credentials and API/compliance environment can change inside a profile.
+- Treat every validation failure as inaccessible: transient failure could silently reroute the command.
 - Fetch all memberships on every call without first testing an exact-account endpoint: safe but more expensive and can add avoidable permission requirements.
 
 ## #496 — auth operation ownership
