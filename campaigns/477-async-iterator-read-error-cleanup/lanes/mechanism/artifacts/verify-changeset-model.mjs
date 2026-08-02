@@ -1,5 +1,3 @@
-import fs from 'node:fs/promises';
-
 const CODE_EXTENSIONS = /\.(ts|tsx|js|jsx|mts|mjs|cts|cjs)$/;
 const TEST_FILE_PATTERNS =
   /\.(test|spec)\.(ts|tsx|js|jsx|mts|mjs|cts|cjs)$|\.test-d\.ts$/;
@@ -9,6 +7,15 @@ const changedPackageFiles = [
   'packages/ai/src/util/async-iterable-stream.ts',
   'packages/ai/src/util/async-iterable-stream-read-error.test.ts',
 ];
+const fileContents = {
+  '.changeset/quiet-stream-errors-release.md': `---
+'ai': patch
+---
+
+Release async-iterator reader locks when upstream stream reads fail.
+`,
+  'packages/ai/package.json': JSON.stringify({ name: 'ai', private: false }),
+};
 
 function isCodeFile(path) {
   if (!path.startsWith('packages/')) return false;
@@ -23,7 +30,7 @@ for (const path of changedChangesets) {
     throw new Error('invalid changeset path');
   }
 
-  const content = await fs.readFile(new URL(path, import.meta.url), 'utf8');
+  const content = fileContents[path];
   const match = content.match(/---\n([\s\S]+?)\n---/);
   if (!match) throw new Error('missing changeset frontmatter');
 
@@ -44,9 +51,7 @@ const packageDirs = [
 ];
 const changedPackageNames = [];
 for (const dir of packageDirs) {
-  const pkg = JSON.parse(
-    await fs.readFile(new URL(`${dir}/package.json`, import.meta.url), 'utf8'),
-  );
+  const pkg = JSON.parse(fileContents[`${dir}/package.json`]);
   if (pkg.name && !pkg.private) changedPackageNames.push(pkg.name);
 }
 
