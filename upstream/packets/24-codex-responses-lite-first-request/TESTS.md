@@ -120,7 +120,7 @@ Repository-wide failures were classified as follows:
 - SDK/Bazel/macOS/Windows jobs fail, cancel, or lack source-attributable step data and do not identify any of the three unit files;
 - a separate raised-stack `just test -p codex-core` package job fails after the exact unit controls pass. The available receipt does not expose a source-specific failing test or assertion. It remains broad repository evidence rather than a fabricated unit diagnosis.
 
-Supplementary sequential candidate/base package controls were created on retained execution branches. Their runner state is not a unit completion dependency because the target behavior, exact source, formatting, cleanliness, and independent review condition are already verified.
+Supplementary sequential candidate/base package controls were created on execution branches during classification. They were execution-only and are excluded from the clean source and packet heads.
 
 ## Public-source drift control
 
@@ -140,10 +140,11 @@ Public `openai/codex:main` was refreshed through `3e3d82d674d8a263cf2c33684f6a04
 
 - Canonical source contains no execution workflow: yes.
 - Superseded execution PR `#133`: closed.
-- Target execution PR `#135`: closed without merge.
-- Cross-repo execution PR `teamleaderleo/fieldwork#459`: retained until final receipt transfer, then closed without merge.
-- Execution branches are to be repointed to clean retained heads after carrier closure.
-- Fieldwork branch `tmp-do-not-use` cannot be deleted through the connector; it is repointed to retained packet history and documented in the #435 handoff.
+- Target execution PR `teamleaderleo/codex#135`: closed without merge.
+- Target execution branch `fieldwork/435-unit-24-exec-9fd4ba5`: repointed to clean source head `9fd4ba575de8dd77bc411362256591ce9e7d8c82`.
+- Cross-repo execution PR `teamleaderleo/fieldwork#459`: closed without merge.
+- Cross-repo execution branch `p0/435-unit-24-crossrepo-exec`: repointed to final packet history.
+- Fieldwork branch `tmp-do-not-use`: deletion is unavailable through the connector; it is repointed to final packet history and documented in the #435 handoff.
 
 ## Test judgment
 
