@@ -12,7 +12,7 @@ index 79934d050cd77414fb6f9c1024f42f6029c924e0..510b41959383dcf78bd311a236afc44d
          self._response.elapsed = datetime.timedelta(seconds=elapsed)
  
  
- diff --git a/httpx/_models.py b/httpx/_models.py
+diff --git a/httpx/_models.py b/httpx/_models.py
 index 3ccb5290ceb95d96e24047bcec2897c52de16176..0533a7324d0ed45ffb1087570551efcdaed02fa5 100644
 --- a/httpx/_models.py
 +++ b/httpx/_models.py
@@ -62,21 +62,17 @@ index 3ccb5290ceb95d96e24047bcec2897c52de16176..0533a7324d0ed45ffb1087570551efcd
          await state.event.wait()
          if state.failed:
  diff --git a/tests/client/test_async_client_terminal_close_elapsed.py b/tests/client/test_async_client_terminal_close_elapsed.py
-index f6ecfbf52cc1f0e06f9378dd6ca8d3476c3717d8..c3a27b2f65f04c723a4fc330f25215dcc6565e1c 100644
+index f6ecfbf52cc1f0e06f9378dd6ca8d3476c3717d8..67545aede0ba92364f70dc9f37c5c2e0a010c836 100644
 --- a/tests/client/test_async_client_terminal_close_elapsed.py
 +++ b/tests/client/test_async_client_terminal_close_elapsed.py
-@@ -1,8 +1,10 @@
+@@ -1,5 +1,6 @@
  from __future__ import annotations
  
 +import anyio
  import pytest
  
  import httpx
-+import httpx._client as client_module
- 
- 
- class FailingCloseStream(httpx.AsyncByteStream):
-@@ -56,3 +58,61 @@ async def test_elapsed_is_not_published_when_stream_cleanup_fails() -> None:
+@@ -56,3 +57,61 @@ async def test_elapsed_is_not_published_when_stream_cleanup_fails() -> None:
              match="may only be accessed after the response has been read or closed",
          ):
              _ = response.elapsed
@@ -117,7 +113,7 @@ index f6ecfbf52cc1f0e06f9378dd6ca8d3476c3717d8..c3a27b2f65f04c723a4fc330f25215dc
 +    monkeypatch: pytest.MonkeyPatch,
 +) -> None:
 +    clock = Clock(10.0)
-+    monkeypatch.setattr(client_module.time, "perf_counter", clock)
++    monkeypatch.setattr("httpx._client.time.perf_counter", clock)
 +    stream = BlockingCloseStream()
 +    transport = BlockingCloseTransport(stream)
 +    client = httpx.AsyncClient(transport=transport)
@@ -138,7 +134,7 @@ index f6ecfbf52cc1f0e06f9378dd6ca8d3476c3717d8..c3a27b2f65f04c723a4fc330f25215dc
 +
 +    assert response.elapsed.total_seconds() == 2.0
 +    await client.aclose()
- diff --git a/tests/models/test_async_response_close_reentry.py b/tests/models/test_async_response_close_reentry.py
+diff --git a/tests/models/test_async_response_close_reentry.py b/tests/models/test_async_response_close_reentry.py
 new file mode 100644
 index 0000000000000000000000000000000000000000..4a13b86b8d644effbf200bf9d772b150f056ae0d
 --- /dev/null
