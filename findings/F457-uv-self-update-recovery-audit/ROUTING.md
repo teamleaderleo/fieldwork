@@ -1,152 +1,216 @@
 # Ownership and contribution routing
 
-## In simple words
+## Summary
 
-The observed failures do not have one owner.
+The self-update failures span four owners:
 
-uv decides which updater route runs, supplies the official staged-install flow, commits companion binaries, and owns the public regression. self-replace implements the final running-executable swap used by that flow. axoupdater implements the older custom/GHE route that still renames the canonical executable before launching the installer. cargo-dist generates the multi-file installer and receipt logic.
+- **uv** chooses the route, owns the official staged flow, copies companions, decides receipt handling, and owns the public regression;
+- **self-replace** owns the final Windows running-executable swap used by the public candidate;
+- **axoupdater** owns the custom/GHE path that still pre-renames the running executable;
+- **cargo-dist** generates installer and receipt behavior for the managed file set.
 
-Trying to fix all of this in one uv pull request would blur distinct contracts and compatibility risks. The work should be routed as a small uv repair, a self-replace recovery primitive, and an axoupdater staging/capability change, with cargo-dist involved only if installation-wide journal recovery is selected.
+Do not force these into one public patch. The immediate occupied uv direction should receive a focused evidence/claim repair. Final single-file recovery, generic updater staging, and managed-generation recovery should remain separately reviewable.
 
-## Ranked contribution units
+Public upstream contact authorized/performed: `false` / `false`.
 
-### 1. uv — repair public Windows staged-update evidence and claims
+## Route 1 — uv public candidate evidence and scope
 
-**State:** `READY TO MATERIALIZE AFTER RECEIPTS`
+State: `REPAIR EXISTING DIRECTION; DO NOT DUPLICATE`
 
-**Scope:**
+Public lane: `astral-sh/uv#20855@77e107dd2665f660c461998bc83174bf26ee7cf6`.
 
-- retain the staged official-Windows installer direction from public PR 20855;
-- replace the non-discriminating regression with an actual-current-executable test;
-- use a robust bounded wait and await cancellation completion;
-- add a final-replacement failure test;
-- state explicitly that custom/GHE routes are not changed;
-- avoid claiming installation-wide atomicity or coherence.
+uv owns:
 
-**Why uv owns it:** the routing, child process, temporary install, companion commit, and test live in `crates/uv/src/commands/self_update.rs`.
+- official/custom route selection;
+- isolated temporary install/config prefixes;
+- direct PowerShell child lifetime;
+- companion copy loop;
+- receipt policy;
+- proposed regression.
 
-**Proposed title:**
+Required bounded repair:
+
+1. replace unrelated fixture assertion with actual-current-executable old/candidate controls;
+2. use realistic bounded startup and await completed cancellation;
+3. narrow claims to the official staged-installer phase unless final replacement is repaired;
+4. state custom/GHE exclusion;
+5. add final replacement failure characterization;
+6. make companion/receipt limits visible rather than calling the installation atomic.
+
+Possible title for an internal successor only if the public lane stops or maintainers ask for a revision:
 
 ```text
-fix(self-update): validate Windows staged replacement at the real executable boundary
+fix(self-update): validate staged Windows replacement at the canonical executable boundary
 ```
 
-**Proposed changed-file fence:**
+Expected primary file:
 
 ```text
 crates/uv/src/commands/self_update.rs
 ```
 
-Potential integration test additions should remain separate unless they exercise the custom route.
+No public successor should be created while PR 20855 remains active without explicit coordination authority.
 
-### 2. self-replace — restore or recover after failed Windows replacement
+## Route 2 — deferred Windows single-file finalizer
 
-**State:** `ISSUE FIRST / SOURCE CANDIDATE AFTER EXACT FAILURE RECEIPT`
+State: `INTERNAL EXPERIMENT / EXECUTE`
 
-**Scope:**
+Owned experiment: `teamleaderleo/uv#14@ef509a215af602cbc904aed467b4ac5edd66f827`.
 
-- copy and validate the replacement into a destination-side temporary path before moving the old executable;
-- preserve a backup until the new canonical path is durable;
-- roll back ordinary errors;
-- use a surviving helper or durable marker to restore after parent death between renames;
-- schedule old-backup deletion only after commit;
-- add exact missing-source, access-denied, final-rename, and interrupted-parent controls.
+The experiment moves destructive authority out of the updating process:
 
-**Why self-replace owns it:** uv calls the library specifically to obtain a Windows-safe final replacement primitive. The library currently renames the canonical executable before later fallible operations and provides no rollback.
+- fully stage and sync replacement beside canonical while old executable remains runnable;
+- write a prepared journal;
+- wait for parent exit;
+- commit with backup and same-directory renames;
+- roll back ordinary errors.
 
-**Proposed issue title:**
+This is currently implemented in `uv-windows` because the fork already has Windows process APIs and the experiment can be run end to end. That does not settle the eventual public owner.
+
+Promotion conditions:
+
+- hostile matrix passes at one exact head;
+- a separate invocation recovers every prebuilt interrupted journal state idempotently;
+- process wait/error semantics are reviewed;
+- journal paths cannot escape the intended install directory;
+- stage and canonical identity/hashes are verified;
+- directory durability limitations are documented.
+
+Potential eventual owner choices:
+
+- **self-replace**, if this becomes a general safe replacement primitive;
+- **uv/uv-windows**, if it depends on uv-specific installation and receipt policy.
+
+Do not submit the experiment publicly as written.
+
+## Route 3 — self-replace ordinary and abrupt failure recovery
+
+State: `ISSUE FIRST AFTER EXACT FAILURE RECEIPT`
+
+Source consequence: self-replace 1.5.0 renames canonical current executable before cleanup scheduling, replacement copy, and final rename. It has no rollback.
+
+Exact failure carrier:
+
+- owned PR `teamleaderleo/uv#10`;
+- repaired head `34031835cbfe8b84edaf8e3ce5d6d846bc50d59e`;
+- run `30754221525` queued at last record.
+
+A clean target receipt should establish the missing-source case before any external issue draft is considered execution-backed.
+
+Internal issue title:
 
 ```text
 Windows self_replace can leave the canonical executable missing after a later error
 ```
 
-**Issue draft:**
+Minimum desired contract:
 
-```text
-On Windows, self_replace currently renames the running executable to a relocated path, schedules deletion of that path, and only then copies the replacement to a destination-side temporary file and renames it to the canonical path.
+- stage replacement before destructive rename;
+- retain backup until commit;
+- restore ordinary failures;
+- expose or own abrupt-exit recovery;
+- schedule deletion only after commit authority exists.
 
-Any failure after the initial rename—cleanup-helper setup, replacement copy, final rename, or process termination—can return or exit with the canonical executable absent. The old executable may also already be scheduled for deletion.
+The missing-source control is necessary but not sufficient. Access-denied, cleanup-helper failure, final-rename failure, and process-death boundaries remain.
 
-A safer contract would fully stage the replacement beside the destination before moving the old executable, retain a backup until commit, restore on ordinary error, and use a surviving helper or durable recovery marker for process death between renames.
+## Route 4 — axoupdater custom/GHE staging capability
 
-A minimal regression can run a copied helper executable, call self_replace with a nonexistent replacement source, and assert that an error does not remove the helper's canonical path.
-```
+State: `ISSUE FIRST / OWNER DECISION`
 
-### 3. axoupdater — add a staged Windows installer capability
+Exact source: `axodotdev/axoupdater@122313e5b119f0f7f1aa02b95bd13d10b37637ff`.
 
-**State:** `ISSUE FIRST`
+Exact owned uv characterization observed canonical absence and `.previous.exe` presence on the custom/GHE route. A repaired clean-completion run remains queued at `teamleaderleo/uv#8@41fc6d53e2a2c5065743657302c4255acffa0db5`, run `30754208709`.
 
-**Scope:**
+Possible approaches:
 
-- do not rename the current executable before executing a potentially long generated installer;
-- where the installer supports destination override, install into an isolated staging prefix;
-- return a staged-install result or call a caller-supplied finalizer;
-- preserve receipt and PATH semantics;
-- make cancellation/process death recoverable;
-- expose capability/opt-in rather than assuming every arbitrary installer supports staging.
+### A. Capability-gated staged install in axoupdater
 
-**Why axoupdater owns it:** uv custom-source and GHE/base-URL routes still call axoupdater 0.10.0, and other consumers may share the same pre-rename failure window.
+- installer declares forced-prefix/staging support;
+- axoupdater runs it outside live installation;
+- caller or library finalizer commits afterward;
+- receipt/PATH behavior is preserved.
 
-**Proposed issue title:**
+### B. uv owns staged behavior for compatible custom routes
 
-```text
-Support staged Windows updates without pre-renaming the running executable
-```
+- uv recognizes receipts/installers it can safely stage;
+- all compatible uv routes use one uv finalizer;
+- unknown installers retain current behavior or fail closed by policy.
 
-**Issue draft:**
+### C. Fail closed on unsafe Windows custom self-update
 
-```text
-The Windows run path renames std::env::current_exe() to .previous.exe before launching the generated installer. It restores that file only when installer execution returns an ordinary failure.
+- refuse routes that require destructive pre-rename;
+- provide a clear alternative update instruction.
 
-Cancellation, parent termination, power loss, or a dropped execution can bypass restoration and leave the canonical command absent while the previous executable remains under a noncanonical name.
+This is safest mechanically but can regress enterprise workflows and requires maintainer policy.
 
-Generated cargo-dist installers already accept a forced install prefix. A capability-gated Windows flow could install into an isolated prefix first and defer live replacement to a finalizer after staging succeeds. The finalizer still needs a recoverable replacement primitive and receipt handling.
+Do not assume every arbitrary axoupdater installer supports staging. A capability/API boundary is required.
 
-The change should be opt-in or capability-based because axoupdater can execute arbitrary installers whose staging behavior is unknown.
-```
+## Route 5 — cargo-dist managed-generation recovery
 
-### 4. cargo-dist — installation-wide recoverability
+State: `HOLD / ISSUE-FIRST ARCHITECTURE`
 
-**State:** `HOLD UNLESS MULTI-FILE COHERENCE IS SELECTED`
+The immediate command-availability defect does not require a full multi-file protocol. The broader installation can still become mixed, and cargo-dist is the natural generator owner if a reusable solution is selected.
 
-**Scope:**
+Desired properties:
 
-- destination-side stage all binaries and receipt on Windows as well as Unix;
-- use a durable prepared/committed journal;
-- recover or finish after interruption;
-- make recovery idempotent;
-- retain bounded cleanup records.
+- destination-local stage for every binary/library/alias/receipt;
+- manifest with expected old/new identities;
+- durable prepared and committed phases;
+- per-file backup and live rename records;
+- idempotent rollback or finish after interruption;
+- receipt committed last;
+- bounded cleanup independent of commit result.
 
-**Why this is optional:** the immediate uv issue only requires canonical `uv.exe` availability. Installation-wide old/new generation coherence is a stronger contract. It should not silently expand the first repair.
+Prior art:
 
-The Unix generator already includes the v0.31.0 destination-filesystem staging improvement from cargo-dist PR 2261. That work should be treated as prior art, not duplicated.
+- cargo-dist 0.31.0 already stages Unix bytes on the destination filesystem before final renames;
+- do not reopen the historical cross-filesystem partial-copy patch;
+- retain only multi-file generation coherence and Windows direct-copy behavior.
+
+## Process-tree ownership
+
+State: `RETAIN AS SEPARATE TEST/DESIGN BOUNDARY`
+
+Tokio `kill_on_drop(true)` owns the direct PowerShell child. Real installers may launch descendants. A strong interruption guarantee needs:
+
+- Windows Job Object ownership; or
+- a generator contract forbidding detached descendants; or
+- explicit descendant handles and completion receipts.
+
+This should not be hidden inside a file-transaction patch.
+
+## Ranked continuation
+
+1. Complete the repaired old/candidate, custom-route, and self-replace executions.
+2. Make the internal deferred finalizer matrix pass.
+3. Add idempotent recovery-from-journal controls.
+4. Review public PR 20855 internally with narrow accepted claim and explicit exclusions.
+5. Decide self-replace versus uv ownership for final single-file recovery.
+6. Decide uv versus axoupdater ownership for custom-route staging.
+7. Open managed-generation design only after locked companion and partial-commit controls make the policy concrete.
 
 ## Rejected routing
 
 ### One giant uv patch
 
-Rejected because it would combine:
+Rejected because it combines route selection, generic replacement, generic updater capability, generated installer semantics, receipt policy, and process-tree shutdown.
 
-- public PR review repair;
-- generic replacement-library behavior;
-- generic updater capability;
-- generated installer transaction semantics;
-- receipt compatibility.
+### Test-only repair as full closure
 
-Those surfaces have different owners and release cadences.
+Rejected. The public test needs repair, but source and target evidence independently retain custom-route and final replacement windows.
 
-### Only patch the public test
+### self-replace-only repair as full closure
 
-Insufficient. The test is defective, but exact source inspection independently establishes final self-replace and custom-route gaps.
+Rejected. It cannot fix companions, receipt handling, or the long axoupdater installer window.
 
-### Only patch self-replace
+### Process enumeration for uvx/uvw
 
-Insufficient. It would not fix direct companion copies, receipt handling, or axoupdater's long pre-installer rename window.
+Rejected. It races, misses non-process locks, and does not solve interruption, disk failure, or receipt state.
 
-### Only detect running uvx/uvw processes
+### Unqualified “atomic update” claim
 
-Rejected by both mechanism and maintainer guidance. Detection is incomplete, races immediately, and does not cover interruption, disk errors, receipt state, or non-process locks.
+Rejected. Ordinary filesystems do not atomically switch the managed file set. The stronger implementable promise is deterministic recoverability.
 
 ## Authority
 
-These are internal drafts and routing decisions. No public issue, comment, review, reaction, pull request, or message has been created. Public upstream interaction requires explicit user authorization for the exact destination and text.
+All titles and issue text are internal planning artifacts. No public issue, comment, review, reaction, pull request, branch, or message has been created or modified by this lane.
