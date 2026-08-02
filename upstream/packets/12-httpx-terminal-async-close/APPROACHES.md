@@ -1,172 +1,216 @@
 # Approaches — Unit 12 terminal async-response close
 
-## In simple words
+## Decision
 
-The leading design treats an escaped arbitrary stream close as terminal outcome-unknown: cleanup runs once, the owner receives the original failure, and later observers receive fresh neutral errors. That design defeated retry duplication, shared exception state, and traceback retention.
+Selected:
 
-The current exact source still has two losing details. Its event cannot distinguish the owning task from a normal waiter, and its elapsed sample moved after delegated cleanup. The retained repair records the owner task ID and restores sample-before-cleanup/assign-after-success ordering.
+1. terminal outcome-unknown after escaped arbitrary cleanup;
+2. inherited close-context stack for cycle detection;
+3. pre-cleanup elapsed sampling with post-success publication.
+
+This combination passed the exact Python 3.9/3.13 asyncio/Trio controls, complete HTTPX gates, and 100% coverage.
 
 ## Decision criteria
 
 1. Arbitrary delegated cleanup runs at most once after admission.
-2. Successful completion, failed outcome, and body-read admission remain distinguishable.
-3. Owner exception/cancellation identity is preserved without retaining its traceback graph.
-4. Unrelated concurrent callers settle without shared mutable exception identity.
-5. Same-owner re-entry returns promptly and cannot create an owner/event cycle.
-6. Successful elapsed keeps its existing pre-cleanup measurement while failed cleanup publishes nothing.
-7. The implementation remains backend-neutral for AnyIO asyncio and Trio on Python 3.9+.
-8. The source diff stays reviewable and excludes HTTPCore, sync close, and client multi-owner shutdown.
+2. The initiating caller receives its original escaped exception or cancellation.
+3. Observers receive fresh bounded errors without sharing traceback-bearing exception objects.
+4. Reads remain blocked once close begins.
+5. Direct, descendant, and nested close cycles return promptly.
+6. Unrelated callers retain ordinary waiter settlement.
+7. Context cleanup is reliable under success, failure, and cancellation.
+8. Successful elapsed preserves the pre-cleanup measurement boundary.
+9. Failed cleanup publishes no elapsed value.
+10. The source diff stays limited to HTTPX response close and its regressions.
 
 ## Selected approach
 
-### Terminal outcome-unknown with exact owner-task detection
+### Terminal outcome-unknown
 
-- Design: retain the current one-attempt event and terminal failed bit; add an integer owner-task ID and reject same-task waiting immediately.
-- Owning boundary: `Response.aclose()` and its private in-flight state.
-- Evidence: retry duplication executed on PR #1; five-file candidate focused/full execution; GC and fresh-exception controls; exact reconstructed current production timeout failures; repaired local target passes.
-- Advantages: prevents duplicate arbitrary cleanup, preserves original owner outcome, avoids arbitrary traceback retention, keeps unrelated waiter joining, and repairs the exact cycle locally.
-- Costs and risks: task identity compatibility across AnyIO versions; descendant task provenance remains separate; new prompt failure for re-entry.
-- Remaining controls: asyncio/Trio, Python 3.9/3.13, target Mypy, complete ordinary gates, and renewed independent review.
+The existing selected source design remains intact:
 
-### Pre-cleanup elapsed sample with post-success publication
+- one admitted delegated cleanup attempt;
+- original owner failure/cancellation re-raised;
+- terminal failure bit after escaped cleanup;
+- fresh neutral `CloseError` instances for later observers;
+- no retained owner exception or arbitrary traceback graph;
+- read barrier once close starts;
+- `is_closed` published only after cleanup succeeds.
 
-- Design: sample elapsed immediately on wrapper close entry, await delegated cleanup, assign the sample only after success.
-- Owning boundary: `BoundAsyncStream.aclose()`.
-- Evidence: base ordering; review `4827924287`; exact current deterministic control reports `10.0`; repaired patch reports `2.0`.
-- Advantages: failed cleanup leaves elapsed unavailable while successful behavior keeps its previous measurement boundary.
-- Costs and risks: one local variable survives the await; negligible.
-- Remaining controls: target-native Python/backend matrix and existing elapsed tests.
+### Inherited close-context stack
 
-## Viable alternatives
+A module-level `contextvars.ContextVar` stores a tuple of active `_AsyncCloseState` markers.
 
-### ContextVar close provenance
+Owner path:
 
-- Design: mark the delegated-close context with an attempt token and reject re-entry from the owner or inherited child contexts.
-- Why it remains plausible: detects a wider callback/descendant cycle family than task ID alone.
-- What it would improve: provenance across child tasks spawned during delegated cleanup.
-- What it would widen or complicate: context propagation semantics, retained tokens in long-lived child tasks, and a broader unsupported boundary.
-- Exact discriminator: a target-native child-task cycle that task-ID detection misses and that maintainers want to prevent generically.
-- Reopening trigger: exact task-ID repair proves insufficient in an accepted supported scenario.
+1. create and publish the active close state;
+2. push that state onto the inherited context stack;
+3. invoke arbitrary stream cleanup;
+4. publish success or terminal failure and wake waiters;
+5. reset the context token in `finally`.
 
-### Spawn an authoritative cleanup task
+Waiter path:
 
-- Design: create a backend task that owns cleanup independently of caller cancellation; callers await its result.
-- Why it remains plausible: separates operation lifetime from waiter cancellation and supplies one joinable object.
-- What it would improve: explicit operation identity and potentially broader re-entry provenance.
-- What it would widen or complicate: task lifetime, cancellation delivery, orphan cleanup, exception retrieval, context propagation, and shutdown.
-- Exact discriminator: cancellation/re-entry/stuck-close tests showing bounded, leak-free ownership across asyncio and Trio.
-- Reopening trigger: current event model cannot represent the accepted contract.
+- if the target state appears in the inherited stack, raise a prompt request-associated `CloseError` instead of waiting;
+- otherwise wait on the state event and follow the established success/failure settlement.
 
-### Private close-state enum
+Why a stack:
 
-- Design: replace three booleans/state pointer with `OPEN | CLOSING(owner,event) | CLOSED | FAILED`.
-- Why it remains plausible: makes impossible combinations and terminal semantics clearer.
-- What it would improve: maintainability and future property reasoning.
-- What it would widen or complicate: larger rewrite and pickle migration for a narrow repair.
-- Exact discriminator: a target-native test exposing another current state transition defect.
-- Reopening trigger: repair becomes awkward or error-prone with the current fields.
+- direct owner -> same response is detected;
+- owner -> descendant task -> same response is detected because context propagates;
+- outer response -> inner response -> outer response is detected because the outer marker remains below the inner marker;
+- unrelated callers created outside cleanup do not inherit the marker.
 
-### Explicit unsupported re-entry contract
+Retention boundary:
 
-- Design: document that streams must avoid re-entering their response.
-- Why it remains plausible: zero runtime overhead.
-- Why it currently loses: leaves a silent indefinite wait in public extension code and provides no enforcement.
-- Reopening trigger: explicit maintainer declaration that this graph is outside the supported transport interface and hangs are acceptable.
+- the marker contains an event and failure bit only;
+- it retains no response, task, request, or escaped exception;
+- a descendant that outlives cleanup may retain only the lightweight marker until that task exits.
+
+### Elapsed sample before cleanup, publish after success
+
+`BoundAsyncStream.aclose()`:
+
+1. samples `time.perf_counter() - start`;
+2. awaits delegated stream cleanup;
+3. assigns the saved sample to `response.elapsed` only after success.
+
+This restores the previous measurement boundary without publishing elapsed after failed cleanup.
 
 ## Executed losing approaches
 
-### Retry after escaped cleanup failure
+### Generic retry after escaped cleanup
 
-- Exact branch/commit: owned PR #1, including `b3083e7ce6a6ace1756d3cf1e4ec5371663c2c55` history.
-- What ran: commit-then-control-flow stream with owner/waiter retry ownership; focused and repository workflows.
-- Result: two stream-close calls and two committed cleanup effects.
-- Why it lost: `AsyncByteStream` offers no generic idempotency guarantee.
-- Useful evidence retained: deterministic duplicate-effect proof.
+Result: a commit-then-raise stream executed cleanup and its irreversible effect twice.
+
+Why rejected: `AsyncByteStream` has no general idempotency guarantee.
 
 ### One shared terminal exception object
 
-- Exact carrier predecessor: `5bb3142b048bbf3067a9469dab297d1f0b0908d3`.
-- What ran: concurrent and repeated observer paths.
-- Result: one exception instance accumulated mutable traceback state across callers.
-- Why it lost: exception objects cannot safely serve as shared durable terminal records.
-- Useful evidence retained: fresh-per-observer error requirement.
+Result: concurrent/repeated callers mutated one exception's traceback state.
 
-### Retain the original owner exception as observer cause
+Why rejected: exception objects are not safe durable settlement records.
 
-- Exact source predecessor: `f0cef321536fc93a1d06597abfb9941531f9a8b1`.
-- Result: response retained the arbitrary exception and its traceback graph.
-- Why it lost: a retained response could retain delegated-frame locals and application objects indefinitely.
-- Useful evidence retained: GC regression and neutral bounded cause requirement.
+### Retain the owner's exception as observer cause
+
+Result: the response retained the arbitrary traceback graph and delegated frame locals.
+
+Why rejected: unbounded application-object retention.
+
+### Publish `is_closed` before delegated cleanup
+
+Why rejected: reports successful completion before cleanup and hides uncertainty after failure.
+
+### Event state with no owner provenance
+
+Exact clean source result:
+
+```text
+requestless direct re-entry: timeout
+request-bound direct re-entry: timeout
+caught re-entry with external waiter: timeout
+```
+
+Why rejected: the owner can wait on the event only it can settle.
+
+### Exact task-ID detection
+
+The first repair stored `anyio.get_current_task().id` and passed the direct controls.
+
+A stronger stream created a child task, asked the child to close the same response, and awaited the child task group. The child had a different task ID, followed the external-waiter path, and waited for the owner event while the owner waited for the child.
+
+Result:
+
+```text
+1 failed in 0.43s
+TimeoutError
+```
+
+Why rejected: task identity does not represent inherited operation ownership.
+
+Useful retained lesson: the cycle boundary is dynamic close context, not one task object.
+
+### One current ContextVar marker
+
+Plausible but rejected in favor of a stack.
+
+Why: a single marker would cover direct and descendant self-re-entry but lose outer ancestry during nested response cleanup. The tuple stack covers outer -> inner -> outer cycles with little additional state.
+
+### Spawn an authoritative cleanup task
+
+Why rejected for this unit:
+
+- widens task lifetime and orphan-cleanup policy;
+- changes caller cancellation semantics;
+- requires exception retrieval and shutdown ownership;
+- unnecessary after inherited context solved the demonstrated cycles.
+
+### Replace all close state with an enum
+
+Why deferred:
+
+- potentially clearer long-term representation;
+- substantially larger rewrite and serialization review;
+- current narrow repair is fully covered and race-compatible.
+
+### Document re-entry as unsupported
+
+Why rejected:
+
+- public extension code would retain a silent indefinite wait;
+- prompt enforcement is small and backend-neutral.
 
 ### Sample elapsed after delegated cleanup
 
-- Exact current source: `18256f10d1b306bdf87a1bab24b214c15839147b`.
-- What ran: deterministic blocking custom transport and clock.
-- Result: elapsed was `10.0` seconds instead of the existing pre-cleanup `2.0` sample.
-- Why it lost: solving failed publication silently redefined successful measurement.
-- Useful evidence retained: sample before await, assign after success.
+Exact deterministic result: `10.0` seconds instead of the prior `2.0` boundary.
 
-### Current event state without owner identity
-
-- Exact current source: `18256f10d1b306bdf87a1bab24b214c15839147b`.
-- What ran: requestless, request-bound, and caught-reentry/external-waiter tests against exact reconstructed production blobs.
-- Result: three timeout failures; cancellation terminalized the response.
-- Why it lost: a joinable operation needs owner provenance or cycle detection.
-- Useful evidence retained: exact failing tests and original model receipt.
+Why rejected: fixing failed publication silently changed successful elapsed semantics.
 
 ## Rejected easy answers
 
-### Mark `is_closed = True` before delegation
+### Shield cleanup indefinitely
 
-- Temptation: preserve simple idempotence and avoid concurrency state.
-- Why incomplete: reports successful completion before cleanup and makes failure invisible to later calls.
-- Negative control: released base behavior and scout probe.
-
-### Shield arbitrary cleanup indefinitely
-
-- Temptation: guarantee one cleanup attempt reaches completion despite caller cancellation.
-- Why incomplete: arbitrary user code may hang forever; no generic deadline, retirement owner, or unfinished-cleanup policy exists.
-- Negative control: prior comparison matrix and separate HTTPCore lane.
+Arbitrary user cleanup may never finish. HTTPX has no generic deadline or orphan-retirement owner for this boundary.
 
 ### Copy or stringify arbitrary exceptions
 
-- Temptation: retain diagnostics while dropping traceback.
-- Why incomplete: user-defined copying or string conversion can execute code, retain mutable identity, leak data, or fail.
-- Negative control: selected neutral bounded diagnostic avoids inspecting arbitrary exceptions.
+User-defined conversion can execute code, fail, leak data, or retain application state. The selected observer error is bounded and neutral.
 
-### Treat green full CI as sufficient
+### Treat an old green suite as sufficient
 
-- Temptation: source head has successful direct and exact executor matrices.
-- Why incomplete: the suite contains no same-owner re-entry or successful elapsed-boundary control.
-- Negative control: exact reconstructed source fails four new tests.
+The old suite omitted direct re-entry, descendant re-entry, nested cycles, and successful elapsed-boundary controls. The new discriminators changed the design twice before the final green matrix.
 
-## Prior upstream and owned approaches
+## Exact final evidence
 
-| Link | Approach | Status | Relationship to this unit |
-| --- | --- | --- | --- |
-| [HTTPX Discussion #2370](https://github.com/encode/httpx/discussions/2370) | cancellation may be translated during request handling | answered | adjacent cancellation context; no response-close settlement contract |
-| [HTTPX API docs](https://github.com/encode/httpx/blob/b5addb64f0161ff6bfe94c124ef76f6a1fba5254/docs/api.md) | documents `Response.aclose()` and elapsed | current | public surface and elapsed compatibility context |
-| [Owned PR #1](https://github.com/teamleaderleo/httpx/pull/1) | retryable per-attempt close | research | executed losing retry design and duplicate-effect evidence |
-| [Owned PR #4](https://github.com/teamleaderleo/httpx/pull/4) | exact-head execution carrier | closed | retained execution only; never source candidate |
-| [Owned PR #6](https://github.com/teamleaderleo/httpx/pull/6) | terminal unknown source candidate | open | canonical source, now REPAIR for re-entry and elapsed |
-| [Fieldwork PR #173](https://github.com/teamleaderleo/fieldwork/pull/173) | broad scout packet | closed | superseded evidence source |
-| [Fieldwork PR #309](https://github.com/teamleaderleo/fieldwork/pull/309) | canonical finding stack | open draft | historical finding text is stale against current exact defects |
+Run `30752805069`:
+
+- Python 3.9 focused asyncio/Trio: passed;
+- Python 3.13 focused asyncio/Trio: passed;
+- exact six-file fence: passed;
+- Ruff format and lint: passed;
+- mypy: passed;
+- package/docs: passed;
+- complete suite: `1445 passed, 1 skipped`;
+- coverage: `8210/8210`, 100%.
 
 ## Deferred adjacent work
 
-- synchronous close retry/state — separate owner and thread policy
-- HTTPCore HTTP/1.1/HTTP/2 retirement — lower-layer side effects and trace callback re-entry
-- client shutdown — multiple transport owners and aggregate outcomes
-- socket reuse/capacity — protocol-specific integration evidence
-- broad public state redesign — maintainer direction first
+- synchronous response close;
+- HTTPCore HTTP/1.1 and HTTP/2 retirement;
+- same-socket and capacity behavior;
+- client-wide multi-transport shutdown;
+- broader public response-state redesign.
 
 ## Decision history
 
-| Date | Exact inputs | Decision | Reason | Reopening trigger |
-| --- | --- | --- | --- | --- |
-| 2026-07-30 | base plus PR #1 execution | reject generic retry | committed cleanup duplicated | public idempotency guarantee |
-| 2026-07-31 | source predecessors and reviews | select terminal unknown + fresh neutral observers | avoids retry and shared exception state | safe narrower contract |
-| 2026-07-31 | `f0cef321...` review | drop retained owner exception | traceback graph retention | bounded safe exception representation |
-| 2026-07-31 | `206b8f50...` review | preserve pre-cleanup elapsed sample | avoid semantic drift | intentional documented elapsed change |
-| 2026-08-01 | exact `18256f10...` blobs and new tests | `REPAIR` re-entry and elapsed | three timeouts and `10.0` versus `2.0` | direct repaired head and target gates |
-| 2026-08-01 | retained patch local execution | retain task-ID plus timing-order repair | five controls passed | target matrix disproves portability or semantics |
+| Date | Decision | Reason |
+| --- | --- | --- |
+| 2026-07-30 | reject generic retry | committed cleanup duplicated |
+| 2026-07-31 | select terminal unknown and fresh neutral observers | preserves owner diagnostics without duplicate effects or shared exception state |
+| 2026-07-31 | drop retained owner exception | arbitrary traceback graph retention |
+| 2026-07-31 | preserve pre-cleanup elapsed sample | avoid successful semantic drift |
+| 2026-08-01 | require re-entry repair | exact clean source timed out |
+| 2026-08-01 | provisionally select task ID | direct local controls passed |
+| 2026-08-02 | reject task ID | descendant-task cycle timed out |
+| 2026-08-02 | select inherited ContextVar stack | direct, descendant, nested, and external-waiter controls passed across Python 3.9/3.13 and asyncio/Trio |
+| 2026-08-02 | accept complete repair diff | static checks, package/docs, 1,445 tests, and 100% coverage passed |
