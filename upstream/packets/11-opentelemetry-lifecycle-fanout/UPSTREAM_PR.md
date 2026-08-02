@@ -1,83 +1,98 @@
-# Upstream pull-request draft — fix: stabilize lifecycle fanout targets
+# Upstream pull-request draft
 
-Draft status: `not ready`  
+Proposed title: `fix(sdk-trace, sdk-logs): invoke all lifecycle processors`  
+Draft status: `validating in owned fork`  
 Proposed head: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout-v2`  
 Proposed base: `open-telemetry/opentelemetry-js:main`  
 Public interaction authorized: `no`
 
-## Summary
+## Which problem is this PR solving?
 
-- Attempt every trace or logs processor present when lifecycle fanout begins.
-- Preserve eager invocation and existing outward error behavior.
-- Clear the public trace provider's timeout after synchronous processor failure.
+The trace and logs specifications require provider shutdown and force flush to invoke the operation on every registered processor.
 
-## Problem
+`MultiSpanProcessor` and `MultiLogRecordProcessor` currently invoke lifecycle methods while constructing a promise collection from the retained processor array. A custom processor that throws before returning its declared promise stops that construction, so later processors are not invoked. Synchronous mutation of the retained array can likewise make live iteration skip a processor that was registered when the operation began.
 
-`MultiSpanProcessor` and `MultiLogRecordProcessor` invoke lifecycle methods while iterating retained mutable arrays. A processor can remove a later processor before iteration reaches it. A direct synchronous throw can also stop construction of later promise inputs.
+`TracerProvider.forceFlush()` has a separate public fanout. Its Promise executor prevents a synchronous processor throw from stopping later `.map()` callbacks, but that throw bypasses the existing rejection handler that clears the processor timeout. The stale timer remains armed until expiry. This provider path also maps the live array, so synchronous removal can still skip a later opening processor.
 
-`TracerProvider.forceFlush()` is a separate public fanout that bypasses aggregate force flush. It maps the same live processor array and arms a timeout before invoking each processor. A synchronous throw bypasses the existing result catch and leaves the timeout armed.
+The affected cases are unusual but consequential at shutdown: a skipped processor loses its final flush or cleanup opportunity, and the provider's referenced timeout can delay natural Node.js process termination. The change is limited to custom/third-party processor failure and mutation behavior; it does not imply ordinary built-in processors commonly fail this way.
 
-## Change
+Fixes #ISSUE
 
-- snapshot and eager-safe-call aggregate trace shutdown/force flush;
-- snapshot and eager-safe-call logs shutdown/force flush while retaining timeout wrapping;
-- snapshot public provider force-flush targets and route synchronous failure through existing timeout cleanup/result handling;
-- add focused throw, mutation, error-shape, later-invocation, and timer-cleanup tests.
+## Short description of the changes
 
-Metrics is intentionally absent because its collector list is internally owned, the predecessor mutation tests used private-state casts, and collector lifecycle methods are already async.
+- snapshot the opening processor set in aggregate trace and logs lifecycle fanout;
+- invoke processors eagerly while converting direct synchronous throws into rejected promises;
+- snapshot public `TracerProvider.forceFlush()` targets;
+- route synchronous provider failure through the existing timeout cleanup and error-array result path;
+- add focused regression tests for synchronous throws, opening-set mutation, error behavior, timer cleanup, and genuine timeout preservation.
 
-## Behavior retained
+Metrics is intentionally not changed. Metric collector lifecycle methods are already `async`, the provider owns its collector list internally, and no supported post-construction mutation route was established.
 
-- aggregate trace shutdown rejects;
-- aggregate trace force flush reports globally and resolves;
-- provider force flush retains its error-array rejection;
-- logs reject;
-- calls begin eagerly;
-- future array mutation remains visible.
+## Type of change
 
-## Tests
+- [x] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] This change requires a documentation update
 
-Exact source: `f4910b355d12895edf25372444f76d4def08901c`.
+## How Has This Been Tested?
 
-Runs on owned PR #19:
+Focused unit coverage verifies:
 
-- Unit `30694264703`;
-- W3C `30694264710`;
-- Bundler `30694264711`;
-- API peer dependency `30694264708`;
-- CodeQL `30694264717`;
-- E2E `30694264735`;
-- Zizmor `30694264748`;
-- Lint `30694264729`.
+- aggregate trace shutdown and force flush invoke later opening processors after a direct synchronous throw;
+- aggregate logs shutdown and force flush do the same;
+- synchronous removal does not shrink the current operation's opening set;
+- aggregate trace shutdown still rejects;
+- aggregate trace force flush still reports through the global error handler and resolves;
+- logs still reject;
+- public trace-provider force flush retains its one-error-array rejection;
+- a synchronous provider failure leaves no timer armed;
+- a genuinely pending provider processor still times out and rejects.
 
-## Compatibility
+Owned-fork exact-head workflows are running on `987a2bde097fe2e44531830e38c7c15a59c35c23`:
 
-- public API/types unchanged;
-- one shallow copy per repaired lifecycle operation;
-- eager start and error policies retained;
-- provider timeout behavior changes only by clearing a timer after synchronous failure;
-- no migration.
+- Unit Tests `30755343888`;
+- Lint `30755343692`;
+- W3C Trace Context Integration `30755343695`;
+- Bundler tests `30755343708`;
+- Ensure API Peer Dependency `30755343685`;
+- CodeQL Analysis `30755343693`;
+- E2E Tests `30755343697`;
+- Zizmor GitHub Actions Security Analysis `30755343702`.
 
-## Changelog packaging
+The preceding candidate passed every listed workflow except Lint. That failure was limited to Prettier formatting in `TracerProvider.ts`; the current head contains the formatting repair and an added timeout-preservation control.
 
-After an authorized public PR number exists:
+## Compatibility and side effects
+
+- no public API, type, configuration, or generated-output changes;
+- no change to normal span or log delivery paths;
+- one shallow `slice()` allocation per repaired lifecycle call;
+- processor calls still begin eagerly and in existing order;
+- additions/removals affect later operations, not an operation already in progress;
+- existing fail-fast `Promise.all` behavior is retained;
+- no retries, cancellation, `Promise.allSettled`, idempotence, or multi-error aggregation are added.
+
+## Changelog entries
+
+After a real upstream pull-request number exists:
 
 ```md
-<!-- root CHANGELOG.md -->
-* fix(sdk-trace): stabilize lifecycle processor fanout [#PR](https://github.com/open-telemetry/opentelemetry-js/pull/PR) @teamleaderleo
+<!-- CHANGELOG.md -->
+* fix(sdk-trace): invoke every processor during lifecycle fanout [#PR](https://github.com/open-telemetry/opentelemetry-js/pull/PR) @teamleaderleo
 
 <!-- experimental/CHANGELOG.md -->
-* fix(sdk-logs): stabilize lifecycle processor fanout [#PR](https://github.com/open-telemetry/opentelemetry-js/pull/PR) @teamleaderleo
+* fix(sdk-logs): invoke every processor during lifecycle fanout [#PR](https://github.com/open-telemetry/opentelemetry-js/pull/PR) @teamleaderleo
 ```
 
-## Submission checklist
+## Checklist
 
-- [x] one commit directly on public main `2c931bf4...`;
-- [x] six target source/test files only;
-- [x] metrics excluded;
-- [x] public provider path and timer cleanup included;
-- [ ] exact workflow matrix passes;
-- [ ] eligible independent review accepts the exact head;
-- [ ] changelog entries use the real PR number;
-- [ ] current-main, duplicate, contribution, and AI-disclosure checks are repeated;
-- [ ] explicit public-contact authority is recorded.
+- [x] Followed the style and pull-request structure of this project
+- [x] Unit tests have been added
+- [x] Public API and compatibility impact have been reviewed
+- [x] Unsupported metrics scope has been removed
+- [x] Aggregate skip and provider timer defects are described separately
+- [ ] Exact-head ordinary workflows pass
+- [ ] Changelog entries contain the real pull-request number
+- [ ] Current-main and duplicate searches are repeated immediately before filing
+- [ ] Signed commit and CLA state are confirmed before filing
+- [ ] Public interaction is explicitly authorized
