@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260802-tanstack-async-throttle-acknowledgement",
+  "question": "Does a coalesced asyncThrottle caller await the execution that will persist its latest arguments?",
+  "owner": "chatgpt:gpt-5.6-thinking",
+  "created_at": "2026-08-02",
+  "state": "hold",
+  "claim_scope": "mechanism",
+  "integration_context": "TanStack Query async storage persister completion semantics",
+  "sources": [
+    {
+      "name": "TanStack Query asyncThrottle source",
+      "url": "https://github.com/TanStack/query/blob/31c7f374e28081289ea4d3fae46a0792fc56e737/packages/query-async-storage-persister/src/asyncThrottle.ts",
+      "revision": "31c7f374e28081289ea4d3fae46a0792fc56e737",
+      "retrieved_at": "2026-08-02",
+      "claim": "A call made while isScheduled is true updates lastArgs and returns immediately from the async wrapper.",
+      "evidence_label": "Source-read"
+    },
+    {
+      "name": "TanStack Query async storage persister",
+      "url": "https://github.com/TanStack/query/blob/31c7f374e28081289ea4d3fae46a0792fc56e737/packages/query-async-storage-persister/src/index.ts",
+      "revision": "31c7f374e28081289ea4d3fae46a0792fc56e737",
+      "retrieved_at": "2026-08-02",
+      "claim": "The shipped Persister.persistClient implementation is asyncThrottle around serialization and storage.setItem.",
+      "evidence_label": "Source-read"
+    }
+  ],
+  "command": "pnpm nx run @tanstack/query-async-storage-persister:test:lib",
+  "environment": {
+    "runtime": "repository Node and pnpm versions",
+    "platform": "target CI",
+    "dependencies": [
+      "repository lockfile"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "Characterization caller settles before the latest coalesced arguments execute.",
+      "interpretation": "Current persistClient promise can acknowledge before the requested snapshot is durable."
+    },
+    {
+      "observation": "Candidate coalesced callers remain pending and settle after the latest arguments execute.",
+      "interpretation": "Sharing the scheduled promise repairs acknowledgement without changing coalescing."
+    },
+    {
+      "observation": "No exact-head target execution is available.",
+      "interpretation": "Retain HOLD and make no target-executed claim."
+    }
+  ],
+  "stop_condition": "Stop after package-native execution and complete two-file diff review.",
+  "network_policy": "target CI only",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260802-tanstack-async-throttle-acknowledgement/README.md"
+  ],
+  "promoted_to": null
+}
