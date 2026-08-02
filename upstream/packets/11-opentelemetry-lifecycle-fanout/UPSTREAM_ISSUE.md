@@ -1,66 +1,108 @@
-# Upstream issue draft — lifecycle fanout can skip opening processors
+# Upstream issue draft — processor lifecycle fanout can stop early
 
-Draft status: `fallback only — direct PR preferred`  
+Draft status: `fallback only — a focused pull request is likely sufficient`  
 Public interaction authorized: `no`
 
-## Summary
+## What happened?
 
-Trace and logs lifecycle fanouts retain mutable processor arrays while starting shutdown or force flush. An earlier processor can remove a later indexed processor before iteration reaches it, causing an opening processor to be skipped.
+### Steps to reproduce
 
-The aggregate trace and logs paths also invoke processor interfaces directly. A processor can throw before returning its declared promise and stop construction of later promise inputs.
+Configure two custom span or log processors. Make the first processor throw synchronously from `shutdown()` or `forceFlush()` before returning its declared promise. Then call the corresponding aggregate lifecycle method.
 
-Public `TracerProvider.forceFlush()` has a separate direct fanout. A synchronous processor throw there leaves the processor timeout armed until expiry unless the throw is routed through the existing cleanup path.
+On the current implementation:
 
-## Reproduction
+- `MultiSpanProcessor` and `MultiLogRecordProcessor` stop constructing their promise lists at the synchronous throw, so the later processor is not invoked;
+- a processor that synchronously removes a later entry from the retained processor array can also make the live iteration skip that opening processor;
+- public `TracerProvider.forceFlush()` does attempt later processors after a synchronous throw because the call happens inside a Promise constructor, but the throwing processor's timeout remains armed until it expires;
+- public `TracerProvider.forceFlush()` can still skip a later opening processor when an earlier processor mutates the live array during invocation.
 
-- configure two processors;
-- have the first remove the second from the retained array during shutdown or force flush;
-- observe that the second opening processor is skipped on the baseline.
+### Expected result
 
-For the direct-call aggregate paths, make the first processor throw synchronously and observe that later processor invocation is interrupted. For public trace provider force flush, the later processor is attempted by map semantics, but the first processor's timeout remains armed.
+Every processor registered when `shutdown()` or `forceFlush()` begins is invoked once for that operation. Synchronous implementation errors are reported through the existing asynchronous failure path, and no obsolete timeout remains armed after a processor has already failed.
 
-## Expected behavior
+### Actual result
 
-Every processor present when lifecycle work begins should be attempted. Current-operation membership should remain stable while future operations observe mutations. A synchronous provider force-flush failure should not leave its timeout active.
+Depending on the entrypoint, a synchronous processor failure or mutation can skip a later processor from the operation's opening set. The public trace provider can also retain its per-processor timeout after it has already rejected for a synchronous failure.
+
+## Why this matters
+
+The trace and logs SDK specifications require provider shutdown and force flush to invoke the operation on all registered processors. A skipped processor may therefore miss its final export or cleanup opportunity.
+
+The affected boundary is mainly custom or third-party processors and code that retains and mutates the configured processor array; ordinary built-in processors normally return promises as declared. This is a correctness and shutdown-reliability issue, not evidence of widespread telemetry loss.
+
+In Node.js, the provider's default 30-second timeout is a referenced timer. If a custom processor throws synchronously and the application does not call `process.exit()`, the stale timer can delay natural process termination until it expires.
+
+## OpenTelemetry setup code
+
+```ts
+const processors: SpanProcessor[] = [];
+
+const first: SpanProcessor = {
+  onStart() {},
+  onEnd() {},
+  shutdown: () => Promise.resolve(),
+  forceFlush: () => {
+    throw new Error('synchronous processor failure');
+  },
+};
+
+const second: SpanProcessor = {
+  onStart() {},
+  onEnd() {},
+  shutdown: () => Promise.resolve(),
+  forceFlush: () => {
+    console.log('second processor flushed');
+    return Promise.resolve();
+  },
+};
+
+processors.push(first, second);
+await new TracerProvider({ spanProcessors: processors }).forceFlush();
+```
+
+Equivalent custom `LogRecordProcessor` implementations reproduce the aggregate logs behavior.
 
 ## Proposed direction
 
-- snapshot opening processor arrays in `MultiSpanProcessor`, `MultiLogRecordProcessor`, and public `TracerProvider.forceFlush()`;
-- convert direct synchronous processor throws into rejected promises without deferring eager invocation;
-- preserve existing package-specific error behavior and timeout/result structures.
-
-## Scope
+- take a shallow snapshot of the processor array at the beginning of each repaired lifecycle operation;
+- invoke each processor eagerly, while converting a direct synchronous throw into a rejected promise;
+- route public trace-provider synchronous failures through its existing timeout cleanup and error-array result handling;
+- preserve all existing outward error policies and genuine timeout behavior.
 
 Affected entrypoints:
 
-- `MultiSpanProcessor.shutdown()` / `forceFlush()`;
-- `MultiLogRecordProcessor.shutdown()` / `forceFlush()`;
+- `MultiSpanProcessor.shutdown()` and `forceFlush()`;
+- `MultiLogRecordProcessor.shutdown()` and `forceFlush()`;
 - `TracerProvider.forceFlush()`.
 
-Metrics is excluded: its collector list is internally owned, no supported mutation route was found, and collector lifecycle methods are already async.
+Metrics is intentionally excluded. Metric collector lifecycle methods are already `async`, the provider owns its collector list internally, and no supported post-construction mutation route was established.
 
-## Compatibility
+## Compatibility and limits
 
-- no public API or type changes;
+- no public API, type, configuration, or telemetry hot-path change;
 - one shallow array copy per repaired lifecycle call;
-- future mutations remain visible;
-- existing trace/log rejection and global-error behavior remains;
-- provider force flush retains its current error-array rejection;
-- no settle-all aggregation, cancellation, retry, or idempotence change.
+- processors are still invoked eagerly and in their existing order;
+- mutations remain visible to later lifecycle calls, but not to the operation already in progress;
+- aggregate trace shutdown still rejects;
+- aggregate trace force flush still reports through the global error handler and resolves;
+- logs still reject;
+- public trace-provider force flush still rejects with an error array;
+- genuine pending operations still time out;
+- this does not add `Promise.allSettled`, retries, cancellation, idempotence, or multi-error aggregation.
 
-## Environment and prior art
+## Environment and duplicate check
 
-- repository revision: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- public main matched that revision during repair;
-- repository GitHub Actions matrix;
-- open issue/PR searches found no equivalent current fix during the repair pass;
-- historical PR #802 is context for trace force flush but not an equivalent stable-opening or timer-cleanup repair.
+- reproduced against `open-telemetry/opentelemetry-js` revision `2c931bf4eec18a234a28706567c6977f08139abd`;
+- Node.js model check: v22.16.0;
+- issue, pull-request, and commit searches found no equivalent current repair at the time of drafting;
+- older force-flush work changes propagation or provider structure but does not repair this opening-set and synchronous-failure behavior.
 
 ## Filing checklist
 
-- [ ] repeat current-main and duplicate search immediately before filing;
-- [ ] confirm reproduction on the then-current public revision;
+- [ ] repeat current-main and duplicate searches immediately before filing;
+- [ ] confirm the reproduction against the then-current public revision;
+- [x] match the repository bug-report structure;
+- [x] distinguish aggregate skipping from the provider timer-cleanup defect;
 - [x] exclude unsupported metrics-private-state claims;
-- [x] avoid prevalence/severity claims beyond evidence;
-- [ ] recheck contribution and AI-disclosure policy;
+- [x] avoid unsupported prevalence or severity claims;
 - [ ] record explicit authority before public interaction.
