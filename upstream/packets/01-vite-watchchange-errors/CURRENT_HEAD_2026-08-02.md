@@ -1,68 +1,57 @@
-# Unit 01 exact-head continuation — 2026-08-02
-
-## Why this note exists
-
-The canonical Vite source moved after the previous packet snapshot. This note controls until the packet's larger narrative files are reconciled after the final ordinary-CI aggregate settles.
+# Unit 01 exact-head continuation — closed 2026-08-03
 
 ## Exact identity
 
-- Public base and current public `vitejs/vite` main: `e6b6b167afa0a80548829d1f24a0712f9194389a`.
-- Canonical owned branch: `fix/fieldwork-25-watchchange-error-isolation`.
-- Superseded clean source: `79fa097750158790ec9bf03d74e6f83d702dd4c2`.
-- Current clean source: `ba8ac979ee91c77fdd91304ccde38942e9752133`.
+- Public Vite base and current public main: `e6b6b167afa0a80548829d1f24a0712f9194389a`.
+- Canonical source branch: `fix/fieldwork-25-watchchange-error-isolation`.
+- Canonical source head: `ba8ac979ee91c77fdd91304ccde38942e9752133`.
 - Source PR: `teamleaderleo/vite#4`.
-- Changed-file fence: exactly three files:
+- Changed-file fence: exactly:
   1. `packages/vite/src/node/server/index.ts`;
   2. `packages/vite/src/node/server/pluginContainer.ts`;
   3. `packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js`.
 - No workflow, trigger, dependency, lockfile, generated output, or Fieldwork-only file remains on the canonical source branch.
 
-## Repair found during P0 continuation
+## Repairs completed
 
-The live PR head had drifted from the documented three-file product head to `acd7160d3297521aadf377411b7f2321a5c3553b`, adding only `.github/workflows/ci.yml` and `.fieldwork-unit-01-restart-trigger`. The canonical branch was restored to the clean product source before making the source correction below.
+The source PR was restored from a temporary five-file carrier head to the clean three-file product fence.
 
-Ordinary type checking on clean head `79fa097...` exposed two product-source errors:
+Ordinary type checking then exposed and caused repair of:
 
-1. the specialized lifecycle runner read `plugin[hookName]` as optional before passing it to `getHookHandler`;
-2. `shouldRunWatchChange()` could return `undefined` through `plugin.perEnvironmentWatchChangeDuringDev` despite declaring `boolean`.
+1. an optional hook passed to `getHookHandler` without narrowing;
+2. an optional plugin flag leaking from a helper declared to return `boolean`.
 
-Commit `ba8ac979ee91c77fdd91304ccde38942e9752133` repairs both narrowly:
+Final head `ba8ac979...` fixes both without changing lifecycle policy or public API.
 
-- assert the hook is present inside the loop produced by `getSortedPlugins(hookName)`;
-- compare `plugin.perEnvironmentWatchChangeDuringDev === true` so the helper is strictly boolean.
+## Final exact-head execution
 
-No lifecycle behavior, ordering, error-reporting, or public API policy changed.
+- Zizmor `30753769710`: **success**.
+- CI `30753769684`: **success**.
+- Preview `30753769692`: skipped as expected.
 
-## Exact current-head execution
-
-### Security and metadata
-
-- Zizmor run `30753769710`: **success**.
-- Preview release `30753769692`: skipped as expected for this internal PR.
-
-### Ordinary CI `30753769684`
-
-Completed successfully:
+CI passed:
 
 - changed-file discovery;
-- lint, formatting, typecheck, documentation tests, and workflow-file checks on Ubuntu / Node 24;
-- complete Build&Test on Ubuntu / Node 20;
-- complete Build&Test on Ubuntu / Node 22;
-- complete Build&Test on Ubuntu / Node 24;
-- complete Build&Test on Ubuntu / Node 26;
-- complete Build&Test on macOS / Node 24;
-- complete Build&Test on Windows / Node 24.15.0.
+- build, lint, formatting, typecheck, docs, and workflow checks;
+- complete Build&Test on Ubuntu Node 20/22/24/26;
+- complete Build&Test on macOS Node 24;
+- complete Build&Test on Windows Node 24.15.0;
+- final `Build & Test Passed or Skipped` aggregate.
 
-Each Build&Test job passed dependency installation, Vite build, unit tests, ordinary serve tests, bundled-development serve tests, and build tests.
+The failure aggregate skipped. Every Build&Test job completed build, unit, ordinary serve, bundled-development serve, and build tests.
 
-The failure aggregate job completed as skipped. The only non-terminal job at the latest snapshot is the administrative `Build & Test Passed or Skipped` aggregate job `91527020001`, which remains queued after every substantive dependency job succeeded.
+## Final complete-diff pre-review
 
-## Current disposition
+`ACCEPT`
 
-`EXECUTE — exact source and every substantive ordinary gate are green; final administrative aggregate pending`.
+The exact three-file comparison was re-read after the final typing repair. No blocking lifecycle, ordering, error-reporting, API, or test defect was found.
 
-A terminal-success aggregate advances the unit to exact-diff review and packet reconciliation without further source work. A failure or cancellation must be classified from that aggregate's own logic; it does not retroactively erase the successful product jobs.
+The direct public `pluginContainer.watchChange()` path remains fail-fast. The watcher-specific internal path settles and reports each applicable plugin hook, preserves sequential barriers, waits all environments, and allows later Vite-owned invalidation/HMR work to proceed.
 
-After the aggregate settles, update `README.md`, `TESTS.md`, `REVIEW.md`, the compact receipt, source PR #4, packet PR #438, issue #25, and parent #435 together.
+The authoritative final records are now `README.md`, `TESTS.md`, `REVIEW.md`, and `receipts/current-head-2026-08-01.md`. This continuation note is closed and no longer carries a pending gate.
+
+## Disposition
+
+`ACCEPT — technically ready for human review`.
 
 Public upstream interaction remains unauthorized and none occurred.
