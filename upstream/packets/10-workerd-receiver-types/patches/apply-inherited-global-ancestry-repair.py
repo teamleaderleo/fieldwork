@@ -187,7 +187,7 @@ replace_exact_count(
     "types/test/index.spec.ts",
     "this: EventTarget<EventMap>,",
     "this: EventTarget<EventMap> | typeof globalThis | null | void,",
-    2,
+    3,
 )
 
 inherited_type_test = ROOT / "types/test/types/inherited-global-receiver.ts"
