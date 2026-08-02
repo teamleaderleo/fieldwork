@@ -1,39 +1,46 @@
 # Unit 11 — fix: stabilize lifecycle fanout targets
 
-## Current disposition
+## In simple words
 
-`HOLD — clean successor exact-head validation pending`
+OpenTelemetry trace and logs shutdown/flush code could skip a processor that was present when the operation started. The source repair is complete on one clean commit. No additional reviewer is being treated as the final authority: this packet is prepared for the repository owner’s decision, with exact-head CI still queued and clearly separated from the completed code repair.
 
-Last refreshed: `2026-08-01`  
+## Current state
+
+`READY FOR OWNER DECISION — source repaired; exact-head workflows queued`
+
+Last refreshed: `2026-08-03`  
 Priority-zero parent: `teamleaderleo/fieldwork#435`  
 Public upstream contact authorized: `no`
 
 ## Contribution
 
-OpenTelemetry JS trace and logs lifecycle fanouts can skip processors that belonged to the operation's opening set. A processor can remove a later processor from a retained mutable array during shutdown or force flush. Direct processor calls can also throw before later promise inputs are built.
+`MultiSpanProcessor` and `MultiLogRecordProcessor` retain mutable processor arrays and previously invoked lifecycle methods while traversing those live arrays. A processor could remove a later opening processor, or throw synchronously before returning its declared promise, preventing later invocation.
 
-Public `TracerProvider.forceFlush()` bypasses `MultiSpanProcessor.forceFlush()` and directly fans out over the processor list. A synchronous throw there also left the processor timeout armed until expiry.
+Public `TracerProvider.forceFlush()` performs a separate direct fanout. Live mutation could also skip a later processor there, and a synchronous throw bypassed the normal timeout cleanup path.
 
-Metrics is excluded. `MeterProvider` constructs and owns its collector list internally, and the prior mutation tests only reached it through private state. `MetricCollector` lifecycle methods are already async.
+Metrics is excluded. `MeterProvider` constructs and owns its collector list internally, the earlier mutation controls required private-state access, and `MetricCollector` lifecycle methods are already async.
 
 ## Exact identities
 
 - target: `open-telemetry/opentelemetry-js`;
-- public base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- public base/current-main snapshot: `2c931bf4eec18a234a28706567c6977f08139abd`;
 - canonical source branch: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout-v2`;
-- exact clean source head: `f4910b355d12895edf25372444f76d4def08901c`;
+- exact clean source head: `db3d9e5e43d5abc6622784acf0ef87f3b038ac91`;
+- reviewed pre-squash tree source: `987a2bde097fe2e44531830e38c7c15a59c35c23`;
 - owned validation PR: `teamleaderleo/opentelemetry-js#19`;
-- superseded carrier: closed PR #18;
+- superseded source carrier: closed PR #18;
 - source relation: ahead 1, behind 0;
 - packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout`;
-- proposed title: `fix: stabilize lifecycle fanout targets`.
+- proposed title: `fix(sdk-trace, sdk-logs): invoke all lifecycle processors`.
+
+The squash reused the exact six file blobs from the reviewed pre-squash head. It changed history and identity only, not code or tests.
 
 ## Final code boundary
 
 | Area | Production change | Focused tests |
 | --- | --- | --- |
 | trace multi-processor | snapshot opening processors and eagerly convert direct synchronous throws to rejections | shutdown/force-flush throw and live-removal controls; global-handler cleanup |
-| public trace provider | snapshot force-flush targets; route sync throws through existing timeout/error cleanup | later processor attempted, rejection shape retained, timeout cleared, live-removal control |
+| public trace provider | snapshot force-flush targets; route sync throws through existing timeout/error cleanup | later processor attempted, rejection shape retained, timeout cleared, live-removal and real-timeout controls |
 | logs | snapshot opening processors and eagerly convert direct synchronous throws while retaining timeout wrapping | shutdown/force-flush throw and live-removal controls |
 
 Changed files:
@@ -45,47 +52,37 @@ Changed files:
 5. `experimental/packages/sdk-logs/src/MultiLogRecordProcessor.ts`
 6. `experimental/packages/sdk-logs/test/common/MultiLogRecordProcessor.attempt-all.test.ts`
 
-The source is one clean commit. No metrics, workflow, dependency, lock, generated, publisher, or research-only file is present.
+No metrics, workflow, dependency, lock, generated, publisher, or research-only file is present.
 
-## Repair history
+## Repairs completed
 
-- safe-call-only generation passed gates but live removal still skipped later children;
-- first snapshot fixtures required typing repair;
-- clean predecessor head passed all named repository workflows;
-- review found metrics safe-call redundant;
-- deeper review removed metrics entirely as private-state-only;
-- deeper trace review found public `TracerProvider.forceFlush()` bypassed the repaired aggregate;
-- successor added that public path and cleared its timeout after synchronous failure;
-- successor history was collapsed to one commit on the pinned public base.
+- added stable opening-set snapshots for trace aggregate, public trace provider, and logs;
+- normalized direct synchronous lifecycle throws without deferring eager invocation;
+- routed provider synchronous failure through existing timer cleanup and error-array handling;
+- added the genuine pending-operation timeout control;
+- repaired global error-handler test cleanup;
+- removed the unsupported private-state metrics path;
+- collapsed the source branch from four commits to one commit directly on the pinned base;
+- synchronized the owned source PR to the new canonical identity.
 
-## Current validation
+## Exact-head workflows
 
-Queued on exact successor head `f4910b355d12895edf25372444f76d4def08901c`:
+Queued for `db3d9e5e43d5abc6622784acf0ef87f3b038ac91`:
 
-- Unit `30694264703`;
-- W3C `30694264710`;
-- Bundler `30694264711`;
-- API peer dependency `30694264708`;
-- CodeQL `30694264717`;
-- E2E `30694264735`;
-- Zizmor `30694264748`;
-- Lint `30694264729`.
+- Unit Tests `30756036668`;
+- Lint `30756036660`;
+- W3C Trace Context Integration `30756036656`;
+- Bundler tests `30756036678`;
+- Ensure API Peer Dependency `30756036662`;
+- CodeQL Analysis `30756036671`;
+- E2E Tests `30756036639`;
+- Zizmor GitHub Actions Security Analysis `30756036691`.
 
-No successor-head pass conclusion is claimed until these settle.
+Earlier heads provide mechanism and repository-gate evidence, but they are historical rather than exact-head promotion receipts. Queued infrastructure is not being treated as an unresolved code repair.
 
-## Current-main, duplicate, and packaging boundary
+## Owner decision surface
 
-Public main remained identical to the pinned base during repair. Open issue/PR searches found no replacement contribution. Repeat immediately before filing.
-
-Target guidance requires a root changelog entry for sdk-trace and an experimental changelog entry for sdk-logs. Final entries need a real authorized upstream PR number.
-
-## Remaining work
-
-1. settle all successor-head workflows;
-2. obtain eligible independent exact-head acceptance;
-3. repeat current-main, duplicate, contribution-policy, and AI-disclosure checks;
-4. add root and experimental changelog entries using the real upstream PR number;
-5. obtain explicit authority before any public upstream action.
+The code and packet are ready for the repository owner to judge. Before any authorized public filing, refresh public main, duplicate/overlap, contribution policy, and disclosure requirements; then add the root sdk-trace and experimental sdk-logs changelog entries using the real upstream PR number.
 
 ## Packet navigation
 
