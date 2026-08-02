@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260802-zustand-storage-replacement-hydration",
+  "question": "Can old storage hydration work publish or persist after setOptions transfers ownership to a replacement storage backend?",
+  "owner": "chatgpt:gpt-5.6-thinking",
+  "created_at": "2026-08-02",
+  "state": "running",
+  "claim_scope": "mechanism",
+  "integration_context": "Zustand persist runtime storage replacement during an in-flight async read or migration",
+  "sources": [
+    {
+      "name": "pmndrs/zustand persist source",
+      "url": "https://github.com/pmndrs/zustand/blob/beca84e600e4e250f6b244d22878e72948f331c7/src/middleware/persist.ts",
+      "revision": "beca84e600e4e250f6b244d22878e72948f331c7",
+      "retrieved_at": "2026-08-02",
+      "claim": "hydrate binds the initiating storage read while later migration persistence uses mutable current storage; setOptions replaces storage without advancing hydration authority",
+      "evidence_label": "Source-read"
+    }
+  ],
+  "command": "Use the target repository pull-request workflow Test job for the exact characterization and candidate heads.",
+  "environment": {
+    "runtime": "GitHub Actions repository workflow",
+    "platform": "ubuntu-24.04",
+    "dependencies": [
+      "repository lockfile"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "Old read applies and old migration writes through replacement storage on the characterization head.",
+      "interpretation": "Storage ownership transfer does not invalidate earlier hydration authority."
+    },
+    {
+      "observation": "Candidate suppresses both old publication and cross-backend write while later rehydrate succeeds.",
+      "interpretation": "Advancing the existing hydration generation at storage replacement is a sufficient narrow repair."
+    },
+    {
+      "observation": "Setup, format, type, lint, or runner failure occurs before the focused cases execute.",
+      "interpretation": "No mechanism conclusion can be drawn until repaired and rerun."
+    }
+  ],
+  "stop_condition": "Stop after exact-head characterization and candidate execution plus complete two-file diff review.",
+  "network_policy": "target CI only",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260802-zustand-storage-replacement-hydration/README.md"
+  ],
+  "promoted_to": null
+}
