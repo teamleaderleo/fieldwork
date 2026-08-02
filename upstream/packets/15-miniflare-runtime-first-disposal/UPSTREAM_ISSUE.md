@@ -1,5 +1,9 @@
 # Upstream issue draft
 
+## In simple words
+
+This issue-first draft describes the source-proven ownership defect without claiming a specific public incident has the same cause. A clean candidate now exists and the browser cleanup path has been inspected. The draft must not be posted until the repository owner authorizes public upstream contact.
+
 Status: **DRAFT — DO NOT POST**
 
 Public upstream contact authorized: `false`
@@ -12,80 +16,56 @@ Public upstream contact authorized: `false`
 
 ### Summary
 
-`Miniflare.dispose()` currently awaits Browser Rendering cleanup and proxy-client disposal before calling `Runtime.dispose()`.
+At pinned revision `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`, `Miniflare.dispose()` awaits Browser Rendering cleanup and proxy-client disposal before calling `Runtime.dispose()`.
 
 That ordering allows either earlier hook to prevent the workerd termination request:
 
-- a rejection exits the cleanup `finally` block before `Runtime.dispose()` is reached;
+- a rejection exits cleanup before `Runtime.dispose()` is reached;
 - an unresolved promise leaves disposal suspended before `Runtime.dispose()` begins.
 
-`Runtime.dispose()` already requests workerd termination synchronously before returning its child-exit promise. Starting it before awaiting independent cleanup hooks would preserve runtime ownership even when another teardown step fails or remains pending.
-
-### Current source
-
-At current `main` revision `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`, the relevant sequence in `packages/miniflare/src/index.ts` is:
-
-```ts
-await this.#closeBrowserProcesses();
-this.#removeExitHook?.();
-await this.#proxyClient?.dispose();
-await this.#runtime?.dispose();
-```
-
-`Runtime.dispose()` clears the child reference, destroys the child streams, sends `SIGKILL`, and returns the process-exit promise.
-
-### Minimal target-native controls
-
-A focused regression test can use a real Miniflare instance and exported prototypes:
-
-1. make `ProxyClient.prototype.dispose()` reject once;
-2. call `Miniflare.dispose()`;
-3. observe `ChildProcess.prototype.kill()` for the workerd child.
-
-Current behavior preserves the proxy rejection but does not request workerd termination during the first disposal.
-
-A second control leaves proxy cleanup pending. Current behavior does not request workerd termination until that promise is released.
-
-A negative control injects a later `DevRegistry.dispose()` rejection and confirms workerd termination already occurred.
+`Runtime.dispose()` requests workerd termination synchronously before returning its child-exit promise. Starting it before awaiting independent cleanup hooks preserves runtime ownership when another teardown step fails or remains pending.
 
 ### Proposed invariant
 
 Once `Miniflare.dispose()` begins its cleanup phase, it should initiate termination of its owned workerd process before awaiting independent teardown hooks.
 
-### Proposed implementation direction
+### Prepared implementation
 
-Invoke `Runtime.dispose()` before the browser/proxy awaits, retain its returned promise, attach a rejection observer, then preserve the existing completion order by awaiting browser cleanup, proxy cleanup, and finally the retained runtime-exit promise.
+A clean owned-fork candidate exists at `d668e318f5e6b0c1e2cbd66ac4b46d8cddbca642`:
 
-This keeps the change local to Miniflare disposal and leaves broader cleanup aggregation and timeout policy for separate discussion.
+- invoke `Runtime.dispose()` before browser and proxy awaits;
+- retain and immediately observe its promise;
+- preserve completion order by awaiting browser cleanup, proxy cleanup, then runtime exit;
+- retain later dispatcher and resource cleanup order;
+- add a patch changeset and three real-runtime controls.
 
-### Questions
+The rejected-proxy test restores its mock and always performs a second disposal so the test completes the remaining Miniflare teardown after the injected failure.
 
-1. Is any Browser Rendering or proxy-client cleanup expected to require a live workerd process after `Miniflare.dispose()` has begun?
-2. Should runtime termination initiation be treated as the first ownership action in the cleanup phase?
-3. Would maintainers prefer this narrow ordering fix or a broader phase-wide cleanup/error-aggregation design?
+### Browser Rendering boundary
 
-### Related public work
+The browser cleanup helper uses its own browser-process handle and CDP WebSocket endpoint, attempts `Browser.close`, and independently kills/waits for the browser process if needed. No direct dependency on a live workerd process was found in that helper.
 
-- `#14903` reports a live workerd child after parallel Vitest files complete. That report is a symptom match; this issue does not claim the same cause without a runnable reproduction.
-- `#12025` established immediate stream destruction and `SIGKILL` inside `Runtime.dispose()`.
-- `#13078` isolated best-effort temporary cleanup after runtime disposal.
-- `#14727` bounded Browser Rendering process shutdown.
+### Minimal target-native controls
+
+1. Make `ProxyClient.prototype.dispose()` reject once and confirm the first disposal still requests workerd termination; then restore the mock and finish cleanup.
+2. Leave proxy cleanup pending and confirm termination is requested before releasing it.
+3. Inject a later `DevRegistry.dispose()` rejection and confirm workerd termination already occurred.
 
 ### Scope
 
-This proposal covers runtime termination initiation only. It excludes:
+This proposal covers runtime termination initiation only. It excludes simultaneous-error aggregation, initialization-error precedence, generic cleanup deadlines, Vite owner handoff, Durable Object runtime behavior, and causal claims about public hang reports.
 
-- aggregation of simultaneous teardown errors;
-- initialization-error precedence;
-- generic cleanup deadlines;
-- Vite owner handoff;
-- Durable Object runtime behavior.
+### Questions
+
+1. Should runtime termination initiation be treated as the first ownership action in the cleanup phase?
+2. Does any undocumented integration require workerd to remain live while independently owned browser cleanup runs?
+3. Do maintainers prefer this narrow ordering fix or a broader phase-wide cleanup/error-aggregation design?
 
 ## Posting checklist
 
-- [ ] Explicit authorization to contact public upstream is recorded.
-- [ ] Current upstream head is refreshed.
-- [ ] The focused baseline controls have executed and receipts are linked.
-- [ ] Public links use the current source revision.
-- [ ] The issue avoids claiming that `#14903` has this cause.
-- [ ] Internal Fieldwork links and private operational details are absent.
+- [ ] Explicit owner authorization for public upstream contact.
+- [ ] Current upstream head and duplicate/overlap refreshed.
+- [ ] Exact-head focused and ordinary results recorded.
+- [ ] Public links and contribution-policy requirements refreshed.
+- [ ] No causal claim about a public incident without a runnable reproduction.
+- [ ] Internal Fieldwork references and private operational details removed.
