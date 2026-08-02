@@ -1,100 +1,93 @@
-# Current-head receipt — 2026-08-01
+# Current-head receipt — 2026-08-03
 
 ## Review fence
 
-- Work class: upstream-fork source candidate
-- Public Vite base: `e6b6b167afa0a80548829d1f24a0712f9194389a`
-- Canonical owned source: `a2ab7ca6183ad74d64066d6706e57a546e355224`
-- Canonical source branch: `fix/fieldwork-25-watchchange-error-isolation`
-- Canonical source PR: [`teamleaderleo/vite#4`](https://github.com/teamleaderleo/vite/pull/4)
-- Diff relation: two commits ahead, zero behind
-- Diff inventory: exactly two files, 198 additions, 12 deletions
-- Current self-review: [`comment 5148481573`](https://github.com/teamleaderleo/vite/pull/4#issuecomment-5148481573)
+- Work class: owned-fork source candidate
+- Public Vite base and current main: `e6b6b167afa0a80548829d1f24a0712f9194389a`
+- Canonical source: `ba8ac979ee91c77fdd91304ccde38942e9752133`
+- Canonical branch: `fix/fieldwork-25-watchchange-error-isolation`
+- Canonical source PR: `teamleaderleo/vite#4`
+- Diff inventory: exactly three files, 425 additions, 18 deletions
+- Packet PR: `teamleaderleo/fieldwork#438`
 
-Any source-head movement expires this receipt.
+Any source or material public-base movement expires this receipt.
 
-## Complete-diff source review
+## Source repairs
 
-Result:
+The canonical source was restored from a temporary five-file carrier head to the clean three-file product fence.
 
-- server-local environment fanout is the narrow ownership boundary;
-- `EnvironmentPluginContainer.watchChange` is async and exposes synchronous throws and asynchronous rejections as rejected environment promises;
-- settle-all preserves the successful-path ordering boundary and reports every rejection;
-- existing invalidation, public-file, deletion, restart, and HMR work remains in place after notification;
-- complete source diff contains no temporary workflow, research artifact, dependency, lockfile, generated output, or internal-only documentation;
-- no blocking product-code defect was found by self-review.
+Ordinary type checking then exposed and caused repair of:
 
-## Current-head workflows
+1. an optional hook passed to `getHookHandler` without narrowing;
+2. an optional plugin flag leaking from a helper declared to return `boolean`.
+
+Final head `ba8ac979...` contains only the narrow typing corrections plus the selected watcher lifecycle repair.
+
+## Exact source mechanism
+
+- watcher events call an internal notification path;
+- applicable plugin hooks run in existing parallel groups with existing sequential barriers;
+- each hook's synchronous throw or asynchronous rejection is reported individually;
+- every applicable hook settles before Vite-owned invalidation/HMR proceeds;
+- asynchronous hooks remain registered for close-time waiting;
+- environment-level infrastructure rejection is separately settled and reported;
+- the documented direct `pluginContainer.watchChange()` path remains fail-fast.
+
+## Final workflows
 
 ### Zizmor
 
-- Run: [`30674314445`](https://github.com/teamleaderleo/vite/actions/runs/30674314445)
-- Result: `success`
+- Run `30753769710`
+- Result: **success**
 
 ### CI
 
-- Run: [`30674314447`](https://github.com/teamleaderleo/vite/actions/runs/30674314447)
-- Changed-files: `success`
-- Lint pipeline: `success`
-  - dependency installation
-  - repository build
-  - lint
-  - formatting check
-  - typecheck
-  - documentation tests
-  - workflow-file checks
-- Linux Node 20 Build&Test: `success`
-- Linux Node 22 Build&Test: `success`
-- Linux Node 24 Build&Test: `success`
-- Linux Node 26 Build&Test: `success`
-- macOS Node 24 Build&Test: `success`
+- Run `30753769684`
+- Result: **success**
 
-Successful Build&Test jobs completed the Vite workflow's unit, serve, bundled-development, and build-mode steps.
+Passed jobs:
 
-### Windows retained evidence
+- changed-file discovery;
+- lint, build, formatting, typecheck, documentation tests, and workflow checks;
+- Ubuntu Node 20 Build&Test;
+- Ubuntu Node 22 Build&Test;
+- Ubuntu Node 24 Build&Test;
+- Ubuntu Node 26 Build&Test;
+- macOS Node 24 Build&Test;
+- Windows Node 24.15.0 Build&Test;
+- `Build & Test Passed or Skipped` aggregate.
 
-Attempt 1, job [`91298369805`](https://github.com/teamleaderleo/vite/actions/runs/30674314447/job/91298369805):
+The `Build & Test Failed` aggregate skipped.
 
-- build passed;
-- unit suite passed;
-- Unit 01 focused file passed 3/3;
-- later ordinary serve failed in existing `playground/hmr-ssr` while waiting for an HMR console update.
+Every Build&Test job completed build, unit, ordinary serve, bundled-development serve, and build tests.
 
-Attempt 2, job [`91344104649`](https://github.com/teamleaderleo/vite/actions/runs/30674314447/job/91344104649):
+Preview run `30753769692` skipped as expected for the internal PR.
 
-- build passed;
-- unit suite passed;
-- Unit 01 focused file passed 3/3;
-- ordinary serve passed: 91 files passed, 17 skipped; 1128 tests passed, 165 skipped;
-- bundled-development later failed three timing/state assertions in the same existing HMR/SSR playground;
-- build-mode was not reached because the bundled-development step stopped the job.
+## Complete-diff pre-review
 
-Classification: unrelated Windows HMR/SSR integration flakiness. The failure moved between ordinary serve and bundled-development while the Unit 01 regression stayed green and all Linux/macOS full jobs passed. This is an accepted ordinary-gate limitation, not a product or focused-test failure.
+Result: `ACCEPT`.
 
-Attempt 3, job [`91344668365`](https://github.com/teamleaderleo/vite/actions/runs/30674314447/job/91344668365), was requested as supplementary evidence and was queued at receipt reconciliation. Its outcome should be appended if it changes the evidence, but source changes require a Unit 01-linked failure rather than another unrelated HMR/SSR timeout.
+Confirmed:
 
-### Preview
+- per-plugin errors cannot end sibling notification work;
+- sequential barriers preserve ordering;
+- all environments settle before later watcher work;
+- direct public hook behavior remains unchanged;
+- generated declarations do not expose the internal method;
+- tests cover change/add/unlink, refreshed cache content, dual rejection, blocked-sibling ordering, sequential barriers, and synchronous throws;
+- source contains no workflow, trigger, dependency, lockfile, generated output, or Fieldwork-only file;
+- no blocking lifecycle, compatibility, or test defect was found.
 
-- Run: [`30674314449`](https://github.com/teamleaderleo/vite/actions/runs/30674314449)
-- Result: `skipped`
-- Classification: expected internal-source PR behavior; no product claim
+## Prior art and overlap
 
-## Synthetic merge note
+Merged Vite PR `#22188` added listener-level logging but did not continue the inner watcher transaction or settle sibling hooks.
 
-The pull-request workflow checkout used a synthetic merge containing source head `a2ab7ca6183ad74d64066d6706e57a546e355224` on the owned repository's current default-branch head. The canonical source and complete-diff fence remain the explicit comparison `e6b6b167...a2ab7ca6`.
-
-Do not cite the synthetic merge as the canonical source revision. It is retained as compatibility execution containing the exact source head.
+Current public main remains the exact base. Fresh issue/PR searches found no open overlapping repair at this receipt.
 
 ## Disposition
 
 `ACCEPT`
 
-The exact source candidate is suitable for independent final review. The author is not the sole eligible final accepter. This receipt does not authorize merge or public upstream interaction.
-
-## Next transition
-
-- independent complete-diff review at the unchanged source head;
-- current-main, duplicate, contribution-policy, and validation refresh immediately before any authorized public submission;
-- explicit user authority for the exact public interaction.
+The exact source is technically ready for human review. Repeat current-main, duplicate, and contribution-policy checks before any authorized public action.
 
 Public upstream interactions for Unit 01: zero.
