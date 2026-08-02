@@ -2,36 +2,49 @@
 
 ## Exact clean source
 
-- base: `d82c2a45a8695aac30d4d24828ce1ee7fb11909b`
-- head: `8f41da276852ad48735c1d817b7c1a3699ac8beb`
-- compare: https://github.com/teamleaderleo/workerd/compare/d82c2a45a8695aac30d4d24828ce1ee7fb11909b...8f41da276852ad48735c1d817b7c1a3699ac8beb
+- base: `813c31394b9909d8f557bba14324db275bc12720`
+- head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
+- compare: https://github.com/teamleaderleo/workerd/compare/813c31394b9909d8f557bba14324db275bc12720...18a117c28773cd7aa0ee599e03439c5fbbf06584
 - owned draft PR: https://github.com/teamleaderleo/workerd/pull/5
 - fence: one commit, ten source/test files, no workflow files
 
-The August 1 upstream base differs from the prior July 31 base only in two release metadata files. The final head adds one accepted callback-erasure compatibility control to the repaired product/test blobs.
+The August 2 upstream base differs from the prior August 1 base only in two release metadata files. The final head adds three controls beyond the last green semantic source: callback receiver erasure, static-global constant preservation, and renamed full-replacement receiver ownership.
 
 ## Test inventory in the clean diff
 
 - `types/test/index.spec.ts`
   - generator snapshot and end-to-end transform ordering;
-  - ordinary, explicit, generic, static, inherited, and global receiver output.
+  - ordinary, explicit, generic, static, inherited, iterator-transformed, and global receiver output.
 - `types/test/transforms/globals.spec.ts`
   - context-global widening;
-  - static exclusion;
+  - static method exclusion;
+  - static readonly property/constant preservation as ambient `const`;
   - lexical superclass selection when another namespace contains the same unqualified name;
   - transformed top-level heritage lookup after an earlier transformer replaces superclass members.
 - `types/test/transforms/overrides/index.spec.ts`
   - partial and full override behavior;
-  - explicit receiver preservation and overload handling.
+  - explicit receiver preservation and overload handling;
+  - existing type rename behavior across generated references.
 - `types/test/transforms/overrides/replacement-receiver-generics.spec.ts`
   - generic generated owner → nongeneric replacement;
   - generic generated owner → generic replacement;
-  - nongeneric generated owner → generic replacement.
+  - nongeneric generated owner → generic replacement;
+  - renamed generic replacement updates the receiver owner and leaves no marker referencing the original name.
 - `types/test/types/fetch-receiver.ts`
   - legal bare, detached, nullish, `globalThis`, `self`, `call`, `apply`, and `bind` forms;
   - expected diagnostics for unrelated holders and unrelated explicit receivers;
   - raw host function stored on an unrelated client;
   - accepted assignment to a receiver-free callback type, documenting normal TypeScript receiver erasure and source compatibility.
+
+## Source-read registration controls
+
+Current public `resource.h` shows the following use the owning `signature` with `MethodCallback`:
+
+- ordinary methods;
+- synchronous and asynchronous iterator symbol registrations;
+- synchronous and asynchronous disposal symbol registrations.
+
+Callable resources use `SetCallAsFunctionHandler` and are not ordinary generated method declarations. Static methods use the constructor registration path and remain receiver-free. These source-read distinctions define the output review matrix.
 
 ## Evidence classes
 
@@ -62,9 +75,22 @@ The immediately preceding run `30690050452` is a discriminating negative receipt
 
 This failure and repair provide stronger evidence than a green-only receipt because they distinguish the old and new implementations on the exact behavior under review.
 
+### Review-executed — static constant negative result
+
+Owned PR #5 review `4834296945` found that blanket static-member exclusion removed generated global constants. The review traced the behavior through `createConstantPartial()`, which represents JSG constants as static readonly class members.
+
+Final-head repair:
+
+- static check moved inside the method extraction branch;
+- static methods remain unextracted;
+- static properties/constants retain extraction;
+- strict expected output now includes `declare const CONSTANT: 42`.
+
+This is prepared test evidence until the final exact head executes.
+
 ### Target-executed — lint
 
-Repaired-head lint run `30690346721`: passed.
+Repaired-head lint run `30690346721`: passed. The final head contains the same implementation plus the bounded static repair and two additional test controls; exact-head lint remains required.
 
 ### Model-executed — downstream/runtime
 
@@ -111,7 +137,7 @@ The retained model established:
 
 ## Final-head focused command
 
-Run at `8f41da276852ad48735c1d817b7c1a3699ac8beb`:
+Run at `18a117c28773cd7aa0ee599e03439c5fbbf06584`:
 
 ```console
 bazelisk test \
@@ -123,7 +149,11 @@ bazelisk test \
   --test_output=errors
 ```
 
-The final-head delta from the green repaired source is the callback-erasure acceptance control plus upstream release metadata outside the diff. This still requires exact execution before publication.
+The final-head-only assertions are:
+
+- receiver-free callback assignment remains accepted;
+- static generated constants remain ambient globals while static methods do not;
+- renamed generic replacements update their receiver owner.
 
 ## Ordinary target gate
 
@@ -143,15 +173,17 @@ Equivalent Bazel targets may be retained when the workflow uses Bazel directly. 
 Build both ambient and importable output and retain a compact compatibility report covering:
 
 1. changed declaration files and changed method count;
-2. examples from `fetch`, `EventTarget`, `Crypto`, streams, URL, Headers, FormData, WebSocket, and iterator-bearing APIs;
+2. examples from `fetch`, `EventTarget`, `Crypto`, streams, URL, Headers, FormData, WebSocket, iterator-bearing APIs, and disposal symbols;
 3. legal global receiver unions;
 4. explicit handwritten `this: void` and custom unions unchanged;
 5. static methods unchanged and absent from ambient extraction;
-6. no `__JSG_GENERATED_RECEIVER__` leakage;
-7. no undeclared generic receiver parameters;
-8. no unexpected recursive expansion from `typeof globalThis`;
-9. ambient and importable outputs both type-check;
-10. any intentionally detachable current API, or an explicit negative result.
+6. static global constants preserved;
+7. no `__JSG_GENERATED_RECEIVER__` leakage;
+8. no undeclared or stale renamed receiver owners;
+9. no unexpected recursive expansion from `typeof globalThis`;
+10. ambient and importable outputs both type-check;
+11. callable resource call signatures unchanged;
+12. any intentionally detachable current API, or an explicit negative result.
 
 ## Remaining evidence gap
 
