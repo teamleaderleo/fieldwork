@@ -1,5 +1,9 @@
 # Approaches — Miniflare runtime-first disposal
 
+## In simple words
+
+The selected repair starts the workerd owner’s existing termination action before independent teardown awaits, without turning the patch into a broad cleanup rewrite. Review confirmed the browser helper owns its own process handle and endpoint, and repaired the rejected-proxy test so it always completes the rest of Miniflare teardown.
+
 ## Decision
 
 Select the narrow early-start approach:
@@ -14,9 +18,7 @@ Select the narrow early-start approach:
 
 This changes when runtime ownership discharge begins while preserving the surrounding completion order.
 
-## Approach A — Early-start runtime disposal
-
-### Sketch
+## Selected approach — early-start runtime disposal
 
 ```ts
 let runtimeDisposePromise: Promise<void>;
@@ -32,200 +34,61 @@ await this.#proxyClient?.dispose();
 await runtimeDisposePromise;
 ```
 
-### Advantages
+Advantages:
 
-- repairs the precise skipped/pending ownership path;
-- uses current `Runtime.dispose()` semantics, where the kill request happens synchronously;
-- keeps the external API unchanged;
-- keeps the candidate to one production source location;
-- permits direct target-native controls through prototype injection and child-process observation;
-- leaves broad cleanup policy for separate review.
+- repairs both rejected and pending pre-runtime hooks;
+- uses current `Runtime.dispose()` semantics, where termination is requested synchronously;
+- preserves public API, normal cleanup order, and dispatcher-after-runtime ordering;
+- keeps production scope to one source location;
+- supports direct real-runtime controls;
+- leaves broad cleanup policy separate.
 
-### Costs and limits
+Limits:
 
-- simultaneous runtime and earlier-hook failures still lack complete aggregation;
-- the attached rejection observer prevents transient unhandled rejection reporting and may leave the runtime failure secondary when another hook fails first;
-- browser-before-runtime completion ordering becomes runtime-start-before-browser, which deserves maintainer confirmation.
+- simultaneous failures are observed but not fully aggregated;
+- early runtime start precedes browser completion;
+- exact-head target execution is still pending.
 
-### Status
+## Browser Rendering decision
 
-Selected for unit 15.
+Source review supports the selected ordering. Browser cleanup uses a retained browser-process handle plus a CDP WebSocket endpoint, sends `Browser.close`, and independently kills/waits for that browser process when needed. No direct workerd dependency was found.
 
-## Approach B — Await runtime disposal before every other hook
+This clears the known design question at source level. Target execution can still reveal an undocumented interaction and should be classified when available.
 
-### Sketch
+## Test-cleanup decision
 
-```ts
-await this.#runtime?.dispose();
-await this.#closeBrowserProcesses();
-await this.#proxyClient?.dispose();
-```
+The rejected-proxy test must always perform a second `mf.dispose()` after restoring the mock. Awaiting the killed workerd child is insufficient because the first disposal exited before later Miniflare cleanup. The repaired test now completes both the observed ownership action and the remaining lifecycle.
 
-### Advantages
+## Rejected alternatives
 
-- very easy to read;
-- guarantees runtime exit before later cleanup begins.
+### Await runtime exit before all other cleanup
 
-### Costs
+Rejected because a slow or failed runtime exit would newly skip/delay browser and proxy cleanup and would change completion order more aggressively than necessary.
 
-- changes the established completion ordering more aggressively;
-- a slow child exit delays browser and proxy cleanup even though the termination request itself was already sufficient for ownership discharge;
-- a runtime rejection prevents browser and proxy cleanup;
-- preserves the same sequential interruption problem at a new first step.
+### Phase-wide `Promise.allSettled()` and aggregation
 
-### Status
+Rejected for this unit because it requires a broader phase model, multi-error contract, and compatibility review.
 
-Rejected for this unit.
+### Deadlines around pre-runtime hooks
 
-## Approach C — Phase-wide `Promise.allSettled()` with error aggregation
+Rejected as the primary repair because a quick rejection would still skip runtime disposal and timeout policy is broader than the ownership invariant.
 
-### Sketch
+### Catch-and-continue around each hook
 
-```ts
-const results = await Promise.allSettled([
-	this.#runtime?.dispose(),
-	this.#closeBrowserProcesses(),
-	this.#proxyClient?.dispose(),
-]);
-throwCombinedCleanupError(results);
-```
+Rejected because an unresolved hook would still block runtime termination.
 
-### Advantages
+### Pool-level fallback kill
 
-- attempts all phase members;
-- can retain every failure;
-- removes ordering dependencies within a declared phase.
+Rejected because it duplicates private ownership knowledge outside Miniflare and leaves other callers exposed.
 
-### Costs
+## Exact current state
 
-- requires an explicit phase model and error-precedence contract;
-- can alter browser/proxy/runtime interactions simultaneously;
-- expands source and test scope;
-- overlaps the separate teardown-error-visibility work;
-- raises compatibility questions beyond the unit assignment.
-
-### Status
-
-Valuable follow-on. Excluded from unit 15.
-
-## Approach D — Bound each pre-runtime hook with a deadline
-
-### Sketch
-
-```ts
-await withDeadline(this.#closeBrowserProcesses(), browserDeadline);
-await withDeadline(this.#proxyClient?.dispose(), proxyDeadline);
-await this.#runtime?.dispose();
-```
-
-### Advantages
-
-- converts indefinite pending hooks into bounded failures;
-- can improve total teardown latency.
-
-### Costs
-
-- a quick rejection still skips runtime disposal;
-- deadlines require policy choices, cancellation semantics, diagnostics, and platform tuning;
-- timed-out operations may continue in the background;
-- broader than the ownership invariant.
-
-### Status
-
-Rejected as the primary repair. Suitable for separate phase-specific hardening.
-
-## Approach E — Catch and continue around each hook
-
-### Sketch
-
-```ts
-let firstError;
-try {
-	await this.#closeBrowserProcesses();
-} catch (error) {
-	firstError ??= error;
-}
-try {
-	await this.#proxyClient?.dispose();
-} catch (error) {
-	firstError ??= error;
-}
-await this.#runtime?.dispose();
-if (firstError) throw firstError;
-```
-
-### Advantages
-
-- guarantees later statements execute after rejected hooks;
-- preserves one earlier error.
-
-### Costs
-
-- pending hooks still block runtime termination;
-- error aggregation remains incomplete;
-- introduces repeated error bookkeeping across the entire method if applied consistently.
-
-### Status
-
-Insufficient because the pending-hook case is part of the unit.
-
-## Approach F — Add a pool-level fallback kill
-
-### Sketch
-
-Catch `Miniflare.dispose()` at the vitest-pool layer and terminate workerd through a separate handle.
-
-### Advantages
-
-- could protect one caller.
-
-### Costs
-
-- the pool does not own the private runtime child handle;
-- duplicates ownership knowledge outside Miniflare;
-- leaves other Miniflare callers exposed;
-- weakens the single-owner cleanup contract.
-
-### Status
-
-Rejected.
-
-## Approach G — Treat public hang reports as sufficient proof and patch directly
-
-### Advantages
-
-- quick narrative route.
-
-### Costs
-
-- current public reports lack a clonable reproduction for this exact mechanism;
-- multiple runtime-side and proxy-side hang causes exist;
-- overstates causal confidence;
-- conflicts with the repository request for issue engagement on non-trivial work.
-
-### Status
-
-Rejected. The issue draft separates the source-proven invariant from the open symptom attribution.
-
-## Prior-art interpretation
-
-| Record | Use in this unit |
-| --- | --- |
-| `workers-sdk#12025` / `#11675` | Confirms `Runtime.dispose()` owns immediate child termination and stream closure. |
-| `workers-sdk#13078` / `#10511` | Demonstrates selective isolation of secondary teardown cleanup. |
-| `workers-sdk#14727` | Demonstrates bounded browser shutdown and narrows one pending-hook risk. |
-| `workers-sdk#14903` | Strong symptom match; causal link remains unverified. |
-| `workers-sdk#14180`, `#12764`, `#11122` | Alternative or adjacent teardown mechanisms. |
-| `miniflare#392` | Historical migration context only. |
-| Fieldwork A001 at `fa39841...` | Executable control-flow evidence and selected patch direction. |
-| Legacy test fourth case | Separate error-aggregation unit; excluded. |
-
-## Reversal conditions
-
-Reconsider the selected approach when any of these emerge:
-
-- browser cleanup requires a live workerd process;
-- current `Runtime.dispose()` stops initiating the kill synchronously;
-- target-native controls show the early-start invocation fails to request termination;
-- maintainers prefer a phase-wide cleanup contract and accept the broader change;
-- simultaneous-failure semantics require full aggregation in the same patch.
+- base: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`;
+- branch: `upstream/miniflare-runtime-first-disposal`;
+- clean head: `d668e318f5e6b0c1e2cbd66ac4b46d8cddbca642`;
+- source relation: ahead 1, behind 0;
+- boundary: one production file, one target-native test file, one patch changeset;
+- source/test repair: complete;
+- exact-head workflows: pending;
+- final advancement authority: repository owner;
+- public upstream contact: unauthorized and not performed.
