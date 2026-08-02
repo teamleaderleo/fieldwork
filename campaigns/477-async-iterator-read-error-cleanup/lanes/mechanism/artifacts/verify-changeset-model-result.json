@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "codeFiles": [
+    "packages/ai/src/util/async-iterable-stream.ts"
+  ],
+  "changedPackageNames": [
+    "ai"
+  ],
+  "coveredPackages": [
+    "ai"
+  ]
+}
