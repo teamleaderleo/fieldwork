@@ -2,322 +2,234 @@
 
 ## In simple words
 
-`uv self update` is not one file replacement. The official installer downloads a release containing `uv`, `uvx`, and, on Windows, `uvw`; installs those files; writes an install receipt; and may update shell configuration. An interruption can therefore affect several pieces that are expected to describe one installation.
+The public Windows repair takes the correct first step: it completes the generated installer in a temporary location before touching the live `uv.exe`. An exact repaired control confirms that cancellation during this isolated installer phase leaves the actual running executable at its canonical path.
 
-The historical Windows implementation made the most severe mistake first: it renamed the running `uv.exe` to `uv.exe.previous.exe` before starting the installer. Cancelling the update could leave the normal `uv` command absent. A public uv pull request now stages the official Windows release elsewhere and delays replacement of the running executable. That direction is correct and public CI is green.
+That is not the complete update transaction.
 
-The public regression test, however, checks an unrelated temporary `uv.exe`, not the actual executable that the old code renames. It also requests cancellation without awaiting task termination. The implementation additionally copies companion executables into the live directory one at a time before replacing `uv.exe`, with no rollback if a later copy fails. Finally, custom-source and enterprise/base-URL updates still delegate to axoupdater 0.10.0, whose Windows path pre-renames the running executable.
+- The public regression asserts an unrelated fixture and also passes on the broken old implementation.
+- The final Windows `self-replace` primitive renames canonical `uv.exe` before later fallible operations and has no rollback.
+- Companion executables are copied into live names sequentially before `uv.exe` is replaced.
+- The staged receipt is discarded while the old receipt remains.
+- Custom/GHE/base-URL routes still use axoupdater 0.10.0, which pre-renames the running executable and can leave the canonical command absent after interruption.
+- The historical Linux cross-filesystem partial-copy mechanism is superseded by cargo-dist 0.31.0 destination-filesystem staging, but mixed `uv`/`uvx` generations remain possible between final per-file renames.
 
-The old Linux cross-filesystem partial-copy mechanism appears already repaired in the exact cargo-dist version uv pins: cargo-dist 0.31.0 stages complete bytes in temporary directories inside the destination filesystem before final renames. Linux can still be interrupted between final per-binary renames, leaving a mixed `uv`/`uvx` generation, but current source no longer supports the stronger claim that a cross-filesystem move can partially overwrite the canonical `uv` binary.
-
-Current answer: do not duplicate the public Windows pull request. Audit and repair its evidence, define the installation-wide recovery invariant, and decide whether the remaining generic axoupdater path belongs in uv or axoupdater.
+Current answer: **do not duplicate public PR 20855**. Retain its official-installer staging direction, repair its evidence and claims, close the generic/custom route separately, and use a recoverable transaction model for the remaining single-file and multi-file commit windows.
 
 ## State
 
-Disposition: `EXECUTE`
+Disposition: `REPAIR / EXECUTE`
 
-Last source review: `2026-08-01`  
+Last review: `2026-08-02`  
 Worker: `OpenAI GPT-5.6 Thinking`  
-Intake parent: [`teamleaderleo/fieldwork#457`](https://github.com/teamleaderleo/fieldwork/issues/457)  
+Intake parent: `teamleaderleo/fieldwork#457`  
+Fieldwork PR: `teamleaderleo/fieldwork#491`  
 Owned branch: `research/457-b2-uv-self-update-recovery-audit`  
-Owned execution carrier: [`teamleaderleo/uv#8`](https://github.com/teamleaderleo/uv/pull/8)  
-Public upstream contact authorized: `no`
+Public upstream contact authorized/performed: `false` / `false`
 
-Clearing condition: exact Windows negative controls establish whether the public regression discriminates old and candidate behavior, and the result is reconciled with the remaining multi-binary and custom-source windows.
+Supporting records:
 
-## Exact source identities
+- [`PUBLIC_PR_AUDIT.md`](./PUBLIC_PR_AUDIT.md)
+- [`EXECUTION.md`](./EXECUTION.md)
+- [`PROPOSAL.md`](./PROPOSAL.md)
+- [`ROUTING.md`](./ROUTING.md)
+- [`model/RESULTS.md`](./model/RESULTS.md)
 
-| Surface | Exact revision | Role |
+## Exact identities
+
+| Surface | Exact identity | Role |
 | --- | --- | --- |
-| uv current public main inspected | [`astral-sh/uv@79bbface771210df216b738e9bdc7df95e5a9e6b`](https://github.com/astral-sh/uv/commit/79bbface771210df216b738e9bdc7df95e5a9e6b) | current routing, dependency pins, release configuration, tests |
-| public Windows candidate | [`astral-sh/uv@77e107dd2665f660c461998bc83174bf26ee7cf6`](https://github.com/astral-sh/uv/commit/77e107dd2665f660c461998bc83174bf26ee7cf6) | staged official-Windows implementation and proposed regression |
-| public Windows candidate base | [`astral-sh/uv@ec8ad5b7c697b9cbbb8a65c8de00fdb461f2010b`](https://github.com/astral-sh/uv/commit/ec8ad5b7c697b9cbbb8a65c8de00fdb461f2010b) | exact negative-control source |
-| public Windows pull request | [`astral-sh/uv#20855`](https://github.com/astral-sh/uv/pull/20855) | occupied implementation lane; do not duplicate |
-| original Windows report | [`astral-sh/uv#12142`](https://github.com/astral-sh/uv/issues/12142) | missing canonical `uv.exe` after interrupted update |
-| Linux/Windows interruption report | [`astral-sh/uv#15933`](https://github.com/astral-sh/uv/issues/15933) | historical Linux partial binary and later Windows confirmation |
-| axoupdater used by uv | [`axodotdev/axoupdater@122313e5b119f0f7f1aa02b95bd13d10b37637ff`](https://github.com/axodotdev/axoupdater/commit/122313e5b119f0f7f1aa02b95bd13d10b37637ff) | generic/custom self-update path; crate version 0.10.0 |
-| installer generator pinned by uv | [`axodotdev/cargo-dist@v0.31.0`](https://github.com/axodotdev/cargo-dist/tree/v0.31.0) | exact shell and PowerShell installer generation model |
-| self-replacement implementation | [`mitsuhiko/self-replace@d1356fdb346e191b90eec3a21b310c19ac24d2d9`](https://github.com/mitsuhiko/self-replace/commit/d1356fdb346e191b90eec3a21b310c19ac24d2d9) | final running-executable replacement primitive |
-| owned execution source base | [`teamleaderleo/uv:fieldwork/457-b2-base-uv-pr-20855`](https://github.com/teamleaderleo/uv/tree/fieldwork/457-b2-base-uv-pr-20855) | exact public candidate, no Fieldwork source changes |
-| owned execution carrier | [`teamleaderleo/uv@b78837bc4837cf6cf74ecc558fb90f81b8897538`](https://github.com/teamleaderleo/uv/commit/b78837bc4837cf6cf74ecc558fb90f81b8897538) | one temporary workflow only |
+| current uv source inspected | `astral-sh/uv@79bbface771210df216b738e9bdc7df95e5a9e6b` | routing, dependency, installer, test, and release configuration |
+| public Windows candidate | `astral-sh/uv@77e107dd2665f660c461998bc83174bf26ee7cf6` | occupied official-route implementation |
+| candidate base | `astral-sh/uv@ec8ad5b7c697b9cbbb8a65c8de00fdb461f2010b` | old-head negative control |
+| public PR | `astral-sh/uv#20855` | open, mergeable, unchanged at last review |
+| axoupdater | `axodotdev/axoupdater@122313e5b119f0f7f1aa02b95bd13d10b37637ff` | custom/GHE route, crate 0.10.0 |
+| cargo-dist | `axodotdev/cargo-dist@v0.31.0` | exact generator version pinned by uv |
+| self-replace | `mitsuhiko/self-replace@d1356fdb346e191b90eec3a21b310c19ac24d2d9` | final Windows running-executable primitive, crate 1.5.0 |
+| deferred finalizer experiment | `teamleaderleo/uv#14@ef509a215af602cbc904aed467b4ac5edd66f827` | internal source experiment only |
 
-## Change thesis
+## Disposition by mechanism
 
-### Current behavior
+| Mechanism | Disposition | Reason |
+| --- | --- | --- |
+| official Windows installer-time pre-rename | `DIRECTION ACCEPTED` | isolated staging plus repaired candidate control preserves actual canonical executable during cancellation |
+| public regression test | `REPAIR` | wrong file boundary, non-discriminating old control, brittle one-second startup wait, detached cancellation |
+| final Windows `uv.exe` replacement | `REPAIR` | old canonical file is renamed before later fallible work; ordinary failure and process death can leave it absent |
+| Windows companion commit | `HOLD / DESIGN` | direct sequential copies permit partial bytes, mixed generations, and no rollback record |
+| staged receipt handling | `HOLD / COMPATIBILITY` | new temporary receipt is discarded; old receipt is assumed valid rather than committed or compared |
+| custom/GHE/override Windows route | `OPEN DEFECT` | axoupdater retains pre-rename behavior; exact owned characterization observed canonical absence |
+| historical Linux partial canonical copy | `SUPERSEDED` | cargo-dist 0.31.0 stages complete bytes on the destination filesystem before final renames |
+| Linux multi-binary generation coherence | `RETAIN` | final `uv` and `uvx` renames remain sequential |
 
-The public official-Windows candidate downloads and installs the new release into a temporary install prefix. After that installer succeeds, uv copies every non-current executable into the live executable directory, then calls `self_replace::self_replace` for the currently running executable.
+## What is execution-proven
 
-Custom-source, GitHub Enterprise/base-URL override, and other non-official routes still call `AxoUpdater::run`. axoupdater 0.10.0 renames the running executable to `.previous.exe` before starting the generated installer and restores it only when control returns with an ordinary failure.
+### Narrow candidate installer-phase guarantee
 
-cargo-dist installers update multiple files sequentially. The exact Unix template stages complete files on the destination filesystem first; the exact PowerShell template copies directly into final live paths.
+The repaired candidate control at exact public candidate head:
 
-### Consequence
+- inspected `std::env::current_exe()`;
+- used a 30-second bounded startup wait;
+- stopped if the updater task completed early;
+- requested cancellation;
+- awaited the join handle;
+- asserted a cancelled join result;
+- confirmed canonical executable presence and absence of `.previous.exe`.
 
-The candidate narrows and fixes the most visible official-Windows failure: cancellation during the external installer no longer removes canonical `uv.exe`.
+Result: passed.
 
-It does not yet establish an installation-wide transaction:
+Supported conclusion: **official-route cancellation during the isolated generated-installer phase does not pre-rename the actual running candidate executable.**
 
-- a companion can be updated before a later companion copy fails;
-- a companion destination can be overwritten directly rather than by a destination-side staged rename;
-- a locked `uvx.exe` or `uvw.exe` can fail after earlier live changes;
-- the temporary generated receipt is discarded while the existing receipt remains;
-- custom-source updates retain the old pre-rename failure window;
-- Linux still permits mixed generations between final per-binary renames.
+### Public fixture is invalid as a regression discriminator
 
-### Proposed improvement
+The exact old base passed the public test's unrelated `temp_dir/uv.exe` assertion.
 
-Define and test two nested invariants instead of calling the whole operation atomic:
+Supported conclusion: the published assertion can pass without the repair and must be replaced.
 
-1. **Canonical command availability:** after any handled failure or cancellation, a runnable `uv` exists at the canonical executable path.
-2. **Installation generation recovery:** after any failure or cancellation, either all managed binaries and receipt describe the old generation, all describe the new generation, or a durable recovery record identifies exactly which generation is authoritative and how to finish or roll back.
+### Custom/GHE route reaches the destructive state
 
-The first invariant is necessary and substantially addressed by the public candidate. The second needs explicit design; it cannot be inferred from keeping `uv.exe` present.
+An exact copied-uv integration control entered the custom/GHE route and observed:
 
-### Boundary
+- canonical `uv.exe` absent;
+- `.previous.exe` present;
+- target assertion passed.
 
-This finding does not propose replacing cargo-dist, redesigning uv installation generally, or duplicating the public pull request. It covers interruption, copy/rename failure, companion-file locks, receipt consistency, and routing differences between official and custom update paths.
+The workflow then remained alive because the intentionally blocked PowerShell descendant inherited output handles. That tail is a harness-lifetime defect; it does not erase the retained filesystem observation.
 
-## End-to-end control flow
+## What remains source-supported or queued
 
-### Official public uv route
+- old exact base actual-current-executable displacement after cancellation;
+- self-replace missing-source failure returning with canonical path absent;
+- clean completion of the repaired custom/GHE test;
+- deferred finalizer hostile matrix;
+- locked-companion and mid-sequence live-copy outcomes;
+- receipt compatibility across managed-file/layout changes;
+- generated-installer descendant-tree termination.
 
-1. Load and validate the existing standalone install receipt.
-2. Resolve an exact target version through uv's own release resolution.
-3. Download the target version's generated installer into a temporary directory.
-4. Execute the generated installer.
-5. Report success.
-
-At current main, the generated installer targets the existing install prefix on every platform. The public Windows candidate changes steps 4–5:
-
-1. create a temporary install prefix and temporary receipt/config prefix;
-2. run the generated installer there with PATH modification disabled;
-3. enumerate staged files;
-4. copy each companion file directly to the live executable directory;
-5. replace the running executable with `self_replace`.
-
-### Custom and override route
-
-When the receipt source is not the official public `astral-sh/uv` GitHub source, or when GitHub/GHE installer base URL overrides are set, uv constructs an axoupdater request and calls `AxoUpdater::run`.
-
-axoupdater 0.10.0:
-
-1. downloads the generated installer to a temporary directory;
-2. on Windows renames `std::env::current_exe()` to `.previous.exe`;
-3. runs the installer against the live install prefix;
-4. restores the previous executable only after an ordinary installer failure returns;
-5. schedules old-file deletion after success.
-
-Cancellation, process termination, power loss, or a future dropped before restore can bypass step 4.
-
-### Generated Unix installer
-
-cargo-dist 0.31.0:
-
-1. downloads and unpacks all release files to an ordinary temporary directory;
-2. creates temporary directories *inside* the live binary/library destination directories;
-3. moves all release bytes into those destination-filesystem temporary directories;
-4. performs final per-file renames into live names;
-5. removes staging directories;
-6. writes the install receipt.
-
-This removes the long cross-filesystem copy from the canonical-name replacement step. It does not make the group of final renames atomic.
-
-### Generated PowerShell installer
-
-cargo-dist 0.31.0:
-
-1. downloads and unpacks all release files;
-2. copies each binary directly to the live destination with `Copy-Item`;
-3. removes each temporary source after copying;
-4. creates aliases;
-5. copies libraries;
-6. writes the receipt.
-
-There is no destination-side temporary file and final rename for each Windows binary.
-
-### self-replace on Windows
-
-`self_replace`:
-
-1. renames the running executable to a random relocated name;
-2. schedules deletion of the relocated file after process exit;
-3. copies the new executable to a random temporary file beside the canonical destination;
-4. renames that destination-side temporary file to the canonical executable path.
-
-This is a strong primitive for one running executable, but it starts only after uv has already copied companions in the public candidate.
+Exact repaired heads and queued runs are in [`EXECUTION.md`](./EXECUTION.md). No queued run is counted as target evidence.
 
 ## Public candidate audit
 
-### Direction that is correct
+### Correct architecture move
 
-- The generated installer completes in an isolated temporary install prefix before the running executable is touched.
-- `kill_on_drop(true)` is set on the direct PowerShell child.
-- The final running-executable replacement uses `self-replace`, which stages the new bytes beside the destination before the final rename.
-- The canonical source diff is one file and public CI completed successfully at the exact candidate head.
+For the ordinary public Windows route the candidate:
 
-### Regression-test defect
+1. resolves the target release;
+2. creates a temporary install prefix and temporary config prefix;
+3. runs the cargo-dist PowerShell installer there with PATH modification disabled;
+4. waits for installer success;
+5. copies companions into the live directory;
+6. calls `self_replace` for the running executable.
 
-The proposed test creates `temp_dir/uv.exe` and asserts that this file still exists after cancellation. The old implementation never refers to that path. It renames `std::env::current_exe()`, which is the Rust test executable. Therefore the test's asserted file is not the resource whose availability distinguishes old and candidate behavior.
+The live installation is no longer exposed during download and generated-installer execution. That materially narrows the interruption window.
 
-The test also calls:
+### Weak regression
 
-```text
-task.abort();
-drop(task);
-write finish marker;
-```
+The added test creates `temp_dir/uv.exe`, but old production code renames `std::env::current_exe()`. The fixture is not the resource under test. It also uses only 100 × 10 ms to wait for PowerShell startup and drops the cancelled task instead of awaiting completion.
 
-Dropping a Tokio `JoinHandle` detaches it; it does not prove the cancellation completed. Although `abort()` requests cancellation, immediately releasing the installer may let normal completion race the requested cancellation. A reliable control must await the handle and assert a cancelled join result before inspecting filesystem state.
+The first exact owned run compiled the candidate and then failed before cancellation at `installer should have started`. This is retained as a harness timing failure, not a product failure.
 
-The owned carrier tests both facts against the exact public base and candidate.
+### Companion window
 
-### Companion commit window
+`replace_from_temporary_install` enumerates staged files and uses direct `copy` into live destinations for every entry except the current executable. Earlier successful copies are not rolled back if a later companion is locked, a copy fails, or final self-replace fails.
 
-`replace_from_temporary_install` enumerates the temporary installation directory and calls `fs_err::copy` for every entry except the current executable. Only after the loop completes does it call `self_replace`.
+Consequences:
 
-Properties:
+- a process interruption can expose partial bytes in a companion live name;
+- new `uvx.exe` or `uvw.exe` can coexist with old `uv.exe`;
+- no durable record says which files changed;
+- the old receipt can describe a different managed-file set or layout;
+- retry authority is ambiguous after a partial live commit.
 
-- directory iteration order is not a transaction contract;
-- successful earlier copies are not rolled back when a later copy fails;
-- direct copy can expose a partially written companion after process loss;
-- a running/locked companion can reject replacement;
-- `uv.exe` can remain old while `uvx.exe` or `uvw.exe` is new;
-- the function returns an error without recording which companions changed.
+Keeping `uv.exe` callable is necessary but does not make the installation coherent.
 
-A user already reported an update failure while `uvx.exe` was in use. Keeping the old canonical `uv.exe` is better than losing it, but it does not make the installation coherent.
+### self-replace window
 
-### Receipt generation window
+The inspected self-replace Windows source:
 
-The candidate supplies a temporary `XDG_CONFIG_HOME`, so the generated installer writes the new receipt outside the existing receipt location. That temporary receipt disappears when its `TempDir` is dropped. The old receipt remains.
+1. canonicalizes current executable;
+2. renames it to a relocated path;
+3. schedules deletion of that relocated path;
+4. copies replacement bytes to a destination-side temporary file;
+5. renames the temporary file to canonical.
 
-Current uv reads only `modify_path` from its local receipt struct after axoupdater has validated the receipt, but the full receipt also carries install prefix, managed binaries, source/provider, version, aliases, and related installation metadata. Discarding the new receipt may be harmless for a release with an identical managed-file set and layout, but that is an assumption requiring an explicit compatibility check. It is not an installation commit.
+There is no rollback after step 2. The candidate therefore cannot accurately promise that every final replacement failure leaves canonical `uv.exe` available.
 
-### Child-process boundary
+### Receipt window
 
-Tokio's `kill_on_drop(true)` applies to the direct PowerShell process. It does not by itself state a Windows job-object or descendant process-tree guarantee. The generated installer may launch external archive tools. The current cancellation test uses only a PowerShell loop, so it cannot establish descendant termination for a real release installer.
+The isolated installer writes a new receipt under temporary configuration storage. That receipt disappears when staging is dropped. The previous canonical receipt remains.
 
-## Linux report disposition
+A safe design must either:
 
-The original RHEL report used uv 0.8.16 and described a partially overwritten, segfaulting `uv`. Later source analysis identified a generated-shell-installer move from an arbitrary temporary directory to the live path. Across filesystems, that move could become a long copy into the canonical destination.
+- prove every relevant field remains semantically identical and deliberately retain the old receipt; or
+- include the staged receipt in the managed generation commit.
 
-The exact cargo-dist 0.31.0 template pinned by current uv now creates staging directories inside the live destination filesystem, moves complete release bytes there first, and only then performs final renames. This directly addresses the identified cross-filesystem mechanism.
+Version alone is not the full contract. Install prefix, managed binaries, aliases, libraries, source/provider, layout, schema, and PATH policy can matter.
 
-Current source still acknowledges a remaining interruption window during the final per-file loop. The expected consequence is a mixed generation, such as new `uv` with old `uvx`, rather than a partially copied canonical `uv` file. This matches the latest issue assessment.
+### Descendant ownership
 
-Current disposition for the strong Linux partial-binary claim: `SUPERSEDED BY GENERATOR REPAIR`, pending a release-artifact hash only if a submission packet requires artifact-level proof beyond the exact pinned generator source.
+`kill_on_drop(true)` owns the direct PowerShell child. It does not by itself guarantee termination of archive tools or detached descendants. A complete interruption claim requires a Windows Job Object or an explicit installer process-tree contract.
 
-Current disposition for multi-binary generation coherence on Linux: `RETAIN`, but it is an installation transaction question shared with Windows rather than the historical cross-filesystem partial-copy defect.
+## Linux disposition
 
-## Evidence table
+The RHEL report described a partially overwritten, segfaulting `uv` under an older installer. The identified mechanism was a move from an arbitrary temporary filesystem into the canonical destination; across filesystems, that could become a long copy directly into the live filename.
 
-| Claim | Evidence class | Exact basis | Limit |
-| --- | --- | --- | --- |
-| old official Windows path pre-renames the actual running executable | `source-read` | uv base `ec8ad5...`, `execute_official_installer` | source ordering only until carrier completes |
-| public candidate stages official Windows install before touching current executable | `source-read` | uv candidate `77e107d...` | official route only |
-| public regression asserts an unrelated fixture path | `source-read` | candidate unit test at `77e107d...` | carrier owns old-head negative control |
-| public regression does not await cancellation completion | `source-read` | `task.abort(); drop(task);` | scheduler race consequence inferred until execution |
-| candidate copies companions before replacing current executable | `source-read` | `replace_from_temporary_install` at `77e107d...` | no injected live-copy failure yet |
-| successful companion copies have no rollback on later failure | `source-read / inferred` | straight-line loop and `?` propagation | consequence follows control flow; exact Windows lock control pending |
-| custom/override route still delegates to axoupdater | `source-read` | current uv routing and integration tests | exact cancellation execution pending |
-| axoupdater 0.10.0 pre-renames current executable on Windows | `source-read` | axoupdater `122313e...` | generic/custom route only |
-| current Unix generator stages bytes on destination filesystem | `source-read` | cargo-dist `v0.31.0` shell template | exact generated release artifact not retained here |
-| current Windows generator copies directly into final live paths | `source-read` | cargo-dist `v0.31.0` PowerShell template | public candidate isolates this installer before a second live-copy phase |
-| public candidate CI is green | `target-executed` | public run `30616203874` | existing suite; does not prove test discrimination |
-| exact old/candidate cancellation boundary | `target-test-prepared` | owned carrier `teamleaderleo/uv#8`, head `b78837b...` | becomes target-executed after Windows receipt completes |
+cargo-dist 0.31.0 now:
 
-## Discriminating test matrix
+1. creates staging directories inside destination directories;
+2. moves complete bytes into that destination filesystem first;
+3. performs final per-file renames only after staging.
 
-| Control | Old base expected | Candidate expected | Why it matters |
-| --- | --- | --- | --- |
-| published arbitrary `temp_dir/uv.exe` fixture | passes | passes | proves whether the public assertion is non-discriminating |
-| await cancellation, inspect `std::env::current_exe()` | canonical path absent; `.previous.exe` present | canonical path present; no `.previous.exe` | exercises the real resource boundary |
-| cancel direct PowerShell child and await task | dropped future; child may survive without old `kill_on_drop` | cancelled task and killed direct child | separates request from completed cancellation |
-| lock live `uvx.exe` during companion commit | old `uv.exe` preserved only if staging path is used | candidate returns copy failure | must inspect earlier companion changes and recovery record |
-| inject failure after first successful companion copy | not applicable to old official direct installer model | mixed live generation unless rollback/staging protocol exists | tests installation-wide transaction claim |
-| update through GHE/base-URL override | old axoupdater pre-rename path | still old axoupdater pre-rename path | exposes non-official routing gap |
-| Unix source temp directory on another filesystem | canonical copy can be interrupted on historical generator | current generator first stages on destination filesystem | validates supersession of historical mechanism |
-| interrupt between Unix final `uv` and `uvx` renames | mixed generation | mixed generation | retained group-commit limit |
-| compare old/new receipt after staged Windows success | old receipt may remain | candidate discards temporary new receipt | tests compatibility and managed-file generation |
+This supersedes the strong historical cross-filesystem partial-byte mechanism. It does not make the group commit atomic. Interruption can still leave new `uv` with old `uvx`.
 
-## Candidate repair directions
+## Recovery contract
 
-### A. Repair the public uv candidate's tests and commit helper
+Avoid the unqualified word “atomic.” The required nested properties are:
 
-Preferred near-term direction because the public implementation lane is occupied.
+### A. Canonical command availability
 
-- make the final live commit helper accept explicit source/destination paths so tests do not mutate the test runner accidentally;
-- assert actual canonical executable availability, not an unrelated fixture;
-- await task cancellation;
-- stage each companion into a destination-side temporary path before rename;
-- define rollback or durable recovery metadata for multi-file failure;
-- test a locked companion and a failure after one successful companion commit;
-- reconcile or deliberately preserve the receipt with an exact compatibility assertion.
+After handled failure or cancellation, a runnable `uv` exists at its normal path.
 
-This can remain a focused repair to the existing direction rather than a competing design.
+### B. Managed generation recoverability
 
-### B. Move generic Windows staging into axoupdater
+After failure, interruption, or restart:
 
-Potential broader owner because uv custom-source routes and other axoupdater consumers retain the same pre-rename logic.
+- every managed binary and receipt are old; or
+- every managed binary and receipt are new; or
+- a durable bounded journal identifies the authoritative state and an idempotent recovery action.
 
-- download and run installers into an isolated staging prefix when the generated installer supports one;
-- keep the current executable at its canonical path until staged installation succeeds;
-- expose a caller-owned finalization hook or a staged-install result;
-- use `self_replace` only at final commit;
-- preserve receipt and managed-file semantics;
-- add cancellation and ordinary-failure negative controls.
+A filesystem cannot atomically rename the complete managed set. The correct stronger promise is recoverability.
 
-Risk: axoupdater supports arbitrary generated installers and may not have a universal staging contract. A generic fix may need a capability flag rather than an unconditional behavior change.
+## Code experiment
 
-### C. Add a generated-installer transactional primitive in cargo-dist
+`teamleaderleo/uv#14` implements a Windows-only prototype finalizer that:
 
-Most reusable but broadest direction.
+- validates and stages replacement bytes beside canonical while old `uv.exe` remains live;
+- syncs the staged file;
+- writes a prepared journal;
+- waits for the updating parent PID to exit;
+- renames old canonical to backup;
+- renames stage to canonical;
+- restores backup on ordinary injected commit failure;
+- removes stage/backup/journal after completion.
 
-- destination-side stage every file on Windows and Unix;
-- write a manifest of staged old/new paths;
-- commit with per-file rename and a recovery journal;
-- update receipt last or include it in the journal;
-- recover or finish on the next installer invocation.
+The queued matrix checks deferred commit, missing-stage fail-closed behavior, and rollback after backup. The prototype is deliberately not a product candidate yet: sudden-power-loss recovery, uv CLI integration, multi-binary generation commit, and descendant ownership remain open.
 
-Risk: a true multi-file atomic rename is unavailable on ordinary filesystems. This direction must promise recoverability, not atomicity.
+## Selected continuation
 
-### Rejected directions
+1. Settle repaired runs `30754208709`, `30754251841`, `30754221525`, and `30754411464` at their exact heads.
+2. Transfer exact job, artifact, and digest receipts into [`EXECUTION.md`](./EXECUTION.md).
+3. Repair the finalizer experiment until all three hostile controls pass.
+4. Add a next-run recovery executable that consumes prebuilt journal states and proves idempotence.
+5. Add locked `uvx.exe` and failure-after-first-companion controls before proposing a multi-file patch.
+6. Decide whether custom-route staging belongs in uv or axoupdater; do not silently broaden the official-route implementation.
+7. Keep public PR 20855 read-only and do not create public review/comment/PR activity without separate authority.
 
-- **Duplicate public PR 20855:** rejected because the implementation lane is occupied and directionally correct.
-- **Call the candidate fully atomic:** rejected because companion and receipt commits remain sequential.
-- **Reopen the historical Linux cross-filesystem patch unchanged:** rejected because cargo-dist 0.31.0 already stages on the destination filesystem.
-- **Only restore `.previous.exe` on error:** rejected because cancellation and process death can bypass language-level restoration.
-- **Only keep `uv.exe` available:** insufficient as an installation-wide invariant, though necessary as the first safety guarantee.
-- **Block updates whenever `uvx` might be running:** detection is incomplete and does not address interruption, receipt, or other companion failures.
+## Clearing condition
 
-## Compatibility and authority risks
+This lane can leave `EXECUTE` when:
 
-- uv supports official releases, mirrors, GHE/base-URL overrides, and custom receipt sources; routing changes can alter supported enterprise behavior.
-- installer layout and managed binary sets can evolve between releases.
-- Windows executable locking differs between `uv.exe`, companions, antivirus/indexers, and network filesystems.
-- self-replace's single-file behavior is not a multi-file transaction.
-- cleanup code must not erase the original error or make a recoverable old generation unavailable.
-- a recovery journal must be bounded, non-secret, and robust to repeated interruption.
-- no real user installation, credential, public endpoint, or production environment is required for the planned controls.
-
-## Current execution carrier
-
-Owned PR: [`teamleaderleo/uv#8`](https://github.com/teamleaderleo/uv/pull/8)  
-Carrier head: `b78837bc4837cf6cf74ecc558fb90f81b8897538`  
-Canonical source under test: public candidate `77e107dd2665f660c461998bc83174bf26ee7cf6`  
-Exact negative-control base: `ec8ad5b7c697b9cbbb8a65c8de00fdb461f2010b`  
-Workflow run: [`30692969073`](https://github.com/teamleaderleo/uv/actions/runs/30692969073)  
-Platform: Windows hosted runner  
-State at report creation: `queued`
-
-The carrier changes one workflow file only and must close without merge after receipt transfer.
-
-## Next decision after execution
-
-- If the public fixture passes on the old base while the real-executable control distinguishes old and candidate behavior, mark the public test `REPAIR` and retain the implementation direction.
-- If the candidate fails the real-executable control, mark the implementation `REPAIR` and isolate whether task cancellation or self-replace owns the failure.
-- If both controls pass as expected, prepare a clean owned-fork test/commit-helper repair only if it does not duplicate an updated public head.
-- Independently retain the custom axoupdater route as an issue-first or source candidate only after a real exact-path cancellation control confirms the same pre-rename consequence.
-
-## Upstream authority
-
-No public upstream issue, comment, review, reaction, branch, or pull request was created or modified by this lane. Public interaction remains unauthorized.
+- old and candidate actual-executable controls complete at exact heads;
+- self-replace failure is target-executed or its broad claim is explicitly removed;
+- custom/GHE consequence completes without harness ambiguity;
+- the selected single-file finalizer experiment has exact hostile-control receipts;
+- multi-file/receipt work is explicitly routed as issue-first design rather than implied solved;
+- complete internal diff review finds no unsupported evidence promotion.
