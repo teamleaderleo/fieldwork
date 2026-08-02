@@ -9,9 +9,16 @@ Public upstream contact authorized/performed: `false` / `false`.
 ## A. Deferred single-file finalizer
 
 Owned draft: `teamleaderleo/uv#14`  
-Exact source head: `ef509a215af602cbc904aed467b4ac5edd66f827`  
-Exact base: public candidate `77e107dd2665f660c461998bc83174bf26ee7cf6`  
-Workflow: `30754411464`, queued at latest review
+Exact current head: `94f7229d88fa0a8a81c1b946d3fce1f214b5ac7d`  
+Exact base: public candidate `77e107dd2665f660c461998bc83174bf26ee7cf6`
+
+Current workflow runs at this exact head:
+
+- deferred finalizer matrix: `30755910004`, queued;
+- recovery workflow selected by changed paths: `30755909988`, queued;
+- repository CI: `30755910166`, queued.
+
+Superseded source head/run: `ef509a215af602cbc904aed467b4ac5edd66f827` / `30754411464`.
 
 ### Hypothesis
 
@@ -37,6 +44,10 @@ The updating process should finish all slow/fallible staging while old canonical
 - injected failure after backup restores old canonical;
 - success and rollback clean stage, backup, and journal.
 
+### Static repair after broad-CI review
+
+The experiment driver now gates Windows-only `env` and `PathBuf` imports with `#[cfg(windows)]`. This prevents Linux all-target checks from reporting unused imports before the Windows behavior runs.
+
 ### Limits
 
 - no next-run recovery in this base experiment;
@@ -49,14 +60,23 @@ The updating process should finish all slow/fallible staging while old canonical
 ## B. Idempotent journal recovery stack
 
 Owned stacked draft: `teamleaderleo/uv#16`  
-Exact current head: `a135d36334ef07a1386a48e7ce48e39d8975e9d9`  
-Exact base: experiment A head `ef509a215af602cbc904aed467b4ac5edd66f827`
+Exact current head: `12d3341759f97d79fd7bb6b3f43edfaa8394aa6d`  
+Exact base: experiment A head `94f7229d88fa0a8a81c1b946d3fce1f214b5ac7d`
+
+Maintenance merge: `teamleaderleo/uv#22`, merged solely to preserve exact ancestry after the platform-import repair.
 
 Current workflow runs:
 
-- finalizer matrix: `30755118098`, queued;
-- recovery matrix: `30755118069`, queued;
-- repository CI: `30755118191`, pending.
+- recovery matrix: `30755930465`, queued;
+- deferred finalizer matrix: `30755930463`, queued;
+- repository CI: `30755930556`, pending.
+
+Superseded stack head/runs:
+
+- `a135d36334ef07a1386a48e7ce48e39d8975e9d9`;
+- finalizer `30755118098`;
+- recovery `30755118069`;
+- CI `30755118191`.
 
 ### Additional source behavior
 
@@ -85,7 +105,8 @@ The current stack also:
 
 - cleans stage/journal if the first prepared journal cannot be written;
 - rolls back if `old-backed-up`, `new-live`, or `committed` phase recording fails;
-- closes the process handle through RAII.
+- closes the process handle through RAII;
+- platform-gates Windows-only experiment imports.
 
 ### Recovery matrix
 
@@ -109,8 +130,12 @@ The current stack also:
 
 Owned execution-only PR: `teamleaderleo/uv#17`  
 Exact head: `e8b7a3ae5bbdc2d70832985a709e9a5c97a4baf1`  
-Exact base: public candidate `77e107dd2665f660c461998bc83174bf26ee7cf6`  
-Workflow: `30754972997`, queued
+Exact base: public candidate `77e107dd2665f660c461998bc83174bf26ee7cf6`
+
+Current runs:
+
+- mixed-generation workflow: `30754972997`, queued;
+- repository CI: `30754973056`, queued.
 
 ### Hypothesis
 
@@ -132,52 +157,100 @@ The seam exists only in the execution workspace. The PR carries no product sourc
 
 Even a perfect single-file finalizer cannot make the candidate installation coherent if companions commit first without a shared journal and rollback policy.
 
-## D. Installer process-tree ownership
+## D. Installer Job Object policy
 
-Owned experiment: `teamleaderleo/uv#19`  
-Exact head: `c9523e056abf72eeb073a93c4668e769d293f8a8`  
-Exact base: public candidate `77e107dd2665f660c461998bc83174bf26ee7cf6`  
-Workflow: `30755300973`, queued
+Owned draft: `teamleaderleo/uv#19`  
+Exact current head: `6098dab64d959f9cf40fb44bbd8d4849c3aa9239`  
+Exact base: public candidate `77e107dd2665f660c461998bc83174bf26ee7cf6`
+
+Current runs:
+
+- strict-versus-silent policy matrix: `30755830232`, queued;
+- repository CI: `30755830304`, queued.
+
+Superseded head/run: `c9523e056abf72eeb073a93c4668e769d293f8a8` / `30755300973`.
 
 ### Source finding
 
 uv already has a Windows `Job` abstraction with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, but `Job::new` also enables `JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK`.
 
-Windows documentation states that under silent breakaway, descendants of associated processes are not automatically associated with the job. Microsoft explicitly notes that this policy cannot monitor the entire process tree. Source:
+Windows documentation states that under silent breakaway, descendants of associated processes are not automatically associated with the job. Microsoft explicitly notes that this policy cannot monitor the entire process tree.
+
+Primary source:
 
 - <https://learn.microsoft.com/windows/win32/procthread/job-objects>
 
-Tokio exposes the live Windows process handle through `tokio::process::Child::raw_handle`, so a spawned installer can be assigned before awaiting output. Source:
-
-- <https://docs.rs/tokio/latest/tokio/process/struct.Child.html#method.raw_handle>
-
 ### Experiment design
 
-The experiment adds a strict job policy with kill-on-close and no breakaway flag. A gated PowerShell parent cannot spawn its child until after job assignment, eliminating the assignment race.
+The experiment adds a strict job policy with kill-on-close and no breakaway flag. A gated PowerShell parent cannot spawn its child until after job assignment, eliminating the assignment race in the policy measurement.
 
 It compares:
 
 - existing silent-breakaway policy: assigned parent dies on job close, delayed child survives and writes marker;
 - strict policy: assigned parent and inherited child die before delayed marker.
 
+### Static repair
+
+The current head gates Windows-only imports in the experiment binary so broad Linux all-target checks do not fail on unused imports.
+
 ### Compatibility boundary
 
 Strict membership can break a descendant that expects to create or join an incompatible Job Object. Therefore a strict result is not automatic product authorization. The real cargo-dist PowerShell installer and its archive tools need a compatibility matrix.
 
-### Potential product direction
+## E. Strict Job integration into the official updater
 
-If the generated installer is compatible:
+Owned stacked draft: `teamleaderleo/uv#20`  
+Exact current head: `1e9fb3a337393ef72729877111455835f248bb1e`  
+Exact base: experiment D head `6098dab64d959f9cf40fb44bbd8d4849c3aa9239`
 
-1. spawn PowerShell explicitly instead of `command.output()`;
-2. obtain its raw process handle while live;
-3. assign it to a strict update-owned Job Object;
-4. collect output with `wait_with_output()`;
-5. close/drop the job on cancellation so inherited descendants terminate;
-6. retain an exact real-installer child-process control.
+Maintenance merge: `teamleaderleo/uv#21`, merged solely to preserve exact ancestry after the base experiment's platform-import repair.
 
-If strict membership is incompatible, use a dedicated launcher/process-tree contract rather than describing `kill_on_drop(true)` as full-tree cancellation.
+Current runs:
 
-## E. Repaired destructive-path carriers
+- strict updater integration: `30755883089`, queued;
+- inherited Job policy workflow: `30755883092`, queued;
+- repository CI: `30755883261`, pending.
+
+The branch retains one inspectable source generator:
+
+```text
+.github/fieldwork/457-b2/inject_strict_installer_job.py
+```
+
+### Generated updater experiment
+
+1. spawn PowerShell explicitly;
+2. obtain Tokio's live Windows process handle;
+3. create strict kill-on-close Job Object;
+4. assign PowerShell to the job;
+5. invoke a test callback after assignment;
+6. wait for output while updater future owns both job and child.
+
+The test fixture cannot spawn its delayed descendant until the post-assignment callback releases it. It then aborts and awaits the updater future and requires the delayed survival marker to remain absent.
+
+### Workflow gates
+
+- Ubuntu cross-target `cargo check` for the generated Windows source;
+- Windows target execution for actual descendant cancellation.
+
+### Static repairs before execution
+
+- extracted the source transform from a workflow-only heredoc into a committed generator;
+- added the Ubuntu cross-target compile lane;
+- narrowed `unsafe_code` allowances to the raw-handle adapter and generated assignment helper;
+- removed an unnecessary mutable child binding;
+- merged the exact repaired base head;
+- repaired a malformed pinned upload-action SHA found during diff review.
+
+### Remaining production race
+
+The gated test proves the behavior after assignment. The generated production shape still calls ordinary `spawn()` before `AssignProcessToJobObject`, leaving a small interval in which a real installer can execute and create a descendant before assignment.
+
+A race-free product launcher should assign the Job Object during `CreateProcess` with `STARTUPINFOEX` and `PROC_THREAD_ATTRIBUTE_JOB_LIST`, or create the process suspended while retaining and resuming the primary thread handle. Ordinary spawn-then-assign cannot support an unqualified whole-tree guarantee.
+
+See [`PROCESS_TREE.md`](./PROCESS_TREE.md) for the complete design and compatibility boundary.
+
+## F. Repaired destructive-path carriers
 
 These remain queued because Windows runner capacity has not started them:
 
