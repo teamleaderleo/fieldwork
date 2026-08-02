@@ -128,11 +128,9 @@ function scan(text, currentRepository, ownedOwners = configuredOwnedOwners()) {
   const failures = [];
   const lines = maskMarkdownCode(text).split(/\r?\n/);
   const direct =
-    /https?:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/(issues|pull|discussions|commit)\/([A-Za-z0-9_.-]+)/g;
+    /https?:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/(issues|pull|discussions)\/([A-Za-z0-9_.-]+)/g;
   const shorthand =
     /(^|[^A-Za-z0-9_.-])([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)#([0-9]+)\b/g;
-  const commitShorthand =
-    /(^|[^A-Za-z0-9_.-])([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)@([0-9a-fA-F]{7,40})\b/g;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -157,15 +155,6 @@ function scan(text, currentRepository, ownedOwners = configuredOwnedOwners()) {
       if (isControlledRepository(repository, owner, currentRepository, ownedOwners)) continue;
       failures.push(
         `Line ${index + 1}: third-party shorthand reference detected (${match[2]} / ${match[3]}, item ${match[4]}).`,
-      );
-    }
-
-    for (const match of line.matchAll(commitShorthand)) {
-      const owner = match[2];
-      const repository = `${owner}/${match[3]}`.toLowerCase();
-      if (isControlledRepository(repository, owner, currentRepository, ownedOwners)) continue;
-      failures.push(
-        `Line ${index + 1}: third-party commit shorthand detected (${match[2]} / ${match[3]}, commit ${match[4].slice(0, 12)}).`,
       );
     }
   }
@@ -294,7 +283,7 @@ function policyCommentBody(failures) {
       : '';
 
   return `${POLICY_COMMENT}
-Third-party GitHub references are quiet by default. Direct links and shorthand within \`teamleaderleo/*\` are allowed. Replace direct third-party issue, pull-request, discussion, and commit references with \`redirect.github.com\`. Remove third-party item and commit shorthand. Use the intentional-upstream marker only when that exact interaction was explicitly authorized.
+Third-party GitHub issue, pull-request, and discussion references are quiet by default. Direct links and shorthand within \`teamleaderleo/*\` are allowed. Replace direct third-party issue, pull-request, and discussion references with \`redirect.github.com\`. Remove third-party item shorthand. Use the intentional-upstream marker only when that exact interaction was explicitly authorized.
 
 ${details}${omitted}`;
 }
