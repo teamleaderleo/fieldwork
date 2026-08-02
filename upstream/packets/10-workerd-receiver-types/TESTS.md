@@ -16,7 +16,8 @@ The source PR is not publication-complete yet. Current `types/AGENTS.md`, `just 
 
 - owned draft PR: https://github.com/teamleaderleo/workerd/pull/9
 - branch: `unit-10/final-validation-18a117c`
-- carrier head: `c232e306a796c4d9d43c9a72b5fd810f6f150082`
+- carrier head: `8003ce7361bbb61cff0ca11c9da8b9d9d73a4c2c`
+- visible custom run: `30755457025`
 - product candidate pinned in workflow: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
 - only carrier file: `.github/workflows/unit-10-final-validation.yml`
 
