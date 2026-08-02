@@ -8,6 +8,8 @@ const {
 const current = 'teamleaderleo/fieldwork';
 const ownedOwners = new Set(['teamleaderleo']);
 const thirdPartyCommit = 'example/project@0123456789abcdef0123456789abcdef01234567';
+const thirdPartyCommitUrl =
+  'https://github.com/example/project/commit/0123456789abcdef0123456789abcdef01234567';
 
 assert.equal(scan('', current, ownedOwners).length, 0);
 assert.equal(
@@ -47,10 +49,8 @@ assert.equal(shorthandFailures.length, 1);
 assert.equal(scan(shorthandFailures.join('\n'), current, ownedOwners).length, 0);
 assert.equal(shorthandFailures[0].includes('example/project#12'), false);
 
-const commitFailures = scan(thirdPartyCommit, current, ownedOwners);
-assert.equal(commitFailures.length, 1);
-assert.equal(scan(commitFailures.join('\n'), current, ownedOwners).length, 0);
-assert.equal(commitFailures[0].includes(thirdPartyCommit), false);
+assert.equal(scan(thirdPartyCommit, current, ownedOwners).length, 0);
+assert.equal(scan(thirdPartyCommitUrl, current, ownedOwners).length, 0);
 
 assert.equal(scan('@biomejs/biome@2.5.6', current, ownedOwners).length, 0);
 assert.equal(scan('package/name@2.5.6', current, ownedOwners).length, 0);
@@ -75,7 +75,7 @@ assert.equal(
 );
 assert.equal(
   scan('Escaped delimiter: \\`' + thirdPartyCommit, current, ownedOwners).length,
-  1,
+  0,
 );
 
 const fenced = [
@@ -149,14 +149,14 @@ const entryFailures = scanEntries(
   current,
   ownedOwners,
 );
-assert.equal(entryFailures.length, 2);
+assert.equal(entryFailures.length, 1);
 assert.match(entryFailures[0], /^issue #1 body:/);
-assert.match(entryFailures[1], /^comment 2:/);
 
 const body = policyCommentBody(entryFailures);
 assert.equal(scan(body, current, ownedOwners).length, 0);
 assert.equal(body.includes('github.com'), true);
 assert.equal(body.includes('example/project#12'), false);
 assert.equal(body.includes(thirdPartyCommit), false);
+assert.equal(body.includes('commit'), false);
 
 console.log('Interaction reference tests passed.');
