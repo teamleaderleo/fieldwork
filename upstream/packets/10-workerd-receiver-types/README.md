@@ -2,121 +2,208 @@
 
 ## In simple words
 
-`workerd` already rejects ordinary native methods called through the wrong JavaScript object. Its generated TypeScript declarations omit that receiver rule, so incorrect rebinding can compile and fail only at runtime. The candidate adds explicit TypeScript `this` parameters, preserves their generated origin through handwritten overrides and Worker-global extraction, and keeps legal global/nullish calls accepted.
+`workerd` rejects ordinary native methods called through the wrong JavaScript object, but its generated TypeScript declarations omit that receiver rule. The current implementation adds explicit `this` parameters and preserves them through overrides and Worker-global extraction.
+
+Further review found two publication-changing gaps: required generated snapshots are not yet on the source branch, and methods inherited by the Worker global can still produce false TypeScript errors when detached even though V8 converts nullish receivers to the compatible Worker global proxy. Both are being resolved on owned execution carriers; public upstream contact remains unauthorized.
 
 ## Current disposition
 
-**REPAIR — implementation candidate is coherent, but required generated snapshots are not yet materialized on the clean source branch.**
+**REPAIR.**
 
-The implementation is one atomic commit on current public `workerd/main`. It contains ten product/test files and no workflow or Fieldwork-only files. Current `types/AGENTS.md` and the repository `check-snapshot` job require any type-generation change to regenerate and commit `types/generated-snapshot/`. Public upstream contact remains unauthorized.
+The clean implementation candidate is coherent but not yet the final proposed source head because:
 
-## Exact source
+1. workerd requires regenerated `types/generated-snapshot/` files for type-generation changes;
+2. inherited Worker-global method declarations may need hierarchy-wide global/nullish receiver widening;
+3. the final global receiver member must be selected between host-dependent `typeof globalThis` and environment-independent `ServiceWorkerGlobalScope`;
+4. the resulting source plus snapshots needs exact-head execution and independent review.
+
+## Exact current implementation
 
 - repository: `teamleaderleo/workerd`
-- clean implementation branch: `unit-10/receiver-aware-types`
+- source branch: `unit-10/receiver-aware-types`
 - owned draft PR: https://github.com/teamleaderleo/workerd/pull/5
+- public base: `813c31394b9909d8f557bba14324db275bc12720` (`Release 2026-08-02`)
 - implementation head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
-- public upstream base: `813c31394b9909d8f557bba14324db275bc12720` (`Release 2026-08-02`)
 - compare: https://github.com/teamleaderleo/workerd/compare/813c31394b9909d8f557bba14324db275bc12720...18a117c28773cd7aa0ee599e03439c5fbbf06584
-- current implementation fence: one commit, ten files, no workflow files
-- missing required source material: regenerated `types/generated-snapshot/` files selected from exact-head output
-- AI assistance: disclosed in the commit message and owned PR description, as required by current workerd submission guidance
+- current fence: one implementation commit, ten source/test files, no workflow files
+- missing required source: generated snapshot commit
+- AI assistance: disclosed in the commit and owned PR body
 
-The August 2 upstream release differs from the prior August 1 base only in:
+The August 2 public release differs from the prior August 1 base only in:
 
 - `src/workerd/io/maximum-compatibility-date.txt`
 - `src/workerd/io/release-version.txt`
 
-## Exact execution carrier
+## Owned execution and repair carriers
 
-- owned draft PR: https://github.com/teamleaderleo/workerd/pull/9
-- carrier branch: `unit-10/final-validation-18a117c`
-- carrier head: `8003ce7361bbb61cff0ca11c9da8b9d9d73a4c2c`
-- product candidate pinned by the workflow: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
-- visible custom run: `30755457025`
-- only carrier change: `.github/workflows/unit-10-final-validation.yml`
+### Final implementation and snapshot carrier
 
-The carrier runs the five focused receiver targets, complete `//types/...`, the types lint target, and `//types` generation. It uploads the regenerated snapshot tree, complete snapshot diff, receiver-line index, and marker-leakage summary. It must never be merged into the clean source branch.
+- PR: https://github.com/teamleaderleo/workerd/pull/9
+- branch: `unit-10/final-validation-18a117c`
+- carrier head: `fbed6bc84e4de0051af069acb44d65776466f2d1`
+- custom run: `30755965427`
+- pinned product candidate: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
+- only committed carrier file: `.github/workflows/unit-10-final-validation.yml`
 
-## What is established
+Jobs:
 
-- Ordinary JSG methods are installed with an owning V8 signature and reject unrelated receivers before the C++ callback executes.
-- `JSG_ITERABLE`, `JSG_ASYNC_ITERABLE`, `JSG_DISPOSE`, and `JSG_ASYNC_DISPOSE` also register callbacks with the same owning signature, so their generated method declarations correctly receive owners.
-- Callable resource instances use a separate instance call-handler surface; this patch does not alter callable signatures.
-- Native `workerd` and Chromium reject unrelated receivers for Worker `fetch`; Bun and Node intentionally accept them.
-- TypeScript can represent the legal bare, detached, nullish, actual-global, and unrelated-holder call matrix while the receiver-aware type is retained.
-- Assignment to a receiver-free callback type intentionally erases the explicit `this` parameter; the type fixture preserves that compatibility boundary as an accepted case.
-- The candidate covers generator insertion, provenance cleanup, partial and full overrides, overloads, replacement generics, renamed replacements, inherited globals, same-name lexical declarations, transformed heritage, static-method exclusion, static-global constant preservation, and the Worker-global call matrix.
-- Public issue `cloudflare/workerd#6904` remains the discussion record. A current search found no competing public implementation PR.
-- Closed unmerged PR `cloudflare/workerd#2352` proposed a distinct detached-method registration macro. Its design supports the candidate's default: ordinary `JSG_METHOD` is receiver-owning, while receiver-independent instance operations require separate runtime registration and RTTI support.
+- five focused receiver targets;
+- complete `//types/...` package;
+- types lint;
+- generated latest and experimental ambient/importable snapshots;
+- native inherited-global receiver probe.
 
-## Latest repairs
+### Inherited-global repair model
 
-Exact-head review of the prior candidate found that a blanket static-member check removed generated ambient constants along with static methods. JSG constants are represented as `static readonly` properties, so this was an unrelated source regression.
+- PR: https://github.com/teamleaderleo/workerd/pull/10
+- branch: `unit-10/inherited-global-repair-validation`
+- carrier head: `6d2d5fcc67523f75bf8e0589a291fc26576b3a35`
+- custom run: `30756418899`
+- pinned product candidate: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
+- only committed carrier file: `.github/workflows/unit-10-inherited-global-repair.yml`
 
-The current implementation repairs the boundary:
+The job applies an assertion-heavy ancestry repair only in its worktree, adds a dedicated type fixture, runs focused and complete type gates, builds declarations, and uploads the patched source plus generated-output review packet.
 
-- static methods remain receiver-free and are not extracted as ambient functions;
-- static properties/constants retain existing ambient constant extraction;
-- `globals.spec.ts` requires `static readonly CONSTANT: 42` to produce `declare const CONSTANT: 42` while the static method remains unextracted.
+Neither carrier workflow may enter the final source branch.
 
-A second missing control proves that a full replacement which both renames the owner and changes its generic parameters emits the receiver as the replacement name, not a dangling original type.
+## Established mechanism
 
-Current source inspection found no static methods in the actual `ServiceWorkerGlobalScope` → `WorkerGlobalScope` → `EventTarget` hierarchy, so method-only static exclusion is expected to produce no present-day output churn. Exact generated output must confirm that expectation.
+- Ordinary `JSG_METHOD` callbacks use an owning V8 signature and reject unrelated receivers before C++ execution.
+- Iterator, async-iterator, dispose, and async-dispose symbol methods use the same owning signature.
+- Callable resource instances use a separate instance call-handler surface and remain outside ordinary method generation.
+- Static methods are constructor members and remain receiver-free.
+- Generated static readonly properties/constants retain existing ambient `const` extraction.
+- Closed unmerged public PR #2352 proposed a separate detached-method registration path; current public source contains no equivalent receiver-independent instance registration.
+- No competing public implementation PR was found; public issue #6904 remains the discussion record.
 
-## Commit organization result
+## Current implementation behavior
 
-Retain one implementation commit before snapshot materialization.
+At head `18a117c…`:
 
-The generator marker, override preservation, global widening, cleanup, and tests form one semantic change:
+- ordinary non-static generated method → `this: Owner`;
+- direct `ServiceWorkerGlobalScope` method and extracted ambient copy → `this: Owner | typeof globalThis | null | void`;
+- generated receiver provenance survives print/reparse, overrides, full replacements, renames, and global extraction;
+- explicit handwritten receivers remain authoritative;
+- generic and renamed full replacements use the replacement declaration's parameters and emitted owner name;
+- static methods are not extracted as ambient functions;
+- static generated constants remain ambient constants;
+- callback assignment can intentionally erase the receiver through normal TypeScript assignability.
 
-- generator-only code loses receivers through handwritten overrides;
-- generator plus overrides makes bare Worker-global calls type-invalid until global widening lands;
-- source without matching fixture updates does not satisfy the project's per-commit test discipline.
+## Repairs already completed
 
-Required generated snapshots should be added to this same atomic source commit or an immediately adjacent generated-output commit according to the final human preference. Either choice creates a new exact source head and requires final review against that head.
+### Transformed heritage
+
+A pre-repair run showed inherited globals lost receiver parameters because the checker pointed to the original superclass declaration. The repair uses checker-guided lexical identity and follows the corresponding transformed top-level declaration. Repaired validation run `30690396598` passed the four focused targets.
+
+### Static constants
+
+Review `4834296945` found blanket static-member filtering removed generated global constants. The current implementation excludes only static methods and requires `static readonly CONSTANT: 42` to remain `declare const CONSTANT: 42`.
+
+### Generic and renamed replacements
+
+The source prevents undeclared replacement generics and includes a direct control requiring `Owner` replaced by `RenamedOwner<U>` to emit a receiver owned by `RenamedOwner<U>` with no stale original owner.
+
+## Active inherited-global finding
+
+The current implementation widens free ambient functions copied from ancestor declarations, but leaves the original ancestor declaration owner-only.
+
+Example consequence:
+
+```ts
+const fromSelf = self.addEventListener;
+fromSelf("fetch", handler); // current candidate reports a `this` error
+```
+
+A TypeScript 5.8.3 model reproduced the false positive. A widened ancestor receiver accepted bare, nullish, global, and owning receivers while still rejecting unrelated objects.
+
+V8 source at `bf3d02947968c33781ad7a74e5e0234d9ac5d748` shows non-JavaScript receivers are converted before signature validation: `null` and `undefined` become the global proxy, then the owning signature accepts that proxy for owners in the Worker-global inheritance chain.
+
+PR #9 carries a native workerd probe for methods read from both `self.addEventListener` and `new EventTarget().addEventListener`. PR #10 validates the bounded repair algorithm:
+
+- identify the exact transformed `ServiceWorkerGlobalScope` ancestry;
+- widen only marked generated receivers on declarations in that ancestry;
+- leave unrelated owners strict;
+- use the same widened declaration map for ambient extraction;
+- preserve explicit receivers, static behavior, properties, constants, and call signatures.
+
+The guarded repair script is retained at [`patches/apply-inherited-global-ancestry-repair.py`](./patches/apply-inherited-global-ancestry-repair.py).
+
+## Global receiver type decision
+
+The current union uses `typeof globalThis`. This directly names the Worker ambient global, but importable declarations resolve it against the consumer host. A Node consumer could therefore get Node's global object accepted as a receiver.
+
+The preferred alternative is:
+
+```ts
+Owner | ServiceWorkerGlobalScope | null | void
+```
+
+provided the generated ambient bundles prove:
+
+```ts
+const workerGlobal: ServiceWorkerGlobalScope = globalThis;
+```
+
+The generated latest and experimental outputs will decide this. See [`GLOBAL_RECEIVER_TYPE.md`](./GLOBAL_RECEIVER_TYPE.md).
+
+## Compatibility established by executed models
+
+TypeScript 5.8.3 models established:
+
+- classes can implement receiver-aware interfaces without spelling an explicit `this` parameter;
+- object literal implementations remain valid;
+- subclass overrides remain valid without repeating `this`;
+- receiver-aware methods remain assignable to ordinary receiver-free callbacks;
+- `OmitThisParameter` remains an explicit escape hatch;
+- `Pick<Owner, "method">` property calls are intentionally rejected because the partial holder is not the owner;
+- structural typing cannot prove hidden native identity, so a complete structural fake remains a known false negative.
+
+See [`TYPE_COMPATIBILITY.md`](./TYPE_COMPATIBILITY.md).
+
+## Mixed ambient-library limit
+
+The supported Workers package configuration recommends `lib: ["esnext"]` plus Workers-generated types. A TypeScript model with `lib.dom` showed receiver-free DOM overloads merge into `fetch` and `EventTarget`, allowing unrelated-holder calls to compile again.
+
+This is a mixed-environment effectiveness limit, not a reason to weaken the Workers declarations. See [`DOM_MERGING.md`](./DOM_MERGING.md).
+
+## Required generated snapshots
+
+Current workerd policy and `check-snapshot` require generator-produced snapshots. The bounded output tree contains:
+
+- `types/generated-snapshot/index.d.ts`
+- `types/generated-snapshot/index.ts`
+- `types/generated-snapshot/experimental/index.d.ts`
+- `types/generated-snapshot/experimental/index.ts`
+
+Recent merged type work confirms an acceptable final history shape:
+
+1. one atomic implementation commit;
+2. one CI-generated snapshot commit whose files match generator output and pass `check-snapshot`.
+
+Do not hand-edit snapshot files.
 
 ## Review routing
 
-Current CODEOWNERS routes `/types/` to the Wrangler team. Experimental generated snapshots additionally route to runtime and Durable Objects teams. Final review should cover both declaration compatibility and JSG/runtime ownership semantics. No review request is authorized yet.
+Current CODEOWNERS routes `/types/` to the Wrangler team. Experimental snapshots additionally route to runtime and Durable Objects teams. Final human review should cover:
 
-## Test state
+- TypeScript declaration compatibility, snapshot integrity, and editor behavior;
+- JSG/V8 runtime ownership and global-proxy semantics;
+- experimental surface changes when material.
 
-Executed on the prior repaired semantic source:
-
-- workerd lint passed;
-- `//types:test/index.spec` passed after the transformed-heritage repair;
-- `//types:test/transforms/globals.spec` passed before the later static-constant review finding;
-- `//types:test/transforms/overrides/index.spec` passed;
-- `//types:test/transforms/overrides/replacement-receiver-generics.spec` passed before the renamed-replacement control was added;
-- the earlier end-to-end failure reproduced stale pre-transform heritage lookup and directly motivated that repair.
-
-Executed downstream/runtime evidence:
-
-- Stensibly exact-head typecheck, unit, integration, Worker check, and native runtime-parity commands passed;
-- the native matrix accepted legal receiver forms and rejected unrelated holder, `call`, `apply`, and `bind` forms;
-- the production OAuth fetch wrapper completed through a local outbound Worker.
-
-Prepared on implementation head `18a117c…` and requiring exact execution:
-
-- static-global constant preservation and static-method exclusion;
-- renamed generic replacement receiver ownership;
-- callback-erasure compatibility;
-- focused receiver targets and complete `//types/...` package;
-- generated declaration build and representative ambient/importable output diff;
-- snapshot selection and materialization into the clean source branch.
-
-See [`TESTS.md`](./TESTS.md) for exact commands and evidence classes.
+No review request is authorized yet.
 
 ## Remaining work in strict order
 
-1. Let carrier PR #9 produce exact-head focused, full-types, lint, and generated-snapshot receipts without blocking other review work.
-2. Download and inspect the generated snapshot artifact: method count, global unions, constants, marker leakage, recursion, owner resolution, callable stability, and intentional detachability.
-3. Materialize the accepted `types/generated-snapshot/` changes on clean source PR #5 and retire PR #9.
-4. Review the complete new source-and-snapshot diff and obtain independent exact-head acceptance.
-5. Human decides whether to authorize a public follow-up on issue #6904 and an upstream pull request.
+1. Complete the native inherited-global probe and PR #10 repair-model execution.
+2. Select the ancestry policy and global receiver member from executed results.
+3. Materialize the accepted repair on source PR #5 as a new exact implementation head.
+4. Generate, inspect, and commit the exact latest/experimental ambient/importable snapshots as a second commit.
+5. Run focused, complete-types, lint, generation, and snapshot gates on the source-plus-snapshot head.
+6. Close PRs #9 and #10 and prove their workflow files are absent from source.
+7. Obtain independent complete-diff review from types and runtime perspectives.
+8. Human decides whether to authorize a public issue follow-up and upstream PR.
 
-Execution status is background evidence collection. Source review, prior-art analysis, contribution guidance, packet drafting, and compatibility analysis continue independently.
+Queued jobs are execution state only and provide no pass or failure evidence. Research, source review, and packet work continue independently.
 
 ## Packet
 
@@ -128,8 +215,12 @@ Execution status is background evidence collection. Source review, prior-art ana
 ## Reading order
 
 1. [`DEEP_DIVE.md`](./DEEP_DIVE.md)
-2. [`APPROACHES.md`](./APPROACHES.md)
-3. [`TESTS.md`](./TESTS.md)
-4. [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md)
-5. [`UPSTREAM_PR.md`](./UPSTREAM_PR.md)
-6. [`REVIEW.md`](./REVIEW.md)
+2. [`INHERITED_GLOBALS.md`](./INHERITED_GLOBALS.md)
+3. [`GLOBAL_RECEIVER_TYPE.md`](./GLOBAL_RECEIVER_TYPE.md)
+4. [`TYPE_COMPATIBILITY.md`](./TYPE_COMPATIBILITY.md)
+5. [`DOM_MERGING.md`](./DOM_MERGING.md)
+6. [`APPROACHES.md`](./APPROACHES.md)
+7. [`TESTS.md`](./TESTS.md)
+8. [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md)
+9. [`UPSTREAM_PR.md`](./UPSTREAM_PR.md)
+10. [`REVIEW.md`](./REVIEW.md)
