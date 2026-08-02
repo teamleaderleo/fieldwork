@@ -4,9 +4,15 @@
 
 Bounded current-head review of authority that survives or crosses operation boundaries in Cloudflare Workers SDK.
 
-Exact upstream revision:
+Original exact upstream revision:
 
 `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`
+
+Current public-head refresh:
+
+`20470fa8b09761c50b5c2c1d6a5f2652b61bd271`
+
+The five-commit drift between those revisions does not touch the auth factory, Wrangler user adapter, account-cache implementation, deploy-helpers context, or their source paths listed below. Both source findings remain current at the refreshed head.
 
 This pass stopped after confirming and recording two findings. It did not continue into broader scouting.
 
@@ -42,6 +48,18 @@ A credential or compliance/API-environment change is not represented in the cach
 PASS: credential change reuses prior cached account without account lookup
 PASS: profile-only cache does not encode compliance or API environment
 ```
+
+### Target-native reproduction carrier
+
+Owned fork PR: `teamleaderleo/workers-sdk#12`
+
+- branch: `fieldwork/471-account-cache-authority-repro`;
+- exact base: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`;
+- exact reproducer head: `f1db75c385792f0d95119d68ece242fdd5333bf4`;
+- changed path: `packages/wrangler/src/__tests__/account-cache-authority.test.ts`;
+- current state: target-native regression committed; exact CI conclusion pending.
+
+The regression uses only sentinel tokens and accounts. It expects account B after credentials switch from A to B in one process. Current source is expected to return cached account A before consulting B's mocked account list.
 
 ### Current disposition
 
@@ -93,6 +111,7 @@ node fieldwork-experiments/workers-sdk-authority-scan/account-cache-and-deploy-c
 
 ### Account cache
 
+- conclude the exact focused result on `teamleaderleo/workers-sdk#12`;
 - shared auth tests for token, global key/email, OAuth-to-env, profile, and compliance/API-environment changes;
 - Wrangler command and embedded API sequences in one process;
 - explicit account-ID precedence controls;
@@ -104,6 +123,12 @@ node fieldwork-experiments/workers-sdk-authority-scan/account-cache-and-deploy-c
 - interruption during validation, assets, version upload, and trigger phases;
 - CLI/API/custom-consumer overlap;
 - failure, cancellation, nested calls, and detached-callback characterization.
+
+## Sensitive-handling boundary
+
+The Linux Fieldwork `SECURITY_RECONVENE.md` rule was consulted because these findings involve credentials and request ownership. They remain in the ordinary workflow: all evidence is public-source, synthetic, disposable or owned, and contains no real secret, live target, unauthorized access, destructive action, persistence, or production-changing behavior.
+
+Switch to a public-safe `RECONVENE` checkpoint and stop deepening the path if that boundary changes.
 
 ## Boundary
 
