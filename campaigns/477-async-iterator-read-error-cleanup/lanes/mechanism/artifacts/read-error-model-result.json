@@ -1,0 +1,68 @@
+{
+  "node": "v22.16.0",
+  "platform": "linux",
+  "exactReasonCases": [
+    {
+      "implementation": "createAsyncIterableStream",
+      "first": {
+        "done": false,
+        "value": "chunk1"
+      },
+      "exactReasonPreserved": true,
+      "unlockedAfterError": true,
+      "cancelCalls": 0,
+      "nextAfterError": {
+        "done": true
+      },
+      "returnAfterError": {
+        "done": true
+      },
+      "reacquiredReasonPreserved": true
+    },
+    {
+      "implementation": "asAsyncIterableStream",
+      "first": {
+        "done": false,
+        "value": "chunk1"
+      },
+      "exactReasonPreserved": true,
+      "unlockedAfterError": true,
+      "cancelCalls": 0,
+      "nextAfterError": {
+        "done": true
+      },
+      "returnAfterError": {
+        "done": true
+      },
+      "reacquiredReasonPreserved": true
+    }
+  ],
+  "concurrentCases": [
+    {
+      "implementation": "createAsyncIterableStream",
+      "reasonsPreserved": true,
+      "statuses": [
+        "rejected",
+        "rejected"
+      ],
+      "unlockedAfterError": true,
+      "cancelCalls": 0,
+      "nextAfterError": {
+        "done": true
+      }
+    },
+    {
+      "implementation": "asAsyncIterableStream",
+      "reasonsPreserved": true,
+      "statuses": [
+        "rejected",
+        "rejected"
+      ],
+      "unlockedAfterError": true,
+      "cancelCalls": 0,
+      "nextAfterError": {
+        "done": true
+      }
+    }
+  ]
+}
