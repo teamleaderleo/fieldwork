@@ -2,23 +2,31 @@
 
 ## Current judgment
 
-`ACCEPT REPAIR EXECUTION — guarded source publication pending`
-
-The inherited-context repair has passed the exact focused matrix, all ordinary HTTPX gates, the complete suite, and 100% coverage. The execution-only workflow is waiting to publish the verified patch as one clean child commit of the canonical source head.
+`ACCEPT — exact executed patch is published`
 
 ## Exact identities
 
 - HTTPX base: `b5addb64f0161ff6bfe94c124ef76f6a1fba5254`
-- Clean source input: `18256f10d1b306bdf87a1bab24b214c15839147b`
+- Pre-repair source: `18256f10d1b306bdf87a1bab24b214c15839147b`
+- Published source: `d5f9e3dffce3342d8c02ec2c1d3ed9588a83b803`
 - Source branch: `fieldwork/171-terminal-close-source`
 - Source PR: `teamleaderleo/httpx#6`
-- Execution branch: `fieldwork/171-terminal-close-repair-carrier`
-- Execution head: `5b3d8f1ee6b08435d45c6a37b1f6d1a06977cb2f`
-- Execution PR: `teamleaderleo/httpx#9`
+- Execution PR: `teamleaderleo/httpx#9`, closed without merge
 - Final exact run: `30752805069`
-- Packet patch commit used by the run: `e59fb13a0a281be5ed2c94446430f5cb4b97424f`
 
-## Exact repaired blobs
+## Baseline and design correction
+
+Exact reconstructed pre-repair production blobs produced:
+
+```text
+4 failed, 1 passed in 3.28s
+```
+
+Direct re-entry timed out and successful elapsed included cleanup latency. A first task-ID repair fixed direct re-entry but timed out when delegated cleanup spawned and awaited a descendant task. That disproved task identity as the ownership boundary.
+
+The selected inherited `ContextVar` stack passed direct, descendant, nested outer/inner/outer, unrelated-waiter, failure, cancellation, terminal-unknown, and elapsed controls.
+
+## Exact published blobs
 
 | File | Blob |
 | --- | --- |
@@ -27,153 +35,48 @@ The inherited-context repair has passed the exact focused matrix, all ordinary H
 | `tests/client/test_async_client_terminal_close_elapsed.py` | `67545aede0ba92364f70dc9f37c5c2e0a010c836` |
 | `tests/models/test_async_response_close_reentry.py` | `0be56b2cb9a9a2e7fabc1a6bc107bbcca520fd67` |
 
-## Baseline failures
+The published PR file list is exactly six files, including the unchanged terminal-unknown and cancellation tests.
 
-Exact reconstructed clean-source production blobs failed the first five new controls:
+## Final hosted execution
 
-```text
-4 failed, 1 passed in 3.28s
-```
+Run `30752805069` applied the exact packet patch to pre-repair head `18256f10...` and verified the staged six-file fence before executing.
 
-Failures:
+### Python 3.9 focused — job `91509719800`
 
-1. requestless direct re-entry timed out;
-2. request-bound direct re-entry timed out;
-3. caught direct re-entry with an unrelated waiter timed out;
-4. elapsed included cleanup latency: `10.0` seconds instead of `2.0`.
+Passed exact source and repaired hashes, asyncio and Trio controls, and diff hygiene.
 
-The first task-ID repair passed these five controls but failed a stronger descendant-task reproduction:
+### Python 3.13 focused — job `91509719821`
 
-```text
-1 failed in 0.43s
-TimeoutError
-```
+Passed the same exact identity, backend, and hygiene controls.
 
-The child task inherited no task identity, waited on the owner's event, and deadlocked with the owner waiting for the child task group.
-
-## Stronger local controls
-
-The selected `ContextVar` stack repair covers:
-
-- requestless direct re-entry;
-- request-bound direct re-entry;
-- caught re-entry with an unrelated external waiter;
-- descendant-task re-entry;
-- nested outer -> inner -> outer response-close cycles;
-- failed cleanup leaving elapsed unavailable;
-- successful elapsed excluding delegated cleanup latency.
-
-Local Python 3.13 result:
-
-```text
-7 passed
-```
-
-`python -m py_compile` passed for both repaired production files. The revised re-entry test reports 100% local coverage.
-
-## Final exact hosted run
-
-Run: `30752805069`
-
-### Focused repair tests — Python 3.9
-
-Status: `success`
-
-Passed:
-
-- exact clean source identity;
-- exact repaired blob identities;
-- repository dependency installation;
-- direct, descendant, nested, waiter, cancellation, terminal-unknown, and elapsed controls;
-- asyncio backend;
-- Trio backend;
-- diff hygiene.
-
-### Focused repair tests — Python 3.13
-
-Status: `success`
-
-Passed the same exact source, repaired blob, asyncio, Trio, and hygiene controls as Python 3.9.
-
-### Full repository gates — Python 3.13
-
-Status: `success`
-
-Exact execution sequence:
-
-1. checked out canonical clean source `18256f10...`;
-2. checked out packet patch commit `e59fb13a...`;
-3. applied the patch with `git apply --check` and `git apply`;
-4. verified the exact six-file fence;
-5. installed `requirements.txt`;
-6. ran `scripts/check`;
-7. ran `scripts/build`;
-8. ran `scripts/test`;
-9. ran `scripts/coverage`.
-
-Results:
+### Python 3.13 full — job `91509719767`
 
 ```text
 Ruff format: 64 files already formatted
-Mypy: Success: no issues found in 64 source files
-Ruff lint: All checks passed
-Package build: passed
-Twine wheel/sdist checks: passed
+Mypy: no issues found in 64 source files
+Ruff lint: all checks passed
+Package and Twine checks: passed
 Documentation build: passed
 Complete suite: 1445 passed, 1 skipped in 16.86s
 Coverage: 8210 statements, 0 missed, 100%
 ```
 
-The one skipped test is the existing Python-version-dependent netrc case in `tests/client/test_auth.py`.
+## Evidence transfer to published head
 
-## Exact six-file fence
+Published head `d5f9e3df...` has the exact reviewed and executed production/test blob hashes and exact six-file fence. No product byte changed between execution and publication. The target-executed and full-gate evidence therefore transfers semantically within that immutable fence.
 
-1. `httpx/_client.py`
-2. `httpx/_models.py`
-3. `tests/client/test_async_client_terminal_close_elapsed.py`
-4. `tests/models/test_async_response_close_reentry.py`
-5. `tests/models/test_async_response_close_terminal_cancellation.py`
-6. `tests/models/test_async_response_close_terminal_unknown.py`
+The automatic Test Suite event on the published head, run `30755566581`, concluded `action_required` before creating jobs. It provides no product result and is classified as workflow admission. It does not supersede run `30752805069`.
 
-The executor's fence check passed before all target gates.
+## Claim-to-evidence summary
 
-## Claim-to-evidence matrix
-
-| Claim | Evidence | Result |
-| --- | --- | --- |
-| arbitrary escaped cleanup is attempted once | terminal-unknown tests and full suite | passed |
-| initiating caller receives original failure/cancellation | failure and backend-native cancellation controls | passed |
-| observers receive fresh neutral errors | terminal-unknown observer controls | passed |
-| no arbitrary owner traceback graph is retained | existing GC control | passed |
-| direct re-entry does not wait on itself | requestless/request-bound controls | passed on Python 3.9/3.13, asyncio/Trio |
-| inherited descendant re-entry does not deadlock | descendant task-group control | passed on Python 3.9/3.13, asyncio/Trio |
-| nested response-close cycles do not deadlock | outer/inner/outer control | passed on Python 3.9/3.13, asyncio/Trio |
-| unrelated waiter retains normal settlement | caught-re-entry waiter control | passed on Python 3.9/3.13, asyncio/Trio |
-| successful elapsed excludes cleanup latency | deterministic clock control | passed |
-| failed cleanup leaves elapsed unavailable | existing elapsed-failure control | passed |
-| static compatibility is preserved | Ruff and mypy | passed |
-| repository behavior remains intact | 1,445-test complete suite | passed |
-| coverage remains complete | `scripts/coverage` | 100% |
+- at-most-once arbitrary cleanup: target-executed, passed;
+- original owner failure/cancellation: target-executed under asyncio and Trio, passed;
+- fresh neutral observer errors and traceback-graph release: target-executed, passed;
+- direct, descendant, and nested cycle detection: target-executed under Python 3.9/3.13 and asyncio/Trio, passed;
+- unrelated waiter settlement: target-executed, passed;
+- elapsed compatibility: deterministic target control, passed;
+- repository compatibility: named full gate, `1445 passed, 1 skipped`, 100% coverage.
 
 ## Historical harness corrections
 
-The executor exposed and corrected four non-product issues before the final run:
-
-1. a fence check initially omitted the new untracked file; it was corrected with `git add -N`;
-2. Ruff required formatting the long re-entry message constant;
-3. mypy rejected importing the internal `time` module as an exported HTTPX attribute; the test now monkeypatches the dotted target string;
-4. coverage identified unreachable defensive exception-recording paths in the new test; those paths were removed so unexpected errors naturally fail the task group.
-
-Each correction was rerun through the target gates. No product assertion was weakened.
-
-## Publication state
-
-The run's final job, `Commit clean repaired source`, is queued. It is guarded by the three successful jobs above and will:
-
-- re-check clean source head `18256f10...`;
-- apply the exact packet patch;
-- stage and verify the six-file fence;
-- commit `Fix inherited async-close reentry and elapsed sampling`;
-- push only to `fieldwork/171-terminal-close-source`.
-
-The execution carrier must be closed without merge after the source head and hashes are verified.
+The executor corrected an untracked-file fence omission, Ruff formatting, a mypy-invalid monkeypatch target, and unreachable defensive test branches. Every correction was rerun through the exact gates without weakening a product assertion.
