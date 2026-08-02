@@ -2,19 +2,36 @@
 
 ## Selected approach: generated receiver provenance through transforms
 
-Generate a marked owning receiver for every non-static JSG method, preserve or deliberately replace that policy during handwritten override and Worker-global transforms, then remove the marker before final declaration output.
+Generate a marked owning receiver for every non-static generated JSG method, preserve or deliberately replace that policy during handwritten override and Worker-global transforms, then remove the marker before final declaration output.
 
 Why selected:
 
 - follows the runtime's ordinary owning-signature model;
 - uses the parent type context already present in the generator;
 - keeps explicit handwritten receiver choices authoritative;
-- supports inherited and generic declarations;
+- supports inherited, generic, and renamed declarations;
 - makes global widening an explicit transformation;
+- preserves static global constants while excluding static methods from ambient function extraction;
 - supports targeted regression fixtures;
 - preserves ordinary callback assignment compatibility when TypeScript widens the method to a receiver-free function type.
 
-Exact source: https://github.com/teamleaderleo/workerd/compare/d82c2a45a8695aac30d4d24828ce1ee7fb11909b...8f41da276852ad48735c1d817b7c1a3699ac8beb
+Exact source: https://github.com/teamleaderleo/workerd/compare/813c31394b9909d8f557bba14324db275bc12720...18a117c28773cd7aa0ee599e03439c5fbbf06584
+
+## Selected runtime boundary
+
+Annotate generated method surfaces whose runtime callbacks use the owning V8 signature:
+
+- ordinary methods;
+- iterator and async-iterator symbol methods;
+- synchronous and asynchronous disposal symbol methods.
+
+Do not change:
+
+- static methods on constructors;
+- callable resource call signatures, which use an instance call handler rather than ordinary method registration;
+- properties and accessors, which have no explicit TypeScript invocation receiver.
+
+Retain pre-existing ambient extraction for generated static properties/constants.
 
 ## Selected commit presentation: one atomic commit
 
@@ -25,7 +42,8 @@ The seams are coupled:
 1. The generator marker and cleanup must land together or internal receiver types leak into output.
 2. Override preservation must land with generation or handwritten replacements silently erase receiver policy.
 3. Worker-global widening must land with generation or legal bare/global/nullish calls become type-invalid.
-4. The end-to-end and type fixtures must land with the implementation to satisfy workerd's per-commit build/test discipline.
+4. Static method exclusion must retain static property/constant extraction in the same transform revision.
+5. The end-to-end and type fixtures must land with the implementation to satisfy workerd's per-commit build/test discipline.
 
 A generator / overrides / globals split creates knowingly incomplete intermediate semantics and repeated output churn. The one-commit diff is larger, yet it represents one declaration-fidelity invariant and every changed file participates in that invariant.
 
@@ -36,10 +54,12 @@ Current public workerd contains no `JSG_DETACHED_METHOD` or `registerDetachedMet
 This supports the selected default:
 
 - ordinary `JSG_METHOD` → owning receiver;
+- `JSG_ITERABLE`, `JSG_ASYNC_ITERABLE`, `JSG_DISPOSE`, `JSG_ASYNC_DISPOSE` → owning receiver;
 - `JSG_STATIC_METHOD` → static receiver-free member;
+- callable resource instance → unchanged call signature;
 - any future detached instance registration → new RTTI flag and generator branch, outside this unit until such runtime support exists.
 
-Reopen broad-generation policy only if current source identifies an ordinary `JSG_METHOD` whose runtime registration deliberately omits the owning V8 signature.
+Reopen broad-generation policy only if current source identifies an ordinary owning registration whose runtime callback deliberately omits the V8 signature.
 
 ## Considered alternatives
 
@@ -67,6 +87,10 @@ Broad widening could weaken explicit custom receiver policy and hide invalid reb
 
 A replacement emits its own type parameters. Inheriting hidden generated parameters can create undeclared identifiers. Rejected by the `Owner<T>` → nongeneric `Owner` counterexample.
 
+### Specialize replacement generics but ignore type renames
+
+A full replacement may emit `RenamedOwner<U>` while the inherited receiver still references `Owner` or `Owner<U>`. Rejected because that creates a dangling or semantically wrong owner. The selected pipeline applies the replacement's type parameters and then runs the existing rename visitor over the receiver owner. A direct regression requires `RenamedOwner<U>` in the final marker.
+
 ### Resolve inherited globals from a simple-name map
 
 Same-named declarations in separate namespaces make the lookup ambiguous. Rejected after exact source review. The selected implementation uses the checker for lexical identity and the transformed top-level declaration for post-override members.
@@ -74,6 +98,18 @@ Same-named declarations in separate namespaces make the lookup ambiguous. Reject
 ### Use only the pre-transform checker declaration
 
 The checker points at the original source tree. After an override transforms a superclass, following the old declaration discards transformed members and generated receiver markers. Rejected by the end-to-end failure reproduced in validation run `30690050452` and repaired by transformed top-level lookup.
+
+### Exclude every static member from global extraction
+
+Rejected after exact-head review `4834296945`. JSG constants are represented as static readonly properties, and the blanket return removed their existing ambient `const` declarations. The selected implementation excludes only static methods; static properties/constants preserve prior extraction.
+
+### Keep extracting static methods as ambient globals
+
+Rejected. Static methods live on constructors, are not inherited by global-scope instances, and should not become free global functions. The fixture now distinguishes them from static constants.
+
+### Annotate callable resource signatures as ordinary methods
+
+Rejected. Callable resources use an instance call-handler registration and are represented as call signatures, not named methods. This unit follows ordinary method ownership and leaves callable semantics unchanged.
 
 ### Rely on runtime checks alone
 
