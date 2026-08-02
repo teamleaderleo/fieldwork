@@ -1,70 +1,72 @@
 # Handoff — Unit 11: stabilize lifecycle fanout targets
 
-## Current disposition
+## In simple words
 
-`HOLD — clean successor validating`
+The OpenTelemetry trace/logs lifecycle repair is implemented, narrowed to supported paths, and collapsed to one clean source commit. The remaining decision belongs to the repository owner. Exact-head workflows were triggered and are queued, but that infrastructure state is not being mislabeled as an unfixed code defect.
 
-The supported-path repair is complete and clean. Exact-head workflows are queued. Independent acceptance, changelog packaging, final staleness checks, and public-contact authority remain open.
+## Current state
+
+`READY FOR OWNER DECISION — source repaired; exact-head workflows queued`
 
 ## Exact identities
 
-- public base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- public base/current-main snapshot: `2c931bf4eec18a234a28706567c6977f08139abd`;
 - canonical source branch: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout-v2`;
-- exact clean source head: `f4910b355d12895edf25372444f76d4def08901c`;
+- exact clean source head: `db3d9e5e43d5abc6622784acf0ef87f3b038ac91`;
+- reviewed pre-squash tree source: `987a2bde097fe2e44531830e38c7c15a59c35c23`;
 - validation carrier: `teamleaderleo/opentelemetry-js#19`;
 - superseded carrier: closed PR #18 and branch `upstream/unit-11-lifecycle-fanout`;
 - packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout`;
-- packet path: `upstream/packets/11-opentelemetry-lifecycle-fanout/`;
-- exact packet head: record in issue #435 after the final packet write.
+- packet path: `upstream/packets/11-opentelemetry-lifecycle-fanout/`.
+
+The squash reused the exact six candidate file blobs from `987a2bde...`, producing one commit directly on the pinned base without changing source or tests.
 
 ## Repair completed
 
 1. `MultiSpanProcessor` snapshots opening processors and protects direct shutdown/force-flush calls.
 2. Public `TracerProvider.forceFlush()` snapshots its own fanout targets and routes synchronous throws through existing timeout/error cleanup.
 3. `MultiLogRecordProcessor` snapshots opening processors and protects direct calls without changing timeout wrapping.
-4. Trace test cleanup installs `loggingErrorHandler()` correctly.
-5. Metrics was removed: provider collector mutation required private-state access and no supported public path was established.
-6. Public main remained identical to the pinned base and refreshed overlap searches found no replacement contribution.
-7. Successor history was collapsed to one commit.
+4. The provider has an explicit genuine-timeout control as a negative compatibility check.
+5. Trace test cleanup installs `loggingErrorHandler()` correctly.
+6. Metrics was removed because the earlier mutation path required private-state access and no supported public path was established.
+7. The source branch was collapsed from four commits to one exact six-file commit.
+8. The owned source PR was synchronized to the new head and one-commit relation.
 
 ## Final source boundary
 
 - three production files and three target-native tests;
 - trace aggregate, public trace provider, and logs only;
+- eleven focused assertions;
 - no metrics, workflows, dependency/lock files, generated output, publishers, or research residue;
 - source relation ahead 1, behind 0.
 
-## Current exact-head validation
+## Exact-head workflows
 
-Queued on `f4910b355d12895edf25372444f76d4def08901c`:
+Queued on `db3d9e5e43d5abc6622784acf0ef87f3b038ac91`:
 
-- Unit `30694264703`;
-- W3C `30694264710`;
-- Bundler `30694264711`;
-- API peer dependency `30694264708`;
-- CodeQL `30694264717`;
-- E2E `30694264735`;
-- Zizmor `30694264748`;
-- Lint `30694264729`.
+- Unit Tests `30756036668`;
+- Lint `30756036660`;
+- W3C Trace Context Integration `30756036656`;
+- Bundler tests `30756036678`;
+- Ensure API Peer Dependency `30756036662`;
+- CodeQL Analysis `30756036671`;
+- E2E Tests `30756036639`;
+- Zizmor GitHub Actions Security Analysis `30756036691`.
 
-No successor-head pass is claimed until these settle. Earlier green receipts are historical only.
+Earlier heads supplied useful mechanism and repository-gate evidence. They remain historical evidence, not substitutes for exact-head execution.
 
 ## Changelog packaging
 
-Target guidance requires:
+Target guidance calls for:
 
-- root `CHANGELOG.md` Unreleased Bug Fix entry for sdk-trace;
-- `experimental/CHANGELOG.md` Unreleased Bug Fix entry for sdk-logs.
+- a root `CHANGELOG.md` Unreleased Bug Fix entry for sdk-trace;
+- an `experimental/CHANGELOG.md` Unreleased Bug Fix entry for sdk-logs.
 
 Draft wording is preserved in `UPSTREAM_PR.md`. Final entries require the real authorized upstream PR number.
 
-## Continuation steps
+## Decision requested from the repository owner
 
-1. Refresh all successor workflow conclusions and inspect any failure at job/log level.
-2. If all pass, update packet receipts, PR #19, and issue #435 with exact results.
-3. Obtain eligible independent complete-diff review of `f4910b355...`; self-review is not final acceptance.
-4. Repeat current-main, duplicate/overlap, contribution-policy, and AI-disclosure checks immediately before filing.
-5. After explicit authorization and a real upstream PR number, add both changelog entries and update all identities.
+Decide whether this one-commit candidate should advance toward an upstream proposal once exact-head execution is available. No named external reviewer is a prerequisite or final arbiter. Before filing, refresh current main, duplicate/overlap, contribution policy, and disclosure requirements, then explicitly authorize the public interaction.
 
 ## Contact boundary
 
