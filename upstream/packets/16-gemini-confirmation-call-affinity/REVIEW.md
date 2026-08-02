@@ -4,7 +4,7 @@
 
 The contribution replaces active-call insertion order with exact confirmation ownership and rejects stale modifier output. The final candidate is one clean four-file commit directly on the inspected public base. It includes a real scheduler-level test with two simultaneous approvals resolved in reverse order.
 
-Every candidate-owned gate passed. Repository-wide preflight reaches an unrelated workflow shellcheck warning that the unchanged base reproduces. The remaining promotion gates are eligible independent review, current duplicate search, and explicit issue-filing authority.
+Every candidate-owned gate passed. Repository-wide preflight reaches an unrelated workflow shellcheck warning that the unchanged base reproduces. This self-review accepts the exact source and packet for a `READY` Fieldwork handoff. It does not authorize public contact or replace eligible independent acceptance before submission.
 
 ## Review subject
 
@@ -102,7 +102,7 @@ Baseline-control job `91349770438` checked out the exact unchanged base and repr
 SC2031
 ```
 
-This confirms the repository-wide preflight lint blocker predates unit 16.
+This confirms the repository-wide preflight lint blocker predates unit 16. Because `npm run preflight` did not complete, this packet does not claim `full-gate`; it records candidate-owned target execution plus a baseline-confirmed repository blocker.
 
 ## Known risks
 
@@ -136,26 +136,27 @@ This confirms the repository-wide preflight lint blocker predates unit 16.
 - [x] Core build and typecheck pass.
 - [x] Changed-file formatting and lint pass.
 - [x] Clean-tree and publication receipt complete.
-- [x] Full-preflight failure is independently reproduced on the unchanged base.
+- [x] Full-preflight failure is reproduced on the unchanged base.
 - [ ] Eligible independent complete-diff review completed.
 
 ## Draft review
 
 - [x] Issue draft stays within observed mechanism and evidence.
 - [x] PR draft matches the final four-file diff.
-- [x] Target terminology and issue-first route are used.
+- [x] Target terminology and required issue-before-PR route are used.
 - [ ] Current issue template and AI-disclosure policy checked at filing time.
 - [ ] Explicit public-interaction authority recorded.
 
-## Reviewer disposition
+## Self-review disposition
 
-`ISSUE FIRST`
+`ACCEPT`
 
+Accepted transition: mark Unit 16 `READY` in the Fieldwork packet and hand it off for independent inspection and separately authorized public issue filing.  
 Reviewed source head: `b6d8e8bb6160aec16555647d81d46a694e44b58b`  
-Reviewed packet head: final branch tip recorded on #435  
-Reason: the repair and candidate-owned validation are complete; target policy calls for issue-first discussion, while independent review and filing authority remain.  
-Clearing condition: eligible independent review, current duplicate search, and explicit authority to file the issue.  
-Reviewer eligibility: `self-review only`
+Reviewed packet input: Unit 16 packet and parent #435 mission as read on 2026-08-02  
+Reason: the repair, clean source publication, target-native execution, source-fence validation, drafts, and complete-diff self-review are complete; the target's issue-first contribution rule is a submission sequence, not a Fieldwork review disposition.  
+Remaining submission conditions: eligible independent review, current duplicate/policy check, and explicit authority to file.  
+Reviewer eligibility: `author/self-review only; not independent final accepter`
 
 ## Human deep-dive guide
 
@@ -165,4 +166,4 @@ Focus on:
 2. stale-authority error integration with scheduler cancellation/error handling;
 3. scheduler reverse-order test adequacy;
 4. whether maintainers would prefer an explicit token or guarded state update;
-5. issue-first framing and public disclosure requirements.
+5. public issue framing and disclosure requirements.
