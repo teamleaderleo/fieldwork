@@ -1,10 +1,12 @@
 # F371-playwright-mcp-remote-shared-context: remote reachability and shared browser authority are separate controls
 
-Finding state: `delivery-gate-ready`
+Finding state: `execute`
 
 Canonical issue: `#371`  
 Initiative: `#254`  
 Workstream: `B/C — browser runtime and MCP authority boundaries`  
+Canonical package: Fieldwork PR `#399`, branch `integration/374-playwright-authority-current-main`  
+Metadata-repair parent head: `aa8264a5d4c4d50936c9a2d1009f141896798dc6`  
 Exact package source: `microsoft/playwright-mcp@55679f5f3d4b4f3e2534ec0ce2fc5683ba2eaf3f`  
 Exact shared core source: `microsoft/playwright@368941457a82da112aa8610107e25f4bde94339a`  
 Behavior carrier: closed Fieldwork PR `#375` at `2a7b6c45179ac3f9e78b8540702e7e88f849b3fd`  
@@ -13,9 +15,11 @@ Behavior artifact: `8794430468`, digest `sha256:e53fc07dbfb1dfecd98e5e4a4227c50e
 Help carrier: closed Fieldwork PR `#377` at `204b96c94dfd2fef3ea4981796b2cb98ceae09a9`  
 Help run: `30634831167`, job `91169666445`, success  
 Help artifact: `8794842941`, digest `sha256:d0347ff4a0ed8408f9c5d01b36b703d931bc5bab8e6ac79da373a6bfcb2d0683`  
+Current packaging integrity: `30648259077`, job `91214957545`, success  
 Canonical implementation: `evidence/0001-document-http-client-authority.patch`  
-Strongest evidence class: `target-executed`  
-Current disposition: `REVIEW READY — documentation/runtime-help candidate`  
+Evidence classes present: `source-read`, `target-executed`, `current-base merge-ref packaging`  
+Adjacent unresolved question: `#404 — shutdown-route authority`; separate from this help patch  
+Current disposition: `EXECUTE — metadata repaired; exact-head Fieldwork integrity pending`  
 Upstream contact authorized: `no`
 
 ## In simple words
@@ -31,6 +35,8 @@ Playwright MCP already has strong network defaults:
 When an operator deliberately enables non-loopback HTTP and `--shared-browser-context`, another authority boundary appears. Host validation prevents DNS rebinding; it does not authenticate a client. Every accepted HTTP session shares one browser context and can observe and control the same tabs, cookies, storage, and page state.
 
 Exact target execution confirms that composition and confirms bounded final cleanup. The selected repair changes help text only.
+
+Issue #404 owns a separate shutdown-route authority question. Its later proxy/capability work does not alter the network-default, Host/authentication, shared-context, disconnect, cleanup, or three-string help conclusions in this finding.
 
 ## Five separate controls
 
@@ -160,6 +166,18 @@ Every accepted client can observe and control the shared tabs, cookies, storage,
 
 The complete carrier history and claim boundary are retained in `evidence/20260731-help-candidate-receipt.md`.
 
+## Current packaging receipt
+
+PR #399 renewed the five-file package onto its recorded current-main generation without changing the technical blobs.
+
+Fieldwork integrity `30648259077`, job `91214957545`, passed:
+
+- interaction-reference scanning;
+- batch-contract integrity;
+- generated merge binding of package head `aa8264a...` to base `041d29a...`.
+
+This is packaging/current-base merge-ref evidence. It does not pretend to rerun Chromium or the generated help candidate.
+
 ## Alternatives
 
 ### Built-in token gate — deferred
@@ -178,21 +196,25 @@ The selected wording recommends this boundary without hard-coding one authentica
 
 | Claim | Evidence class | Limit |
 | --- | --- | --- |
-| Stdio and loopback HTTP are the defaults. | `source-read / upstream-test-executed` | exact pinned source and suite |
+| Stdio and loopback HTTP are the defaults. | `source-read / target-executed upstream test` | exact pinned source and suite |
 | Default Host validation rejects unlisted address forms. | `target-executed` | upstream HTTP suite on one Linux/Chromium runner |
 | Explicit remote-equivalent isolated clients keep browser state separate. | `target-executed` | runner non-loopback IPv4, wildcard Host opt-in |
 | Explicit remote-equivalent shared clients use one browser authority domain. | `target-executed` | same runner and disposable local page |
 | Remaining client keeps shared authority after first-client disconnect. | `target-executed` | streamable HTTP sessions |
 | Final-client disconnect closes the shared browser. | `target-executed` | target debug lifecycle counters |
 | Three-string help patch applies, builds, and appears in runtime help. | `target-executed` | exact pinned target and generated-help surface |
+| Five-file package was renewed on the recorded Fieldwork base. | `current-base merge-ref packaging` | Fieldwork files only; no target rerun |
 | Public exploitability or deployment prevalence. | `not established` | no production deployment or external target |
 | Built-in authentication is the correct repair. | `not established` | deployment architecture comparison pending |
 | Public upstream acceptance. | `not established` | no upstream contact authorized |
 
 ## Exact next transition
 
-1. let Fieldwork integrity settle on this workflow-free exact head;
-2. obtain one eligible complete-diff review of the five-file finding package;
-3. only separate public-upstream authority may permit submission.
+1. run Fieldwork integrity on the documentation-only metadata successor on PR #399;
+2. update PR #399 and issue #371 with the exact successor head and resulting checkout classification;
+3. obtain one eligible complete-file review of the current five-file package;
+4. only separate public-upstream authority may permit submission.
+
+No target rerun is required unless a technical claim changes.
 
 No merge, release, deployment, real credential, private browser data, spending, or public upstream interaction is authorized.
