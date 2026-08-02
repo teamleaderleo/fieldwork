@@ -1,0 +1,131 @@
+name: Fieldwork unit 18 mode-aware stdin experiment
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-unit-18-mode-aware-stdin.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mode-aware-stdin:
+    name: Mode-aware stdin on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+
+    steps:
+      - name: Check out exact execution carrier
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact Playwright experiment
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/playwright
+          ref: 679e93190efd422727cb073bf0ceb9eee1611779
+          fetch-depth: 0
+          path: playwright
+          persist-credentials: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+
+      - name: Verify exact identities and three-file fence
+        shell: bash
+        run: |
+          set -euo pipefail
+          carrier="${{ github.event.pull_request.head.sha || github.sha }}"
+          source="679e93190efd422727cb073bf0ceb9eee1611779"
+          base="15b1aec478d90f0293dae7b7b6dafd494d9f0154"
+          expected=$'packages/playwright-core/src/tools/utils/mcp/http.ts\npackages/playwright-core/src/tools/utils/mcp/server.ts\ntests/mcp/fieldwork-stdin-close.spec.ts'
+
+          test "$(git -C fieldwork rev-parse HEAD)" = "$carrier"
+          test "$(git -C playwright rev-parse HEAD)" = "$source"
+          git -C playwright cat-file -e "$base^{commit}"
+          git -C playwright diff --check "$base" "$source"
+          test "$(git -C playwright diff --name-only "$base" "$source")" = "$expected"
+
+          mkdir -p fieldwork-receipts
+          git -C playwright diff --binary "$base" "$source" > "fieldwork-receipts/unit-18-mode-aware-${{ matrix.os }}.diff"
+          git -C playwright log --format=fuller --reverse "$base..$source" > "fieldwork-receipts/unit-18-mode-aware-${{ matrix.os }}-commits.txt"
+
+      - name: Install exact dependencies
+        working-directory: playwright
+        run: npm ci
+
+      - name: Build exact source
+        working-directory: playwright
+        run: npm run build
+
+      - name: Install Chromium and Linux dependencies
+        if: runner.os == 'Linux'
+        working-directory: playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Chromium
+        if: runner.os != 'Linux'
+        working-directory: playwright
+        run: npx playwright install chromium
+
+      - name: Run HTTP controls and mode-aware stdin discriminators
+        shell: bash
+        working-directory: playwright
+        env:
+          CI: "1"
+        run: |
+          set -o pipefail
+          npm run test-mcp tests/mcp/http.spec.ts tests/mcp/fieldwork-stdin-close.spec.ts -- \
+            --project=chromium \
+            --grep-invert="http transport browser sigint" \
+            2>&1 | tee "../fieldwork-receipts/unit-18-mode-aware-${{ matrix.os }}-test.log"
+
+      - name: Run focused ESLint
+        shell: bash
+        working-directory: playwright
+        run: |
+          npx eslint \
+            packages/playwright-core/src/tools/utils/mcp/http.ts \
+            packages/playwright-core/src/tools/utils/mcp/server.ts \
+            tests/mcp/fieldwork-stdin-close.spec.ts
+
+      - name: Verify clean tree and exact diff
+        shell: bash
+        working-directory: playwright
+        run: |
+          set -euo pipefail
+          base="15b1aec478d90f0293dae7b7b6dafd494d9f0154"
+          source="679e93190efd422727cb073bf0ceb9eee1611779"
+          expected=$'packages/playwright-core/src/tools/utils/mcp/http.ts\npackages/playwright-core/src/tools/utils/mcp/server.ts\ntests/mcp/fieldwork-stdin-close.spec.ts'
+          test -z "$(git status --short)"
+          git diff --check "$base" "$source"
+          test "$(git diff --name-only "$base" "$source")" = "$expected"
+
+          {
+            echo "carrier=${{ github.event.pull_request.head.sha || github.sha }}"
+            echo "source=$source"
+            echo "base=$base"
+            echo "platform=${{ matrix.os }}"
+            echo "result=success"
+          } > "../fieldwork-receipts/unit-18-mode-aware-${{ matrix.os }}-receipt.txt"
+
+      - name: Upload platform receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: playwright-unit-18-mode-aware-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
