@@ -26,6 +26,7 @@ jobs:
           scripts/test_validate_patch_binary_marker.py
           scripts/test_validate_patch_with_git.py
           scripts/test_classify_retained_patches.py
+          scripts/test_retained_patch_index_movement.py
       - name: Classify retained patch materialization
         run: |
           python3 scripts/classify_retained_patches.py \
