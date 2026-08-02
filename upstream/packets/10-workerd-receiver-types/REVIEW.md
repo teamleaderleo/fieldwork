@@ -3,157 +3,153 @@
 ## Review subject
 
 - Work class: upstream source contribution preparation
-- Target repository: `cloudflare/workerd`
-- Proposed upstream base: `813c31394b9909d8f557bba14324db275bc12720`
+- Target: `cloudflare/workerd`
+- Public base: `813c31394b9909d8f557bba14324db275bc12720`
 - Canonical implementation branch: `teamleaderleo/workerd:unit-10/receiver-aware-types`
-- Exact implementation head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
+- Current implementation head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
 - Owned source PR: https://github.com/teamleaderleo/workerd/pull/5
-- Exact validation carrier: https://github.com/teamleaderleo/workerd/pull/9 at `8003ce7361bbb61cff0ca11c9da8b9d9d73a4c2c`
-- Visible custom workflow run: `30755457025`
+- Exact implementation/native carrier: https://github.com/teamleaderleo/workerd/pull/9 at `fbed6bc84e4de0051af069acb44d65776466f2d1`, run `30755965427`
+- Exact inherited repair carrier: https://github.com/teamleaderleo/workerd/pull/10 at `6d2d5fcc67523f75bf8e0589a291fc26576b3a35`, run `30756418899`
 - Fieldwork packet branch: `p0/435-unit-10-workerd-receiver-types`
-- Current implementation fence: ten `types/` source/test files, one commit
-- Missing required source material: regenerated `types/generated-snapshot/`
+- Current implementation fence: ten source/test files, one commit, no workflows
+- Missing final source: settled ancestry/global receiver policy plus generated snapshots
 - Upstream-contact authority: no
 
-## Exact implementation diff
-
-https://github.com/teamleaderleo/workerd/compare/813c31394b9909d8f557bba14324db275bc12720...18a117c28773cd7aa0ee599e03439c5fbbf06584
-
-The implementation branch excludes temporary workflows, publishers, Fieldwork-only files, and generated evidence artifacts. It is not yet the final proposed upstream head because required snapshot files remain to be materialized.
-
-## Current-main relation
-
-Public main advanced from the August 1 release to the August 2 release commit. The only upstream changes were:
-
-- `src/workerd/io/maximum-compatibility-date.txt`
-- `src/workerd/io/release-version.txt`
-
-The candidate was reconstructed as one commit on the exact August 2 base. The implementation head includes the static-global constant repair plus callback-erasure and renamed-replacement controls.
-
-## Required snapshot relation
-
-Current `types/AGENTS.md` says generated snapshots must be regenerated and committed for any type change. `just generate-types` builds `//types` and replaces `types/generated-snapshot/` with `bazel-bin/types/definitions/`. The repository's `check-snapshot` job compares those trees and uploads the generated output when they differ.
-
-Therefore the ten-file implementation fence is coherent but incomplete for publication. The next canonical source head must include reviewed snapshot files generated from exact implementation head `18a117c…`.
-
-## Review routing
-
-Current CODEOWNERS routes `/types/` to `@cloudflare/wrangler`. Files under `/types/generated-snapshot/experimental/` additionally route to `@cloudflare/workers-runtime-1` and `@cloudflare/workers-durable-objects`.
-
-Final human review should therefore include:
-
-1. a declaration-generation/types reviewer for public TypeScript compatibility, snapshot integrity, and editor behavior;
-2. a JSG/runtime reviewer for owning-signature coverage, inherited owner semantics, and any intentionally detachable operation;
-3. runtime/Durable Objects review if experimental snapshots change materially.
-
-Recent type PR #6781 received human approvals from `ryanking13` and `emily-shen`, confirming active review in this area, but no reviewer request is authorized by this unit.
-
-## Claims requiring judgment
-
-| Claim | Evidence | Reviewer challenge |
-| --- | --- | --- |
-| Ordinary JSG methods require an owning receiver | public issue #6904 source trace and native matrix | find a current ordinary `JSG_METHOD` whose runtime registration deliberately omits the owning signature |
-| Iterator and disposal symbols are owning method surfaces | current `registerIterable`, `registerAsyncIterable`, `registerDispose`, and `registerAsyncDispose` use `MethodCallback` with `signature` | find a symbol registration that emits a generated method but does not carry the signature |
-| Callable resource instances are outside this change | `registerCallable` uses an instance call handler and the generator models a call signature | identify a named method declaration incorrectly omitted by this boundary |
-| Receiver-independent instance methods need distinct metadata | closed unmerged PR #2352 proposed a separate macro and registration path | identify equivalent current runtime support absent from the source search |
-| Marker provenance is required | print/reparse pipeline plus override/global transforms | propose a smaller durable identity mechanism that survives reparse |
-| Context-global receiver union matches workerd | native matrix and type fixture | inspect `globalThis`, `self`, nullish, detached, callback-widened, and recursive output |
-| Full replacements must use replacement generics and emitted names | four standalone controls including `RenamedOwner<U>` | find another type-parameter or rename ownership case |
-| Checker plus transformed top-level lookup is required | same-name lexical regression and discriminating end-to-end failure | inspect qualified nested heritage or generated declarations lacking checker symbols |
-| Static methods are excluded while constants remain ambient | exact-head review `4834296945`, `createConstantPartial()`, and strict global output control | find another static property category whose prior extraction differs from constants |
-| Generated snapshots are required source | `types/AGENTS.md`, `just generate-types`, and `check-snapshot` workflow | show a current accepted type-generator PR that omits intentional snapshot changes |
-| One implementation commit is the correct presentation | transform ordering and per-commit invariant analysis | produce a split where every intermediate commit preserves legal globals, override receivers, constants, and green tests |
-
-## Source review history
-
-- `e7b15f8014e8ed49255d2f0c6774f0b3bfe1714a`: repaired simple-name lexical heritage resolution.
-- `54926f86c95185a7b83b2bf1ea901c35876a9a58`: repaired generic full-replacement receiver specialization.
-- `0ecc0a6632747031a6650c49a401760e511c9f36`: technical review `4827890474` accepted the repaired source and required execution.
-- validation run `30690050452`: end-to-end target failed while three focused transform targets passed; failure showed inherited global receiver loss.
-- repaired validation run `30690396598`: four focused targets passed after transformed top-level heritage lookup was added.
-- PR #5 review `4834296945`: found blanket static exclusion removed generated ambient constants; requested method-only exclusion and a retained constant control.
-- `cde837e5ba5b1ecc5295ec9957146feaf1160707`: reconstructed on August 2 base with method-only static exclusion and constant preservation.
-- `18a117c28773cd7aa0ee599e03439c5fbbf06584`: current implementation adding renamed generic replacement ownership control.
-- PR #9 `8003ce7361bbb61cff0ca11c9da8b9d9d73a4c2c`: exact-head execution and generated-snapshot carrier.
-
-The previous packet statement that static ambient expectations were stale was wrong. Static method extraction was stale; static property/constant extraction remains required.
-
-## Staleness and duplicate check
-
-- Current public head checked: `813c31394b9909d8f557bba14324db275bc12720`.
-- Relevant source paths changed upstream since the prior base: no.
-- Open duplicate search: issue #6904 only; no competing public implementation PR found.
-- Current project guidance checked: `AGENTS.md`, `types/AGENTS.md`, `.opencode/agent/submit.md`, `justfile`, `.github/workflows/test.yml`, and `.github/CODEOWNERS`.
-- Guidance implications applied:
-  - exact current-main base;
-  - source and target-native tests only on the implementation branch;
-  - one atomic implementation commit with no fixups;
-  - AI assistance disclosed in commit and PR text;
-  - type-level tests included;
-  - generated snapshots must be materialized;
-  - ambient and importable generated output must be reviewed.
-
-## Source cleanliness
-
-- [x] No Fieldwork-only files in implementation diff.
-- [x] No temporary workflows or publishers in source PR #5.
-- [x] No stale execution artifacts in source PR #5.
-- [x] No dependency or lockfile churn.
-- [x] One clean implementation commit against current public main.
-- [x] Commit message contains current AI-assistance disclosure.
-- [x] Owned PR description contains current AI-assistance disclosure.
-- [x] Commit-pinned code and test links recorded in the packet.
-- [ ] Required generated snapshots materialized on the clean source branch.
-- [ ] Final source branch re-reviewed after snapshot materialization.
-
-## Test review
-
-- [x] Runtime/application matrix executed and merged in the owned testbed.
-- [x] TypeScript receiver and erasure model executed.
-- [x] Repaired-head lint passed.
-- [x] Repaired-head generator, globals, overrides, and replacement-generic targets passed before final controls.
-- [x] Discriminating pre-transform-heritage failure retained and explained.
-- [x] Static constant regression found through complete-diff review and repaired in source plus expected output.
-- [ ] PR #9 final-head static constant and static method control executed.
-- [ ] PR #9 final-head renamed replacement control executed.
-- [ ] PR #9 final-head callback-erasure type fixture executed.
-- [ ] PR #9 complete `//types/...` package executed.
-- [ ] PR #9 types lint and generation completed.
-- [ ] Generated snapshot artifact inspected and accepted.
-- [ ] Snapshot files materialized on a new exact source head.
-- [ ] Independent complete-diff acceptance at final source-and-snapshot head.
-
-## Compatibility review focus
-
-1. Count changed methods and declaration files in both ambient and importable output.
-2. Confirm no `__JSG_GENERATED_RECEIVER__` marker leakage.
-3. Confirm every receiver owner type resolves and no replacement generic or original renamed owner remains.
-4. Inspect global unions for recursion or editor-performance growth.
-5. Sample receiver output across `fetch`, `EventTarget`, Web Crypto, URL, Headers, FormData, streams, WebSocket, SQL, iterator-bearing APIs, and disposal symbols.
-6. Verify explicit handwritten `this: void` and custom unions remain byte-for-byte stable.
-7. Verify static methods remain receiver-free and absent from ambient function extraction.
-8. Verify static generated constants remain present and unchanged.
-9. Verify callable resource call signatures remain unchanged.
-10. Search for any current API intentionally detachable despite ordinary owning registration; retain a negative result if none exists.
-11. Confirm ordinary callback assignment remains accepted and exact receiver-aware property calls reject unrelated holders.
-12. Identify every generated snapshot file required on source PR #5.
-13. Check standalone workerd output requirements against any additional snapshot obligations when the repository is consumed as a submodule of the larger Workers tree.
-
-## Known limits
-
-- receiver widening can be erased by plain callback types;
-- `Reflect.apply()` accepts an `any` receiver in TypeScript and remains runtime-checked only;
-- callable resources and property accessors are separate declaration surfaces;
-- a future detached-method registration path would need RTTI and generator support;
-- qualified heritage resolving to a transformed nested declaration is outside the current generated source model;
-- generated-output size and editor impact remain unmeasured;
-- the current implementation head is not a complete publication branch without snapshots.
-
-## Reviewer disposition
+## Current disposition
 
 **REPAIR**
 
-Reviewed implementation head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`  
-Reason: current-main reconciliation, static constant repair, renamed replacement control, duplicate search, commit atomicity, AI disclosure, and runtime registration analysis are coherent. Target policy nevertheless requires generated snapshots that are not yet present on source PR #5.  
-Clearing condition: let PR #9 generate and test exact output, inspect the artifact, materialize accepted snapshots onto source PR #5, retire the carrier, and obtain independent complete-diff `ACCEPT` on the new exact head.  
-Reviewer eligibility: this file is coordinator/self-review; final acceptance should come from independent type-generation and runtime reviewers.
+The current implementation is not the final review subject. It remains the exact source fence from which two independent decisions are being executed:
+
+1. whether generated receiver widening must apply to original declarations throughout the exact Worker-global ancestry;
+2. whether the global member in that union should be `typeof globalThis` or `ServiceWorkerGlobalScope`.
+
+The final review begins only after those decisions are materialized and generator-produced snapshots are committed.
+
+## Current implementation diff
+
+https://github.com/teamleaderleo/workerd/compare/813c31394b9909d8f557bba14324db275bc12720...18a117c28773cd7aa0ee599e03439c5fbbf06584
+
+Current source contains no workflows, Fieldwork files, dependency churn, or hand-edited snapshots.
+
+## Required final history
+
+Recent merged workerd type changes support this two-commit shape:
+
+1. atomic implementation plus target-native tests;
+2. CI-generated latest and experimental ambient/importable snapshots.
+
+Every snapshot file must match generator output. Carrier workflows must be closed and absent from both commits.
+
+## Active technical decisions
+
+### Inherited Worker-global declarations
+
+Current source widens extracted ambient functions but leaves original ancestor declarations owner-only. The TypeScript model rejects detached `self.addEventListener` calls that V8 source predicts are legal after nullish-to-global-proxy conversion.
+
+Review must require agreement between:
+
+- PR #9 native workerd probe;
+- PR #10 ancestry repair model;
+- exact generated output.
+
+If confirmed, only declarations in the transformed `ServiceWorkerGlobalScope` ancestry should widen. Non-ancestry owners remain strict.
+
+### Global receiver member
+
+Current source uses `typeof globalThis`. Importable output resolves that against the consumer host, which can admit Node or browser globals unrelated to workerd.
+
+Prefer `ServiceWorkerGlobalScope` if generated latest and experimental ambient bundles prove:
+
+```ts
+const workerGlobal: ServiceWorkerGlobalScope = globalThis;
+```
+
+Retain `typeof globalThis` only with explicit evidence that the root-interface form rejects the real Workers global or causes a larger regression.
+
+## Claims requiring judgment
+
+| Claim | Current evidence | Reviewer challenge |
+| --- | --- | --- |
+| Ordinary JSG methods require an owner | JSG registration and native matrix | find an ordinary registration that omits the owning signature |
+| Iterator and disposal symbol methods are owning | current `resource.h` registration | find a generated symbol method with different receiver semantics |
+| Callable resource signatures are separate | instance call-handler registration | identify a named method incorrectly excluded |
+| Detached instance operations need metadata | no current detached path; closed PR #2352 | identify current equivalent runtime support |
+| Receiver provenance must survive reparse | generator/override/global pipeline | propose a smaller durable mechanism |
+| Transformed heritage must be followed | discriminating failed and repaired runs | find a transformed hierarchy still resolved to stale source |
+| Static methods and constants have different global behavior | review `4834296945` and strict fixture | identify another static property category with different prior behavior |
+| Replacement owners use emitted names/generics | four replacement controls | find an unresolved rename or generic ownership case |
+| Worker-global ancestors need widening | V8 source and TS model; native run pending | produce a native counterexample |
+| Root interface can replace host `globalThis` | generated assertion pending | show missing or incompatible Worker-global members |
+| Snapshots are mandatory | target instructions, just recipe, check-snapshot | show accepted generator work without matching snapshots |
+| Two-commit packaging is acceptable | recent merged type PR history | identify target policy requiring one squashed commit |
+
+## Executed evidence retained
+
+- downstream native/runtime matrix and production wrapper passed;
+- TypeScript direct receiver and callback-erasure models passed;
+- implementation ergonomics model passed for classes, literals, overrides, callbacks, `OmitThisParameter`, and partial-holder rejection;
+- mixed `lib.dom` overload model demonstrated that receiver-free merged overloads can neutralize diagnostics;
+- pre-repair transformed-heritage run failed on the discriminating assertion;
+- repaired transformed-heritage focused run passed;
+- repaired-head lint passed;
+- static constant regression was found by exact-diff review and repaired in source/test expectations.
+
+Queued carrier jobs remain execution state only.
+
+## Final source cleanliness checklist
+
+- [ ] ancestry/global receiver decisions materialized on source PR #5;
+- [ ] implementation commit contains only source and target-native tests;
+- [ ] generated snapshot commit contains only exact generator output;
+- [ ] no workflow or evidence-only files;
+- [ ] no Fieldwork terminology in public source or snapshots;
+- [ ] no dependency or lockfile churn;
+- [ ] commit and PR AI disclosure current;
+- [ ] public base current and relevant paths reconciled;
+- [ ] carrier PRs closed and clearly superseded.
+
+## Final execution checklist
+
+- [ ] native inherited-global probe passed or produced a retained counterexample;
+- [ ] focused generator, override, globals, replacement, fetch, and inherited-global targets passed;
+- [ ] complete `//types/...` passed;
+- [ ] types lint passed;
+- [ ] `bazelisk build //types` passed;
+- [ ] latest and experimental ambient/importable bundles type-checked;
+- [ ] `check-snapshot` passed on the committed snapshot tree;
+- [ ] no `__JSG_GENERATED_RECEIVER__` leakage;
+- [ ] every receiver owner resolves;
+- [ ] static constants and callable signatures unchanged where expected;
+- [ ] no duplicate inherited overloads;
+- [ ] output size and `typeof globalThis`/root-interface complexity reviewed.
+
+## Compatibility review checklist
+
+- [ ] direct unrelated-holder calls rejected;
+- [ ] bare/nullish/global/owning calls accepted only where runtime permits;
+- [ ] non-global owners remain strict;
+- [ ] explicit handwritten `this: void` and custom unions unchanged;
+- [ ] user implementations and overrides remain source-compatible;
+- [ ] receiver-free callback assignment and `OmitThisParameter` remain valid;
+- [ ] partial-holder rejection documented;
+- [ ] structural fake limitation documented;
+- [ ] mixed DOM/Web overload limitation documented;
+- [ ] importable consumer-host global limitation eliminated or disclosed;
+- [ ] no nominal-safety claim made.
+
+## Review routing
+
+Current CODEOWNERS routes `/types/` to the Wrangler team. Experimental snapshots additionally route to runtime and Durable Objects teams.
+
+Final acceptance should include independent judgment from:
+
+1. a Workers types/declaration-generation reviewer;
+2. a JSG/runtime reviewer;
+3. runtime/Durable Objects reviewers when experimental output changes materially.
+
+No review request is authorized yet.
+
+## Clearing condition
+
+Choose and execute the inherited ancestry and global receiver designs, materialize one implementation commit plus one generated snapshot commit, run the complete exact-head gates, close both carriers, then obtain independent `ACCEPT` or a concrete new `REPAIR` finding on the final source-and-snapshot head.
