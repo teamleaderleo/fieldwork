@@ -26,8 +26,13 @@ Therefore the existing Job helper cannot be cited as a full generated-installer 
 ## Experiment 1 — strict versus silent breakaway
 
 Owned draft: `teamleaderleo/uv#19`  
-Exact head: `c9523e056abf72eeb073a93c4668e769d293f8a8`  
-Workflow: `30755300973`, queued at latest review
+Exact head: `6098dab64d959f9cf40fb44bbd8d4849c3aa9239`  
+Exact base: public candidate `77e107dd2665f660c461998bc83174bf26ee7cf6`  
+Current workflow: `30755830232`, queued at latest review
+
+Superseded execution head/run: `c9523e056abf72eeb073a93c4668e769d293f8a8` / `30755300973`.
+
+The current head gates Windows-only imports so broad Linux all-target checks do not fail before the Windows experiment runs.
 
 The experiment adds `Job::new_strict_tree`, retaining kill-on-close but omitting silent breakaway.
 
@@ -45,10 +50,13 @@ This is a policy discriminator, not product authorization. Microsoft also docume
 ## Experiment 2 — direct updater integration
 
 Owned stacked draft: `teamleaderleo/uv#20`  
-Exact head: `ea1fa9526d31a243a0a8cf2722c82e3b13ea9c08`  
-Exact base: experiment 1 head `c9523e056abf72eeb073a93c4668e769d293f8a8`
+Exact current head: `1e9fb3a337393ef72729877111455835f248bb1e`  
+Exact base: experiment 1 head `6098dab64d959f9cf40fb44bbd8d4849c3aa9239`
 
-Current workflow: `30755559888`, queued at latest review.
+Current workflow: `30755883089`, queued at latest review.  
+Current broad CI: `30755883261`, pending.
+
+Superseded integration heads/runs are retained in the PR history; they must not be used as current receipts.
 
 The branch retains one inspectable source generator:
 
@@ -73,12 +81,22 @@ The test fixture cannot spawn its delayed descendant until post-assignment callb
 
 Workflow has two gates:
 
-- Ubuntu cross-target `cargo check` for injected Windows code;
+- Ubuntu cross-target `cargo check` for generated Windows code;
 - Windows target execution for real process-tree behavior.
+
+### Static repairs before execution
+
+- extracted source transform from workflow-only heredoc into committed patch generator;
+- added Ubuntu cross-target compile lane;
+- gated inherited Windows-only experiment imports;
+- merged exact repaired base head into stack through maintenance PR `teamleaderleo/uv#21`;
+- narrowed `unsafe_code` allowances to raw-handle adapter and generated assignment helper;
+- removed unnecessary mutable binding;
+- repaired malformed pinned receipt-uploader SHA found during diff review.
 
 ## Remaining creation race
 
-The test eliminates race by using cooperative gate. Proposed injected production code does not: it calls `spawn()` and then assigns returned process handle.
+The test eliminates race by using cooperative gate. Proposed generated production code does not: it calls `spawn()` and then assigns returned process handle.
 
 A real installer can execute before assignment and could create descendant during this interval. Faster assignment is not correctness boundary.
 
@@ -178,8 +196,9 @@ Responsibilities:
 
 - direct-child cancellation: present;
 - whole-tree guarantee with current Job policy: false by construction;
-- strict policy synthetic discriminator: queued;
-- strict updater integration with gated descendant: queued;
+- strict policy synthetic discriminator: queued at exact current head;
+- strict updater integration with gated descendant: queued at exact current head;
+- cross-target generated-source compile: queued in current integration workflow;
 - race-free production launcher: design only;
 - real generated-installer compatibility: unexecuted.
 
