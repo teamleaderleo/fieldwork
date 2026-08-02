@@ -1,4 +1,4 @@
-name: fieldwork-435-unit-24-crossrepo-exact
+name: fieldwork-435-unit-24-package-control
 
 on:
   pull_request:
@@ -6,13 +6,16 @@ on:
       - p0/435-unit-24-codex-responses-lite-first-request
     paths:
       - .github/workflows/fieldwork-435-unit-24-crossrepo-exact.yml
+  workflow_dispatch:
 
 concurrency:
-  group: fieldwork-435-unit-24-crossrepo-exact
+  group: fieldwork-435-unit-24-package-control-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
+  issues: write
+  pull-requests: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -21,113 +24,33 @@ env:
   SOURCE_BASE: ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff
 
 jobs:
-  exact-smoke:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 120
-    steps:
-      - name: Check out exact Codex source
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          repository: ${{ env.SOURCE_REPO }}
-          ref: ${{ env.SOURCE_HEAD }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Verify immutable source fence
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
-          test "$(git rev-parse HEAD^)" = "$SOURCE_BASE"
-          source_files="$(git diff --name-only "$SOURCE_BASE" "$SOURCE_HEAD" | sort)"
-          expected="$(printf '%s\n' \
-            codex-rs/core/src/client.rs \
-            codex-rs/core/tests/suite/agent_websocket.rs \
-            codex-rs/core/tests/suite/client_websockets.rs | sort)"
-          printf 'source files:\n%s\n' "$source_files"
-          test "$source_files" = "$expected"
-          echo 'FIELDWORK_LITE_CURRENT_SOURCE_FENCE=3/3'
-
-      - uses: ./.github/actions/setup-ci
-
-      - uses: dtolnay/rust-toolchain@e081816240890017053eacbb1bdf337761dc5582
-        with:
-          toolchain: 1.95.0
-          components: rustfmt
-
-      - name: Check formatting
-        run: |
-          set -euo pipefail
-          cd codex-rs
-          cargo fmt --all -- --check
-          echo 'FIELDWORK_LITE_CURRENT_FORMAT=PASS'
-
-      - name: Resolve and run exact client controls
-        run: |
-          set -euo pipefail
-          cd codex-rs
-          cargo test -p codex-core --test all --locked -- --list > /tmp/lite-tests.list
-          suffixes=(
-            responses_lite_reuses_generated_response_after_full_first_turn
-            responses_lite_retries_full_first_turn_after_failed_generation
-          )
-          executed=0
-          for suffix in "${suffixes[@]}"; do
-            mapfile -t matches < <(sed -n 's/: test$//p' /tmp/lite-tests.list | grep "${suffix}$")
-            printf '%s matches: %s\n' "$suffix" "${matches[*]:-<none>}"
-            test "${#matches[@]}" -eq 1
-            cargo test -p codex-core --test all --locked "${matches[0]}" -- --exact --nocapture
-            executed=$((executed + 1))
-          done
-          test "$executed" -eq 2
-          echo 'FIELDWORK_LITE_CURRENT_CLIENT_EXACT=2/2'
-
-      - name: Run exact agent control and classify default stack
-        run: |
-          set -euo pipefail
-          cd codex-rs
-          suffix=websocket_first_responses_lite_turn_sends_exact_current_request_after_startup_prewarm
-          cargo test -p codex-core --test all --locked -- --list > /tmp/lite-agent-tests.list
-          mapfile -t matches < <(sed -n 's/: test$//p' /tmp/lite-agent-tests.list | grep "${suffix}$")
-          printf '%s matches: %s\n' "$suffix" "${matches[*]:-<none>}"
-          test "${#matches[@]}" -eq 1
-
-          set +e
-          cargo test -p codex-core --test all --locked "${matches[0]}" -- --exact --nocapture 2>&1 | tee /tmp/lite-default.log
-          default_status=${PIPESTATUS[0]}
-          RUST_MIN_STACK=16777216 cargo test -p codex-core --test all --locked "${matches[0]}" -- --exact --nocapture 2>&1 | tee /tmp/lite-large.log
-          large_status=${PIPESTATUS[0]}
-          set -e
-
-          test "$large_status" -eq 0
-          if test "$default_status" -ne 0; then
-            grep -E 'stack overflow|has overflowed its stack' /tmp/lite-default.log
-          fi
-          echo "FIELDWORK_LITE_CURRENT_AGENT=default:${default_status};large:${large_status}"
-
-      - name: Verify clean source worktree
-        run: |
-          set -euo pipefail
-          git diff --check
-          test -z "$(git status --porcelain)"
-          echo 'FIELDWORK_LITE_CURRENT_SMOKE_WORKTREE=CLEAN'
-
-  ordinary-gates:
+  package-control:
+    name: package-control (${{ matrix.label }})
     runs-on: ubuntu-24.04
     timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: candidate
+            source_sha: 9fd4ba575de8dd77bc411362256591ce9e7d8c82
+          - label: base
+            source_sha: ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff
     steps:
-      - name: Check out exact Codex source
+      - name: Check out exact Codex revision
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: ${{ env.SOURCE_REPO }}
-          ref: ${{ env.SOURCE_HEAD }}
+          ref: ${{ matrix.source_sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify immutable source identity
+      - name: Verify immutable revision
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
-          test "$(git rev-parse HEAD^)" = "$SOURCE_BASE"
+          test "$(git rev-parse HEAD)" = "${{ matrix.source_sha }}"
+          printf 'FIELDWORK_LITE_PACKAGE_CONTROL_REVISION=%s:%s\n' \
+            '${{ matrix.label }}' '${{ matrix.source_sha }}'
 
       - uses: ./.github/actions/setup-ci
 
@@ -136,23 +59,109 @@ jobs:
           toolchain: 1.95.0
           components: rustfmt
 
-      - name: Run focused codex-core ordinary gate with raised worker stack
+      - name: Run codex-core package gate and retain output
+        id: package
         env:
           RUST_MIN_STACK: 33554432
         run: |
-          set -euo pipefail
-          just test -p codex-core
-          echo 'FIELDWORK_LITE_CURRENT_CORE_RAISED_STACK=PASS'
+          set +e
+          just test -p codex-core 2>&1 | tee /tmp/package.log
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          printf 'FIELDWORK_LITE_PACKAGE_CONTROL=%s:%s\n' '${{ matrix.label }}' "$status"
 
-      - name: Run target-native codex-core fix gate
+      - name: Run target-native fix gate and retain output
+        id: fix
+        if: always()
+        run: |
+          set +e
+          just fix -p codex-core 2>&1 | tee /tmp/fix.log
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          printf 'FIELDWORK_LITE_FIX_CONTROL=%s:%s\n' '${{ matrix.label }}' "$status"
+
+      - name: Record worktree state
+        id: tree
+        if: always()
+        run: |
+          set +e
+          git diff --check >/tmp/diff-check.log 2>&1
+          diff_status=$?
+          git status --porcelain > /tmp/status.log
+          if test -s /tmp/status.log; then
+            clean=0
+          else
+            clean=1
+          fi
+          set -e
+          echo "diff_status=$diff_status" >> "$GITHUB_OUTPUT"
+          echo "clean=$clean" >> "$GITHUB_OUTPUT"
+          printf 'FIELDWORK_LITE_WORKTREE_CONTROL=%s:diff=%s;clean=%s\n' \
+            '${{ matrix.label }}' "$diff_status" "$clean"
+
+      - name: Post concise control report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_STATUS: ${{ steps.package.outputs.status }}
+          FIX_STATUS: ${{ steps.fix.outputs.status }}
+          DIFF_STATUS: ${{ steps.tree.outputs.diff_status }}
+          TREE_CLEAN: ${{ steps.tree.outputs.clean }}
         run: |
           set -euo pipefail
-          just fix -p codex-core
-          echo 'FIELDWORK_LITE_CURRENT_FIX=PASS'
+          package_status="${PACKAGE_STATUS:-missing}"
+          fix_status="${FIX_STATUS:-missing}"
+          diff_status="${DIFF_STATUS:-missing}"
+          tree_clean="${TREE_CLEAN:-missing}"
+          {
+            echo '## Unit 24 package control — ${{ matrix.label }}'
+            echo
+            echo '- revision: `${{ matrix.source_sha }}`'
+            echo "- package gate exit: \`$package_status\`"
+            echo "- fix gate exit: \`$fix_status\`"
+            echo "- diff-check exit: \`$diff_status\`"
+            echo "- worktree clean: \`$tree_clean\`"
+            echo
+            echo '<details><summary>Package failure/result markers</summary>'
+            echo
+            echo '```text'
+            grep -E '(^error:|^failures:|test result:|FAILED|panicked at|failures:$|Caused by:)' /tmp/package.log 2>/dev/null | tail -n 240 || true
+            echo '```'
+            echo '</details>'
+            echo
+            echo '<details><summary>Fix-gate failure/result markers</summary>'
+            echo
+            echo '```text'
+            grep -E '(^error:|^warning:|FAILED|panicked at|Caused by:)' /tmp/fix.log 2>/dev/null | tail -n 120 || true
+            echo '```'
+            echo '</details>'
+            if test -s /tmp/status.log; then
+              echo
+              echo '<details><summary>Changed worktree paths</summary>'
+              echo
+              echo '```text'
+              cat /tmp/status.log
+              echo '```'
+              echo '</details>'
+            fi
+          } > /tmp/report.md
+          cat /tmp/report.md
+          gh api "repos/${GITHUB_REPOSITORY}/issues/459/comments" \
+            --method POST \
+            --raw-field body="$(cat /tmp/report.md)"
 
-      - name: Verify clean source worktree
+      - name: Enforce control result
+        if: always()
+        env:
+          PACKAGE_STATUS: ${{ steps.package.outputs.status }}
+          FIX_STATUS: ${{ steps.fix.outputs.status }}
+          DIFF_STATUS: ${{ steps.tree.outputs.diff_status }}
+          TREE_CLEAN: ${{ steps.tree.outputs.clean }}
         run: |
           set -euo pipefail
-          git diff --check
-          test -z "$(git status --porcelain)"
-          echo 'FIELDWORK_LITE_CURRENT_WORKTREE=CLEAN'
+          test "${PACKAGE_STATUS:-missing}" = 0
+          test "${FIX_STATUS:-missing}" = 0
+          test "${DIFF_STATUS:-missing}" = 0
+          test "${TREE_CLEAN:-missing}" = 1
