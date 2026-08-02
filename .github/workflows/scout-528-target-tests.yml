@@ -37,13 +37,14 @@ jobs:
           repository: TanStack/ai
           ref: 6feb5644a38073c5865f7b4ff4d64d62195e755b
           path: target
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: target/pnpm-lock.yaml
-      - name: Enable pinned package manager
-        run: corepack enable
       - name: Install target workspace
         working-directory: target
         run: pnpm install --frozen-lockfile
@@ -80,13 +81,14 @@ jobs:
         with:
           repository: teamleaderleo/ai
           ref: research/google-video-poll-deadline
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Enable pinned package manager
-        run: corepack enable
       - name: Install target workspace
         run: pnpm install --frozen-lockfile
       - name: Run legacy polling regression
