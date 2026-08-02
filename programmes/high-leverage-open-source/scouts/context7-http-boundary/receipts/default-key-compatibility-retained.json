@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 2,
+  "durableRecord": true,
+  "supersedesImmutableArtifactClaimVocabulary": true,
+  "candidate": "compatibility-retained",
+  "fieldworkHead": "8a1d2ae75d4fe0dc73c9178ba05a31abff72abee",
+  "target": {
+    "repository": "upstash/context7",
+    "head": "594a73133e14631af8c915a1b4f2c8039c964fe1",
+    "package": "@upstash/context7-mcp",
+    "node": "22",
+    "pnpm": "10"
+  },
+  "workflow": {
+    "runId": "30658005611",
+    "runAttempt": "1",
+    "jobId": "91247126130",
+    "status": "success"
+  },
+  "workflowSteps": {
+    "apply": "success",
+    "install": "success",
+    "format": "success",
+    "focused": "success",
+    "build": "success",
+    "fullTest": "success",
+    "lint": "success",
+    "diff": "success"
+  },
+  "focusedTests": 6,
+  "fullPackageTests": 52,
+  "artifact": {
+    "id": "8804020681",
+    "digest": "sha256:fc13c053065673e9f8179f989ca0bceaf80528f1ff5c52d814d973050e965003",
+    "appliedDiffSha256": "ec63c7f4dfa096fa1900ea920301a53d7291bbf7725b00073e567e202e49e770",
+    "changedFiles": [
+      "packages/mcp/src/lib/encryption.ts",
+      "packages/mcp/test/default-key-policy.test.ts"
+    ],
+    "selfContainedForExecutedSurface": true
+  },
+  "evidenceContext": {
+    "evidenceClass": "target-executed",
+    "fieldworkHead": "8a1d2ae75d4fe0dc73c9178ba05a31abff72abee",
+    "targetHead": "594a73133e14631af8c915a1b4f2c8039c964fe1",
+    "artifactId": "8804020681",
+    "artifactDigest": "sha256:fc13c053065673e9f8179f989ca0bceaf80528f1ff5c52d814d973050e965003",
+    "appliedDiffSha256": "ec63c7f4dfa096fa1900ea920301a53d7291bbf7725b00073e567e202e49e770"
+  },
+  "evidenceClaims": [
+    {
+      "claim": "absentAndEmptyConfiguration",
+      "supportingStep": "focused",
+      "stepStatus": "success"
+    },
+    {
+      "claim": "noClientIpNoKeyDiagnostic",
+      "supportingStep": "focused",
+      "stepStatus": "success"
+    },
+    {
+      "claim": "publicDefaultDecryptability",
+      "supportingStep": "focused",
+      "stepStatus": "success"
+    },
+    {
+      "claim": "explicitKeyCompatibility",
+      "supportingStep": "focused",
+      "stepStatus": "success"
+    },
+    {
+      "claim": "explicitCiphertextRejectsPublicFallback",
+      "supportingStep": "focused",
+      "stepStatus": "success"
+    },
+    {
+      "claim": "completeMcpCompatibility",
+      "supportingStep": "fullTest",
+      "stepStatus": "success"
+    }
+  ],
+  "reusableCandidateEvidence": true,
+  "observed": {
+    "absentKey": "public-fallback-ciphertext",
+    "emptyKey": "public-fallback-ciphertext",
+    "publicFallbackDecryptsExactSyntheticIp": true,
+    "noClientIpProducesKeyDiagnostic": false,
+    "explicitValidKeyPreserved": true,
+    "completeMcpCompatibility": true
+  },
+  "notClaimed": [
+    "hosted-provider-behavior",
+    "hosted-receiver-key-compatibility",
+    "ciphertext-authenticity",
+    "production-prevalence",
+    "upstream-acceptance",
+    "merge-readiness"
+  ],
+  "hostedProviderCall": false,
+  "credentialsUsed": false,
+  "selected": false,
+  "losingReason": "fails the client-local confidentiality criterion because absent and empty configuration use a public source constant that decrypts the exact identity value; hosted receiver preference remains unknown"
+}

@@ -1,0 +1,27 @@
+diff --git a/packages/mcp/src/lib/encryption.ts b/packages/mcp/src/lib/encryption.ts
+--- a/packages/mcp/src/lib/encryption.ts
++++ b/packages/mcp/src/lib/encryption.ts
+@@ -2,16 +2,19 @@ import { createCipheriv, randomBytes } from "crypto";
+ import { SERVER_VERSION } from "./constants.js";
+ import type { ClientContext } from "./types.js";
+ 
+-const DEFAULT_ENCRYPTION_KEY = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+-const ENCRYPTION_KEY = process.env.CLIENT_IP_ENCRYPTION_KEY || DEFAULT_ENCRYPTION_KEY;
++const ENCRYPTION_KEY = process.env.CLIENT_IP_ENCRYPTION_KEY;
+ const ALGORITHM = "aes-256-cbc";
+ 
+-function validateEncryptionKey(key: string): boolean {
++function validateEncryptionKey(key: string | undefined): key is string {
+   // Must be exactly 64 hex characters (32 bytes)
+-  return /^[0-9a-fA-F]{64}$/.test(key);
++  return typeof key === "string" && /^[0-9a-fA-F]{64}$/.test(key);
+ }
+ 
+ function encryptClientIp(clientIp: string): string | undefined {
++  if (!ENCRYPTION_KEY) {
++    console.error("CLIENT_IP_ENCRYPTION_KEY is required; omitting mcp-client-ip metadata.");
++    return undefined;
++  }
+   if (!validateEncryptionKey(ENCRYPTION_KEY)) {
+     console.error("Invalid encryption key format; omitting mcp-client-ip metadata.");
+     return undefined;
