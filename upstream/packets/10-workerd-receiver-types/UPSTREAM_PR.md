@@ -83,6 +83,10 @@ Generated constants and callable resource signatures remain unchanged by design.
 
 Generation, override preservation, global widening, cleanup, and their fixtures form one atomic implementation invariant. Required generated snapshots may be folded into that commit or retained as one adjacent generated-output commit, provided each final commit satisfies target review expectations and the complete exact head is retested.
 
+### Review routing
+
+Current CODEOWNERS routes `/types/` to the Wrangler team; experimental snapshot changes additionally route to runtime and Durable Objects teams. This change needs both TypeScript declaration compatibility review and JSG/runtime receiver-semantics review.
+
 ### AI assistance
 
 This change was developed with AI assistance. The author remains responsible for every implementation detail, test, compatibility claim, generated snapshot, and submitted line.
@@ -93,7 +97,8 @@ This change was developed with AI assistance. The author remains responsible for
 - implementation base: `813c31394b9909d8f557bba14324db275bc12720`
 - implementation head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
 - implementation compare: https://github.com/teamleaderleo/workerd/compare/813c31394b9909d8f557bba14324db275bc12720...18a117c28773cd7aa0ee599e03439c5fbbf06584
-- snapshot carrier: https://github.com/teamleaderleo/workerd/pull/9 at `c232e306a796c4d9d43c9a72b5fd810f6f150082`
+- snapshot carrier: https://github.com/teamleaderleo/workerd/pull/9 at `8003ce7361bbb61cff0ca11c9da8b9d9d73a4c2c`
+- visible custom run: `30755457025`
 - final source head: pending snapshot materialization
 
 ## Publication checklist
