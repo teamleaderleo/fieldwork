@@ -58,7 +58,10 @@ class IdentityReceipt:
     head_sha: str
     event_base_sha: str | None
     observed_base_sha: str | None
-    base_current: bool | None
+    merge_base_sha: str | None
+    event_base_current: bool | None
+    merge_base_current: bool | None
+    event_merge_base_match: bool | None
     event_before_sha: str | None
     push_update_kind: str | None
     event_sha: str
@@ -136,6 +139,27 @@ def _gate_outcome(commands: tuple[TechnicalCommandReceipt, ...]) -> str:
     return "skipped"
 
 
+def _reject_duplicate_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise IdentityError(f"duplicate JSON object member: {key!r}")
+        result[key] = value
+    return result
+
+
+def _reject_nonstandard_constant(value: str) -> None:
+    raise IdentityError(f"non-standard JSON constant: {value}")
+
+
+def _strict_json_loads(text: str) -> Any:
+    return json.loads(
+        text,
+        object_pairs_hook=_reject_duplicate_object,
+        parse_constant=_reject_nonstandard_constant,
+    )
+
+
 def classify_identity(
     *,
     checkout_sha: Any,
@@ -147,11 +171,8 @@ def classify_identity(
     checkout = _require_sha(checkout_sha, "checkout_sha")
     head = _require_sha(head_sha, "head_sha")
     event = _require_sha(event_sha, "event_sha")
-    base = (
-        None
-        if event_base_sha is None
-        else _require_sha(event_base_sha, "event_base_sha")
-    )
+    if event_base_sha is not None:
+        _require_sha(event_base_sha, "event_base_sha")
     if type(parents) not in {list, tuple}:
         raise IdentityError("parents must be an exact list or tuple")
     parent_values = tuple(
@@ -165,13 +186,7 @@ def classify_identity(
 
     if checkout == head:
         return "exact-head"
-    if (
-        base is not None
-        and checkout == event
-        and len(parent_values) == 2
-        and parent_values[0] == base
-        and parent_values[1] == head
-    ):
+    if checkout == event and len(parent_values) == 2 and parent_values[1] == head:
         return "synthetic-merge-ref"
     return "other-checkout"
 
@@ -196,7 +211,10 @@ def build_receipt(data: Any) -> IdentityReceipt:
 
     event_base_sha: str | None
     observed_base_sha: str | None
-    base_current: bool | None
+    merge_base_sha: str | None
+    event_base_current: bool | None
+    merge_base_current: bool | None
+    event_merge_base_match: bool | None
     event_before_sha: str | None
     push_update_kind: str | None
 
@@ -215,7 +233,7 @@ def build_receipt(data: Any) -> IdentityReceipt:
         _require_null(data["push_forced"], "push_forced")
         event_before_sha = None
         push_update_kind = None
-        base_current = event_base_sha == observed_base_sha
+        event_base_current = event_base_sha == observed_base_sha
         if head_sha == event_base_sha:
             raise IdentityError(
                 "pull_request head_sha and event_base_sha must differ"
@@ -235,7 +253,7 @@ def build_receipt(data: Any) -> IdentityReceipt:
         _require_null(data["observed_base_sha"], "observed_base_sha")
         event_base_sha = None
         observed_base_sha = None
-        base_current = None
+        event_base_current = None
         event_before_sha = _require_sha(
             data["event_before_sha"], "event_before_sha"
         )
@@ -265,6 +283,17 @@ def build_receipt(data: Any) -> IdentityReceipt:
     )
     parents = tuple(parents_value)
 
+    if classification == "synthetic-merge-ref":
+        if event_name != "pull_request":
+            raise IdentityError("synthetic merge classification requires pull_request")
+        merge_base_sha = parents[0]
+        merge_base_current = merge_base_sha == observed_base_sha
+        event_merge_base_match = merge_base_sha == event_base_sha
+    else:
+        merge_base_sha = None
+        merge_base_current = None
+        event_merge_base_match = None
+
     run_id = _require_string(data["run_id"], "run_id")
     run_attempt = _require_string(data["run_attempt"], "run_attempt")
     if not run_id.isdecimal() or int(run_id) <= 0:
@@ -288,19 +317,22 @@ def build_receipt(data: Any) -> IdentityReceipt:
         and classification in {"exact-head", "synthetic-merge-ref"}
     )
     current_integration_evidence = (
-        reusable_evidence and bool(base_current)
+        reusable_evidence and bool(merge_base_current)
         if classification == "synthetic-merge-ref"
         else None
     )
 
     return IdentityReceipt(
-        schema_version=2,
+        schema_version=3,
         classification=classification,
         checkout_sha=checkout_sha,
         head_sha=head_sha,
         event_base_sha=event_base_sha,
         observed_base_sha=observed_base_sha,
-        base_current=base_current,
+        merge_base_sha=merge_base_sha,
+        event_base_current=event_base_current,
+        merge_base_current=merge_base_current,
+        event_merge_base_match=event_merge_base_match,
         event_before_sha=event_before_sha,
         push_update_kind=push_update_kind,
         event_sha=event_sha,
@@ -321,8 +353,8 @@ def build_receipt(data: Any) -> IdentityReceipt:
 
 def _read_input(path: str) -> Any:
     if path == "-":
-        return json.load(sys.stdin)
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+        return _strict_json_loads(sys.stdin.read())
+    return _strict_json_loads(Path(path).read_text(encoding="utf-8"))
 
 
 def build_parser() -> argparse.ArgumentParser:

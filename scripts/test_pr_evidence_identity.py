@@ -14,12 +14,12 @@ from scripts.audit_pr_evidence_identity import (
 )
 
 
-BASE = "1" * 40
+EVENT_BASE = "1" * 40
 HEAD = "2" * 40
 MERGE = "3" * 40
 OTHER = "4" * 40
 PARENT = "5" * 40
-NEW_BASE = "6" * 40
+OBSERVED_BASE = "6" * 40
 ZERO = "0" * 40
 COMMANDS = [
     {"command": "node scripts/test_interaction_references.js", "outcome": "success"},
@@ -36,8 +36,8 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
         data: dict[str, object] = {
             "checkout_sha": HEAD,
             "head_sha": HEAD,
-            "event_base_sha": BASE,
-            "observed_base_sha": BASE,
+            "event_base_sha": EVENT_BASE,
+            "observed_base_sha": EVENT_BASE,
             "event_before_sha": None,
             "push_forced": None,
             "event_sha": MERGE,
@@ -63,11 +63,11 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
             event_sha=HEAD,
             event_base_sha=None,
             observed_base_sha=None,
-            event_before_sha=BASE,
+            event_before_sha=EVENT_BASE,
             push_forced=False,
             head_ref="",
             base_ref="",
-            parents=[BASE],
+            parents=[EVENT_BASE],
         )
         data.update(overrides)
         return data
@@ -75,44 +75,70 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
     def test_exact_head_checkout(self) -> None:
         receipt = build_receipt(self.receipt())
         self.assertEqual(receipt.classification, "exact-head")
-        self.assertTrue(receipt.base_current)
+        self.assertTrue(receipt.event_base_current)
+        self.assertIsNone(receipt.merge_base_sha)
+        self.assertIsNone(receipt.merge_base_current)
+        self.assertIsNone(receipt.event_merge_base_match)
         self.assertIsNone(receipt.current_integration_evidence)
         self.assertTrue(receipt.reusable_evidence)
-        self.assertEqual(receipt.schema_version, 2)
+        self.assertEqual(receipt.schema_version, 3)
 
     def test_synthetic_merge_ref_checkout(self) -> None:
         receipt = build_receipt(
             self.receipt(
                 checkout_sha=MERGE,
-                parents=[BASE, HEAD],
+                parents=[EVENT_BASE, HEAD],
                 expected="synthetic-merge-ref",
             )
         )
         self.assertEqual(receipt.classification, "synthetic-merge-ref")
-        self.assertEqual(receipt.parents, (BASE, HEAD))
-        self.assertTrue(receipt.base_current)
+        self.assertEqual(receipt.parents, (EVENT_BASE, HEAD))
+        self.assertEqual(receipt.merge_base_sha, EVENT_BASE)
+        self.assertTrue(receipt.event_base_current)
+        self.assertTrue(receipt.merge_base_current)
+        self.assertTrue(receipt.event_merge_base_match)
+        self.assertTrue(receipt.current_integration_evidence)
+
+    def test_stale_payload_base_does_not_misclassify_current_merge(self) -> None:
+        receipt = build_receipt(
+            self.receipt(
+                checkout_sha=MERGE,
+                observed_base_sha=OBSERVED_BASE,
+                parents=[OBSERVED_BASE, HEAD],
+                expected="synthetic-merge-ref",
+            )
+        )
+        self.assertEqual(receipt.classification, "synthetic-merge-ref")
+        self.assertEqual(receipt.event_base_sha, EVENT_BASE)
+        self.assertEqual(receipt.merge_base_sha, OBSERVED_BASE)
+        self.assertEqual(receipt.observed_base_sha, OBSERVED_BASE)
+        self.assertFalse(receipt.event_base_current)
+        self.assertTrue(receipt.merge_base_current)
+        self.assertFalse(receipt.event_merge_base_match)
         self.assertTrue(receipt.current_integration_evidence)
 
     def test_moved_base_preserves_historical_merge_identity(self) -> None:
         receipt = build_receipt(
             self.receipt(
                 checkout_sha=MERGE,
-                observed_base_sha=NEW_BASE,
-                parents=[BASE, HEAD],
+                observed_base_sha=OBSERVED_BASE,
+                parents=[EVENT_BASE, HEAD],
                 expected="synthetic-merge-ref",
             )
         )
         self.assertEqual(receipt.classification, "synthetic-merge-ref")
-        self.assertEqual(receipt.event_base_sha, BASE)
-        self.assertEqual(receipt.observed_base_sha, NEW_BASE)
-        self.assertFalse(receipt.base_current)
+        self.assertEqual(receipt.merge_base_sha, EVENT_BASE)
+        self.assertFalse(receipt.event_base_current)
+        self.assertFalse(receipt.merge_base_current)
+        self.assertTrue(receipt.event_merge_base_match)
         self.assertTrue(receipt.reusable_evidence)
         self.assertFalse(receipt.current_integration_evidence)
 
-    def test_moved_base_keeps_literal_head_identity_without_current_integration(self) -> None:
-        receipt = build_receipt(self.receipt(observed_base_sha=NEW_BASE))
+    def test_moved_base_keeps_literal_head_identity_without_integration(self) -> None:
+        receipt = build_receipt(self.receipt(observed_base_sha=OBSERVED_BASE))
         self.assertEqual(receipt.classification, "exact-head")
-        self.assertFalse(receipt.base_current)
+        self.assertFalse(receipt.event_base_current)
+        self.assertIsNone(receipt.merge_base_current)
         self.assertTrue(receipt.reusable_evidence)
 
     def test_valid_identity_with_failed_gate_is_not_reusable(self) -> None:
@@ -137,12 +163,12 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
             ),
             self.receipt(
                 checkout_sha=OTHER,
-                parents=[BASE, PARENT],
+                parents=[EVENT_BASE, PARENT],
                 expected="other-checkout",
             ),
             self.receipt(
                 checkout_sha=MERGE,
-                parents=[HEAD, BASE],
+                parents=[HEAD, EVENT_BASE],
                 expected="other-checkout",
             ),
         )
@@ -151,13 +177,14 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
                 receipt = build_receipt(data)
                 self.assertEqual(receipt.classification, "other-checkout")
                 self.assertFalse(receipt.reusable_evidence)
+                self.assertIsNone(receipt.merge_base_sha)
 
     def test_expected_classification_fails_on_identity_mismatch(self) -> None:
         with self.assertRaisesRegex(IdentityError, "expected exact-head"):
             build_receipt(
                 self.receipt(
                     checkout_sha=MERGE,
-                    parents=[BASE, HEAD],
+                    parents=[EVENT_BASE, HEAD],
                 )
             )
 
@@ -205,9 +232,9 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
             classify_identity(
                 checkout_sha=MERGE,
                 head_sha=HEAD,
-                event_base_sha=BASE,
+                event_base_sha=EVENT_BASE,
                 event_sha=MERGE,
-                parents=[BASE, MERGE],
+                parents=[EVENT_BASE, MERGE],
             )
 
     def test_pull_request_event_metadata_fails_closed(self) -> None:
@@ -221,9 +248,9 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
             self.receipt(head_ref="feature with space"),
             self.receipt(base_ref="main\tbranch"),
             self.receipt(event_sha=HEAD),
-            self.receipt(event_sha=BASE),
-            self.receipt(head_sha=BASE),
-            self.receipt(event_before_sha=BASE),
+            self.receipt(event_sha=EVENT_BASE),
+            self.receipt(head_sha=EVENT_BASE),
+            self.receipt(event_before_sha=EVENT_BASE),
             self.receipt(push_forced=False),
         )
         for data in cases:
@@ -234,9 +261,10 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
     def test_push_event_metadata_and_update_state(self) -> None:
         ordinary = build_receipt(self.push_receipt())
         self.assertEqual(ordinary.classification, "exact-head")
-        self.assertEqual(ordinary.event_before_sha, BASE)
+        self.assertEqual(ordinary.event_before_sha, EVENT_BASE)
         self.assertEqual(ordinary.push_update_kind, "ordinary-update")
-        self.assertIsNone(ordinary.base_current)
+        self.assertIsNone(ordinary.event_base_current)
+        self.assertIsNone(ordinary.merge_base_current)
 
         forced = build_receipt(self.push_receipt(push_forced=True))
         self.assertEqual(forced.push_update_kind, "forced-update")
@@ -254,8 +282,8 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
             {"head_ref": "feature/example"},
             {"base_ref": "main"},
             {"event_sha": OTHER},
-            {"event_base_sha": BASE},
-            {"observed_base_sha": BASE},
+            {"event_base_sha": EVENT_BASE},
+            {"observed_base_sha": EVENT_BASE},
             {"push_forced": None},
             {"event_before_sha": ZERO, "push_forced": True},
         )
@@ -269,7 +297,8 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
         tool = root / "scripts" / "audit_pr_evidence_identity.py"
         data = self.receipt(
             checkout_sha=MERGE,
-            parents=[BASE, HEAD],
+            observed_base_sha=OBSERVED_BASE,
+            parents=[OBSERVED_BASE, HEAD],
             expected="synthetic-merge-ref",
         )
         with tempfile.TemporaryDirectory() as temporary:
@@ -299,11 +328,45 @@ class PullRequestEvidenceIdentityTest(unittest.TestCase):
         self.assertEqual(optimized.returncode, 0, optimized.stderr)
         self.assertEqual(json.loads(ordinary.stdout), json.loads(optimized.stdout))
         payload = json.loads(ordinary.stdout)
-        self.assertEqual(payload["schema_version"], 2)
+        self.assertEqual(payload["schema_version"], 3)
         self.assertEqual(payload["classification"], "synthetic-merge-ref")
-        self.assertEqual(payload["parents"], [BASE, HEAD])
+        self.assertEqual(payload["merge_base_sha"], OBSERVED_BASE)
+        self.assertFalse(payload["event_merge_base_match"])
+        self.assertTrue(payload["merge_base_current"])
         self.assertEqual(payload["technical_gate_outcome"], "success")
         self.assertTrue(payload["reusable_evidence"])
+        self.assertTrue(payload["current_integration_evidence"])
+
+    def test_cli_strict_json_rejects_duplicates_and_constants_without_output(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        tool = root / "scripts" / "audit_pr_evidence_identity.py"
+        valid = json.dumps(self.receipt())
+        malformed_inputs = (
+            valid[:-1] + ', "head_sha": "' + HEAD + '"}',
+            valid.replace('"run_attempt": "1"', '"run_attempt": NaN'),
+        )
+        for raw in malformed_inputs:
+            with self.subTest(raw=raw):
+                with tempfile.TemporaryDirectory() as temporary:
+                    input_path = Path(temporary) / "input.json"
+                    output_path = Path(temporary) / "output.json"
+                    input_path.write_text(raw, encoding="utf-8")
+                    result = subprocess.run(
+                        [
+                            sys.executable,
+                            str(tool),
+                            str(input_path),
+                            "--output",
+                            str(output_path),
+                        ],
+                        cwd=root,
+                        text=True,
+                        capture_output=True,
+                        check=False,
+                    )
+                    self.assertEqual(result.returncode, 2)
+                    self.assertFalse(output_path.exists())
+                    self.assertIn("PR evidence identity error", result.stderr)
 
 
 if __name__ == "__main__":
