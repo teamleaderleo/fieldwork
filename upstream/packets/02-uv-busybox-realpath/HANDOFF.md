@@ -2,7 +2,7 @@
 
 Updated: `2026-08-03`
 
-State: `TECHNICALLY GREEN — CLEAN SOURCE PUBLICATION PENDING`
+State: `READY FOR LAST-MILE LOOK`
 
 External contact: `unauthorized; none occurred`
 
@@ -12,92 +12,89 @@ External contact: `unauthorized; none occurred`
 - Packet branch: `teamleaderleo/fieldwork:upstream/02-uv-busybox-realpath-packet`
 - Packet path: `upstream/packets/02-uv-busybox-realpath/`
 - Fork: `teamleaderleo/uv`
+- Clean branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
 - Execution PR: `teamleaderleo/uv#7`
 - Supplemental Fish PR: `teamleaderleo/uv#18`
-- Intended clean branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
 - Existing public issue: `astral-sh/uv#16209`
 
-## Exact technical result
+## Exact clean source
 
-The active correction is a four-file candidate on public base `79bbface771210df216b738e9bdc7df95e5a9e6b`.
-
-It removes only unsupported `realpath --` delimiters, retains all `dirname --` delimiters, preserves `realpath` canonicalization introduced for externally symlinked launchers, recognizes corrected and historical `python`/`python3` generated shebangs, and updates uv's existing relocatable-venv assertions.
-
-Exact patch fence:
-
-```text
-2   2  crates/uv-install-wheel/src/wheel.rs
-4   4  crates/uv-virtualenv/src/virtualenv.rs
-81  7  crates/uv/src/commands/project/run.rs
-2   2  crates/uv/tests/python/venv.rs
-```
-
-Candidate blobs:
+- Base: `79bbface771210df216b738e9bdc7df95e5a9e6b`
+- Head: `047b724212905c034c15d4f4f6f9ef330bbd2daf`
+- Tree: `e0832686bd982b5c15f6e9bdd6d6631d30ec24cf`
+- Relationship: one commit ahead, zero behind
+- Diff: four files, 89 insertions, 15 deletions
 
 ```text
-49c04343714990cfbc8bf891162b4889678b08f5  wheel.rs
-b251b09b63771e6833b872ef05003e5290501bd3  virtualenv.rs
-91bfe0517944f19aa3ac79f6788619131cd07949  run.rs
-f68dc858066242be1888b922262d53e22975856a  venv.rs
+49c04343714990cfbc8bf891162b4889678b08f5  crates/uv-install-wheel/src/wheel.rs
+b251b09b63771e6833b872ef05003e5290501bd3  crates/uv-virtualenv/src/virtualenv.rs
+91bfe0517944f19aa3ac79f6788619131cd07949  crates/uv/src/commands/project/run.rs
+f68dc858066242be1888b922262d53e22975856a  crates/uv/tests/python/venv.rs
 ```
 
-## Exact evidence
+The source commit contains no workflow, harness, packet, dependency, lockfile, or unrelated file.
 
-Successful Linux workflow:
+## Selected behavior
+
+The correction removes only unsupported `realpath --` delimiters. It retains all `dirname --` delimiters, preserves `realpath` canonicalization for externally symlinked entrypoints, recognizes corrected and historical `python`/`python3` relocatable launchers, and updates the existing uv generated-text expectations.
+
+Review boundaries:
+
+- do not remove `realpath`; historical upstream PR #8079 established its symlink semantics;
+- do not remove supported `dirname --` without new evidence;
+- do not branch on generator-host BusyBox detection for a relocatable artifact;
+- do not add speculative option-like `$0` normalization; direct shebang execution supplies the script path;
+- do not broaden the exact migration parser beyond observed `python` and `python3` producers without a failing generated example.
+
+No active equivalent upstream pull request was found.
+
+## Exact validation evidence
+
+Validation:
 
 - carrier: `c8a5c36d60a5cc35f496f583146967e210f87810`;
-- run: `30753911776`;
-- job: `91512671857`;
+- run/job: `30753911776` / `91512671857` — success;
 - artifact: `8835628919`;
-- artifact ZIP SHA-256: `1d54c978b355e807bb69f962f866574d8c200ae624ed55b0ac9a6cd8c631ff0c`.
+- digest: `sha256:1d54c978b355e807bb69f962f866574d8c200ae624ed55b0ac9a6cd8c631ff0c`.
+
+Publication:
+
+- carrier: `76836268a70c0a9ba49035a5e3eab4477044ed10`;
+- run/job: `30756408587` / `91519210841` — success;
+- artifact: `8836056361`;
+- digest: `sha256:e0684ec5da7025a7b7cf4a8f7b932e06c3385d07e2146a5e8d5a8c344a2ed634`.
 
 Passed:
 
-- formatting;
-- affected-crate compilation;
-- wheel shebang unit test;
-- four-form migration unit test;
+- exact generation and four-file publication fences;
+- formatting and affected-crate compilation;
+- wheel generated-shebang test;
+- four-form migration test;
 - existing relocatable-venv integration test;
-- full declared workspace clippy with warnings denied;
-- GNU and Alpine BusyBox launcher matrices;
-- GNU and Alpine BusyBox sourced-Bash activation matrices;
-- direct generated-shebang `$0` discriminator.
+- full locked workspace/all-target/all-feature clippy with warnings denied;
+- GNU and Alpine 3.22 BusyBox launcher matrices;
+- GNU and Alpine sourced-Bash activation matrices;
+- Linux direct-shebang `$0` discriminator.
 
-Baseline BusyBox succeeds with false stderr. Candidate BusyBox succeeds with empty stderr. GNU remains clean. The downloaded artifact independently matches the four-file, 175-line candidate patch.
+The baseline BusyBox launchers and activation fragments completed while emitting the false `realpath: --:` diagnostic. The candidate completed with empty stderr. GNU remained clean.
 
-## Important review outcomes
+## Evidence limits
 
-- Preserve `realpath`: removing it would risk reopening external-symlink behavior fixed by historical upstream PR #8079.
-- Preserve `dirname --`: it passes the concrete BusyBox matrix; broader delimiter removal is unsupported.
-- Reject generation-host BusyBox detection: relocatable files can run elsewhere.
-- Do not add a speculative option-like `$0` branch: direct shebang execution supplies the script pathname.
-- Keep migration recognition exact: current/historical × `python`/`python3`. Do not guess versioned or alternate interpreter forms without a producer.
-- No active equivalent upstream pull request was found.
+- The exact final source did not obtain a terminal macOS run before the carrier advanced. Earlier macOS 15 evidence passed the broader delimiter-free form; this is supporting, not exact-final, evidence.
+- The executable Fish supplement in `teamleaderleo/uv#18` remained queued. The exact target-native Fish generated-text assertion passed.
+- The complete repository suite was not run.
 
-## Stale branch warning
-
-`teamleaderleo/uv:upstream/02-busybox-realpath` still points at superseded head `c42973ef0490c75df1c7e7f4e9a54d46c6bca059` when this handoff was written. It is not reviewable or submit-ready.
-
-## In-flight internal jobs
-
-- Source publisher rerun: workflow `30755813495`, job `91518761618`; queued at handoff time.
-- Fish supplement: workflow `30755096609`, jobs `91515786243` and `91515786224`; queued at handoff time.
-
-The publisher has already been restarted once after a concurrency cancellation. Do not create another source design or weaken the one-commit publication fence because of runner queueing.
+These are human gate choices, not known technical defects.
 
 ## First incomplete step
 
-Publish the exact validated four-file tree as one source-only commit whose sole parent is `79bbface771210df216b738e9bdc7df95e5a9e6b`, then force the controlled clean branch from its superseded internal head to that new commit.
+A human reads the exact four-file diff and decides whether the completed gates are sufficient for public preparation. If yes, independently author the public pull-request text and explicitly authorize the specific action.
 
-After publication:
+Until then:
 
-1. record source commit, tree, one-ahead/zero-behind relation, four changed paths, and final blob identities;
-2. update README, TESTS, DEEP_DIVE, REVIEW, and this handoff to the final human-review state;
-3. record Fish results if terminal;
-4. update the existing unit 02 checkpoint in issue #435 rather than posting duplicate progress comments;
-5. close execution-only carriers after unique evidence transfer if repository tooling permits;
-6. stop at the public-action boundary unless explicit unit-specific authorization is given.
+- preserve the clean branch and exact receipts;
+- record any terminal Fish result if it reverses the conclusion;
+- avoid new implementation or speculative widening;
+- do not contact upstream.
 
-## Safe stop state
-
-If hosted publication remains unavailable, preserve the exact artifact and this packet. The technical candidate is green; the clean-branch commit identity is the missing mechanical receipt. No public contact is authorized.
+No public issue comment, pull request, review, reaction, email, or other upstream action occurred.
