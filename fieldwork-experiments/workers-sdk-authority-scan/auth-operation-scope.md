@@ -1,6 +1,6 @@
 # Wrangler auth operation ownership
 
-Canonical issue: pending creation.
+Canonical issue: #496.
 
 ## Reviewed source
 
@@ -47,6 +47,16 @@ PASS: explicit auth context preserves operation credential ownership
 ```
 
 The model uses sentinel tokens only. No account, credential, network call, deployment, or public upstream interaction was used.
+
+## Native reproduction carrier
+
+Owned fork PR: `teamleaderleo/workers-sdk#6`.
+
+Exact execution base: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`.
+
+Exact carrier head at materialization: `4c8d79f2a2abfe2dce0b501cb6de2874aedbfc89`.
+
+The carrier adds target-native tests for #471, #472, and #496 without a product repair. The tests state the owner-correct behavior and are expected to expose the current source behavior.
 
 ## Consequences to verify natively
 
