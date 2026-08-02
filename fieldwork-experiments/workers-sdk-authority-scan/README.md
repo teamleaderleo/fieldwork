@@ -93,6 +93,20 @@ PASS: pending operation switches to later global fetch and logger context
 PASS: explicit operation context keeps fetch and logger ownership stable
 ```
 
+### Target-native reproduction carrier
+
+Owned fork PR: `teamleaderleo/workers-sdk#13`
+
+- branch: `fieldwork/472-deploy-context-authority-repro`;
+- exact base: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`;
+- exact reproducer head: `dd54def18dcafb0d7df8ad2d2799f8d08a6d1f90`;
+- changed path: `packages/deploy-helpers/tests/context-authority.test.ts`;
+- current state: target-native package regression committed; exact CI conclusion pending.
+
+The regression begins a pending operation under context A, installs context B while A is awaiting, then expects A to retain A's fetch and logger. Current live bindings are expected to route resumed work through B.
+
+This proves the package-level owner switch directly. It does not yet prove every concrete deploy, versions-upload, or trigger call path.
+
 ### Current disposition
 
 **ACCEPT SOURCE FINDING / EXECUTE TARGET REPRODUCTION.**
@@ -119,6 +133,7 @@ node fieldwork-experiments/workers-sdk-authority-scan/account-cache-and-deploy-c
 
 ### Deploy context
 
+- conclude the exact package result on `teamleaderleo/workers-sdk#13`;
 - two concurrent mocked deploys with distinct fetch, API-base, logger, confirmation, prompt, and selection owners;
 - interruption during validation, assets, version upload, and trigger phases;
 - CLI/API/custom-consumer overlap;
