@@ -6,13 +6,13 @@ Gemini CLI can hold more than one tool call awaiting approval. A confirmation re
 
 The repaired candidate follows the confirmation loop's exact `callId`, requires the call to remain `AwaitingApproval`, passes that call into the modifier, and revalidates the same waiting generation after asynchronous modification before rebuilding or publishing arguments. It rejects removal, status loss, and same-ID generation replacement.
 
-The final branch is one clean four-file commit directly on the inspected public base. Its scheduler test drives two simultaneous approvals and resolves call 2 before call 1. All candidate-owned gates passed. Repository-wide preflight reaches an unrelated shellcheck error that the unchanged base reproduces exactly.
+The final branch is one clean four-file commit directly on the inspected public base. Its scheduler test drives two simultaneous approvals and resolves call 2 before call 1. All candidate-owned gates passed. Repository-wide preflight reaches an unrelated shellcheck error that the unchanged base reproduces exactly. The unit is ready for independent inspection and, after explicit authorization, public issue filing; the target's issue-first policy describes the submission route, not an unfinished Fieldwork disposition.
 
 ## Current disposition
 
-`ISSUE FIRST`
+`READY`
 
-Last verified: `2026-08-01`  
+Last verified: `2026-08-02`  
 Worker: `chatgpt:gpt-5.6-thinking`  
 Priority-zero parent: [`teamleaderleo/fieldwork#435`](https://github.com/teamleaderleo/fieldwork/issues/435)  
 Upstream contact authorized: `no`
@@ -24,7 +24,7 @@ Upstream contact authorized: `no`
 - Proposed title: `fix(scheduler): bind confirmation modification to correlated call`
 - Contribution synopsis: bind inline and editor modification authority to the response-correlated call, revalidate the approval generation after modifier awaits, and prove isolation with two concurrent approvals resolved out of order.
 - Work class: `upstream-fork research`
-- Submission route: issue-first discussion under the target contribution policy
+- Submission route: file the prepared bug issue first under the target contribution policy; open a code PR only after maintainer direction and separate authority
 
 ## Exact identities
 
@@ -80,7 +80,7 @@ Upstream contact authorized: `no`
 | Exact-ID, stale-generation, adjacent, and reverse-order scheduler controls pass | `target-executed` | run `30692554758`, candidate job `91350078426`, 15/15 | controlled executor/modifier in scheduler test |
 | Core posttest build and standalone core typecheck pass | `target-executed` | same candidate job | core workspace |
 | Formatting, staged lint, four-file ESLint, exact fence, and clean tree pass | `target-executed` | same candidate job | changed-source fence |
-| Full preflight is blocked outside this unit | `baseline-confirmed` | candidate run reached workflow shellcheck; base job `91349770438` reproduced `pr-size-labeler-batch-run.yml:SC2031` | repository baseline blocker |
+| Full preflight is blocked outside this unit | `target-executed` plus unchanged-base control | candidate run reached workflow shellcheck; base job `91349770438` reproduced `pr-size-labeler-batch-run.yml:SC2031` | repository baseline blocker, so no `full-gate` claim |
 
 ## Packet navigation
 
@@ -115,27 +115,27 @@ Upstream contact authorized: `no`
 
 Complete in this order:
 
-1. Obtain eligible independent complete-diff review at `b6d8e8bb6160aec16555647d81d46a694e44b58b`.
-2. Repeat the public duplicate and overlap search immediately before any authorized filing.
-3. File the issue only after explicit authority, using the target's current issue template and disclosure policy.
-4. Open a public code PR only after maintainer direction and separate explicit authority.
+1. Have an eligible human or independent reviewer inspect the complete exact diff at `b6d8e8bb6160aec16555647d81d46a694e44b58b`; self-review has accepted the packet for `READY` handoff but does not replace independent acceptance.
+2. Immediately before filing, repeat public duplicate/overlap search and recheck the current issue template, contribution policy, and disclosure requirements.
+3. After explicit authority, file the prepared bug issue.
+4. After maintainer direction and separate explicit authority, open the prepared public code PR.
 
 ## Blockers and limits
 
-- Independent exact-head review remains.
-- Full repository preflight is blocked by the unchanged base workflow shellcheck `SC2031`; candidate-owned build, tests, typecheck, lint, and clean-tree gates passed.
-- The target contribution policy requires issue-first maintainer alignment.
+- No technical repair or source-materialization blocker remains.
 - Public upstream contact remains unauthorized.
+- The target contribution route starts with an existing or newly filed issue and maintainer feedback before a code PR.
+- Full repository preflight is blocked by the unchanged base workflow shellcheck `SC2031`; candidate-owned build, tests, typecheck, lint, and clean-tree gates passed.
 - macOS, Windows, and a real external editor process remain outside the executed matrix.
 
 ## Latest handoff
 
-State: `ISSUE FIRST`  
+State: `READY`  
 Exact source head: `b6d8e8bb6160aec16555647d81d46a694e44b58b`  
 Exact source base: `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`  
 Exact packet head: final branch tip recorded on #435  
 Tests: `15/15` green; posttest build, core typecheck, staged lint, four-file ESLint, exact fence, clean tree, and publication green in run `30692554758`  
 Preflight: repository baseline blocks on `.github/workflows/pr-size-labeler-batch-run.yml` shellcheck `SC2031`, reproduced by unchanged base in the same run  
-Temporary machinery remaining: closed carrier PR #6 and its retained branch/workflow history; clean source PR #24 is workflow-free  
-Next worker action: independent review, then authorized issue-first filing  
+Temporary machinery remaining: none on the canonical source; carrier PR #6 is closed and clean source PR #24 is workflow-free  
+Next worker action: independent exact-diff inspection, then authorized issue filing  
 Public upstream interaction: none
