@@ -1,66 +1,66 @@
-# Direct source materialization receipt — unit 21
+# Direct source and execution receipt — unit 21
 
-## In simple words
+## Disposition
 
-The owned Jotai fork now exists. Unit 20 was materialized as the clean prerequisite branch, then unit 21 was created as a clean child branch with only the generation fence and the expanded target-native regression file.
+`READY — public contact unauthorized`
+
+The exact clean Jotai source head passed the repository's product, compatibility, and build gates. The only failed workflow was preview publication, after its build succeeded, because the `pkg-pr-new` GitHub App is not installed on the owned fork.
 
 ## Exact identities
 
 - inspected public and fork base: `56a9cc51de8a5dd762b95a145820f12589cc47c9`
 - owned fork: `teamleaderleo/jotai`
-- unit 20 branch: `fix/utils-key-scoped-json-cache`
-- unit 20 exact head: `b2f84273b53bbed9df073354dac503e520be7101`
+- unit 20 branch/head: `fix/utils-key-scoped-json-cache` at `b2f84273b53bbed9df073354dac503e520be7101`
 - unit 20 fork-local draft PR: `teamleaderleo/jotai#2`
-- unit 21 branch: `fix/utils-async-read-generation`
-- unit 21 exact head: `dfe607d7637fbcf61ae41c39f4f470f61fa7c531`
+- unit 21 branch/head: `fix/utils-async-read-generation` at `dfe607d7637fbcf61ae41c39f4f470f61fa7c531`
 - unit 21 fork-local draft PR: `teamleaderleo/jotai#3`
 - unit 21 merge base: `b2f84273b53bbed9df073354dac503e520be7101`
-- materialization date: `2026-08-01`
+- execution inspected: `2026-08-02`
 
-## Unit 21 changed-file fence
+## Exact changed-file fence
 
-Comparison `b2f84273b53bbed9df073354dac503e520be7101...dfe607d7637fbcf61ae41c39f4f470f61fa7c531` is exactly:
+Comparison `b2f84273b53bbed9df073354dac503e520be7101...dfe607d7637fbcf61ae41c39f4f470f61fa7c531` is ahead by two commits, behind by zero, and changes only:
 
 1. `src/vanilla/utils/atomWithStorage.ts` — 15 additions, 2 deletions;
 2. `tests/react/vanilla-utils/atomWithStorageAsyncReadGenerationRepair.test.ts` — 280 additions.
 
-No workflow, dependency, lockfile, generated output, Fieldwork file, publisher, receipt, or unrelated formatting is present in the target diff.
+No workflow, dependency, lockfile, generated output, Fieldwork file, publisher, receipt, or unrelated formatting is present.
 
-## Commit shape
+## Exact-head workflow conclusions
 
-Unit 21 is two conventional commits on the exact unit-20 head:
+| Workflow | Run | Conclusion | Evidence |
+| --- | ---: | --- | --- |
+| Test | `30690923575` | success | format, types, lint, complete spec command, and build all succeeded |
+| Test Multiple Versions | `30690923560` | success | repository compatibility matrix succeeded |
+| Test Old TypeScript | `30690923561` | success | supported old TypeScript gate succeeded |
+| Test Multiple Builds | `30690923564` | success | build matrix succeeded |
+| Compressed Size | `30690923562` | success | size gate succeeded |
+| Preview Release | `30690923558` | infrastructure failure after successful build | `pkg-pr-new` returned 404 because its GitHub App is not installed on `teamleaderleo/jotai` |
 
-1. `fix(utils): fence stale async JSON reads by per-key generation`;
-2. `test(utils): cover stale async JSON read fencing`.
+Primary Test job: `91345378689`.
 
-The branch was force-rewritten after a filename-only cleanup so the canonical head contains no rename or execution-history noise.
+Successful steps in that job:
 
-## Fork-local target execution
+- `pnpm install`;
+- `pnpm run test:format`;
+- `pnpm run test:types`;
+- `pnpm run test:lint`;
+- `pnpm run test:spec`;
+- `pnpm run build`.
 
-Opening the owned-fork draft PR triggered the repository's existing pull-request workflows at exact head `dfe607d7637fbcf61ae41c39f4f470f61fa7c531`:
+Preview job: `91345378639`. Its `pnpm run build` step succeeded. The later publication command failed before publication with: `The app https://github.com/apps/pkg-pr-new is not installed on teamleaderleo/jotai.` This is not a source, test, type, lint, format, or build failure.
 
-- Test Multiple Versions: run `30690923560`;
-- Test Old TypeScript: run `30690923561`;
-- Test: run `30690923575`;
-- Compressed Size: run `30690923562`;
-- Test Multiple Builds: run `30690923564`;
-- Preview Release: run `30690923558`.
+## Review
 
-Status when this receipt was first written: queued. Final conclusions must be added before changing the unit disposition.
-
-## Review result so far
-
-- stack relation: exact; unit 21 is ahead of unit 20 and behind by zero;
-- changed files: exact two-file fence;
-- source patch: byte-for-byte equivalent to the retained unit-21 packet patch over the materialized unit-20 source;
-- target-native test: byte-for-byte equivalent to the packet's expanded eleven-case fixture;
-- temporary source machinery: absent;
+- owner-authorized AI complete-diff review: `ACCEPT` at the exact source/base heads;
+- human review: not claimed;
+- target diff cleanliness: accepted;
+- stack dependency on unit 20: accepted;
+- write and subscription-event ordering: explicitly outside this unit;
 - public upstream interaction: none.
 
-## Remaining gates
+## Remaining actions
 
-1. record final fork-local workflow conclusions and inspect the primary Test job;
-2. confirm the exact focused regression count and ordinary build/test coverage provided by current workflows;
-3. update `README.md`, `TESTS.md`, `REVIEW.md`, packet PR #450, and issue #435;
-4. obtain independent complete-diff review;
-5. repeat public duplicate/policy checks immediately before any authorized filing.
+1. repeat duplicate/prior-art, contribution-policy, and AI-disclosure checks immediately before filing;
+2. obtain explicit user authority before any public upstream discussion or pull request;
+3. decide at filing time whether unit 21 should remain stacked or be rebased after unit 20 merges.
