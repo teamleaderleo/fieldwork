@@ -1,10 +1,14 @@
 # Upstream pull-request draft — unit 10
 
-> Internal draft. Public publication requires explicit human authorization and completed exact-head execution.
+> Internal draft. Public publication requires explicit human authorization, completed exact-head execution, and committed generated snapshots.
 
 ## Proposed title
 
 `Generate receiver-aware TypeScript declarations`
+
+## Draft readiness
+
+**Not ready to publish yet.** The implementation head is coherent, but target policy requires regenerated `types/generated-snapshot/` files. Exact carrier PR #9 is producing those outputs for review and later materialization onto source PR #5.
 
 ## Proposed body
 
@@ -16,6 +20,7 @@
 - specialize and rename full-replacement receivers from the replacement declaration;
 - widen generated context-global operations to their legal owner/global/nullish receiver set;
 - keep static methods receiver-free and out of ambient function extraction while preserving generated ambient constants;
+- regenerate and commit the affected Workers type snapshots;
 - add generator, override, global, generic-replacement, renamed-replacement, lexical-resolution, transformed-heritage, static-constant, callback-erasure, and call-matrix coverage.
 
 ### Problem
@@ -52,7 +57,17 @@ bazelisk test \
   --test_output=errors
 ```
 
+Ordinary gates:
+
+```console
+bazelisk test //types/... --test_output=errors
+bazelisk test //types:types_lib@eslint --test_output=errors
+bazelisk build //types
+```
+
 The fixtures cover legal bare/global/nullish/detached calls, invalid unrelated receivers, ordinary callback assignment, explicit receiver preservation, overloads, full replacement, renamed replacement generics, inherited globals, same-name namespaces, transformed heritage, static method exclusion, and static constant preservation.
+
+The generated snapshot diff will be included in the final source branch and reviewed for marker leakage, owner resolution, recursive global unions, callable stability, and unexpected declaration churn.
 
 ### Compatibility
 
@@ -66,26 +81,30 @@ Generated constants and callable resource signatures remain unchanged by design.
 
 ### Commit organization
 
-The implementation is one commit because generation, override preservation, global widening, cleanup, and their fixtures form one atomic declaration invariant. Splitting them would create intermediate commits that either lose receivers through overrides or reject legal Worker-global calls.
+Generation, override preservation, global widening, cleanup, and their fixtures form one atomic implementation invariant. Required generated snapshots may be folded into that commit or retained as one adjacent generated-output commit, provided each final commit satisfies target review expectations and the complete exact head is retested.
 
 ### AI assistance
 
-This change was developed with AI assistance. The author remains responsible for every implementation detail, test, compatibility claim, and submitted line.
+This change was developed with AI assistance. The author remains responsible for every implementation detail, test, compatibility claim, generated snapshot, and submitted line.
 
 ## Exact internal source
 
-- owned PR: https://github.com/teamleaderleo/workerd/pull/5
-- base: `813c31394b9909d8f557bba14324db275bc12720`
-- head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
-- compare: https://github.com/teamleaderleo/workerd/compare/813c31394b9909d8f557bba14324db275bc12720...18a117c28773cd7aa0ee599e03439c5fbbf06584
+- source PR: https://github.com/teamleaderleo/workerd/pull/5
+- implementation base: `813c31394b9909d8f557bba14324db275bc12720`
+- implementation head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
+- implementation compare: https://github.com/teamleaderleo/workerd/compare/813c31394b9909d8f557bba14324db275bc12720...18a117c28773cd7aa0ee599e03439c5fbbf06584
+- snapshot carrier: https://github.com/teamleaderleo/workerd/pull/9 at `c232e306a796c4d9d43c9a72b5fd810f6f150082`
+- final source head: pending snapshot materialization
 
 ## Publication checklist
 
 - [ ] focused exact-head target command passed;
-- [ ] ordinary target gates passed;
+- [ ] complete `//types/...` and types lint passed;
 - [ ] representative ambient and importable generated output reviewed;
-- [ ] static constants and callable signatures confirmed unchanged in generated output;
-- [ ] independent complete-diff acceptance recorded;
+- [ ] required `types/generated-snapshot/` files committed on source PR #5;
+- [ ] static constants and callable signatures confirmed unchanged where expected;
+- [ ] snapshot carrier closed and workflow absent from final source;
+- [ ] independent complete-diff acceptance recorded on the final source-and-snapshot head;
 - [x] issue and PR text synchronized to current source direction;
 - [x] commit and PR draft include current AI-assistance disclosure;
 - [ ] human explicitly authorized public publication.
