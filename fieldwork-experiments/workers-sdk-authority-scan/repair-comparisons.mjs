@@ -4,34 +4,54 @@ import { AsyncLocalStorage } from "node:async_hooks";
 async function cachedAccountValidationModel() {
 	let credential = "credential-A";
 	let cachedAccount = { id: "account-A", name: "A" };
-	const accessible = {
-		"credential-A": new Set(["account-A"]),
-		"credential-B": new Set(["account-B"]),
-		"credential-C": new Set(["account-A", "account-C"]),
+	const validationOutcomes = {
+		"credential-A": {
+			kind: "accessible",
+			account: { id: "account-A", name: "A refreshed" },
+		},
+		"credential-B": { kind: "inaccessible" },
+		"credential-C": {
+			kind: "error",
+			error: new Error("transient validation failure"),
+		},
+		"credential-D": {
+			kind: "accessible",
+			account: { id: "unexpected-account", name: "Unexpected" },
+		},
 	};
 	const selectedByCredential = {
-		"credential-A": { id: "account-A", name: "A" },
 		"credential-B": { id: "account-B", name: "B" },
-		"credential-C": { id: "account-C", name: "C" },
 	};
 	const validations = [];
 	const selections = [];
 
-	async function canAccessAccount(id) {
+	async function validateCachedAccount(id) {
 		validations.push([credential, id]);
-		return accessible[credential].has(id);
+		const outcome = validationOutcomes[credential];
+		if (outcome.kind === "error") throw outcome.error;
+		if (outcome.kind === "inaccessible") return undefined;
+		if (outcome.account.id !== id) {
+			throw new Error("exact-account validation returned a different account");
+		}
+		return outcome.account;
 	}
 
 	async function selectAccount() {
 		selections.push(credential);
-		return selectedByCredential[credential];
+		const selected = selectedByCredential[credential];
+		assert.ok(selected, `no selection fixture for ${credential}`);
+		return selected;
 	}
 
 	async function getOrSelectAccountId(config = {}) {
 		if (config.account_id) return config.account_id;
 		if (config.env_account_id) return config.env_account_id;
-		if (cachedAccount && (await canAccessAccount(cachedAccount.id))) {
-			return cachedAccount.id;
+		if (cachedAccount) {
+			const validated = await validateCachedAccount(cachedAccount.id);
+			if (validated) {
+				cachedAccount = validated;
+				return validated.id;
+			}
 		}
 		const selected = await selectAccount();
 		cachedAccount = selected;
@@ -39,10 +59,25 @@ async function cachedAccountValidationModel() {
 	}
 
 	assert.equal(await getOrSelectAccountId(), "account-A");
+	assert.deepEqual(cachedAccount, { id: "account-A", name: "A refreshed" });
+
 	credential = "credential-B";
 	assert.equal(await getOrSelectAccountId(), "account-B");
+	assert.deepEqual(cachedAccount, { id: "account-B", name: "B" });
+
 	credential = "credential-C";
-	assert.equal(await getOrSelectAccountId(), "account-C");
+	await assert.rejects(getOrSelectAccountId(), /transient validation failure/);
+	assert.deepEqual(cachedAccount, { id: "account-B", name: "B" });
+	assert.deepEqual(selections, ["credential-B"]);
+
+	credential = "credential-D";
+	await assert.rejects(
+		getOrSelectAccountId(),
+		/exact-account validation returned a different account/
+	);
+	assert.deepEqual(cachedAccount, { id: "account-B", name: "B" });
+	assert.deepEqual(selections, ["credential-B"]);
+
 	assert.equal(
 		await getOrSelectAccountId({ account_id: "explicit-config" }),
 		"explicit-config"
@@ -55,10 +90,17 @@ async function cachedAccountValidationModel() {
 		["credential-A", "account-A"],
 		["credential-B", "account-A"],
 		["credential-C", "account-B"],
+		["credential-D", "account-B"],
 	]);
-	assert.deepEqual(selections, ["credential-B", "credential-C"]);
+	assert.deepEqual(selections, ["credential-B"]);
 	console.log(
 		"PASS: cached account is reused only after current-credential validation"
+	);
+	console.log(
+		"PASS: inaccessible cached account falls back to ordinary account selection"
+	);
+	console.log(
+		"PASS: transient or inconsistent validation fails closed without replacing cache"
 	);
 	console.log(
 		"PASS: explicit config and environment account IDs retain precedence"
