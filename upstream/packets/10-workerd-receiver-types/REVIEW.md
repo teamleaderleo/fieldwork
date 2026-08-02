@@ -8,7 +8,8 @@
 - Canonical implementation branch: `teamleaderleo/workerd:unit-10/receiver-aware-types`
 - Exact implementation head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
 - Owned source PR: https://github.com/teamleaderleo/workerd/pull/5
-- Exact validation carrier: https://github.com/teamleaderleo/workerd/pull/9 at `c232e306a796c4d9d43c9a72b5fd810f6f150082`
+- Exact validation carrier: https://github.com/teamleaderleo/workerd/pull/9 at `8003ce7361bbb61cff0ca11c9da8b9d9d73a4c2c`
+- Visible custom workflow run: `30755457025`
 - Fieldwork packet branch: `p0/435-unit-10-workerd-receiver-types`
 - Current implementation fence: ten `types/` source/test files, one commit
 - Missing required source material: regenerated `types/generated-snapshot/`
@@ -34,6 +35,18 @@ The candidate was reconstructed as one commit on the exact August 2 base. The im
 Current `types/AGENTS.md` says generated snapshots must be regenerated and committed for any type change. `just generate-types` builds `//types` and replaces `types/generated-snapshot/` with `bazel-bin/types/definitions/`. The repository's `check-snapshot` job compares those trees and uploads the generated output when they differ.
 
 Therefore the ten-file implementation fence is coherent but incomplete for publication. The next canonical source head must include reviewed snapshot files generated from exact implementation head `18a117c…`.
+
+## Review routing
+
+Current CODEOWNERS routes `/types/` to `@cloudflare/wrangler`. Files under `/types/generated-snapshot/experimental/` additionally route to `@cloudflare/workers-runtime-1` and `@cloudflare/workers-durable-objects`.
+
+Final human review should therefore include:
+
+1. a declaration-generation/types reviewer for public TypeScript compatibility, snapshot integrity, and editor behavior;
+2. a JSG/runtime reviewer for owning-signature coverage, inherited owner semantics, and any intentionally detachable operation;
+3. runtime/Durable Objects review if experimental snapshots change materially.
+
+Recent type PR #6781 received human approvals from `ryanking13` and `emily-shen`, confirming active review in this area, but no reviewer request is authorized by this unit.
 
 ## Claims requiring judgment
 
@@ -61,7 +74,7 @@ Therefore the ten-file implementation fence is coherent but incomplete for publi
 - PR #5 review `4834296945`: found blanket static exclusion removed generated ambient constants; requested method-only exclusion and a retained constant control.
 - `cde837e5ba5b1ecc5295ec9957146feaf1160707`: reconstructed on August 2 base with method-only static exclusion and constant preservation.
 - `18a117c28773cd7aa0ee599e03439c5fbbf06584`: current implementation adding renamed generic replacement ownership control.
-- PR #9 `c232e306a796c4d9d43c9a72b5fd810f6f150082`: exact-head execution and generated-snapshot carrier.
+- PR #9 `8003ce7361bbb61cff0ca11c9da8b9d9d73a4c2c`: exact-head execution and generated-snapshot carrier.
 
 The previous packet statement that static ambient expectations were stale was wrong. Static method extraction was stale; static property/constant extraction remains required.
 
@@ -70,7 +83,7 @@ The previous packet statement that static ambient expectations were stale was wr
 - Current public head checked: `813c31394b9909d8f557bba14324db275bc12720`.
 - Relevant source paths changed upstream since the prior base: no.
 - Open duplicate search: issue #6904 only; no competing public implementation PR found.
-- Current project guidance checked: `AGENTS.md`, `types/AGENTS.md`, `.opencode/agent/submit.md`, `justfile`, and `.github/workflows/test.yml`.
+- Current project guidance checked: `AGENTS.md`, `types/AGENTS.md`, `.opencode/agent/submit.md`, `justfile`, `.github/workflows/test.yml`, and `.github/CODEOWNERS`.
 - Guidance implications applied:
   - exact current-main base;
   - source and target-native tests only on the implementation branch;
@@ -143,4 +156,4 @@ The previous packet statement that static ambient expectations were stale was wr
 Reviewed implementation head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`  
 Reason: current-main reconciliation, static constant repair, renamed replacement control, duplicate search, commit atomicity, AI disclosure, and runtime registration analysis are coherent. Target policy nevertheless requires generated snapshots that are not yet present on source PR #5.  
 Clearing condition: let PR #9 generate and test exact output, inspect the artifact, materialize accepted snapshots onto source PR #5, retire the carrier, and obtain independent complete-diff `ACCEPT` on the new exact head.  
-Reviewer eligibility: this file is coordinator/self-review; final acceptance should come from an independent reviewer familiar with workerd type generation.
+Reviewer eligibility: this file is coordinator/self-review; final acceptance should come from independent type-generation and runtime reviewers.
