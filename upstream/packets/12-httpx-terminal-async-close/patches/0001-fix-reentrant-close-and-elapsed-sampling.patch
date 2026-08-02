@@ -1,5 +1,5 @@
 diff --git a/httpx/_client.py b/httpx/_client.py
-index 79934d0..510b419 100755
+index 79934d0..510b419 100644
 --- a/httpx/_client.py
 +++ b/httpx/_client.py
 @@ -177,8 +177,8 @@ class BoundAsyncStream(AsyncByteStream):
@@ -12,32 +12,56 @@ index 79934d0..510b419 100755
          self._response.elapsed = datetime.timedelta(seconds=elapsed)
  
  
-diff --git a/httpx/_models.py b/httpx/_models.py
-index 3ccb529..781977b 100755
+ diff --git a/httpx/_models.py b/httpx/_models.py
+index 3ccb529..0533a73 100644
 --- a/httpx/_models.py
 +++ b/httpx/_models.py
-@@ -60,6 +60,7 @@ class _AsyncCloseState:
-     def __init__(self) -> None:
-         self.event = anyio.Event()
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
+ import codecs
++import contextvars
+ import datetime
+ import email.message
+ import json as jsonlib
+@@ -62,6 +63,11 @@ class _AsyncCloseState:
          self.failed = False
-+        self.owner_task_id = anyio.get_current_task().id
  
  
++_ASYNC_CLOSE_CONTEXT: contextvars.ContextVar[tuple[_AsyncCloseState, ...]] = (
++    contextvars.ContextVar("httpx_async_close_context", default=())
++)
++
++
  def _new_async_close_error(request: Request | None) -> CloseError:
-@@ -1129,6 +1130,12 @@ class Response:
+     failure = CloseError(
+         "Response close outcome is unknown after stream cleanup failed.",
+@@ -1114,6 +1120,9 @@ class Response:
+             state = _AsyncCloseState()
+             self._async_close_state = state
+             self._async_close_started = True
++            context_token = _ASYNC_CLOSE_CONTEXT.set(
++                (*_ASYNC_CLOSE_CONTEXT.get(), state)
++            )
+             try:
+                 with request_context(request=self._request):
+                     await self.stream.aclose()
+@@ -1128,6 +1137,14 @@ class Response:
+                 self._async_close_state = None
                  state.event.set()
                  return
- 
-+        if state.owner_task_id == anyio.get_current_task().id:
++            finally:
++                _ASYNC_CLOSE_CONTEXT.reset(context_token)
++
++        if state in _ASYNC_CLOSE_CONTEXT.get():
 +            raise CloseError(
 +                "Attempted to re-enter response close from the stream close operation.",
 +                request=self._request,
 +            )
-+
+ 
          await state.event.wait()
          if state.failed:
-             raise _new_async_close_error(self._request)
-diff --git a/tests/client/test_async_client_terminal_close_elapsed.py b/tests/client/test_async_client_terminal_close_elapsed.py
+ diff --git a/tests/client/test_async_client_terminal_close_elapsed.py b/tests/client/test_async_client_terminal_close_elapsed.py
 index f6ecfbf..c3a27b2 100644
 --- a/tests/client/test_async_client_terminal_close_elapsed.py
 +++ b/tests/client/test_async_client_terminal_close_elapsed.py
@@ -116,10 +140,10 @@ index f6ecfbf..c3a27b2 100644
 +    await client.aclose()
 diff --git a/tests/models/test_async_response_close_reentry.py b/tests/models/test_async_response_close_reentry.py
 new file mode 100644
-index 0000000..f6ede0c
+index 0000000..0584599
 --- /dev/null
 +++ b/tests/models/test_async_response_close_reentry.py
-@@ -0,0 +1,122 @@
+@@ -0,0 +1,220 @@
 +from __future__ import annotations
 +
 +import anyio
@@ -242,3 +266,101 @@ index 0000000..f6ede0c
 +    assert stream.reentry_error is not None
 +    assert stream.reentry_error.args == (REENTRY_MESSAGE,)
 +    assert stream.reentry_error.request is request
++
++
++class DescendantReentrantStream(httpx.AsyncByteStream):
++    def __init__(self) -> None:
++        self.response: httpx.Response | None = None
++        self.close_calls = 0
++        self.reentry_error: httpx.CloseError | None = None
++
++    async def __aiter__(self):
++        if False:  # pragma: no cover
++            yield b""
++
++    async def aclose(self) -> None:
++        self.close_calls += 1
++        assert self.response is not None
++
++        async def descendant() -> None:
++            assert self.response is not None
++            try:
++                await self.response.aclose()
++            except httpx.CloseError as error:
++                self.reentry_error = error
++
++        async with anyio.create_task_group() as task_group:
++            task_group.start_soon(descendant)
++
++
++@pytest.mark.anyio
++async def test_descendant_reentrant_close_does_not_deadlock() -> None:
++    request = httpx.Request("GET", "https://example.org")
++    stream = DescendantReentrantStream()
++    response = httpx.Response(200, request=request, stream=stream)
++    stream.response = response
++
++    with anyio.fail_after(1):
++        await response.aclose()
++
++    assert stream.close_calls == 1
++    assert response.is_closed is True
++    assert stream.reentry_error is not None
++    assert stream.reentry_error.args == (REENTRY_MESSAGE,)
++    assert stream.reentry_error.request is request
++
++
++class NestedCloseStream(httpx.AsyncByteStream):
++    def __init__(self) -> None:
++        self.inner_response: httpx.Response | None = None
++        self.close_calls = 0
++
++    async def __aiter__(self):
++        if False:  # pragma: no cover
++            yield b""
++
++    async def aclose(self) -> None:
++        self.close_calls += 1
++        assert self.inner_response is not None
++        await self.inner_response.aclose()
++
++
++class OuterBackReferenceStream(httpx.AsyncByteStream):
++    def __init__(self) -> None:
++        self.outer_response: httpx.Response | None = None
++        self.close_calls = 0
++        self.reentry_error: httpx.CloseError | None = None
++
++    async def __aiter__(self):
++        if False:  # pragma: no cover
++            yield b""
++
++    async def aclose(self) -> None:
++        self.close_calls += 1
++        assert self.outer_response is not None
++        try:
++            await self.outer_response.aclose()
++        except httpx.CloseError as error:
++            self.reentry_error = error
++
++
++@pytest.mark.anyio
++async def test_nested_response_close_cycle_does_not_deadlock() -> None:
++    outer_request = httpx.Request("GET", "https://outer.example.org")
++    outer_stream = NestedCloseStream()
++    inner_stream = OuterBackReferenceStream()
++    outer_response = httpx.Response(200, request=outer_request, stream=outer_stream)
++    inner_response = httpx.Response(200, stream=inner_stream)
++    outer_stream.inner_response = inner_response
++    inner_stream.outer_response = outer_response
++
++    with anyio.fail_after(1):
++        await outer_response.aclose()
++
++    assert outer_stream.close_calls == 1
++    assert inner_stream.close_calls == 1
++    assert outer_response.is_closed is True
++    assert inner_response.is_closed is True
++    assert inner_stream.reentry_error is not None
++    assert inner_stream.reentry_error.args == (REENTRY_MESSAGE,)
++    assert inner_stream.reentry_error.request is outer_request
