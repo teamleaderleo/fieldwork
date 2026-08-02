@@ -41,6 +41,19 @@ function explicitResolve(parsed, hostEnv) {
 	return { operationEnv, hostEnv };
 }
 
+function readConfigLikeWrangler(rawConfig, envArg, hostEnv) {
+	const envName = envArg ?? hostEnv.CLOUDFLARE_ENV;
+	return envName ? rawConfig.env?.[envName] ?? rawConfig : rawConfig;
+}
+
+function createRemoteBindingsAuthHook(operationEnv) {
+	const credentials = authLikeWorkersSdk(operationEnv);
+	return async () => {
+		if (!credentials) throw new Error("missing operation credentials");
+		return credentials;
+	};
+}
+
 {
 	const processEnv = {};
 	const a = currentResolve({ CLOUDFLARE_API_TOKEN: "token-a" }, processEnv);
@@ -107,6 +120,84 @@ function explicitResolve(parsed, hostEnv) {
 	assert.deepEqual(hostEnv, {});
 	console.log(
 		"PASS: explicit operation environments isolate owners and preserve host state"
+	);
+}
+
+{
+	const hostEnv = { HOST_SENTINEL: "keep" };
+	const rawConfig = {
+		name: "worker",
+		env: {
+			"project-a": { name: "worker-a" },
+			"project-b": { name: "worker-b" },
+		},
+	};
+	const projectA = explicitResolve({ CLOUDFLARE_ENV: "project-a" }, hostEnv);
+	const projectB = explicitResolve({ CLOUDFLARE_ENV: "project-b" }, hostEnv);
+	assert.equal(
+		readConfigLikeWrangler(
+			rawConfig,
+			projectA.operationEnv.CLOUDFLARE_ENV,
+			hostEnv
+		).name,
+		"worker-a"
+	);
+	assert.equal(
+		readConfigLikeWrangler(
+			rawConfig,
+			projectB.operationEnv.CLOUDFLARE_ENV,
+			hostEnv
+		).name,
+		"worker-b"
+	);
+	assert.deepEqual(hostEnv, { HOST_SENTINEL: "keep" });
+	console.log(
+		"PASS: explicit config environment selects each project without process mutation"
+	);
+}
+
+{
+	const hostEnv = {};
+	const projectA = explicitResolve(
+		{ CLOUDFLARE_API_TOKEN: "token-a" },
+		hostEnv
+	);
+	const projectB = explicitResolve(
+		{
+			CLOUDFLARE_API_KEY: "key-b",
+			CLOUDFLARE_EMAIL: "b@example.invalid",
+		},
+		hostEnv
+	);
+	const authA = createRemoteBindingsAuthHook(projectA.operationEnv);
+	const authB = createRemoteBindingsAuthHook(projectB.operationEnv);
+	let releaseA;
+	const gateA = new Promise((resolve) => {
+		releaseA = resolve;
+	});
+	let releaseB;
+	const gateB = new Promise((resolve) => {
+		releaseB = resolve;
+	});
+	const pendingA = (async () => {
+		await gateA;
+		return authA();
+	})();
+	const pendingB = (async () => {
+		await gateB;
+		return authB();
+	})();
+	releaseB();
+	assert.deepEqual(await pendingB, {
+		kind: "global-key",
+		key: "key-b",
+		email: "b@example.invalid",
+	});
+	releaseA();
+	assert.deepEqual(await pendingA, { kind: "token", token: "token-a" });
+	assert.deepEqual(hostEnv, {});
+	console.log(
+		"PASS: remote-binding auth hooks retain project credentials across overlap"
 	);
 }
 
