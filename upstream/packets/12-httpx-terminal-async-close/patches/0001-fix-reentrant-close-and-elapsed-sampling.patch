@@ -61,7 +61,7 @@ index 3ccb5290ceb95d96e24047bcec2897c52de16176..0533a7324d0ed45ffb1087570551efcd
  
          await state.event.wait()
          if state.failed:
- diff --git a/tests/client/test_async_client_terminal_close_elapsed.py b/tests/client/test_async_client_terminal_close_elapsed.py
+diff --git a/tests/client/test_async_client_terminal_close_elapsed.py b/tests/client/test_async_client_terminal_close_elapsed.py
 index f6ecfbf52cc1f0e06f9378dd6ca8d3476c3717d8..67545aede0ba92364f70dc9f37c5c2e0a010c836 100644
 --- a/tests/client/test_async_client_terminal_close_elapsed.py
 +++ b/tests/client/test_async_client_terminal_close_elapsed.py
@@ -136,10 +136,10 @@ index f6ecfbf52cc1f0e06f9378dd6ca8d3476c3717d8..67545aede0ba92364f70dc9f37c5c2e0
 +    await client.aclose()
 diff --git a/tests/models/test_async_response_close_reentry.py b/tests/models/test_async_response_close_reentry.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..4a13b86b8d644effbf200bf9d772b150f056ae0d
+index 0000000000000000000000000000000000000000..0be56b2cb9a9a2e7fabc1a6bc107bbcca520fd67
 --- /dev/null
 +++ b/tests/models/test_async_response_close_reentry.py
-@@ -0,0 +1,222 @@
+@@ -0,0 +1,215 @@
 +from __future__ import annotations
 +
 +import anyio
@@ -231,20 +231,14 @@ index 0000000000000000000000000000000000000000..4a13b86b8d644effbf200bf9d772b150
 +    stream.response = response
 +    waiter_started = anyio.Event()
 +    waiter_done = anyio.Event()
-+    errors: list[BaseException] = []
 +
 +    async def owner() -> None:
-+        try:
-+            await response.aclose()
-+        except BaseException as error:
-+            errors.append(error)
++        await response.aclose()
 +
 +    async def waiter() -> None:
 +        waiter_started.set()
 +        try:
 +            await response.aclose()
-+        except BaseException as error:
-+            errors.append(error)
 +        finally:
 +            waiter_done.set()
 +
@@ -258,7 +252,6 @@ index 0000000000000000000000000000000000000000..4a13b86b8d644effbf200bf9d772b150
 +            assert not waiter_done.is_set()
 +            stream.allow_reentry.set()
 +
-+    assert errors == []
 +    assert stream.close_calls == 1
 +    assert response.is_closed is True
 +    assert stream.reentry_error is not None
