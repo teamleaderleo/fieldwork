@@ -1,190 +1,128 @@
 # Tests — Vite `watchChange` error isolation
 
-## In simple words
-
-The failure, predecessor repair, and current source have all run inside Vite. At the current source head, the new three-case Unit 01 regression passes on Windows, the full Linux Node 20/22/24/26 and macOS Node 24 jobs pass, and the repository lint/build/type/format/docs workflow passes. Two Windows full-job attempts failed later in the pre-existing HMR/SSR integration playground; those failures are classified separately from Unit 01.
-
-## Evidence classes
-
-- **Source-read:** inspected exact public and owned source without execution.
-- **Model-executed:** disposable reproduction outside the ordinary target suite.
-- **Target-executed:** Vite-native test or build ran against a named source revision.
-- **Full-gate:** repository-declared ordinary job ran with its material limits named.
-
 ## Exact revisions
 
 | Purpose | Revision |
 | --- | --- |
-| Inspected public Vite base | `e6b6b167afa0a80548829d1f24a0712f9194389a` |
-| Research reproduction head | `882e62169e2cc4a8ac91d63aca2337fda4f69e1e` |
-| Reviewed predecessor source | `8b5d1ae237bf61031a7436ed8fb0fc1e436b6d78` |
-| Current-base replay commit | `5f513983f155a1bb59671b5eb9bc78b76f4ad889` |
-| Current canonical source head | `a2ab7ca6183ad74d64066d6706e57a546e355224` |
+| Public Vite base and current main | `e6b6b167afa0a80548829d1f24a0712f9194389a` |
+| Retained negative reproduction | `882e62169e2cc4a8ac91d63aca2337fda4f69e1e` |
+| Superseded environment-only source | `a2ab7ca6183ad74d64066d6706e57a546e355224` |
+| Superseded plugin-settlement source | `79fa097750158790ec9bf03d74e6f83d702dd4c2` |
+| Final canonical source | `ba8ac979ee91c77fdd91304ccde38942e9752133` |
 
-## Source-read result
+## Negative behavior
 
-At public base `e6b6b167afa0a80548829d1f24a0712f9194389a`:
+At the public base, a rejected `watchChange` hook exits the watcher transaction before Vite-owned invalidation and HMR. The retained virtual-module reproduction proves:
 
-- `server/index.ts` awaits environment `watchChange` calls with fail-fast `Promise.all` before later change/add/unlink work;
-- listener catches log the escaped rejection only after the inner worker has exited;
-- `moduleGraph.ts` owns cache invalidation and deletion relations;
-- `hmr.ts` owns event-typed HMR work after the watcher transaction reaches it;
-- `EnvironmentPluginContainer.watchChange` is asynchronous and exposes synchronous hook throws and asynchronous rejections as rejected environment promises.
+- control: backing state changes from `alpha` to `beta`, cache invalidates, and the next transform contains `beta`;
+- rejecting hook: the error is logged, HMR is skipped, cache remains populated, and the next transform still contains `alpha`.
 
-Result: the failure path remains present at the inspected public base, and server-level settle-all covers both throw and rejection forms.
+The later adversarial control proved that environment-level settle-all was insufficient: a fast sibling rejection could let HMR continue while a slower sibling hook remained pending, and later sequential hooks could be skipped.
 
-## Runtime reproduction
+## Final target-native regression
 
-Record: [`teamleaderleo/vite#1`](https://github.com/teamleaderleo/vite/pull/1)
+Exact file:
 
-Exact research head: `882e62169e2cc4a8ac91d63aca2337fda4f69e1e`
+`packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js`
 
-The retained reproduction uses a virtual module backed by a plugin-added watch file.
+Coverage:
 
-Control:
+1. **Change**
+   - initial virtual transform contains `alpha`;
+   - exact hook error reaches the configured logger;
+   - HMR runs;
+   - transform cache clears;
+   - refreshed transform contains `beta`.
+2. **Add**
+   - watcher add maps to Rollup event `create`;
+   - rejection is reported;
+   - HMR receives type `create`.
+3. **Unlink**
+   - watcher unlink maps to Rollup event `delete`;
+   - rejection is reported;
+   - HMR receives type `delete`.
+4. **Sibling settlement and barriers**
+   - fast and slow failing hooks both start;
+   - the fast failure is reported while the slow hook remains blocked;
+   - HMR does not run early;
+   - after release, the slow failure is reported;
+   - a sequential hook runs only after the preceding group settles;
+   - the later parallel hook and HMR retain order.
+5. **Synchronous throw**
+   - a direct throw is reported;
+   - a later hook still runs;
+   - HMR still runs.
 
-- backing file changes from `alpha` to `beta`;
-- module cache invalidates;
-- next transform contains `beta`.
+The focused product-content carrier passed installation, formatting, full build/type generation, generated-declaration leak checks, all focused cases, ESLint across the exact three files, and clean three-file packaging.
 
-Rejecting hook:
-
-- exact hook error is logged;
-- cache remains populated;
-- HMR is skipped;
-- next transform still contains `alpha`.
-
-It passed on Ubuntu Node 20/22/24/26, macOS Node 24, and Windows Node 24. One broad Windows production-build HMR/SSR timeout was classified as unrelated. The original browser-encoded direct-transform request was corrected to the plugin-facing virtual ID before accepting the result.
-
-Evidence class: target-executed reproduction with a stated broad-matrix limit.
-
-## Reviewed predecessor execution
-
-Exact source: `8b5d1ae237bf61031a7436ed8fb0fc1e436b6d78`
-
-Recorded commands:
-
-```sh
-pnpm install --frozen-lockfile
-pnpm exec oxfmt packages/vite/src/node/server/index.ts packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js
-pnpm run build
-pnpm exec vitest run packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js
-pnpm exec eslint packages/vite/src/node/server/index.ts packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js
-```
-
-Result: passed for the change-path regression, build, formatting, and lint. Temporary workflow files were removed by the later canonical head. Exact-head review [`4822979298`](https://github.com/teamleaderleo/vite/pull/4#pullrequestreview-4822979298) accepted semantic identity of the executed predecessor files.
-
-Evidence class: focused target execution at the predecessor head; no predecessor full-gate claim.
-
-## Current target-native test
-
-Exact file: [`watchChange-error-isolation.spec.js`](https://github.com/teamleaderleo/vite/blob/a2ab7ca6183ad74d64066d6706e57a546e355224/packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js)
-
-### Change
-
-- initial virtual transform contains `alpha`;
-- exact rejecting-hook error reaches the logger;
-- `hotUpdate` runs;
-- transform cache clears;
-- refreshed transform contains `beta`.
-
-### Add
-
-- watcher add maps to Rollup event `create`;
-- exact rejection reaches the logger;
-- HMR continues to `hotUpdate` with type `create`.
-
-### Unlink
-
-- watcher unlink maps to Rollup event `delete`;
-- exact rejection reaches the logger;
-- HMR continues to `hotUpdate` with type `delete`.
-
-Current-head result: `packages/vite/src/node/__tests__/server/watchChange-error-isolation.spec.js (3 tests)` passed in the Windows unit job. The complete Windows unit suite passed: 68 files, 913 tests passed, 3 skipped.
-
-Evidence class: target-executed at the current source head contained in the pull-request workflow merge; the exact source head is named separately from the synthetic merge commit.
-
-## Current-head workflows
-
-Exact source head: `a2ab7ca6183ad74d64066d6706e57a546e355224`
+## Final ordinary workflows
 
 ### Zizmor
 
-- Run [`30674314445`](https://github.com/teamleaderleo/vite/actions/runs/30674314445): success.
+- Run `30753769710`
+- Result: **success**
 
 ### CI
 
-- Run [`30674314447`](https://github.com/teamleaderleo/vite/actions/runs/30674314447).
-- Changed-files: success.
-- Lint pipeline: success, including dependency installation, repository build, lint, formatting check, typecheck, documentation tests, and workflow-file checks.
-- Linux Build&Test: success on Node 20, 22, 24, and 26.
-- macOS Build&Test: success on Node 24.
+- Run `30753769684`
+- Result: **success**
 
-The successful Build&Test jobs ran unit, serve, bundled-development, and build-mode steps assigned by the Vite workflow.
+Job results:
 
-### Windows attempt 1
+| Job | Result |
+| --- | --- |
+| Changed-file discovery | success |
+| Lint / build / format / typecheck / docs / workflow checks | success |
+| Ubuntu Node 20 Build&Test | success |
+| Ubuntu Node 22 Build&Test | success |
+| Ubuntu Node 24 Build&Test | success |
+| Ubuntu Node 26 Build&Test | success |
+| macOS Node 24 Build&Test | success |
+| Windows Node 24.15.0 Build&Test | success |
+| Build & Test Passed or Skipped aggregate | success |
+| Build & Test Failed aggregate | skipped |
 
-Job [`91298369805`](https://github.com/teamleaderleo/vite/actions/runs/30674314447/job/91298369805):
+Every Build&Test job completed:
 
-- repository build: passed;
-- unit suite: passed;
-- Unit 01 focused test: 3/3 passed;
-- later ordinary serve failed in existing `playground/hmr-ssr/__tests__/hmr-ssr.spec.ts`, timing out while waiting for the expected HMR console update.
+- dependency installation;
+- Vite build;
+- unit tests;
+- ordinary serve tests;
+- bundled-development serve tests;
+- build tests.
 
-Classification: unrelated existing Windows HMR/SSR integration flake. The failing path is outside the two-file Unit 01 diff and occurred after the focused regression passed.
+Preview run `30753769692` skipped as expected for the internal source PR and carries no product claim.
 
-### Windows attempt 2
+## Source-gate repairs
 
-Job [`91344104649`](https://github.com/teamleaderleo/vite/actions/runs/30674314447/job/91344104649):
+The first final-source attempt failed ordinary type checking because:
 
-- repository build: passed;
-- unit suite: passed;
-- Unit 01 focused test: 3/3 passed;
-- ordinary serve: passed — 91 files passed, 17 skipped; 1128 tests passed, 165 skipped;
-- bundled-development then failed three existing HMR/SSR timing/state assertions in the same playground family;
-- build-mode did not run because the prior bundled-development step stopped the Windows job.
+- `plugin[hookName]` remained optional at the `getHookHandler` call;
+- `shouldRunWatchChange()` could return `undefined` while declaring `boolean`.
 
-Classification: unrelated Windows HMR/SSR integration flake. The failure moved from ordinary serve to bundled-development while Unit 01 remained green and every Linux/macOS full job passed.
+Final head `ba8ac979...` fixes those exact type defects. The complete ordinary matrix above controls the final source.
 
-### Windows attempt 3
+## Classification summary
 
-Job [`91344668365`](https://github.com/teamleaderleo/vite/actions/runs/30674314447/job/91344668365) was requested as supplementary full-job evidence and was queued when this receipt was reconciled. Its result can strengthen the ordinary Windows record but is not a reason to alter Unit 01 source without a Unit 01-linked failure.
-
-### Preview
-
-- Run [`30674314449`](https://github.com/teamleaderleo/vite/actions/runs/30674314449): skipped as expected for the internal source PR; no product claim.
-
-## Synthetic merge caveat
-
-GitHub Actions checked out a pull-request merge ref containing source head `a2ab7ca6183ad74d64066d6706e57a546e355224` merged into the owned repository's current default-branch head. The canonical source relation and complete-diff review remain the explicit base-to-head fence `e6b6b167...a2ab7ca6`.
-
-The workflow evidence is therefore current compatibility execution containing the exact source head, not a claim that the synthetic merge commit is the canonical source revision.
-
-## Current classification summary
-
-| Claim | Result | Evidence class | Limit |
-| --- | --- | --- | --- |
-| Failure exists at inspected public base | confirmed | source-read + target reproduction | inspected base, virtual-module path |
-| Change invalidation continues after rejection | passed | target-executed | focused test |
-| Add/unlink reach event-typed HMR after rejection | passed | target-executed | hook reachability, not every downstream mutation |
-| Build/lint/format/type/docs/workflow checks | passed | full-gate for named lint job | named CI steps only |
-| Linux supported Node Build&Test | passed | full-gate | workflow-assigned paths |
-| macOS Node 24 Build&Test | passed | full-gate | workflow-assigned paths |
-| Windows build/unit/focused test | passed | target/full-gate portions | later HMR/SSR integration flaked |
-| Windows ordinary serve | passed on rerun | integration-executed | bundled-development later flaked |
-| Windows full job | incomplete | classified harness/integration result | existing HMR/SSR family stopped later steps |
-
-## Additional controls not required by the current claim
-
-- stronger add public-file bookkeeping assertion;
-- stronger unlink graph-relation assertion;
-- explicit multiple-environment/multiple-rejection logging control.
-
-These may be maintainer-requested follow-ups. Their absence does not negate the current change/add/unlink ownership claim.
+| Claim | Result | Evidence |
+| --- | --- | --- |
+| Public-base watcher transaction aborts after hook failure | confirmed | source read + target reproduction |
+| Change cache invalidation and HMR continue after rejection | passed | final target-native test |
+| Add/unlink event mapping and HMR continue after rejection | passed | final target-native test |
+| Every applicable sibling hook settles | passed | blocked-sibling control |
+| Every plugin failure is reported | passed | dual-failure assertions |
+| Sequential barriers remain effective | passed | ordering assertion |
+| Sync throws cannot skip later hooks/HMR | passed | final target-native test |
+| Specialized method stays out of generated declarations | passed | generated-declaration check |
+| Lint, formatting, typing, docs, and workflow checks | passed | final CI |
+| Linux, macOS, and Windows ordinary Build&Test | passed | final CI |
+| Public direct `watchChange()` remains fail-fast | source-confirmed | exact diff review |
 
 ## Evidence limits
 
-- Add/unlink hook reachability proves continuation into HMR, not every downstream state mutation.
-- The reproduction establishes stale virtual transform output; it does not measure ecosystem prevalence or production impact.
-- The Windows HMR/SSR failures are real ordinary-gate observations and remain recorded; classification does not relabel them as passes.
-- A new source head, material base move, or new Unit 01-linked failure expires this receipt and requires reconciliation.
+- Simultaneous logger call ordering is not a public promise.
+- A custom logger that throws can interrupt reporting; logger-failure policy is separate.
+- Separate filesystem events remain independently concurrent.
+- The repair does not roll back arbitrary plugin-owned partial state.
+- Add/unlink controls prove event mapping and continuation rather than every platform-specific downstream mutation.
+- Any source-head or material public-base movement requires renewed reconciliation.
