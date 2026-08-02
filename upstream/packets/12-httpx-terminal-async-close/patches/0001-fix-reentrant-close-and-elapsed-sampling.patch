@@ -1,5 +1,5 @@
 diff --git a/httpx/_client.py b/httpx/_client.py
-index 79934d0..510b419 100644
+index 79934d050cd77414fb6f9c1024f42f6029c924e0..510b41959383dcf78bd311a236afc44dd92d010a 100644
 --- a/httpx/_client.py
 +++ b/httpx/_client.py
 @@ -177,8 +177,8 @@ class BoundAsyncStream(AsyncByteStream):
@@ -13,7 +13,7 @@ index 79934d0..510b419 100644
  
  
  diff --git a/httpx/_models.py b/httpx/_models.py
-index 3ccb529..0533a73 100644
+index 3ccb5290ceb95d96e24047bcec2897c52de16176..0533a7324d0ed45ffb1087570551efcdaed02fa5 100644
 --- a/httpx/_models.py
 +++ b/httpx/_models.py
 @@ -1,6 +1,7 @@
@@ -62,7 +62,7 @@ index 3ccb529..0533a73 100644
          await state.event.wait()
          if state.failed:
  diff --git a/tests/client/test_async_client_terminal_close_elapsed.py b/tests/client/test_async_client_terminal_close_elapsed.py
-index f6ecfbf..c3a27b2 100644
+index f6ecfbf52cc1f0e06f9378dd6ca8d3476c3717d8..c3a27b2f65f04c723a4fc330f25215dcc6565e1c 100644
 --- a/tests/client/test_async_client_terminal_close_elapsed.py
 +++ b/tests/client/test_async_client_terminal_close_elapsed.py
 @@ -1,8 +1,10 @@
@@ -138,12 +138,12 @@ index f6ecfbf..c3a27b2 100644
 +
 +    assert response.elapsed.total_seconds() == 2.0
 +    await client.aclose()
-diff --git a/tests/models/test_async_response_close_reentry.py b/tests/models/test_async_response_close_reentry.py
+ diff --git a/tests/models/test_async_response_close_reentry.py b/tests/models/test_async_response_close_reentry.py
 new file mode 100644
-index 0000000..0584599
+index 0000000000000000000000000000000000000000..4a13b86b8d644effbf200bf9d772b150f056ae0d
 --- /dev/null
 +++ b/tests/models/test_async_response_close_reentry.py
-@@ -0,0 +1,220 @@
+@@ -0,0 +1,222 @@
 +from __future__ import annotations
 +
 +import anyio
@@ -151,7 +151,9 @@ index 0000000..0584599
 +
 +import httpx
 +
-+REENTRY_MESSAGE = "Attempted to re-enter response close from the stream close operation."
++REENTRY_MESSAGE = (
++    "Attempted to re-enter response close from the stream close operation."
++)
 +
 +
 +def assert_error_request(
