@@ -2,11 +2,11 @@
 
 ## In simple words
 
-Miniflare owns a workerd child process and several independent cleanup hooks. Its current disposal order waits for browser and proxy cleanup before asking workerd to exit. A rejected or pending hook can therefore leave the child alive. The clean candidate starts runtime disposal first, then preserves the existing cleanup order. The source branch and focused tests now exist; repository execution is running on the owned-fork draft PR.
+Miniflare owns a workerd child process and several independent cleanup hooks. The repaired candidate starts workerd termination before awaiting browser or proxy cleanup, so those hooks cannot skip or indefinitely delay the ownership action. Review also repaired the first regression test so it always completes the remaining Miniflare teardown after the injected proxy failure. The source is one clean commit and is ready for the repository owner’s decision; exact-head workflows are pending.
 
-Current disposition: **EXECUTE**
+Current state: **READY FOR OWNER DECISION — source and test cleanup repaired; exact-head workflows pending**
 
-Date: `2026-08-01`
+Date: `2026-08-03`
 
 Upstream contact authorized: `false`  
 Upstream contact performed: `false`
@@ -23,60 +23,39 @@ The unit contains only:
 2. three target-native lifecycle controls;
 3. one Miniflare patch changeset.
 
-The following remain outside this unit:
-
-- aggregation of multiple teardown errors;
-- preservation of initialization errors when later cleanup also fails;
-- deadlines or phase-wide `allSettled()` cleanup;
-- Vite server owner handoff;
-- browser-process teardown implementation;
-- Durable Object teardown behavior;
-- claims that this mechanism caused any particular public report.
+It excludes multi-error aggregation, initialization-error precedence, generic cleanup deadlines, Vite owner handoff, Durable Object teardown, and causal claims about public reports.
 
 ## Exact current revisions
 
 | Record | Exact revision |
 | --- | --- |
-| Current public Workers SDK base | [`cloudflare/workers-sdk@95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`](https://github.com/cloudflare/workers-sdk/commit/95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d) |
-| Owned fork `main` | [`teamleaderleo/workers-sdk@95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`](https://github.com/teamleaderleo/workers-sdk/commit/95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d) |
+| Pinned Workers SDK base | `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d` |
 | Clean target branch | `teamleaderleo/workers-sdk:upstream/miniflare-runtime-first-disposal` |
-| Clean target head | [`e5ac5d046a8b2ac634027e9da59dec93c61a650e`](https://github.com/teamleaderleo/workers-sdk/commit/e5ac5d046a8b2ac634027e9da59dec93c61a650e) |
-| Canonical owned-fork source PR | [`teamleaderleo/workers-sdk#5`](https://github.com/teamleaderleo/workers-sdk/pull/5) |
+| Clean target head | `d668e318f5e6b0c1e2cbd66ac4b46d8cddbca642` |
+| Canonical owned-fork source PR | `teamleaderleo/workers-sdk#5` |
 | Packet branch | `teamleaderleo/fieldwork:upstream/15-miniflare-runtime-first-disposal` |
-| Packet workflow base | [`920f87cb25dd0cc7901d59ea2019cd4b4a193b94`](https://github.com/teamleaderleo/fieldwork/commit/920f87cb25dd0cc7901d59ea2019cd4b4a193b94) |
-| Legacy carrier PR | [`teamleaderleo/workers-sdk#1`](https://github.com/teamleaderleo/workers-sdk/pull/1) |
-| Legacy carrier head | [`7d51105349020151c2efd0a961706c59228ca9fd`](https://github.com/teamleaderleo/workers-sdk/commit/7d51105349020151c2efd0a961706c59228ca9fd) |
-| Accepted A001 evidence point | [`fa39841a98d71edd2df7561beb877f4dacbc6b7c`](https://github.com/teamleaderleo/workers-sdk/commit/fa39841a98d71edd2df7561beb877f4dacbc6b7c) |
-| Legacy source base | [`161443215fba3ac77407ba30f6996aa9963a0276`](https://github.com/teamleaderleo/workers-sdk/commit/161443215fba3ac77407ba30f6996aa9963a0276) |
-| Durable review hub | [`teamleaderleo/fieldwork#88`](https://github.com/teamleaderleo/fieldwork/issues/88) |
-| A001 result PR | [`teamleaderleo/fieldwork#98`](https://github.com/teamleaderleo/fieldwork/pull/98) |
-| Coordinator synthesis | [`teamleaderleo/fieldwork#112`](https://github.com/teamleaderleo/fieldwork/pull/112) |
-| Retired materialization carrier | [`teamleaderleo/workers-sdk#4`](https://github.com/teamleaderleo/workers-sdk/pull/4) |
-| Materialization run / job | [`30674559186`](https://github.com/teamleaderleo/workers-sdk/actions/runs/30674559186) / `91299001548` — success |
+| Packet workflow base | `920f87cb25dd0cc7901d59ea2019cd4b4a193b94` |
+| Retired materialization run / job | `30674559186` / `91299001548` — success |
 
-## Current-source observation
+## Source mechanism
 
-At exact base `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`, [`packages/miniflare/src/index.ts`](https://github.com/cloudflare/workers-sdk/blob/95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d/packages/miniflare/src/index.ts) awaits cleanup in this order inside `Miniflare.dispose()`:
+At the pinned base, `Miniflare.dispose()` awaits browser and proxy cleanup before `Runtime.dispose()`. A rejection exits the cleanup block and an unresolved promise suspends it before the workerd owner receives a chance to terminate the child.
 
-1. `#closeBrowserProcesses()`;
-2. `#proxyClient?.dispose()`;
-3. `#runtime?.dispose()`;
-4. later dispatchers, loopback server, WebSockets, temporary files, registry, and proxy controllers.
-
-A rejection or unresolved promise in either earlier awaited step prevents execution from reaching `Runtime.dispose()`. `Runtime.dispose()` synchronously clears the child reference, destroys its streams, sends `SIGKILL`, then returns the child-exit promise.
-
-## Clean candidate
-
-The candidate at `e5ac5d046a8b2ac634027e9da59dec93c61a650e`:
+The candidate:
 
 1. removes the exit hook;
 2. invokes `Runtime.dispose()` and retains its promise;
-3. attaches an immediate rejection observer so an earlier cleanup failure cannot create an unhandled rejection;
+3. observes that promise immediately so an earlier failure cannot create an unhandled rejection;
 4. awaits browser cleanup;
 5. awaits proxy cleanup;
-6. awaits the retained runtime-exit promise before closing dispatchers.
+6. awaits runtime exit before closing dispatchers;
+7. continues the existing later cleanup sequence.
 
-This starts the workerd kill request before independent awaits while preserving dispatcher shutdown after runtime exit.
+`Runtime.dispose()` performs the termination request synchronously before returning its child-exit promise.
+
+## Browser Rendering interaction
+
+Source review found no direct dependency on a live workerd process. `closeBrowserProcess()` receives its own browser-process handle and CDP WebSocket endpoint, attempts `Browser.close`, then kills and waits for that browser process if graceful close fails. This supports the selected early-start ordering. Exact target execution remains useful, but the browser question is no longer an unexamined design blocker.
 
 ## Exact changed-file fence
 
@@ -88,54 +67,36 @@ packages/miniflare/src/index.ts
 packages/miniflare/test/teardown-lifecycle.spec.ts
 ```
 
-Diff summary: `136` additions, `4` deletions. Temporary workflows, experiments, packet files, and carrier machinery are absent from the canonical source branch.
+Diff summary: `136` additions, `4` deletions. No workflow, packet, experiment, or carrier machinery is present.
 
 ## Focused controls
 
-1. proxy cleanup rejects and the first disposal still requests `SIGKILL` for workerd, then the test awaits the killed child's exit;
-2. proxy cleanup remains pending and the workerd kill request occurs before the pending hook is released;
-3. a later `DevRegistry.dispose()` rejection confirms the runtime had already been terminated.
+1. Proxy cleanup rejects; the first disposal still requests workerd `SIGKILL`. After restoring the injected failure, the test always calls `mf.dispose()` again to finish remaining teardown, then waits for the killed child to exit.
+2. Proxy cleanup remains pending; the workerd kill request occurs before the hook is released.
+3. A later `DevRegistry.dispose()` rejection confirms runtime termination already occurred.
 
-The legacy fourth test covering initialization-error preservation belongs to a separate error-aggregation unit and remains excluded.
+The first test repair matters: merely awaiting the killed child did not complete the rest of Miniflare cleanup after the earlier proxy rejection.
 
-## Current execution
+## Exact-head workflows
 
-Owned-fork source PR `teamleaderleo/workers-sdk#5` is open at exact head `e5ac5d046a8b2ac634027e9da59dec93c61a650e`.
+Triggered for `d668e318f5e6b0c1e2cbd66ac4b46d8cddbca642`:
 
-Fresh exact-head workflows include:
+- CI `30756281544`;
+- CI (Other Node Versions) `30756281540`;
+- Changeset Review `30756281529`;
+- Semgrep OSS scan `30756281508`.
 
-- CI — run `30690979156`;
-- CI (Other Node Versions) — run `30690979168`;
-- Changeset Review — run `30690979176`;
-- Semgrep OSS scan — run `30690979141`;
-- repository integration suites triggered by the target PR.
+Other repository workflows are queued or skipped by path filters. No exact-head pass is claimed before execution. Pending infrastructure is an evidence boundary, not an unfixed source defect.
 
-The focused package assertion still needs a retained job-level execution receipt. This is an execution task, so the current disposition is **EXECUTE**.
+## Owner decision surface
 
-## Prior art and duplicate result
-
-- The current base still contains the ordering gap.
-- The legacy owned carrier combines this unit with adjacent lifecycle investigations; the clean candidate extracts only this unit.
-- `cloudflare/miniflare#392` is repository-migration context and does not directly establish the fine-grained must-run ownership fix.
-- `cloudflare/workers-sdk#12025`, `#13078`, and `#14727` establish adjacent runtime, temporary-directory, and browser teardown precedents.
-- `cloudflare/workers-sdk#14903` remains a symptom match with an unresolved causal link. The packet makes no claim that this candidate fixes that report.
-
-## Remaining work in strict order
-
-1. Inspect exact-head CI results and job logs for source PR `#5`.
-2. Confirm the focused lifecycle file actually executes and record its assertion count and result.
-3. Run or obtain a baseline receipt for the same controls at `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`.
-4. Classify every failed or skipped target gate by source relevance.
-5. Re-review Browser Rendering interaction and simultaneous runtime/earlier-hook failure precedence.
-6. Synchronize `TESTS.md`, `REVIEW.md`, the source PR front page, and issue `#435` at the final exact head.
-7. Obtain independent final review before promotion to `READY`.
-8. Keep public issue and PR drafts dormant until explicit public-contact authority.
+The repository owner can decide whether this candidate should advance after exact-head results are available. Before public filing, refresh current main, duplicate/overlap, contribution policy, and disclosure requirements. Public contact remains separately unauthorized.
 
 ## Packet map
 
-- [`DEEP_DIVE.md`](./DEEP_DIVE.md) — source trace, mechanism, evidence limits, compatibility concerns.
-- [`APPROACHES.md`](./APPROACHES.md) — selected approach and rejected alternatives.
-- [`TESTS.md`](./TESTS.md) — executed evidence, prepared controls, and remaining gates.
-- [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md) — public issue draft only.
-- [`UPSTREAM_PR.md`](./UPSTREAM_PR.md) — public PR draft only.
-- [`REVIEW.md`](./REVIEW.md) — bounded self-review and continuation checklist.
+- [`DEEP_DIVE.md`](./DEEP_DIVE.md)
+- [`APPROACHES.md`](./APPROACHES.md)
+- [`TESTS.md`](./TESTS.md)
+- [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md)
+- [`UPSTREAM_PR.md`](./UPSTREAM_PR.md)
+- [`REVIEW.md`](./REVIEW.md)
