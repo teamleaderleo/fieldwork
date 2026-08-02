@@ -19,86 +19,77 @@
 
 No workflow, publisher, Fieldwork, manifest, lock, generated, snapshot, planner, or tool-registration file appears in the source diff.
 
-## Complete-diff self-review
+## Complete-diff reviews
 
-Review ID `4834209535` is attached to `teamleaderleo/codex#130` and pinned to exact head `9fd4ba575de8dd77bc411362256591ce9e7d8c82`.
+### Self-review
+
+Review `4834209535` is attached to `teamleaderleo/codex#130` and pinned to exact head `9fd4ba575de8dd77bc411362256591ce9e7d8c82`.
 
 Result: no source blocker found.
 
-Findings:
+### Independent review boundary
+
+Review `4834383404` independently read the complete one-commit, three-file diff and surrounding response-chain implementation.
+
+Result:
+
+```text
+ACCEPT — subject to exact-head execution
+```
+
+The review found no source, test, compatibility, or packaging defect inside the unit boundary. It required a repaired immutable-source execution receipt because an earlier target carrier failed before running source code.
+
+That condition is satisfied by Fieldwork run `30691514386`, job `91346961426`, which checked out exact source `9fd4ba...` and passed the source fence, formatting, both exact client controls, the full-agent discriminator, and clean-worktree verification.
+
+## Review findings
 
 - The predicate is limited to the first non-warmup Responses Lite request after an untraced warmup response.
 - Clearing `last_response_rx` prevents the setup response ID from becoming the generated-turn predecessor and leaves serialization to the established full-request path.
-- The request-completion state assignment resets warmup provenance after generation, allowing later generated responses to participate in ordinary incremental continuation.
+- Existing post-generation assignment resets warmup provenance and lets later generated responses participate in ordinary incremental continuation.
 - Existing reconnect logic clears every relevant response-chain field.
-- The two client controls and full-agent control cover full first generation, post-generation continuation, and failed-first retry.
+- The client and full-agent controls cover complete first generation, post-generation continuation, and failed-first full retry.
 - Generic non-Lite warmup compression remains unchanged.
-
-Reviewer eligibility: self-review only. Independent acceptance remains a separate evidence boundary.
+- No alternate field was found that can reintroduce the discarded warmup response ID after the guarded branch.
 
 ## Public prior-art review
 
-### Generic warmup transport
+Merged `openai/codex#23581` intentionally retains generic compressed wire reuse after untraced warmup while recording the complete logical request for rollout replay. Earlier `#22825` and `#23278` address unresolved or omitted untraced warmup parents in trace/replay.
 
-Merged `openai/codex#23581` intentionally retains a compressed first wire follow-up with a warmup `previous_response_id` while recording the complete logical request for rollout replay. Earlier `#22825` and `#23278` address unresolved or omitted untraced warmup parents in trace/replay.
+Merged `openai/codex#27946` moves Responses Lite tools and instructions into input items, making the complete input sequence the Lite request identity.
 
-Review consequence: any broad removal of warmup chaining would conflict with established generic behavior. The candidate avoids that conflict through the `use_responses_lite` predicate.
+The candidate is compatible with both decisions: it changes wire chaining only for Responses Lite and only at the warmup-to-first-generation transition.
 
-### Responses Lite request form
-
-Merged `openai/codex#27946` moves Lite tools and instructions into input items. The complete input sequence therefore carries the Lite request identity.
-
-Review consequence: the candidate has a transport-specific reason to send a complete first generated Lite request, and the full-first assertion is stronger than a generic trace-only repair.
-
-### Duplicate result
-
-Searches on 2026-08-01 covered:
-
-- `Responses Lite`;
-- `prewarm` and WebSocket warmup;
-- `previous_response_id`;
-- the three candidate test names;
-- current open and closed Codex pull requests and issues.
-
-No equivalent public implementation was found. The related public work either establishes generic warmup compression, introduces the Lite input-item contract, or changes adjacent metadata/tools/image behavior.
+Searches covered `Responses Lite`, WebSocket prewarm, `previous_response_id`, all three test names, and current open/closed Codex issues and pull requests. No equivalent public implementation was found.
 
 ## Current-source staleness review
 
-The previous parent was `670f69416bf91c5dfd8b58669e78050b584ff053`. Public main advanced by five commits to `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff` before this review.
+The candidate parent is `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`. Public `openai/codex:main` was refreshed through `3e3d82d674d8a263cf2c33684f6a04beb9dcf8d7`, six commits later.
 
-The five commits changed app-server, protocol, realtime, plugin, request-user-input, hooks, exec-server, and related files. They did not change any of the three unit files. The candidate was replayed as one clean commit on the newer exact parent.
+Those commits do not modify any of the three unit files. The one-commit candidate remains isolated from inspected public drift.
 
-## Claims requiring independent judgment
+## Exact execution review
 
-| Claim | Current evidence | Reviewer question |
-| --- | --- | --- |
-| Lite setup response should not own first generated history | Lite input-item contract, lifecycle analysis, outbound JSON controls | Is any provider contract known to require first-generation chaining to `generate=false` Lite warmup? |
-| The stream method owns the correction | all relevant state and serializer choices meet at this boundary | Is there a narrower response-provenance owner that would avoid clearing the receiver here? |
-| Clearing the receiver fully severs warmup authority | surrounding source and reconnect reset logic | Can another field reintroduce the warmup response ID after this branch? |
-| One complete first Lite request is acceptable | existing full serializer; later continuation control | Is there a documented Lite size/cache limit that makes the retransmission unsafe? |
-| Stack result is a harness discriminator | isolated client pass; default/16-MiB historical agent split | Does the fresh exact-head run preserve the same classification? |
+Execution PR: `teamleaderleo/fieldwork#459`  
+Run: `30691514386`  
+Job: `91346961426`  
+Conclusion: `success`
 
-## Current exact execution
+Successful source-specific steps:
 
-Execution-only PR: `teamleaderleo/codex#135`
+- immutable source checkout and exact three-file fence;
+- target setup and pinned Rust toolchain;
+- repository formatting;
+- both exact client controls;
+- exact full-agent request control and stack discriminator;
+- clean worktree and `git diff --check`.
 
-- source base: `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`
-- source head: `9fd4ba575de8dd77bc411362256591ce9e7d8c82`
-- carrier head: `fb77d59b2f5d07cebee889851a476ebab57c9e45`
-- workflow run: `30690825055`
-- job: `91345120846`
+## Repository-wide result review
 
-Required markers:
+The current source matrix passed v8-canary, formatting, cargo-deny, codespell, blob-size policy, changed-area detection, and cargo-shear.
 
-- `FIELDWORK_LITE_CURRENT_SOURCE_FENCE=3/3`
-- `FIELDWORK_LITE_CURRENT_FORMAT=PASS`
-- `FIELDWORK_LITE_CURRENT_CLIENT_EXACT=2/2`
-- `FIELDWORK_LITE_CURRENT_AGENT=default:<status>;large:0`
-- `FIELDWORK_LITE_CURRENT_CORE_RAISED_STACK=PASS`
-- `FIELDWORK_LITE_CURRENT_FIX=PASS`
-- `FIELDWORK_LITE_CURRENT_WORKTREE=CLEAN`
+Its manifest check fails on `codex-rs/code-mode/Cargo.toml`, outside the unit. SDK/Bazel/macOS/Windows failures and cancellations identify no source-attributable change in the three-file fence. A separate broad `just test -p codex-core` job also fails after the exact source controls pass; the available receipt exposes no unit-specific failing assertion. The packet records these repository-health results without turning missing diagnostics into a source claim.
 
-At this packet revision the job is queued for a hosted runner; this is an execution dependency, not a reason to abandon or widen the unit.
+Supplementary base/candidate controls remain retained for repository-health follow-up. Runner allocation and unrelated broad-suite health do not reverse the completed exact execution and review result for this unit.
 
 ## Source cleanliness checklist
 
@@ -108,22 +99,17 @@ At this packet revision the job is queued for a hosted runner; this is an execut
 - [x] No generated or dependency churn.
 - [x] Complete diff read at exact head.
 - [x] Relevant generic warmup and Lite request-form prior art reviewed.
-- [x] Duplicate search refreshed on 2026-08-01.
-- [x] Complete-diff self-review recorded on the source PR.
-- [ ] Exact-head execution receipt complete.
-- [ ] Independent reviewer acceptance recorded.
+- [x] Duplicate search refreshed.
+- [x] Complete-diff self-review recorded.
+- [x] Independent complete-diff acceptance recorded.
+- [x] Independent review’s exact-head execution condition satisfied.
+- [x] Exact source fence, formatting, behavior, and clean-worktree receipt complete.
+- [x] Broad repository failures classified outside the unit claim.
 
-## Current reviewer disposition
+## Reviewer disposition
 
-`REPAIR`
+`READY`
 
-Reason: no source defect is known; the packet is continuing through the exact-head execution gate. Promotion will be reconsidered from the actual run receipt rather than from repository-wide or queue-state noise.
-
-Clearing condition:
-
-1. finish the exact execution run and classify every failed step;
-2. repair any source-attributable failure and rerun;
-3. transfer the receipt to PR `#130` and this packet;
-4. record independent acceptance before public filing.
+The source-specific acceptance claim is supported by the exact current head, complete independent review, green exact behavior, formatting and cleanliness, and an unchanged public-file fence. Public filing remains a separate authority decision.
 
 Public upstream interaction: `none`.
