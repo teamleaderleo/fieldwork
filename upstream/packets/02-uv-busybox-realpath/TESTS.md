@@ -5,6 +5,7 @@
 - Base: `79bbface771210df216b738e9bdc7df95e5a9e6b`
 - Head: `047b724212905c034c15d4f4f6f9ef330bbd2daf`
 - Tree: `e0832686bd982b5c15f6e9bdd6d6631d30ec24cf`
+- Relationship: one commit ahead, zero behind
 - Changed files: exactly four
 - Diff: 89 insertions, 15 deletions
 
@@ -14,15 +15,20 @@
 - Workflow: `30753911776`
 - Linux/source job: `91512671857` — success
 - Artifact: `8835628919`
-- Digest: `sha256:2e2bc57478d197298e0fe36815d77459d2b5c3e9b4409a646be971c3886f9d28`
+- Digest: `sha256:1d54c978b355e807bb69f962f866574d8c200ae624ed55b0ac9a6cd8c631ff0c`
+
+The artifact was downloaded independently and its ZIP hash matched the GitHub artifact digest above. Its retained patch is 175 lines and matches the exact four-file fence.
 
 ## Publication receipt
 
+- Publication carrier head: `76836268a70c0a9ba49035a5e3eab4477044ed10`
 - Workflow: `30756408587`
 - Job: `91519210841` — success
 - Artifact: `8836056361`
 - Digest: `sha256:e0684ec5da7025a7b7cf4a8f7b932e06c3385d07e2146a5e8d5a8c344a2ed634`
 - Published commit/tree: `047b724212905c034c15d4f4f6f9ef330bbd2daf` / `e0832686bd982b5c15f6e9bdd6d6631d30ec24cf`
+
+The publication job regenerated the candidate, checked all four expected blob hashes, built a tree from the exact base, created one commit with that sole parent, verified the four changed paths, and force-updated only the controlled clean branch.
 
 ## Source gates
 
