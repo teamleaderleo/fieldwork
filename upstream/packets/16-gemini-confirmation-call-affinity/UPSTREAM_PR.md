@@ -1,6 +1,6 @@
 # Upstream pull-request draft — Bind confirmation modification to correlated call
 
-Draft status: `issue first`  
+Draft status: `source ready; public PR blocked until the required issue exists and maintainers respond`  
 Proposed head: `teamleaderleo/gemini-cli:fix/scheduler-confirmation-call-affinity` at `b6d8e8bb6160aec16555647d81d46a694e44b58b`  
 Proposed base: `google-gemini/gemini-cli:main` at or after `f47d6c6f7a1308d81f9f57acf7d279f0928c5249`  
 Public interaction authorized: `no`
@@ -77,7 +77,7 @@ Final run `30692554758`, candidate job `91350078426`, Ubuntu 22.04, Node `v20.19
 - clean tracked tree passed;
 - canonical source publication passed.
 
-Full repository preflight reaches `.github/workflows/pr-size-labeler-batch-run.yml` shellcheck `SC2031`. Baseline-control job `91349770438` checked out exact unchanged base and reproduced the same workflow path and warning. The PR changes no workflow.
+Full repository preflight reaches `.github/workflows/pr-size-labeler-batch-run.yml` shellcheck `SC2031`. Baseline-control job `91349770438` checked out exact unchanged base and reproduced the same workflow path and warning. The PR changes no workflow, and this draft does not claim `full-gate`.
 
 ## Compatibility
 
@@ -106,13 +106,15 @@ Full repository preflight reaches `.github/workflows/pr-size-labeler-batch-run.y
 
 ## Related work
 
-- Add the authorized public issue after issue-first filing and maintainer direction.
+- File the prepared public bug issue only after explicit authority.
+- Add the public issue link here after maintainers respond and before any authorized public code PR.
 - No equivalent public implementation was found in the 2026-08-01 search; repeat immediately before filing.
 
 ---
 
 ## Submission checklist
 
+- [x] Source candidate is `READY` in Fieldwork.
 - [x] Branch is a direct child of the inspected public head.
 - [x] Diff contains only product source and target-native tests.
 - [x] Temporary workflows, publishers, receipts, and Fieldwork files are absent.
@@ -126,6 +128,7 @@ Full repository preflight reaches `.github/workflows/pr-size-labeler-batch-run.y
 - [x] Repository preflight blocker reproduced on unchanged base.
 - [ ] Eligible independent review completed.
 - [ ] Current duplicate and overlap search repeated.
+- [ ] Public issue exists and maintainer direction permits a code PR.
 - [x] Commit title follows Conventional Commits.
 - [ ] Current contribution and AI-disclosure policies checked at filing time.
 - [ ] Exact authorization to file issue/open public PR recorded.
