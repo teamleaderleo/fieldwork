@@ -10,10 +10,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = 1
+SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 # Ordered by causal position, not UI presentation order.
 LAYER_ORDER = (
@@ -53,6 +55,11 @@ VIEW_ORDER = (
 )
 
 DOCUMENT_KEYS = {"schema_version", "source_boundary", "receipts"}
+SOURCE_BOUNDARY_KEYS = {
+    "public_codex_revision",
+    "campaign_issue",
+    "fixture_sources",
+}
 RECEIPT_KEYS = {
     "schema_version",
     "receipt_id",
@@ -72,6 +79,7 @@ REQUIRED_RECEIPT_KEYS = {
     "operation_kind",
     "views",
 }
+EXPECTED_KEYS = {"first_divergent_layer", "typed_reason"}
 VIEW_NAMES = frozenset(VIEW_ORDER)
 VIEW_KEYS = {
     "state",
@@ -99,6 +107,20 @@ NONNEGATIVE_INTEGER_VIEW_FIELDS = {"count", "deferred_family_count", "delta_coun
 BOOLEAN_VIEW_FIELDS = {"required", "executable", "previous_response"}
 STRING_VIEW_FIELDS = {"digest", "identity_digest", "provenance"}
 
+FORBIDDEN_PRIVACY_KEYS = {
+    "prompt",
+    "arguments",
+    "args",
+    "credentials",
+    "credential",
+    "schema",
+    "tool_names",
+    "provider_payload",
+    "account_id",
+    "access_token",
+    "secret",
+}
+
 RECOVERY_BY_REASON = {
     "saved_host_state_wins": "require an explicit preserve/replace/clear/reject host policy before continuation",
     "wire_manifest_omitted": "discard incompatible incremental reuse and send a full first generated request",
@@ -110,13 +132,49 @@ RECOVERY_BY_REASON = {
 }
 
 
+def canonical_json_bytes(value: Any) -> bytes:
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def canonical_sha256(value: Any) -> str:
+    return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
+
+
 def canonical_digest(value: Any) -> str:
-    payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()[:16]
+    return canonical_sha256(value)[:16]
+
+
+def _reject_duplicate_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object member {key!r}")
+        result[key] = value
+    return result
+
+
+def _reject_nonstandard_constant(value: str) -> None:
+    raise ValueError(f"non-standard JSON constant {value!r}")
+
+
+def load_strict_json(path: Path) -> tuple[Any, str]:
+    raw_bytes = path.read_bytes()
+    text = raw_bytes.decode("utf-8")
+    document = json.loads(
+        text,
+        object_pairs_hook=_reject_duplicate_object,
+        parse_constant=_reject_nonstandard_constant,
+    )
+    return document, hashlib.sha256(raw_bytes).hexdigest()
 
 
 def _require_object(value: Any, label: str) -> dict[str, Any]:
-    if not isinstance(value, dict):
+    if type(value) is not dict:
         raise ValueError(f"{label} must be an object")
     return value
 
@@ -130,11 +188,54 @@ def _reject_unknown_keys(
 
 
 def _require_string(value: Any, label: str, *, nonempty: bool = False) -> str:
-    if not isinstance(value, str):
+    if type(value) is not str:
         raise ValueError(f"{label} must be a string")
     if nonempty and not value:
         raise ValueError(f"{label} must be a non-empty string")
     return value
+
+
+def _require_positive_integer(value: Any, label: str) -> int:
+    if type(value) is not int or value <= 0:
+        raise ValueError(f"{label} must be a positive integer")
+    return value
+
+
+def validate_source_boundary(value: Any) -> dict[str, Any]:
+    boundary = _require_object(value, "document.source_boundary")
+    _reject_unknown_keys(boundary, SOURCE_BOUNDARY_KEYS, "document.source_boundary")
+    if "public_codex_revision" in boundary:
+        revision = _require_string(
+            boundary["public_codex_revision"],
+            "document.source_boundary.public_codex_revision",
+            nonempty=True,
+        )
+        if SHA_RE.fullmatch(revision) is None:
+            raise ValueError(
+                "document.source_boundary.public_codex_revision must be "
+                "a lowercase 40-hex commit SHA"
+            )
+    if "campaign_issue" in boundary:
+        _require_positive_integer(
+            boundary["campaign_issue"], "document.source_boundary.campaign_issue"
+        )
+    if "fixture_sources" in boundary:
+        sources = boundary["fixture_sources"]
+        if type(sources) is not list:
+            raise ValueError(
+                "document.source_boundary.fixture_sources must be an array"
+            )
+        validated = [
+            _require_positive_integer(
+                item, f"document.source_boundary.fixture_sources[{index}]"
+            )
+            for index, item in enumerate(sources)
+        ]
+        if len(validated) != len(set(validated)):
+            raise ValueError(
+                "document.source_boundary.fixture_sources must be unique"
+            )
+    return boundary
 
 
 def validate_document(document: Any) -> dict[str, Any]:
@@ -150,12 +251,10 @@ def validate_document(document: Any) -> dict[str, Any]:
             f"{document_schema_version!r}"
         )
     receipts = document.get("receipts")
-    if not isinstance(receipts, list):
+    if type(receipts) is not list:
         raise ValueError("document.receipts must be an array")
-    if "source_boundary" in document and not isinstance(
-        document["source_boundary"], dict
-    ):
-        raise ValueError("document.source_boundary must be an object")
+    if "source_boundary" in document:
+        validate_source_boundary(document["source_boundary"])
 
     seen_receipt_ids: set[str] = set()
     for receipt in receipts:
@@ -192,7 +291,10 @@ def validate_receipt_schema(receipt: Any) -> dict[str, Any]:
         )
     if "source_lane" in receipt:
         _require_string(receipt["source_lane"], f"receipt {receipt_id!r} source_lane")
-    if "prior_receipt_digest" in receipt and receipt["prior_receipt_digest"] is not None:
+    if (
+        "prior_receipt_digest" in receipt
+        and receipt["prior_receipt_digest"] is not None
+    ):
         _require_string(
             receipt["prior_receipt_digest"],
             f"receipt {receipt_id!r} prior_receipt_digest",
@@ -214,19 +316,20 @@ def validate_receipt_schema(receipt: Any) -> dict[str, Any]:
         if "state" not in view:
             raise ValueError(f"{label} is missing required field 'state'")
         if view["state"] not in VIEW_STATES:
-            raise ValueError(
-                f"{label}.state must be one of {sorted(VIEW_STATES)!r}"
-            )
+            raise ValueError(f"{label}.state must be one of {sorted(VIEW_STATES)!r}")
         for field in NONNEGATIVE_INTEGER_VIEW_FIELDS & set(view):
             value = view[field]
-            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            if type(value) is not int or value < 0:
                 raise ValueError(f"{label}.{field} must be a nonnegative integer")
         for field in BOOLEAN_VIEW_FIELDS & set(view):
-            if not isinstance(view[field], bool):
+            if type(view[field]) is not bool:
                 raise ValueError(f"{label}.{field} must be boolean")
         for field in STRING_VIEW_FIELDS & set(view):
             _require_string(view[field], f"{label}.{field}")
-        if "identity_state" in view and view["identity_state"] not in IDENTITY_STATES:
+        if (
+            "identity_state" in view
+            and view["identity_state"] not in IDENTITY_STATES
+        ):
             raise ValueError(
                 f"{label}.identity_state must be one of {sorted(IDENTITY_STATES)!r}"
             )
@@ -239,9 +342,15 @@ def validate_receipt_schema(receipt: Any) -> dict[str, Any]:
         expected = _require_object(
             receipt["expected"], f"receipt {receipt_id!r} expected"
         )
-        for field in ("first_divergent_layer", "typed_reason"):
+        _reject_unknown_keys(
+            expected, EXPECTED_KEYS, f"receipt {receipt_id!r} expected"
+        )
+        for field in EXPECTED_KEYS:
             if field in expected and expected[field] is not None:
-                _require_string(expected[field], f"receipt {receipt_id!r} expected.{field}")
+                _require_string(
+                    expected[field],
+                    f"receipt {receipt_id!r} expected.{field}",
+                )
     return receipt
 
 
@@ -348,49 +457,35 @@ def _result(
     }
 
 
-def validate_privacy(receipt: dict[str, Any]) -> list[str]:
+def validate_privacy(value: Any) -> list[str]:
     """Reject obvious sensitive or high-cardinality retained fields."""
-    forbidden_keys = {
-        "prompt",
-        "arguments",
-        "args",
-        "credentials",
-        "credential",
-        "schema",
-        "tool_names",
-        "provider_payload",
-        "account_id",
-        "access_token",
-        "secret",
-    }
     violations: list[str] = []
 
-    def walk(value: Any, path: str) -> None:
-        if isinstance(value, dict):
-            for key, child in value.items():
+    def walk(child: Any, path: str) -> None:
+        if type(child) is dict:
+            for key, nested in child.items():
                 child_path = f"{path}.{key}" if path else key
-                if key.lower() in forbidden_keys:
+                if key.lower() in FORBIDDEN_PRIVACY_KEYS:
                     violations.append(child_path)
-                walk(child, child_path)
-        elif isinstance(value, list):
-            for index, child in enumerate(value):
-                walk(child, f"{path}[{index}]")
+                walk(nested, child_path)
+        elif type(child) is list:
+            for index, nested in enumerate(child):
+                walk(nested, f"{path}[{index}]")
 
-    walk(receipt, "")
+    walk(value, "")
     return violations
 
 
 def run(input_path: Path, output_path: Path) -> dict[str, Any]:
-    document = json.loads(input_path.read_text(encoding="utf-8"))
+    document, raw_input_sha256 = load_strict_json(input_path)
+    violations = validate_privacy(document)
+    if violations:
+        raise ValueError(f"document privacy violations: {violations}")
     validate_document(document)
+
     receipts = document["receipts"]
     results = []
     for receipt in receipts:
-        violations = validate_privacy(receipt)
-        if violations:
-            raise ValueError(
-                f"privacy violations in {receipt.get('receipt_id')}: {violations}"
-            )
         result = classify(receipt)
         expected = receipt.get("expected")
         result["expected_match"] = expected is None or (
@@ -401,7 +496,11 @@ def run(input_path: Path, output_path: Path) -> dict[str, Any]:
 
     summary = {
         "schema_version": SCHEMA_VERSION,
+        # Retained compatibility field.
         "input_digest": canonical_digest(document),
+        # Exact byte identity and full semantic identity are separate facts.
+        "raw_input_sha256": raw_input_sha256,
+        "canonical_input_sha256": canonical_sha256(document),
         "receipt_count": len(receipts),
         "divergence_count": sum(
             result["classification"] == "divergence" for result in results
