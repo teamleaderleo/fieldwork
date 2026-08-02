@@ -2,7 +2,7 @@
 
 Issue: `teamleaderleo/fieldwork#466`
 
-State: `source-confirmed; model-executed; target-test-committed; target-result-pending`
+State: `source-confirmed; model-executed; current-head baseline committed; execution classification pending`
 
 Upstream contact authorized: `false`
 
@@ -70,19 +70,24 @@ PASS: concurrent load/assign phases leave asynchronous owner A observing owner B
 
 The model uses sentinel values only. It performs no authentication, network request, deployment, or secret access.
 
-## Target-native reproduction carrier
+## Current-head target-native baseline carrier
 
-Owned fork PR: `teamleaderleo/workers-sdk#14`
+Owned fork PR: `teamleaderleo/workers-sdk#9`
 
-- branch: `fieldwork/466-vite-env-authority-repro`;
-- exact base: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`;
-- exact reproducer head: `16b0d5d8e8462bf9fb9c026a306c5fadd9747a83`;
+- branch: `fieldwork/466-vite-env-current-baseline`;
+- exact base: `20470fa8b09761c50b5c2c1d6a5f2652b61bd271`;
+- exact head: `8a90f59cbe4760065b222de8d43835a6f1343bc8`;
 - changed path: `packages/vite-plugin-cloudflare/src/__tests__/project-env-authority.spec.ts`;
-- current state: target-native plugin regression committed; exact CI conclusion pending.
+- current state: current-head characterization committed; repository workflows require classification.
 
-The test creates two temporary project roots with distinct sentinel API tokens, resolves them through the real `resolvePluginConfig()`, and requires the host `process.env` to remain at its exact pre-test credential state. Current source is expected to fail after project A because it assigns the project value globally.
+The baseline resolves two temporary Vite projects in one process and records both forms of crossover:
 
-This first target test proves host-process mutation. It does not yet invoke an authentication or network consumer.
+1. project A's sentinel token overrides project B's distinct `.env` token through existing-process precedence;
+2. project B with no token inherits project A's token.
+
+The test restores the exact original host token state and removes all temporary roots.
+
+Older-base PR `teamleaderleo/workers-sdk#14` and duplicate-base PR `#15` are closed as superseded. Neither is an admissible current-head receipt.
 
 ## Strongest supported conclusion
 
@@ -92,19 +97,18 @@ The current source creates a deterministic cross-project authority leak in a sha
 2. resolving project B gives those existing process values priority over B's env files;
 3. later Workers SDK consumers can read A's credential or configuration authority while operating for B.
 
-The source and model establish the control-flow and precedence defect. The committed target test directly checks the host-process mutation but awaits its exact CI result. The evidence does not establish incidence in common CLI use or prove that every copied variable reaches a network request.
+The source and model establish the control-flow and precedence defect. The current-head target baseline directly records A-to-B inheritance through real `resolvePluginConfig()`. The evidence does not establish incidence in common CLI use or prove that every copied variable reaches a network request.
 
 ## Required target-native tests
 
-1. Conclude the exact focused result on `teamleaderleo/workers-sdk#14`.
+1. Classify exact workflows and run the focused package command for `teamleaderleo/workers-sdk#9`.
 2. Assert B resolves B's value through a consumer-visible operation while the host process returns to its exact pre-test state.
-3. Repeat with B omitting the value.
-4. Repeat with global key/email precedence.
-5. Cover config failure after env loading.
-6. Cover overlapping A/B resolution.
-7. Cover Hyperdrive connection-string and local-mode variables.
-8. Run against Vite 6, 7, and 8.
-9. Assert no sentinel credential appears in logs, errors, snapshots, or retained artifacts.
+3. Repeat with global key/email precedence.
+4. Cover config failure after env loading.
+5. Cover overlapping A/B resolution.
+6. Cover Hyperdrive connection-string and local-mode variables.
+7. Run against Vite 6, 7, and 8.
+8. Assert no sentinel credential appears in logs, errors, snapshots, or retained artifacts.
 
 ## Candidate design
 
