@@ -12,7 +12,7 @@ The clean candidate removes only the unsupported `--` operand from generated `re
 - Clean source branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
 - Clean source head: `047b724212905c034c15d4f4f6f9ef330bbd2daf`
 - Clean source tree: `e0832686bd982b5c15f6e9bdd6d6631d30ec24cf`
-- Relationship: one commit directly on the reviewed base
+- Relationship: one commit ahead, zero behind the reviewed base
 - Existing public issue: `astral-sh/uv#16209`
 - Public upstream interaction authorized: `no`
 
@@ -50,7 +50,7 @@ Validation:
 - Workflow: `30753911776`
 - Linux/source job: `91512671857` — success
 - Artifact: `8835628919`
-- Artifact digest: `sha256:2e2bc57478d197298e0fe36815d77459d2b5c3e9b4409a646be971c3886f9d28`
+- Artifact digest: `sha256:1d54c978b355e807bb69f962f866574d8c200ae624ed55b0ac9a6cd8c631ff0c`
 
 Publication:
 
