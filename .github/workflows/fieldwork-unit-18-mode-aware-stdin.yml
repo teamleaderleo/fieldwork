@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: teamleaderleo/playwright
-          ref: 679e93190efd422727cb073bf0ceb9eee1611779
+          ref: aa591123067b1a2cbe548e87cfc542de4bfeb98b
           fetch-depth: 0
           path: playwright
           persist-credentials: false
@@ -48,7 +48,7 @@ jobs:
         run: |
           set -euo pipefail
           carrier="${{ github.event.pull_request.head.sha || github.sha }}"
-          source="679e93190efd422727cb073bf0ceb9eee1611779"
+          source="aa591123067b1a2cbe548e87cfc542de4bfeb98b"
           base="15b1aec478d90f0293dae7b7b6dafd494d9f0154"
           expected=$'packages/playwright-core/src/tools/utils/mcp/http.ts\npackages/playwright-core/src/tools/utils/mcp/server.ts\ntests/mcp/fieldwork-stdin-close.spec.ts'
 
@@ -107,7 +107,7 @@ jobs:
         run: |
           set -euo pipefail
           base="15b1aec478d90f0293dae7b7b6dafd494d9f0154"
-          source="679e93190efd422727cb073bf0ceb9eee1611779"
+          source="aa591123067b1a2cbe548e87cfc542de4bfeb98b"
           expected=$'packages/playwright-core/src/tools/utils/mcp/http.ts\npackages/playwright-core/src/tools/utils/mcp/server.ts\ntests/mcp/fieldwork-stdin-close.spec.ts'
           test -z "$(git status --short)"
           git diff --check "$base" "$source"
