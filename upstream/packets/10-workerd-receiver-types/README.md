@@ -6,25 +6,36 @@
 
 ## Current disposition
 
-**HOLD — repaired clean source candidate is complete; exact-head execution and independent final review remain.**
+**REPAIR — implementation candidate is coherent, but required generated snapshots are not yet materialized on the clean source branch.**
 
-The source is one atomic commit on the current public `workerd/main` release head. It contains ten product/test files and no workflow or Fieldwork-only files. Public upstream contact remains unauthorized.
+The implementation is one atomic commit on current public `workerd/main`. It contains ten product/test files and no workflow or Fieldwork-only files. Current `types/AGENTS.md` and the repository `check-snapshot` job require any type-generation change to regenerate and commit `types/generated-snapshot/`. Public upstream contact remains unauthorized.
 
 ## Exact source
 
 - repository: `teamleaderleo/workerd`
-- clean branch: `unit-10/receiver-aware-types`
-- clean PR: https://github.com/teamleaderleo/workerd/pull/5
-- source head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
+- clean implementation branch: `unit-10/receiver-aware-types`
+- owned draft PR: https://github.com/teamleaderleo/workerd/pull/5
+- implementation head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
 - public upstream base: `813c31394b9909d8f557bba14324db275bc12720` (`Release 2026-08-02`)
 - compare: https://github.com/teamleaderleo/workerd/compare/813c31394b9909d8f557bba14324db275bc12720...18a117c28773cd7aa0ee599e03439c5fbbf06584
-- source fence: one commit, ten files, no workflow files
+- current implementation fence: one commit, ten files, no workflow files
+- missing required source material: regenerated `types/generated-snapshot/` files selected from exact-head output
 - AI assistance: disclosed in the commit message and owned PR description, as required by current workerd submission guidance
 
 The August 2 upstream release differs from the prior August 1 base only in:
 
 - `src/workerd/io/maximum-compatibility-date.txt`
 - `src/workerd/io/release-version.txt`
+
+## Exact execution carrier
+
+- owned draft PR: https://github.com/teamleaderleo/workerd/pull/9
+- carrier branch: `unit-10/final-validation-18a117c`
+- carrier head: `c232e306a796c4d9d43c9a72b5fd810f6f150082`
+- product candidate pinned by the workflow: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
+- only carrier change: `.github/workflows/unit-10-final-validation.yml`
+
+The carrier runs the five focused receiver targets, complete `//types/...`, the types lint target, and `//types` generation. It uploads the regenerated snapshot tree, complete snapshot diff, receiver-line index, and marker-leakage summary. It must never be merged into the clean source branch.
 
 ## What is established
 
@@ -38,21 +49,23 @@ The August 2 upstream release differs from the prior August 1 base only in:
 - Public issue `cloudflare/workerd#6904` remains the discussion record. A current search found no competing public implementation PR.
 - Closed unmerged PR `cloudflare/workerd#2352` proposed a distinct detached-method registration macro. Its design supports the candidate's default: ordinary `JSG_METHOD` is receiver-owning, while receiver-independent instance operations require separate runtime registration and RTTI support.
 
-## Latest repair
+## Latest repairs
 
 Exact-head review of the prior candidate found that a blanket static-member check removed generated ambient constants along with static methods. JSG constants are represented as `static readonly` properties, so this was an unrelated source regression.
 
-The current head repairs the boundary:
+The current implementation repairs the boundary:
 
 - static methods remain receiver-free and are not extracted as ambient functions;
 - static properties/constants retain existing ambient constant extraction;
-- `globals.spec.ts` now requires `static readonly CONSTANT: 42` to produce `declare const CONSTANT: 42` while the static method remains unextracted.
+- `globals.spec.ts` requires `static readonly CONSTANT: 42` to produce `declare const CONSTANT: 42` while the static method remains unextracted.
 
-A second missing control now proves that a full replacement which both renames the owner and changes its generic parameters emits the receiver as the replacement name, not a dangling original type.
+A second missing control proves that a full replacement which both renames the owner and changes its generic parameters emits the receiver as the replacement name, not a dangling original type.
+
+Current source inspection found no static methods in the actual `ServiceWorkerGlobalScope` → `WorkerGlobalScope` → `EventTarget` hierarchy, so method-only static exclusion is expected to produce no present-day output churn. Exact generated output must confirm that expectation.
 
 ## Commit organization result
 
-Retain one source commit.
+Retain one implementation commit before snapshot materialization.
 
 The generator marker, override preservation, global widening, cleanup, and tests form one semantic change:
 
@@ -60,7 +73,7 @@ The generator marker, override preservation, global widening, cleanup, and tests
 - generator plus overrides makes bare Worker-global calls type-invalid until global widening lands;
 - source without matching fixture updates does not satisfy the project's per-commit test discipline.
 
-A three-commit split would create knowingly incomplete intermediate behavior and repeated snapshot churn. The current one-commit presentation is larger, yet atomic and easier to defend.
+Required generated snapshots should be added to this same atomic source commit or an immediately adjacent generated-output commit according to the final human preference. Either choice creates a new exact source head and requires final review against that head.
 
 ## Test state
 
@@ -70,7 +83,7 @@ Executed on the prior repaired semantic source:
 - `//types:test/index.spec` passed after the transformed-heritage repair;
 - `//types:test/transforms/globals.spec` passed before the later static-constant review finding;
 - `//types:test/transforms/overrides/index.spec` passed;
-- `//types:test/transforms/overrides/replacement-receiver-generics.spec` passed before the new renamed-replacement control was added;
+- `//types:test/transforms/overrides/replacement-receiver-generics.spec` passed before the renamed-replacement control was added;
 - the earlier end-to-end failure reproduced stale pre-transform heritage lookup and directly motivated that repair.
 
 Executed downstream/runtime evidence:
@@ -79,22 +92,23 @@ Executed downstream/runtime evidence:
 - the native matrix accepted legal receiver forms and rejected unrelated holder, `call`, `apply`, and `bind` forms;
 - the production OAuth fetch wrapper completed through a local outbound Worker.
 
-Prepared on final head `18a117c…` and requiring exact execution:
+Prepared on implementation head `18a117c…` and requiring exact execution:
 
-- static-global constant preservation and static-method exclusion in `types/test/transforms/globals.spec.ts`;
-- renamed generic replacement receiver ownership in `types/test/transforms/overrides/replacement-receiver-generics.spec.ts`;
-- callback-erasure compatibility in `types/test/types/fetch-receiver.ts`;
+- static-global constant preservation and static-method exclusion;
+- renamed generic replacement receiver ownership;
+- callback-erasure compatibility;
 - focused receiver targets and complete `//types/...` package;
-- generated declaration build and representative ambient/importable output diff.
+- generated declaration build and representative ambient/importable output diff;
+- snapshot selection and materialization into the clean source branch.
 
 See [`TESTS.md`](./TESTS.md) for exact commands and evidence classes.
 
 ## Remaining work in strict order
 
-1. Run the focused receiver targets and complete `//types/...` package at `18a117c…`.
-2. Build representative ambient and importable declaration output and review method count, global unions, constant preservation, marker leakage, recursive growth, owner resolution, and intentional detachability.
-3. Obtain independent complete-diff review of the final exact head.
-4. Synchronize completed output findings into `DEEP_DIVE.md`, `TESTS.md`, `UPSTREAM_PR.md`, and `REVIEW.md`.
+1. Let carrier PR #9 produce exact-head focused, full-types, lint, and generated-snapshot receipts without blocking other review work.
+2. Download and inspect the generated snapshot artifact: method count, global unions, constants, marker leakage, recursion, owner resolution, callable stability, and intentional detachability.
+3. Materialize the accepted `types/generated-snapshot/` changes on clean source PR #5 and retire PR #9.
+4. Review the complete new source-and-snapshot diff and obtain independent exact-head acceptance.
 5. Human decides whether to authorize a public follow-up on issue #6904 and an upstream pull request.
 
 Execution status is background evidence collection. Source review, prior-art analysis, contribution guidance, packet drafting, and compatibility analysis continue independently.
