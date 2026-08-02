@@ -49,17 +49,19 @@ PASS: credential change reuses prior cached account without account lookup
 PASS: profile-only cache does not encode compliance or API environment
 ```
 
-### Target-native reproduction carrier
+### Current-head target-native baseline carrier
 
-Owned fork PR: `teamleaderleo/workers-sdk#12`
+Owned fork PR: `teamleaderleo/workers-sdk#11`
 
-- branch: `fieldwork/471-account-cache-authority-repro`;
-- exact base: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`;
-- exact reproducer head: `f1db75c385792f0d95119d68ece242fdd5333bf4`;
+- branch: `fieldwork/471-account-cache-current-baseline`;
+- exact base: `20470fa8b09761c50b5c2c1d6a5f2652b61bd271`;
+- exact head: `d8b5b58841791144f43cd3051615fad1b70a43e5`;
 - changed path: `packages/wrangler/src/__tests__/account-cache-authority.test.ts`;
-- current state: target-native regression committed; exact CI conclusion pending.
+- current state: current-head characterization committed; repository workflows require classification.
 
-The regression uses only sentinel tokens and accounts. It expects account B after credentials switch from A to B in one process. Current source is expected to return cached account A before consulting B's mocked account list.
+The baseline writes cached account A, changes the active environment credential to sentinel credential B, installs account-authority handlers, and records that `getOrSelectAccountId({})` returns A without making a validation request.
+
+Older-base PR `teamleaderleo/workers-sdk#12` is closed as superseded and is not an admissible current-head receipt.
 
 ### Current disposition
 
@@ -93,19 +95,19 @@ PASS: pending operation switches to later global fetch and logger context
 PASS: explicit operation context keeps fetch and logger ownership stable
 ```
 
-### Target-native reproduction carrier
+### Current-head target-native baseline carrier
 
-Owned fork PR: `teamleaderleo/workers-sdk#13`
+Owned fork PR: `teamleaderleo/workers-sdk#8`
 
-- branch: `fieldwork/472-deploy-context-authority-repro`;
-- exact base: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`;
-- exact reproducer head: `dd54def18dcafb0d7df8ad2d2799f8d08a6d1f90`;
-- changed path: `packages/deploy-helpers/tests/context-authority.test.ts`;
-- current state: target-native package regression committed; exact CI conclusion pending.
+- branch: `fieldwork/472-deploy-context-current-baseline`;
+- exact base: `20470fa8b09761c50b5c2c1d6a5f2652b61bd271`;
+- exact head: `cdda73d799ed41fbf89af6309b99c7507f65150d`;
+- changed path: `packages/deploy-helpers/tests/index.test.ts`;
+- current state: Linux and macOS package matrices succeeded; Windows and repository checks require classification.
 
-The regression begins a pending operation under context A, installs context B while A is awaiting, then expects A to retain A's fetch and logger. Current live bindings are expected to route resumed work through B.
+The baseline begins operation A, suspends it before reading the package's live context bindings, installs context B, then proves A resumes through B's fetch, logger, and confirmation handlers.
 
-This proves the package-level owner switch directly. It does not yet prove every concrete deploy, versions-upload, or trigger call path.
+Older-base PR `teamleaderleo/workers-sdk#13` is closed as superseded and is not an admissible current-head receipt.
 
 ### Current disposition
 
@@ -125,7 +127,7 @@ node fieldwork-experiments/workers-sdk-authority-scan/account-cache-and-deploy-c
 
 ### Account cache
 
-- conclude the exact focused result on `teamleaderleo/workers-sdk#12`;
+- classify exact workflows and run the focused package command for `teamleaderleo/workers-sdk#11`;
 - shared auth tests for token, global key/email, OAuth-to-env, profile, and compliance/API-environment changes;
 - Wrangler command and embedded API sequences in one process;
 - explicit account-ID precedence controls;
@@ -133,7 +135,7 @@ node fieldwork-experiments/workers-sdk-authority-scan/account-cache-and-deploy-c
 
 ### Deploy context
 
-- conclude the exact package result on `teamleaderleo/workers-sdk#13`;
+- classify exact Windows/check failures and run the focused package command for `teamleaderleo/workers-sdk#8`;
 - two concurrent mocked deploys with distinct fetch, API-base, logger, confirmation, prompt, and selection owners;
 - interruption during validation, assets, version upload, and trigger phases;
 - CLI/API/custom-consumer overlap;
