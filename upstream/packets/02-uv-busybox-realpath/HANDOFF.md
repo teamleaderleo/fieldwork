@@ -13,7 +13,7 @@ External contact: `unauthorized; none occurred`
 - Packet path: `upstream/packets/02-uv-busybox-realpath/`
 - Fork: `teamleaderleo/uv`
 - Clean branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
-- Execution PR: `teamleaderleo/uv#7`
+- Execution PR: `teamleaderleo/uv#7` — closed without merge after evidence transfer
 - Supplemental Fish PR: `teamleaderleo/uv#18`
 - Existing public issue: `astral-sh/uv#16209`
 
