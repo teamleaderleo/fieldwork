@@ -31,8 +31,9 @@ The August 2 upstream release differs from the prior August 1 base only in:
 
 - owned draft PR: https://github.com/teamleaderleo/workerd/pull/9
 - carrier branch: `unit-10/final-validation-18a117c`
-- carrier head: `c232e306a796c4d9d43c9a72b5fd810f6f150082`
+- carrier head: `8003ce7361bbb61cff0ca11c9da8b9d9d73a4c2c`
 - product candidate pinned by the workflow: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
+- visible custom run: `30755457025`
 - only carrier change: `.github/workflows/unit-10-final-validation.yml`
 
 The carrier runs the five focused receiver targets, complete `//types/...`, the types lint target, and `//types` generation. It uploads the regenerated snapshot tree, complete snapshot diff, receiver-line index, and marker-leakage summary. It must never be merged into the clean source branch.
@@ -74,6 +75,10 @@ The generator marker, override preservation, global widening, cleanup, and tests
 - source without matching fixture updates does not satisfy the project's per-commit test discipline.
 
 Required generated snapshots should be added to this same atomic source commit or an immediately adjacent generated-output commit according to the final human preference. Either choice creates a new exact source head and requires final review against that head.
+
+## Review routing
+
+Current CODEOWNERS routes `/types/` to the Wrangler team. Experimental generated snapshots additionally route to runtime and Durable Objects teams. Final review should cover both declaration compatibility and JSG/runtime ownership semantics. No review request is authorized yet.
 
 ## Test state
 
