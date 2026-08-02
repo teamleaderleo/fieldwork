@@ -2,7 +2,7 @@
 
 Issue: `teamleaderleo/fieldwork#466`
 
-State: `source-confirmed; model-executed; target-test-pending`
+State: `source-confirmed; model-executed; target-test-committed; target-result-pending`
 
 Upstream contact authorized: `false`
 
@@ -12,11 +12,17 @@ The Cloudflare Vite plugin reads a project's Cloudflare environment values and c
 
 ## Exact source revisions
 
-Workers SDK:
+Workers SDK original source pin:
 
 - repository revision: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`
 - `packages/vite-plugin-cloudflare/src/plugin-config.ts` blob: `26051e682807f4e2ba0d0153db1a7a9299569b47`
 - `packages/workers-auth/src/credentials.ts` blob: `70dc58b4c7512fb5b239cbc1496fdfb5e1712144`
+
+Workers SDK public-head refresh:
+
+- repository revision: `20470fa8b09761c50b5c2c1d6a5f2652b61bd271`
+- the five-commit drift from the original pin does not touch Vite plugin config loading, Workers auth credential resolution, or the relevant test directory;
+- the source finding remains current at the refreshed head.
 
 Vite load precedence:
 
@@ -64,6 +70,20 @@ PASS: concurrent load/assign phases leave asynchronous owner A observing owner B
 
 The model uses sentinel values only. It performs no authentication, network request, deployment, or secret access.
 
+## Target-native reproduction carrier
+
+Owned fork PR: `teamleaderleo/workers-sdk#14`
+
+- branch: `fieldwork/466-vite-env-authority-repro`;
+- exact base: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`;
+- exact reproducer head: `16b0d5d8e8462bf9fb9c026a306c5fadd9747a83`;
+- changed path: `packages/vite-plugin-cloudflare/src/__tests__/project-env-authority.spec.ts`;
+- current state: target-native plugin regression committed; exact CI conclusion pending.
+
+The test creates two temporary project roots with distinct sentinel API tokens, resolves them through the real `resolvePluginConfig()`, and requires the host `process.env` to remain at its exact pre-test credential state. Current source is expected to fail after project A because it assigns the project value globally.
+
+This first target test proves host-process mutation. It does not yet invoke an authentication or network consumer.
+
 ## Strongest supported conclusion
 
 The current source creates a deterministic cross-project authority leak in a shared Node.js process:
@@ -72,26 +92,31 @@ The current source creates a deterministic cross-project authority leak in a sha
 2. resolving project B gives those existing process values priority over B's env files;
 3. later Workers SDK consumers can read A's credential or configuration authority while operating for B.
 
-The source and model establish the control-flow and precedence defect. They do not establish incidence in common CLI use or prove that every copied variable reaches a network request.
+The source and model establish the control-flow and precedence defect. The committed target test directly checks the host-process mutation but awaits its exact CI result. The evidence does not establish incidence in common CLI use or prove that every copied variable reaches a network request.
 
 ## Required target-native tests
 
-1. Create temporary project A and B roots with different API-token sentinel values.
-2. Invoke the real Vite plugin config resolver for A, then B.
-3. Assert B resolves B's value and the host process returns to its exact pre-test state.
-4. Repeat with B omitting the value.
-5. Repeat with global key/email precedence.
-6. Cover config failure after env loading.
-7. Cover overlapping A/B resolution.
-8. Cover Hyperdrive connection-string and local-mode variables.
-9. Run against Vite 6, 7, and 8.
-10. Assert no sentinel credential appears in logs, errors, snapshots, or retained artifacts.
+1. Conclude the exact focused result on `teamleaderleo/workers-sdk#14`.
+2. Assert B resolves B's value through a consumer-visible operation while the host process returns to its exact pre-test state.
+3. Repeat with B omitting the value.
+4. Repeat with global key/email precedence.
+5. Cover config failure after env loading.
+6. Cover overlapping A/B resolution.
+7. Cover Hyperdrive connection-string and local-mode variables.
+8. Run against Vite 6, 7, and 8.
+9. Assert no sentinel credential appears in logs, errors, snapshots, or retained artifacts.
 
 ## Candidate design
 
 Prefer an explicit immutable operation environment passed into Wrangler config, authentication, remote binding, registry, and deployment helpers.
 
 A temporary `process.env` installation with exact restoration is only a compatibility fallback. It cannot support overlapping operations safely and may fail when asynchronous consumers outlive the temporary scope.
+
+## Sensitive-handling boundary
+
+The Linux Fieldwork `SECURITY_RECONVENE.md` rule was consulted because this finding concerns credentials. The work remains in the ordinary workflow: source is public, all tokens are obvious sentinels, directories are temporary, repository writes are owned, and no real secret, live target, authentication attempt, external request, deployment, destructive action, or persistence is involved.
+
+Switch to a public-safe `RECONVENE` checkpoint and stop deepening the path if that boundary changes.
 
 ## Related boundaries
 
