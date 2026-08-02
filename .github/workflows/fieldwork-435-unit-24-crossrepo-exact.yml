@@ -25,32 +25,24 @@ env:
 
 jobs:
   package-control:
-    name: package-control (${{ matrix.label }})
+    name: sequential candidate/base package control
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: candidate
-            source_sha: 9fd4ba575de8dd77bc411362256591ce9e7d8c82
-          - label: base
-            source_sha: ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff
+    timeout-minutes: 240
     steps:
-      - name: Check out exact Codex revision
+      - name: Check out exact candidate
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: ${{ env.SOURCE_REPO }}
-          ref: ${{ matrix.source_sha }}
+          ref: ${{ env.SOURCE_HEAD }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify immutable revision
+      - name: Verify candidate revision
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${{ matrix.source_sha }}"
-          printf 'FIELDWORK_LITE_PACKAGE_CONTROL_REVISION=%s:%s\n' \
-            '${{ matrix.label }}' '${{ matrix.source_sha }}'
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test "$(git rev-parse HEAD^)" = "$SOURCE_BASE"
+          printf 'FIELDWORK_LITE_PACKAGE_CONTROL_REVISION=candidate:%s\n' "$SOURCE_HEAD"
 
       - uses: ./.github/actions/setup-ci
 
@@ -59,90 +51,132 @@ jobs:
           toolchain: 1.95.0
           components: rustfmt
 
-      - name: Run codex-core package gate and retain output
-        id: package
+      - name: Run candidate codex-core package gate
+        id: candidate_package
         env:
           RUST_MIN_STACK: 33554432
         run: |
           set +e
-          just test -p codex-core 2>&1 | tee /tmp/package.log
+          just test -p codex-core 2>&1 | tee /tmp/candidate-package.log
           status=${PIPESTATUS[0]}
           set -e
           echo "status=$status" >> "$GITHUB_OUTPUT"
-          printf 'FIELDWORK_LITE_PACKAGE_CONTROL=%s:%s\n' '${{ matrix.label }}' "$status"
+          printf 'FIELDWORK_LITE_PACKAGE_CONTROL=candidate:%s\n' "$status"
 
-      - name: Run target-native fix gate and retain output
-        id: fix
+      - name: Run candidate target-native fix gate
+        id: candidate_fix
         if: always()
         run: |
           set +e
-          just fix -p codex-core 2>&1 | tee /tmp/fix.log
+          just fix -p codex-core 2>&1 | tee /tmp/candidate-fix.log
           status=${PIPESTATUS[0]}
           set -e
           echo "status=$status" >> "$GITHUB_OUTPUT"
-          printf 'FIELDWORK_LITE_FIX_CONTROL=%s:%s\n' '${{ matrix.label }}' "$status"
+          printf 'FIELDWORK_LITE_FIX_CONTROL=candidate:%s\n' "$status"
 
-      - name: Record worktree state
-        id: tree
+      - name: Record candidate worktree state
+        id: candidate_tree
         if: always()
         run: |
           set +e
-          git diff --check >/tmp/diff-check.log 2>&1
+          git diff --check >/tmp/candidate-diff-check.log 2>&1
           diff_status=$?
-          git status --porcelain > /tmp/status.log
-          if test -s /tmp/status.log; then
-            clean=0
-          else
-            clean=1
-          fi
+          git status --porcelain > /tmp/candidate-status.log
+          if test -s /tmp/candidate-status.log; then clean=0; else clean=1; fi
           set -e
           echo "diff_status=$diff_status" >> "$GITHUB_OUTPUT"
           echo "clean=$clean" >> "$GITHUB_OUTPUT"
-          printf 'FIELDWORK_LITE_WORKTREE_CONTROL=%s:diff=%s;clean=%s\n' \
-            '${{ matrix.label }}' "$diff_status" "$clean"
+          printf 'FIELDWORK_LITE_WORKTREE_CONTROL=candidate:diff=%s;clean=%s\n' "$diff_status" "$clean"
+
+      - name: Switch to exact base
+        if: always()
+        run: |
+          set -euo pipefail
+          git reset --hard
+          git clean -ffd
+          git checkout --detach "$SOURCE_BASE"
+          test "$(git rev-parse HEAD)" = "$SOURCE_BASE"
+          printf 'FIELDWORK_LITE_PACKAGE_CONTROL_REVISION=base:%s\n' "$SOURCE_BASE"
+
+      - name: Run base codex-core package gate
+        id: base_package
+        if: always()
+        env:
+          RUST_MIN_STACK: 33554432
+        run: |
+          set +e
+          just test -p codex-core 2>&1 | tee /tmp/base-package.log
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          printf 'FIELDWORK_LITE_PACKAGE_CONTROL=base:%s\n' "$status"
+
+      - name: Build normalized result markers
+        id: markers
+        if: always()
+        run: |
+          set -euo pipefail
+          pattern='(^error:|^failures:|test result:|FAILED|panicked at|stack overflow|SIGABRT|failures:$|Caused by:)'
+          grep -E "$pattern" /tmp/candidate-package.log 2>/dev/null | tail -n 300 > /tmp/candidate-markers.log || true
+          grep -E "$pattern" /tmp/base-package.log 2>/dev/null | tail -n 300 > /tmp/base-markers.log || true
+          candidate_hash=$(sha256sum /tmp/candidate-markers.log | cut -d' ' -f1)
+          base_hash=$(sha256sum /tmp/base-markers.log | cut -d' ' -f1)
+          echo "candidate_hash=$candidate_hash" >> "$GITHUB_OUTPUT"
+          echo "base_hash=$base_hash" >> "$GITHUB_OUTPUT"
+          printf 'FIELDWORK_LITE_PACKAGE_MARKERS=candidate:%s;base:%s\n' "$candidate_hash" "$base_hash"
 
       - name: Post concise control report
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          PACKAGE_STATUS: ${{ steps.package.outputs.status }}
-          FIX_STATUS: ${{ steps.fix.outputs.status }}
-          DIFF_STATUS: ${{ steps.tree.outputs.diff_status }}
-          TREE_CLEAN: ${{ steps.tree.outputs.clean }}
+          CANDIDATE_PACKAGE: ${{ steps.candidate_package.outputs.status }}
+          BASE_PACKAGE: ${{ steps.base_package.outputs.status }}
+          CANDIDATE_FIX: ${{ steps.candidate_fix.outputs.status }}
+          DIFF_STATUS: ${{ steps.candidate_tree.outputs.diff_status }}
+          TREE_CLEAN: ${{ steps.candidate_tree.outputs.clean }}
+          CANDIDATE_HASH: ${{ steps.markers.outputs.candidate_hash }}
+          BASE_HASH: ${{ steps.markers.outputs.base_hash }}
         run: |
           set -euo pipefail
-          package_status="${PACKAGE_STATUS:-missing}"
-          fix_status="${FIX_STATUS:-missing}"
-          diff_status="${DIFF_STATUS:-missing}"
-          tree_clean="${TREE_CLEAN:-missing}"
           {
-            echo '## Unit 24 package control — ${{ matrix.label }}'
+            echo '## Unit 24 sequential package control'
             echo
-            echo '- revision: `${{ matrix.source_sha }}`'
-            echo "- package gate exit: \`$package_status\`"
-            echo "- fix gate exit: \`$fix_status\`"
-            echo "- diff-check exit: \`$diff_status\`"
-            echo "- worktree clean: \`$tree_clean\`"
+            echo "- candidate: \`$SOURCE_HEAD\`"
+            echo "- base: \`$SOURCE_BASE\`"
+            echo "- candidate package exit: \`${CANDIDATE_PACKAGE:-missing}\`"
+            echo "- base package exit: \`${BASE_PACKAGE:-missing}\`"
+            echo "- candidate fix exit: \`${CANDIDATE_FIX:-missing}\`"
+            echo "- candidate diff-check exit: \`${DIFF_STATUS:-missing}\`"
+            echo "- candidate worktree clean: \`${TREE_CLEAN:-missing}\`"
+            echo "- candidate marker hash: \`${CANDIDATE_HASH:-missing}\`"
+            echo "- base marker hash: \`${BASE_HASH:-missing}\`"
             echo
-            echo '<details><summary>Package failure/result markers</summary>'
+            echo '<details><summary>Candidate package markers</summary>'
             echo
             echo '```text'
-            grep -E '(^error:|^failures:|test result:|FAILED|panicked at|failures:$|Caused by:)' /tmp/package.log 2>/dev/null | tail -n 240 || true
+            cat /tmp/candidate-markers.log 2>/dev/null || true
             echo '```'
             echo '</details>'
             echo
-            echo '<details><summary>Fix-gate failure/result markers</summary>'
+            echo '<details><summary>Base package markers</summary>'
             echo
             echo '```text'
-            grep -E '(^error:|^warning:|FAILED|panicked at|Caused by:)' /tmp/fix.log 2>/dev/null | tail -n 120 || true
+            cat /tmp/base-markers.log 2>/dev/null || true
             echo '```'
             echo '</details>'
-            if test -s /tmp/status.log; then
+            echo
+            echo '<details><summary>Candidate fix markers</summary>'
+            echo
+            echo '```text'
+            grep -E '(^error:|^warning:|FAILED|panicked at|Caused by:)' /tmp/candidate-fix.log 2>/dev/null | tail -n 120 || true
+            echo '```'
+            echo '</details>'
+            if test -s /tmp/candidate-status.log; then
               echo
-              echo '<details><summary>Changed worktree paths</summary>'
+              echo '<details><summary>Candidate changed worktree paths</summary>'
               echo
               echo '```text'
-              cat /tmp/status.log
+              cat /tmp/candidate-status.log
               echo '```'
               echo '</details>'
             fi
@@ -152,16 +186,27 @@ jobs:
             --method POST \
             --raw-field body="$(cat /tmp/report.md)"
 
-      - name: Enforce control result
+      - name: Enforce candidate hygiene and package classification
         if: always()
         env:
-          PACKAGE_STATUS: ${{ steps.package.outputs.status }}
-          FIX_STATUS: ${{ steps.fix.outputs.status }}
-          DIFF_STATUS: ${{ steps.tree.outputs.diff_status }}
-          TREE_CLEAN: ${{ steps.tree.outputs.clean }}
+          CANDIDATE_PACKAGE: ${{ steps.candidate_package.outputs.status }}
+          BASE_PACKAGE: ${{ steps.base_package.outputs.status }}
+          CANDIDATE_FIX: ${{ steps.candidate_fix.outputs.status }}
+          DIFF_STATUS: ${{ steps.candidate_tree.outputs.diff_status }}
+          TREE_CLEAN: ${{ steps.candidate_tree.outputs.clean }}
+          CANDIDATE_HASH: ${{ steps.markers.outputs.candidate_hash }}
+          BASE_HASH: ${{ steps.markers.outputs.base_hash }}
         run: |
           set -euo pipefail
-          test "${PACKAGE_STATUS:-missing}" = 0
-          test "${FIX_STATUS:-missing}" = 0
+          test "${CANDIDATE_FIX:-missing}" = 0
           test "${DIFF_STATUS:-missing}" = 0
           test "${TREE_CLEAN:-missing}" = 1
+          if test "${CANDIDATE_PACKAGE:-missing}" = 0; then
+            test "${BASE_PACKAGE:-missing}" = 0
+            echo 'FIELDWORK_LITE_PACKAGE_CLASSIFICATION=both-pass'
+          else
+            test "${BASE_PACKAGE:-missing}" != 0
+            test -n "${CANDIDATE_HASH:-}"
+            test "${CANDIDATE_HASH:-missing}" = "${BASE_HASH:-different}"
+            echo 'FIELDWORK_LITE_PACKAGE_CLASSIFICATION=matching-baseline-failure'
+          fi
