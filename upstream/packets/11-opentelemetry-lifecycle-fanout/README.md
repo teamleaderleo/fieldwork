@@ -1,32 +1,44 @@
-# Unit 11 — fix: stabilize lifecycle fanout targets
+# Unit 11 — invoke all lifecycle processors
 
 ## Current disposition
 
-`HOLD — squashed successor validating`
+`VALIDATING — relevant spec-compliance fix; repaired exact-head CI running`
 
-Last refreshed: `2026-08-01`  
+Last refreshed: `2026-08-02`  
 Priority-zero parent: `teamleaderleo/fieldwork#435`  
 Public upstream contact authorized: `no`
 
+## In simple words
+
+OpenTelemetry JS lets applications install multiple trace and log processors. Shutdown and force flush are required to call every registered processor. Today, a custom processor that throws before returning its promise can stop the aggregate trace/log fanout before later processors are called. Synchronous mutation of the retained array can also skip an opening processor. The public trace provider has a related timer-cleanup defect.
+
+The repair snapshots the processor set when each lifecycle operation starts and converts direct synchronous throws into ordinary promise rejections without delaying invocation. It preserves existing error behavior and real timeouts.
+
+This is a legitimate upstream bugfix, but its trigger is uncommon. It should be described as bounded shutdown/specification correctness, not as widespread telemetry loss.
+
 ## Contribution
 
-Trace and logs lifecycle fanouts can skip processors from the operation's opening set when a processor mutates a retained array during shutdown or force flush. Their aggregate interfaces can also throw synchronously before returning a promise, interrupting later invocation.
+Retained paths:
 
-Deeper review removed metrics: `MeterProvider` owns its collector list internally, the predecessor mutation tests used private-state casts, and `MetricCollector` lifecycle methods are already async.
+- `MultiSpanProcessor.shutdown()` and `forceFlush()`;
+- `TracerProvider.forceFlush()`;
+- `MultiLogRecordProcessor.shutdown()` and `forceFlush()`.
 
-The same review found the separate public `TracerProvider.forceFlush()` fanout. It bypasses `MultiSpanProcessor.forceFlush()`, maps the live processor list, and leaves a per-processor timeout armed after synchronous failure unless the failure enters its existing cleanup path.
+Metrics was removed after deeper review. Its collector lifecycle methods are async, the provider owns the collector list internally, and the predecessor mutation tests relied on private-state casts.
 
 ## Exact identities
 
 - target: `open-telemetry/opentelemetry-js`;
 - public base/current main: `2c931bf4eec18a234a28706567c6977f08139abd`;
-- canonical source branch: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout-v2`;
-- exact squashed source head: `f4910b355d12895edf25372444f76d4def08901c`;
-- source relation: ahead 1, behind 0;
+- source branch: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout-v2`;
+- current source head: `987a2bde097fe2e44531830e38c7c15a59c35c23`;
+- source relation: ahead 4, behind 0;
 - validation PR: `teamleaderleo/opentelemetry-js#19`;
 - superseded carrier: closed PR #18;
-- canonical packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout-v2`;
-- proposed title: `fix: stabilize lifecycle fanout targets`.
+- packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout-v2`;
+- proposed title: `fix(sdk-trace, sdk-logs): invoke all lifecycle processors`.
+
+The source branch remains unsquashed during current validation and will be squashed before final exact-head review.
 
 ## Changed-file fence
 
@@ -39,40 +51,50 @@ The same review found the separate public `TracerProvider.forceFlush()` fanout. 
 
 No metrics, workflow, dependency, lock, generated, publisher, or research-only file is present.
 
-## Final behavior
+## Behavior and impact
 
-- aggregate trace: opening snapshot plus eager synchronous safe-call; original shutdown rejection and force-flush global-report/resolve behavior retained;
-- public trace provider: opening snapshot plus synchronous-failure normalization through the existing timeout cleanup and error-array result path;
-- logs: opening snapshot plus eager synchronous safe-call; timeout wrapping retained;
-- future array mutations remain visible.
+- aggregate trace/logs: every processor in the opening set is invoked after a direct synchronous throw or synchronous removal;
+- public provider: opening membership is stable, synchronous failure clears its timeout, and the existing error-array rejection is retained;
+- real pending provider work still times out;
+- processor calls remain eager and ordered;
+- future array mutations remain visible to future operations;
+- one shallow array copy is added per repaired lifecycle call;
+- normal telemetry delivery paths are untouched.
 
-## Exact-head validation
+A dependency-free Node.js model confirmed that the stale provider timer can keep natural process termination alive until timeout. With a 200 ms timer, the model exited after approximately 0.22 seconds. This demonstrates the mechanism, not prevalence.
 
-Queued on `f4910b355d12895edf25372444f76d4def08901c`:
+## Validation
 
-- Unit `30694264703`;
-- W3C `30694264710`;
-- Bundler `30694264711`;
-- API peer dependency `30694264708`;
-- CodeQL `30694264717`;
-- E2E `30694264735`;
-- Zizmor `30694264748`;
-- Lint `30694264729`.
+Previous head `f4910b355d12895edf25372444f76d4def08901c` passed Unit, W3C, Bundler, API peer dependency, CodeQL, E2E, and Zizmor. Lint failed only on Prettier formatting in `TracerProvider.ts`.
 
-No squashed-head pass is claimed until these settle.
+Current exact-head runs on `987a2bde097fe2e44531830e38c7c15a59c35c23`:
 
-## Evidence and remaining gates
+- Unit `30755343888`;
+- Lint `30755343692`;
+- W3C `30755343695`;
+- Bundler `30755343708`;
+- API peer dependency `30755343685`;
+- CodeQL `30755343693`;
+- E2E `30755343697`;
+- Zizmor `30755343702`.
 
-Predecessor head `641528c...` passed the complete named workflow set. Review `4834242586` exposed the metrics overclaim; deeper call-chain review removed metrics and added public provider coverage. The former carrier was concurrently rewritten, so source and packet successors were isolated before the final squash.
+No current-head pass is claimed until those runs settle.
 
-Remaining gates: successful exact-head workflows, eligible independent complete-diff acceptance, required sdk-trace and sdk-logs changelog entries using a real upstream PR number, final current-main/duplicate/policy refresh, and explicit public-contact authority.
+## Remaining gates
+
+- successful current-head workflow matrix;
+- squash and complete-diff re-review;
+- eligible independent acceptance;
+- root sdk-trace and experimental sdk-logs changelog entries with a real upstream PR number;
+- final current-main, duplicate, contribution-policy, and disclosure refresh;
+- explicit authority for public upstream interaction.
 
 ## Packet navigation
 
 - [Deep dive](./DEEP_DIVE.md)
 - [Approaches](./APPROACHES.md)
 - [Tests](./TESTS.md)
-- [Issue fallback](./UPSTREAM_ISSUE.md)
+- [Issue draft](./UPSTREAM_ISSUE.md)
 - [PR draft](./UPSTREAM_PR.md)
 - [Review](./REVIEW.md)
 - [Handoff](./HANDOFF.md)
