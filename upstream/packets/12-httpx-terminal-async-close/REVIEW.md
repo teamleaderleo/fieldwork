@@ -1,137 +1,131 @@
 # Review — Unit 12 terminal async-response close
 
-## In simple words
+## Current review disposition
 
-The selected contribution prevents HTTPX from claiming successful async response cleanup or blindly repeating arbitrary cleanup after an uncertain failure. The current GitHub source head already handles owner failure, cancellation, observers, traceback retention, and at-most-once cleanup well.
+`ACCEPT REPAIR PATCH — source publication pending`
 
-Final review should challenge two corrections captured in the retained patch: same-task re-entry must return promptly without disrupting an unrelated waiter, and successful `elapsed` must keep the pre-cleanup sample while publishing only after cleanup succeeds.
+Independent complete-diff review found no blocking source, test, compatibility, or packaging defect in the inherited-context repair. The patch has passed the exact six-file fence, Python 3.9 focused asyncio/Trio controls, Python 3.13 full repository gates, and 100% coverage. The remaining operation is guarded publication to the canonical owned-fork source branch and immutable-head verification.
+
+Public upstream contact remains unauthorized.
 
 ## Review subject
 
-- Work class: `upstream-fork research`
 - Target repository: `encode/httpx`
-- Proposed upstream base: `master`, currently inspected at `b5addb64f0161ff6bfe94c124ef76f6a1fba5254`
+- Public base: `b5addb64f0161ff6bfe94c124ef76f6a1fba5254`
+- Owned fork: `teamleaderleo/httpx`
 - Canonical source branch: `fieldwork/171-terminal-close-source`
-- Exact current source head: `18256f10d1b306bdf87a1bab24b214c15839147b`
-- Retained repair patch: [`patches/0001-fix-reentrant-close-and-elapsed-sampling.patch`](./patches/0001-fix-reentrant-close-and-elapsed-sampling.patch)
-- Fieldwork packet branch: `upstream/12-httpx-terminal-async-close`
-- Exact packet head: use the latest unit-12 handoff on issue #435
-- Current changed-file fence: five files
-- Proposed repaired fence: six files, adding `tests/models/test_async_response_close_reentry.py`
-- Upstream-contact authority: `none`
+- Pre-repair clean head: `18256f10d1b306bdf87a1bab24b214c15839147b`
+- Source PR: `teamleaderleo/httpx#6`
+- Execution-only PR: `teamleaderleo/httpx#9`
+- Exact final run: `30752805069`
+- Authoritative patch: [`patches/0001-fix-reentrant-close-and-elapsed-sampling.patch`](./patches/0001-fix-reentrant-close-and-elapsed-sampling.patch)
+- Proposed repaired fence: six files
 
-## Review reading order
+## Exact repaired blobs
 
-1. [`README.md`](./README.md)
-2. [`DEEP_DIVE.md`](./DEEP_DIVE.md)
-3. [`APPROACHES.md`](./APPROACHES.md)
-4. [`TESTS.md`](./TESTS.md)
-5. [retained repair patch](./patches/0001-fix-reentrant-close-and-elapsed-sampling.patch)
-6. exact current product diff from base to `18256f10...`
-7. current tests and proposed repair tests
-8. [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md)
-9. [`UPSTREAM_PR.md`](./UPSTREAM_PR.md)
+- `httpx/_models.py`: `0533a7324d0ed45ffb1087570551efcdaed02fa5`
+- `httpx/_client.py`: `510b41959383dcf78bd311a236afc44dd92d010a`
+- `tests/client/test_async_client_terminal_close_elapsed.py`: `67545aede0ba92364f70dc9f37c5c2e0a010c836`
+- `tests/models/test_async_response_close_reentry.py`: `0be56b2cb9a9a2e7fabc1a6bc107bbcca520fd67`
 
-## Exact diff links
+The retained terminal-unknown and cancellation tests remain unchanged from the clean source candidate.
 
-- current complete compare: `https://github.com/teamleaderleo/httpx/compare/b5addb64f0161ff6bfe94c124ef76f6a1fba5254...18256f10d1b306bdf87a1bab24b214c15839147b`
-- current production: [`httpx/_models.py`](https://github.com/teamleaderleo/httpx/blob/18256f10d1b306bdf87a1bab24b214c15839147b/httpx/_models.py), [`httpx/_client.py`](https://github.com/teamleaderleo/httpx/blob/18256f10d1b306bdf87a1bab24b214c15839147b/httpx/_client.py)
-- current tests: [`terminal unknown`](https://github.com/teamleaderleo/httpx/blob/18256f10d1b306bdf87a1bab24b214c15839147b/tests/models/test_async_response_close_terminal_unknown.py), [`cancellation`](https://github.com/teamleaderleo/httpx/blob/18256f10d1b306bdf87a1bab24b214c15839147b/tests/models/test_async_response_close_terminal_cancellation.py), [`elapsed`](https://github.com/teamleaderleo/httpx/blob/18256f10d1b306bdf87a1bab24b214c15839147b/tests/client/test_async_client_terminal_close_elapsed.py)
-- proposed repaired diff: packet patch above
-- generated or dependency files: none
+## Complete-diff findings
 
-## Claims requiring judgment
+### Context ownership
 
-| Claim or design choice | Evidence | Reviewer question |
-| --- | --- | --- |
-| escaped arbitrary close should become terminal outcome-unknown | duplicate-effect characterization and existing exact matrix | Is at-most-once cleanup safer than generic retry at this public boundary? |
-| initiating caller gets the original exception; observers get neutral errors | focused controls and GC regression | Does this preserve enough diagnostics without retaining arbitrary traceback graphs? |
-| `is_closed=False` after failed terminal cleanup | source and tests | Is completion truth worth the unusual state where reads and retries remain blocked? |
-| same-task re-entry gets immediate `CloseError` | current timeout failures and repaired local passes | Is task identity the correct narrow provenance boundary, or should descendant contexts also be rejected? |
-| external waiter remains attached when stream catches re-entry | repaired local target test | Does the state remain unpoisoned and race-free under both AnyIO backends? |
-| elapsed is sampled before cleanup and assigned after success | deterministic current/repaired comparison | Does this preserve the existing measurement contract while fixing failed publication? |
-| `BaseException` terminalizes uncertain cleanup | existing cancellation/control-flow tests | Should `KeyboardInterrupt` and `SystemExit` follow the same at-most-once policy? |
-| pickling restores an inert closed response | existing pickle tests | Is losing the failed-close distinction across serialization acceptable? |
+The earlier task-ID proposal was rejected after a child-task reproduction deadlocked. The selected `ContextVar` stack correctly represents inherited close ownership:
 
-## Known risks
+- direct re-entry sees the active state;
+- descendants created by delegated cleanup inherit the active state;
+- nested outer -> inner -> outer cycles find the outer state anywhere in the stack;
+- unrelated callers created outside the owner context do not inherit the marker and remain ordinary waiters;
+- the context token is reset in `finally` on success, escaped failure, and cancellation.
 
-- `anyio.get_current_task().id` must typecheck and behave consistently across the supported AnyIO range.
-- Task-ID detection handles the exact same-task cycle; a child task spawned and awaited by stream cleanup may create a broader provenance cycle.
-- `CloseError` for re-entry becomes a new prompt observable behavior.
-- Three private state fields plus `is_closed` remain more difficult to reason about than one enum, though the retained repair stays narrow.
-- Local repaired execution covered asyncio/Python 3.13 only.
-- Current source CI receipts expire once the repair is applied.
+No task object, response, or escaped exception is stored in the context. A descendant that outlives cleanup may retain only the lightweight close-state marker until that task exits. Calls after successful close return through `is_closed`; calls after failed cleanup return the terminal neutral error before context inspection.
 
-## Evidence limits
+### Settlement and races
 
-- No direct repaired GitHub source head.
-- No repaired Trio execution.
-- No repaired Python 3.9 execution.
-- No current-main refresh after `b5addb64...` because public `master` was unchanged at the inspection date; repeat before contact.
-- No real transport re-entry or production-prevalence evidence.
-- HTTPCore and client-wide shutdown remain separate.
+The repair does not mutate the established settlement ordering:
 
-## Staleness check
+- the initiating caller alone receives the delegated exception or cancellation;
+- failure is recorded before the event is set;
+- successful `is_closed` publication occurs before the event is set;
+- observers receive fresh neutral `CloseError` instances;
+- a caught re-entry does not poison an unrelated waiter;
+- arbitrary stream cleanup remains at-most-once.
 
-- Current upstream head checked: `2026-08-01`, `b5addb64f0161ff6bfe94c124ef76f6a1fba5254`
-- Candidate base relationship: current source is 16 commits ahead, zero behind
-- Relevant source paths changed upstream since execution: `no` at the inspection boundary
-- Duplicate/overlap search date: `2026-08-01`
-- Open replacement work found: none
-- Packet and source PR synchronized: packet records `REPAIR`; source PR needs the final repair comment/front-page synchronization
+### Elapsed compatibility
 
-## Source cleanliness
+`BoundAsyncStream.aclose()` now samples elapsed before delegated cleanup and assigns it only after cleanup succeeds. This restores the prior measurement boundary while retaining the newer rule that failed cleanup leaves elapsed unavailable.
 
-- [x] No Fieldwork-only files in the current target source diff.
-- [x] No temporary workflows or publishers in the current source diff.
-- [x] No stale execution artifacts in the current source diff.
-- [x] No unrelated formatting or generated churn.
-- [x] Required generated or lock changes are absent.
-- [x] Current commit-pinned links resolve.
-- [ ] Retained repair applied and new exact links recorded.
+### State retention and serialization
 
-## Test review
+The context marker contains an event and failure bit only. Existing response state excludes the active state and terminal failure bit from pickling and restores an inert closed response. The repair introduces no new retained traceback path.
 
-- [x] Existing intended assertions ran at `18256f10...`.
-- [x] Setup and product failures are separated.
-- [x] Current/repaired local discriminators show opposite outcomes.
-- [x] Failure, cancellation, GC, observer, requestless, and elapsed-failure paths are covered.
-- [ ] Repair runs under asyncio and Trio.
-- [ ] Repair runs under Python 3.9 and 3.13.
-- [ ] Complete ordinary gates run at the repaired exact head.
-- [ ] Coverage remains 100% after new state and tests.
+### Scope and hygiene
 
-## Draft review
+The repaired source fence is exactly:
 
-- [x] Discussion draft avoids prevalence and real-socket claims.
-- [x] PR draft describes the retained repair, not the current broken head.
-- [x] Target terminology is used.
-- [x] Internal workflow language is absent from the public draft body.
-- [ ] Current contribution and AI-disclosure policy rechecked at filing time.
-- [ ] Public links and current head refreshed before contact.
+1. `httpx/_client.py`
+2. `httpx/_models.py`
+3. `tests/client/test_async_client_terminal_close_elapsed.py`
+4. `tests/models/test_async_response_close_reentry.py`
+5. `tests/models/test_async_response_close_terminal_cancellation.py`
+6. `tests/models/test_async_response_close_terminal_unknown.py`
 
-## Reviewer disposition
+No workflow, packet, generated, dependency, formatting-only, or adjacent-lane file belongs in the source commit.
 
-`REPAIR`
+## Exact execution evidence
 
-Reviewed source head: `18256f10d1b306bdf87a1bab24b214c15839147b`  
-Reviewed packet generation: current unit-12 packet through the retained repair patch  
-Reason: current source has deterministic same-task re-entry deadlocks and successful elapsed semantic drift. The retained patch passes five local discriminators but has no direct target-source or full-gate receipt.  
-Clearing condition: apply the patch, run the target matrix and ordinary gates, then obtain independent complete-diff acceptance on the unchanged repaired head.  
-Reviewer eligibility: `self-review only`
+Run `30752805069` used clean source head `18256f10...`, checked out packet head `e59fb13a...`, applied the exact patch, and verified the six-file fence.
 
-## Human deep-dive guide
+### Python 3.9 focused job
 
-The final human reviewer should focus on:
+Passed:
 
-1. whether terminal outcome-unknown is the right generic public contract;
-2. whether task-ID re-entry detection is narrow enough and sufficient;
-3. whether `is_closed=False` plus blocked reads/retries is understandable and compatible;
-4. whether elapsed sampling preserves the old measurement boundary;
-5. whether the work should begin as one Potential Issue discussion before any source PR.
+- exact clean source hashes;
+- exact repaired blob hashes;
+- asyncio and Trio controls;
+- diff hygiene.
 
-Suggested response:
+### Python 3.13 full job
 
-`Unit 12 looks ready for repair materialization and target execution`  
-—or—  
-`Unit 12 concern: <specific source, test, compatibility, or discussion-framing issue>`
+Passed:
+
+- exact source and six-file fence;
+- `scripts/check`;
+- Ruff format;
+- mypy across 64 source files;
+- Ruff lint;
+- package build and Twine checks;
+- documentation build;
+- complete test suite: `1445 passed, 1 skipped`;
+- complete coverage: `8210` statements, `0` missed, `100%`.
+
+### Python 3.13 focused job
+
+Still queued at the time of this review. Equivalent Python 3.13 asyncio/Trio focused coverage passed in earlier exact repair runs, and the current full Python 3.13 suite includes all ten re-entry parametrizations and the terminal-close controls. The guarded finalizer still requires the queued job before publication.
+
+## Duplicate and policy refresh
+
+- Public `encode/httpx:master` remains `b5addb64f0161ff6bfe94c124ef76f6a1fba5254`.
+- Current issue and PR searches found no equivalent async response-close re-entry or terminal-settlement implementation.
+- HTTPX contribution guidance still routes feature/behavior proposals through a Potential Issue discussion before a public implementation PR.
+- No public contact has occurred.
+
+## Remaining operational checks
+
+- [ ] Python 3.13 focused job in run `30752805069` completes.
+- [ ] Guarded finalizer publishes one clean child commit.
+- [ ] Source PR #6 shows exactly six files.
+- [ ] Four repaired blob hashes match this review.
+- [ ] Normal source-branch CI is recorded at the published head.
+- [ ] Execution PR #9 is closed without merge.
+- [ ] Packet, issue #171, and #435 handoff record immutable final heads.
+
+## Reviewer conclusion
+
+No blocking finding remains in the repair patch. The `ContextVar` stack is materially safer than task-ID comparison because it covers inherited and nested ownership cycles while preserving unrelated waiter behavior. The elapsed change restores compatibility without publishing a value on failed cleanup.
+
+Clearing condition: verify the guarded source publication and its immutable hashes. Public upstream discussion remains a separately authorized action.
