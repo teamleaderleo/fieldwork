@@ -1,8 +1,10 @@
 name: Repair stale reference-policy labels
 
 on:
-  issue_comment:
-    types: [created]
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/repair-reference-policy-labels.yml
 
 permissions:
   contents: read
@@ -11,9 +13,6 @@ permissions:
 
 jobs:
   repair:
-    if: >-
-      github.event.issue.number == 569 &&
-      github.event.comment.body == '<!-- fieldwork: repair-reference-policy-labels -->'
     runs-on: ubuntu-latest
     steps:
       - name: Check out trusted default branch
