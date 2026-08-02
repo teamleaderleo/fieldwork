@@ -8,7 +8,8 @@
   "commands": [
     "node artifacts/opencode-stale-idle-model.mjs",
     "node artifacts/tanstack-transform-order-model.mjs",
-    "node artifacts/vercel-resume-adoption-model.mjs"
+    "node artifacts/vercel-resume-adoption-model.mjs",
+    "node artifacts/vercel-poll-deadline-model.mjs"
   ],
   "results": {
     "opencode_stale_idle": {
@@ -37,6 +38,24 @@
         "first answer",
         "RESUMED-TEXT"
       ]
+    },
+    "vercel_poll_deadline": {
+      "legacyIntervalOvershoot": {
+        "outcome": "success",
+        "elapsed": 30
+      },
+      "newerRequestOvershoot": {
+        "outcome": "success",
+        "elapsed": 35
+      },
+      "deadlineOwnedIntervalCase": {
+        "outcome": "timeout",
+        "elapsed": 5
+      },
+      "deadlineOwnedRequestCase": {
+        "outcome": "timeout",
+        "elapsed": 35
+      }
     }
   },
   "evidence_class": "model-executed",
@@ -44,6 +63,7 @@
     "These are dependency-free lifecycle reductions, not executions of the target repositories.",
     "The OpenCode model preserves registry removal, replacement busy publication, and delayed stale idle publication; it does not model the Event effect implementation or HTTP transport.",
     "The TanStack model preserves ordered shared transforms and intermediate persistence; it does not exercise storage adapters or artifact byte handling.",
-    "The Vercel model preserves assistant-message adoption before resumed identity; it does not exercise framework rendering or transport replay."
+    "The Vercel resume model preserves assistant-message adoption before resumed identity; it does not exercise framework rendering or transport replay.",
+    "The Vercel polling model uses a virtual elapsed-time counter to distinguish check/sleep/poll orderings. It does not execute provider fetch handlers, clock APIs, or abort signals."
   ]
 }
