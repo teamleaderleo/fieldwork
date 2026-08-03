@@ -1,0 +1,60 @@
+name: Fieldwork unit 18 current-main materialization complete
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-unit-18-current-main-materialize-complete.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  materialize:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/playwright
+          ref: 2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2
+          fetch-depth: 0
+          path: playwright
+          persist-credentials: false
+
+      - name: Execute corrected deterministic edit
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -n '/^        run: |$/,$p' fieldwork/.github/workflows/fieldwork-unit-18-current-main-materialize-final.yml \
+            | tail -n +2 \
+            | sed 's/^          //' > /tmp/unit-18-final-wrapper.sh
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('/tmp/unit-18-final-wrapper.sh')
+          text = p.read_text()
+          replacements = [
+              ("\"\"\"      });\n    let stderr = '';\n\"\"\"", "\"\"\"      });\n      let stderr = '';\n\"\"\""),
+              ("\"\"\"      });\n    const exited = new Promise<number | null>(resolve => cp!.once('exit', code => resolve(code)));\n    let stderr = '';\n\"\"\"", "\"\"\"      });\n      const exited = new Promise<number | null>(resolve => cp!.once('exit', code => resolve(code)));\n      let stderr = '';\n\"\"\""),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'fixture wrapper anchor count={text.count(old)} for {old!r}')
+              text = text.replace(old, new, 1)
+          p.write_text(text)
+          PY
+
+          bash /tmp/unit-18-final-wrapper.sh
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: unit-18-current-main-materialized-${{ github.run_id }}
+          path: materialized/
+          if-no-files-found: error
+          retention-days: 14
