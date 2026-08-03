@@ -1,11 +1,11 @@
-# Tests and receipts — unit 24 Responses Lite first request after prewarm
+# Tests and receipts — Unit 24 Responses Lite first request after prewarm
 
-## Exact source
+## Exact current source
 
-- Public-source parent: `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`
-- Candidate head: `9fd4ba575de8dd77bc411362256591ce9e7d8c82`
-- Canonical branch: `teamleaderleo/codex:fix/responses-lite-first-request`
-- Canonical draft PR: `teamleaderleo/codex#130`
+- Public-source parent: `e4e0c7070e53cf9535fd0083d8fb840b6cd410cf`
+- Candidate head: `abf61e5fb8505181e071674ce224faff17e79d77`
+- Canonical branch: `teamleaderleo/codex:fix/responses-lite-first-request-e4e0c70`
+- Owned-fork draft PR: `teamleaderleo/codex#143`
 - Compare: one commit, exactly three files, `+301/-1`
 
 Expected source files:
@@ -16,30 +16,45 @@ codex-rs/core/tests/suite/agent_websocket.rs
 codex-rs/core/tests/suite/client_websockets.rs
 ```
 
-## Current exact-head receipt
+## Current execution status
 
-- Execution PR: `teamleaderleo/fieldwork#459`
-- Workflow run: `30691514386`
-- Job: `91346961426`
-- Source under test: `9fd4ba575de8dd77bc411362256591ce9e7d8c82`
-- Job conclusion: `success`
+Corrected immutable-current-head execution is queued on lightweight carrier `teamleaderleo/smolrunner#286`:
 
-GitHub recorded every source-specific step as successful:
+- run: `30849910237`
+- exact-source job: `91807127950`
+- source under test: `abf61e5fb8505181e071674ce224faff17e79d77`
+- exact parent asserted: `e4e0c7070e53cf9535fd0083d8fb840b6cd410cf`
 
-1. `Check out exact Codex source`
-2. `Verify immutable source fence`
-3. target `setup-ci`
-4. pinned Rust toolchain
-5. `Check formatting`
-6. `Resolve and run exact client controls`
-7. `Run exact agent control and classify default stack`
-8. `Verify clean source worktree`
+The job will require:
 
-This receipt covers the immutable source fence, repository formatting, both exact client controls, the exact full-agent request control with the retained stack discriminator, and clean-worktree/diff validation.
+1. exact immutable source and parent;
+2. exact three-file fence;
+3. `cargo fmt --all -- --check` from `codex-rs/`;
+4. both exact client controls;
+5. the exact full-agent request-shape control;
+6. `just fix -p codex-core`;
+7. clean worktree and `git diff --check`.
+
+Two redundant current-source carriers were closed without merge after the lightweight lane was established:
+
+- `teamleaderleo/codex#142`;
+- `teamleaderleo/fieldwork#596`.
+
+## Harness correction
+
+The first attempted current-head carrier run `30848390794` stopped at formatting before any test ran because the workflow invoked Cargo from the repository root. Codex's Rust workspace is under `codex-rs/`.
+
+The log reports:
+
+```text
+could not find Cargo.toml in /home/runner/work/codex/codex or any parent directory
+```
+
+This is an execution-harness error, not a source failure or a failed target assertion. Every corrected lane runs Rust and `just` commands from `codex-rs/`.
 
 ## Behavioral controls
 
-### Full first generation, then generated-response continuation
+### Complete first generation, then generated-response continuation
 
 ```text
 responses_lite_reuses_generated_response_after_full_first_turn
@@ -53,9 +68,7 @@ Checks:
 - the following turn uses `previous_response_id = resp-1`;
 - the following turn sends only the new suffix and no `additional_tools` item.
 
-Current exact-head result: pass.
-
-### Failed first generation retries the complete request
+### Failed first generation retries complete
 
 ```text
 responses_lite_retries_full_first_turn_after_failed_generation
@@ -63,13 +76,11 @@ responses_lite_retries_full_first_turn_after_failed_generation
 
 Checks:
 
-- first generation sends no warmup predecessor;
-- the synthetic failure closes the first connection;
+- first generation sends no prewarm predecessor;
+- synthetic failure closes the first connection;
 - retry opens a new connection;
 - retry sends no `previous_response_id`;
 - retry input and model match the failed complete request.
-
-Current exact-head result: pass.
 
 ### Full-agent request identity after startup prewarm
 
@@ -79,75 +90,46 @@ websocket_first_responses_lite_turn_sends_exact_current_request_after_startup_pr
 
 Checks:
 
-- warmup uses `generate=false`;
-- warmup begins with a nonempty `additional_tools` manifest;
+- prewarm uses `generate=false`;
+- prewarm carries a nonempty Lite tool manifest;
 - first generated request omits `previous_response_id` and top-level `tools`;
-- generated input starts with the exact warmup input and appends the submitted user message;
+- generated input starts with the exact prewarm input and appends the user message;
 - model, reasoning, and parallel-tool settings match.
 
-Current exact-head result: pass under the workflow’s default/16-MiB discriminator step.
+## Historical exact receipt for the same patch
 
-## Historical receipt
-
-- Base: `e6cfd40c3f444aadd6017c9eeab01db70f48961a`
-- Head: `e520da008366cd720ef58fa0b489efc0a2867e97`
-- Carrier: `40a56eefce26ea647a65779faeb783d65a84a49a`
-- Run/job: `30584165709` / `91011486628`
+The predecessor source `9fd4ba575de8dd77bc411362256591ce9e7d8c82` passed immutable exact execution in Fieldwork run `30691514386`, job `91346961426`:
 
 ```text
 FIELDWORK_LITE_SOURCE_FENCE=3/3
 FIELDWORK_LITE_CLIENT_EXACT=2/2
-FIELDWORK_LITE_AGENT=default:101;large:0
 ```
 
-The historical default Tokio worker stack overflow and raised-stack pass are retained as a harness/runtime discriminator. The current exact-head workflow repeated the corresponding classification step successfully.
+The job also passed formatting, the full-agent request-shape discriminator, and clean-worktree validation.
 
-## Ordinary repository CI
+The current source is a patch-equivalent one-commit restack. The advance from the historical base to `e4e0c707...` did not modify any of the three unit files. This historical receipt is strong predecessor evidence, but the packet does not mislabel it as the current-head receipt.
 
-For current source head `9fd4ba...`:
+## Current ordinary CI
 
-- v8-canary runs `30690616645` and `30691678330`: success;
-- rust formatting: success;
-- cargo-deny: success;
-- codespell: success;
-- blob-size policy: success;
-- changed-area detection: success;
-- cargo-shear: success.
+Normal CI on source `abf61e5...` is queued:
 
-Repository-wide failures were classified as follows:
+- blocking CI run `30849647092`;
+- v8-canary run `30849647356`.
 
-- manifest verification fails on a stale exception involving `codex-rs/code-mode/Cargo.toml`, outside the unit fence;
-- SDK/Bazel/macOS/Windows jobs fail, cancel, or lack source-attributable step data and do not identify any of the three unit files;
-- a separate raised-stack `just test -p codex-core` package job fails after the exact unit controls pass. The available receipt does not expose a source-specific failing test or assertion. It remains broad repository evidence rather than a fabricated unit diagnosis.
-
-Supplementary sequential candidate/base package controls were created on execution branches during classification. They were execution-only and are excluded from the clean source and packet heads.
-
-## Public-source drift control
-
-Public `openai/codex:main` was refreshed through `3e3d82d674d8a263cf2c33684f6a04beb9dcf8d7`, six commits after `ee0247...`. None of those commits changes the three source/test files in this unit.
+These are supplemental to the focused immutable-source lane. Broad repository results will be recorded without widening the three-file source claim.
 
 ## Isolation controls
 
 - `use_responses_lite` is required by the production predicate.
 - The candidate is inactive during warmup itself.
 - Generic non-Lite response chaining is unchanged.
-- Later continuation uses the first generated response, not warmup.
-- Failed first generation retries full on a new connection.
+- Later continuation uses the first generated response, not prewarm.
+- Failed first generation retries complete.
 - Existing reconnect cleanup remains the response-chain reset owner.
-- No workflow, manifest, lock, generated, snapshot, planner, or tool-registration file enters the canonical source diff.
+- No workflow, manifest, lock, generated, snapshot, planner, or tool-registration file enters the source diff.
 
-## Cleanup state
+## Current test judgment
 
-- Canonical source contains no execution workflow: yes.
-- Superseded execution PR `#133`: closed.
-- Target execution PR `teamleaderleo/codex#135`: closed without merge.
-- Target execution branch `fieldwork/435-unit-24-exec-9fd4ba5`: repointed to clean source head `9fd4ba575de8dd77bc411362256591ce9e7d8c82`.
-- Cross-repo execution PR `teamleaderleo/fieldwork#459`: closed without merge.
-- Cross-repo execution branch `p0/435-unit-24-crossrepo-exec`: repointed to final packet history.
-- Fieldwork branch `tmp-do-not-use`: deletion is unavailable through the connector; it is repointed to final packet history and documented in the #435 handoff.
+`PENDING CURRENT EXACT RECEIPT`
 
-## Test judgment
-
-`READY`
-
-The exact current source passes the source-specific behavior, formatting, and worktree gates. Repository-wide failures are outside the three-file fence or provide no source-attributable diagnosis and are recorded without widening the unit.
+The source has a patch-equivalent historical green receipt and a current complete-diff review. One corrected immutable-current-head green run remains before the filing package is marked fully refreshed.
