@@ -26,7 +26,9 @@ import sys
 path = Path(sys.argv[1])
 mode = sys.argv[2]
 source = path.read_text()
-marker = '    #[test_case(false; "memory")]'
+marker = '''    #[test_case(false; "memory")]
+    #[test_case(true; "file")]
+    fn stacked_table_empty'''
 if source.count(marker) != 1:
     raise SystemExit(f'expected one insertion marker, found {source.count(marker)}')
 
