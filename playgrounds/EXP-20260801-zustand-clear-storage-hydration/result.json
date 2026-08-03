@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260801-zustand-clear-storage-hydration",
+  "state": "complete",
+  "updated_at": "2026-08-04",
+  "disposition": "ACCEPT SOURCE / PUBLIC CONTACT UNAUTHORIZED",
+  "characterization": {
+    "repository": "teamleaderleo/zustand",
+    "pull_request": 4,
+    "head": "9402e61c20266395d6e8190841ae924274f03ff1",
+    "conclusion": "Pinned source permits a pre-clear delayed read or migration to publish after clearStorage because the hydration generation remains current."
+  },
+  "candidate": {
+    "repository": "teamleaderleo/zustand",
+    "pull_request": 5,
+    "branch": "fix/persist-clear-storage-hydration-generation",
+    "base": "beca84e600e4e250f6b244d22878e72948f331c7",
+    "head": "001900bb01102417c016afa3341e384f53474492",
+    "changed_files": [
+      {
+        "path": "src/middleware/persist.ts",
+        "change": "increment hydrationVersion immediately before removeItem"
+      },
+      {
+        "path": "tests/persistClearStorageHydrationGeneration.test.ts",
+        "change": "target-native state, lifecycle, failure, and later-hydration controls"
+      }
+    ],
+    "policy": {
+      "clear_intent_revokes_active_hydration": true,
+      "revocation_survives_synchronous_remove_failure": true,
+      "clear_resets_live_state": false,
+      "later_hydration_allowed": true
+    }
+  },
+  "execution": {
+    "carrier_repository": "teamleaderleo/zustand",
+    "carrier_pull_request": 8,
+    "carrier_head": "828226b0e66b396a0a0826a182fb23982828556a",
+    "workflow_run": 30836583456,
+    "job": 91763113773,
+    "conclusion": "success",
+    "passed": [
+      "exact public-base verification",
+      "exact two-file fence verification",
+      "dependency installation",
+      "repository format gate",
+      "repository type gate",
+      "repository lint gate",
+      "repository spec gate",
+      "final exact-head identity",
+      "diff hygiene",
+      "clean tree"
+    ],
+    "carrier_state": "closed without merge"
+  },
+  "controls": {
+    "delayed_stored_read_suppressed": true,
+    "delayed_migration_suppressed": true,
+    "synchronous_remove_failure_revokes_old_hydration": true,
+    "completed_live_state_preserved": true,
+    "stale_post_rehydration_callback_suppressed": true,
+    "stale_finish_listener_suppressed": true,
+    "invalidated_generation_has_hydrated_false": true,
+    "later_hydration_publishes_once": true
+  },
+  "review": {
+    "complete_diff_checked": true,
+    "source_fence_accepted": true,
+    "human_review_claimed": false,
+    "public_filing_authorized": false,
+    "remaining_before_filing": [
+      "refresh public main and overlap",
+      "read current contribution and disclosure policy",
+      "confirm exact candidate head and two-file fence",
+      "obtain explicit public-contact authority"
+    ]
+  },
+  "excluded": [
+    "resetting already-live state",
+    "storage replacement authority",
+    "ordinary asynchronous write settlement",
+    "application-level sign-out sequencing",
+    "public upstream interaction"
+  ]
+}
