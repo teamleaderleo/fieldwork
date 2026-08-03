@@ -8,83 +8,81 @@ This is work in the Playwright repository, specifically Playwright's built-in MC
 
 The narrow question is how Playwright's own tests request graceful shutdown of the MCP child process without giving ordinary HTTP clients that same process-control path.
 
-## Main routes considered
+## Routes considered
 
 1. Keep the HTTP test hook but restrict it to loopback. A local proxy showed that the final TCP peer is not necessarily the original caller.
-2. Hide the HTTP test hook behind an environment variable. This works as an opt-in design but still retains the HTTP control path.
-3. Remove the HTTP hook and let the spawning test parent request shutdown through private Node IPC. This exact candidate passed the full focused gate on Ubuntu, macOS, and Windows.
-4. Remove the HTTP hook and use parent stdin EOF. The first HTTP experiment passed after listening for readable `end`, but it consumed stdin before transport selection and could interfere with stdio MCP startup.
-5. Scope stdin EOF ownership to HTTP tests only. This experiment leaves stdio startup untouched, consumes stdin only after HTTP mode is selected and only under `PWTEST_UNDER_TEST`, and adds an immediate stdio-connect control.
+2. Hide the HTTP test hook behind an environment variable. This hides it by default but retains an opt-in HTTP process-control path.
+3. Remove the HTTP hook and use strict parent Node IPC. This candidate passed the complete focused gate and independent review on Ubuntu, macOS, and Windows.
+4. Remove the HTTP hook and use parent stdin EOF globally. HTTP shutdown worked, but consuming stdin before transport selection could race the stdio MCP protocol.
+5. Remove the HTTP hook and consume stdin only after HTTP mode is selected and only under `PWTEST_UNDER_TEST`. This mode-aware design passed cross-platform and avoids the stdio race.
 
-## Current source records
+## Stable fallback
 
-Canonical tested source:
+Strict parent IPC remains the polished fallback:
 
 ```text
-teamleaderleo/playwright:fix/mcp-parent-ipc-shutdown
+teamleaderleo/playwright#40
+fix/mcp-parent-ipc-shutdown
 e99e97da2acfc6c1a67749bc749e1d0cb71b5607
 ```
 
-Packet and source PRs:
+It passed exact identity/fence, locked install, complete build, Chromium, all 18 native HTTP tests, focused ESLint, clean tree, and exact diff on Ubuntu 24.04, macOS 15, and Windows Server 2025. Independent review `4834404331` records `ACCEPT`.
 
-- `teamleaderleo/fieldwork#451`
-- `teamleaderleo/playwright#40`
+## Preferred design direction
 
-First stdin research:
-
-- `teamleaderleo/playwright#41`
-- exact research head `86d32569b47fd9f6e98c11517d1699cea5a2465a`
-
-Mode-aware stdin research:
-
-- source PR: `teamleaderleo/playwright#42`
-- current exact source: `aa591123067b1a2cbe548e87cfc542de4bfeb98b`
-- exact three-file fence: `http.ts`, `server.ts`, and `fieldwork-stdin-close.spec.ts`
-- current execution carrier: `teamleaderleo/fieldwork#563@d26b0afbc9f0af37f86f0aa7d0bfe4fb7e9e15cd`
-- current workflow: `30759441716`
-
-### Generation 1
-
-Source `679e93190efd422727cb073bf0ceb9eee1611779`, workflow `30759098346`:
-
-- macOS and Windows each passed exact identity, locked install, complete build, Chromium, and all 18 selected HTTP/stdin tests;
-- focused ESLint then failed on the same single `curly` rule in `server.ts`;
-- no behavior or transport failure was observed;
-- macOS artifact `8836952814`, digest `sha256:473c0f97dbd2e7f1e86fe92b621ae86b53eb1753816dd58ff2c9c2d20e6b34ac`;
-- Windows artifact `8836968509`, digest `sha256:52feb9ffa452d8e2f9bd432af5f76fbb568461a7f368f042941b22fd417c74ca`.
-
-The repair added only the required braces.
-
-### Generation 2
-
-Source `aa591123067b1a2cbe548e87cfc542de4bfeb98b`, workflow `30759441716`:
-
-- Windows passed exact identity/fence, locked install, complete build, Chromium, 18/18 tests in 33.6s, focused ESLint, clean tree, and exact diff;
-- Windows artifact `8836997607`, digest `sha256:ff84da9f486c43f2e4d7ba20d7ad5e20bb5aece418c748171fe058c8bffc22f9`;
-- exact-current macOS and Ubuntu remained queued at this note.
-
-The mode-aware branch is not canonical yet. It needs exact-current macOS and Ubuntu completion plus independent comparison before it can displace the strict IPC candidate.
-
-## Repository divergence found today
-
-The unit-18 packet and owned source retain `ISSUE FIRST` with strict parent IPC as the leading fully executed candidate.
-
-Fieldwork issue #404 was edited on 2026-08-02 back to the older explicit-environment-capability direction and `state:execute`. PR #416 is validating corrections to that older evidence record.
-
-This is a coordination conflict between two Fieldwork records. It is not new Playwright behavior and does not invalidate the later three-platform IPC result.
-
-Public Playwright `main` is still exactly:
+Mode-aware parent stdin is now the preferred issue-first design direction:
 
 ```text
-15b1aec478d90f0293dae7b7b6dafd494d9f0154
+teamleaderleo/playwright#42
+research/mcp-mode-aware-stdin-shutdown
+aa591123067b1a2cbe548e87cfc542de4bfeb98b
 ```
 
-That remains the exact base used by the unit-18 packet and source candidates.
+Exact source fence:
 
-## Current judgment
+- `packages/playwright-core/src/tools/utils/mcp/http.ts`
+- `packages/playwright-core/src/tools/utils/mcp/server.ts`
+- `tests/mcp/fieldwork-stdin-close.spec.ts`
 
-Do not silently overwrite either lane again. Preserve both, treat the capability work as the older proxy-topology comparison, and keep the unit-18 packet as the record of the later current-base route-removal work.
+The design removes `/killkillkill`, leaves the stdio branch unchanged, and installs readable-EOF ownership only after HTTP mode is selected and only when Playwright's existing test marker is true. Parent EOF reuses the existing SIGINT cleanup path.
 
-The strict IPC candidate remains the strongest fully executed implementation. Mode-aware stdin is now a credible comparison rather than a speculative idea: it has behavior-positive macOS and Windows evidence, and an exact-current complete Windows result. It still needs the remaining exact-current platforms and review of the `PWTEST_UNDER_TEST` dependency.
+### Exact-current execution
+
+Carrier `teamleaderleo/fieldwork#563@d26b0afbc9f0af37f86f0aa7d0bfe4fb7e9e15cd`, workflow `30759441716`, passed every declared gate on all three platforms:
+
+- Ubuntu 24.04, job `91527222085`: 18/18 in 23.9s; artifact `8838780975`; digest `sha256:e416022f0fde3220246e43790793383e55335ab64310019a24f55bb5024429e7`;
+- macOS 15, job `91527222089`: 18/18 and all declared gates; artifact `8837054976`; digest `sha256:35e7fe49da3b13f2b1686a39d7a5c0241b1e2ba80e368b8045ce56f8e73e096d`;
+- Windows Server 2025, job `91527222072`: 18/18 in 33.6s; artifact `8836997607`; digest `sha256:ff84da9f486c43f2e4d7ba20d7ad5e20bb5aece418c748171fe058c8bffc22f9`.
+
+Each job passed exact source/base identity, the exact three-file fence, locked install, complete build, Chromium setup, selected HTTP controls, HTTP parent-EOF graceful shutdown, immediate stdio initialization and ping, focused ESLint, clean tree, and exact diff.
+
+Independent review `4842216872` records `ACCEPT DESIGN / REPAIR NATIVE INTEGRATION`.
+
+## First-principles judgment
+
+Parent stdin is already a process-ownership capability. HTTP clients and reverse proxies cannot acquire the writable end of that pipe. EOF uses an existing lifetime channel and avoids adding a private IPC message schema, parser, version, duplicate-delivery rule, and fourth file descriptor.
+
+Transport separation is the key constraint. The rejected global experiment consumed stdin before Playwright knew whether stdin carried MCP protocol bytes. The accepted design waits until the stdio branch has returned, so `StdioServerTransport` retains exclusive ownership of stdio-mode input.
+
+Production behavior is narrower than the IPC alternative. Ordinary launches do not enable `PWTEST_UNDER_TEST`; Playwright's boolean parser explicitly treats `false` and `0` as false. The only ordinary production change is removal of the network shutdown route.
+
+## Why it is not ready for final review yet
+
+The research head proves the mechanism but is not the final Playwright-native patch:
+
+1. the test is still in `tests/mcp/fieldwork-stdin-close.spec.ts`;
+2. the old native `http transport browser sigint` case is excluded rather than replaced;
+3. no explicit test proves `PWTEST_UNDER_TEST=0` leaves HTTP alive after stdin EOF;
+4. the final native test should assert process exit code 0;
+5. the full native HTTP file must run without a grep exclusion on Ubuntu, macOS, and Windows;
+6. the resulting complete diff needs independent final review.
+
+The next source generation should integrate the mechanism into `tests/mcp/http.spec.ts`, retain immediate stdio startup coverage, add the non-test negative control, and rerun the full matrix. Until that settles, PR #40 remains the clean reviewable fallback.
+
+## Repository coordination
+
+Fieldwork issue #404 and PRs #410/#416 retain the older environment-capability comparison. This packet retains the later route-removal work. Preserve both by chronology and scope; do not silently overwrite either record.
+
+Public `microsoft/playwright:main` remains exactly `15b1aec478d90f0293dae7b7b6dafd494d9f0154`, the base used by these candidates.
 
 Public upstream interaction performed: none.
