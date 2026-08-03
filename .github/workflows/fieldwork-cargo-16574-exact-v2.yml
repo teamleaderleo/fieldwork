@@ -1,0 +1,38 @@
+name: Fieldwork Cargo 16574 exact-version execution v2
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fieldwork-cargo-16574-exact-v2
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    if: github.event.pull_request.head.ref == 'execution/cargo-16574-exact-v2'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/developer-tools-round-005
+          path: fieldwork-record
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: fieldwork-main
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/cargo
+          ref: fieldwork/16574-patch-source-fetch
+          path: cargo
+          fetch-depth: 0
+      - name: Execute and retain exact-version probe
+        shell: bash
+        run: bash fieldwork-record/scripts/execute_cargo_16574_exact.sh
