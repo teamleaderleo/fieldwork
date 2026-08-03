@@ -97,3 +97,34 @@ jobs:
       - name: Run slow-status polling regression
         working-directory: packages/xai
         run: pnpm exec vitest --config vitest.node.config.js --run src/xai-video-poll-deadline.test.ts
+
+  vercel-core-poll-deadline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: fieldwork
+      - uses: actions/checkout@v4
+        with:
+          repository: vercel/ai
+          ref: dd11a4bf2eebc609292740262951dc00445dbf6a
+          path: target
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: target/pnpm-lock.yaml
+      - name: Install target workspace
+        working-directory: target
+        run: pnpm install --frozen-lockfile
+      - name: Install focused core regressions
+        run: |
+          cp fieldwork/programmes/open-source-ecosystems/scouts/agent-runtime-run-authority/target-tests/vercel-core-poll-deadline-authority.test.ts \
+            target/packages/ai/src/generate-video/fieldwork-poll-deadline-authority.test.ts
+      - name: Run target-native core regressions
+        working-directory: target/packages/ai
+        run: pnpm exec vitest --config vitest.node.config.js --run src/generate-video/fieldwork-poll-deadline-authority.test.ts
