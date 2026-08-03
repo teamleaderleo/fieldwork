@@ -1,0 +1,45 @@
+name: Fieldwork unit 18 current-main materialization Windows
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-unit-18-materialize-windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  materialize:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: 278b9597ab178983a9c4aec213836483c886c57c
+          path: script-source
+          persist-credentials: false
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/playwright
+          ref: 2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2
+          fetch-depth: 0
+          path: playwright
+          persist-credentials: false
+
+      - name: Execute reviewed materialization script
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -n '/^        run: |$/,$p' script-source/.github/workflows/fieldwork-unit-18-materialize-clean.yml \
+            | tail -n +2 \
+            | sed 's/^          //' > /tmp/unit-18-materialize.sh
+          (cd playwright && bash /tmp/unit-18-materialize.sh)
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: unit-18-current-main-materialized-${{ github.run_id }}
+          path: materialized/
+          if-no-files-found: error
+          retention-days: 14
