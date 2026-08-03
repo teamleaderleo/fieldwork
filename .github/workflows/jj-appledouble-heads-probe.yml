@@ -33,6 +33,7 @@ jobs:
 
       - name: Execute current and candidate target-native fixtures
         run: |
+          set -o pipefail
           chmod +x programmes/open-source-ecosystems/scouts/developer-tools-build-systems/experiments/jj-appledouble-heads/probe.sh
           programmes/open-source-ecosystems/scouts/developer-tools-build-systems/experiments/jj-appledouble-heads/probe.sh target/jj \
             | tee jj-appledouble-heads.result.txt
