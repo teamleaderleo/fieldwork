@@ -4,9 +4,14 @@ on:
   push:
     branches:
       - p0/435-unit-24-current-exec-abf61e5
+  pull_request:
+    branches:
+      - p0/435-unit-24-codex-responses-lite-first-request
+    paths:
+      - .github/workflows/unit-24-codex-current-exact-abf61e5.yml
 
 concurrency:
-  group: unit-24-codex-current-exact-abf61e5
+  group: unit-24-codex-current-exact-abf61e5-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
