@@ -6,21 +6,29 @@
   "created_at": "2026-08-02",
   "state": "running",
   "claim_scope": "mechanism",
-  "integration_context": "Zustand persist runtime storage replacement during an in-flight async read or migration",
+  "integration_context": null,
   "sources": [
     {
-      "name": "pmndrs/zustand persist source",
+      "name": "Pinned Zustand persist source",
       "url": "https://github.com/pmndrs/zustand/blob/beca84e600e4e250f6b244d22878e72948f331c7/src/middleware/persist.ts",
       "revision": "beca84e600e4e250f6b244d22878e72948f331c7",
       "retrieved_at": "2026-08-02",
-      "claim": "hydrate binds the initiating storage read while later migration persistence uses mutable current storage; setOptions replaces storage without advancing hydration authority",
-      "evidence_label": "Source-read"
+      "claim": "Hydration binds the initiating storage read while later migration persistence uses mutable current storage; setOptions could replace storage without advancing hydration authority.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Repaired storage-replacement candidate",
+      "url": "https://github.com/teamleaderleo/zustand/pull/7",
+      "revision": "665e0399ee5dc3e877f4cbd431a326eac56f42db",
+      "retrieved_at": "2026-08-04",
+      "claim": "Only actual storage-object replacement advances the hydration generation; identical-object reapplication preserves current hydration.",
+      "evidence_label": "Observed"
     }
   ],
-  "command": "Use the target repository pull-request workflow Test job for the exact characterization and candidate heads.",
+  "command": "pnpm run test:format && pnpm run test:types && pnpm run test:lint && pnpm run test:spec",
   "environment": {
-    "runtime": "GitHub Actions repository workflow",
-    "platform": "ubuntu-24.04",
+    "runtime": "repository Node LTS and pnpm",
+    "platform": "Ubuntu 24.04 GitHub Actions runner",
     "dependencies": [
       "repository lockfile"
     ]
@@ -31,16 +39,20 @@
       "interpretation": "Storage ownership transfer does not invalidate earlier hydration authority."
     },
     {
-      "observation": "Candidate suppresses both old publication and cross-backend write while later rehydrate succeeds.",
-      "interpretation": "Advancing the existing hydration generation at storage replacement is a sufficient narrow repair."
+      "observation": "Candidate suppresses old publication and cross-backend writes after actual replacement while later hydration succeeds.",
+      "interpretation": "Advancing the existing generation at storage-object replacement is a narrow authority repair."
     },
     {
-      "observation": "Setup, format, type, lint, or runner failure occurs before the focused cases execute.",
-      "interpretation": "No mechanism conclusion can be drawn until repaired and rerun."
+      "observation": "Reapplying the identical storage object preserves the active hydration and completion signals.",
+      "interpretation": "No-op storage assignment must remain distinct from ownership transfer."
+    },
+    {
+      "observation": "Exact-head format, type, lint, spec, identity, and hygiene gates pass or fail.",
+      "interpretation": "Use only the fresh repaired-head result for promotion; prior green receipts are provenance."
     }
   ],
-  "stop_condition": "Stop after exact-head characterization and candidate execution plus complete two-file diff review.",
-  "network_policy": "target CI only",
+  "stop_condition": "Stop after the repaired exact head passes the complete repository gate and the final two-file diff is reviewed unchanged.",
+  "network_policy": "explicit",
   "upstream_contact_authorized": false,
   "result_paths": [
     "playgrounds/EXP-20260802-zustand-storage-replacement-hydration/README.md"
