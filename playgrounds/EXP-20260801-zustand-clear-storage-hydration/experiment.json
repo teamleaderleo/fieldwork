@@ -4,55 +4,71 @@
   "question": "Can a Zustand persist hydration that began before clearStorage() still apply the cleared stored snapshot to live state?",
   "owner": "chatgpt:gpt-5.6-thinking",
   "created_at": "2026-08-01",
-  "state": "running",
+  "state": "complete",
   "claim_scope": "mechanism",
-  "integration_context": "Zustand persist middleware with asynchronous storage reads or migrations",
+  "integration_context": null,
   "sources": [
     {
-      "name": "pmndrs/zustand",
+      "name": "Pinned Zustand persist source",
       "url": "https://github.com/pmndrs/zustand",
       "revision": "beca84e600e4e250f6b244d22878e72948f331c7",
       "retrieved_at": "2026-08-01",
-      "claim": "Pinned source uses hydrationVersion to invalidate concurrent rehydrate calls but clearStorage does not advance it.",
-      "evidence_label": "Source-read"
+      "claim": "Hydration generations invalidate older rehydrate work, while clearStorage did not advance the generation.",
+      "evidence_label": "Observed"
     },
     {
-      "name": "Zustand PR 3336",
-      "url": "https://github.com/pmndrs/zustand/pull/3336",
-      "revision": "d0cb549ff67ab2ecc62202a5d261f4cffcedb9f4",
-      "retrieved_at": "2026-08-01",
-      "claim": "The current generation mechanism was introduced to make only the latest concurrent rehydrate call authoritative.",
-      "evidence_label": "Project-history"
+      "name": "Accepted clear-storage candidate",
+      "url": "https://github.com/teamleaderleo/zustand/pull/5",
+      "revision": "001900bb01102417c016afa3341e384f53474492",
+      "retrieved_at": "2026-08-04",
+      "claim": "The candidate advances the existing hydration generation before storage removal and covers stale state, observer, later-hydration, and synchronous-removal-failure behavior.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Exact candidate execution carrier",
+      "url": "https://github.com/teamleaderleo/zustand/pull/8",
+      "revision": "828226b0e66b396a0a0826a182fb23982828556a",
+      "retrieved_at": "2026-08-04",
+      "claim": "Exact source identity, two-file fence, repository formatting, types, lint, specs, diff hygiene, and clean tree passed.",
+      "evidence_label": "Observed"
     }
   ],
-  "command": "Run the repository pull-request workflows for characterization head 9c5039ebf594f15b0fbb5d5e39d59f4e70dd6e96 and candidate head d009aa203e357d83a61350ce85d7db29aa05ff8a, then inspect the primary Test jobs.",
+  "command": "pnpm run test:format && pnpm run test:types && pnpm run test:lint && pnpm run test:spec",
   "environment": {
-    "runtime": "GitHub Actions matrix pending",
-    "platform": "repository-defined",
+    "runtime": "repository Node LTS and pnpm",
+    "platform": "Ubuntu 24.04 GitHub Actions runner",
     "dependencies": [
       "zustand repository lockfile at beca84e600e4e250f6b244d22878e72948f331c7"
     ]
   },
   "distinguishing_outcomes": [
     {
-      "observation": "The characterization delayed read and migration tests pass.",
-      "interpretation": "A pre-clear hydration retains publication authority on the pinned source."
+      "observation": "A delayed read or migration from a pre-clear hydration can publish under the pinned source.",
+      "interpretation": "clearStorage did not previously revoke the active hydration generation."
     },
     {
-      "observation": "The candidate suppression and later-rehydrate tests pass.",
-      "interpretation": "Advancing the existing hydration generation at clearStorage narrowly fences the stale work without resetting live state."
+      "observation": "The candidate suppresses delayed state and lifecycle publication after clear.",
+      "interpretation": "Advancing the existing generation transfers publication authority to the clear intent."
     },
     {
-      "observation": "A test, type, build, or runner setup fails before the assertions execute.",
-      "interpretation": "No behavioral conclusion; repair the probe without widening scope."
+      "observation": "A synchronous removeItem failure still leaves the old hydration revoked.",
+      "interpretation": "Logical clear authority is independent from physical removal success."
+    },
+    {
+      "observation": "A later hydration succeeds and publishes state and completion signals exactly once.",
+      "interpretation": "The repair revokes only older work and preserves future hydration."
+    },
+    {
+      "observation": "Complete repository format, type, lint, and spec gates pass at the exact candidate head.",
+      "interpretation": "The selected two-file source is technically ready within the tested repository boundary."
     }
   ],
-  "stop_condition": "Stop after exact-head characterization and candidate workflow conclusions and primary test coverage are recorded.",
-  "network_policy": "repository CI only; no public upstream interaction",
+  "stop_condition": "Stop after exact-head target execution, lifecycle and removal-failure policy controls, complete two-file review, and carrier retirement.",
+  "network_policy": "explicit",
   "upstream_contact_authorized": false,
   "result_paths": [
     "playgrounds/EXP-20260801-zustand-clear-storage-hydration/README.md",
     "playgrounds/EXP-20260801-zustand-clear-storage-hydration/result.json"
   ],
-  "promoted_to": null
+  "promoted_to": "teamleaderleo/zustand#5@001900bb01102417c016afa3341e384f53474492"
 }
