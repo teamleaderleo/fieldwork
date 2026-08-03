@@ -1,37 +1,97 @@
-# Actual Queue
+# Review and delivery entry points
 
-**Start here when reviewing Fieldwork:** [issue #213 — Actual review queue](https://github.com/teamleaderleo/fieldwork/issues/213)
+## In simple words
 
-That issue is the canonical ordered list of work needing human judgment. It states the exact decision, the evidence to inspect, and the disposition that moves each card. The queue grows whenever another bounded decision becomes reviewable; priority controls order, not inclusion.
+You should have one place to look when Fieldwork needs something from you: [Human Review Desk #387](https://github.com/teamleaderleo/fieldwork/issues/387).
 
-## Current review order
+Pin or bookmark that issue. Assistants should service finished, current decision cards onto it and remove them after disposition. You should not need to search programme hubs, target issues, execution carriers, packet pull requests, workflow logs, or old issue comments to discover what needs your attention.
 
-1. [PR #174](https://github.com/teamleaderleo/fieldwork/pull/174) — receipt schema enforcement.
-2. [PR #166](https://github.com/teamleaderleo/fieldwork/pull/166) — Wasmtime interruption result.
-3. [PR #173](https://github.com/teamleaderleo/fieldwork/pull/173) — HTTPX async response close ownership.
-4. [PR #172](https://github.com/teamleaderleo/fieldwork/pull/172) — Zustand undefined option preservation.
-5. [PR #159](https://github.com/teamleaderleo/fieldwork/pull/159) — Zustand explicit rehydrate failure settlement.
-6. [PR #182](https://github.com/teamleaderleo/fieldwork/pull/182) — Tantivy worker-generation fencing.
-7. [PR #163](https://github.com/teamleaderleo/fieldwork/pull/163) — Codex MCP cancellation packet.
-8. [PR #91](https://github.com/teamleaderleo/fieldwork/pull/91) — Supabase refresh notification ownership.
-9. [PR #221](https://github.com/teamleaderleo/fieldwork/pull/221) — OpenTelemetry delayed lifecycle reentry and timeout/provenance contract.
+For the broader active portfolio, read the dated [`CURRENT.md`](CURRENT.md) owner snapshot. The live desks and canonical issues remain authoritative when the snapshot ages.
 
-The detailed asks live in issue #213. Keep this file readable, preserve the complete ordered set, and update it when a card enters, moves, is disposed, or returns for re-examination.
+## The three-desk system
 
-## Other queues
+### 1. Human Review Desk — #387
 
-- [Issue #160 — Delivery Desk](https://github.com/teamleaderleo/fieldwork/issues/160): implementation, final gates, clean application, landing, and closeout.
-- [Open issues](https://github.com/teamleaderleo/fieldwork/issues): full live workboard.
-- [Open pull requests](https://github.com/teamleaderleo/fieldwork/pulls): evidence and implementation surfaces, including broad histories that are outside the immediate review queue.
+[Issue #387](https://github.com/teamleaderleo/fieldwork/issues/387) is the canonical user-facing desk.
 
-## Rules
+A card belongs there only when it contains:
 
-- Include every bounded decision that is ready for human judgment; do not hide lower-priority cards to keep the list short.
-- Use ordering and headings to manage a large pile rather than deleting valid review debt.
-- Each item needs one clear decision and named evidence.
-- Remove disposed work after the decision and next action are durable.
-- Move implementation chores to the Delivery Desk without erasing their review history.
-- A changed head or changed evidence input expires the review.
-- Re-open or add a re-examination card when later source movement, execution evidence, or adjacent findings weaken an earlier disposition.
-- Broad scouts, execution carriers, and historical PRs stay outside this list unless they present a current bounded decision.
-- This queue grants no upstream-contact authority.
+- one exact current source or proposal;
+- the behavior or authority decision in plain language;
+- the strongest completed evidence and material limits;
+- an assistant recommendation;
+- one concise reply that records the user's decision.
+
+Routine technical alternatives, queued CI, source restacks, stale-head repair, carrier cleanup, and independent-review plumbing do not belong on the human desk.
+
+A decision on #387 does not silently authorize merge, release, deployment, spending, credentials, private-data access, or public upstream contact. Those authorities remain explicit.
+
+### 2. Peer Review Queue — #213
+
+[Issue #213](https://github.com/teamleaderleo/fieldwork/issues/213) is the assistant and eligible-peer technical review queue.
+
+An item enters only after its exact head, complete fence, governing inputs, completed tests and receipts, classified failures, review lens, author eligibility, clearing transition, and public-contact state are current.
+
+A successful technical review may:
+
+- return the item to #160 for final execution or closeout;
+- move a genuinely non-delegable decision to #387;
+- stop, repair, reject, or supersede the item without involving the user.
+
+### 3. Internal Delivery Desk — #160
+
+[Issue #160](https://github.com/teamleaderleo/fieldwork/issues/160) is the assistant-owned repair, execution, composition, landing-preparation, and closeout desk.
+
+It owns work such as:
+
+- exact-head tests and ordinary gates;
+- clean direct-source publication;
+- current-main reconciliation;
+- receipt transfer and carrier retirement;
+- bounded source or packet polish;
+- synchronization of issues, pull requests, findings, and review records.
+
+## Default flow
+
+```text
+#160 assistant servicing
+  -> #213 eligible technical review
+  -> #160 final technical cleanup when needed
+  -> #387 only for a real user decision
+  -> #160 authorized execution, filing preparation, or closeout
+```
+
+Some work stops or closes before reaching #387. A technically accepted candidate does not become a user task merely because it is review-ready.
+
+## User rule
+
+Pin or bookmark **#387 only**.
+
+- When #387 has cards, those are the current decisions worth your attention.
+- When #387 is empty, no current Fieldwork decision is being asked of you.
+- The issue body should remain short enough to scan on a phone.
+- Each card should offer one direct reply rather than asking you to reconstruct project history.
+
+Use [`CURRENT.md`](CURRENT.md) when you want the wider portfolio view without reading the raw GitHub event stream.
+
+## Agent servicing rule
+
+Before changing a desk:
+
+1. update the canonical issue, source pull request, packet, finding, and receipts first;
+2. refresh the live desk body immediately before editing it;
+3. make the smallest exact synchronization change and preserve other workers' current cards;
+4. remove stale, superseded, queued, red, or already disposed entries from the wrong desk;
+5. never duplicate full evidence when a concise card and exact links are enough;
+6. keep public-interaction authority separate from technical readiness.
+
+Repository files explain the routing contract. The three GitHub issues hold current live state; this file must not become another copied card list.
+
+## Other work surfaces
+
+- [P0 upstream packet backlog #435](https://github.com/teamleaderleo/fieldwork/issues/435) — numbered contribution-unit inventory and convergence work.
+- [Cross-repository owner snapshot](CURRENT.md) — dated priorities, near-finish work, active research, consolidation debt, and paused directions.
+- [Open Fieldwork issues](https://github.com/teamleaderleo/fieldwork/issues) — complete live workboard.
+- [Open pull requests](https://github.com/teamleaderleo/fieldwork/pulls) — implementation, evidence, packet, and coordination surfaces.
+
+No desk, queue, packet, label, or repository document grants public upstream-contact authority by itself.
