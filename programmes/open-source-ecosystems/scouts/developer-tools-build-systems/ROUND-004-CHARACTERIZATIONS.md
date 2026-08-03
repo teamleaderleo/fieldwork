@@ -172,6 +172,15 @@ If the target task runner does not accept a name filter in that position, run th
 - No production candidate has been selected.
 - Execution, formatting, and compilation remain unverified.
 
+## Exact-head review checkpoint
+
+The target branch comparisons were re-read after the second control commits:
+
+- Turborepo: two commits ahead, two added integration-test files, no production source changes.
+- Helix: three commits ahead, one added integration-test module plus registration, no production source changes.
+
+No weak control requiring immediate removal was found. The remaining uncertainty is execution evidence, not repository ownership or source access.
+
 ## Current disposition
 
 `PREPARED / UNEXECUTED / CONTINUING IN OWNED FORKS`
