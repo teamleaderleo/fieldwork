@@ -1,167 +1,120 @@
 # Zustand clear-storage hydration ordering
 
-## In simple words
-
-Zustand's persist middleware already uses a generation counter so a newer `rehydrate()` call can invalidate older in-flight hydration work. The public `clearStorage()` operation removes the stored entry but does not advance that generation.
-
-This experiment asks whether a stored read or migration that began before `clearStorage()` can still apply the just-cleared snapshot to live store state afterward.
-
-The question is narrow. `clearStorage()` is not assumed to reset state that was already live before the clear. Ordinary asynchronous write completion, storage replacement through `setOptions`, and application-level sign-out sequencing are excluded.
-
 ## State
 
-`repair`
+`COMPLETE — source candidate technically ready; public contact unauthorized`
 
-Last updated: `2026-08-02`  
 Owner: `chatgpt:gpt-5.6-thinking`  
+Created: `2026-08-01`  
 Claim scope: `mechanism`  
 Upstream contact authorized: `no`
 
-## Why this target
+## In simple words
 
-The current npm package page reported roughly 46–48 million weekly downloads for Zustand during the intake pass, compared with roughly 4.1 million for Jotai. Popularity was used only as a targeting signal; it is not evidence that this behavior is common or severe.
+Zustand persist already prevents an older `rehydrate()` call from publishing after a newer hydration starts. `clearStorage()` removed the persisted item without advancing that same generation, so a delayed read or migration could still apply the snapshot that the caller had just cleared.
+
+The accepted candidate increments the existing hydration generation immediately before storage removal. The clear request therefore revokes older hydration work without resetting state that is already live.
 
 ## Exact subject
 
-- Target: `pmndrs/zustand`
-- Pinned public source: `beca84e600e4e250f6b244d22878e72948f331c7`
-- Clean fork base branch: `teamleaderleo/zustand:base/upstream-20260801`
-- Characterization branch: `teamleaderleo/zustand:scout/persist-clear-storage-hydration-ordering`
-- Characterization head: `9c5039ebf594f15b0fbb5d5e39d59f4e70dd6e96`
-- Characterization draft PR: `teamleaderleo/zustand#4`
-- Candidate branch: `teamleaderleo/zustand:fix/persist-clear-storage-hydration-generation`
-- Candidate head: `d009aa203e357d83a61350ce85d7db29aa05ff8a`
-- Candidate draft PR: `teamleaderleo/zustand#5`
+- pinned public and fork base: `beca84e600e4e250f6b244d22878e72948f331c7`;
+- characterization: `teamleaderleo/zustand#4@9402e61c20266395d6e8190841ae924274f03ff1`;
+- accepted candidate: `teamleaderleo/zustand#5@001900bb01102417c016afa3341e384f53474492`;
+- retired execution carrier: `teamleaderleo/zustand#8@828226b0e66b396a0a0826a182fb23982828556a`;
+- exact candidate fence: one production addition and one target-native test file.
 
-The fork's default branch contains unrelated prior work, so both PRs target the pinned clean base branch instead of fork `main`.
+The candidate changes only:
 
-## Project instructions read
+- `src/middleware/persist.ts`;
+- `tests/persistClearStorageHydrationGeneration.test.ts`.
 
-At the pinned public source, `CONTRIBUTING.md` requires:
+No dependency, lockfile, workflow, generated-output, storage-format, or public-API change is present.
 
-- conventional commits;
-- a focused PR;
-- failing tests before implementation;
-- `pnpm run fix:format`;
-- `pnpm run build`;
-- `pnpm run test`.
+## Current behavior
 
-Those gates control this experiment. The current target heads have not cleared the full sequence because both primary test workflows stop at formatting.
+Each hydration captures a newly incremented `hydrationVersion`. Every later state-application and completion boundary checks that its captured version is still current.
 
-## Source model
+Before this candidate, `clearStorage()` called `removeItem()` without advancing `hydrationVersion`. A hydration that began before the clear therefore remained authorized to:
 
-At the pinned source:
+- merge a delayed stored value into live state;
+- merge a delayed migration result;
+- publish its post-rehydration callback;
+- mark hydration complete and notify finish listeners.
 
-1. each `hydrate()` call captures `const currentVersion = ++hydrationVersion`;
-2. the async read, optional migration, state merge, callbacks, and errors are suppressed when `currentVersion !== hydrationVersion`;
-3. `clearStorage()` calls `storage?.removeItem(options.name)` without changing `hydrationVersion`.
+## Selected repair and policy
 
-Therefore a hydration that began before the clear still retains current publication authority unless another hydration starts.
-
-## Characterization cases
-
-The test-only branch adds `tests/persistClearStorageHydrationOrdering.test.ts` with three deterministic controls:
-
-1. a delayed stored value resolves after `clearStorage()` and becomes live state;
-2. a delayed migration resolves after `clearStorage()` and becomes live state;
-3. clearing after hydration leaves already-live state unchanged.
-
-These assertions are source-derived characterization until a target-native semantic test job runs them successfully.
-
-## Candidate
-
-The candidate adds one production statement in `clearStorage()`:
+The candidate adds one operation before `removeItem()`:
 
 ```ts
 ++hydrationVersion
 ```
 
-This reuses the existing invalidation mechanism. The candidate test covers:
+This uses the middleware's existing publication-authority mechanism rather than adding a second cancellation path.
 
-1. delayed stored read suppression;
-2. delayed migration suppression;
-3. no reset of already-live state;
-4. successful later rehydration after the older work was invalidated.
+The selected policy is explicit:
 
-Relative to the pinned source, the candidate is two commits, ahead by two and behind by zero, changing exactly:
+- the caller's clear intent immediately revokes the active hydration generation;
+- revocation remains effective when synchronous `removeItem()` throws;
+- physical removal failure does not give older hydration work permission to republish the logically cleared snapshot;
+- clearing storage does not reset state that completed hydration already made live;
+- a later explicit hydration may establish a new generation and publish normally.
 
-- `src/middleware/persist.ts` — one addition;
-- `tests/persistClearStorageHydrationGeneration.test.ts` — 139 additions.
+## Target-native controls
 
-## Exact execution classification
+The accepted test proves:
 
-### Characterization head `9c5039e...`
+1. a delayed stored read cannot hydrate state after clear;
+2. a delayed migration cannot hydrate state after clear;
+3. synchronous removal failure still revokes the older hydration;
+4. clearing after completed hydration leaves live state unchanged;
+5. stale post-rehydration callbacks and finish listeners are suppressed;
+6. `hasHydrated()` remains false for the invalidated generation;
+7. a later hydration succeeds, applies state, and publishes each completion signal exactly once.
 
-Successful:
+These controls settle the lifecycle, callback, and synchronous-removal policy questions that blocked the earlier generation.
 
-- Test Multiple Versions `30692436573`;
-- Test Old TypeScript `30692436571`;
-- Test Multiple Builds `30692436591`;
-- Compressed Size `30692436621`.
+## Exact execution
 
-Classified failures:
+Execution carrier `teamleaderleo/zustand#8` first published repository-formatted test bytes under exact predecessor-head guards, then ran the exact candidate matrix.
 
-- Test `30692436576`, job `91349433692`: dependency installation passed, then `pnpm run test:format` reported only `tests/persistClearStorageHydrationOrdering.test.ts`. Type, lint, spec, and build steps were skipped.
-- Preview Release `30692436570`, job `91349433703`: the complete package build passed; publication failed because the `pkg-pr-new` GitHub App is not installed on `teamleaderleo/zustand`.
+Workflow `30836583456`, clear-storage job `91763113773`, passed directly against `001900bb...`:
 
-### Candidate head `d009aa2...`
+- exact public-base and two-file fence verification;
+- dependency installation;
+- complete repository format gate;
+- complete repository type gate;
+- complete repository lint gate;
+- complete repository spec gate;
+- final exact-head identity, diff hygiene, and clean-tree verification.
 
-Successful:
+The behavior-identical predecessor also passed Multiple Versions, Multiple Builds, Old TypeScript, and Compressed Size. The exact-head carrier is the controlling source receipt because ordinary workflows on the formatter-authored head were marked `action_required` without executing.
 
-- Test Old TypeScript `30692520845`;
-- Compressed Size `30692520829`;
-- Test Multiple Versions `30692520839`;
-- Test Multiple Builds `30692520824`.
+The execution carrier is closed without merge. The source candidate contains no workflow file.
 
-Classified failures:
+## Review
 
-- Test `30692520819`, job `91349676750`: dependency installation passed, then `pnpm run test:format` reported only `tests/persistClearStorageHydrationGeneration.test.ts`. Type, lint, spec, and build steps were skipped.
-- Preview Release `30692520832`, job `91349677085`: the complete package build passed; publication failed because the `pkg-pr-new` GitHub App is not installed on the fork.
+Complete-diff technical review accepts the exact two-file candidate. The increment sits at the existing authority boundary and is checked by every later state, persistence, callback, error, and completion publication path.
 
-The preview failures are repository-hosting limits after successful builds. The primary test failures are owned formatting defects and block semantic acceptance.
+The ordering before `removeItem()` is deliberate and covered by a reversing failure control. No narrower placement closes the stale-publication window while preserving clear intent after synchronous removal failure.
 
-## Exact review
-
-### Source ownership
-
-Incrementing `hydrationVersion` synchronously before `removeItem` uses the same authority already selected for newer `rehydrate()` calls. It cancels publication by older stored reads and migrations while allowing a later explicit hydration to establish a newer generation.
-
-The source location is coherent and narrowly scoped. Moving the increment after an asynchronous removal would leave the existing stale-publication window open.
-
-### Remaining semantic decisions
-
-The current four candidate cases prove only state publication behavior. Before acceptance, tests or explicit disposition must settle:
-
-1. **Hydration lifecycle state.** `hydrate()` sets `hasHydrated = false`; an invalidated hydration returns before setting it true or notifying `onFinishHydration`. This matches the existing newer-hydration cancellation model, but `clearStorage()` is a different public operation and the expected observable state should be recorded.
-2. **Callbacks.** `onRehydrateStorage` starts before the clear, while its completion callback is skipped by the version guard. The candidate should state and test whether this is intentional.
-3. **Removal failure.** The generation increments before `removeItem`. A synchronous throw or ignored asynchronous rejection therefore revokes the in-flight hydration even when storage was not successfully cleared. That may be the correct request-authority rule, but it is currently untested and undocumented.
-4. **No widening.** Storage replacement through `setOptions`, ordinary write settlement, and resetting already-live state remain separate lanes.
-
-## Repair sequence
-
-1. Run the repository formatter on both new test files and keep the resulting diffs target-native.
-2. Rerun the primary `Test` workflow for characterization and candidate heads so type, lint, spec, and build steps execute.
-3. Add focused controls for `hasHydrated`, `onFinishHydration`, and the post-rehydration callback when clear invalidates an active hydration, or document an explicit reason to inherit current concurrent-rehydrate behavior without new assertions.
-4. Add and decide at least one `removeItem` failure control. Keep the source one-line only if the chosen request-authority behavior remains correct.
-5. Review the complete exact candidate diff after the repair and repeat the current issue/PR search before any promotion.
-
-## Prior-art and ownership check
-
-- Zustand PR `#3336` introduced the current hydration generation specifically for concurrent `rehydrate()` calls.
-- Searches on `2026-08-01` for clear-storage hydration races and equivalent repairs did not surface a current issue or pull request for this exact operation crossing.
-- No open Fieldwork lane was found for this exact boundary.
-
-Search can miss differently worded or unindexed discussion and must be repeated before promotion.
+This is same-account technical acceptance. Human review, merge authority, and public filing authority remain separate and unclaimed.
 
 ## Compatibility and limits
 
-- `clearStorage()` still does not reset already-live state.
-- The return type and asynchronous removal behavior are unchanged.
-- A later explicit `rehydrate()` remains possible and is covered.
-- Storage replacement through `setOptions({ storage })` may have a similar authority question but is excluded from this experiment.
-- Ordinary `setItem` completion ordering remains separate.
-- No claim is made about prevalence, user impact, or security severity.
+Established:
 
-## Stop condition
+- stale pre-clear reads and migrations lose publication authority;
+- lifecycle observers follow the same generation rule as concurrent rehydration;
+- already-live state is preserved;
+- later hydration remains available;
+- the complete repository format/type/lint/spec gates pass at the exact source head.
 
-Stop after the formatting repair, complete primary test execution, lifecycle/failure-semantics disposition, and exact complete-diff review. Do not widen this experiment into general persistence serialization, storage replacement, sign-out APIs, or public upstream contact.
+Excluded:
+
+- storage replacement through `setOptions({ storage })`;
+- ordinary asynchronous write settlement;
+- application-level sign-out or state-reset policy;
+- changing the return type or error handling of `clearStorage()`;
+- public upstream interaction.
+
+Immediately before any authorized filing, refresh public main and overlap, read current contribution policy, verify the exact two-file fence, and obtain explicit authority for that interaction.
