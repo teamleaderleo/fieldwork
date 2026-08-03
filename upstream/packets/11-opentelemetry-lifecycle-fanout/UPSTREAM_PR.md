@@ -1,32 +1,37 @@
 # Upstream pull-request draft
 
 Proposed title: `fix(sdk-trace, sdk-logs): invoke all lifecycle processors`  
-Draft status: `validating in owned fork`  
+Draft status: `review-ready — file only after issue review and explicit authorization`  
 Proposed head: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout-v2`  
 Proposed base: `open-telemetry/opentelemetry-js:main`  
+Canonical owned head: `db3d9e5e43d5abc6622784acf0ef87f3b038ac91`  
 Public interaction authorized: `no`
+
+The text below is the proposed public PR body. Internal workflow IDs, Fieldwork terminology, superseded branches, and validation-carrier history are intentionally omitted.
+
+---
 
 ## Which problem is this PR solving?
 
-The trace and logs specifications require provider shutdown and force flush to invoke the operation on every registered processor.
+The trace and logs SDK specifications require provider shutdown and force flush to invoke the operation on every registered processor.
 
-`MultiSpanProcessor` and `MultiLogRecordProcessor` currently invoke lifecycle methods while constructing a promise collection from the retained processor array. A custom processor that throws before returning its declared promise stops that construction, so later processors are not invoked. Synchronous mutation of the retained array can likewise make live iteration skip a processor that was registered when the operation began.
+`MultiSpanProcessor` and `MultiLogRecordProcessor` currently invoke lifecycle methods while constructing a promise collection from a retained processor array. A custom processor that throws before returning its declared promise stops that construction, so later processors are not invoked. Synchronous mutation of the retained array can likewise make live iteration skip a processor that was registered when the operation began.
 
-`TracerProvider.forceFlush()` has a separate public fanout. Its Promise executor prevents a synchronous processor throw from stopping later `.map()` callbacks, but that throw bypasses the existing rejection handler that clears the processor timeout. The stale timer remains armed until expiry. This provider path also maps the live array, so synchronous removal can still skip a later opening processor.
+`TracerProvider.forceFlush()` performs a separate public fanout. A direct synchronous throw is caught by its Promise constructor, so it does not stop later `.map()` callbacks, but it bypasses the existing rejection handler that clears the processor timeout. This path also maps the live processor array, so synchronous removal can skip a later opening processor.
 
-The affected cases are unusual but consequential at shutdown: a skipped processor loses its final flush or cleanup opportunity, and the provider's referenced timeout can delay natural Node.js process termination. The change is limited to custom/third-party processor failure and mutation behavior; it does not imply ordinary built-in processors commonly fail this way.
+The affected cases are unusual but meaningful at shutdown: a skipped processor can lose its final flush or cleanup opportunity, and the provider's referenced timeout can delay natural Node.js process termination after failure has already been reported.
 
 Fixes #ISSUE
 
 ## Short description of the changes
 
-- snapshot the opening processor set in aggregate trace and logs lifecycle fanout;
-- invoke processors eagerly while converting direct synchronous throws into rejected promises;
-- snapshot public `TracerProvider.forceFlush()` targets;
-- route synchronous provider failure through the existing timeout cleanup and error-array result path;
-- add focused regression tests for synchronous throws, opening-set mutation, error behavior, timer cleanup, and genuine timeout preservation.
+- Snapshot the processor set when aggregate trace and logs lifecycle work begins.
+- Invoke processors eagerly in the existing order while converting direct synchronous throws into rejected promises.
+- Snapshot public `TracerProvider.forceFlush()` targets and route synchronous failures through its existing timeout cleanup and error-array handling.
+- Preserve the existing settlement policy of each surface, including genuine timeout behavior.
+- Add focused regression coverage for direct throws, opening-set mutation, provider error shape, timer cleanup, and genuine timeout behavior.
 
-Metrics is intentionally not changed. Metric collector lifecycle methods are already `async`, the provider owns its collector list internally, and no supported post-construction mutation route was established.
+Metrics is intentionally not changed. Metric collector lifecycle methods are already `async`, the provider owns its collector list internally, and no supported post-construction mutation path was established.
 
 ## Type of change
 
@@ -37,62 +42,83 @@ Metrics is intentionally not changed. Metric collector lifecycle methods are alr
 
 ## How Has This Been Tested?
 
-Focused unit coverage verifies:
+Focused unit tests cover:
 
-- aggregate trace shutdown and force flush invoke later opening processors after a direct synchronous throw;
-- aggregate logs shutdown and force flush do the same;
-- synchronous removal does not shrink the current operation's opening set;
-- aggregate trace shutdown still rejects;
-- aggregate trace force flush still reports through the global error handler and resolves;
-- logs still reject;
-- public trace-provider force flush retains its one-error-array rejection;
-- a synchronous provider failure leaves no timer armed;
-- a genuinely pending provider processor still times out and rejects.
+- aggregate trace shutdown and force flush after a direct synchronous throw;
+- aggregate logs shutdown and force flush after a direct synchronous throw;
+- opening-set mutation during each repaired aggregate operation;
+- public trace-provider opening-set mutation;
+- the provider's existing error-array shape and timeout cleanup after synchronous failure;
+- genuine provider timeout behavior for a processor that remains pending.
 
-Owned-fork exact-head workflows are running on `987a2bde097fe2e44531830e38c7c15a59c35c23`:
+The exact candidate passed the repository's:
 
-- Unit Tests `30755343888`;
-- Lint `30755343692`;
-- W3C Trace Context Integration `30755343695`;
-- Bundler tests `30755343708`;
-- Ensure API Peer Dependency `30755343685`;
-- CodeQL Analysis `30755343693`;
-- E2E Tests `30755343697`;
-- Zizmor GitHub Actions Security Analysis `30755343702`.
-
-The preceding candidate passed every listed workflow except Lint. That failure was limited to Prettier formatting in `TracerProvider.ts`; the current head contains the formatting repair and an added timeout-preservation control.
+- Unit Tests;
+- Lint;
+- W3C Trace Context Integration Test;
+- Bundler tests;
+- API peer-dependency check;
+- CodeQL Analysis;
+- E2E Tests;
+- Zizmor GitHub Actions security analysis.
 
 ## Compatibility and side effects
 
-- no public API, type, configuration, or generated-output changes;
-- no change to normal span or log delivery paths;
-- one shallow `slice()` allocation per repaired lifecycle call;
-- processor calls still begin eagerly and in existing order;
-- additions/removals affect later operations, not an operation already in progress;
-- existing fail-fast `Promise.all` behavior is retained;
-- no retries, cancellation, `Promise.allSettled`, idempotence, or multi-error aggregation are added.
-
-## Changelog entries
-
-After a real upstream pull-request number exists:
-
-```md
-<!-- CHANGELOG.md -->
-* fix(sdk-trace): invoke every processor during lifecycle fanout [#PR](https://github.com/open-telemetry/opentelemetry-js/pull/PR) @teamleaderleo
-
-<!-- experimental/CHANGELOG.md -->
-* fix(sdk-logs): invoke every processor during lifecycle fanout [#PR](https://github.com/open-telemetry/opentelemetry-js/pull/PR) @teamleaderleo
-```
+- No public API, type, configuration, dependency, generated-output, or normal telemetry hot-path change.
+- One shallow array copy per repaired lifecycle operation.
+- Processor calls still begin eagerly and in the existing order.
+- Mutations affect later operations, not the operation already in progress.
+- Aggregate trace shutdown still rejects.
+- Aggregate trace force flush still reports through the global error handler and resolves.
+- Logs still reject.
+- Public trace-provider force flush still rejects with an error array.
+- Genuinely pending provider operations still time out.
+- No `Promise.allSettled`, retries, cancellation, idempotence, malformed non-Promise return validation, or multi-error redesign.
 
 ## Checklist
 
-- [x] Followed the style and pull-request structure of this project
+- [x] Followed the style guidelines of this project
 - [x] Unit tests have been added
-- [x] Public API and compatibility impact have been reviewed
-- [x] Unsupported metrics scope has been removed
-- [x] Aggregate skip and provider timer defects are described separately
-- [ ] Exact-head ordinary workflows pass
-- [ ] Changelog entries contain the real pull-request number
-- [ ] Current-main and duplicate searches are repeated immediately before filing
-- [ ] Signed commit and CLA state are confirmed before filing
-- [ ] Public interaction is explicitly authorized
+- [x] Documentation is not required because no public API or configuration changes
+- [ ] Root and experimental changelog entries use the real pull-request number
+- [ ] Commits are signed and CLA status is confirmed
+
+## AI assistance disclosure
+
+ChatGPT was used to assist with code exploration, implementation review, test preparation, and drafting. I reviewed the complete diff and the validation results.
+
+---
+
+## Filing notes — not part of the public PR body
+
+### Recommended sequence
+
+1. File the reviewed bug issue first.
+2. Let maintainers confirm that one cross-signal PR is an acceptable scope.
+3. Refresh the source branch onto the then-current public `main` if it moved.
+4. Open the PR from the fork and replace `#ISSUE` with the accepted issue number.
+5. Once the real PR number exists, add both required changelog entries and rerun the affected checks.
+6. Confirm commit signing and CLA status before requesting review.
+
+### Required changelog entries
+
+```md
+<!-- CHANGELOG.md -->
+* fix(sdk-trace): invoke all lifecycle processors [#PR](https://github.com/open-telemetry/opentelemetry-js/pull/PR) @teamleaderleo
+
+<!-- experimental/CHANGELOG.md -->
+* fix(sdk-logs): invoke all lifecycle processors [#PR](https://github.com/open-telemetry/opentelemetry-js/pull/PR) @teamleaderleo
+```
+
+### Why issue first
+
+A direct PR would be technically possible, but issue-first is recommended because the report spans stable trace, experimental logs, and two distinct JavaScript failure mechanisms. An issue lets maintainers confirm the combined scope, test placement, and wording before a public PR and before PR-number-dependent changelog commits are added.
+
+### Remaining preflight
+
+- [ ] user approves the issue wording;
+- [ ] user approves the PR wording;
+- [ ] explicit authority is granted for the exact public interaction;
+- [ ] current-main and overlap searches are refreshed immediately before filing;
+- [ ] contribution guide, CLA, commit-signing, and disclosure expectations are rechecked;
+- [ ] issue and PR placeholders are replaced with real numbers.
