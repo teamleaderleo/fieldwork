@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260802-tanstack-async-throttle-acknowledgement",
+  "question": "Does a coalesced asyncThrottle caller await the execution that will persist its latest arguments?",
+  "owner": "chatgpt:gpt-5.6-thinking",
+  "created_at": "2026-08-02",
+  "state": "complete",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "TanStack Query asyncThrottle source",
+      "url": "https://github.com/TanStack/query/blob/31c7f374e28081289ea4d3fae46a0792fc56e737/packages/query-async-storage-persister/src/asyncThrottle.ts",
+      "revision": "31c7f374e28081289ea4d3fae46a0792fc56e737",
+      "retrieved_at": "2026-08-02",
+      "claim": "A call made while a later execution is already scheduled updates the selected arguments but can return before those arguments execute.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Accepted asyncThrottle candidate",
+      "url": "https://github.com/teamleaderleo/query/pull/2",
+      "revision": "02fc79ee3ca4597c667d16bfa955b9af4da68c5c",
+      "retrieved_at": "2026-08-03",
+      "claim": "One pending execution generation owns one shared completion promise, while calls after execution begins form a later generation.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Exact focused execution carrier",
+      "url": "https://github.com/teamleaderleo/query/pull/3",
+      "revision": "23aad017e91aa14536b083941eb6226b6fd21df6",
+      "retrieved_at": "2026-08-03",
+      "claim": "Exact-base verification, frozen install, formatting, existing and new tests, ESLint, and current TypeScript passed against the accepted candidate.",
+      "evidence_label": "Observed"
+    }
+  ],
+  "command": "pnpm --filter @tanstack/query-async-storage-persister test:lib --run src/__tests__/asyncThrottle.test.ts src/__tests__/asyncThrottleAcknowledgement.test.ts",
+  "environment": {
+    "runtime": "Node 22 and pnpm 11.9.0",
+    "platform": "Ubuntu 24.04 GitHub Actions runner",
+    "dependencies": [
+      "repository frozen lockfile"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "The original coalesced caller settles while only the active execution has run.",
+      "interpretation": "The original promise acknowledges scheduling rather than completion of the selected snapshot."
+    },
+    {
+      "observation": "Candidate callers coalesced into one pending generation receive the same promise and settle after the latest arguments execute.",
+      "interpretation": "The selected repair binds acknowledgement to the execution generation that owns those arguments."
+    },
+    {
+      "observation": "Calls after a generation starts execution form one distinct later generation and coalesce only with each other.",
+      "interpretation": "The repair preserves separate ownership across active and pending executions."
+    },
+    {
+      "observation": "Existing long-execution throttle tests and all focused repository gates pass at the accepted head.",
+      "interpretation": "The repaired scheduler preserves established immediate-call and interval behavior in the tested package surface."
+    }
+  ],
+  "stop_condition": "Stop after exact-head target execution, complete three-file diff review, and execution-carrier retirement.",
+  "network_policy": "explicit",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260802-tanstack-async-throttle-acknowledgement/README.md"
+  ],
+  "promoted_to": "teamleaderleo/query#2@02fc79ee3ca4597c667d16bfa955b9af4da68c5c"
+}
