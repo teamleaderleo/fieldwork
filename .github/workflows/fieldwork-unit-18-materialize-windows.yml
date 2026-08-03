@@ -33,9 +33,11 @@ jobs:
         run: |
           set -euo pipefail
           script=unit-18-materialize.sh
-          sed -n '/^        run: |$/,$p' script-source/.github/workflows/fieldwork-unit-18-materialize-clean.yml \
-            | tail -n +2 \
-            | sed 's/^          //' > "$script"
+          awk '
+            found && /^      - / { exit }
+            found { sub(/^          /, ""); print }
+            /^        run: \|$/ { found = 1 }
+          ' script-source/.github/workflows/fieldwork-unit-18-materialize-clean.yml > "$script"
 
           python3 - <<'PY'
           from pathlib import Path
