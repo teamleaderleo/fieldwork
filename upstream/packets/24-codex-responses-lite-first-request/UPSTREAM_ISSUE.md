@@ -1,92 +1,129 @@
-# Upstream issue draft — first generated Responses Lite request can inherit prewarm response state
+# Upstream issue draft — Responses Lite first generated turn can inherit a `generate=false` prewarm response
 
-Draft status: `not applicable — direct PR preferred`  
-Public interaction authorized: `no`
+Draft status: `preferred first public route — ready for human review, filing unauthorized`  
+Public interaction authorized: `no`  
+Current public source inspected: `openai/codex@e4e0c7070e53cf9535fd0083d8fb840b6cd410cf`  
+Current clean proof-of-concept: `teamleaderleo/codex:fix/responses-lite-first-request-e4e0c70` at `abf61e5fb8505181e071674ce224faff17e79d77`
 
 ---
+
+# Responses Lite first generated turn can inherit a `generate=false` prewarm response
 
 ## Summary
 
-Responses Lite startup prewarm sends its tool/instruction input prefix with `generate=false` to establish the WebSocket and prepare reusable server-side state. Generic Responses-over-WebSocket requests intentionally can continue from that warmup response with a compressed delta.
+Responses Lite startup prewarm sends the tool and instruction prefix over the WebSocket with `generate=false`. Codex itself treats that operation as connection setup rather than an inference attempt, but the first real generated request can still use the prewarm response ID as `previous_response_id` and send only an incremental suffix.
 
-Responses Lite needs a narrower first-generation rule because its complete tools and instructions are input items. The first generated Lite request should end the setup response chain, send the complete current logical input with no warmup `previous_response_id`, and let only a generated response become the predecessor of later generated turns.
+That makes the first generated turn depend on server-side state created by a request that intentionally generated no turn.
 
-A direct three-file correction and target-native tests already exist, so a separate issue adds little value unless maintainers prefer contract discussion before reviewing the patch.
+Is that the intended Responses Lite contract? A simpler invariant would be:
 
-## Reproduction
+- prewarm remains connection/setup work;
+- the first generated Lite request is complete and has no prewarm `previous_response_id`;
+- incremental reuse begins after the first generated response;
+- a failed first generation retries the same complete request;
+- generic non-Lite WebSocket warmup behavior remains unchanged.
 
-1. Configure a model with `use_responses_lite = true` and WebSocket transport.
-2. Start a session with startup prewarm enabled.
-3. Capture the `generate=false` warmup and first generated WebSocket request bodies.
-4. Inspect `previous_response_id` and `input` on the generated request.
+## Current request sequence
 
-Target-native characterization:
+A simplified startup sequence is:
 
 ```text
-cargo test -p codex-core --test all --locked \
-  suite::agent_websocket::websocket_first_responses_lite_turn_sends_exact_current_request_after_startup_prewarm \
-  -- --exact --nocapture
+1. prewarm
+   generate = false
+   input = [Lite tool/instruction prefix]
+   -> response id warm-1
+
+2. first generated request
+   previous_response_id = warm-1
+   input = [new suffix]
 ```
 
-## Observed behavior
+The prewarm response is deliberately omitted from inference tracing, while the first generated request may still use it as transport ancestry.
 
-The completed warmup response is retained as untraced response-chain state. Generic incremental request preparation can consume that response and construct the first generated request as a continuation of setup state.
+For Responses Lite, tools and instructions are represented inside the input sequence. The complete first generated request is therefore not visible on the wire unless the server correctly and durably associates the full prewarm prefix with `warm-1`.
 
-## Expected behavior
+## Why this is worth clarifying
 
-The first generated Responses Lite request should:
+This may be an intentional server-side caching contract. If so, documenting and directly testing that contract would make the dependency clear.
 
-- omit a warmup `previous_response_id`;
-- carry the complete current Lite input prefix and submitted user input;
-- preserve generic non-Lite warmup compression;
-- allow later Lite turns to continue incrementally from the first generated response;
-- retry a failed first generation with the same complete request.
+If it is not intentional, the current transition creates an avoidable state boundary:
 
-## Candidate direction
+- a non-generating setup response becomes the parent of generated conversation state;
+- first-generation retry behavior depends on whether that setup state is still valid;
+- client-side request identity and wire-visible request identity differ at the first real turn.
 
-At the first non-warmup request where Responses Lite is enabled and the retained response came from untraced warmup:
+This report does not claim a measured production failure or a confirmed backend contract violation. It asks whether the current ownership transition is deliberate.
 
-1. clear the warmup response receiver;
+## Reproduction against a mock Responses WebSocket
+
+1. Enable `use_responses_lite` and startup WebSocket prewarm.
+2. Capture the `generate=false` prewarm request and return a response ID such as `warm-1`.
+3. Submit the first user turn.
+4. Inspect the first generated `response.create` request.
+
+Current behavior can produce a request that continues from `warm-1` rather than carrying the complete current Lite input independently.
+
+## Proposed invariant
+
+The first non-warmup request should use the full-request path when:
+
+```text
+Responses Lite is enabled
+and the retained response came from untraced startup prewarm
+```
+
+The resulting sequence would be:
+
+```text
+1. prewarm
+   generate = false
+   input = [Lite tool/instruction prefix]
+
+2. first generated request
+   no previous_response_id
+   input = [same Lite prefix, user input]
+   -> response id resp-1
+
+3. later generated request
+   previous_response_id = resp-1
+   input = [new suffix]
+```
+
+A failed first generated request would retry step 2 rather than inheriting prewarm ancestry.
+
+## Candidate implementation direction
+
+A narrow proof-of-concept does the following only for the first generated Responses Lite request after untraced prewarm:
+
+1. discard the retained prewarm response receiver;
 2. skip incremental request preparation;
 3. use the existing full-request serializer.
 
-After a generated response succeeds, the existing continuation path remains unchanged.
+After a generated response succeeds, the existing incremental continuation path resumes normally. No API or wire schema changes are required, and generic non-Lite warmup compression is unchanged.
 
-## Related work
+Focused mock-WebSocket controls cover:
 
-- Generic untraced-warmup trace handling intentionally preserves compressed wire continuation while recording the complete logical request for replay.
-- Responses Lite later moved tools and instructions into input items, making the complete input sequence the Lite request identity.
-- Adjacent Responses Lite changes cover transport headers, standalone tools, metadata, image handling, and normalized tool names; none implement this first-generation transition.
+- complete first generation after prewarm;
+- incremental continuation from the first generated response;
+- complete retry after a failed first generation.
 
-Refreshed issue, pull-request, and code searches on `2026-08-01` found no equivalent public implementation.
+## Questions for maintainers
 
-## Compatibility and risks
+1. Is a `generate=false` Responses Lite response intended to be a valid semantic parent for the first generated turn?
+2. If yes, should that server-state dependency be documented and tested explicitly in Codex?
+3. If no, would making the first generated Lite request complete be the preferred invariant?
 
-- Public API and wire schema stay unchanged.
-- Generic non-Lite WebSocket behavior stays unchanged.
-- The first generated Lite request retransmits the complete input prefix once.
-- Later Lite turns retain incremental reuse.
-- A failed first generation retries independently from warmup state.
-- Live provider, proxy, and long-running soak behavior remain unmeasured.
-
-## Versions and environment
-
-- public-source parent inspected: `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`
-- candidate commit: `9fd4ba575de8dd77bc411362256591ce9e7d8c82`
-- source diff: one commit, three files, `+301/-1`
-- platform: Linux GitHub Actions for retained focused execution
-- runtime/compiler: repository-pinned Rust toolchain and locked workspace dependencies
-- relevant configuration: Responses Lite enabled; WebSocket startup prewarm enabled
+I have a small one-production-hunk proof-of-concept with focused tests available if maintainers want to pursue this direction. I am opening the issue first because external code contributions are invitation-only.
 
 ---
 
-## Filing checklist
+## Internal filing checklist
 
-- [x] Current upstream issue, PR, and code search refreshed on `2026-08-01`.
-- [x] Candidate reconciled onto a current inspected public-source parent.
-- [x] Severity and prevalence wording stays within evidence.
-- [x] Private, internal, and evidence-only links are absent from the public draft body.
-- [ ] Exact-head execution receipt complete.
-- [ ] Filing-time search and contribution guidance rechecked.
-- [ ] AI disclosure handled according to current project policy.
-- [ ] Exact user authorization to file this issue recorded.
+- [x] Current contribution guidance rechecked: issue-first; external PRs by invitation only.
+- [x] Current public source inspected at `e4e0c7070e53cf9535fd0083d8fb840b6cd410cf`.
+- [x] Current one-commit proof-of-concept restacked at `abf61e5fb8505181e071674ce224faff17e79d77`.
+- [x] Draft avoids claims of measured prevalence, confirmed production impact, or a known server-contract violation.
+- [x] Draft contains no private execution links or Fieldwork terminology.
+- [ ] Corrected exact-head current-source execution completes.
+- [ ] Filing-time duplicate search refreshed.
+- [ ] Exact user authorization to file recorded.
