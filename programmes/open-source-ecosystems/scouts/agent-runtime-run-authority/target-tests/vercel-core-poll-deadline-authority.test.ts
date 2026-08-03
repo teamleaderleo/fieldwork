@@ -1,3 +1,4 @@
+import { APICallError } from '@ai-sdk/provider';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MockVideoModelV4 } from '../test/mock-video-model-v4';
 import { experimental_generateVideo } from './generate-video';
@@ -117,6 +118,53 @@ describe('generateVideo polling deadline authority', () => {
     await expect(result).rejects.toThrow(
       'Video generation timed out after 5ms.',
     );
+  });
+
+  it('does not let a status retry publish success after the deadline', async () => {
+    let now = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+
+    let markFirstAttempt!: () => void;
+    const firstAttempt = new Promise<void>(resolve => {
+      markFirstAttempt = resolve;
+    });
+    let attempts = 0;
+
+    const result = experimental_generateVideo({
+      model: new MockVideoModelV4({
+        doGenerate: undefined,
+        doStart: async () => startResult(),
+        doStatus: async () => {
+          attempts++;
+          if (attempts === 1) {
+            markFirstAttempt();
+            throw new APICallError({
+              message: 'temporary status failure',
+              url: 'https://example.test/status',
+              requestBodyValues: {},
+              statusCode: 500,
+              responseHeaders: { 'retry-after-ms': '10' },
+            });
+          }
+          return completedStatus();
+        },
+      }),
+      prompt: 'retry deadline test',
+      maxRetries: 1,
+      poll: {
+        intervalMs: 0,
+        timeoutMs: 5,
+        delay: async () => {},
+      },
+    });
+
+    await firstAttempt;
+    now = 6;
+
+    await expect(result).rejects.toThrow(
+      'Video generation timed out after 5ms.',
+    );
+    expect(attempts).toBe(1);
   });
 
   it('settles at timeoutMs when a status transport never settles', async () => {
