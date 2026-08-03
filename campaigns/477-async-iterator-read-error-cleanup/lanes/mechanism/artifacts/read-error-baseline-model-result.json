@@ -1,0 +1,20 @@
+{
+  "node": "v22.16.0",
+  "platform": "linux",
+  "cases": [
+    {
+      "implementation": "createAsyncIterableStream",
+      "exactReasonPreserved": true,
+      "lockedAfterError": true,
+      "reacquireResult": "TypeError: Invalid state: ReadableStream is locked",
+      "nextAfterError": "same-error"
+    },
+    {
+      "implementation": "asAsyncIterableStream",
+      "exactReasonPreserved": true,
+      "lockedAfterError": true,
+      "reacquireResult": "TypeError: Invalid state: ReadableStream is locked",
+      "nextAfterError": "same-error"
+    }
+  ]
+}
