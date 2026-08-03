@@ -15,7 +15,7 @@ The current Vercel AI issue form has four relevant fields:
 
 The issue draft below is arranged to paste directly into those fields. Expected behavior, actual behavior, and rationale stay inside the Description field rather than being added as unofficial form sections.
 
-Do not link the internal Fieldwork briefing or evidence report from the public issue or PR. The public issue can cite the relevant upstream source lines and link directly to the focused regression test on the signed candidate head.
+Do not link the internal Fieldwork briefing or evidence report from the public issue or PR. The public issue can cite pinned upstream source lines, link directly to the focused regression test on the signed candidate head, and include the screenshot from the local failing baseline run.
 
 The only related public issue worth keeping is the cleanup precedent in the same helper:
 
@@ -39,7 +39,7 @@ This would preserve the exact source rejection while making the iterator's owner
 
 Regression coverage for this behavior is available on the signed candidate head:
 
-- [read-error cleanup regression test](https://github.com/teamleaderleo/ai/blob/7291578cc24f39dcfe68fa4c56778a46513fae34/packages/ai/src/util/async-iterable-stream-read-error.test.ts#L1-L125)
+- [read-error cleanup regression test](https://github.com/teamleaderleo/ai/blob/fd6335acd351b4c00824d8b2e68d1fab40053c86/packages/ai/src/util/async-iterable-stream-read-error.test.ts#L1-L125)
 
 A related prior issue fixed a different cleanup asymmetry in the same helper after normal completion:
 
@@ -55,7 +55,7 @@ Regression test and proposed fix: #PR_NUMBER
 
 This is a repository-level reproduction because `createAsyncIterableStream()` is an internal helper rather than a package-root export.
 
-From a checkout of `vercel/ai`, save the following as `repro.ts` in the repository root and run `pnpm exec tsx repro.ts`:
+A small runnable example against `main` at `861d42334474f5e411a4b58b741f6ab3c7fb86f3`:
 
 ```ts
 import { createAsyncIterableStream } from './packages/ai/src/util/async-iterable-stream';
@@ -77,15 +77,51 @@ const sourceError = new Error('source failed');
 controller.error(sourceError);
 
 const observedError = await pendingRead.catch(error => error);
-console.log(observedError === sourceError); // true
-console.log(stream.locked); // true
+console.log('original error preserved:', observedError === sourceError);
+console.log('stream locked:', stream.locked);
 
-stream.getReader(); // TypeError: Invalid state: ReadableStream is locked
+stream.getReader();
 ```
 
-The focused regression test covers both `createAsyncIterableStream()` and `asAsyncIterableStream()`:
+Save it as `repro.ts` in the repository root and run:
 
-- [async-iterable-stream-read-error.test.ts](https://github.com/teamleaderleo/ai/blob/7291578cc24f39dcfe68fa4c56778a46513fae34/packages/ai/src/util/async-iterable-stream-read-error.test.ts#L1-L125)
+```bash
+pnpm exec tsx repro.ts
+```
+
+Observed on the unfixed baseline:
+
+```text
+original error preserved: true
+stream locked: true
+TypeError: Invalid state: ReadableStream is locked
+```
+
+The focused regression test covers three read-error scenarios for both `createAsyncIterableStream()` and `asAsyncIterableStream()`:
+
+- [async-iterable-stream-read-error.test.ts](https://github.com/teamleaderleo/ai/blob/fd6335acd351b4c00824d8b2e68d1fab40053c86/packages/ai/src/util/async-iterable-stream-read-error.test.ts#L1-L125)
+
+To run that test against the same unfixed baseline, copy the file into `packages/ai/src/util/` and run:
+
+```bash
+pnpm -C packages/ai exec vitest \
+  --config vitest.node.config.js \
+  --run src/util/async-iterable-stream-read-error.test.ts
+```
+
+All six cases fail on the unfixed baseline. The source rejection is received, but the reader remains locked; for example:
+
+```text
+AssertionError: expected true to be false
+
+expect(stream.locked).toBe(false);
+```
+
+Attach the saved terminal screenshot here when filing the issue:
+
+```md
+![Six regression cases failing against the unfixed baseline](PASTE_GITHUB_IMAGE_ATTACHMENT_HERE)
+```
 
 After the pull request is opened, add its reference here as well:
 
@@ -132,13 +168,19 @@ The stream remains errored after the reader is released, and a newly acquired re
 
 ## End-to-End Verification
 
-A minimal Web Streams reproduction was run before and after the change.
+The focused regression test was copied onto the unfixed upstream baseline at `861d42334474f5e411a4b58b741f6ab3c7fb86f3` and run with:
 
-Before the change, the source error reached the iterator but the stream remained locked, so a later `getReader()` failed.
+```bash
+pnpm -C packages/ai exec vitest \
+  --config vitest.node.config.js \
+  --run src/util/async-iterable-stream-read-error.test.ts
+```
 
-After the change, the same error is preserved, the stream becomes unlocked, a new reader can be acquired, and that reader still observes the source's stored error.
+All six cases failed before the change across both helper implementations. The failures showed that the exact source rejection reached the iterator while `stream.locked` remained `true`.
 
-The signed exact-head CI run `30838351122` passed.
+With this change, the same focused cases pass: the original rejection is preserved, the reader lock is released without cancellation, later calls on the failed iterator are terminal, and a newly acquired reader still observes the stream's stored error.
+
+The rebased signed candidate head is `fd6335acd351b4c00824d8b2e68d1fab40053c86`. Fresh exact-head CI run `30852947280` is queued.
 
 ## Checklist
 
@@ -156,7 +198,7 @@ The signed exact-head CI run `30838351122` passed.
 ## Publication sequence
 
 1. Refresh upstream `main`, package version, and the duplicate search.
-2. Open the issue using the field-aligned draft above, including the direct signed-head regression-test link.
-3. Open the pull request from signed head `7291578cc24f39dcfe68fa4c56778a46513fae34` to upstream `main` after explicit authorization.
+2. Open the issue using the field-aligned draft above and attach the saved failing-test screenshot.
+3. Open the pull request from signed head `fd6335acd351b4c00824d8b2e68d1fab40053c86` to upstream `main` after explicit authorization.
 4. Replace `#ISSUE_NUMBER` in the PR body.
 5. Add `Regression test and proposed fix: #PR_NUMBER` near the top of the issue Description field and `Proposed fix: #PR_NUMBER` in its Reproduction field.
