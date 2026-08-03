@@ -15,7 +15,7 @@ The current Vercel AI issue form has four relevant fields:
 
 The issue draft below is arranged to paste directly into those fields. Expected behavior, actual behavior, and rationale stay inside the Description field rather than being added as unofficial form sections.
 
-Do not link the internal Fieldwork briefing or evidence report from the public issue or PR. The public issue can cite the relevant upstream source lines, and the PR can carry the focused regression test.
+Do not link the internal Fieldwork briefing or evidence report from the public issue or PR. The public issue can cite the relevant upstream source lines and link directly to the focused regression test on the signed candidate head.
 
 The only related public issue worth keeping is the cleanup precedent in the same helper:
 
@@ -36,6 +36,10 @@ However, when the source stream errors, [`reader.read()` rejects before any clea
 I think a rejected read should enter the same existing cleanup path before its rejection is rethrown. Calling `cleanup(false)` would mark the iterator as finished and release the reader without invoking `reader.cancel()`. The existing [`finished` check](https://github.com/vercel/ai/blob/861d42334474f5e411a4b58b741f6ab3c7fb86f3/packages/ai/src/util/async-iterable-stream.ts#L76-L81) already defines later `next()` calls as terminal, while the current [`return()` and `throw()` paths](https://github.com/vercel/ai/blob/861d42334474f5e411a4b58b741f6ab3c7fb86f3/packages/ai/src/util/async-iterable-stream.ts#L91-L110) establish that terminal iterator paths release their reader ownership.
 
 This would preserve the exact source rejection while making the iterator's ownership state consistent with the helper's other terminal paths.
+
+Regression coverage for this behavior is available on the signed candidate head:
+
+- [read-error cleanup regression test](https://github.com/teamleaderleo/ai/blob/7291578cc24f39dcfe68fa4c56778a46513fae34/packages/ai/src/util/async-iterable-stream-read-error.test.ts#L1-L125)
 
 A related prior issue fixed a different cleanup asymmetry in the same helper after normal completion:
 
@@ -79,10 +83,14 @@ console.log(stream.locked); // true
 stream.getReader(); // TypeError: Invalid state: ReadableStream is locked
 ```
 
-The focused regression test in the proposed pull request covers both `createAsyncIterableStream()` and `asAsyncIterableStream()`. After the PR is opened, add its issue reference here as well:
+The focused regression test covers both `createAsyncIterableStream()` and `asAsyncIterableStream()`:
+
+- [async-iterable-stream-read-error.test.ts](https://github.com/teamleaderleo/ai/blob/7291578cc24f39dcfe68fa4c56778a46513fae34/packages/ai/src/util/async-iterable-stream-read-error.test.ts#L1-L125)
+
+After the pull request is opened, add its reference here as well:
 
 ```md
-Regression test: #PR_NUMBER
+Proposed fix: #PR_NUMBER
 ```
 
 ### AI SDK Version field
@@ -148,7 +156,7 @@ The signed exact-head CI run `30838351122` passed.
 ## Publication sequence
 
 1. Refresh upstream `main`, package version, and the duplicate search.
-2. Open the issue using the field-aligned draft above.
+2. Open the issue using the field-aligned draft above, including the direct signed-head regression-test link.
 3. Open the pull request from signed head `7291578cc24f39dcfe68fa4c56778a46513fae34` to upstream `main` after explicit authorization.
 4. Replace `#ISSUE_NUMBER` in the PR body.
-5. Add `Regression test and proposed fix: #PR_NUMBER` near the top of the issue Description field and `Regression test: #PR_NUMBER` in its Reproduction field.
+5. Add `Regression test and proposed fix: #PR_NUMBER` near the top of the issue Description field and `Proposed fix: #PR_NUMBER` in its Reproduction field.
