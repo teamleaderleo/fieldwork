@@ -10,6 +10,7 @@ Fieldwork investigates external systems seriously before asking their maintainer
 
 ## Enter here
 
+- [`OPERATING_DIRECTIVE.md`](OPERATING_DIRECTIVE.md) — current mission, rigor, discovery, review-assistance, presentation, and public-interaction boundaries.
 - [`QUEUE.md`](QUEUE.md) — the actual ordered human review queue; start here when deciding what to review.
 - [`START_HERE.md`](START_HERE.md) — exact runbook for a person or agent sent to Fieldwork.
 - [`ADAPTIVE_COORDINATION.md`](ADAPTIVE_COORDINATION.md) — the lightweight working agreement for ownership, dispatch, review, branching, and protocol improvement.
