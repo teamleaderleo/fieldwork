@@ -2,9 +2,9 @@
 
 ## Recommendation
 
-Advance Unit 02 to human upstream preparation.
+Advance Unit 02 to human upstream preparation after the current-context CI run completes successfully.
 
-This is one of the stronger contribution candidates in the current backlog: the public defect is still open and recently reproduced, the product change is narrow, the historical behavior is preserved, all known source owners move together, and exact cross-platform evidence is green.
+This is one of the stronger candidates in the backlog: the public defect remains open and recently reproduced, the product change is narrow, historical behavior is preserved, every known source owner moves together, and the unchanged four source blobs already have exact cross-platform evidence.
 
 ## The user-visible problem
 
@@ -16,7 +16,7 @@ realpath: --: No such file or directory
 
 The command may still work. That makes the defect easy to dismiss technically and costly operationally: successful automation gains error-looking stderr, logs become noisy, and users investigate the wrong failure.
 
-uv generates these launchers as durable user-facing artifacts. They outlive the command that created them and may move between systems.
+uv generates these launchers as durable user-facing artifacts. They can outlive the uv command that created them and can move between systems.
 
 ## The proposed change
 
@@ -49,67 +49,63 @@ BusyBox `realpath` rejects the delimiter. BusyBox `dirname` supports it. The can
 
 ### It protects the historical reason `realpath` exists
 
-Canonicalization was introduced for symlinked relocatable entrypoints. The patch preserves the algorithm and removes one incompatible token.
+Canonicalization exists so a launcher invoked through an external symlink still locates the original environment. The patch preserves that algorithm.
 
 ### It respects relocation
 
-A generated environment may execute on a different host from the one that generated it. One portable fragment is safer than encoding generator-host BusyBox detection into the artifact.
+A generated environment may execute on a different host from the one that generated it. One portable fragment is safer than encoding generator-host BusyBox detection into a durable artifact.
 
 ### It handles upgrades
 
 Generated launchers persist. The project-run recognizer accepts old and new text for both observed interpreter basenames, avoiding an upgrade-time migration regression.
 
-### It is tested at the right layers
+### It is tested at the correct layers
 
-The evidence includes source assertions, consumer migration tests, uv's existing relocatable-venv integration test, full workspace clippy, and executable launcher/activation matrices on GNU, Alpine/BusyBox, and macOS with Bash and Fish.
+Evidence includes source assertions, the consumer migration test, uv's existing relocatable-venv integration test, full workspace clippy, and executable launcher and activation matrices on GNU, Alpine/BusyBox, and macOS with Bash and Fish.
 
-## Evidence summary
+## Current reconciliation
 
-Exact source:
+- Canonical base: `92b7185783b56e8ad1dbe0bb7600432708f2c9fb`
+- Clean head: `53a4bd1f7d715f57aed33bd1453954a14bb327e6`
+- Tree: `9c6099ab9e6489377775d710b48855aae02079c3`
+- One commit ahead, zero behind
+- Four files, 89 insertions, 15 deletions
+- Internal reconciliation PR: `teamleaderleo/uv#29`
+- Current-context CI: `30844806321` — queued at last check
 
-- base `79bbface771210df216b738e9bdc7df95e5a9e6b`
-- head `17fb4489a71cc63a59b90ecc52b08f703ca0d0e8`
-- tree `e0832686bd982b5c15f6e9bdd6d6631d30ec24cf`
-- one commit; four files; 89 insertions; 15 deletions
-
-Terminal runs:
-
-- main Linux/source, macOS, and publication jobs: success
-- GNU and Alpine/BusyBox Fish job: success
-- macOS Fish job: success
-
-Baseline BusyBox behavior reproduced the false diagnostic. The candidate preserved successful resolution with empty stderr. GNU and macOS stayed clean.
+Canonical main advanced 12 commits from the prior reviewed base. None touched the four candidate paths. The branch was rebuilt with the same validated blobs on top of the current canonical tree.
 
 ## Likely objections
 
 ### “The command already succeeds.”
 
-Successful commands should not emit false errors. CI wrappers, log scanners, and users treat stderr as a health signal. The issue has continued to attract reports because the noise looks actionable.
+Successful commands should not emit false errors. CI wrappers, log scanners, and users treat stderr as a health signal.
 
 ### “Just detect BusyBox.”
 
-Detection adds branching and can select the wrong artifact for a relocatable environment that later runs elsewhere. The unconditional candidate already passes the supported platforms tested.
+Detection adds branching and can select the wrong artifact for a relocatable environment that later runs elsewhere. The unconditional candidate already passed the tested userlands.
 
 ### “Removing `--` weakens leading-dash safety.”
 
-The candidate retains every `dirname --`. Direct launcher and activation matrices cover `./-tool` and `./-activate`; direct shebang probes show `$0` is supplied as the script path. No supported bare option-like `$0` case was demonstrated.
+The candidate retains every `dirname --`. Direct launcher and activation matrices cover `./-tool` and `./-activate`; direct shebang probes show `$0` is supplied as the script path. No supported failing bare option-like `$0` case was demonstrated.
 
 ### “The project-run matcher is too much code for a one-token fix.”
 
-The matcher is migration compatibility, not the BusyBox fix itself. Generated text is consumed later, old launchers persist, and both `python` and `python3` are observed producer forms. Four explicit strings keep the accepted grammar narrow and reviewable.
+The matcher is migration compatibility. Old generated text persists, and both `python` and `python3` are observed producer forms. Four exact strings keep the accepted grammar narrow and reviewable.
 
-### “Why not refactor all fragments into one helper?”
+### “Why not centralize all fragments?”
 
-That can be considered separately. Centralization broadens the change without reducing the compatibility work or migration requirement.
+That can be considered separately. Centralization broadens the patch without reducing the compatibility or migration work required here.
 
 ## Remaining risks
 
-- The complete uv repository test suite was not run.
-- The patch is pinned to the reviewed upstream base and needs one final current-main reconciliation.
+- The current-context CI run is not yet complete.
+- The complete uv repository test suite was not run in the earlier exact validation; affected crates, focused tests, full workspace clippy, and platform matrices were green.
+- Upstream overlap must be refreshed immediately before action.
 - A human must verify Astral's current contribution and AI-assistance policy and own the public wording and submission.
 
 ## The ask
 
-Approve one final human review of the exact four-file diff and current upstream overlap. When those remain clear, authorize preparation of a human-authored pull request referencing `astral-sh/uv#16209`.
+Review `CODE_WALKTHROUGH.md`, the exact four-file diff, `UPSTREAM_ISSUE.md`, and `UPSTREAM_PR.md`. If current-context CI is green and overlap remains clear, authorize preparation of a human-authored pull request referencing `astral-sh/uv#16209`.
 
-No public upstream interaction has occurred.
+No public upstream interaction occurred.
