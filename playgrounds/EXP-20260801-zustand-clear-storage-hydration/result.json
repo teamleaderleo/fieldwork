@@ -1,124 +1,86 @@
 {
   "schema_version": 1,
   "id": "EXP-20260801-zustand-clear-storage-hydration",
-  "state": "repair",
-  "updated_at": "2026-08-02",
-  "disposition": "REPAIR / HOLD",
+  "state": "complete",
+  "updated_at": "2026-08-04",
+  "disposition": "ACCEPT SOURCE / PUBLIC CONTACT UNAUTHORIZED",
   "characterization": {
     "repository": "teamleaderleo/zustand",
-    "branch": "scout/persist-clear-storage-hydration-ordering",
-    "head": "9c5039ebf594f15b0fbb5d5e39d59f4e70dd6e96",
     "pull_request": 4,
-    "changed_files": [
-      "tests/persistClearStorageHydrationOrdering.test.ts"
-    ],
-    "workflow_runs": {
-      "test_multiple_versions": {
-        "id": 30692436573,
-        "conclusion": "success"
-      },
-      "test_old_typescript": {
-        "id": 30692436571,
-        "conclusion": "success"
-      },
-      "test_multiple_builds": {
-        "id": 30692436591,
-        "conclusion": "success"
-      },
-      "compressed_size": {
-        "id": 30692436621,
-        "conclusion": "success"
-      },
-      "test": {
-        "id": 30692436576,
-        "job": 91349433692,
-        "conclusion": "failure",
-        "classification": "owned test-file formatting failure before type, lint, spec, and build",
-        "reported_path": "tests/persistClearStorageHydrationOrdering.test.ts"
-      },
-      "preview_release": {
-        "id": 30692436570,
-        "job": 91349433703,
-        "conclusion": "failure",
-        "classification": "build passed; fork lacks pkg-pr-new GitHub App"
-      }
-    },
-    "conclusion": "source-derived characterization; target-native semantic test remains blocked by formatting"
+    "head": "9402e61c20266395d6e8190841ae924274f03ff1",
+    "conclusion": "Pinned source permits a pre-clear delayed read or migration to publish after clearStorage because the hydration generation remains current."
   },
   "candidate": {
     "repository": "teamleaderleo/zustand",
-    "branch": "fix/persist-clear-storage-hydration-generation",
-    "head": "d009aa203e357d83a61350ce85d7db29aa05ff8a",
     "pull_request": 5,
+    "branch": "fix/persist-clear-storage-hydration-generation",
     "base": "beca84e600e4e250f6b244d22878e72948f331c7",
-    "ahead_by": 2,
-    "behind_by": 0,
+    "head": "001900bb01102417c016afa3341e384f53474492",
     "changed_files": [
       {
         "path": "src/middleware/persist.ts",
-        "additions": 1,
-        "deletions": 0
+        "change": "increment hydrationVersion immediately before removeItem"
       },
       {
         "path": "tests/persistClearStorageHydrationGeneration.test.ts",
-        "additions": 139,
-        "deletions": 0
+        "change": "target-native state, lifecycle, failure, and later-hydration controls"
       }
     ],
-    "workflow_runs": {
-      "test_old_typescript": {
-        "id": 30692520845,
-        "conclusion": "success"
-      },
-      "compressed_size": {
-        "id": 30692520829,
-        "conclusion": "success"
-      },
-      "test_multiple_versions": {
-        "id": 30692520839,
-        "conclusion": "success"
-      },
-      "test_multiple_builds": {
-        "id": 30692520824,
-        "conclusion": "success"
-      },
-      "test": {
-        "id": 30692520819,
-        "job": 91349676750,
-        "conclusion": "failure",
-        "classification": "owned test-file formatting failure before type, lint, spec, and build",
-        "reported_path": "tests/persistClearStorageHydrationGeneration.test.ts"
-      },
-      "preview_release": {
-        "id": 30692520832,
-        "job": 91349677085,
-        "conclusion": "failure",
-        "classification": "build passed; fork lacks pkg-pr-new GitHub App"
-      }
-    },
-    "conclusion": "source location is coherent; semantic acceptance pending primary test execution and lifecycle/failure controls"
+    "policy": {
+      "clear_intent_revokes_active_hydration": true,
+      "revocation_survives_synchronous_remove_failure": true,
+      "clear_resets_live_state": false,
+      "later_hydration_allowed": true
+    }
+  },
+  "execution": {
+    "carrier_repository": "teamleaderleo/zustand",
+    "carrier_pull_request": 8,
+    "carrier_head": "828226b0e66b396a0a0826a182fb23982828556a",
+    "workflow_run": 30836583456,
+    "job": 91763113773,
+    "conclusion": "success",
+    "passed": [
+      "exact public-base verification",
+      "exact two-file fence verification",
+      "dependency installation",
+      "repository format gate",
+      "repository type gate",
+      "repository lint gate",
+      "repository spec gate",
+      "final exact-head identity",
+      "diff hygiene",
+      "clean tree"
+    ],
+    "carrier_state": "closed without merge"
+  },
+  "controls": {
+    "delayed_stored_read_suppressed": true,
+    "delayed_migration_suppressed": true,
+    "synchronous_remove_failure_revokes_old_hydration": true,
+    "completed_live_state_preserved": true,
+    "stale_post_rehydration_callback_suppressed": true,
+    "stale_finish_listener_suppressed": true,
+    "invalidated_generation_has_hydrated_false": true,
+    "later_hydration_publishes_once": true
   },
   "review": {
     "complete_diff_checked": true,
-    "source_change": "Increment the existing hydrationVersion synchronously before clearStorage removes the item.",
-    "accepted_direction": "Reuse the existing hydration publication authority to revoke older stored reads and migrations.",
-    "unsettled": [
-      "hasHydrated state after clear invalidates an active hydration",
-      "onFinishHydration and post-rehydration callback behavior",
-      "removeItem synchronous throw or asynchronous rejection after authority is revoked"
-    ],
-    "excluded": [
-      "resetting already-live state",
-      "storage replacement authority",
-      "ordinary asynchronous write settlement",
-      "public upstream contact"
+    "source_fence_accepted": true,
+    "human_review_claimed": false,
+    "public_filing_authorized": false,
+    "remaining_before_filing": [
+      "refresh public main and overlap",
+      "read current contribution and disclosure policy",
+      "confirm exact candidate head and two-file fence",
+      "obtain explicit public-contact authority"
     ]
   },
-  "blockers": [
-    "Format both new target test files with the repository formatter.",
-    "Rerun the primary Test workflows so type, lint, spec, and build execute.",
-    "Settle hydration lifecycle and callback observability after invalidation by clearStorage.",
-    "Settle removeItem failure semantics before accepting the one-line candidate.",
-    "Repeat complete-diff and duplicate review after repair."
+  "excluded": [
+    "resetting already-live state",
+    "storage replacement authority",
+    "ordinary asynchronous write settlement",
+    "application-level sign-out sequencing",
+    "public upstream interaction"
   ]
 }
