@@ -9,22 +9,41 @@ Upstream contact authorized: `false`
 
 ## In simple words
 
-Both owned research branches now contain narrow tests that ask the source-led questions recorded in the fork follow-up.
+Both owned research branches contain narrow tests derived from source and target contracts. Work in the forks does not depend on cloning them into this chat runtime: GitHub-side source reading, branch creation, file edits, commit review, and Fieldwork recording all proceed directly in the owned repositories.
 
-The tests have not been run. The available local runtime could not resolve GitHub for cloning, and no target workflow or pull request was created. These commits are prepared characterization inputs, not proof that the reported behavior occurs or that the test code passes target gates.
+Running the target tests is a separate evidence step. It requires a runner with the repository contents and declared toolchain. No test result is claimed here.
 
-## Turborepo characterization
+The second review pass added two reversing controls:
+
+1. Turborepo must retain a required cross-package dependency task while excluding an unrelated affected entrypoint.
+2. Helix must distinguish a safe single-command final-window close from a failing multi-command continuation after the same close.
+
+No target pull request was created and no public upstream interaction occurred.
+
+## Review recheck
+
+Fieldwork PR #495 was rechecked on 2026-08-03.
+
+- No independent review submission was present.
+- No inline review thread was present.
+- Existing comments and review submissions were the repository owner's own exact-head reviews.
+
+This review state does not block continued research in the owned forks.
+
+## Turborepo characterizations
 
 - Repository: https://github.com/teamleaderleo/turborepo
 - Branch: `research/affected-filter-intersection`
 - Base: `c6fbc97bb8841f9c87d106af2d89ce11e97ea56c`
-- Head: `8d27b2b4a080f28fe35b8eab559176b713c88483`
-- Ahead/behind: `1/0`
+- Head: `41341da9164e5e13e921f888ca196e8c77c9105e`
+- Ahead/behind: `2/0`
 - Production source changes: none
-- Added file: `crates/turborepo/tests/affected_task_filter_intersection_test.rs`
-- Diff size: `159 additions`
+- Added files:
+  - `crates/turborepo/tests/affected_task_filter_intersection_test.rs`
+  - `crates/turborepo/tests/affected_task_filter_dependency_closure_test.rs`
+- Diff size: `332 additions`
 
-### Question encoded by the test
+### Characterization A — independent workspaces
 
 The fixture has independent `alpha` and `beta` workspaces, each with a `test` task. It enables `futureFlags.affectedUsingTaskInputs`, declares `shared.txt` as a global dependency, commits the initial repository, then changes `shared.txt` so both tasks are affected.
 
@@ -39,72 +58,123 @@ The expected contract is:
 - package reporting is exactly `beta`;
 - executable task reporting is exactly `beta#test`.
 
-This isolates package-selector authority without introducing dependency closure. A later control must add a real dependency from the selected task to another package so a repair cannot solve the independent-workspace case by deleting all outside-package tasks.
+This asks whether a package selector remains an execution authority when task-input affected detection runs through its separate all-packages engine path.
 
-### Planned focused command
+### Characterization B — required dependency closure
+
+The second fixture makes `beta` depend on `alpha`. `beta#test` declares `dependsOn: ["^build"]`, and `alpha` provides both `build` and `test` scripts. A global dependency change marks the task set affected.
+
+The same filtered command should produce exactly:
+
+- `beta#test` as the selector-authorized entrypoint;
+- `alpha#build` as required dependency work;
+- no `alpha#test` entrypoint.
+
+This rejects two bad outcomes:
+
+1. retaining every affected task and ignoring package authorization;
+2. deleting every task outside `beta` and breaking required dependency execution.
+
+### Planned focused commands
 
 ```text
 cargo test -p turbo --test affected_task_filter_intersection_test -- --nocapture
+cargo test -p turbo --test affected_task_filter_dependency_closure_test -- --nocapture
 ```
 
-Follow with the target's ordinary Rust and integration gates only after the characterization compiles and distinguishes current behavior.
+Follow with the target's ordinary Rust and integration gates only after both characterizations compile and distinguish current behavior.
 
 ### Review notes
 
-- The test is target-native and uses the repository's existing `common::{git, run_turbo}` harness.
-- The package-lock fixture is a minimal npm v3 workspace lockfile consistent with nearby tests.
-- The test asserts engine-backed dry-run `taskId` values rather than console display text.
-- The current test intentionally has no production candidate.
-- Execution and formatting remain unverified.
+- Both tests use the repository's existing `common::{git, run_turbo}` integration harness.
+- Both assert engine-backed dry-run `taskId` values rather than console display text.
+- The dependency control sorts task IDs before comparison because task-list ordering is not the behavior under test.
+- The minimal npm v3 workspace lockfiles follow patterns already present in nearby target tests.
+- The dependency fixture and lockfile still require target execution to verify that npm workspace relationship discovery accepts the minimal representation.
+- No production candidate has been selected.
+- Execution, formatting, and compilation remain unverified.
 
-## Helix characterization
+## Helix characterizations
 
 - Repository: https://github.com/teamleaderleo/helix
 - Branch: `research/final-window-command-sequence`
 - Base: `079a789e8cb08ead67f19e1971a1b7438b37354b`
-- Head: `c041c58c24e8ab6987cdfcda20cd0e8c859474ef`
-- Ahead/behind: `2/0`
+- Head: `d3352b57ed3b3f1527184e42afe23700b4371e43`
+- Ahead/behind: `3/0`
 - Production source changes: none
 - Added file: `helix-term/tests/test/command_sequences.rs`
 - Registered module in: `helix-term/tests/integration.rs`
-- Diff size: `64 additions`
+- Diff size: `86 additions`
 
-### Questions encoded by the tests
+### Characterization A — single-command final close
 
-The tests install an insert-mode binding equivalent to:
+A custom insert-mode binding maps `C-q` directly to `wclose`.
+
+Required result:
+
+- closing the only clean view exits the application without panic.
+
+Because the common command wrapper dispatches `PostCommand` after every mapped command, this case asks whether close plus its immediate post-command dispatch is safe without a following command.
+
+### Characterization B — sequence after final close
+
+A second binding maps:
 
 ```toml
 [keys.insert]
 C-q = ["wclose", "normal_mode"]
 ```
 
-Three cases are prepared:
+Required result:
 
-1. one clean view — the application should exit cleanly;
-2. two views — the close removes one view and `normal_mode` continues against the remaining view;
-3. one modified view — the refused close leaves one view, the sequence continues to normal mode, and the existing error status remains visible.
+- one clean view exits without running unsafe continuation against missing view state.
 
-The first case exercises the full current dispatcher boundary, including post-command event dispatch after `wclose`. A panic in the second command or a hook should fail the characterization.
+Comparing this case with the single-command control distinguishes the basic close/post-command path from sequence continuation.
 
-### Planned focused command
+### Characterization C — another view remains
+
+With two views, the same sequence must:
+
+- close one view;
+- retain one view;
+- execute `normal_mode` against the remaining view;
+- leave no error status.
+
+This rejects an unconditional rule that stops every sequence after `wclose`.
+
+### Characterization D — close is refused
+
+With one modified view, `wclose` is refused by existing unsaved-buffer policy. The test records the current expected sequence behavior:
+
+- one view remains;
+- `normal_mode` runs;
+- the close error status remains visible.
+
+This distinguishes terminal transition from an ordinary command refusal.
+
+### Planned focused commands
 
 ```text
+cargo integration-test single_command_final_window_close_exits_cleanly
 cargo integration-test command_sequence_after_final_window_close_exits_cleanly
+cargo integration-test command_sequence_continues_when_another_window_remains
+cargo integration-test refused_final_window_close_keeps_sequence_context_alive
 ```
 
-If the target task runner does not accept a name filter in that position, run the repository-declared `cargo integration-test` and record the exact command rather than rewriting history.
+If the target task runner does not accept a name filter in that position, run the repository-declared `cargo integration-test` and record the exact command and result.
 
 ### Review notes
 
-- The test uses the existing `AppBuilder::with_config` and `test_key_sequence` harness.
-- The custom keymap is parsed through the target's public `ConfigRaw` format and merged over defaults by the existing builder.
-- The two-view and refused-close cases prevent an unconditional “stop every sequence after wclose” patch.
-- The test does not yet isolate `PostCommand` from the following command. If the one-view test fails, the first repair step is to identify which boundary panics.
+- Tests use the existing `AppBuilder::with_config` and `test_key_sequence` harness.
+- Custom keymaps are parsed through `ConfigRaw` and merged over defaults by the existing builder.
+- The single-command control narrows the likely boundary if the sequence test fails.
+- A remaining failure may occur in the following command, `PostCommand`, `OnModeSwitch`, or application exit observation; exact execution is needed before choosing ownership.
+- No production candidate has been selected.
 - Execution, formatting, and compilation remain unverified.
 
 ## Current disposition
 
-`PREPARED / UNEXECUTED`
+`PREPARED / UNEXECUTED / CONTINUING IN OWNED FORKS`
 
 The next durable update must record one of these outcomes for each exact head:
 
@@ -112,4 +182,4 @@ The next durable update must record one of these outcomes for each exact head:
 - passing characterization, which weakens or retires the suspected behavior;
 - setup or compile failure, which requires repairing the test before drawing a product conclusion.
 
-No production fix should be written until the exact characterization is executed and reviewed. No public upstream interaction is authorized.
+No public upstream interaction is authorized.
