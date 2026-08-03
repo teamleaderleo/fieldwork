@@ -2,9 +2,9 @@
 
 ## In simple words
 
-The clean candidate contains three real-runtime lifecycle controls. Review repaired the rejected-proxy control so it always completes the remaining Miniflare teardown after the injected failure, rather than only awaiting the killed workerd child. Exact-head repository workflows were triggered for the repaired one-commit source and are pending.
+The repaired candidate has three real-runtime lifecycle controls, but the evidence is not yet clean enough for an owner decision. Most broad workflows passed, the Changeset Review failure is permission-only, four main-CI shards remain unclassified, and a dedicated focused test/typecheck carrier is queued.
 
-Current test state: **SOURCE AND TEST REPAIRED — EXACT-HEAD EXECUTION PENDING**
+Current test state: **FOCUSED EXECUTION QUEUED — BROAD RED SHARDS UNCLASSIFIED**
 
 ## Exact candidate target
 
@@ -12,6 +12,10 @@ Base: `95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`
 Canonical branch: `teamleaderleo/workers-sdk:upstream/miniflare-runtime-first-disposal`  
 Canonical source head: `d668e318f5e6b0c1e2cbd66ac4b46d8cddbca642`  
 Canonical source PR: `teamleaderleo/workers-sdk#5`
+
+Focused carrier PR: `teamleaderleo/workers-sdk#16`  
+Focused carrier head: `0f9d818c3c9bfceb01d070d971e44e276e325055`  
+Focused workflow: `30796108253`
 
 ## Exact source fence
 
@@ -30,61 +34,55 @@ packages/miniflare/test/teardown-lifecycle.spec.ts
 
 ### Control 1 — rejected proxy cleanup
 
-Setup:
+The first disposal receives an injected proxy rejection. The test records whether workerd `SIGKILL` was requested, restores the mock, always calls `mf.dispose()` again to finish the skipped Miniflare owners, and waits for the identified child exit.
 
-- construct and ready a real Miniflare instance;
-- inject one rejection from `ProxyClient.prototype.dispose()`;
-- observe `ChildProcess.prototype.kill()` for a workerd child;
-- call `mf.dispose()` and retain the injected rejection.
-
-Candidate assertion:
-
-- the first disposal requested workerd `SIGKILL`;
-- after restoring the proxy mock, the test always calls `mf.dispose()` again to complete the remaining cleanup;
-- the killed child is identified and its exit is awaited.
-
-Review correction:
-
-The previous test only called the second disposal when no killed child was found. On the passing candidate path, it therefore awaited child exit but left later Miniflare cleanup unfinished. The repaired test makes the second disposal unconditional after mock restoration.
-
-Property: a rejected independent cleanup hook cannot skip the runtime termination request, and the test itself does not leak the remainder of the teardown lifecycle.
+Property: a rejected independent cleanup hook cannot skip runtime termination, and the test does not leak the rest of Miniflare teardown.
 
 ### Control 2 — pending proxy cleanup
 
-The test keeps proxy disposal pending, verifies workerd termination was requested before releasing the hook, then releases it and awaits complete disposal.
+The test holds proxy disposal pending, verifies workerd termination was requested before releasing the hook, releases it, and awaits complete disposal.
 
 Property: a pending independent cleanup hook cannot delay initiation of runtime termination.
 
 ### Control 3 — later cleanup rejection
 
-The test injects a `DevRegistry.dispose()` rejection and confirms the workerd kill request already occurred, then restores the mock and performs best-effort repeated disposal.
+The test injects a later `DevRegistry.dispose()` rejection and confirms workerd termination already occurred.
 
-Property: the observer distinguishes the pre-runtime ordering defect from a generic later cleanup failure.
+Property: the observer distinguishes the pre-runtime ordering defect from generic later cleanup failure.
 
 ## Browser Rendering source control
 
-`closeBrowserProcess()` receives an independent browser-process handle and CDP WebSocket endpoint. It attempts `Browser.close`; if graceful close fails or times out, it kills and waits for the browser process. No direct workerd dependency is present in that helper. This narrows the interaction risk, while exact target execution remains desirable.
+`closeBrowserProcess()` receives an independent browser-process handle and CDP WebSocket endpoint. It attempts `Browser.close`; if graceful close fails or times out, it kills and waits for the browser process. No direct workerd dependency was found in that helper. This is source evidence, not target execution.
 
-## Historical evidence
-
-- materialization run/job `30674559186` / `91299001548` succeeded and established the original clean branch; it did not execute the target assertion;
-- A001 dependency-free Node models established the sequential rejection, pending-hook, and later-failure control-flow behavior;
-- prior source heads and carriers are historical after the test-cleanup repair and one-commit resquash.
-
-## Exact-head workflows
+## Broad exact-head results
 
 Canonical source head: `d668e318f5e6b0c1e2cbd66ac4b46d8cddbca642`
 
-| Workflow | Run | State at refresh |
-| --- | ---: | --- |
-| CI | `30756281544` | pending |
-| CI (Other Node Versions) | `30756281540` | pending |
-| Changeset Review | `30756281529` | pending |
-| Semgrep OSS scan | `30756281508` | pending |
+Passed:
 
-Other repository integration workflows were triggered or skipped according to path filters. Each completed result must be classified by whether it built or executed the Miniflare source and focused file. No pass is claimed yet.
+- Validate PR Description `30756281511`;
+- Semgrep `30756281508`;
+- Local Explorer UI E2E `30756281551`;
+- C3 E2E `30756281558`;
+- CI Other Node Versions `30756281540`;
+- Vite Plugin E2E `30756281594`;
+- Wrangler E2E `30756281560`;
+- Vite plugin playgrounds `30756281534`.
 
-## Exact commands to retain when execution is available
+Changeset Review `30756281529` calculated the expected `miniflare` patch release. Its post step failed with `Resource not accessible by integration` while attempting to publish a review. Classification: GitHub permission/integration failure, not candidate content.
+
+Main CI `30756281544` failed in four shards:
+
+- Ubuntu package tests 1/3 — job `91518868989`;
+- macOS package tests 1/3 — job `91518869121`;
+- Windows package tests 1/3 — job `91518869093`;
+- Windows fixture tests 5/6 — job `91518868992`.
+
+The available connector did not expose useful failure logs for those jobs. They remain unclassified and cannot be represented as either candidate failures or unrelated noise.
+
+## Focused exact-source carrier
+
+Execution-only carrier #16 runs:
 
 ```text
 pnpm install --frozen-lockfile
@@ -92,8 +90,13 @@ pnpm --filter miniflare test -- teardown-lifecycle.spec.ts
 pnpm --filter miniflare check:type
 ```
 
-Record exact source head, runner environment, assertion count, run/job, and result. Classify installation, setup, fixture, timeout, and unrelated-package failures separately.
+The carrier contains the canonical three-file candidate plus one temporary workflow. At this refresh, focused run `30796108253` is queued. No focused pass is claimed.
 
-## Current judgment
+## Acceptance rule
 
-The implementation and test-cleanup defects are repaired. Pending exact-head execution is an evidence boundary. The packet is ready for the repository owner’s decision rather than another repair label.
+Advance the unit to an owner decision only when:
+
+- the focused lifecycle controls and Miniflare type check execute at the exact canonical source;
+- any focused failure is repaired rather than relabeled;
+- the four broad red shards are classified enough to establish whether they touch the candidate;
+- packet and source identities are synchronized afterward.
