@@ -1,0 +1,130 @@
+name: Fieldwork 457 B2 external generation rollback
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fieldwork-457-b2-generation-rollback-external.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fieldwork-457-b2-generation-rollback-external-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  UV_EXPERIMENT_HEAD: 7098add2d9240eb8c95275f63fe5d544b3f6c4f3
+  CI: 1
+
+jobs:
+  cross-target-check:
+    name: Cross-check uv Windows rollback source
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out exact uv experiment
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/uv
+          ref: ${{ env.UV_EXPERIMENT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: uv
+
+      - name: Verify and generate source
+        working-directory: uv
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$UV_EXPERIMENT_HEAD"
+          mkdir -p receipt-external-cross
+          {
+            echo "uv_experiment_head=$(git rev-parse HEAD)"
+            echo "runner=$RUNNER_OS"
+          } > receipt-external-cross/identity.txt
+          python .github/fieldwork/457-b2/inject_generation_rollback.py
+          python .github/fieldwork/457-b2/polish_generation_rollback.py
+          rustup component add rustfmt
+          rustup target add x86_64-pc-windows-msvc
+          cargo fmt --all
+          cargo fmt --all --check 2>&1 | tee receipt-external-cross/fmt.log
+          git diff --check
+          git diff -- crates/uv/src/commands/self_update.rs > receipt-external-cross/proposed-source.diff
+          cargo check -p uv --all-targets --features self-update --target x86_64-pc-windows-msvc 2>&1 |
+            tee receipt-external-cross/check.log
+
+      - name: Upload cross-target receipt
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: fieldwork-457-b2-generation-rollback-external-cross
+          path: uv/receipt-external-cross/
+          if-no-files-found: error
+          retention-days: 30
+
+  windows-matrix:
+    name: Windows uv generation rollback matrix
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out exact uv experiment
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/uv
+          ref: ${{ env.UV_EXPERIMENT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: uv
+
+      - name: Cache uv Rust build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          shared-key: fieldwork-457-b2-generation-rollback-external
+          cache-on-failure: true
+          workspaces: uv
+
+      - name: Verify and generate source
+        working-directory: uv
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD) -ne $env:UV_EXPERIMENT_HEAD) {
+            throw 'External carrier did not check out exact uv experiment head'
+          }
+          New-Item -ItemType Directory -Force -Path receipt-external | Out-Null
+          @(
+            "uv_experiment_head=$(git rev-parse HEAD)"
+            "runner=$env:RUNNER_OS"
+          ) | Set-Content receipt-external/identity.txt
+          python .github/fieldwork/457-b2/inject_generation_rollback.py
+          python .github/fieldwork/457-b2/polish_generation_rollback.py
+          rustup component add rustfmt
+          cargo fmt --all
+          cargo fmt --all --check 2>&1 | Tee-Object -FilePath receipt-external/fmt.log
+          git diff --check
+          git diff -- crates/uv/src/commands/self_update.rs | Set-Content receipt-external/proposed-source.diff
+
+      - name: Run exact hostile matrix
+        working-directory: uv
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cargo test -p uv --lib --features self-update fieldwork_current_head_generation_rollback -- --nocapture 2>&1 |
+            Tee-Object -FilePath receipt-external/test.log
+
+      - name: Check affected targets
+        working-directory: uv
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cargo check -p uv --all-targets --features self-update 2>&1 |
+            Tee-Object -FilePath receipt-external/check.log
+
+      - name: Upload Windows receipt
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: fieldwork-457-b2-generation-rollback-external-windows
+          path: uv/receipt-external/
+          if-no-files-found: error
+          retention-days: 30
