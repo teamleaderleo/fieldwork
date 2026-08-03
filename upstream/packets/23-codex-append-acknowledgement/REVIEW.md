@@ -2,100 +2,102 @@
 
 ## Review state
 
-Current disposition at packet creation: `MATERIALIZE / HOLD`.
+`MATERIALIZE: COMPLETE / OWNED-FORK REVIEW: COMPLETE / PUBLIC DELIVERY: HOLD`
 
-The bounded prerequisite has independent acceptance on prior exact source heads. Current public-source acceptance remains pending run `30674601315`, source-only ordinary gates, and complete-diff review of the resulting clean source commit.
+The current public-base source is materialized, exactly tested, and completely reviewed within the three-file unit fence. Public delivery remains held only by contribution policy and authorization.
 
-## Prior accepted review
+## Current source fence
 
-Selected predecessor:
+- Public base and direct parent: `670f69416bf91c5dfd8b58669e78050b584ff053`
+- Clean branch: `teamleaderleo/codex:fix/session-durable-append-acknowledgement`
+- Clean source head: `16cb14688dac752a5a13c180e94355b199f240a7`
+- Source PR: `teamleaderleo/codex#136`
+- Source shape: one commit, three files
+- Merge state in owned mirror: clean and mergeable
+- Review submission: `4841949952`
 
-- source PR: `teamleaderleo/codex#84`
-- source head: `d8299b7fdf3aaf7ebc46d2cac840828cf97fc2a2`
-- source parent: `a01a2d91461a57809e944de7758477b92617ab01`
-- carrier: `teamleaderleo/codex#80@401c2e5e6a37730aae3e8da95591cc6f56655cfc`
-- run: `30583967538`
-- review: `4823945751`
-
-Accepted findings:
-
-- the return value preserves conversation updates and raw-item emission;
-- an absent live thread returns success under ephemeral-session authority;
-- pre-write failure returns false and leaves the tested durable item absent;
-- commit-then-error returns false while the tested durable item is present;
-- existing callers ignore the return value and retain prior behavior;
-- one-shot test-store controls leave normal behavior unchanged;
-- the boolean remains acknowledgement only and supplies no retry authority.
-
-Later validated predecessor:
-
-- source PR: `teamleaderleo/codex#97`
-- source head: `926e0bc5a32b136f31b9eaae75e2de4abc20fa95`
-- source parent: `4642370542739d5dd080b0c87a9de06a6435d3db`
-- carrier PR: `teamleaderleo/codex#98`
-- carrier head: `8161e9ee3423d78768263e8838bd6e4800178902`
-- run: `30598744048`
-- exact controls: 4/4
-- complete thread-store package: passed
-
-## Current public-source review fence
-
-- public base: `openai/codex@670f69416bf91c5dfd8b58669e78050b584ff053`
-- clean branch: `teamleaderleo/codex:fix/session-durable-append-acknowledgement`
-- current clean branch head before publication: `670f69416bf91c5dfd8b58669e78050b584ff053`
-- conflict diagnostic: `teamleaderleo/codex#131`
-- semantic materializer: `teamleaderleo/codex#132@4bd35b35dee5649c6ba5af4c3535af2081c58bfc`
-- materialization run: `30674601315`
-
-Expected source fence:
+Changed files:
 
 - `codex-rs/core/src/session/mod.rs`
 - `codex-rs/core/src/session/turn_tests.rs`
 - `codex-rs/thread-store/src/in_memory.rs`
 
-Expected parent relation: exactly one source commit directly parented by `670f6941...`.
+## Complete-diff findings
 
-## Current code observations
+No code findings inside the unit fence.
 
-At public `670f6941...`:
+Accepted observations:
 
-- `record_conversation_items` returns unit;
-- current image-preparation analytics run before persistence;
-- `persist_rollout_response_items` returns unit;
-- `persist_rollout_items` logs `append_items` errors and returns unit;
-- current in-memory thread store lacks the two deterministic append fault modes;
-- current turn tests lack the four append-outcome controls.
+- `record_conversation_items` returns the result of the authoritative live-thread append.
+- An absent live thread returns `true` under ephemeral-session authority; this does not claim disk durability.
+- An acknowledged live append returns `true` and the item is present in reloaded history.
+- A pre-write failure returns `false` and the item is absent from reloaded history.
+- A commit-then-error result returns `false` even though the item is present, preserving ambiguity and withholding retry authority.
+- Current in-memory history updates, image analytics, and raw-response emission remain intact.
+- Raw-response emission occurs after the persistence attempt regardless of the returned boolean; delivery is not durability.
+- The two in-memory fault controls are one-shot and leave ordinary behavior unchanged when unarmed.
 
-The old source does not merge cleanly into current `session/mod.rs`. The semantic reconstruction preserves the newer analytics and modifies only the acknowledgement seam.
+## Caller audit
 
-## Duplicate and prior-art check
+Five references exist in current `session/mod.rs`: one definition and four production call sites.
 
-Public repository searches performed against `openai/codex`:
+The four call sites cover world-state context, changed turn context, response-item lifecycle emission, and user-message lifecycle emission. Every call site discards the new boolean.
 
-- exact phrase `append acknowledgement`: no open issue match;
-- code/prior-art query for `append acknowledgement`, `append outcome`, or `persist_rollout_response_items`: no repository code-search result;
-- `append_items error`: one open issue about rollout files missing from the state DB, issue #31433; related persistence inventory concern, separate from returning a session append acknowledgement;
-- `record_conversation_items`: open issues concern conversation-history content handling, separate from append acknowledgement.
+This is accepted for unit 23 because the unit establishes the acknowledgement seam only. It does not implement caller gating, retry, replay, compaction, settlement, or typed certainty. Any successor must consume the return explicitly and must not infer persistence from scheduling or channel delivery.
 
-No public duplicate implementing this bounded three-file interface change was found in the inspected current source or search results.
+## Test and tree receipt
 
-## Current acceptance checklist
+Materializer run `30674601315`, job `91299123673`, generated and tested source head `06971a3a2b95d70a809472bfbd6fe7884063a563`:
+
+- four unique exact append controls passed, `4/4`;
+- full thread-store package passed, `163/163`;
+- formatting passed;
+- exact three-file fence and direct-parent assertion passed.
+
+Current source head `16cb1468...` is a rewrite from the same parent. All three changed-file blob SHAs are identical between tested and current heads:
+
+- `session/mod.rs`: `6a35b541245007424fd8f268a408225e9e262009`
+- `turn_tests.rs`: `cd78a86704d6fe152fde0b522c8f8bc2927c36c5`
+- `in_memory.rs`: `bbf69a3c7fb85076eaf0ebcd1d5799433caae9a4`
+
+The test evidence therefore applies to the exact current product tree, while the receipt preserves the distinct tested commit ID.
+
+## Current ordinary CI classification
+
+Current-head v8-canary runs passed. Formatting, cargo-deny, codespell, cargo-shear, changed-area detection, and blob-size policy passed.
+
+The blocking workflow fails at an unrelated repository gate: `verify_cargo_workspace_manifests.py` reports a stale exception for `codex-rs/code-mode/Cargo.toml`, outside the three-file source fence. Downstream SDK/Bazel jobs fail or cancel after that gate. This does not invalidate the exact unit tests or the current-tree review.
+
+## Prior accepted review chain
+
+- `teamleaderleo/codex#51@30a0a9b...`, run `30550323542`, review `4820933076`.
+- `teamleaderleo/codex#84@d8299b7...`, carrier #80, run `30583967538`, review `4823945751`.
+- `teamleaderleo/codex#97@926e0bc...`, carrier #98, run `30598744048`.
+- Direct-transplant conflict diagnostic: `teamleaderleo/codex#131`.
+- Current semantic materializer: `teamleaderleo/codex#132`.
+- Current clean source review: `teamleaderleo/codex#136`, review `4841949952`.
+
+## Duplicate and prior-art result
+
+No inspected current public code or public issue/PR result implements this exact bounded three-file interface change. Public issue #31433 concerns a different persistence inventory problem.
+
+## Acceptance checklist
 
 - [x] exact current public base identified
 - [x] repository and contribution instructions read
-- [x] historical source, carriers, runs, reviews, and failure receipts recorded
-- [x] exact three-file source fence retained
-- [x] direct transplant conflict recorded
-- [x] semantic current-source approach published as owned carrier
-- [ ] current materialization run passes
-- [ ] clean direct-child source head recorded
-- [ ] current four exact controls pass
-- [ ] current complete thread-store package passes
-- [ ] source-only ordinary gates pass
-- [ ] complete current diff review accepts source head
+- [x] historical source, carrier, run, review, and failure receipts recorded
+- [x] direct-transplant conflict recorded
+- [x] semantic current-source materialization passed
+- [x] clean direct-child source head recorded
+- [x] exact four controls passed
+- [x] complete thread-store package passed
+- [x] tested/current tree identity proven
+- [x] current ordinary CI classified
+- [x] complete current diff review accepted
+- [x] caller audit completed
 - [ ] upstream invitation exists
 - [ ] public-contact authorization exists
 
-## Review boundary
+## Review boundary and next action
 
-A successful current run can establish source readiness in the owned fork. Public delivery remains held by contribution policy and authorization. Typed persistence certainty and every retry/replay/compaction consumer remain separate units.
+Technical preparation in the owned repositories is complete. Do not contact public upstream. Preserve source PR #136 and packet PR #449. Once both an OpenAI invitation and explicit public-contact authorization exist, rebase/revalidate against the authorized public base before delivery.
