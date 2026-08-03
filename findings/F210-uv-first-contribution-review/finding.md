@@ -1,237 +1,182 @@
-# uv first-contribution review — 2026-08-02
+# uv first-contribution review — final handoff
 
-## In simple words
+Updated: `2026-08-03`
 
-Fieldwork already contains enough uv work to learn the repository through real source, tests, and review rather than opening another broad issue hunt. The best prospective first upstream contribution remains the Alpine/BusyBox relocatable-launcher repair. Its complete Linux source, lint, GNU, and BusyBox gates are green. A review then found one changed shell that had only textual coverage—Fish activation—so a separate GNU/BusyBox/macOS Fish execution carrier was added instead of weakening the evidence claim. A smaller lockfile diagnostic is now source-clean and useful as an internal exercise, but its public lane is crowded with prior and current attempts. No public upstream interaction occurred.
+## Decision
 
-## Finding state
+`UNIT 02 READY FOR HUMAN REVIEW / LOCK DIAGNOSTIC HELD FOR REPAIR`
 
-`comparative-evaluation-active`
+The selected first-contribution candidate is the Alpine/BusyBox relocatable-launcher repair. Its exact source, focused native tests, full locked clippy gate, GNU/BusyBox/macOS platform probes, Fish activation supplement, and clean source publication are terminal and green. The separate lockfile-as-requirements diagnostic is not review-ready: the current source has a valid-requirements filename collision, and both follow-up execution carriers failed before product tests.
 
-Unit 02 remains the selected provisional first-contribution direction. Linux evidence is complete; macOS, Fish runtime coverage, publication, and final generated-source review remain open. The lock diagnostic has an accepted fork-local source generation, remains routing-held, and awaits clean exact-head execution.
+No public upstream interaction occurred.
 
 ## Assignment and authority
 
 - Coordination: `teamleaderleo/fieldwork#210`.
-- Canonical finding: this file.
-- Supporting architecture screen: `environment-options-screen.md` beside this file.
-- Owned target repository: `teamleaderleo/uv`.
+- Upstream-packet routing: `teamleaderleo/fieldwork#435`, unit 02.
+- Canonical Unit 02 packet: `upstream/packets/02-uv-busybox-realpath/`.
+- Packet branch: `upstream/02-uv-busybox-realpath-packet`.
+- Packet head: `85748635b05fee2ffe78c1b317d0acbf5e2d984f`.
 - Public target observed quietly: `astral-sh/uv`.
-- Public upstream contact authorized: `false`.
-- Public upstream contact performed: `false`.
-- Retrieval date: 2026-08-02.
+- Public upstream contact authorized/performed: `false` / `false`.
 
-## Method applied
+# Selected lane — Unit 02 BusyBox `realpath` compatibility
 
-This pass inventoried existing owned uv work, pinned exact source/carrier identities, read producer and consumer code, searched public overlap, repaired owned-fork defects, added producer-backed tests, separated source from execution carriers, reviewed complete diffs, and preserved negative results. A green workflow is treated as evidence, not as a landing decision.
+## Exact source
 
-## Existing uv work map
+- Public base: `79bbface771210df216b738e9bdc7df95e5a9e6b`.
+- Clean owned branch: `teamleaderleo/uv:upstream/02-busybox-realpath`.
+- Current source head: `17fb4489a71cc63a59b90ecc52b08f703ca0d0e8`.
+- Previous byte-identical publication: `047b724212905c034c15d4f4f6f9ef330bbd2daf`.
+- Source tree: `e0832686bd982b5c15f6e9bdd6d6631d30ec24cf`.
+- Relationship: one commit ahead, zero behind.
+- Diff: four files, 89 insertions, 15 deletions.
 
-| Lane | Owned surface | Current use |
-| --- | --- | --- |
-| BusyBox relocatable launchers | main carrier `teamleaderleo/uv#7`; Fish supplement `#18`; publication target `upstream/02-busybox-realpath` | Leading first-contribution candidate; Linux green, remaining gates pending. |
-| `uv.lock` passed to `-r` | source `teamleaderleo/uv#12`; clean carrier `#15` | Source accepted internally; public routing held; execution pending. |
-| Alternative parse-failure diagnostic | carrier `teamleaderleo/uv#13` | Separate experiment; retained and not treated as execution authority for source #12. |
-| local-directory source provenance | `teamleaderleo/uv#11` | Medium-depth resolver/serialization research; active overlap. |
-| interrupted self-update recovery | `teamleaderleo/uv#8`, `#9`, `#10`; Fieldwork `#491` | High-consequence transaction work; too broad for a first patch. |
-| extracted wheel cache corruption | `teamleaderleo/uv#1` | Confirmed integrity gap requiring independent durable authority. |
-| PEP 723 symlink lock authority | `teamleaderleo/uv#4` | Policy/authority characterization, not a settled starter implementation. |
-
-# Candidate A — BusyBox relocatable launchers
-
-## Public problem and current-main state
-
-Public issue `astral-sh/uv#16209` records that Alpine 3.22 / BusyBox 1.37 `realpath` interprets `--` as a missing path, emits a diagnostic, and returns nonzero in relocatable launchers. It remains open and unassigned. A fresh exact-topic search found no matching public repair pull request. Current public main `79bbface771210df216b738e9bdc7df95e5a9e6b` still contains the failing generated `realpath --` forms.
-
-The issue discussion correctly warns that blindly deleting every delimiter is weak: leading-hyphen operands still matter, and generation-host BusyBox detection was floated as an alternative.
-
-## Candidate and generator review
-
-Owned carrier `teamleaderleo/uv#7` at `c8a5c36d60a5cc35f496f583146967e210f87810` generates an exact candidate from public/fork base `79bbface771210df216b738e9bdc7df95e5a9e6b` changing only:
+Changed files exactly:
 
 - `crates/uv-install-wheel/src/wheel.rs`
 - `crates/uv-virtualenv/src/virtualenv.rs`
 - `crates/uv/src/commands/project/run.rs`
 - `crates/uv/tests/python/venv.rs`
 
-The candidate removes only unsupported `realpath --`, preserves every `dirname --`, recognizes current and historical relocatable shebangs for both `python` and `python3`, updates existing virtualenv expectations, and keeps old forms as recognition-only compatibility inputs.
+The rerun republished the same validated tree with a new commit identity. The four changed-file blob hashes match the prior publication.
 
-Generator review receipt:
+## Selected behavior
 
-- review `4839008092`
-- exact carrier head `c8a5c36d60a5cc35f496f583146967e210f87810`
-- disposition `ACCEPT CARRIER DESIGN / EXECUTION AND GENERATED SOURCE PENDING`
+The source:
 
-The generator uses exact-count replacements and a four-file fence. Its native copy test exercises current and legacy `python`/`python3` headers, rewritten content, and executable-mode preservation. No generator defect was found.
+- removes only unsupported `realpath --` delimiters;
+- retains every supported `dirname --` delimiter;
+- preserves `realpath` symlink canonicalization;
+- recognizes corrected and historical relocatable launchers for both `python` and `python3`;
+- updates existing generated-text expectations;
+- adds a native migration test covering all four current/legacy launcher forms and executable-mode preservation.
 
-## Main execution evidence
+Losing directions remain rejected:
 
-Run `30753911776`:
+- removing `realpath` would weaken external-symlink behavior;
+- removing `dirname --` is unsupported by the evidence and unnecessary;
+- generator-host BusyBox detection would make relocatable artifacts depend on where they were produced;
+- speculative option-like `$0` normalization is not justified by direct shebang execution;
+- widening recognition beyond observed `python` and `python3` producers lacks a failing generated example.
 
-### Linux/source job `91512671857` — success
+## Terminal execution
 
-All declared Linux steps passed:
+Main run `30753911776`, latest attempt:
 
-- exact carrier fence and candidate generation;
-- exact four-file source diff;
-- generator unit tests;
+- Linux/source job `91621197004`: success;
+- macOS job `91621196098`: success;
+- publication job `91621231746`: success.
+
+Main artifacts:
+
+- Linux `8835628919`, digest `sha256:1d54c978b355e807bb69f962f866574d8c200ae624ed55b0ac9a6cd8c631ff0c`;
+- macOS `8847852798`, digest `sha256:5053067966a50e9bcf842a9433f9509b89d49e0d202e492884e5ced8f203646b`;
+- publication `8847875671`, digest `sha256:0c7f3655f2ec681db1d3d2caf4ab1c6a7de29b3657898cb13d96a75b9d849b9d`.
+
+Independent earlier publication:
+
+- run/job `30756408587` / `91519210841`: success;
+- artifact `8836056361`;
+- digest `sha256:e0684ec5da7025a7b7cf4a8f7b932e06c3385d07e2146a5e8d5a8c344a2ed634`.
+
+Fish supplement run `30755096609`:
+
+- GNU and Alpine/BusyBox Fish job `91515786243`: success;
+- macOS Fish job `91515786224`: success;
+- Linux Fish artifact `8836836696`, digest `sha256:cf515d657784f09ba555517769842f364738a7961ee91151552c3b5aebccc9b0`;
+- macOS Fish artifact `8836553214`, digest `sha256:23a08fed67b9edc573122025f6057560b68872e9cb580dd9ea316468ab755615`.
+
+Execution-only PRs `teamleaderleo/uv#7` and `#18` were closed without merge after evidence transfer.
+
+## Green gates
+
+- exact generation and four-file publication fences;
 - formatting and affected-crate compilation;
-- wheel shebang tests;
-- current/legacy `python` and `python3` copy tests;
-- existing relocatable `pyvenv.cfg` integration coverage;
-- `cargo clippy --locked --workspace --all-targets --all-features -- -D warnings`;
+- wheel generated-shebang test;
+- current/legacy `python` and `python3` migration test;
+- existing relocatable-venv integration test;
+- full `cargo clippy --locked --workspace --all-targets --all-features -- -D warnings`;
 - GNU and Alpine 3.22 / BusyBox 1.37 launcher matrices;
-- GNU and BusyBox Bash activation matrices;
-- direct shebang `$0` probes;
-- assertion markers and retained receipts.
+- GNU, Alpine/BusyBox, and macOS Bash/platform probes;
+- GNU, Alpine/BusyBox, and macOS sourced Fish activation matrices;
+- direct shebang `$0` discriminator;
+- exact source publication and branch relationship checks.
 
-The retained artifact confirms the changed-file fence, clippy invocation, generated patch, compatibility-recognizer counts, and platform transcripts. On BusyBox, the current form produces the reported `realpath: --:` diagnostic; the candidate form produces no stderr. GNU current and candidate forms remain clean. Explicit `./-tool` and `./-activate` controls cover leading-hyphen names.
+Baseline BusyBox forms emitted the known false `realpath: --:` diagnostic while still completing. Candidate forms completed with empty stderr. GNU and macOS remained clean. Relative paths, PATH lookup, spaces, leading-hyphen names through `./-tool` or `./-activate`, and external symlinks were covered where applicable.
 
-### Remaining main-run jobs
+## Evidence limits and human gates
 
-- macOS job `91512671833` — queued at the latest check;
-- source publication job `91513239430` — queued and dependent on required platform jobs.
+- The complete repository test suite was not run. Affected crates, focused native tests, full workspace clippy, and platform matrices are green.
+- Public issue, pull-request, assignment, and contributor-intent state must be refreshed immediately before upstream action.
+- Astral contribution and AI-policy compliance, final wording, and the decision to contact upstream remain human-owned.
 
-No final source branch or source acceptance is claimed yet.
+No known source defect or failed required focused gate remains.
 
-## Fish runtime gap and supplement
+## Unit 02 disposition
 
-The generated source also changes Fish activation, but the main carrier executes only Bash activation; Fish was initially covered only by string assertions. This was treated as an evidence defect, not ignored.
+`READY FOR HUMAN REVIEW`
 
-Separate execution-only supplement:
+Read `upstream/packets/02-uv-busybox-realpath/HANDOFF.md`, then inspect exact commit `17fb4489a71cc63a59b90ecc52b08f703ca0d0e8` as one four-file diff. No more implementation work is recommended before the human review.
 
-- PR `teamleaderleo/uv#18`
-- carrier head `59ee7456984806a0f065b71a937d6f39131087d1`
-- run `30755096609`
-- Linux Fish job `91515786243` — queued at the latest check
-- macOS Fish job `91515786224` — queued at the latest check
-- review `4839025463` — `ACCEPT EXECUTION CARRIER / RUN PENDING`
+# Held lane — `uv.lock` passed to `-r`
 
-The probe sources the exact generated Fish expressions—current `realpath -- (status -f)` and candidate `realpath (status -f)`—through absolute, relative, spaces, leading-hyphen, and symlink paths on GNU, Alpine 3.22 / BusyBox 1.37, and macOS. It verifies the exact `VIRTUAL_ENV` and stderr contract.
+## Current source
 
-## Design comparison
+- Source PR: `teamleaderleo/uv#12`.
+- Exact source head: `ba55497fe83ea9bb07c04452f8ba190fa4440a05`.
+- Public issue: `astral-sh/uv#16192`.
 
-Generation-host BusyBox detection loses provisionally. A relocatable launcher or environment can be produced under one implementation and executed after movement under another. Encoding the generator host's tool flavour would make the artifact depend on where it was produced.
+The source attempted to identify uv-generated project and PEP 723 lockfile names without content sniffing and added producer-backed positive tests plus non-UTF-8 filename handling.
 
-The selected portable form keeps `dirname --`, which BusyBox accepts; removes `realpath --`, which BusyBox rejects; tests path names beginning with `-` through explicit relative invocation; and uses the same artifact across platform families.
+## Blocking design collision
 
-This remains an internal technical selection. Human-owned upstream framing must reconcile it with the public issue discussion before any proposal.
+Detection runs before requirements parsing. A valid requirements file named `action.py.lock` is rejected whenever a neighboring `action.py` contains valid PEP 723 metadata. The existing arbitrary-`.lock` control did not include this same-name PEP 723 collision.
 
-## Disposition
+Therefore the earlier `ACCEPT SOURCE` review is superseded. Current source disposition is:
 
-`LEADING CANDIDATE / LINUX ACCEPTED / HOLD FOR MACOS, FISH, PUBLICATION, AND SOURCE REVIEW`
+`HOLD / REPAIR`
 
-After all execution gates pass, the published one-commit four-file source must receive a fresh complete-diff review and a current public-overlap refresh.
+## Execution results
 
-# Candidate B — lockfile passed to `-r`
+Clean current-source carrier `teamleaderleo/uv#15`:
 
-## Public problem and overlap
+- run `30754710006`, job `91514796254`: failure before tests;
+- source identity and three-file fence passed;
+- `cargo fmt --all --check` found formatting changes in the new test file;
+- compile and focused tests were skipped.
 
-Public issue `astral-sh/uv#16192` asks for a clearer error when a uv project or PEP 723 script lockfile is passed as a requirements file. Closed attempts include `astral-sh/uv#16282`, `#17893`, `#19617`, `#19618`, `#20057`, and `#20094`; `astral-sh/uv#20683` remained open but exposed no changed files during this pass. Prior discussion records false-positive and content-sniffing concerns. This history keeps the lane internal even after source repair.
+Parse-failure experiment `teamleaderleo/uv#13`:
 
-## Accepted fork-local source
+- run `30755038821`, job `91515650405`: failure before tests;
+- runner patch expected one source snippet but found zero matches;
+- fallback formatting step also lacked the installed rustfmt component;
+- no product behavior was executed.
 
-Owned source PR `teamleaderleo/uv#12` exact head:
+The public lane is also crowded with prior and current attempts. Do not include this lane in the first-contribution review packet.
 
-`ba55497fe83ea9bb07c04452f8ba190fa4440a05`
+## Lock-lane disposition
 
-Changed files:
+`HOLD / REPAIR / INTERNAL ONLY`
 
-- `crates/uv-requirements/src/sources.rs`
-- `crates/uv/tests/pip_install/main.rs`
-- `crates/uv/tests/pip_install/uv_lock_requirements.rs`
-
-Behavior:
-
-1. exact existing `uv.lock` is diagnosed as a uv lockfile;
-2. `<script>.lock` is diagnosed only when the complete sibling filename currently parses as PEP 723;
-3. arbitrary `.lock` files remain requirements inputs;
-4. constraints and overrides retain existing behavior;
-5. lockfile bytes are not inspected.
-
-Positive tests generate project and script locks through uv's real producers. A Unix regression generates a real PEP 723 lockfile for a script filename containing invalid UTF-8. The detector uses `Path`/`OsStr` operations, preserving the complete filename without UTF-8 conversion.
-
-Source review:
-
-- review `4838994246`
-- disposition `ACCEPT SOURCE / HOLD ROUTING / EXECUTE`
-
-No source defect was found in this generation.
-
-## Execution identities
-
-Clean carrier:
-
-- PR `teamleaderleo/uv#15`
-- head `b794c91c9bf50b2ee28cd588cd44e51eb44c1d09`
-- exact source `ba55497fe83ea9bb07c04452f8ba190fa4440a05`
-- focused run `30754710006`, job `91514796254` — queued at latest check
-- ordinary fork CI `30754710091` — queued at latest check
-- carrier review `4839008193` — `ACCEPT CARRIER / EXECUTION PENDING`
-
-The uv crate's default `test-defaults` feature includes `test-python` and `test-pypi`, so the focused integration module is not a zero-test configuration.
-
-Earlier PR `teamleaderleo/uv#13` and run `30753915919` contain a separate parse-failure experiment and are not execution authority for this source generation.
-
-## Remaining limits and disposition
-
-A genuine script lock is deliberately not classified if the sibling script is missing or no longer valid PEP 723; this conservative false negative avoids arbitrary `.lock` false positives. Public overlap remains the routing blocker regardless of execution.
-
-Disposition: `ACCEPT SOURCE INTERNALLY / HOLD PUBLIC ROUTING / EXECUTE`.
+A future pass must first design parse-failure-only diagnostics that preserve valid same-name requirements files, then repair the exact transformation and run formatting, compilation, and focused tests. Public routing remains held regardless.
 
 # EnvironmentOptions screen
 
-The adjacent `environment-options-screen.md` records that most unchecked variables in `astral-sh/uv#14720` have prior public attempts. Apparently unoccupied `UV_GIT_LFS`, `UV_STACK_SIZE`, and `UV_LOCK_TIMEOUT` cross leaf-crate identity, early thread initialization, or lower-level global-policy/error-semantics boundaries.
+The adjacent `environment-options-screen.md` remains useful as a codebase map. Most easy-looking variables have prior attempts. Apparently unoccupied variables cross leaf-crate identity, early thread initialization, or lower-level global-policy and error-semantics boundaries.
 
-Disposition: `STOP AS FIRST-PATCH LANE / RETAIN AS CODEBASE MAP`.
+Disposition:
 
-# Selected direction and losing reasons
+`STOP AS FIRST-PATCH LANE / RETAIN AS CODEBASE MAP`
 
-## Selected provisional direction
+# Human review checklist
 
-Finish and independently review Unit 02 as the first prospective upstream contribution.
+1. Read the canonical Unit 02 packet handoff.
+2. Inspect exact source head `17fb4489a71cc63a59b90ecc52b08f703ca0d0e8`.
+3. Confirm the scope rule: remove only `realpath --`; retain `dirname --`, canonicalization, and legacy recognition.
+4. Review the native migration test and existing virtualenv expectation changes.
+5. Review the terminal Linux, macOS, and Fish receipts.
+6. Refresh public overlap and repository contribution policy.
+7. Decide whether to prepare and explicitly authorize a human-owned upstream pull request.
 
-## Why the alternatives lose first position
-
-- Lock diagnostic: crowded implementation history, open attempt, lower consequence, and a public-routing hold despite source quality.
-- EnvironmentOptions: checklist state does not establish ownership; available-looking entries require propagation and semantics design.
-- Deeper lanes: source provenance needs resolver/serialization policy alignment; self-update needs interruption/platform transaction ownership; wheel-cache repair needs independent durable integrity authority; PEP 723 symlink behavior needs an authority-policy decision.
-
-## Reopening trigger
-
-Promote another lane above Unit 02 only if Unit 02 fails its macOS/Fish/source-review gates or a fresh public-state change makes another small lane clearly available and maintainer-aligned.
-
-# Recommended gradual uv path
-
-1. Settle Unit 02 macOS, Fish, and source-publication gates; review the exact published source commit.
-2. Settle clean lock-diagnostic execution while retaining the public-routing hold.
-3. Continue learning through generated snapshots, native integration fixtures, Cargo feature gates, pinned Actions, and producer/consumer pairs.
-4. After one genuinely accepted small contribution, advance to one medium-depth lane such as source provenance or a bounded self-update subcase.
-5. Keep every public issue, PR, comment, and maintainer message human-owned and separately authorized.
-
-# Self-review
-
-- Existing Fieldwork uv work and P0 backlog were inventoried.
-- Public issues, comments, prior pull requests, and current main were searched.
-- Exact source producers and consumers were read.
-- The lock diagnostic received producer-backed positive controls and a non-UTF-8 producer-backed regression.
-- Complete lock source and execution-carrier diffs were reviewed.
-- Unit 02 generator and complete Linux evidence were reviewed.
-- Fish activation runtime coverage was identified as missing and added in a separate carrier.
-- `realpath --` and `dirname --` behavior were distinguished.
-- Unchecked environment variables were screened by source owner and prior work.
-- Queued jobs are not described as passed.
-- No public upstream interaction occurred.
-
-# Handoff
-
-State: `comparative-evaluation-active`
-
-Read next:
-
-1. Unit 02 macOS job `91512671833` and publication job `91513239430` in run `30753911776`;
-2. Fish run `30755096609`;
-3. clean lock runs `30754710006` and `30754710091`;
-4. Fieldwork integrity for the current PR #534 head;
-5. exact published Unit 02 source diff;
-6. fresh public overlap immediately before any human upstream decision.
+No public issue, pull request, comment, review, reaction, email, or maintainer message was created by this work.
