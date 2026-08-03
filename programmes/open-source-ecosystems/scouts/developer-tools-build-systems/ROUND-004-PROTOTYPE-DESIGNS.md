@@ -9,14 +9,14 @@ Upstream contact authorized: `false`
 
 ## In simple words
 
-The characterization branches now cover the easy failure cases and the controls that a real repair must preserve.
+The characterization branches now cover the main failure, alternate graph paths, and the compatibility behavior a real repair must preserve.
 
-The source reads also narrowed each candidate to one local decision point:
+The source reads narrow each candidate to one decision point:
 
-1. Turborepo must preserve the original package-selected task roots while rebuilding their required task dependency closure after task-input affected detection.
-2. Helix must stop a matched command sequence when `Editor::should_close()` becomes true after a command.
+1. Turborepo must preserve package-selected affected task roots, then rebuild their required dependency closure without changing strict-entrypoint policy.
+2. Helix must stop a matched command sequence after a command makes `Editor::should_close()` true.
 
-These are prototype designs, not executed fixes. Production files have not changed.
+These are reviewed prototype designs. Production files remain unchanged and no test result is claimed.
 
 ## Exact fork identities
 
@@ -25,10 +25,10 @@ These are prototype designs, not executed fixes. Production files have not chang
 - repository: https://github.com/teamleaderleo/turborepo
 - branch: `research/affected-filter-intersection`
 - base: `c6fbc97bb8841f9c87d106af2d89ce11e97ea56c`
-- head: `119e86a88e0ac9c2fe6a161e60297b4b73ebcb45`
-- relation: `4 commits ahead, 0 behind`
+- head: `6d4785a34b70143f1ecc8fb9c19c161edb09a344`
+- relation: `6 commits ahead, 0 behind`
 - changed files: three added integration-test files
-- additions: `481`
+- additions: `511`
 - production changes: none
 
 ### Helix
@@ -36,81 +36,81 @@ These are prototype designs, not executed fixes. Production files have not chang
 - repository: https://github.com/teamleaderleo/helix
 - branch: `research/final-window-command-sequence`
 - base: `079a789e8cb08ead67f19e1971a1b7438b37354b`
-- head: `bee45f3356202158a03941b3d21aa15dc4cb63fb`
-- relation: `4 commits ahead, 0 behind`
+- head: `87972f36c950169ed0caeaab5a5a60dcafa488cb`
+- relation: `5 commits ahead, 0 behind`
 - changed files: one added integration-test module and one registration line
-- additions: `104`
+- additions: `132`
 - production changes: none
 
 # Turborepo prototype
 
-## Current source transition
+## Current transition
 
-The relevant build sequence in `crates/turborepo-lib/src/run/builder.rs` is:
+In `crates/turborepo-lib/src/run/builder.rs`:
 
-1. package scope resolution produces `filtered_pkgs`, `filter_mode`, and package-derived entrypoint exclusions;
-2. `affectedUsingTaskInputs` selects the separate `use_task_level_affected` path when `filterUsingTasks` is inactive;
-3. that path sets `needs_all_packages`;
-4. the all-packages engine is built with an empty entrypoint-exclusion set;
-5. task input matching produces affected task IDs;
-6. `Engine::retain_affected_tasks` expands affected tasks through dependents and dependencies;
-7. `select_engine_task_entrypoints` recomputes exclusions from the already-pruned engine;
-8. the final `Run` reports packages from `filtered_pkgs` while executing the independently pruned engine.
+1. package scope resolution produces `filtered_pkgs` and package-derived entrypoint exclusions;
+2. `affectedUsingTaskInputs` selects the separate affected path when `filterUsingTasks` is inactive;
+3. that path builds an all-packages engine and clears the original package entrypoint exclusions;
+4. `retain_affected_tasks` expands affected tasks through dependents and dependencies;
+5. `select_engine_task_entrypoints` recomputes exclusions from the already-pruned engine;
+6. the final `Run` reports `filtered_pkgs` while executing the separately pruned engine.
 
-The defect is loss of the original selector-authorized task roots. By step 7, the engine can no longer distinguish an outside-package affected entrypoint from an outside-package task required as a dependency of a selected entrypoint.
+The lost fact is which affected task nodes were selector-authorized roots. An outside-package task may be either an unwanted affected root or a required dependency of a selected root.
 
 ## Existing engine operations
 
-The engine already provides the two different closures needed to reason about the repair:
+- `retain_affected_tasks` retains affected roots, dependents, and dependencies.
+- `retain_filtered_tasks` retains selected roots and their dependencies, without adding dependents.
+- `expand_with_siblings` preserves edge-less `with` relationships.
+- `retain_strict_task_graph` applies strict command-presence policy and must stay feature-gated.
 
-- `retain_affected_tasks` — affected roots, transitive dependents, and transitive dependencies;
-- `retain_filtered_tasks` — selected roots and transitive dependencies, without dependent expansion.
+The combined `filterUsingTasks` path already intersects selector results with affected tasks and then uses filtered-task dependency closure. The separate affected path should converge on that authority rule without implicitly enabling its other feature gates.
 
-The separate task-filter path already uses `retain_filtered_tasks` after resolving selectors and intersecting an affected constraint. That behavior is the closest existing contract.
+## Current test matrix
 
-## Characterization matrix
+### Selector authority
 
-The branch contains three files:
+- `--filter=beta` with both independent tasks affected keeps only `beta#test`.
+- `--parallel` must produce the same result after its separate engine rebuild.
+- exclude-only `--filter=!alpha` must also keep only `beta#test`.
 
-1. `affected_task_filter_intersection_test.rs`
-   - independent `alpha#test` and `beta#test`;
-   - both affected by a global dependency change;
-   - `--filter=beta` must retain only `beta#test`.
+### Dependency closure
 
-2. `affected_task_filter_dependency_closure_test.rs`
-   - `beta` depends on `alpha`;
-   - `test` depends on `^test`;
-   - `--filter=beta` must retain `beta#test` and required `alpha#test`;
-   - package identity or task-name deletion would fail this control.
+- `beta` depends on `alpha`.
+- `test` depends on `^test`.
+- selected `beta#test` must retain required `alpha#test`.
 
-3. `affected_task_filter_legacy_entrypoint_test.rs`
-   - `strictTaskEntrypointSelection` is false;
-   - selected package `beta` has no executable `test` script;
-   - `beta#test` must remain under legacy semantics;
-   - the repair must not silently enable strict entrypoint pruning.
+The selected root and dependency share the same task name. Package deletion and task-name deletion both fail this control.
+
+### Entrypoint policy
+
+- strict flag off: selected no-script `beta#test` remains under legacy behavior;
+- strict flag on: selected no-script `beta#test` is pruned.
+
+The repair must preserve the explicit flag distinction.
 
 ## Candidate transition
 
-Apply selector authority only when all of these are true:
+Apply selector authority only when:
 
-- task-input affected detection is active through `use_task_level_affected`;
-- explicit package filter patterns are present;
-- the command is not already using the combined `filterUsingTasks` path.
+- `use_task_level_affected` is active;
+- explicit filter patterns are present;
+- the combined `filterUsingTasks` path is inactive.
 
-At that point:
+Then:
 
-1. compute or retain the task roots authorized by the original package-filter result and requested task names;
-2. preserve explicit package-qualified task requests according to existing rules;
-3. intersect those roots with the affected engine’s surviving task IDs;
-4. expand `with` siblings using the existing task-filter helper;
-5. call `retain_filtered_tasks` so every selected root retains its complete upstream task dependency closure;
-6. leave strict command-presence pruning gated by `strictTaskEntrypointSelection` exactly as it is now.
+1. identify requested task roots belonging to the package-filter result;
+2. preserve explicit package-qualified task requests under current rules;
+3. intersect roots with task IDs remaining after affected pruning;
+4. expand `with` siblings;
+5. call `retain_filtered_tasks` to restore all required upstream task dependencies;
+6. run strict command-presence pruning only when `strictTaskEntrypointSelection` is enabled.
 
 Conceptual pseudocode:
 
 ```rust
 if use_task_level_affected && !filter_patterns.is_empty() {
-    let selected_roots = command_task_ids_for_packages(
+    let selected_roots = selector_authorized_command_tasks(
         &engine,
         filtered_pkgs.keys(),
         &self.opts.run_opts.tasks,
@@ -120,45 +120,28 @@ if use_task_level_affected && !filter_patterns.is_empty() {
 }
 ```
 
-The helper name and exact placement remain open. The important contract is selected roots plus required dependencies, not package-wide deletion.
+The exact helper and placement remain open. The invariant is selected roots plus required dependencies.
 
 ## Rejected Turborepo approaches
 
-### Delete all tasks outside `filtered_pkgs`
+- Delete every task outside `filtered_pkgs`: breaks `^test` dependency closure.
+- Delete outside-package tasks sharing the requested task name: same failure.
+- Reuse strict pruning unconditionally: changes legacy no-script behavior.
+- Correct only dry-run rendering: execution remains broader.
+- Apply package restriction without explicit filters: suppresses legitimate task-input affected results.
 
-Rejected because `alpha#test` may be required by selected `beta#test` through `^test`.
+## Remaining Turborepo controls
 
-### Delete outside-package tasks with the requested task name
-
-Rejected for the same reason: a required dependency can have the same task name as the selected root.
-
-### Reuse `retain_strict_task_graph` unconditionally
-
-Rejected because existing tests require non-strict missing-command task nodes when `strictTaskEntrypointSelection` is false.
-
-### Correct only dry-run package rendering
-
-Rejected because the executable engine remains broader.
-
-### Apply package selection when no explicit filters exist
-
-Rejected because task-input affected detection intentionally starts from all packages and can identify tasks outside package-level affectedness.
-
-## Additional Turborepo controls before production edit
-
-- exclude-only package selectors;
 - explicit `package#task` requests;
-- `--parallel` engine rebuild;
 - `with` siblings;
-- an unaffected selected root;
-- strict entrypoint selection on and off;
-- package list and task list agreement.
+- unaffected selected root;
+- package/task reporting agreement under every selector form.
 
 # Helix prototype
 
-## Current source transition
+## Current transition
 
-`EditorView::handle_keymap_event` receives `KeymapResult::MatchedSequence(commands)` and currently executes every command:
+`EditorView::handle_keymap_event` executes every command in `MatchedSequence`:
 
 ```rust
 for command in commands {
@@ -166,37 +149,26 @@ for command in commands {
 }
 ```
 
-The shared command wrapper performs:
+`execute_command` performs command execution, `PostCommand`, possible `OnModeSwitch`, and insert-history bookkeeping.
 
-1. `command.execute(cxt)`;
-2. `PostCommand` dispatch;
-3. mode comparison;
-4. possible `OnModeSwitch` dispatch;
-5. insert-history bookkeeping.
-
-`wclose` removes the current view after unsaved-buffer checks. Removing the final view makes `Editor::should_close()` true. The application event loop uses this same predicate to stop before processing another event.
-
-The current sequence loop does not check it, so a following view-dependent command runs during the same key event.
+`wclose` removes the final view after unsaved-buffer checks. `Editor::should_close()` then becomes true. The application event loop uses that predicate to stop before another event, but the complete matched sequence executes inside the current event.
 
 ## Hook boundary
 
-The registered completion `PostCommand` hook for the insert-mode reproduction does not require a current view for `wclose`; it cancels or clears completion state. The following `normal_mode` command calls `Editor::enter_normal_mode`, which dereferences the current view after switching mode.
+The inspected completion `PostCommand` hook does not require a current view for the `wclose` reproduction. The following `normal_mode` command dereferences current view state. A normal-mode control with `move_char_right` confirms the question is generic.
 
-A normal-mode control now uses `move_char_right` as the second command, proving the lifecycle issue is generic and not tied to completion or insert-mode bookkeeping.
+## Current test matrix
 
-## Characterization matrix
-
-`helix-term/tests/test/command_sequences.rs` now contains:
-
-1. single-command final close — `wclose` alone exits cleanly;
-2. insert-mode final close sequence — `wclose`, then `normal_mode`;
-3. normal-mode final close sequence — `wclose`, then `move_char_right`;
-4. two-view continuation — the following command runs against the remaining view;
-5. refused final close — the following command runs because the editor remains open.
+1. `wclose` alone exits cleanly.
+2. Insert-mode sequence `wclose`, `normal_mode` exits cleanly.
+3. Normal-mode sequence `wclose`, `move_char_right` exits cleanly.
+4. Ordinary non-closing sequence `insert_mode`, `normal_mode` runs to completion.
+5. With another view remaining, the following command runs.
+6. When final close is refused, the following command runs and the error remains.
 
 ## Candidate transition
 
-Use the existing public editor shutdown predicate in the matched-sequence loop:
+Use the existing editor shutdown predicate after each complete command lifecycle:
 
 ```rust
 KeymapResult::MatchedSequence(commands) => {
@@ -209,42 +181,25 @@ KeymapResult::MatchedSequence(commands) => {
 }
 ```
 
-The check belongs after `execute_command` so the closing command retains the same `PostCommand` and mode-switch lifecycle as a single mapped command. The loop stops only after an actual terminal transition.
+Checking after `execute_command` preserves single-command `PostCommand` and mode-switch behavior. The loop stops only after actual terminal transition.
 
 ## Rejected Helix approaches
 
-### Stop every sequence after `wclose`
+- Stop every sequence after `wclose`: breaks two-view continuation.
+- Stop when `wclose` is invoked: breaks refused-close continuation.
+- Add guards to individual view-dependent commands: duplicates lifecycle policy indefinitely.
+- Rely only on the application event loop: control returns there after the sequence finishes.
+- Skip `PostCommand` after final close without evidence: changes ordinary command lifecycle.
 
-Rejected because closing one of multiple views must allow later commands to operate on the remaining view.
+## Remaining Helix controls
 
-### Stop when `wclose` is invoked
-
-Rejected because unsaved-buffer policy may refuse the close; the editor remains valid and current sequence behavior continues.
-
-### Add missing-view guards to `normal_mode` or movement commands
-
-Rejected because every future view-dependent command would need the same defensive check.
-
-### Move the shutdown check into the application event loop only
-
-Rejected because the complete command sequence executes inside one event before control returns to that loop.
-
-### Skip `PostCommand` after final close without evidence
-
-Rejected because single-command mapped commands currently dispatch `PostCommand`, and the inspected hook does not appear to cause the reported panic.
-
-## Additional Helix controls before production edit
-
-- macro/replay path using a mapped sequence;
-- a sequence where the first command changes mode without closing;
-- callback state queued by the closing command;
-- command count/register cleanup after a terminal sequence;
-- ordinary single-command and pending-key behavior.
+- macro/replay path;
+- callbacks queued during the closing command;
+- count/register cleanup after terminal sequence;
+- pending-key behavior.
 
 # Current disposition
 
 `PROTOTYPE DESIGNS READY; PRODUCTION SOURCE UNCHANGED`
 
-Next evidence should come from exact-head target execution or a compile/setup failure. Until then, these designs remain reviewed hypotheses in owned repositories.
-
-No public upstream interaction is authorized.
+Next evidence should come from exact-head target execution or a compile/setup failure. No public upstream interaction is authorized.
