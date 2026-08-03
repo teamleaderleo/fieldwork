@@ -2,9 +2,9 @@
 
 ## In simple words
 
-Miniflare owns a workerd child process and several independent cleanup hooks. The repaired candidate starts workerd termination before awaiting browser or proxy cleanup, so those hooks cannot skip or indefinitely delay the ownership action. Review also repaired the first regression test so it always completes the remaining Miniflare teardown after the injected proxy failure. The source is one clean commit and is ready for the repository owner’s decision; exact-head workflows are pending.
+Miniflare can fail to request termination of its owned workerd child when an earlier browser or proxy cleanup rejects or remains pending. The candidate starts runtime disposal first and the repaired tests now complete their own teardown correctly. Source review supports the mechanism, but the repaired exact head is not yet ready for an owner decision: the broad matrix contains four unclassified red test shards, and a dedicated focused execution carrier is queued.
 
-Current state: **READY FOR OWNER DECISION — source and test cleanup repaired; exact-head workflows pending**
+Current state: **EXECUTION UNDER SCRUTINY — NOT YET OWNER DECISION**
 
 Date: `2026-08-03`
 
@@ -33,13 +33,14 @@ It excludes multi-error aggregation, initialization-error precedence, generic cl
 | Clean target branch | `teamleaderleo/workers-sdk:upstream/miniflare-runtime-first-disposal` |
 | Clean target head | `d668e318f5e6b0c1e2cbd66ac4b46d8cddbca642` |
 | Canonical owned-fork source PR | `teamleaderleo/workers-sdk#5` |
+| Focused execution carrier | `teamleaderleo/workers-sdk#16` |
+| Focused carrier head | `0f9d818c3c9bfceb01d070d971e44e276e325055` |
+| Focused workflow run | `30796108253` — queued at refresh |
 | Packet branch | `teamleaderleo/fieldwork:upstream/15-miniflare-runtime-first-disposal` |
-| Packet workflow base | `920f87cb25dd0cc7901d59ea2019cd4b4a193b94` |
-| Retired materialization run / job | `30674559186` / `91299001548` — success |
 
 ## Source mechanism
 
-At the pinned base, `Miniflare.dispose()` awaits browser and proxy cleanup before `Runtime.dispose()`. A rejection exits the cleanup block and an unresolved promise suspends it before the workerd owner receives a chance to terminate the child.
+At the pinned base, `Miniflare.dispose()` awaits browser and proxy cleanup before `Runtime.dispose()`. A rejection exits the cleanup block and an unresolved promise suspends it before the runtime owner requests child termination.
 
 The candidate:
 
@@ -51,11 +52,11 @@ The candidate:
 6. awaits runtime exit before closing dispatchers;
 7. continues the existing later cleanup sequence.
 
-`Runtime.dispose()` performs the termination request synchronously before returning its child-exit promise.
+`Runtime.dispose()` performs the workerd termination request synchronously before returning its child-exit promise.
 
 ## Browser Rendering interaction
 
-Source review found no direct dependency on a live workerd process. `closeBrowserProcess()` receives its own browser-process handle and CDP WebSocket endpoint, attempts `Browser.close`, then kills and waits for that browser process if graceful close fails. This supports the selected early-start ordering. Exact target execution remains useful, but the browser question is no longer an unexamined design blocker.
+Source review found no direct dependency on a live workerd process. `closeBrowserProcess()` receives its own browser-process handle and CDP WebSocket endpoint, attempts `Browser.close`, then kills and waits for that browser process if graceful close fails. This supports the selected early-start ordering, but it does not replace target execution.
 
 ## Exact changed-file fence
 
@@ -67,30 +68,53 @@ packages/miniflare/src/index.ts
 packages/miniflare/test/teardown-lifecycle.spec.ts
 ```
 
-Diff summary: `136` additions, `4` deletions. No workflow, packet, experiment, or carrier machinery is present.
+Diff summary: `136` additions, `4` deletions. No workflow, packet, experiment, or carrier machinery is present on the canonical source branch.
 
 ## Focused controls
 
-1. Proxy cleanup rejects; the first disposal still requests workerd `SIGKILL`. After restoring the injected failure, the test always calls `mf.dispose()` again to finish remaining teardown, then waits for the killed child to exit.
+1. Proxy cleanup rejects; the first disposal still requests workerd `SIGKILL`. After restoring the injected failure, the test always calls `mf.dispose()` again to finish remaining teardown and waits for the identified child exit.
 2. Proxy cleanup remains pending; the workerd kill request occurs before the hook is released.
 3. A later `DevRegistry.dispose()` rejection confirms runtime termination already occurred.
 
-The first test repair matters: merely awaiting the killed child did not complete the rest of Miniflare cleanup after the earlier proxy rejection.
+## Completed broad workflow classification
 
-## Exact-head workflows
+Succeeded at source head `d668e318...`:
 
-Triggered for `d668e318f5e6b0c1e2cbd66ac4b46d8cddbca642`:
+- Validate PR Description;
+- Semgrep;
+- Local Explorer UI E2E;
+- C3 E2E;
+- CI on other Node versions;
+- Vite Plugin E2E;
+- Wrangler E2E;
+- Vite plugin playgrounds.
 
-- CI `30756281544`;
-- CI (Other Node Versions) `30756281540`;
-- Changeset Review `30756281529`;
-- Semgrep OSS scan `30756281508`.
+Changeset Review calculated a valid `miniflare` patch release, then failed while trying to post a GitHub review because the integration lacked permission. That is workflow-token noise, not a changeset-content failure.
 
-Other repository workflows are queued or skipped by path filters. No exact-head pass is claimed before execution. Pending infrastructure is an evidence boundary, not an unfixed source defect.
+Main CI run `30756281544` contains four failed shards that are not yet classified:
 
-## Owner decision surface
+- Ubuntu package tests shard 1/3;
+- macOS package tests shard 1/3;
+- Windows package tests shard 1/3;
+- Windows fixture tests shard 5/6.
 
-The repository owner can decide whether this candidate should advance after exact-head results are available. Before public filing, refresh current main, duplicate/overlap, contribution policy, and disclosure requirements. Public contact remains separately unauthorized.
+Those red shards cannot be dismissed without logs or a narrower exact-head receipt.
+
+## Focused execution
+
+Execution-only PR `teamleaderleo/workers-sdk#16` adds one temporary workflow over the canonical source head and runs:
+
+```text
+pnpm install --frozen-lockfile
+pnpm --filter miniflare test -- teardown-lifecycle.spec.ts
+pnpm --filter miniflare check:type
+```
+
+The carrier is not a delivery candidate and must be closed after its receipt is transferred.
+
+## Decision rule
+
+Do not ask the owner to advance this unit until the focused workflow executes successfully or produces a concrete defect that is repaired. The broad red shards must also be classified far enough to show whether they touch this three-file candidate.
 
 ## Packet map
 
