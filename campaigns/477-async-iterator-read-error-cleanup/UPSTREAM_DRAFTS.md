@@ -13,12 +13,7 @@ The current issue form has four relevant fields:
 3. AI SDK Version
 4. Code of Conduct
 
-Use the evidence already collected:
-
-- pinned upstream source links;
-- the small reproduction code;
-- the focused regression-test source on the signed candidate head;
-- the saved terminal screenshot showing all six cases failing on the unfixed baseline.
+The Description should explain only the bug and the intended control flow. Reproduction code, test links, and the saved failing-run screenshot belong in the Reproduction field.
 
 Do not link the internal Fieldwork briefing or evidence report publicly.
 
@@ -34,9 +29,11 @@ The only related public issue worth keeping is the cleanup precedent in the same
 
 ### Description field
 
-When async iteration starts, [`AsyncIterableStream` gets a stream reader](https://github.com/vercel/ai/blob/861d42334474f5e411a4b58b741f6ab3c7fb86f3/packages/ai/src/util/async-iterable-stream.ts#L43-L49). The helper already releases that reader when iteration finishes normally, stops early, or `iterator.throw()` is called: [`cleanup()` and the existing completion paths](https://github.com/vercel/ai/blob/861d42334474f5e411a4b58b741f6ab3c7fb86f3/packages/ai/src/util/async-iterable-stream.ts#L51-L110).
+When async iteration starts, `AsyncIterableStream` gets a stream reader. The helper already releases that reader when iteration finishes normally, stops early, or `iterator.throw()` is called: [existing cleanup paths](https://github.com/vercel/ai/blob/861d42334474f5e411a4b58b741f6ab3c7fb86f3/packages/ai/src/util/async-iterable-stream.ts#L43-L110).
 
-However, when the source stream errors, [`reader.read()` rejects before cleanup runs](https://github.com/vercel/ai/blob/861d42334474f5e411a4b58b741f6ab3c7fb86f3/packages/ai/src/util/async-iterable-stream.ts#L76-L89):
+However, when the source stream errors, [`reader.read()` rejects before cleanup runs](https://github.com/vercel/ai/blob/861d42334474f5e411a4b58b741f6ab3c7fb86f3/packages/ai/src/util/async-iterable-stream.ts#L76-L89).
+
+Current behavior:
 
 ```text
 source stream errors
@@ -52,7 +49,7 @@ reader lock remains held
 stream stays locked
 ```
 
-I think the failed read should instead follow this path:
+I think the failed read should instead follow the helper's existing cleanup path:
 
 ```text
 source stream errors
@@ -68,11 +65,7 @@ caller receives the original error
 later calls on that iterator return done: true
 ```
 
-The stream would still be errored. A newly acquired reader would still receive the same stored source error.
-
-Regression coverage for this behavior is available on the signed candidate head:
-
-- [read-error cleanup regression test](https://github.com/teamleaderleo/ai/blob/fd6335acd351b4c00824d8b2e68d1fab40053c86/packages/ai/src/util/async-iterable-stream-read-error.test.ts#L1-L125)
+The stream would still be errored; releasing the reader only removes the leftover lock.
 
 A related prior issue fixed a different cleanup problem in the same helper after normal completion:
 
@@ -81,7 +74,7 @@ A related prior issue fixed a different cleanup problem in the same helper after
 After the pull request is opened, add this near the top of the Description field:
 
 ```md
-Regression test and proposed fix: #PR_NUMBER
+Proposed fix: #PR_NUMBER
 ```
 
 ### Reproduction field
@@ -122,11 +115,11 @@ stream locked: true
 TypeError: Invalid state: ReadableStream is locked
 ```
 
-The focused test covers three source-error scenarios for both `createAsyncIterableStream()` and `asAsyncIterableStream()`:
+Focused regression test:
 
 - [async-iterable-stream-read-error.test.ts](https://github.com/teamleaderleo/ai/blob/fd6335acd351b4c00824d8b2e68d1fab40053c86/packages/ai/src/util/async-iterable-stream-read-error.test.ts#L1-L125)
 
-A local Vitest run against the unfixed baseline produced six failures. In each helper, the source error reached the caller but `stream.locked` remained `true` where the test expected the reader to have been released.
+The test covers three source-error scenarios for both `createAsyncIterableStream()` and `asAsyncIterableStream()`. A local Vitest run against the unfixed baseline produced six failures because the stream remained locked.
 
 Attach the saved terminal screenshot here when filing:
 
@@ -229,4 +222,4 @@ The rebased signed candidate head is `fd6335acd351b4c00824d8b2e68d1fab40053c86`.
 2. Open the issue using the field-aligned draft above and attach the saved failing-test screenshot.
 3. Open the pull request from signed head `fd6335acd351b4c00824d8b2e68d1fab40053c86` to upstream `main` after explicit authorization.
 4. Replace `#ISSUE_NUMBER` in the PR body.
-5. Add `Regression test and proposed fix: #PR_NUMBER` near the top of the issue Description field and `Proposed fix: #PR_NUMBER` in its Reproduction field.
+5. Add `Proposed fix: #PR_NUMBER` near the top of the issue Description field and in its Reproduction field.
