@@ -1,0 +1,204 @@
+name: Fieldwork 176 uv wheel cache execution
+
+on:
+  push:
+    branches:
+      - exec/176-uv-wheel-cache-current-main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-target:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CURRENT_SOURCE_HEAD: 0cf7c4561b7c7159ab9479719a12573d0a6aa3bb
+      CARRIER_HEAD: 37bd34be44a1e5046bdd0226a909d39a8938e607
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - name: Check out Fieldwork carrier
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Check out exact uv carrier
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/uv
+          ref: ${{ env.CARRIER_HEAD }}
+          path: uv-carrier
+          persist-credentials: false
+
+      - name: Check out exact current uv source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/uv
+          ref: fieldwork/upstream-0cf7c456
+          path: uv-current
+          persist-credentials: false
+
+      - name: Verify identities and scripts
+        run: |
+          test "$(git -C uv-carrier rev-parse HEAD)" = "$CARRIER_HEAD"
+          test "$(git -C uv-current rev-parse HEAD)" = "$CURRENT_SOURCE_HEAD"
+          python3 -m py_compile \
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_corrupt_archive.py \
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_missing_local_archive.py \
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_missing_http_archive.py \
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_pointer_archive.py \
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_archive.py \
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_record.py \
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_export.py \
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_database.py
+          rustup component add rustfmt
+
+      - name: Build exact current baseline
+        working-directory: uv-current
+        run: cargo build --locked --bin uv
+
+      - name: Execute current baseline controls
+        run: |
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_corrupt_archive.py \
+            --uv "$CARGO_TARGET_DIR/debug/uv" \
+            | tee baseline-corruption.json
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_missing_local_archive.py \
+            --uv "$CARGO_TARGET_DIR/debug/uv" \
+            | tee baseline-missing-local.json
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_missing_http_archive.py \
+            --uv "$CARGO_TARGET_DIR/debug/uv" \
+            | tee baseline-missing-http.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          corruption = json.loads(Path('baseline-corruption.json').read_text())
+          assert {row['mode']: row['outcome'] for row in corruption['scenarios']} == {
+              'clean-control': 'healthy-control',
+              'metadata-zero': 'bug-reproduced',
+              'module-corrupt': 'bug-reproduced',
+          }, corruption
+          for path in ('baseline-missing-local.json', 'baseline-missing-http.json'):
+              receipt = json.loads(Path(path).read_text())
+              assert receipt['outcome'] == 'bug-reproduced', receipt
+              assert receipt['source_wheel_unchanged'] is True, receipt
+          PY
+
+      - name: Apply and build missing-target candidate
+        run: |
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_pointer_archive.py \
+            uv-current
+          (cd uv-current && cargo fmt --all)
+          (cd uv-current && cargo fmt --all -- --check)
+          git -C uv-current diff --check
+          git -C uv-current diff --name-only > pointer-files.txt
+          test "$(cat pointer-files.txt)" = "$(printf '%s\n' \
+            crates/uv-distribution/src/archive.rs \
+            crates/uv-distribution/src/distribution_database.rs \
+            crates/uv-installer/src/plan.rs)"
+          git -C uv-current diff --binary > pointer-candidate.patch
+          (cd uv-current && cargo build --locked --bin uv)
+
+      - name: Execute missing-target candidate controls
+        run: |
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_missing_local_archive.py \
+            --uv "$CARGO_TARGET_DIR/debug/uv" \
+            | tee pointer-missing-local.json
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_missing_http_archive.py \
+            --uv "$CARGO_TARGET_DIR/debug/uv" \
+            | tee pointer-missing-http.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          local = json.loads(Path('pointer-missing-local.json').read_text())
+          http = json.loads(Path('pointer-missing-http.json').read_text())
+          assert local['outcome'] == 'recovered', local
+          assert local['source_wheel_unchanged'] is True, local
+          assert local['stale_pointer_survived'] is False, local
+          assert http['outcome'] == 'recovered', http
+          assert http['source_wheel_unchanged'] is True, http
+          PY
+
+      - name: Apply and build member-manifest candidate
+        run: |
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_archive.py \
+            uv-current
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_record.py \
+            uv-current
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_export.py \
+            uv-current
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_database.py \
+            uv-current
+          (cd uv-current && cargo fmt --all)
+          (cd uv-current && cargo fmt --all -- --check)
+          git -C uv-current diff --check
+          git -C uv-current diff --name-only > manifest-files.txt
+          test "$(cat manifest-files.txt)" = "$(printf '%s\n' \
+            crates/uv-distribution/src/archive.rs \
+            crates/uv-distribution/src/distribution_database.rs \
+            crates/uv-install-wheel/src/lib.rs \
+            crates/uv-install-wheel/src/wheel.rs \
+            crates/uv-installer/src/plan.rs)"
+          git -C uv-current diff --binary > manifest-candidate.patch
+          (cd uv-current && cargo build --locked --bin uv)
+
+      - name: Execute member-manifest candidate controls
+        run: |
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_corrupt_archive.py \
+            --uv "$CARGO_TARGET_DIR/debug/uv" \
+            | tee manifest-corruption.json
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_missing_local_archive.py \
+            --uv "$CARGO_TARGET_DIR/debug/uv" \
+            | tee manifest-missing-local.json
+          python3 uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_missing_http_archive.py \
+            --uv "$CARGO_TARGET_DIR/debug/uv" \
+            | tee manifest-missing-http.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          corruption = json.loads(Path('manifest-corruption.json').read_text())
+          scenarios = {row['mode']: row for row in corruption['scenarios']}
+          assert scenarios['clean-control']['outcome'] == 'healthy-control', scenarios
+          for mode in ('metadata-zero', 'module-corrupt'):
+              row = scenarios[mode]
+              old_root = row['archive_before']['root']
+              original_module = row['archive_before']['module']['sha256']
+              assert any(
+                  archive['root'] != old_root
+                  and archive['metadata']['size'] > 0
+                  and archive['module']['sha256'] == original_module
+                  for archive in row['archives_after_retry']
+              ), row
+              assert row['second_install'][-1]['returncode'] == 0, row
+              assert row['second_verification']['returncode'] == 0, row
+          for path in ('manifest-missing-local.json', 'manifest-missing-http.json'):
+              receipt = json.loads(Path(path).read_text())
+              assert receipt['outcome'] == 'recovered', receipt
+              assert receipt['source_wheel_unchanged'] is True, receipt
+          PY
+
+      - name: Run focused tests
+        working-directory: uv-current
+        run: |
+          cargo test --locked -p uv-distribution archive::tests
+          cargo test --locked -p uv-install-wheel wheel::tests
+          cargo test --locked -p uv-installer plan::tests
+
+      - name: Upload exact receipts
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
+        with:
+          name: fieldwork-176-uv-wheel-cache-current-main
+          path: |
+            baseline-*.json
+            pointer-*.json
+            pointer-*.txt
+            pointer-candidate.patch
+            manifest-*.json
+            manifest-*.txt
+            manifest-candidate.patch
+          if-no-files-found: warn
+          retention-days: 30
