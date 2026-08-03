@@ -138,6 +138,13 @@ The active Linux work worth keeping in the foreground is not the old mmdebstrap 
 - WGPU/Naga bitcast work is retired after current source accepted the controlled cases;
 - the UV lockfile diagnostic is held because complete review exposed a valid-requirements-file false positive.
 
+### util-linux cpuset parse ownership
+
+- historical packet [linux-fieldwork#404](https://github.com/teamleaderleo/linux-fieldwork/pull/404), closed without merge after the Debian package gate was cancelled;
+- installed util-linux 2.41-5 reproducibly aborted in text and JSON modes on malformed CPU-online input;
+- the canonical repair applied cleanly, the exact actual-binary baseline/candidate matrix passed, and controlled fork head `95ebc67e521195741040ffebb58756b259fb69b2` passed the focused native regression;
+- retain as upstream util-linux evidence and require fresh current-source review before any future proposal.
+
 ### DuckDB secondary ART persisted wrong result
 
 - [linux-fieldwork#334](https://github.com/teamleaderleo/linux-fieldwork/pull/334);
@@ -162,7 +169,7 @@ Therefore:
 - technically reusable non-Debian findings may continue only after being separated from the Debian carrier that discovered them;
 - util-linux, systemd, BuildKit, curl, kmod, jq, DuckDB, Nixpkgs, and other upstream-system work is not automatically retired merely because a Debian package was used as one control.
 
-The old Linux last-mile push [linux-fieldwork#194](https://github.com/teamleaderleo/linux-fieldwork/issues/194) is predominantly Debian/mmdebstrap coordination and should be retained as historical context rather than the active portfolio owner.
+The old Linux last-mile push [linux-fieldwork#194](https://github.com/teamleaderleo/linux-fieldwork/issues/194) is closed `not planned` with its full history preserved. Linux Fieldwork PRs #399, #400, #402, #405, #408, #410, and #415 were closed without merge as parked packet/carrier history. PR #404's Debian wrapper was also closed after its util-linux result was separated into the active non-Debian map.
 
 ## Consolidation debt
 
@@ -181,7 +188,7 @@ Several families have too many simultaneously open surfaces:
 3. Finish exact bounded D1/D2 gates already near completion before opening more broad research.
 4. Advance the Vite, Nixpkgs, Playwright-help, and Jotai packets to concise owner cards one at a time.
 5. Consolidate overlapping Playwright MCP and MCP-filesystem histories.
-6. Service the non-Debian Linux core: curl/Asio, systemd-oomd, kmod, fsck/udev, jq/systemd, and DuckDB ART.
+6. Service the non-Debian Linux core: curl/Asio, systemd-oomd, kmod, fsck/udev, jq/systemd, util-linux, and DuckDB ART.
 7. Park and close Debian/mmdebstrap-only routing surfaces while preserving branches, receipts, and reopening triggers.
 8. Keep public upstream contact separately unauthorized unless the repository owner grants exact authority for one interaction.
 
