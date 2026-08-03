@@ -1,0 +1,194 @@
+name: Fieldwork 176 uv wheel cache Windows
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/fieldwork-176-uv-wheel-cache-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-target:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    env:
+      CURRENT_SOURCE_HEAD: 0cf7c4561b7c7159ab9479719a12573d0a6aa3bb
+      CARRIER_HEAD: 37bd34be44a1e5046bdd0226a909d39a8938e607
+      CARGO_TARGET_DIR: ${{ github.workspace }}\target
+    steps:
+      - name: Check out Fieldwork carrier
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Check out exact uv carrier
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/uv
+          ref: ${{ env.CARRIER_HEAD }}
+          path: uv-carrier
+          persist-credentials: false
+
+      - name: Check out exact current uv source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/uv
+          ref: fieldwork/upstream-0cf7c456
+          path: uv-current
+          persist-credentials: false
+
+      - name: Verify exact identities and scripts
+        shell: pwsh
+        run: |
+          if ((git -C uv-carrier rev-parse HEAD) -ne $env:CARRIER_HEAD) { throw 'carrier identity mismatch' }
+          if ((git -C uv-current rev-parse HEAD) -ne $env:CURRENT_SOURCE_HEAD) { throw 'source identity mismatch' }
+          python -m py_compile `
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_corrupt_archive.py `
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_missing_local_archive.py `
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_pointer_archive.py `
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_archive.py `
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_record.py `
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_export.py `
+            uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_database.py
+          rustup component add rustfmt
+
+      - name: Build exact current baseline
+        shell: pwsh
+        working-directory: uv-current
+        run: cargo build --locked --bin uv
+
+      - name: Execute Windows current baseline controls
+        shell: pwsh
+        run: |
+          python uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_corrupt_archive.py `
+            --uv "$env:CARGO_TARGET_DIR\debug\uv.exe" | Tee-Object baseline-corruption-windows.json
+          if ($LASTEXITCODE -ne 0) { throw "corruption baseline failed: $LASTEXITCODE" }
+          python uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_missing_local_archive.py `
+            --uv "$env:CARGO_TARGET_DIR\debug\uv.exe" | Tee-Object baseline-missing-local-windows.json
+          if ($LASTEXITCODE -ne 0) { throw "missing-local baseline failed: $LASTEXITCODE" }
+          @'
+          import json
+          from pathlib import Path
+          corruption = json.loads(Path('baseline-corruption-windows.json').read_text())
+          assert {row['mode']: row['outcome'] for row in corruption['scenarios']} == {
+              'clean-control': 'healthy-control',
+              'metadata-zero': 'bug-reproduced',
+              'module-corrupt': 'bug-reproduced',
+          }, corruption
+          missing = json.loads(Path('baseline-missing-local-windows.json').read_text())
+          assert missing['outcome'] == 'bug-reproduced', missing
+          assert missing['source_wheel_unchanged'] is True, missing
+          '@ | python -
+
+      - name: Apply and build missing-target candidate
+        shell: pwsh
+        run: |
+          python uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_pointer_archive.py uv-current
+          if ($LASTEXITCODE -ne 0) { throw 'pointer transformation failed' }
+          Push-Location uv-current
+          cargo fmt --all
+          cargo fmt --all -- --check
+          git diff --check
+          $files = git diff --name-only
+          $expected = @(
+            'crates/uv-distribution/src/archive.rs',
+            'crates/uv-distribution/src/distribution_database.rs',
+            'crates/uv-installer/src/plan.rs'
+          )
+          if (Compare-Object $expected $files) { throw "pointer file fence mismatch: $files" }
+          git diff --binary | Set-Content -Encoding utf8 ..\pointer-candidate-windows.patch
+          cargo build --locked --bin uv
+          Pop-Location
+
+      - name: Execute Windows missing-target candidate
+        shell: pwsh
+        run: |
+          python uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_missing_local_archive.py `
+            --uv "$env:CARGO_TARGET_DIR\debug\uv.exe" | Tee-Object pointer-missing-local-windows.json
+          if ($LASTEXITCODE -ne 0) { throw "pointer candidate failed: $LASTEXITCODE" }
+          @'
+          import json
+          from pathlib import Path
+          receipt = json.loads(Path('pointer-missing-local-windows.json').read_text())
+          assert receipt['outcome'] == 'recovered', receipt
+          assert receipt['source_wheel_unchanged'] is True, receipt
+          assert receipt['stale_pointer_survived'] is False, receipt
+          '@ | python -
+
+      - name: Apply and build member-manifest candidate
+        shell: pwsh
+        run: |
+          python uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_archive.py uv-current
+          python uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_record.py uv-current
+          python uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_export.py uv-current
+          python uv-carrier/fieldwork/wheel-cache-crash-consistency/apply_manifest_database.py uv-current
+          if ($LASTEXITCODE -ne 0) { throw 'manifest transformation failed' }
+          Push-Location uv-current
+          cargo fmt --all
+          cargo fmt --all -- --check
+          git diff --check
+          $files = git diff --name-only
+          $expected = @(
+            'crates/uv-distribution/src/archive.rs',
+            'crates/uv-distribution/src/distribution_database.rs',
+            'crates/uv-install-wheel/src/lib.rs',
+            'crates/uv-install-wheel/src/wheel.rs',
+            'crates/uv-installer/src/plan.rs'
+          )
+          if (Compare-Object $expected $files) { throw "manifest file fence mismatch: $files" }
+          git diff --binary | Set-Content -Encoding utf8 ..\manifest-candidate-windows.patch
+          cargo build --locked --bin uv
+          Pop-Location
+
+      - name: Execute Windows member-manifest candidate
+        shell: pwsh
+        run: |
+          python uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_corrupt_archive.py `
+            --uv "$env:CARGO_TARGET_DIR\debug\uv.exe" | Tee-Object manifest-corruption-windows.json
+          if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 3) { throw "manifest corruption probe failed: $LASTEXITCODE" }
+          python uv-carrier/fieldwork/wheel-cache-crash-consistency/repro_missing_local_archive.py `
+            --uv "$env:CARGO_TARGET_DIR\debug\uv.exe" | Tee-Object manifest-missing-local-windows.json
+          if ($LASTEXITCODE -ne 0) { throw "manifest missing-local probe failed: $LASTEXITCODE" }
+          @'
+          import json
+          from pathlib import Path
+          corruption = json.loads(Path('manifest-corruption-windows.json').read_text())
+          scenarios = {row['mode']: row for row in corruption['scenarios']}
+          assert scenarios['clean-control']['outcome'] == 'healthy-control', scenarios
+          for mode in ('metadata-zero', 'module-corrupt'):
+              row = scenarios[mode]
+              old_root = row['archive_before']['root']
+              original_module = row['archive_before']['module']['sha256']
+              assert any(
+                  archive['root'] != old_root
+                  and archive['metadata']['size'] > 0
+                  and archive['module']['sha256'] == original_module
+                  for archive in row['archives_after_retry']
+              ), row
+              assert row['second_install'][-1]['returncode'] == 0, row
+              assert row['second_verification']['returncode'] == 0, row
+          missing = json.loads(Path('manifest-missing-local-windows.json').read_text())
+          assert missing['outcome'] == 'recovered', missing
+          assert missing['source_wheel_unchanged'] is True, missing
+          '@ | python -
+
+      - name: Run focused Windows tests
+        shell: pwsh
+        working-directory: uv-current
+        run: |
+          cargo test --locked -p uv-distribution archive::tests
+          cargo test --locked -p uv-install-wheel wheel::tests
+          cargo test --locked -p uv-installer plan::tests
+
+      - name: Upload exact Windows receipts
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
+        with:
+          name: fieldwork-176-uv-wheel-cache-windows
+          path: |
+            *-windows.json
+            *-windows.patch
+          if-no-files-found: warn
+          retention-days: 30
