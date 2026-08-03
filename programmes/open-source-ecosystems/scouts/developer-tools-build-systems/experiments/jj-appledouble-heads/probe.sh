@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SOURCE_DIR=${1:?usage: probe.sh <jj-source-dir>}
+SOURCE_INPUT=${1:?usage: probe.sh <jj-source-dir>}
+SOURCE_DIR=$(cd "$SOURCE_INPUT" && pwd)
 EXPECTED_HEAD=3a650c3a68aadfa693b193ffb3176fd09b824c86
 EXPECTED_BLOB=47dd3e95d1caedf638b7b74422e0dd8d13214fd1
 ACTUAL_HEAD=$(git -C "$SOURCE_DIR" rev-parse HEAD)
