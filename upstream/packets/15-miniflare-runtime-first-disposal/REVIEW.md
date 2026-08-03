@@ -2,11 +2,11 @@
 
 ## In simple words
 
-The Miniflare ownership repair is isolated on one clean three-file commit. Complete-diff review found and fixed a regression-test cleanup leak: the passing candidate path observed and awaited the killed workerd child but skipped a second `mf.dispose()`, leaving unrelated Miniflare teardown unfinished. The corrected test now always finishes teardown after restoring the injected proxy failure. The technical candidate is ready for the repository owner’s decision; exact-head workflows remain pending.
+The Miniflare source mechanism survives source review and the regression-test cleanup defect has been repaired. It is not yet ready for the repository owner’s decision: four broad CI shards remain unclassified, and the exact focused lifecycle test plus Miniflare type check are queued on a dedicated execution carrier.
 
 Review date: `2026-08-03`
 
-Current state: **ACCEPT FOR OWNER DECISION — source repaired; exact-head execution pending**
+Current state: **EXECUTION UNDER SCRUTINY — DO NOT PRESENT FOR OWNER ADVANCEMENT YET**
 
 Work class: **upstream-fork research**  
 Canonical delivery surface: `teamleaderleo/workers-sdk#5`  
@@ -19,90 +19,73 @@ Canonical branch: `upstream/miniflare-runtime-first-disposal`
 - relation: one commit ahead, zero behind;
 - changed files: three;
 - diff size: `136` additions, `4` deletions;
-- retired materialization run/job: `30674559186` / `91299001548`, success.
-
-Exact candidate inventory:
-
-```text
-.changeset/fuzzy-cats-dispose.md
-packages/miniflare/src/index.ts
-packages/miniflare/test/teardown-lifecycle.spec.ts
-```
-
-## Evidence audit
-
-| Claim | Evidence class | Limit |
-| --- | --- | --- |
-| base awaits browser and proxy cleanup before runtime disposal | `source-read` | exact pinned source ordering |
-| `Runtime.dispose()` requests workerd termination before returning | `source-read` | child exit remains asynchronous |
-| early rejection or pending cleanup can skip/delay later ownership work | `model-executed` | dependency-free control-flow models |
-| corrected three-file candidate exists on one commit | `source-read` | exact-head execution pending |
-| three real-runtime controls exist and clean up their own fixtures | `target-test-prepared` | exact-head execution pending |
-| browser helper owns its process handle and CDP endpoint independently | `source-read` | target runtime interaction still not executed at clean head |
+- focused carrier: `teamleaderleo/workers-sdk#16`;
+- focused carrier head: `0f9d818c3c9bfceb01d070d971e44e276e325055`;
+- focused run: `30796108253` — queued at refresh.
 
 ## Correctness review
 
 ### Ownership invariant
 
-Accepted. `Runtime` owns the workerd child. Starting `Runtime.dispose()` before independent awaits ensures the termination request is not skipped or indefinitely delayed by browser or proxy cleanup.
+Accepted at source level. `Runtime` owns the workerd child. Starting `Runtime.dispose()` before independent awaits ensures the termination request is not skipped or indefinitely delayed by browser or proxy cleanup.
 
 ### Synchronous throw and rejection observation
 
-Accepted within scope. The invocation is normalized into a retained promise, and an immediate rejection observer prevents transient unhandled rejection reporting if an earlier hook exits first. Full simultaneous-error aggregation remains outside this unit.
+Accepted within scope. The invocation becomes a retained promise, and an immediate rejection observer prevents transient unhandled rejection reporting if an earlier hook exits first. Full simultaneous-error aggregation remains outside this unit.
 
 ### Completion order
 
-Accepted. Browser and proxy cleanup retain their existing relative await order. Runtime exit is still awaited before runtime/dev-registry dispatchers close.
+Accepted. Browser and proxy cleanup retain their existing relative order. Runtime exit is still awaited before runtime and dev-registry dispatchers close.
 
 ### Browser Rendering interaction
 
-Accepted for source design. `closeBrowserProcess()` operates on an independently retained browser-process handle and WebSocket endpoint, attempts a CDP `Browser.close`, and falls back to killing/waiting for the browser process. No direct need for a live workerd process was found. Exact target execution remains an evidence improvement, not a known design defect.
+Accepted only as source design. `closeBrowserProcess()` operates on an independently retained browser-process handle and CDP endpoint, attempts `Browser.close`, and falls back to killing and waiting for the browser process. No direct live-workerd dependency was found. Target execution is still required before presenting the candidate as proven.
 
-### Repeated disposal
+### Test cleanup
 
-Accepted. `Runtime.dispose()` clears its child reference before kill/wait, and the repaired first test uses a second Miniflare disposal to finish the remaining teardown after the injected proxy failure.
+Repaired at source level. The rejected-proxy test now restores the mock, always performs a second Miniflare disposal to finish the skipped owners, and waits for the identified child exit. The prior review defect no longer exists in the canonical head.
 
-## Test review
+## Broad workflow classification
 
-### Rejected proxy cleanup
+Passed:
 
-Repaired and accepted. The prior candidate already observed `SIGKILL` and awaited the killed child, but on the successful candidate path it conditionally skipped the second `mf.dispose()`. That only completed the child owner, not the rest of Miniflare cleanup. The test now restores the proxy mock and always performs a second disposal before asserting and waiting for child exit.
+- Validate PR Description;
+- Semgrep;
+- Local Explorer UI E2E;
+- C3 E2E;
+- CI Other Node Versions;
+- Vite Plugin E2E;
+- Wrangler E2E;
+- Vite plugin playgrounds.
 
-### Pending proxy cleanup
+Changeset Review calculated a valid `miniflare` patch release, then failed in its GitHub-posting step with `Resource not accessible by integration`. This is permission noise rather than a candidate-content rejection.
 
-Accepted. The test observes kill initiation while the proxy hook remains pending, releases the hook, and awaits complete disposal.
+Main CI run `30756281544` has four unresolved red shards:
 
-### Later cleanup negative control
+- Ubuntu package tests 1/3 — `91518868989`;
+- macOS package tests 1/3 — `91518869121`;
+- Windows package tests 1/3 — `91518869093`;
+- Windows fixture tests 5/6 — `91518868992`.
 
-Accepted. A `DevRegistry.dispose()` rejection occurs after runtime disposal and distinguishes the pre-runtime ordering defect from generic later cleanup failure.
+The connector did not return useful logs for those jobs. They remain unclassified. Green unrelated workflows do not clear them, and red job summaries do not prove the candidate is defective.
 
-## Change-fence review
+## Focused execution
 
-- [x] one commit over exact base;
-- [x] exactly three files;
-- [x] no workflow, experiment, packet, or carrier machinery;
-- [x] changeset names `miniflare` as a patch;
-- [x] no aggregation or adjacent lifecycle implementation;
-- [x] source PR synchronized to the repaired exact head;
-- [x] complete current diff reviewed;
-- [ ] exact-head workflows have executed.
+Execution-only PR #16 runs the exact discriminating commands over the canonical source:
 
-## Exact-head workflows
+```text
+pnpm install --frozen-lockfile
+pnpm --filter miniflare test -- teardown-lifecycle.spec.ts
+pnpm --filter miniflare check:type
+```
 
-Triggered for `d668e318f5e6b0c1e2cbd66ac4b46d8cddbca642`:
+At this review generation, run `30796108253` is queued. The carrier is not a delivery candidate and must be closed after evidence transfer.
 
-- CI `30756281544`;
-- CI (Other Node Versions) `30756281540`;
-- Changeset Review `30756281529`;
-- Semgrep OSS scan `30756281508`.
+## Current judgment
 
-No exact-head pass is claimed before execution. Queued or pending workflows do not imply a source repair remains.
-
-## Owner decision surface
-
-The technical source and test repair are complete. The repository owner decides whether to advance the candidate once exact-head evidence is available. Before public interaction, refresh current main and overlap, follow the target’s issue-first contribution policy, and record explicit authorization.
+Do not ask the owner to approve advancement yet. The source case is credible, but the exact focused execution has not run and four broad red shards remain unresolved. When the focused carrier completes, repair any candidate failure directly; if it passes, classify the broad shards and then resubmit the packet for owner judgment.
 
 ## Contact boundary
 
-Public upstream contact authorized: `false`.  
-Public upstream contact performed: `false`.
+Public upstream interaction authorized: `false`.  
+Public upstream interaction performed: `false`.
