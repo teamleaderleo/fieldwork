@@ -1,0 +1,99 @@
+name: Fieldwork unit 18 current-main materialization repaired
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-unit-18-current-main-materialize-repair.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  materialize:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/playwright
+          ref: 2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2
+          fetch-depth: 0
+          path: playwright
+          persist-credentials: false
+
+      - name: Execute repaired deterministic edit
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -n '/^        run: |$/,$p' fieldwork/.github/workflows/fieldwork-unit-18-current-main-materialize.yml \
+            | tail -n +2 \
+            | sed 's/^          //' > /tmp/unit-18-materialize.sh
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('/tmp/unit-18-materialize.sh')
+          text = p.read_text()
+          old = '''replace_once(
+              'packages/playwright-core/src/tools/utils/mcp/server.ts',
+              """    await connect(serverBackendFactory, transport, Promise.resolve(), false);
+                return;
+              }
+
+              const url = await startMcpHttpServer(options, serverBackendFactory, options.allowedHosts);
+          """,
+              """    await connect(serverBackendFactory, transport, Promise.resolve(), false);
+                return;
+              }
+
+              // The HTTP lifecycle test owns the child through its piped stdin. Install this
+              // only after HTTP mode is selected, so stdio protocol bytes remain exclusively
+              // owned by StdioServerTransport.
+              if (isUnderTest()) {
+                if (process.stdin.readableEnded) {
+                  process.emit('SIGINT');
+                } else {
+                  process.stdin.once('end', () => process.emit('SIGINT'));
+                  process.stdin.resume();
+                }
+              }
+
+              const url = await startMcpHttpServer(options, serverBackendFactory, options.allowedHosts);
+          """,
+          )'''
+          new = '''replace_once(
+              'packages/playwright-core/src/tools/utils/mcp/server.ts',
+              "  const url = await startMcpHttpServer(options, serverBackendFactory, options.allowedHosts);\\n",
+              """  // The HTTP lifecycle test owns the child through its piped stdin. Install this
+              // only after HTTP mode is selected, so stdio protocol bytes remain exclusively
+              // owned by StdioServerTransport.
+              if (isUnderTest()) {
+                if (process.stdin.readableEnded) {
+                  process.emit('SIGINT');
+                } else {
+                  process.stdin.once('end', () => process.emit('SIGINT'));
+                  process.stdin.resume();
+                }
+              }
+
+              const url = await startMcpHttpServer(options, serverBackendFactory, options.allowedHosts);
+          """,
+          )'''
+          if text.count(old) != 1:
+              raise SystemExit(f'wrapper: expected one server block, found {text.count(old)}')
+          p.write_text(text.replace(old, new, 1))
+          PY
+
+          (cd playwright && bash /tmp/unit-18-materialize.sh)
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: unit-18-current-main-materialized-${{ github.run_id }}
+          path: materialized/
+          if-no-files-found: error
+          retention-days: 14
