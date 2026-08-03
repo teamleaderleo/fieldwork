@@ -5,11 +5,12 @@
 - source base: `astral-sh/uv#20855@8d9324af47e1b52ec1f57f9232bd408281282cf5`
 - controlled fork PR: `teamleaderleo/uv#31`
 - branch: `experiment/457-b2-current-head-generation-rollback`
-- initial exact head: `388014fe5d04372c1f3bc4f32b329a31436f2df0`
-- focused run: `30857947688`
-- ordinary fork CI: `30857947882`
+- current exact head: `47024f280d9338f6542e7929c3af20d0c82f635a`
+- focused run: `30859152542`
+- ordinary fork CI: `30859152844`
+- validated source destination: `candidate/457-b2-windows-generation-rollback`
 
-Run conclusions must be re-queried before use. At this record point the focused jobs were queued and ordinary CI was pending.
+Run conclusions must be re-queried before use. At this record point the current focused jobs were queued and ordinary CI was pending.
 
 ## Defect being repaired
 
@@ -53,13 +54,21 @@ Apply the existing public ordering inside one error boundary. On any returned er
 
 ## Hostile controls
 
-The focused matrix is designed to check:
+The focused matrix checks:
 
 1. a finalizer removes canonical `uv.exe` and then returns an error; expected result is the full old generation;
-2. a later companion copy fails after an earlier companion was overwritten; expected result is the full old generation and no finalizer call;
+2. a deterministically later companion copy fails after an earlier companion was overwritten; expected result is the full old generation and no finalizer call;
 3. the finalizer succeeds; expected result is the full new generation and promoted receipt.
 
-A Linux-to-Windows cross-target compile gate checks the generated Windows source before the target-native filesystem matrix.
+A Linux-to-Windows cross-target compile gate checks the generated Windows source before the target-native filesystem matrix. Both jobs retain the fully formatted generated `self_update.rs`.
+
+If both jobs pass, a gated third job checks out the exact public candidate, applies the validated transforms, verifies that only `crates/uv/src/commands/self_update.rs` changed, and pushes the source-only candidate branch. It cannot run after a red compile or hostile control.
+
+## First execution classification
+
+Run `30857807847`, job `91832800238`, did not execute a rollback control. It reached Windows compilation and failed because the initial transformer used `std::fs::DirEntry::file_name` with `fs_err::DirEntry`.
+
+The current transformer uses `entries.sort_by_key(|entry| entry.file_name())`. The mid-copy fixture was also tightened so `uvx.exe` is overwritten before a later `uvz.exe` directory causes the injected copy error. The first red run is source-generation feedback, not evidence against the rollback algorithm.
 
 ## Explicit exclusions
 
