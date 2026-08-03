@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - exec/176-uv-wheel-cache-current-main
+  pull_request:
+    paths:
+      - '.github/workflows/fieldwork-176-uv-wheel-cache.yml'
   workflow_dispatch:
 
 permissions:
