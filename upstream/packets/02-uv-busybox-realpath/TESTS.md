@@ -3,32 +3,46 @@
 ## Exact source
 
 - Base: `79bbface771210df216b738e9bdc7df95e5a9e6b`
-- Head: `047b724212905c034c15d4f4f6f9ef330bbd2daf`
+- Current head: `17fb4489a71cc63a59b90ecc52b08f703ca0d0e8`
+- Previous byte-identical head: `047b724212905c034c15d4f4f6f9ef330bbd2daf`
 - Tree: `e0832686bd982b5c15f6e9bdd6d6631d30ec24cf`
 - Relationship: one commit ahead, zero behind
 - Changed files: exactly four
 - Diff: 89 insertions, 15 deletions
 
-## Validation receipt
+## Main exact-source receipt
 
-- Carrier: `c8a5c36d60a5cc35f496f583146967e210f87810`
-- Workflow: `30753911776`
-- Linux/source job: `91512671857` — success
-- Artifact: `8835628919`
-- Digest: `sha256:1d54c978b355e807bb69f962f866574d8c200ae624ed55b0ac9a6cd8c631ff0c`
+Run `30753911776`, latest completed attempt:
 
-The artifact was downloaded independently and its ZIP hash matched the GitHub artifact digest above. Its retained patch is 175 lines and matches the exact four-file fence.
+- Linux/source job `91621197004` — success
+- macOS job `91621196098` — success
+- publication job `91621231746` — success
 
-## Publication receipt
+Artifacts:
 
-- Publication carrier head: `76836268a70c0a9ba49035a5e3eab4477044ed10`
-- Workflow: `30756408587`
-- Job: `91519210841` — success
-- Artifact: `8836056361`
-- Digest: `sha256:e0684ec5da7025a7b7cf4a8f7b932e06c3385d07e2146a5e8d5a8c344a2ed634`
-- Published commit/tree: `047b724212905c034c15d4f4f6f9ef330bbd2daf` / `e0832686bd982b5c15f6e9bdd6d6631d30ec24cf`
+- Linux `8835628919`, digest `sha256:1d54c978b355e807bb69f962f866574d8c200ae624ed55b0ac9a6cd8c631ff0c`
+- macOS `8847852798`, digest `sha256:5053067966a50e9bcf842a9433f9509b89d49e0d202e492884e5ced8f203646b`
+- publication `8847875671`, digest `sha256:0c7f3655f2ec681db1d3d2caf4ab1c6a7de29b3657898cb13d96a75b9d849b9d`
 
-The publication job regenerated the candidate, checked all four expected blob hashes, built a tree from the exact base, created one commit with that sole parent, verified the four changed paths, and force-updated only the controlled clean branch.
+The publication job regenerated the candidate, checked the four expected blob hashes, built a tree from the exact base, created one source-only commit, verified the changed paths, and updated only the controlled clean branch.
+
+An earlier independent publication also succeeded:
+
+- run/job `30756408587` / `91519210841`
+- artifact `8836056361`
+- digest `sha256:e0684ec5da7025a7b7cf4a8f7b932e06c3385d07e2146a5e8d5a8c344a2ed634`
+
+## Fish supplement
+
+Run `30755096609`:
+
+- GNU and Alpine/BusyBox Fish job `91515786243` — success
+- macOS Fish job `91515786224` — success
+
+Artifacts:
+
+- Linux Fish `8836836696`, digest `sha256:cf515d657784f09ba555517769842f364738a7961ee91151552c3b5aebccc9b0`
+- macOS Fish `8836553214`, digest `sha256:23a08fed67b9edc573122025f6057560b68872e9cb580dd9ea316468ab755615`
 
 ## Source gates
 
@@ -64,19 +78,24 @@ f68dc858066242be1888b922262d53e22975856a  crates/uv/tests/python/venv.rs
 
 ## Runtime matrices
 
-Each launcher matrix covered current and candidate forms across absolute, relative, PATH, spaces, `./-tool`, and external symlink invocation.
+Launcher matrices covered current and candidate forms across absolute, relative, PATH, spaces, `./-tool`, and external-symlink invocation.
 
-Each sourced-Bash activation matrix covered absolute, relative, PATH-like lookup, spaces, `./-activate`, and external symlink sourcing.
+Bash activation probes covered absolute, relative, PATH-like lookup, spaces, `./-activate`, and external-symlink sourcing.
 
-- GNU launcher and Bash activation: pass.
-- Alpine 3.22 BusyBox current: succeeds with the expected false diagnostic.
-- Alpine 3.22 BusyBox candidate: succeeds with clean stderr.
-- Linux direct-shebang probe: shell `$0` is the script path for forced `-tool`, `--help`, and ordinary argv0 values.
+Fish activation probes covered absolute, relative, spaces, `./-activate.fish`, and symlink sourcing.
+
+Results:
+
+- GNU launchers and Bash activation: pass, clean stderr.
+- Alpine 3.22 / BusyBox 1.37 baseline: succeeds while reproducing the false diagnostic.
+- Alpine candidate: succeeds with clean stderr.
+- macOS Bash and Fish candidate: pass, clean stderr.
+- Linux direct-shebang probe: `$0` is the script path for forced `-tool`, `--help`, and ordinary argv0 values.
+
+Each matrix asserted the resolved sibling interpreter or environment, status, arguments where applicable, and stderr policy.
 
 ## Limits
 
-The exact final carrier did not obtain a terminal macOS job before publication; the queued job was canceled when the carrier advanced. Earlier macOS 15 evidence passed the broader candidate, but is not claimed as an exact final-source execution.
-
-The executable Fish supplement in `teamleaderleo/uv#18` was still queued. The exact target-native Fish generated-text assertion passed.
-
-No public upstream contact occurred.
+- The complete repository test suite was not run.
+- Public overlap and current-main applicability must be refreshed before submission.
+- No public upstream contact occurred.
