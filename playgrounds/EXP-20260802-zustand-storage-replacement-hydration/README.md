@@ -2,7 +2,7 @@
 
 ## State
 
-`running`
+`REPAIR EXECUTED — fresh exact-head repository gate pending`
 
 Owner: `chatgpt:gpt-5.6-thinking`  
 Created: `2026-08-02`  
@@ -11,98 +11,91 @@ Public upstream contact authorized: `no`
 
 ## Bounded question
 
-Can an asynchronous hydration that began against one Zustand persist storage backend still apply old data, or write migrated old data, after `persist.setOptions({ storage: replacement })` transfers storage ownership?
+Can asynchronous hydration that began against one Zustand persist storage backend still apply old data, or write migrated old data, after `persist.setOptions({ storage: replacement })` transfers storage ownership?
 
 ## Exact subject
 
-- target: `pmndrs/zustand`;
-- pinned public source: `beca84e600e4e250f6b244d22878e72948f331c7`;
-- clean fork base: `teamleaderleo/zustand:base/upstream-20260801`;
-- characterization PR/head: `teamleaderleo/zustand#6` at `c4b24708bc4258e9f531ab3242b6f89c40c1c75f`;
-- candidate PR/head: `teamleaderleo/zustand#7` at `4869662812291fec9ef42529ca64db00d0710ed5`.
+- pinned public and fork base: `beca84e600e4e250f6b244d22878e72948f331c7`;
+- characterization: `teamleaderleo/zustand#6@c4b24708bc4258e9f531ab3242b6f89c40c1c75f`;
+- current candidate: `teamleaderleo/zustand#7@665e0399ee5dc3e877f4cbd431a326eac56f42db`;
+- exact execution carrier: `teamleaderleo/zustand#8@a9e77b3f38448440b1d4d65b227fd30397bfb445`;
+- exact source fence: one production file and one focused target-native test.
 
-## Source model
+## Source result
 
-`hydrate()` captures authority with `currentVersion = ++hydrationVersion` and binds the current storage's `getItem`. The later migration write calls the shared `setItem()`, which reads the mutable `storage` variable at settlement time.
+`hydrate()` captures one generation and binds the initiating storage read. A later asynchronous migration writes through the shared `setItem()`, which uses the mutable current storage reference.
 
-`setOptions()` updates `options`, then replaces `storage` without advancing `hydrationVersion`.
+Before the candidate, `setOptions()` could replace that storage reference without advancing hydration authority. Old work could therefore:
 
-Consequences predicted by the source:
+- merge data read from the previous backend into live state;
+- finish an old migration and write that old data into the newly selected backend;
+- publish stale hydration completion signals.
 
-1. a delayed value read from the old backend may still merge into live state after replacement;
-2. a delayed migration of old-backend data may call `setItem()` after replacement and write the migrated old state into the new backend;
-3. a later explicit rehydrate reads the replacement backend normally.
+The migration case crosses backend ownership rather than producing only stale visible state.
 
-The second consequence is a cross-backend ownership error, not merely a stale UI update.
+## Candidate direction
 
-## Characterization
-
-Target-native test: `tests/persistStorageReplacementHydrationOrdering.test.ts`.
-
-Cases:
-
-1. delayed old-backend read applies after replacement;
-2. delayed old-backend migration writes into replacement backend;
-3. later rehydrate uses replacement backend.
-
-The characterization branch changes no production source.
-
-## Candidate
-
-The candidate advances the existing hydration generation immediately before transferring the storage reference:
+A genuine storage-object replacement advances the existing hydration generation immediately before transferring the shared storage reference:
 
 ```ts
-if (newOptions.storage) {
+if (newOptions.storage && newOptions.storage !== storage) {
   hydrationVersion += 1
   storage = newOptions.storage
 }
 ```
 
-Exact candidate diff:
+This reuses the generation checks already guarding state application, migrated writes, post-rehydration callbacks, `hasHydrated()`, finish listeners, and error delivery.
 
-- `src/middleware/persist.ts` — one addition;
-- `tests/persistStorageReplacementHydrationGeneration.test.ts` — 133 additions.
+The operation does not automatically hydrate from the replacement backend. A later explicit `rehydrate()` establishes a new generation and uses the replacement storage normally.
 
-The candidate blocks old read publication and old migration writes while allowing a later rehydrate to use the replacement backend.
+## Review finding and repair
 
-## Exclusions
+The previous candidate checked only `if (newOptions.storage)`. That invalidated hydration whenever the caller included a truthy storage value, even when it was the exact currently active storage object.
 
-- `clearStorage()` ordering is a separate experiment;
-- changing non-storage options during hydration is not repaired here;
-- ordinary asynchronous write settlement ordering is not addressed;
-- no automatic rehydrate is triggered by storage replacement;
-- no public API or storage format change is proposed.
+Reapplying the same object was previously a no-op assignment. Treating it as ownership transfer introduced an avoidable compatibility change: an in-flight hydration could be cancelled even though no backend changed.
 
-## Prior-art and ownership check
+The current candidate narrows invalidation to object-identity replacement and adds a reversing control proving that reapplying the identical storage object preserves:
 
-Searches on `2026-08-02` found no equivalent current Zustand issue, pull request, or Fieldwork lane using the searched storage-replacement and hydration-race terms. Differently worded or unindexed work may exist; repeat before promotion.
+- state publication;
+- `hasHydrated() === true`;
+- one post-rehydration callback;
+- one finish-hydration event.
 
-The merged concurrent-`rehydrate()` generation repair is direct adjacent prior art. This experiment extends the same authority model to storage ownership transfer.
+## Preserved controls
 
-## Execution
+The focused test also requires:
 
-Both fork-local PRs triggered the repository workflow set at their exact heads. At the time this record was created, all workflows were queued.
+1. delayed old-backend read suppression after actual replacement;
+2. old migration suppression before it can write through replacement storage;
+3. stale completion callback and listener suppression;
+4. `hasHydrated() === false` for the invalidated generation;
+5. replacement alone does not read the new backend;
+6. later replacement-backed hydration publishes state and completion exactly once.
 
-Characterization run IDs:
+## Execution boundary
 
-- Test `30753546797`;
-- Test Multiple Versions `30753546839`;
-- Test Old TypeScript `30753546780`;
-- Test Multiple Builds `30753546808`;
-- Compressed Size `30753546811`;
-- Preview Release `30753546824`.
+Prior carrier workflow `30836583456`, job `91763113716`, passed the earlier head `9b492ea...`. That receipt is provenance only because source and tests moved during review.
 
-Candidate run IDs:
+The reopened carrier now checks exact head `665e039...` through:
 
-- Test `30753554588`;
-- Test Multiple Versions `30753554584`;
-- Test Old TypeScript `30753554616`;
-- Test Multiple Builds `30753554615`;
-- Compressed Size `30753554603`;
-- Preview Release `30753554593`.
+- exact public-base and two-file fence verification;
+- repository format;
+- repository types;
+- repository lint;
+- complete repository specs;
+- final exact-head identity, diff hygiene, and clean tree.
 
-No target-executed result is claimed until the primary Test jobs and final conclusions are inspected.
+Current exact carrier run: `30848819804`, queued at this update. Ordinary compatibility workflows are also queued. No pass is claimed for the repaired head until those jobs settle.
 
-## Stop condition
+## Exclusions and stop condition
 
-Stop after the three characterization cases and three candidate cases execute and the source boundary is reviewed. Do not widen into all runtime option mutation or general persistence serialization without a separate bounded experiment.
+Excluded:
+
+- `clearStorage()` ordering, which is owned by the separate completed experiment;
+- changing non-storage options during hydration;
+- ordinary asynchronous write settlement;
+- automatic hydration on storage replacement;
+- public API or storage-format changes;
+- public upstream interaction.
+
+Stop after the exact repaired head passes the complete repository gate and the final two-file diff is reviewed unchanged. Repeat public-main, overlap, and contribution-policy checks immediately before any authorized filing.
