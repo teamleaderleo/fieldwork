@@ -1,23 +1,25 @@
-# Upstream pull-request inputs — Unit 02
+# Pull-request draft — Unit 02
 
-Status: `READY FOR HUMAN LAST-MILE REVIEW AND REWRITE`  
-Proposed source: `teamleaderleo/uv:upstream/02-busybox-realpath` at `17fb4489a71cc63a59b90ecc52b08f703ca0d0e8`  
-Base: `astral-sh/uv:main` at `79bbface771210df216b738e9bdc7df95e5a9e6b`  
+Status: `READY FOR HUMAN REVIEW; CURRENT-MAIN CI QUEUED`  
 Public interaction authorized: `no`
 
-## Suggested title
+## Proposed title
 
 `fix: make relocatable launchers compatible with BusyBox realpath`
 
-## Suggested human-authored body input
+## Draft body
 
 ### Summary
 
-BusyBox `realpath` treats `--` as a pathname, so uv's relocatable launchers and activation scripts can succeed while emitting a misleading `realpath: --: No such file or directory` line on Alpine.
+BusyBox `realpath` treats `--` as a pathname. As a result, uv-generated relocatable launchers and activation scripts can complete successfully on Alpine while emitting:
 
-This change removes `--` only from generated `realpath` calls. It keeps `dirname --`, quoting, and `realpath` canonicalization intact, so externally symlinked relocatable entrypoints continue to resolve their original environment.
+```text
+realpath: --: No such file or directory
+```
 
-Project-run now recognizes corrected and historical relocatable shebangs for both `python` and `python3`, allowing launchers generated before this change to keep working when copied into an overlay environment.
+This change removes `--` only from generated `realpath` calls. It preserves `dirname --`, quoting, and `realpath` canonicalization, so externally symlinked relocatable entrypoints continue to resolve the environment that owns the launcher.
+
+The generated text is also consumed later by `uv run` when an entrypoint is copied into an overlay environment. That recognizer now accepts corrected and historical relocatable shebangs for both `python` and `python3`, so launchers created before this change remain copyable after an upgrade.
 
 Closes #16209.
 
@@ -33,14 +35,20 @@ Closes #16209.
 - Bash activation probes on GNU, Alpine/BusyBox, and macOS
 - Fish activation probes on GNU, Alpine/BusyBox, and macOS
 
-The BusyBox baseline reproduced the diagnostic. The candidate retained successful interpreter/environment resolution with clean stderr. GNU and macOS remained clean.
+The BusyBox baseline reproduced the diagnostic. The candidate preserved successful interpreter and environment resolution with empty stderr. GNU and macOS remained clean.
 
-## Exact source
+## Current exact source
 
-- Head: `17fb4489a71cc63a59b90ecc52b08f703ca0d0e8`
-- Previous byte-identical head: `047b724212905c034c15d4f4f6f9ef330bbd2daf`
-- Tree: `e0832686bd982b5c15f6e9bdd6d6631d30ec24cf`
+- Canonical base: `92b7185783b56e8ad1dbe0bb7600432708f2c9fb`
+- Clean head: `53a4bd1f7d715f57aed33bd1453954a14bb327e6`
+- Tree: `9c6099ab9e6489377775d710b48855aae02079c3`
+- Branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
+- Relationship: one commit ahead, zero behind
 - Diff: four files, 89 insertions, 15 deletions
+- Internal current-context PR: `teamleaderleo/uv#29`
+- Current-context CI: `30844806321` — queued at last check
+
+The four source blobs are unchanged from the previously executed cross-platform candidate. The canonical repository advanced by 12 commits, but none touched these four paths; the clean branch was rebuilt with the validated blobs on top of the new canonical tree.
 
 Changed files:
 
@@ -49,27 +57,19 @@ Changed files:
 - `crates/uv/src/commands/project/run.rs`
 - `crates/uv/tests/python/venv.rs`
 
-## Why this is worth upstream attention
-
-- The public issue remains open and has a recent report against the official Alpine image.
-- The failure pollutes stderr on a successful command, which confuses logs and strict automation.
-- The fix changes one unsupported delimiter rather than redesigning launchers.
-- All known generated owners and the matching consumer move together.
-- Historical launchers remain recognized after upgrades.
-- Exact Linux, BusyBox, macOS, Bash, and Fish evidence exists.
-
 ## Reviewer questions
 
-1. Are four explicit migration strings preferred over a broader helper or parser?
+1. Are four explicit migration strings preferable to a broader generated-shebang parser?
 2. Is the private `copy_entrypoint` regression test the preferred placement?
-3. Has current main introduced an equivalent fix or changed the generated fragments?
+3. Does the project prefer an issue comment before the pull request, despite the existing complete report?
 
-## Human last-mile checklist
+## Human gates
 
-- Refresh current upstream head and overlap immediately before submission.
-- Read every changed line in the exact four-file diff.
-- Confirm contribution and AI-assistance policy compliance.
-- Rewrite the public body in the human author's own voice.
-- Explicitly authorize the public pull request action.
+- Wait for or classify the exact current-context CI run.
+- Refresh upstream issue and pull-request overlap immediately before submission.
+- Read the exact four-file diff.
+- Verify Astral's current contribution and AI-assistance policies.
+- Rewrite or approve the public wording in the human author's own voice.
+- Explicitly authorize the upstream pull-request action.
 
 No public upstream interaction occurred.
