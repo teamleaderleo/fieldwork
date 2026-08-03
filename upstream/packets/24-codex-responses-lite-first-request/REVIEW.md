@@ -1,35 +1,30 @@
-# Review — unit 24 Responses Lite first request after prewarm
+# Review — Unit 24 Responses Lite first request after prewarm
 
 ## Review subject
 
 - Work class: `upstream-fork research`
 - Target project: `openai/codex`
-- Exact public-source parent: `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`
-- Exact candidate head: `9fd4ba575de8dd77bc411362256591ce9e7d8c82`
-- Canonical source branch: `teamleaderleo/codex:fix/responses-lite-first-request`
-- Canonical draft PR: `teamleaderleo/codex#130`
+- Exact source parent: `e4e0c7070e53cf9535fd0083d8fb840b6cd410cf`
+- Exact candidate head: `abf61e5fb8505181e071674ce224faff17e79d77`
+- Canonical source branch: `teamleaderleo/codex:fix/responses-lite-first-request-e4e0c70`
+- Owned-fork draft PR: `teamleaderleo/codex#143`
 - Compare: one commit, exactly three files, `+301/-1`
+- Public route: `ISSUE FIRST`
 - Upstream-contact authority: `none`
 
-## Complete changed-file fence
+## Changed-file fence
 
 1. `codex-rs/core/src/client.rs`
 2. `codex-rs/core/tests/suite/agent_websocket.rs`
 3. `codex-rs/core/tests/suite/client_websockets.rs`
 
-No workflow, publisher, Fieldwork, manifest, lock, generated, snapshot, planner, or tool-registration file appears in the source diff.
+No workflow, Fieldwork, manifest, lock, dependency, generated, snapshot, planner, or tool-registration file appears in the source diff.
 
 ## Complete-diff reviews
 
-### Self-review
+### Historical independent review
 
-Review `4834209535` is attached to `teamleaderleo/codex#130` and pinned to exact head `9fd4ba575de8dd77bc411362256591ce9e7d8c82`.
-
-Result: no source blocker found.
-
-### Independent review boundary
-
-Review `4834383404` independently read the complete one-commit, three-file diff and surrounding response-chain implementation.
+Review `4834383404` independently read the complete predecessor diff and surrounding response-chain implementation.
 
 Result:
 
@@ -37,79 +32,104 @@ Result:
 ACCEPT — subject to exact-head execution
 ```
 
-The review found no source, test, compatibility, or packaging defect inside the unit boundary. It required a repaired immutable-source execution receipt because an earlier target carrier failed before running source code.
+That predecessor received a green immutable-head execution receipt in run `30691514386`, job `91346961426`.
 
-That condition is satisfied by Fieldwork run `30691514386`, job `91346961426`, which checked out exact source `9fd4ba...` and passed the source fence, formatting, both exact client controls, the full-agent discriminator, and clean-worktree verification.
+### Current exact-head review
 
-## Review findings
+Review `4848205363` is attached to `teamleaderleo/codex#143` and pinned to current source `abf61e5fb8505181e071674ce224faff17e79d77`.
 
-- The predicate is limited to the first non-warmup Responses Lite request after an untraced warmup response.
-- Clearing `last_response_rx` prevents the setup response ID from becoming the generated-turn predecessor and leaves serialization to the established full-request path.
-- Existing post-generation assignment resets warmup provenance and lets later generated responses participate in ordinary incremental continuation.
-- Existing reconnect logic clears every relevant response-chain field.
-- The client and full-agent controls cover complete first generation, post-generation continuation, and failed-first full retry.
-- Generic non-Lite warmup compression remains unchanged.
-- No alternate field was found that can reintroduce the discarded warmup response ID after the guarded branch.
+Findings:
 
-## Public prior-art review
+- the production predicate is limited to the first non-warmup Responses Lite request after untraced startup prewarm;
+- clearing the retained response receiver prevents the setup response ID from becoming generated-turn ancestry;
+- serialization remains owned by the existing full-request path;
+- existing post-generation assignment makes the first generated response the later incremental baseline;
+- reconnect cleanup and generic non-Lite warmup behavior remain unchanged;
+- the three controls cover complete first generation, generated-response continuation, and failed-first complete retry;
+- no source, scope, compatibility, or packaging blocker was found.
 
-Merged `openai/codex#23581` intentionally retains generic compressed wire reuse after untraced warmup while recording the complete logical request for rollout replay. Earlier `#22825` and `#23278` address unresolved or omitted untraced warmup parents in trace/replay.
+Current immutable-head execution is the remaining acceptance condition.
 
-Merged `openai/codex#27946` moves Responses Lite tools and instructions into input items, making the complete input sequence the Lite request identity.
+## Exact blob-equivalence control
 
-The candidate is compatible with both decisions: it changes wire chaining only for Responses Lite and only at the warmup-to-first-generation transition.
+The current source was compared against the previously green exact head `9fd4ba575de8dd77bc411362256591ce9e7d8c82`.
 
-Searches covered `Responses Lite`, WebSocket prewarm, `previous_response_id`, all three test names, and current open/closed Codex issues and pull requests. No equivalent public implementation was found.
+All three complete file blobs are identical:
 
-## Current-source staleness review
+| File | Git blob SHA |
+| --- | --- |
+| `codex-rs/core/src/client.rs` | `157fb71748d3293bca4fe6983c4f50d98ded58b4` |
+| `codex-rs/core/tests/suite/agent_websocket.rs` | `3e39cdd92e921352dcaa4c9667d4cd4861ee4556` |
+| `codex-rs/core/tests/suite/client_websockets.rs` | `8ceb0f571971b26f0bdc8bfc04921e7e55db6a55` |
 
-The candidate parent is `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`. Public `openai/codex:main` was refreshed through `3e3d82d674d8a263cf2c33684f6a04beb9dcf8d7`, six commits later.
+This proves that the current restack did not merely reproduce a similar patch; it contains the exact production and test file contents that passed the historical immutable-head lane.
 
-Those commits do not modify any of the three unit files. The one-commit candidate remains isolated from inspected public drift.
+The packet still distinguishes that strong predecessor evidence from a fresh current-commit integration receipt.
 
-## Exact execution review
+## Current public drift
 
-Execution PR: `teamleaderleo/fieldwork#459`  
-Run: `30691514386`  
-Job: `91346961426`  
-Conclusion: `success`
+The source is a direct child of `e4e0c707...`. During final review, public main advanced one commit to `3149fa4b992a49356d720bbca6f59c2ad4f963a9`.
 
-Successful source-specific steps:
+That commit changes Git process-tree containment, Git utility dependencies, PTY Job Object handling, and their tests. It does not touch any Unit 24 file or the adjacent Responses WebSocket path.
 
-- immutable source checkout and exact three-file fence;
-- target setup and pinned Rust toolchain;
-- repository formatting;
-- both exact client controls;
-- exact full-agent request control and stack discriminator;
-- clean worktree and `git diff --check`.
+The exact source therefore remains mechanically isolated through the latest inspected public head. A filing-time rebase remains required because Codex main is fast-moving.
 
-## Repository-wide result review
+## Duplicate and prior-art review
 
-The current source matrix passed v8-canary, formatting, cargo-deny, codespell, blob-size policy, changed-area detection, and cargo-shear.
+Filing-time issue and PR searches on `2026-08-04` covered:
 
-Its manifest check fails on `codex-rs/code-mode/Cargo.toml`, outside the unit. SDK/Bazel/macOS/Windows failures and cancellations identify no source-attributable change in the three-file fence. A separate broad `just test -p codex-core` job also fails after the exact source controls pass; the available receipt exposes no unit-specific failing assertion. The packet records these repository-health results without turning missing diagnostics into a source claim.
+- `Responses Lite prewarm first generated previous_response_id`;
+- `generate=false warmup response parent websocket`;
+- the exact test names and relevant state fields.
 
-Supplementary base/candidate controls remain retained for repository-health follow-up. Runner allocation and unrelated broad-suite health do not reverse the completed exact execution and review result for this unit.
+No equivalent issue or implementation was found.
 
-## Source cleanliness checklist
+Related public work remains non-equivalent:
 
-- [x] Direct one-commit child of the exact inspected public-source parent.
+- generic untraced-warmup tracing preserves compressed wire continuation while recording the logical request;
+- Responses Lite represents tools and instructions inside input items;
+- adjacent public reports concern provider capabilities, request validation, full-context fallback, and error reporting rather than the first-generation prewarm ancestry contract.
+
+## Execution review
+
+### Historical exact execution
+
+- run: `30691514386`
+- job: `91346961426`
+- exact predecessor source: `9fd4ba575de8dd77bc411362256591ce9e7d8c82`
+- result: source fence, formatting, exact controls, full-agent request shape, and clean worktree passed.
+
+### Current exact execution
+
+Lightweight carrier `teamleaderleo/smolrunner#286` tests immutable current source `abf61e5...`:
+
+- run: `30849910237`
+- job: `91807127950`
+- status at packet update: queued for hosted-runner allocation.
+
+The first current-head attempt stopped before tests because its workflow invoked Cargo from the repository root rather than `codex-rs/`. That harness error was corrected and is not treated as a source failure.
+
+## Source-cleanliness checklist
+
+- [x] Direct one-commit child of the exact inspected source parent.
 - [x] Exactly three intended source/test files.
-- [x] No Fieldwork-only machinery in the source diff.
+- [x] No execution machinery in the source diff.
 - [x] No generated or dependency churn.
-- [x] Complete diff read at exact head.
-- [x] Relevant generic warmup and Lite request-form prior art reviewed.
+- [x] Complete diff read at exact current head.
+- [x] Current source blobs proven identical to the green predecessor.
+- [x] Generic warmup and Lite request-form prior art reviewed.
 - [x] Duplicate search refreshed.
-- [x] Complete-diff self-review recorded.
-- [x] Independent complete-diff acceptance recorded.
-- [x] Independent review’s exact-head execution condition satisfied.
-- [x] Exact source fence, formatting, behavior, and clean-worktree receipt complete.
-- [x] Broad repository failures classified outside the unit claim.
+- [x] Current exact-head complete-diff review recorded.
+- [x] Public route aligned with issue-first/invitation-only contribution guidance.
+- [ ] Corrected current-commit immutable execution completes.
+- [ ] Execution receipt transferred and disposable carrier closed.
+- [ ] Filing-time rebase and duplicate search refreshed immediately before public action.
+- [ ] Explicit public-filing authorization recorded.
 
 ## Reviewer disposition
 
-`READY`
+`ISSUE FIRST — TECHNICALLY REVIEWABLE; CURRENT INTEGRATION RECEIPT QUEUED`
 
-The source-specific acceptance claim is supported by the exact current head, complete independent review, green exact behavior, formatting and cleanliness, and an unchanged public-file fence. Public filing remains a separate authority decision.
+The issue question, current clean source, identical tested blobs, and complete-diff review are ready for human evaluation. The package does not claim a fresh current-commit green run until the queued lane actually completes.
 
 Public upstream interaction: `none`.
