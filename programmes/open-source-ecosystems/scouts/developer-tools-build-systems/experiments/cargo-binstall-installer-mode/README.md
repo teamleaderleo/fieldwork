@@ -1,42 +1,66 @@
 # cargo-binstall installer executable-mode experiment
 
-State: `execution queued`
+State: `confirmed — bounded repair direction retained`
 
 Parent scout: `#561`  
 Exact target: `cargo-bins/cargo-binstall@f3284c9c2dd42d52f4437bf415a5712669699999`  
 Public upstream issue: `cargo-bins/cargo-binstall#2520`  
+Executed Fieldwork head: `f1afb7a14d40f35c5ba3f1d4eff5213bcab38a7a`  
+Workflow run: `30794557938` — success  
+Job: `91625089482` — success  
+Artifact: `8848325651`, 461 bytes  
+Artifact SHA-256: `bd37b970b9f0acb87f75cd305a9d8d82ddc9a0cdd986170b24868c9761c1c294`  
 Upstream contact authorized: `false`
 
 ## In simple words
 
-The official Unix installer extracts a downloaded `cargo-binstall` launcher and immediately executes it. This experiment asks what happens when the archive contains the correct bytes but the extracted file is not executable.
+The official Unix installer extracts a downloaded `cargo-binstall` launcher and immediately executes it. When the archive supplied the correct launcher bytes at mode `0644`, the current installer could not execute either launch attempt. Adding only the owner execute bit made the same launcher usable without widening group or other permissions.
 
 ## Claim boundary
 
-This is a fork-free installer-contract experiment. It does not claim that current official release archives have bad modes. It tests whether the installer has its own bounded recovery when extraction produces mode `0644`.
+This is a fork-free installer-contract experiment. It does not claim that current official release archives have bad modes. It proves that the installer has no independent recovery when extraction produces mode `0644`.
 
-## Exact matrix
+Evidence class: `target-executed-installer-fixture`.
 
-The probe executes the unmodified installer with local fake Linux release archives:
+## Exact matrix and result
 
-1. launcher mode `0755` — healthy control;
-2. launcher mode `0644` — losing control;
-3. launcher mode `0644` after inserting `chmod u+x ./cargo-binstall` immediately before the existing launch site;
-4. launcher mode `0755` with the same narrow repair — compatibility control.
+The probe executed the unmodified target installer with local fake Linux release archives:
 
-The fake launcher records its received arguments and its mode at execution. The fake network command only supplies the local archive bytes. The target installer script, archive extraction command, temporary-directory behavior, launch expression, fallback expression, and path handling remain real.
+1. current installer + launcher mode `0755` — passed; launcher received `--self-install` and observed mode `755`;
+2. current installer + launcher mode `0644` — failed twice with `Permission denied`, exit status `126`, and no launcher receipt;
+3. installer with `chmod u+x ./cargo-binstall` + launcher mode `0644` — passed; launcher received `--self-install` and observed mode `744`;
+4. the same narrow repair + launcher mode `0755` — passed and remained mode `755`.
 
-## Acceptance criteria
+The final workflow receipt was:
 
-- exact target head is asserted before execution;
-- the `0755` control executes `--self-install` successfully;
-- the current installer cannot execute the `0644` launcher and produces no launcher receipt;
-- the narrow repair changes `0644` to `0744`, not `0755` or another widened mode;
-- the repair leaves an existing `0755` launcher at `0755`;
-- no external repository is modified or contacted beyond read-only source checkout.
+```text
+RESULT current-0755=pass current-0644=permission-failure patched-0644=pass-mode-744 patched-0755=pass-mode-755
+```
 
-## Decision rule
+The fake launcher recorded its arguments and its mode at execution. The fake network command only supplied local archive bytes. The target installer script, tar extraction, temporary-directory behavior, launch expression, fallback expression, and path handling were real.
 
-If the matrix passes as predicted, retain `chmod u+x` as the smallest demonstrated repair direction. That does not yet prove it is the maintainers' preferred policy; a later source candidate must also compare explicit malformed-artifact rejection and verify macOS zip extraction behavior.
+## Selected direction
 
-If `0644` already executes or another step repairs the mode implicitly, stop the candidate as not reproduced.
+Retain `chmod u+x ./cargo-binstall` immediately before the existing launch expression as the smallest demonstrated repair direction.
+
+Why it currently wins:
+
+- it repairs exactly the missing authority required by the next operation;
+- it converts `0644` to `0744`, not `0755`;
+- it leaves an existing `0755` launcher unchanged;
+- it does not change download selection, archive extraction, self-install arguments, fallback behavior, or destination permissions.
+
+This is not yet a submission-shaped source candidate. A later target branch should compare explicit malformed-artifact rejection, execute the macOS zip path, and run the repository's normal install-script matrix.
+
+## Remaining limits
+
+- The experiment used Linux tar extraction on Ubuntu 24.04.
+- It did not execute the macOS zip path or Windows installers.
+- It did not prove that an official cargo-binstall release archive currently ships or extracts with mode `0644`.
+- It did not select whether maintainers prefer normalization or rejection as project policy.
+
+## Disposition
+
+`PROMOTE — one bounded source-and-test candidate is justified.`
+
+No public issue, pull request, comment, review, reaction, branch, or message was created or modified in the target repository.
