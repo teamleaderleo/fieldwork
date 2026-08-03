@@ -2,15 +2,15 @@
 
 ## Current disposition
 
-`MATERIALIZE / HOLD`
+`MATERIALIZE: COMPLETE / OWNED-FORK REVIEW: COMPLETE / PUBLIC DELIVERY: HOLD`
 
-The bounded source change is proven on prior exact public pins and is being reconciled onto current public Codex `670f69416bf91c5dfd8b58669e78050b584ff053`. Public submission remains held because `openai/codex` accepts external code contributions by invitation and no invitation or public-contact authorization exists.
+The bounded source change is materialized and reviewed on current public Codex base `670f69416bf91c5dfd8b58669e78050b584ff053`. The only remaining hold is public-process authorization: `openai/codex` accepts external code contributions by invitation, and no invitation or public-contact authorization exists.
 
 ## Scope
 
 Return the authoritative rollout append acknowledgement from `Session::record_conversation_items` while preserving current behavior for callers that ignore the return value.
 
-Exact intended source fence:
+Exact source fence:
 
 - `codex-rs/core/src/session/mod.rs`
 - `codex-rs/core/src/session/turn_tests.rs`
@@ -25,38 +25,56 @@ Behavior matrix:
 | pre-write failure | `false` | absent |
 | commit-then-error acknowledgement loss | `false` | present |
 
-The boolean exposes acknowledgement only. It does not distinguish definite absence from ambiguous commit/acknowledgement loss and authorizes no retry, duplicate reconciliation, compaction decision, replay, or remote-effect settlement.
+The boolean is acknowledgement only. `false` intentionally combines definite pre-write failure with ambiguous commit/acknowledgement loss and therefore authorizes no retry, duplicate reconciliation, replay, compaction decision, or remote-effect settlement.
 
-## Current branches and execution
+## Current source and review
 
-- Packet branch: `teamleaderleo/fieldwork:p0/435-unit-23-codex-append-acknowledgement`
-- Packet base: `920f87cb25dd0cc7901d59ea2019cd4b4a193b94`
-- Clean target source branch: `teamleaderleo/codex:fix/session-durable-append-acknowledgement`
-- Current public source base: `openai/codex@670f69416bf91c5dfd8b58669e78050b584ff053`
-- Current execution carrier: `teamleaderleo/codex#132@4bd35b35dee5649c6ba5af4c3535af2081c58bfc`
-- Current materialization run: `30674601315`
-- Direct-transplant diagnostic: `teamleaderleo/codex#131`; GitHub reports a conflict in `session/mod.rs`.
+- Public base and direct parent: `670f69416bf91c5dfd8b58669e78050b584ff053`
+- Clean source branch: `teamleaderleo/codex:fix/session-durable-append-acknowledgement`
+- Clean source head: `16cb14688dac752a5a13c180e94355b199f240a7`
+- Source review PR: `teamleaderleo/codex#136`
+- Review submission: `4841949952`
+- Source shape: one commit, three files, 190 additions, 7 deletions
+- Merge state in the owned mirror: clean and mergeable
 
-The clean source branch currently points at the exact public base. Carrier #132 publishes one direct-child source commit only after formatting, four exact controls, and the complete thread-store package pass.
+All four production call sites currently discard the new result. That is the explicit unit boundary: unit 23 exposes the seam but does not change caller policy.
+
+## Validation receipt
+
+Semantic materializer:
+
+- Carrier PR: `teamleaderleo/codex#132`
+- Carrier head: `4bd35b35dee5649c6ba5af4c3535af2081c58bfc`
+- Workflow run: `30674601315`
+- Job: `91299123673`
+- Generated and tested source head: `06971a3a2b95d70a809472bfbd6fe7884063a563`
+- Exact append controls: `4/4`
+- Full `codex-thread-store` package: `163 passed; 0 failed`
+- Formatting: passed
+
+The source branch was later rewritten to `16cb1468...` from the same parent. The tested and current heads contain identical blobs for all three changed files:
+
+- `session/mod.rs`: `6a35b541245007424fd8f268a408225e9e262009`
+- `turn_tests.rs`: `cd78a86704d6fe152fde0b522c8f8bc2927c36c5`
+- `in_memory.rs`: `bbf69a3c7fb85076eaf0ebcd1d5799433caae9a4`
+
+Current-head owned CI also passed v8-canary, formatting, cargo-deny, codespell, cargo-shear, changed-area detection, and blob-size policy. `blocking-ci` fails outside this three-file fence at a stale `codex-rs/code-mode/Cargo.toml` manifest exception; downstream matrix jobs fail or cancel after that repository gate.
 
 ## Authoritative record chain
 
-1. Fieldwork campaign and selected prerequisite: `teamleaderleo/fieldwork#83`.
+1. Fieldwork campaign and prerequisite: `teamleaderleo/fieldwork#83`.
 2. Canonical finding and delivery record: `teamleaderleo/fieldwork#292` and `teamleaderleo/fieldwork#239`.
-3. Historical current-pin source: `teamleaderleo/codex#51@30a0a9b50da5fd2f7d58ee81315e0311e84e221e`; run `30550323542`; retired.
-4. Historical exact-pin carrier: `teamleaderleo/codex#52@324ddccba14b2b0934e2c56cc0cda7ca04a56e6d`; includes failed run `30560746088` and later exact-pin execution `30582576317`; retired.
-5. Selected source generation: `teamleaderleo/codex#84@d8299b7fdf3aaf7ebc46d2cac840828cf97fc2a2`, parent `a01a2d91461a57809e944de7758477b92617ab01`.
-6. Selected execution carrier: `teamleaderleo/codex#80@401c2e5e6a37730aae3e8da95591cc6f56655cfc`; run `30583967538`; success.
-7. Later direct-current source: `teamleaderleo/codex#97@926e0bc5a32b136f31b9eaae75e2de4abc20fa95`, parent `4642370542739d5dd080b0c87a9de06a6435d3db`.
-8. Later execution carrier: `teamleaderleo/codex#98@8161e9ee3423d78768263e8838bd6e4800178902`; run `30598744048`; success.
-9. Current direct-transplant diagnostic: `teamleaderleo/codex#131`; conflict against public `670f6941...`.
-10. Current semantic materializer: `teamleaderleo/codex#132@4bd35b35dee5649c6ba5af4c3535af2081c58bfc`; run `30674601315`.
+3. Historical source/carrier pairs: `teamleaderleo/codex#51/#52`, `#84/#80`, and `#97/#98`.
+4. Direct-transplant conflict diagnostic: `teamleaderleo/codex#131`.
+5. Current semantic materializer and exact execution receipt: `teamleaderleo/codex#132`, run `30674601315`, job `91299123673`.
+6. Current clean source review: `teamleaderleo/codex#136@16cb14688dac752a5a13c180e94355b199f240a7`.
+7. Packet review: `teamleaderleo/fieldwork#449`.
 
 ## Governance and contact
 
-Repository instructions read for this unit include root Fieldwork instructions, `START_HERE.md`, `CHARTER.md`, `CODE_FIRST.md`, `PLAIN_LANGUAGE.md`, `METHOD.md`, `REFERENCE_POLICY.md`, `PROGRAMMES.md`, `TARGET_HUBS.md`, `EXPERIMENTS.md`, `TESTBEDS.md`, `INTEGRATION_CONTEXT.md`, `COORDINATION.md`, `REVIEWING.md`, `BATCHES.md`, `upstream/README.md`, `upstream/INDEX.md`, and `upstream/packets/README.md`.
-
-Current public Codex instructions read at `670f6941...`: root `AGENTS.md`, `README.md`, and `docs/contributing.md`. There is no `codex-rs/core/AGENTS.md` at that revision.
+Repository and target instructions were read and applied, including Fieldwork coordination, reviewing, batching, upstream packet, and public-contact rules, plus Codex root `AGENTS.md`, `README.md`, and `docs/contributing.md` at the source base.
 
 Public upstream contact authorized: `false`.
 Public upstream interaction performed: `none`.
+
+Exact next action: preserve the owned source and packet until an OpenAI contribution invitation and explicit public-contact authorization both exist; then rebase/revalidate against the authorized delivery base before any public contact.
