@@ -1,0 +1,76 @@
+name: Fieldwork unit 18 native parent stdin Ubuntu 22
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-unit-18-native-stdin-ubuntu22.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  native-stdin-ubuntu22:
+    name: Native parent stdin on ubuntu-22.04
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: fieldwork
+          persist-credentials: false
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/playwright
+          ref: 1aed5929a40fca90d1edb12d939d814af1c515fc
+          fetch-depth: 0
+          path: playwright
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+      - name: Verify exact identities and fence
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=15b1aec478d90f0293dae7b7b6dafd494d9f0154
+          source=1aed5929a40fca90d1edb12d939d814af1c515fc
+          expected=$'packages/playwright-core/src/tools/utils/mcp/http.ts\npackages/playwright-core/src/tools/utils/mcp/server.ts\ntests/mcp/http.spec.ts'
+          test "$(git -C fieldwork rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git -C playwright rev-parse HEAD)" = "$source"
+          git -C playwright diff --check "$base" "$source"
+          test "$(git -C playwright diff --name-only "$base" "$source")" = "$expected"
+          mkdir -p fieldwork-receipts
+          git -C playwright diff --binary "$base" "$source" > fieldwork-receipts/unit-18-native-stdin-ubuntu-22.04.diff
+      - working-directory: playwright
+        run: npm ci
+      - working-directory: playwright
+        run: npm run build
+      - working-directory: playwright
+        run: npx playwright install --with-deps chromium
+      - name: Run complete native MCP HTTP file
+        shell: bash
+        working-directory: playwright
+        env:
+          CI: "1"
+        run: |
+          set -o pipefail
+          npm run test-mcp tests/mcp/http.spec.ts -- --project=chromium 2>&1 | tee ../fieldwork-receipts/unit-18-native-stdin-ubuntu-22.04-test.log
+      - name: Lint and verify
+        shell: bash
+        working-directory: playwright
+        run: |
+          set -euo pipefail
+          npx eslint packages/playwright-core/src/tools/utils/mcp/http.ts packages/playwright-core/src/tools/utils/mcp/server.ts tests/mcp/http.spec.ts
+          test -z "$(git status --short)"
+          test "$(git diff --name-only 15b1aec478d90f0293dae7b7b6dafd494d9f0154 1aed5929a40fca90d1edb12d939d814af1c515fc)" = $'packages/playwright-core/src/tools/utils/mcp/http.ts\npackages/playwright-core/src/tools/utils/mcp/server.ts\ntests/mcp/http.spec.ts'
+          printf '%s\n' 'source=1aed5929a40fca90d1edb12d939d814af1c515fc' 'platform=ubuntu-22.04' 'result=success' > ../fieldwork-receipts/unit-18-native-stdin-ubuntu-22.04-receipt.txt
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: playwright-unit-18-native-stdin-ubuntu-22.04-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
