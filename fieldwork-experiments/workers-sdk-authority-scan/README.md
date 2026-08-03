@@ -1,159 +1,144 @@
-# Workers SDK authority scan — 2026-08-01
+# Workers SDK cross-operation authority scan
 
-## Scope
+Current public source reviewed: `cloudflare/workers-sdk@20470fa8b09761c50b5c2c1d6a5f2652b61bd271`.
 
-Bounded current-head review of authority that survives or crosses operation boundaries in Cloudflare Workers SDK.
+Fieldwork review surface: #473.
 
-Original exact upstream revision:
+Public upstream contact authorized/performed: `false` / `false`.
 
-`95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d`
+## What this is
 
-Current public-head refresh:
+This is not one giant bug or one ready-to-send pull request.
 
-`20470fa8b09761c50b5c2c1d6a5f2652b61bd271`
+It is a cluster of related findings about **mutable process-wide state surviving longer than the operation that owns it** inside long-lived or embedded Workers SDK processes.
 
-The five-commit drift between those revisions does not touch the auth factory, Wrangler user adapter, account-cache implementation, deploy-helpers context, or their source paths listed below. Both source findings remain current at the refreshed head.
+The recurring pattern is:
 
-This pass stopped after confirming and recording two findings. It did not continue into broader scouting.
+1. operation A installs an account, credential profile, fetch function, prompt handler, Access credential, or log level;
+2. A awaits or remains alive;
+3. operation B replaces or removes that process-global state;
+4. A resumes using B's authority, or B inherits A's stale authority.
 
-## In simple words
+Ordinary one-command CLI use may never overlap this way. The risk is most relevant to embedded Wrangler, tests, programmatic APIs, dev sessions, concurrent commands, and other long-lived Node processes.
 
-Two places can keep using information that belongs to a different operation:
+All retained evidence uses public source and synthetic sentinel identities. No real credential, account, Access application, deployment, network target, or private data was used.
 
-1. Wrangler can keep an account selected under earlier credentials after the credentials change.
-2. Deploy helpers can switch a pending deployment to the fetch, logger, or prompt functions installed by a later operation.
+## Findings at a glance
 
-Both were reproduced using sentinel identities only. No real credentials, accounts, API requests, deployments, or upstream interactions were used.
+| Issue | Plain-English problem | Current evidence | Likely repair size |
+| --- | --- | --- | --- |
+| #471 | Wrangler can reuse an account selected under earlier credentials without validating it under the current credentials. | Source-confirmed; model-executed; current-head native baseline exists. | Medium; exact error classification remains. |
+| #472 | A pending deployment can switch to fetch/logger/prompt functions installed by a later operation. | Source-confirmed; model-executed; Linux/macOS native baseline passed, remaining checks need classification. | Medium-to-large migration to operation context. |
+| #496 | Active auth profile and temporary-account state are one mutable process-wide auth object. | Source-confirmed; model-executed; native overlap carrier exists. | Large foundational repair. |
+| #529 | Cloudflare Access headers are cached by domain and can outlive removed/rotated credentials; failed detection can become a permanent negative cache entry. | Source-confirmed; model-executed; baseline and a bounded stacked repair exist. | Small-to-medium; best near-term source candidate. |
+| #530 | A Wrangler dev session's log level mutates the singleton logger and survives failure/stop or crosses sessions. | Source-confirmed; model-executed. | Small-to-medium; existing `runWithLogLevel()` is direct precedent. |
 
-## Finding 1 — Cached account outlives credential identity
+Adjacent but separately owned: #466 covers Vite project environment values copied into `process.env` and later consumed by asynchronous remote-binding authentication.
 
-Canonical issue: #471
+## What is actually proven
 
-### Source path
+### Source behavior
 
-- `packages/workers-auth/src/core/factory.ts`
-- `packages/workers-auth/src/wrangler/index.ts`
-- `packages/wrangler/src/user/user.ts`
-- `packages/workers-utils/src/config-cache.ts`
+The reviewed source contains the process-wide state and read-after-await paths described by the five issues. The public-source refresh from the earlier pin did not alter the relevant source fences.
 
-### Source conclusion
+### Executed models
 
-The account cache filename is derived from the CLI and active profile. `getActiveAccountId()` checks config, account-ID environment, then cache. `getOrSelectAccountId()` returns that result without fetching the accounts available to the current credentials.
-
-A credential or compliance/API-environment change is not represented in the cache identity.
-
-### Executed model
-
-```text
-PASS: credential change reuses prior cached account without account lookup
-PASS: profile-only cache does not encode compliance or API environment
-```
-
-### Current-head target-native baseline carrier
-
-Owned fork PR: `teamleaderleo/workers-sdk#11`
-
-- branch: `fieldwork/471-account-cache-current-baseline`;
-- exact base: `20470fa8b09761c50b5c2c1d6a5f2652b61bd271`;
-- exact head: `d8b5b58841791144f43cd3051615fad1b70a43e5`;
-- changed path: `packages/wrangler/src/__tests__/account-cache-authority.test.ts`;
-- current state: current-head characterization committed; repository workflows require classification.
-
-The baseline writes cached account A, changes the active environment credential to sentinel credential B, installs account-authority handlers, and records that `getOrSelectAccountId({})` returns A without making a validation request.
-
-Older-base PR `teamleaderleo/workers-sdk#12` is closed as superseded and is not an admissible current-head receipt.
-
-### Current disposition
-
-**ACCEPT SOURCE FINDING / EXECUTE TARGET REPRODUCTION.**
-
-Treat cached account selection as a hint that must be validated under current authority. Do not persist raw or hashed credentials merely to key the cache.
-
-## Finding 2 — Deploy-helper context is process-global
-
-Canonical issue: #472
-
-### Source path
-
-- `packages/deploy-helpers/src/shared/context.ts`
-- `packages/deploy-helpers/src/index.ts`
-- `packages/deploy-helpers/src/deploy/deploy.ts`
-- `packages/wrangler/src/core/register-yargs-command.ts`
-- `packages/wrangler/src/api/deploy-helpers-context.ts`
-- `packages/wrangler/src/api/index.ts`
-
-### Source conclusion
-
-Deploy helpers export mutable live bindings for logger, four fetch helpers, and three interaction functions. Initialization replaces all of them globally.
-
-Deploy and trigger helpers are asynchronous and read those live bindings after awaited work. Another initializer can therefore replace the context observed by an already-running operation.
-
-### Executed model
-
-```text
-PASS: pending operation switches to later global fetch and logger context
-PASS: explicit operation context keeps fetch and logger ownership stable
-```
-
-### Current-head target-native baseline carrier
-
-Owned fork PR: `teamleaderleo/workers-sdk#8`
-
-- branch: `fieldwork/472-deploy-context-current-baseline`;
-- exact base: `20470fa8b09761c50b5c2c1d6a5f2652b61bd271`;
-- exact head: `cdda73d799ed41fbf89af6309b99c7507f65150d`;
-- changed path: `packages/deploy-helpers/tests/index.test.ts`;
-- current state: Linux and macOS package matrices succeeded; Windows and repository checks require classification.
-
-The baseline begins operation A, suspends it before reading the package's live context bindings, installs context B, then proves A resumes through B's fetch, logger, and confirmation handlers.
-
-Older-base PR `teamleaderleo/workers-sdk#13` is closed as superseded and is not an admissible current-head receipt.
-
-### Current disposition
-
-**ACCEPT SOURCE FINDING / EXECUTE TARGET REPRODUCTION.**
-
-The preferred direction is one immutable context per operation. Save-and-restore global state is not concurrency-safe.
-
-## Exact model command
-
-The committed model is identical to the executed content.
+The committed dependency-free models reproduce the ownership switches using sentinel values:
 
 ```sh
 node fieldwork-experiments/workers-sdk-authority-scan/account-cache-and-deploy-context.mjs
+node fieldwork-experiments/workers-sdk-authority-scan/auth-operation-scope.mjs
+node fieldwork-experiments/workers-sdk-authority-scan/access-cache-credential-lifetime.mjs
+node fieldwork-experiments/workers-sdk-authority-scan/dev-log-level-lifetime.mjs
+node fieldwork-experiments/workers-sdk-authority-scan/repair-comparisons.mjs
 ```
 
-## Required next execution
+Those models establish the mechanism and compare bounded repair directions. They are not a substitute for the repository's real package tests.
 
-### Account cache
+### Target-native carriers
 
-- classify exact workflows and run the focused package command for `teamleaderleo/workers-sdk#11`;
-- shared auth tests for token, global key/email, OAuth-to-env, profile, and compliance/API-environment changes;
-- Wrangler command and embedded API sequences in one process;
-- explicit account-ID precedence controls;
-- no-secret-retention assertions.
+- `teamleaderleo/workers-sdk#6` covers #471, #472, and #496 on the earlier exact base.
+- `teamleaderleo/workers-sdk#7` reproduces #529 Access-cache lifetime.
+- `teamleaderleo/workers-sdk#10` is a stacked bounded #529 repair.
+- `teamleaderleo/workers-sdk#11` is the current-head #471 account-cache baseline.
+- `teamleaderleo/workers-sdk#8` is the current-head #472 deploy-context baseline.
 
-### Deploy context
+No public Cloudflare issue, pull request, comment, review, reaction, or message was created.
 
-- classify exact Windows/check failures and run the focused package command for `teamleaderleo/workers-sdk#8`;
-- two concurrent mocked deploys with distinct fetch, API-base, logger, confirmation, prompt, and selection owners;
-- interruption during validation, assets, version upload, and trigger phases;
-- CLI/API/custom-consumer overlap;
-- failure, cancellation, nested calls, and detached-callback characterization.
+## What is not proven yet
 
-## Sensitive-handling boundary
+- No complete source repair has passed all target-native gates for #471, #472, #496, or #530.
+- #471 still needs a reliable distinction between “cached account is inaccessible under valid current credentials” and authentication, rate-limit, transport, server, or malformed-response failures.
+- #472 still needs broad phase coverage and compatibility characterization for old internal consumers.
+- #496 still needs detached-callback and long-lived-session coverage before an async-local bridge can be trusted.
+- #529's stacked repair still needs terminal before/after native receipts; interactive Access-cookie owner and expiry remain a separate slice.
+- #530 still needs to prove that long-lived event emitters, controllers, tunnels, and teardown callbacks retain the intended async log-level context.
+- No eligible independent complete-diff review has been submitted on #473 or the checked owned-fork carriers.
 
-The Linux Fieldwork `SECURITY_RECONVENE.md` rule was consulted because these findings involve credentials and request ownership. They remain in the ordinary workflow: all evidence is public-source, synthetic, disposable or owned, and contains no real secret, live target, unauthorized access, destructive action, persistence, or production-changing behavior.
+## Recommended triage
 
-Switch to a public-safe `RECONVENE` checkpoint and stop deepening the path if that boundary changes.
+### 1. Continue #529 first
 
-## Boundary
+This is the smallest consequential repair family:
 
-- #466 owns Vite project environment leakage.
-- #471 owns cached account authority.
-- #472 owns deploy helper fetch/logger/prompt ownership.
-- #190 owns the host-global Undici dispatcher.
-- #187 owns container registry client credentials.
-- #186 owns remote proxy-session identity.
+- construct service-token headers from the current environment on each call;
+- do not cache secret service-token headers by domain;
+- do not cache probe errors as permanent `false` results;
+- leave interactive cookie owner/expiry as an explicit follow-up.
 
-Public upstream contact remains unauthorized and was not performed.
+A bounded repair already exists on `teamleaderleo/workers-sdk#10`. Classify its exact CI and diff before creating anything else.
+
+### 2. Continue #530 second
+
+The codebase already has an async-local `runWithLogLevel()` mechanism. The main work is proving whether all long-lived dev callbacks remain inside that ownership context and adding explicit captures where they do not.
+
+### 3. Keep #471 active, but do not guess the API error rule
+
+The selected design treats the cached account as a hint and validates `GET /accounts/{account_id}` under current authority. Only a conclusively inaccessible account should enter normal account selection. Broad failures must propagate and leave the cache unchanged.
+
+If the API cannot provide a narrow reliable discriminator across credential types and environments, use authoritative membership from `fetchAllAccounts()` instead of treating every 403 as stale cache.
+
+### 4. Treat #472 and #496 as architecture work
+
+Both point toward operation-scoped context. They should not be “fixed” with save-and-restore globals because overlapping operations can finish out of order.
+
+- #472 needs one immutable `DeployHelpersContext` per operation, with forwarding adapters only as a migration bridge.
+- #496 needs one auth-operation record for profile and temporary-account authority, likely using `AsyncLocalStorage` as a compatibility bridge.
+
+These may eventually share command-dispatch infrastructure, but they own different state and should retain separate tests and decisions.
+
+## Review status — 2026-08-03
+
+Checked review submissions and inline threads on:
+
+- `teamleaderleo/fieldwork#473`;
+- `teamleaderleo/fieldwork#467`;
+- `teamleaderleo/workers-sdk#6`;
+- `teamleaderleo/workers-sdk#7`;
+- `teamleaderleo/workers-sdk#8`;
+- `teamleaderleo/workers-sdk#10`;
+- `teamleaderleo/workers-sdk#11`.
+
+No submitted pull-request reviews or inline review threads were present. Existing comments are author checkpoints and CI receipts, not independent technical acceptance.
+
+## Detailed write-ups
+
+- #471 repair comparison: [`repair-comparisons.md`](repair-comparisons.md)
+- #472 and #496 operation-context comparison: [`repair-comparisons.md`](repair-comparisons.md)
+- #496 auth ownership: [`auth-operation-scope.md`](auth-operation-scope.md)
+- #529 Access-cache lifetime: [`access-cache-credential-lifetime.md`](access-cache-credential-lifetime.md)
+- #530 dev log-level lifetime: [`dev-log-level-lifetime.md`](dev-log-level-lifetime.md)
+- Additional source pass: [`research-pass-2.md`](research-pass-2.md)
+
+## Decision boundary
+
+This branch is a research and routing record. It should not remain an undifferentiated queue indefinitely.
+
+The next useful decision is:
+
+1. classify and either accept, repair, or retire the existing #529 stacked repair;
+2. then decide whether #530 merits its own native source candidate;
+3. keep #471 in characterization until its exact error rule is settled;
+4. hold #472/#496 as broader context architecture unless target-native evidence justifies the migration cost.
+
+Public upstream interaction remains separately unauthorized.
