@@ -1,0 +1,47 @@
+name: Jujutsu AppleDouble head probe
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/jj-appledouble-heads-probe.yml'
+      - 'programmes/open-source-ecosystems/scouts/developer-tools-build-systems/experiments/jj-appledouble-heads/**'
+  push:
+    branches:
+      - scout/561-jj-appledouble-heads
+    paths:
+      - '.github/workflows/jj-appledouble-heads-probe.yml'
+      - 'programmes/open-source-ecosystems/scouts/developer-tools-build-systems/experiments/jj-appledouble-heads/**'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out Fieldwork experiment
+        uses: actions/checkout@v4
+
+      - name: Check out exact Jujutsu source
+        uses: actions/checkout@v4
+        with:
+          repository: jj-vcs/jj
+          ref: 3a650c3a68aadfa693b193ffb3176fd09b824c86
+          path: target/jj
+          persist-credentials: false
+
+      - name: Execute current and candidate target-native fixtures
+        run: |
+          chmod +x programmes/open-source-ecosystems/scouts/developer-tools-build-systems/experiments/jj-appledouble-heads/probe.sh
+          programmes/open-source-ecosystems/scouts/developer-tools-build-systems/experiments/jj-appledouble-heads/probe.sh target/jj \
+            | tee jj-appledouble-heads.result.txt
+
+      - name: Upload result receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jj-appledouble-heads-result
+          path: jj-appledouble-heads.result.txt
+          if-no-files-found: error
+          retention-days: 30
