@@ -32,13 +32,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          script=unit-18-materialize.sh
           sed -n '/^        run: |$/,$p' script-source/.github/workflows/fieldwork-unit-18-materialize-clean.yml \
             | tail -n +2 \
-            | sed 's/^          //' > /tmp/unit-18-materialize.sh
+            | sed 's/^          //' > "$script"
 
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('/tmp/unit-18-materialize.sh')
+          p = Path('unit-18-materialize.sh')
           text = p.read_text()
           replacements = [
               ("\"\"\"      });\n    let stderr = '';\n\"\"\"", "\"\"\"      });\n      let stderr = '';\n\"\"\""),
@@ -51,7 +52,7 @@ jobs:
           p.write_text(text)
           PY
 
-          (cd playwright && bash /tmp/unit-18-materialize.sh)
+          (cd playwright && bash ../"$script")
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
