@@ -7,29 +7,29 @@ fix(mcp): scope HTTP test shutdown to parent stdin
 ## Summary
 
 - remove the test-only `/killkillkill` HTTP shutdown route;
-- after HTTP mode is selected, translate the owning test parent's stdin EOF into the existing SIGINT cleanup path;
+- in HTTP test mode, translate the owning parent's stdin EOF into the existing `SIGINT` cleanup path;
 - leave MCP stdio input ownership unchanged;
-- replace the route-driven lifecycle test and add controls for production scope and immediate stdio startup.
+- replace the route-driven lifecycle test and add production-scope and stdio-startup controls.
 
 ## Background
 
-`/killkillkill` was introduced on September 19, 2025 by [microsoft/playwright#37484](https://github.com/microsoft/playwright/pull/37484) to let the HTTP and SSE lifecycle tests exercise graceful `SIGINT` cleanup on Windows. On that platform, `child.kill('SIGTERM')` terminates the process without running the graceful shutdown handlers. The endpoint was therefore a cross-platform test workaround, not a documented remote-administration feature.
+`/killkillkill` was introduced on September 19, 2025 by [microsoft/playwright#37484](https://github.com/microsoft/playwright/pull/37484). On Windows, `child.kill('SIGTERM')` terminates the process without running Playwright's graceful shutdown handlers, so the HTTP and SSE lifecycle tests needed another way to exercise the existing `SIGINT` cleanup path.
 
-The original route was an unauthenticated `GET` and shipped in [Playwright v1.56.0](https://github.com/microsoft/playwright/blob/v1.56.0/packages/playwright/src/mcp/sdk/http.ts). [microsoft/playwright#40551](https://github.com/microsoft/playwright/pull/40551) later changed it to `POST` plus `x-pw-mcp-kill: 1` to prevent browser-coerced cross-origin requests. The header is a fixed public value, so this hardening prevents that CSRF path but does not distinguish the spawning parent from another programmatic HTTP client.
+The route shipped in [Playwright v1.56.0](https://github.com/microsoft/playwright/blob/v1.56.0/packages/playwright/src/mcp/sdk/http.ts) as an unauthenticated `GET`. [microsoft/playwright#40551](https://github.com/microsoft/playwright/pull/40551) later changed it to `POST` plus `x-pw-mcp-kill: 1`. That reduces the CSRF risk, but the fixed public header doesn't authenticate the caller or prove that it owns the process.
 
-At the current base, the route appears in the [HTTP implementation](https://github.com/microsoft/playwright/blob/2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2/packages/playwright-core/src/tools/utils/mcp/http.ts) and is called by the [`http transport browser sigint` test](https://github.com/microsoft/playwright/blob/2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2/tests/mcp/http.spec.ts). I did not find a documented supported workflow that uses it for agent or server administration.
+At the current base, the route appears in the [HTTP implementation](https://github.com/microsoft/playwright/blob/2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2/packages/playwright-core/src/tools/utils/mcp/http.ts) and is called by the [`http transport browser sigint` test](https://github.com/microsoft/playwright/blob/2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2/tests/mcp/http.spec.ts). I couldn't find a documented workflow that uses it for agent or server administration.
 
-## Why
+## Change
 
-The HTTP route gives a programmatic network client process-shutdown authority that is only needed by the parent process that spawned the test server. Parent stdin is already an ownership channel and does not require a private message protocol or retain a network process-control endpoint.
+The test parent already owns the child stdin pipe. In HTTP mode under Playwright's test marker, closing that pipe now requests graceful shutdown through the existing `SIGINT` path.
 
-The stdin listener is installed only in HTTP mode and only when Playwright's existing test marker is true. The stdio branch returns first, so `StdioServerTransport` remains the sole reader of MCP stdio input.
+The stdio branch returns before the HTTP-only stdin listener is installed, so `StdioServerTransport` remains the sole reader of MCP protocol input.
 
-This change does not prevent a process owner or supervisor from using `SIGINT`, `SIGTERM`, or forced termination. If remote administrative shutdown becomes a supported requirement, it should be introduced separately with an explicit authentication and authorization model.
+This approach doesn't remove process supervision. Owners can still use `SIGINT`, `SIGTERM`, or forced termination. A future remote shutdown feature can be introduced separately with authentication and authorization.
 
 ## Tests
 
-- the former `/killkillkill` request does not stop the server;
+- the former `/killkillkill` request doesn't stop the server;
 - MCP remains responsive before parent stdin EOF;
 - parent EOF produces one graceful close and exit code 0;
 - `PWTEST_UNDER_TEST=0` leaves the HTTP server responsive after EOF;
@@ -40,4 +40,4 @@ This change does not prevent a process owner or supervisor from using `SIGINT`, 
 - focused ESLint for the three changed files;
 - clean working tree and exact three-file diff checks.
 
-Fixes #<approved-and-assigned-issue>
+Fixes #<linked-issue>
