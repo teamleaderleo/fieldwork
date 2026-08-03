@@ -39,4 +39,4 @@ This approach doesn't remove cleanup options. A process owner or supervisor can 
 - immediate MCP stdio startup and ping still work;
 - the full MCP HTTP test file passes on Linux, macOS, and Windows.
 
-I've prepared the implementation and tests. Playwright's contribution policy requires the issue to be approved or assigned before the linked PR is submitted.
+I've prepared the implementation and tests. Once this issue is approved or assigned, I'll send the linked PR.
