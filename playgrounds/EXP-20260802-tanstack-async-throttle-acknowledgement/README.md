@@ -2,7 +2,7 @@
 
 ## State
 
-`HOLD — target execution unavailable`
+`COMPLETE — candidate technically accepted; public contact unauthorized`
 
 Owner: `chatgpt:gpt-5.6-thinking`  
 Created: `2026-08-02`  
@@ -15,90 +15,105 @@ When the async storage persister coalesces a save into an already scheduled exec
 
 ## Exact subject
 
-- public source: `31c7f374e28081289ea4d3fae46a0792fc56e737`;
-- fork main: fast-forwarded cleanly to that public head;
-- characterization PR/head: `teamleaderleo/query#1` at `fd462d0453caf0a1d8c4f687de0578d28e87b109`;
-- corrected candidate PR/head: `teamleaderleo/query#2` at `52fbc9824d628ef0e724a145ce4af06139c50d3f`.
+- public and fork base: `31c7f374e28081289ea4d3fae46a0792fc56e737`;
+- characterization: `teamleaderleo/query#1@fd462d0453caf0a1d8c4f687de0578d28e87b109`;
+- accepted source candidate: `teamleaderleo/query#2@02fc79ee3ca4597c667d16bfa955b9af4da68c5c`;
+- retired execution carrier: `teamleaderleo/query#3@23aad017e91aa14536b083941eb6226b6fd21df6`;
+- source fence: throttle implementation, focused target-native test, and patch changeset.
 
 ## Why this matters
 
 `persistQueryClientSave()` awaits `persister.persistClient()`. The shipped async storage persister implements `persistClient()` with `asyncThrottle()` around serialization and `storage.setItem()`.
 
-Current `asyncThrottle()` retains the latest arguments behind an `isScheduled` boolean. A further call made while one later execution is already scheduled updates `lastArgs` and returns from the async wrapper immediately. Its snapshot is eventually executed by the earlier scheduled caller, but its own promise has already resolved.
+The original `asyncThrottle()` retained the latest arguments behind an `isScheduled` boolean. A call made while a later execution was already scheduled updated `lastArgs` and returned from the async wrapper immediately. Its snapshot was eventually executed by the earlier scheduled caller, but its own promise had already resolved.
 
-This is a false completion acknowledgement: awaiting a save can complete before that call's latest snapshot reaches storage.
+That is a false completion acknowledgement: awaiting a save can finish before that call's selected snapshot reaches storage.
 
 ## Characterization
 
-The target-native test holds execution 1, schedules value 2, then coalesces value 3. Before execution 1 is released:
+The target-native test holds execution 1, schedules value 2, then coalesces value 3. Under the original implementation, the value-3 caller settles while only value 1 has executed. After release, the physical executions are `[1, 3]`.
 
-- current code reports the value-3 caller settled;
-- only value 1 has executed.
+The defect concerns completion ownership, not write serialization: the original implementation already serializes physical executions and selects the latest pending arguments.
 
-After release, current code executes `[1, 3]`.
+## Selected repair
 
-Characterization file: `packages/query-async-storage-persister/src/__tests__/asyncThrottleAcknowledgement.test.ts`.
+Each pending execution generation owns one exact shared promise.
 
-## Corrected candidate
+- calls coalesced before execution receive the same promise and update that generation's latest arguments;
+- the shared promise settles only after those selected arguments execute;
+- once execution begins, a new call creates one independent later generation;
+- the later generation waits for actual current-execution completion, then observes the existing post-completion throttle interval;
+- function failures still flow through the existing `onError` boundary;
+- the public API remains unchanged.
 
-The candidate replaces the boolean scheduled flag with the scheduled promise. Creation uses `Promise.resolve().then(...)` so the shared promise is assigned before scheduling begins.
+Changed target files:
 
-- callers coalesced into one pending execution share its completion;
-- latest-argument selection remains unchanged;
-- one later execution can still be scheduled while a current execution is running;
-- interval and error-callback behavior remain unchanged;
-- public API shape is unchanged.
-
-Changed files:
-
+- `.changeset/fuzzy-rivers-wait.md`;
 - `packages/query-async-storage-persister/src/asyncThrottle.ts`;
 - `packages/query-async-storage-persister/src/__tests__/asyncThrottleAcknowledgement.test.ts`.
 
-## Rejected first candidate
+## Repair history
 
-Initial candidate head `8c4fac973582b70159f4309eb2c5e12a7d1674af` used an immediately invoked async function. An isolated model showed assignment-order failure: the function cleared `scheduledPromise` before the outer assignment completed, then the first promise was reinstalled. Calls during the active execution therefore joined the active promise and no later execution was scheduled.
+The first promise-based candidate deferred initial execution through a microtask. It passed the new acknowledgement checks but failed the repository's existing long-execution throttle control by collapsing `[first, latest]` into only `[latest]`.
 
-That head is rejected and superseded by `52fbc9824d628ef0e724a145ce4af06139c50d3f`.
+The accepted source starts the scheduler immediately after assigning a captured deferred promise. This preserves first-call ownership while allowing calls during execution to create one later coalesced generation.
+
+Two execution-carrier defects were also repaired without entering the source fence:
+
+- pnpm cache setup originally ran before pnpm was installed;
+- shallow merge checkout originally made the exact candidate-base check unreliable.
+
+## Exact execution
+
+Focused execution carrier run `30830369287`, job `91742521649`, passed:
+
+- exact candidate-base verification;
+- Ubuntu 24.04, Node 22, pnpm 11.9.0;
+- frozen-lockfile installation;
+- formatting of the source, existing test, new test, and changeset;
+- all existing and new async-throttle tests;
+- package ESLint;
+- current TypeScript checking.
+
+Ordinary source PR run `30830372063` also completed:
+
+- affected `Test` job `91742530383`: passed;
+- `Version Preview` job `91742530529`: passed;
+- `Preview`: package build passed, publication failed at the fork-only preview publishing step.
+
+The execution carrier is closed without merge. The candidate source contains no workflow file.
+
+## Review
+
+Exact-head complete-diff review `4846283466` examined the three-file candidate at `02fc79ee...` against base `31c7f374...` and recorded `ACCEPT — technically ready for owner/human review`.
+
+That review confirms the source mechanism and evidence boundary. It is same-account technical review and does not claim human review or authorize public filing.
 
 ## Local executable model
 
-Command:
+The retained dependency-free model remains useful for the original acknowledgement distinction:
 
 ```sh
 node playgrounds/EXP-20260802-tanstack-async-throttle-acknowledgement/model.mjs
 ```
 
-Observed output at Node runtime in the work container:
+Its earlier output demonstrates the original caller settling before the coalesced execution and the candidate caller remaining pending. Target-native execution above is the controlling evidence for the accepted source.
 
-```json
-{"name":"current","beforeRelease":{"coalescedSettled":true,"executions":[1]},"after":{"executions":[1,3]}}
-{"name":"candidate","beforeRelease":{"coalescedSettled":false,"executions":[1]},"after":{"executions":[1,3]}}
-```
+## Limits and next transition
 
-Evidence class: isolated executable model, not target-native execution.
+Established:
 
-## Prior art and exclusions
+- original false completion acknowledgement;
+- exact shared-promise identity for one pending generation;
+- independent later-generation ownership;
+- preservation of the existing long-execution throttle behavior;
+- formatting, focused tests, lint, TypeScript, affected checks, and version-preview compatibility.
 
-No equivalent current issue, pull request, or Fieldwork lane was found under the searched async-throttle, coalesced-promise, and persistence-acknowledgement terms. Repeat before promotion.
+Still required immediately before any authorized public filing:
 
-A broad stale-write claim was rejected because the shipped async persister already serializes and coalesces physical writes. This lane concerns the returned completion contract only.
+- refresh public main and duplicate/prior-art state;
+- read current TanStack contribution and disclosure policy;
+- confirm the candidate head and three-file fence have not moved;
+- obtain the owner's exact public-contact authorization.
 
-Excluded:
-
-- custom persister write serialization;
-- restore cancellation and provider teardown;
-- a new public flush API;
-- public upstream interaction.
-
-## Execution blocker
-
-After synchronizing fork `main` and retargeting PRs 1–2, the fork still exposed no workflow runs or commit statuses. Local repository checkout also failed because the execution container could not resolve `github.com`, so dependencies and the Nx package target could not be run.
-
-No target-executed pass is claimed.
-
-## Required next gates
-
-1. run the package-native async-storage-persister test target at the exact heads;
-2. run format, lint, TypeScript, and affected build targets;
-3. review the complete two-file candidate diff;
-4. repeat prior-art and policy checks before any promotion.
+No public issue, pull request, comment, review, reaction, release, or deployment was created in the canonical upstream repository.
