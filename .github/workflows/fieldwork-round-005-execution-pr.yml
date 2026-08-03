@@ -1,0 +1,54 @@
+name: Fieldwork round 005 execution carrier
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fieldwork-round-005-execution-pr
+  cancel-in-progress: true
+
+jobs:
+  execute:
+    if: github.event.pull_request.head.ref == 'execution/round-005-fork-validation'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/developer-tools-round-005
+          path: fieldwork-record
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: fieldwork-main
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/meson
+          ref: fieldwork/16046-source-option-dependency
+          path: meson
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/shellcheck
+          ref: fieldwork/3263-bats-synthetic-export-read
+          path: shellcheck
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/cargo
+          ref: fieldwork/16574-patch-source-fetch
+          path: cargo
+          fetch-depth: 0
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.6.6'
+          cabal-version: 'latest'
+      - name: Execute and retain Round 005 evidence
+        shell: bash
+        run: bash fieldwork-record/scripts/execute_round_005_forks.sh
