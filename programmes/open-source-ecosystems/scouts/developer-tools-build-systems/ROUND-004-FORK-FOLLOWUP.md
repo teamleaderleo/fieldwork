@@ -4,15 +4,19 @@ Date: 2026-08-03
 Programme: #207  
 Scout lane: #210  
 Owner: `chatgpt:gpt-5.6-thinking`  
-State: `source-read continuation; owned fork branches claimed; no target execution`  
+State: `source-read continuation; owned fork branches active`  
 Claim scope: `mechanism`  
 Upstream contact authorized: `false`
 
 ## In simple words
 
-The Turborepo and Helix forks are now controlled research surfaces. We can inspect them, add tests, compare candidate designs, and retain negative results without waiting for an upstream issue to define the work.
+The Turborepo and Helix forks are controlled research surfaces. Source reading, branch edits, test preparation, commit review, and durable notes proceed directly through GitHub in the owned repositories.
 
-The first source pass found a concrete missing composition test in Turborepo and a command-dispatch lifecycle boundary in Helix. No target code has changed yet, no test has been claimed as executed, and no public upstream interaction occurred.
+A local checkout is only needed for actual build and test execution. It is not a prerequisite for continuing source investigation or writing in the forks.
+
+Open upstream issues remain supplementary evidence. They do not define the research agenda. Questions may be discovered directly from implementation, tests, contracts, and owned-fork experiments.
+
+No public upstream interaction occurred.
 
 ## Authority and research method
 
@@ -20,11 +24,9 @@ The user explicitly authorized research and writing in:
 
 - `teamleaderleo/fieldwork`;
 - owned repositories under `teamleaderleo/*`;
-- the newly created Turborepo and Helix forks.
+- the Turborepo and Helix forks.
 
 The user explicitly withheld authorization for upstream issues, comments, reactions, pull requests, or other public contact.
-
-Open upstream issues are supplementary evidence. They do not define the research agenda. Questions may be discovered directly from implementation, tests, contracts, and owned-fork experiments.
 
 Before this continuation, the worker reread the Fieldwork policy set required by `START_HERE.md`, the developer-tools programme and scout records, the current Round 004 report, and each target's local contribution and test instructions.
 
@@ -36,8 +38,9 @@ Before this continuation, the worker reread the Fieldwork policy set required by
 - Default branch: `main`
 - Pinned fork base: `c6fbc97bb8841f9c87d106af2d89ce11e97ea56c`
 - Research branch: `research/affected-filter-intersection`
-- Branch start: `c6fbc97bb8841f9c87d106af2d89ce11e97ea56c`
-- Current source changes: none
+- Current research head: `41341da9164e5e13e921f888ca196e8c77c9105e`
+- Branch relation to base: `2 commits ahead, 0 behind`
+- Current production source changes: none
 - Work class: `upstream-fork research`
 
 ### Helix
@@ -46,23 +49,24 @@ Before this continuation, the worker reread the Fieldwork policy set required by
 - Default branch: `master`
 - Pinned fork base: `079a789e8cb08ead67f19e1971a1b7438b37354b`
 - Research branch: `research/final-window-command-sequence`
-- Branch start: `079a789e8cb08ead67f19e1971a1b7438b37354b`
-- Current source changes: none
+- Current research head: `d3352b57ed3b3f1527184e42afe23700b4371e43`
+- Branch relation to base: `3 commits ahead, 0 behind`
+- Current production source changes: none
 - Work class: `upstream-fork research`
 
 The user called the second fork “Helios.” Repository lookup found no `teamleaderleo/helios`; the available fork is `teamleaderleo/helix`, matching the Round 004 target and source revision.
 
-## Execution boundary
+## Evidence boundary
 
-The local execution runtime could not resolve `github.com`, so it could not clone either fork. GitHub repository reads and writes remained available.
+Evidence in this record includes:
 
-Evidence in this record is therefore limited to:
+- exact GitHub source reads;
+- test and source-path design;
+- owned-fork branch creation and commits;
+- exact branch comparisons;
+- Fieldwork review and note updates.
 
-- `source-read`;
-- `target-test-design`;
-- exact owned-fork branch identity.
-
-No command, test, build, lint, or target workflow is described as executed.
+No build, lint, or test result is claimed. Those require target execution and will be recorded separately.
 
 # Turborepo continuation
 
@@ -94,60 +98,20 @@ At the pinned revision:
 3. task-input affected detection has a separate path when `affectedUsingTaskInputs` is active and the combined task-filter path is inactive;
 4. that separate path sets `needs_all_packages`, so the initial executable engine contains task nodes for every package;
 5. `filter_engine_to_affected_tasks` computes affected task IDs and calls `Engine::retain_affected_tasks`;
-6. the package selectors represented by `filtered_pkgs` are not passed into that affected-task pruning operation;
-7. the later entrypoint selection does not establish the same package-selector intersection represented by the reported package list;
+6. package selectors represented by `filtered_pkgs` are not passed into that affected-task pruning operation;
+7. later entrypoint selection does not establish the same package-selector intersection represented by the reported package list;
 8. the final `Run` retains both the package list derived from `filtered_pkgs` and the separately pruned executable engine.
 
-This creates a real composition boundary: package reporting can describe one selected package set while the executable task engine retains a broader affected set.
+This creates a composition boundary: package reporting can describe one selected package set while the executable task engine retains a broader affected set.
 
-## Test map and newly identified blind spot
+## Prepared tests
 
-Primary target-native file:
+The branch now contains two target-native test files:
 
-- `crates/turborepo/tests/affected_test.rs`
+1. `affected_task_filter_intersection_test.rs` — independent `alpha` and `beta` workspaces; both affected; only `beta#test` authorized.
+2. `affected_task_filter_dependency_closure_test.rs` — `beta#test` requires `alpha#build`; expected graph retains `alpha#build` while excluding `alpha#test`.
 
-Current coverage already includes:
-
-- ordinary package-level `--affected` behavior;
-- ordinary `--affected --filter=<package>` intersection;
-- task-input affected detection under `futureFlags.affectedUsingTaskInputs`;
-- task-input controls for global dependencies, root package changes, task names, and nonexistent tasks.
-
-The inspected test file does not combine all three conditions:
-
-1. `affectedUsingTaskInputs = true`;
-2. `--affected`;
-3. `--filter=<package>`.
-
-That is the exact branch-composition gap in the implementation. It is useful independently of any upstream issue report.
-
-## Bounded question
-
-When task-input affected detection and package selectors are active together, which authority should define the final executable graph?
-
-The candidate invariant is:
-
-> The final task graph is the intersection of selector-authorized entrypoints and task-input affectedness, while retaining only dependency tasks required to execute those selected entrypoints.
-
-## First target-native probe
-
-Use the existing `affected_tasks_inputs` fixture or a smaller two-workspace fixture. Add a matrix that records both dry-run tasks and actual marker execution:
-
-| Task-input affected | `--affected` | package selector | Expected result |
-| --- | --- | --- | --- |
-| off | on | selected package | ordinary package-level intersection |
-| on | off | selected package | selected package tasks |
-| on | on | absent | all affected task entrypoints plus required dependencies |
-| on | on | selected package | selected affected task entrypoints plus only required dependencies |
-
-Required controls:
-
-- an affected task outside the selected package does not execute merely because it is affected;
-- a dependency task required by the selected task remains in the graph;
-- an unaffected selected package produces no selected work;
-- exclude-only selectors preserve their declared behavior;
-- the `--parallel` rebuild path applies the same authority rule;
-- dry-run package reporting and executable task reporting agree.
+The second control rejects a simple outside-package deletion that would break required dependency work.
 
 ## Candidate design comparison
 
@@ -157,13 +121,11 @@ Compare at least these locations before editing production code:
 2. carry selector-authorized entrypoints into `retain_affected_tasks` or a neighboring engine operation;
 3. intersect after affected pruning while explicitly restoring only dependency closure for selected entrypoints.
 
-A display-only correction is rejected because it leaves execution broader than the user-visible scope. Blindly deleting every task outside the selected package is also rejected because it can remove required dependency work.
+A display-only correction is rejected because it leaves execution broader than the user-visible scope.
 
 ## Turborepo stop condition
 
-Stop or reframe if target-native tests establish that package filters are intentionally informational in this flag combination, or if required dependency semantics cannot be represented without a broader task-filter design decision.
-
-A failing characterization test may be retained without a production candidate. A candidate must not be selected until the dependency-closure control is explicit.
+Stop or reframe if target-native execution establishes that package filters are intentionally informational in this flag combination, or if required dependency semantics cannot be represented without a broader task-filter design decision.
 
 # Helix continuation
 
@@ -199,51 +161,18 @@ At the pinned revision:
 5. the next command in the sequence still executes even when the first command removed the final view;
 6. `execute_command` also dispatches `PostCommand` and may dispatch `OnModeSwitch` after each command.
 
-The lifecycle boundary is therefore wider than “skip the second command.” Event hooks dispatched immediately after the closing command may also need a valid post-close contract.
+The lifecycle boundary is wider than “skip the second command.” Event dispatch immediately after the closing command also needs a defined post-close contract.
 
-## Existing integration-test support
+## Prepared tests
 
-`helix-term/tests/test/helpers.rs` already provides:
+The branch now contains four cases in `helix-term/tests/test/command_sequences.rs`:
 
-- an `Application` builder;
-- custom configuration through `AppBuilder::with_config`;
-- key-sequence execution;
-- an explicit `should_exit` assertion;
-- editor inspection before closeout.
+1. single-command final close exits cleanly;
+2. two-command final close exits cleanly;
+3. two-view close continues against the remaining view;
+4. refused final close preserves the view, runs the next command, and retains the error status.
 
-`helix-term/tests/test/splits.rs` already contains multi-view lifecycle tests, final-view exit assertions, and view-count controls. A target-native reproduction does not require a new test framework.
-
-## Bounded question
-
-What owns termination of a configured command sequence after one command makes the editor unable to execute view-dependent commands?
-
-Competing contracts:
-
-1. the sequence dispatcher checks a stable editor terminal state after every command;
-2. command execution returns an explicit continuation result;
-3. the application event loop owns terminal transition and command dispatch must stop immediately;
-4. final-view close is deferred until the sequence finishes.
-
-The fourth contract conflicts with the current immediate close path and should remain a reversing hypothesis until tested.
-
-## First target-native probe
-
-Create a custom test key binding equivalent to:
-
-```toml
-[keys.insert]
-C-q = ["wclose", "normal_mode"]
-```
-
-Required cases:
-
-1. **one view, clean buffer** — the application exits cleanly; no later view-dependent command or hook panics;
-2. **two views** — `wclose` removes one view and the following command runs against the remaining view;
-3. **one view, modified buffer** — refused close leaves the view alive; record whether the sequence continues under existing command semantics;
-4. **single-command close** — existing final-window exit remains unchanged;
-5. **post-command dispatch** — determine whether `PostCommand` and `OnModeSwitch` may safely run after final-view removal.
-
-The test should distinguish “sequence stopped because the editor exited” from “individual commands defensively ignored missing state.”
+The single-command control separates close plus `PostCommand` from command-sequence continuation.
 
 ## Candidate design comparison
 
@@ -253,13 +182,11 @@ Prefer a central lifecycle contract. Compare:
 - a `CommandResult` or continuation enum returned by command execution;
 - a dispatcher helper that owns command execution plus event dispatch and knows whether post-command hooks remain valid.
 
-Avoid adding scattered current-view guards to individual commands. That approach leaves the next command and future commands exposed and hides the component that owns sequence continuation.
+Avoid scattered current-view guards in individual commands.
 
 ## Helix stop condition
 
-Stop or reframe if integration tests establish that final shutdown is intentionally deferred until a complete sequence finishes, or if the panic originates solely in an event hook with a separate documented lifecycle contract.
-
-Retain the lifecycle finding even if the eventual repair belongs in event dispatch rather than the command loop.
+Stop or reframe if integration execution establishes that final shutdown is intentionally deferred until a complete sequence finishes, or if the panic belongs solely to an event hook with a separate documented lifecycle contract.
 
 # Current disposition
 
@@ -267,10 +194,7 @@ Retain the lifecycle finding even if the eventual repair belongs in event dispat
 
 Next transitions:
 
-1. Turborepo: add the missing task-input-affected plus package-filter integration characterization on `research/affected-filter-intersection`.
-2. Helix: add the final-window command-sequence integration characterization on `research/final-window-command-sequence`.
-3. Run the smallest target-declared focused commands when an execution environment with repository access is available.
-4. Record exact heads, commands, results, failures, and negative controls in this Fieldwork path.
-5. Select no production fix until each characterization distinguishes the competing authority or lifecycle contracts.
-
-No target fork pull request is required for private research coordination. No upstream packet or public interaction is authorized.
+1. continue source-path investigation in both forks;
+2. execute the exact test heads when a target runner is available;
+3. record exact results or compile failures in Fieldwork;
+4. select no public upstream action without separate authorization.
