@@ -1,37 +1,50 @@
 # Review — Unit 11: stabilize lifecycle fanout targets
 
-## In simple words
+## Current disposition
 
-The complete six-file OpenTelemetry candidate is one clean commit, passed all eight exact-head workflows, and received an independent exact-head technical acceptance. No blocking product defect remains within the stated trace/log lifecycle boundary. The repository owner is the final arbiter.
+`SOURCE REVIEW ACCEPTED — EXACT-HEAD EXECUTION PENDING`
+
+The current-main rebase remains one clean six-file commit. A fresh complete-diff source review found no blocking defect in the rebased mechanism, including its integration with the newly merged per-call trace force-flush timeout. Fresh repository workflows are still running, so this is not yet a final filing-ready disposition.
 
 ## Subject
 
 - target: `open-telemetry/opentelemetry-js`;
-- base/current-main snapshot: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- refreshed base: `f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`;
 - branch: `upstream/unit-11-lifecycle-fanout-v2`;
-- exact source head: `db3d9e5e43d5abc6622784acf0ef87f3b038ac91`;
+- exact source head: `f4cb44bcccffbc0eb39e774284655e0f965cfce1`;
 - source PR: `teamleaderleo/opentelemetry-js#19`;
 - relation: one commit ahead, zero behind;
 - boundary: three production files and three tests;
 - public upstream authority: none.
 
-## Disposition
+## Fresh rebase findings
 
-`ACCEPT / TECHNICALLY READY — OWNER DECISION REQUESTED`
+### Current-main overlap
 
-## Why the repair is correct
+Public `main` advanced by three commits from the earlier base. The only source overlap is upstream PR #6929, which adds `ForceFlushOptions` and a per-call timeout to `TracerProvider.forceFlush()`.
+
+The rebased candidate preserves:
+
+- the `ForceFlushOptions` import and public signature;
+- per-call timeout precedence over the deprecated constructor setting;
+- upstream's existing timeout tests;
+- the unrelated `MultiSpanProcessor.onEnding()` forwarder added on current main.
+
+No current issue or pull request was found that duplicates the synchronous-throw/opening-set repair.
 
 ### `MultiSpanProcessor`
 
 - snapshots the opening processor set before any child invocation;
-- invokes children eagerly through a local try/catch helper;
+- invokes children eagerly through a local `try`/`catch` helper;
 - converts only direct synchronous throws into rejected promises;
-- preserves shutdown rejection and force-flush global-error-handler/resolve behavior.
+- preserves shutdown rejection and force-flush global-error-handler/resolve behavior;
+- leaves normal `onStart`, `onEnding`, and `onEnd` hot paths unchanged.
 
 ### `TracerProvider.forceFlush()`
 
 - separately snapshots its direct fanout targets;
-- creates the timeout before invocation as before;
+- resolves the current timeout from the per-call option before fanout as upstream now requires;
+- creates each timeout before invocation as before;
 - routes synchronous throws through the existing catch path;
 - clears the timeout and preserves the existing collected error-array rejection;
 - retains genuine timeout rejection for non-settling processors.
@@ -40,7 +53,7 @@ The complete six-file OpenTelemetry candidate is one clean commit, passed all ei
 
 - snapshots the retained public processor array;
 - protects direct calls without microtask deferral;
-- preserves timeout wrapping and rejection behavior.
+- preserves the current per-call timeout option, timeout wrapper, and rejection behavior.
 
 ### Metrics exclusion
 
@@ -49,30 +62,24 @@ The complete six-file OpenTelemetry candidate is one clean commit, passed all ei
 - metric collector lifecycle methods are async;
 - symmetry alone does not justify widening the patch.
 
-## Evidence
+## Regression coverage
 
-All eight workflows passed at the exact source head:
-
-- Unit Tests `30756036668`;
-- Lint `30756036660`;
-- W3C `30756036656`;
-- Bundler `30756036678`;
-- API peer dependency `30756036662`;
-- CodeQL `30756036671`;
-- E2E `30756036639`;
-- Zizmor `30756036691`.
-
-Independent exact-head review of the complete six-file fence found no blocking source defect and accepted the candidate as technically ready.
+Eleven focused assertions cover direct throws, opening-set mutation, provider error-array shape, timeout cleanup, and genuine timeout behavior. The rebased provider tests use the new per-call timeout option rather than the deprecated constructor option.
 
 ## Compatibility boundary
 
-- no public API or type change;
-- eager fanout retained;
-- existing trace aggregate, provider, and logs settlement policies retained;
+- no new public API or type change;
+- upstream's new per-call timeout API is retained;
+- eager fanout and existing order are retained;
+- existing trace aggregate, provider, and logs settlement policies are retained;
 - future mutations remain visible to future operations;
-- one shallow copy per affected operation;
+- one shallow copy per affected lifecycle operation;
 - no settle-all aggregation, retries, cancellation, idempotence, or metrics change.
 
-## Recommendation to the owner
+## Remaining evidence gate
 
-Advance this candidate toward authorized upstream preparation. Before filing, refresh current public main and duplicate/overlap, confirm current contribution and disclosure policy, add root and experimental changelog entries with the real upstream PR number, and explicitly authorize the public interaction.
+The fresh exact-head workflow matrix for `f4cb44bcccffbc0eb39e774284655e0f965cfce1` must complete and be classified. The earlier green matrix and acceptance on `db3d9e5e43d5abc6622784acf0ef87f3b038ac91` are historical evidence only.
+
+## Recommendation
+
+Keep the source preview and packet in draft until the fresh matrix is green or any candidate-relevant failure is repaired. Once that gate closes, present the prepared upstream wording and explicit public-contact decision to the repository owner.
