@@ -4,43 +4,75 @@
 
 Every durable Fieldwork record should prove that its author understands the subject well enough to explain it without hiding behind source paths, jargon, or a wall of detail.
 
-## Required block
+Plain language does not mean prose-only and does not mean writing for a non-technical audience. Code, pseudocode, state diagrams, traces, equations, and compact tables are often the clearest plain language available for a computing concept.
 
-Near the top of a target hub, finding, campaign, lane report, retained experiment, integration context, or synthesis, include:
+## Lead with the proposal or question
 
-```text
-## In simple words
+When a record recommends a change, begin with a sentence shaped like:
 
-- What is this?
-- Where does it sit in the larger system?
-- What is wrong, uncertain, or being tested?
-- Why could anyone care?
-- What is the current answer or next step?
+> I propose changing X so that Y remains true when Z happens.
+
+When the work is still investigative, begin with the concrete question:
+
+> Does X publish stale state after Y transfers authority to Z?
+
+Do not make the reader reconstruct the actual proposal from a long history section.
+
+## Choose the clearest representation
+
+Use prose for motivation, uncertainty, tradeoffs, and consequences. Use code-shaped notation for control flow, state transitions, data shape, and invariants.
+
+For example:
+
+```ts
+// Current
+await buildEnd()      // rejects
+await closeBundle()   // never reached
+
+// Proposed
+const errors = [
+  ...await settleAll(buildEndHooks),
+  ...await settleAll(closeBundleHooks),
+]
+throwIfAny(errors)
 ```
 
-Use direct language. Five short bullets or one compact paragraph is usually enough.
+Or:
+
+```text
+old authority ──replaced──▶ new authority
+      │
+      └── late completion must not publish
+```
+
+Prefer one compact representation over several paragraphs that merely narrate the same mechanics.
+
+Bullet lists are optional. Do not use them by reflex. A paragraph, code block, arrow diagram, truth table, before/after diff, or small sequence trace may communicate the model better.
+
+## Required understanding
+
+Near the top of a target hub, finding, campaign, lane report, retained experiment, integration context, synthesis, issue draft, or pull-request draft, make these answers easy to recover:
+
+```text
+What is being proposed or tested?
+Where does it sit in the system?
+What happens now?
+What should happen instead?
+Why does the difference matter?
+What remains uncertain or blocked?
+```
+
+The answers may be expressed as prose, code, diagrams, or a mixture. The format should match the subject.
 
 ## Purpose
 
-The block is an understanding test, not an executive summary and not marketing. It should help a reader decide whether to continue into the detailed evidence.
-
-A good explanation names:
-
-- the component or workflow;
-- its responsibility;
-- the important boundary or failure;
-- the consequence;
-- the current research state.
+This is an understanding test, not an executive summary and not marketing. It should let a technically literate reader decide whether to continue into the detailed evidence.
 
 ## Rules
 
-- Explain the current model before listing implementation details.
-- Prefer concrete nouns and verbs over broad claims such as “improves robustness.”
-- Separate established behaviour from suspicion.
-- State when the consequence is illustrative rather than documented.
-- Do not claim that a small reproduction models an entire production system.
-- Update the block when the underlying conclusion changes.
-- Keep important caveats in the block when omitting them would mislead.
+Explain the current model before implementation detail. Prefer concrete nouns and verbs over broad claims such as “improves robustness.” Separate established behaviour from suspicion. State when a consequence is illustrative rather than documented. Do not claim that a small reproduction models an entire production system. Update the explanation when the underlying conclusion changes. Keep caveats near the claim they qualify.
+
+Do not over-explain an obvious control-flow repair after the invariant is visible. Once code or a diagram makes the mechanism clear, spend prose on the non-obvious judgment: compatibility, ownership, policy, risk, or alternatives.
 
 ## Examples
 
@@ -50,7 +82,13 @@ Weak:
 
 Stronger:
 
-> This module turns streamed provider events into one tool-call result. We are testing whether reconnecting after a partial event can append the same arguments twice. Duplicate arguments could invoke a tool with different input than the model produced. The local reproduction is incomplete; the next step is tracing the reconnect path and running it in a real agent session.
+> I am testing whether reconnecting after a partial provider event appends the same tool arguments twice.
+>
+> ```text
+> partial event ──disconnect──▶ reconnect ──replay──▶ duplicate append?
+> ```
+>
+> Duplicate arguments could invoke a tool with input different from the model output. The local reproduction is incomplete; the next step is tracing the reconnect path in a real agent session.
 
 Weak:
 
@@ -58,16 +96,15 @@ Weak:
 
 Stronger:
 
-> Two parser paths recover from the same malformed token differently. The duplication makes fixes easy to apply to only one path. We are testing whether one shared recovery function can preserve both behaviours and make the invariant testable.
+> I propose one recovery function for two parser paths that currently disagree on the same malformed token.
+>
+> ```text
+> malformed token ──path A──▶ recover as X
+>                 └─path B──▶ recover as Y
+> ```
+>
+> The change is worthwhile only if one implementation can preserve the intended cases and make the difference explicit in tests.
 
 ## Synthesis check
 
-Before closing work, ask whether a new reader can answer:
-
-1. What system did we study?
-2. What did we actually establish?
-3. Why might the result be useful?
-4. What remains unknown?
-5. What happens next?
-
-If those answers require reconstructing the entire investigation, the plain-language block is not finished.
+Before closing work, confirm that a new reader can recover the system, established result, consequence, remaining uncertainty, and next transition without reconstructing the entire investigation.
