@@ -5,14 +5,17 @@
 - source base: `astral-sh/uv#20855@8d9324af47e1b52ec1f57f9232bd408281282cf5`
 - controlled fork PR: `teamleaderleo/uv#31`
 - branch: `experiment/457-b2-current-head-generation-rollback`
-- current exact head: `7098add2d9240eb8c95275f63fe5d544b3f6c4f3`
-- focused run: `30859708891`
-- ordinary fork CI: `30859708980`
-- external execution carrier: `teamleaderleo/fieldwork#607@f30bb9ba19d4851dfa60d3a557782487dfad6429`
+- current exact head: `f695ec95c901bb7e7946cdea3e2bcca40bc0db2a`
+- current focused run: `30930113064`
+- current ordinary fork CI: `30930113747`
+- closed external execution carrier: `teamleaderleo/fieldwork#607@f30bb9ba19d4851dfa60d3a557782487dfad6429`
 - external focused run: `30860080826`
+- successful Windows job: `91839926618`
+- Windows artifact: `8875957361`
+- Windows artifact digest: `sha256:4e7bef48f2d19c92b03ebe39fe7b6df95027391ab3e6e321b6b599d5fb8cdba9`
 - validated source destination: `candidate/457-b2-windows-generation-rollback`
 
-Run conclusions must be re-queried before use. At this record point both focused executions were queued and ordinary CI was pending.
+The external carrier is closed without merge after receipt transfer. The current focused run must still be re-queried before use; at this record point its source-audit and Windows jobs were queued.
 
 ## Defect being repaired
 
@@ -54,20 +57,21 @@ Before the first live mutation, create a temporary rollback directory inside the
 
 Apply the existing public ordering inside one error boundary. On any returned error, restore every snapshot. A byte comparison avoids overwriting the still-running old executable when the canonical path was never displaced; if the canonical path is missing or contains different bytes, the independent old snapshot is restored.
 
-## Hostile controls
+## Executed hostile controls
 
-The focused matrix checks:
+The external target-native Windows matrix passed all intended controls:
 
 1. the actual running Windows test executable can be copied and byte-compared as a canonical snapshot;
-2. a finalizer removes canonical `uv.exe` and then returns an error; expected result is the full old generation;
-3. a deterministically later companion copy fails after an earlier companion was overwritten; expected result is the full old generation and no finalizer call;
-4. the finalizer succeeds; expected result is the full new generation and promoted receipt.
+2. a finalizer removes canonical `uv.exe` and then returns an error, and the full old managed generation is restored;
+3. a deterministically later companion copy fails after an earlier companion was overwritten, and the full old generation is restored without calling the finalizer;
+4. a successful finalizer commits the complete new managed generation and promoted receipt;
+5. `cargo check -p uv --all-targets --features self-update` succeeds on Windows.
 
-A Linux-to-Windows cross-target compile gate checks the generated Windows source before the target-native filesystem matrix. Both jobs retain the fully formatted generated `self_update.rs`.
+The external Linux-to-MSVC job failed in foreign C-toolchain setup before validating uv source. It is not a product result. The canonical workflow now uses Linux only for deterministic source generation, formatting, and exact-diff auditing. Native Windows is the compile, test, and affected-target authority.
 
-If both jobs pass, a gated third job checks out the exact public candidate, applies the validated transforms, verifies that only `crates/uv/src/commands/self_update.rs` changed, and pushes the source-only candidate branch. It cannot run after a red compile or hostile control.
+If both canonical jobs pass, a gated third job checks out the exact public candidate, applies the validated transforms, verifies that only `crates/uv/src/commands/self_update.rs` changed, and pushes the source-only candidate branch. It cannot run after a red source audit or Windows control.
 
-Workflow concurrency now cancels superseded revisions. The Fieldwork external carrier runs the same exact uv head from a second repository queue because the uv repository queue is saturated.
+Workflow concurrency cancels superseded revisions.
 
 ## First execution classification
 
@@ -79,7 +83,7 @@ The current transformer uses `entries.sort_by_key(|entry| entry.file_name())`. T
 
 `models/ordinary_error_generation_rollback.py` exhaustively checks 32 combinations of pre-existing companions and receipt presence with failure at every ordinary commit step. Every failure restores the exact initial managed mapping, and the success case commits the complete new generation.
 
-The model is a state-machine check, not a substitute for the queued Windows filesystem execution.
+The model supplements, but does not replace, the successful target-native Windows filesystem execution.
 
 ## Explicit exclusions
 
@@ -92,4 +96,4 @@ This candidate does not yet claim:
 - whole installer descendant cancellation;
 - cleanup of every random private temp or relocated executable created internally by `self-replace`.
 
-Those remain separate work. The current candidate is intentionally smaller: close the proven ordinary-error rollback hole first, then decide whether the larger deferred finalizer and journal design is warranted for crash recovery.
+Those remain separate work. The current candidate intentionally closes the proven ordinary-error rollback hole first. The deferred finalizer and journal lane remains the stronger option for crash recovery and avoiding `self-replace`'s internal partial states.
