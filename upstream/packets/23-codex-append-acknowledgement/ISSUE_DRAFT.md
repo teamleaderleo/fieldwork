@@ -1,54 +1,59 @@
-# Upstream issue draft
+# Upstream issue draft — proposal sequence item 2
 
-> Do not post without both an OpenAI contribution invitation and explicit Fieldwork public-contact authorization. Re-check current public source and duplicate state immediately before use.
+> Do not post without explicit public-contact authorization. Refresh against current public source, repeat duplicate search, and update every revision immediately before use.
 
 ## Title
 
-Expose durable append acknowledgement at the Codex session history boundary
+Expose the authoritative history-append acknowledgement at the Codex session boundary
 
-## Body
+## Problem
 
-### Problem
+`Session::record_conversation_items()` updates live conversation history, attempts to append rollout items, and then emits raw response items. The result of the authoritative live-thread append is logged inside the persistence helper and discarded.
 
-`Session::record_conversation_items` updates session history, attempts to append rollout items, and emits raw response items, but callers cannot observe whether the authoritative live-thread append acknowledged.
+A caller therefore cannot distinguish:
 
-That makes it unsafe for later receipt or retry work to distinguish an acknowledged append from an error. A storage error is also not proof that the item is absent: an append may commit and then lose its acknowledgement.
+- an append that acknowledged;
+- a failure before the item was written;
+- an error returned after the item may already have committed.
 
-### Proposed bounded prerequisite
+Raw-response delivery cannot answer that question. A generic storage error also cannot authorize retry because the write may already exist.
 
-Return a persistence acknowledgement from `record_conversation_items` while preserving existing caller behavior:
+## Proposed bounded prerequisite
 
-- no live thread: `true` under ephemeral-session authority;
-- acknowledged live append: `true`;
-- pre-write append failure: `false`;
-- commit-then-error acknowledgement loss: `false` even when reloaded history contains the item.
+Return an acknowledgement from `record_conversation_items()` while preserving current caller behavior:
 
-The return is acknowledgement only. It does not authorize retry and does not distinguish definite absence from ambiguous commit.
+- no live thread: success because no durable append is required for the ephemeral session;
+- acknowledged live append: success;
+- pre-write failure: failure;
+- commit-then-error: failure even though reloaded history may contain the item.
 
-### Intended source fence
+The result means only whether the required append operation acknowledged. It does not prove absence, authorize replay, or settle remote effects.
 
-- `codex-rs/core/src/session/mod.rs`
-- `codex-rs/core/src/session/turn_tests.rs`
-- `codex-rs/thread-store/src/in_memory.rs`
+## Why a boolean first
 
-### Validation prepared in owned fork
+All reviewed production call sites currently ignore the value. A boolean is therefore enough to expose the missing signal without introducing unused certainty or identity contracts. A typed result becomes appropriate when a concrete consumer needs to distinguish confirmed absence from unknown commit outcome.
 
-On public base `670f69416bf91c5dfd8b58669e78050b584ff053`:
+## Implementation evidence
 
-- four exact append-outcome tests passed;
-- complete `codex-thread-store` package passed, 163/163;
-- formatting passed;
-- one direct-child, three-file source commit prepared and reviewed;
-- pre-write failure and commit-then-error are tested separately.
+A reviewed three-file prototype exists in the owned fork at `teamleaderleo/codex#140`. It covers ephemeral authority, acknowledged persistence, pre-write failure, and commit-then-error separately and passed the complete thread-store package at its exact source pin.
 
-### Explicit non-goals
+That commit is implementation evidence, not a current-main patch. Public source has advanced and changed `session/mod.rs`; the prototype must be refreshed and rerun before any proposed pull request.
 
-- caller policy changes;
-- typed persistence certainty;
-- retry or replay authority;
-- duplicate reconciliation;
-- compaction, resume, fork, rollback, or remote-effect settlement.
+## Question for maintainers
 
-### Process note
+Is `Session::record_conversation_items()` the right boundary to expose this acknowledgement, and is acknowledgement-only semantics the preferred first step before any caller policy or typed reconciliation state?
 
-This draft is preserved only as a handoff artifact. No public upstream interaction has occurred.
+## Non-goals
+
+- automatic retry or replay;
+- typed `Absent/Persisted/Unknown` certainty in this change;
+- duplicate reconciliation or receipt identity;
+- compaction, resume, fork, or rollback policy;
+- remote-effect settlement;
+- changing raw-response delivery.
+
+## Sequence note
+
+This is intentionally the second bounded Codex proposal. Producer-owned terminal-output retention should be discussed first because it demonstrates direct user-visible information loss from allowing best-effort delivery to own the final transcript.
+
+No public upstream interaction has occurred.
