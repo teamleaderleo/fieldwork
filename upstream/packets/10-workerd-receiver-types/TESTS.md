@@ -6,157 +6,36 @@
 - implementation head: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
 - compare: https://github.com/teamleaderleo/workerd/compare/813c31394b9909d8f557bba14324db275bc12720...18a117c28773cd7aa0ee599e03439c5fbbf06584
 - owned draft source PR: https://github.com/teamleaderleo/workerd/pull/5
-- current fence: one commit, ten source/test files, no workflow files
+- current fence: one implementation commit, ten source/test files, no workflow files
 
-The August 2 upstream base differs from the prior August 1 base only in two release metadata files. The implementation head adds three controls beyond the last green semantic source: callback receiver erasure, static-global constant preservation, and renamed full-replacement receiver ownership.
+The source PR is not publication-complete. Generated snapshots are required for type-generation changes, and two generator exact-output fixtures are stale.
 
-The source PR is not publication-complete yet. Current `types/AGENTS.md`, `just generate-types`, and the repository `check-snapshot` job require regenerated `types/generated-snapshot/` files to be committed with type-generation changes.
-
-## Exact final-validation carrier
+## Exact validation carrier
 
 - owned draft PR: https://github.com/teamleaderleo/workerd/pull/9
 - branch: `unit-10/final-validation-18a117c`
-- carrier head: `8003ce7361bbb61cff0ca11c9da8b9d9d73a4c2c`
-- visible custom run: `30755457025`
-- product candidate pinned in workflow: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
-- only carrier file: `.github/workflows/unit-10-final-validation.yml`
+- carrier head: `159fe1e87253ae79f5b2b767d49074f1ebeb447d`
+- run: `30857633684`
+- product candidate pinned by workflow: `18a117c28773cd7aa0ee599e03439c5fbbf06584`
+- carrier-only file: `.github/workflows/unit-10-final-validation.yml`
 
-Carrier jobs:
+The carrier is execution machinery only. Its workflow must never enter source PR #5 or a public upstream diff.
 
-1. focused five-target receiver command;
-2. complete `bazelisk test //types/...` package;
-3. `//types:types_lib@eslint`;
-4. `bazelisk build //types`;
-5. regenerated snapshot artifact, complete diff, receiver-line index, and marker-leakage check.
+## Latest exact results
 
-The carrier is execution machinery only. Accepted snapshots must be copied into source PR #5; the workflow file must never enter the source diff.
+Run `30857633684`:
 
-## Test inventory in the implementation diff
+| Job | Result | Details |
+| --- | --- | --- |
+| `generated-snapshot` | PASS | built `//types`, produced the expected four files, diff/report uploaded, marker check passed |
+| `inherited-global-runtime` | PASS | built workerd and passed the Worker-global versus separate-`EventTarget` receiver matrix |
+| `focused-and-types` | FAIL | focused receiver targets passed; complete `//types/...` failed on two stale generator expectations; lint step was skipped after the failure |
 
-- `types/test/index.spec.ts`
-  - generator snapshot and end-to-end transform ordering;
-  - ordinary, explicit, generic, static, inherited, iterator-transformed, and global receiver output.
-- `types/test/transforms/globals.spec.ts`
-  - context-global widening;
-  - static method exclusion;
-  - static readonly property/constant preservation as ambient `const`;
-  - lexical superclass selection when another namespace contains the same unqualified name;
-  - transformed top-level heritage lookup after an earlier transformer replaces superclass members.
-- `types/test/transforms/overrides/index.spec.ts`
-  - partial and full override behavior;
-  - explicit receiver preservation and overload handling;
-  - existing type rename behavior across generated references.
-- `types/test/transforms/overrides/replacement-receiver-generics.spec.ts`
-  - generic generated owner → nongeneric replacement;
-  - generic generated owner → generic replacement;
-  - nongeneric generated owner → generic replacement;
-  - renamed generic replacement updates the receiver owner and leaves no marker referencing the original name.
-- `types/test/types/fetch-receiver.ts`
-  - legal bare, detached, nullish, `globalThis`, `self`, `call`, `apply`, and `bind` forms;
-  - expected diagnostics for unrelated holders and unrelated explicit receivers;
-  - raw host function stored on an unrelated client;
-  - accepted assignment to a receiver-free callback type, documenting normal TypeScript receiver erasure and source compatibility.
+The latest run is exact-head evidence because the workflow checks that the carrier differs from the candidate only by its workflow file.
 
-## Source-read registration controls
+## Focused receiver targets
 
-Current public `resource.h` shows the following use the owning `signature` with `MethodCallback`:
-
-- ordinary methods;
-- synchronous and asynchronous iterator symbol registrations;
-- synchronous and asynchronous disposal symbol registrations.
-
-Callable resources use `SetCallAsFunctionHandler` and are not ordinary generated method declarations. Static methods use the constructor registration path and remain receiver-free. These source-read distinctions define the output review matrix.
-
-## Evidence classes
-
-### Target-executed — repaired semantic source
-
-Validation run `30690396598` checked out the repaired source fence and verified the carrier differed only by its workflow.
-
-Focused command:
-
-```console
-bazelisk test \
-  //types:test/index.spec \
-  //types:test/transforms/overrides/index.spec \
-  //types:test/transforms/overrides/replacement-receiver-generics.spec \
-  //types:test/transforms/globals.spec \
-  --test_output=errors
-```
-
-Result: four of four targets passed after the transformed-heritage repair.
-
-The immediately preceding run `30690050452` is a discriminating negative receipt:
-
-- override, replacement-generic, and globals targets passed;
-- `//types:test/index.spec` failed because inherited global methods lost receiver parameters;
-- the output showed `addEventListener` and `plain` emitted without their expected receiver;
-- source review traced this to global extraction following the pre-transform checker declaration;
-- the current `getHeritageDeclaration()` repair selects the corresponding transformed top-level declaration.
-
-### Review-executed — static constant negative result
-
-Owned PR #5 review `4834296945` found that blanket static-member exclusion removed generated global constants. The review traced the behavior through `createConstantPartial()`, which represents JSG constants as static readonly class members.
-
-Implementation repair:
-
-- static check moved inside the method extraction branch;
-- static methods remain unextracted;
-- static properties/constants retain extraction;
-- strict expected output includes `declare const CONSTANT: 42`.
-
-Current source inspection found no static method in the actual Worker-global inheritance path, so the method-only exclusion is expected to cause no present generated-output churn. The snapshot artifact must confirm this.
-
-### Target-executed — lint
-
-Repaired-head lint run `30690346721`: passed. Exact implementation-head lint is delegated to carrier PR #9.
-
-### Model-executed — downstream/runtime
-
-Stensibly PR https://github.com/teamleaderleo/stensibly/pull/482 at exact head `2c42d8041b0cbe5fbccbe87202381361da2bc6ef`:
-
-```console
-bun install
-bun run typecheck
-bun run test
-bun run test:convex
-bun run worker:check
-bun run test:runtime-parity
-```
-
-Exact-head run `30449733862`: all passed. Final restored PR-head run `30449840120`: ordinary `test` and `runtime-parity` passed.
-
-Versions:
-
-```text
-Bun 1.3.14
-Node v26.5.0
-workerd 2026-07-22
-```
-
-The native matrix accepted bare, detached, nullish, `globalThis`, and `self` receiver forms and rejected unrelated holder, `call`, `apply`, and `bind` forms. The production `HttpGitHubOAuthClient` wrapper completed through a local outbound Worker.
-
-Merged revision: `f19c2c7aa09fc4d4fdb7e7ae2d4d727d0eedd091`.
-
-### Model-executed — TypeScript/tooling
-
-Environment:
-
-- TypeScript `5.8.3`
-- ESLint `10.7.0`
-- typescript-eslint `8.65.0`
-- Node `22.23.1`
-
-The retained model established:
-
-- one explicit union receiver accepts the intended direct set;
-- unrelated holders fail while the precise function type is retained;
-- assignment to a plain receiver-free callback type erases the receiver requirement;
-- a runtime wrapper and native regression remain useful because TypeScript cannot preserve receiver provenance through every widening path.
-
-## Exact focused command
-
-Carrier PR #9 runs this against product head `18a117c28773cd7aa0ee599e03439c5fbbf06584`:
+The following command passed on the exact candidate:
 
 ```console
 bazelisk test \
@@ -168,50 +47,137 @@ bazelisk test \
   --test_output=errors
 ```
 
-The implementation-head-only assertions are:
+Covered behavior includes:
 
-- receiver-free callback assignment remains accepted;
-- static generated constants remain ambient globals while static methods do not;
-- renamed generic replacements update their receiver owner.
+- ordinary generated instance receiver insertion;
+- static method exclusion;
+- explicit handwritten receiver preservation;
+- transformed heritage lookup;
+- static constant extraction preservation;
+- full replacement owner rename and generic specialization;
+- legal direct Worker-global receiver forms;
+- rejection of unrelated direct receivers;
+- receiver erasure when assigning to a receiver-free callback type.
 
-## Ordinary target and snapshot gates
+## Complete package failure classification
 
-Current workerd instructions identify these relevant commands:
+The complete package failure is a fixture-maintenance defect, not a new semantic failure.
 
-```console
-just format
-just generate-types
-just test //types/...
-just lint
+Stale files:
+
+1. `types/test/generator/structure.spec.ts`
+   - expected generated non-static methods without an internal receiver marker;
+   - actual generator structure now correctly includes `this: __JSG_GENERATED_RECEIVER__<Resource>`.
+2. `types/test/generator/index.spec.ts`
+   - expected generated ordinary, iterator, async-iterator, dispose, async-dispose, abort, and fetch methods without the marker;
+   - actual output includes the marker on generated non-static methods;
+   - generated static methods must remain receiver-free.
+
+Repair rule: update only generated non-static method expectations. Do not add the marker to static methods, constructors, properties, call signatures, or explicit handwritten receivers.
+
+## Native inherited-global receiver matrix
+
+Run `30857633684`, job `91832245048`, conclusion: success.
+
+For a method value obtained from `self.addEventListener`:
+
+- bare: success;
+- undefined receiver: success;
+- null receiver: success;
+- `globalThis`: success;
+- `self`: success;
+- unrelated object: `Illegal invocation`.
+
+For a method value obtained from `new EventTarget().addEventListener`:
+
+- bare: `Illegal invocation`;
+- owning target: success;
+- unrelated object: `Illegal invocation`.
+
+This result rejects the PR #10 hierarchy-wide widening patch. Ordinary `EventTarget` declarations must remain owner-strict. Any inherited Worker-global typing repair must be localized to the Worker-global surface.
+
+## Generated snapshot artifact
+
+The generated tree contains exactly:
+
+- `types/generated-snapshot/index.d.ts`;
+- `types/generated-snapshot/index.ts`;
+- `types/generated-snapshot/experimental/index.d.ts`;
+- `types/generated-snapshot/experimental/index.ts`.
+
+Artifact summary from the exact candidate:
+
+```text
+changed_files=4
+added_lines=2478
+removed_lines=1044
+receiver_lines=1504
+generated_marker_lines=0
 ```
 
-The target's own `generate-types` recipe builds `//types`, deletes the old `types/generated-snapshot`, and copies `bazel-bin/types/definitions/` into it. The upstream `check-snapshot` job diffs the checked-in snapshot against the generated definitions and uploads the full generated tree when they differ.
+Review observations:
 
-Carrier PR #9 uses equivalent Bazel commands and uploads the exact generated tree without mutating source PR #5.
+- no `__JSG_GENERATED_RECEIVER__` marker leaks;
+- the broad line count is mostly explicit receiver insertion plus mechanical formatting reflow;
+- static global constants remain present;
+- snapshot files are generator output and must not be hand-edited.
 
-## Generated-output review
+The snapshots must be regenerated or byte-verified after the fixture/source repair head is chosen, then committed separately from implementation changes.
 
-Review the carrier artifact before materialization:
+## Local inherited-surface investigation tests
 
-1. changed declaration files and changed method count;
-2. examples from `fetch`, `EventTarget`, Crypto, streams, URL, Headers, FormData, WebSocket, iterator-bearing APIs, and disposal symbols;
-3. legal global receiver unions;
-4. explicit handwritten `this: void` and custom unions unchanged;
-5. static methods unchanged and absent from ambient extraction;
-6. static global constants preserved;
-7. no `__JSG_GENERATED_RECEIVER__` leakage;
-8. no undeclared or stale renamed receiver owners;
-9. no unexpected recursive expansion from `typeof globalThis`;
-10. ambient and importable outputs both type-check;
-11. callable resource call signatures unchanged;
-12. any intentionally detachable current API, or an explicit negative result;
-13. exact list of snapshot files to add to source PR #5.
+Before adding a Worker-global-local shadow, execute a TypeScript 5.8.3 model that proves:
 
-## Remaining evidence gap
+1. a derived interface may redeclare an inherited method with a wider explicit `this` without breaking assignability;
+2. `self.dispatchEvent` accepts bare/nullish/global/self forms;
+3. `new EventTarget().dispatchEvent` remains strict;
+4. an unrelated receiver remains rejected;
+5. `addEventListener` keyed overload inference remains intact;
+6. ambient and importable generated outputs agree;
+7. the selected global receiver type does not accidentally resolve to a consumer host global.
 
-- carrier PR #9 final-head focused, complete-types, lint, and generation conclusions;
-- generated snapshot compatibility review;
-- materialized snapshot files on a new exact source head;
-- independent complete-diff acceptance of source plus snapshots.
+Use `dispatchEvent` as the first discriminating fixture because it avoids `addEventListener` overload-order ambiguity.
 
-Queued, pending, or skipped jobs are execution state only and provide no pass or failure evidence.
+## Final required gates
+
+After canonical repair and snapshot materialization:
+
+```console
+bazelisk test //types/... --test_output=errors
+bazelisk test //types:types_lib@eslint --test_output=errors
+bazelisk build //types
+```
+
+Also require:
+
+- exact generated snapshot diff is clean;
+- latest and experimental ambient/importable bundles type-check;
+- no marker leakage;
+- every receiver owner resolves;
+- no duplicate inherited overloads;
+- ordinary `EventTarget` remains strict;
+- source branch contains no workflow files;
+- independent final diff review.
+
+## Evidence status
+
+### Passed
+
+- focused receiver targets on exact candidate;
+- native Worker-global/separate-owner characterization;
+- generated declaration build;
+- four-file artifact production;
+- marker leakage check;
+- earlier exact-candidate lint run.
+
+### Failed and classified
+
+- complete `//types/...`: two stale generator exact-output fixtures.
+
+### Remaining
+
+- fixture repair committed to canonical source;
+- optional localized Worker-global shadow decision;
+- regenerated snapshots committed;
+- complete package, lint, build, and snapshot checks on final exact head;
+- independent source-and-snapshot review.
