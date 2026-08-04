@@ -8,13 +8,22 @@ State: `candidate`
 
 Begin with the smallest defensible statement:
 
-> I propose changing X so that Y remains true when Z happens.
+> I propose changing X so that Y will remain true when Z happens.
 
-If no change is yet justified, state the concrete question instead.
+If no change is justified yet, state the concrete question instead.
+
+Write naturally. Contractions are welcome, and tense should tell the reader where each claim sits in time:
+
+```text
+current behaviour   → present tense
+proposed effect     → future tense
+completed evidence  → past tense
+remaining work      → future tense
+```
 
 ## Current and proposed behaviour
 
-Prefer code, pseudocode, a sequence trace, or an arrow diagram when it expresses the mechanics more directly than prose.
+Prefer code, pseudocode, a sequence trace, or an arrow diagram when it'll express the mechanics more directly than prose.
 
 ```text
 current:
@@ -25,7 +34,7 @@ proposed:
 input ──▶ settle A ──▶ settle B ──▶ publish failures
 ```
 
-Use prose here only for details the representation does not capture.
+Use prose here only for details the representation doesn't capture.
 
 ## Consequence
 
@@ -51,10 +60,10 @@ State the demonstrated cause. Use a small code excerpt, state transition, or tra
 
 ## Invariant
 
-Write the property the change must preserve.
+Write the property the change will preserve.
 
 ```text
-Example: every admitted cleanup hook settles before close() publishes failure.
+Example: every admitted cleanup hook will settle before close() publishes failure.
 ```
 
 ## Scope
@@ -64,7 +73,7 @@ included:
 excluded:
 ```
 
-Do not mix execution machinery, research notes, unrelated cleanup, or generated output into the product patch.
+Don't mix execution machinery, research notes, unrelated cleanup, or generated output into the product patch.
 
 ## Candidate implementation
 
@@ -75,19 +84,19 @@ head revision:
 changed components:
 ```
 
-A compact pseudocode sketch is encouraged when it lets a reviewer understand the patch before reading the diff.
+A compact pseudocode sketch is encouraged when it'll let a reviewer understand the patch before reading the diff.
 
 ## Verification
 
-Show the evidence in the form closest to the claim: failing/passing regression, truth table, matrix, trace, benchmark, fault injection, or adversarial schedule. Do not turn a short receipt into a large bullet inventory.
+Show the evidence in the form closest to the claim: failing/passing regression, truth table, matrix, trace, benchmark, fault injection, or adversarial schedule. Don't turn a short receipt into a large bullet inventory.
 
 ## Tradeoffs and alternatives
 
-Use prose for the judgment that code cannot answer: compatibility, API shape, ownership, review cost, rejected designs, and why the narrow change is preferable.
+Use prose for the judgment that code can't answer: compatibility, API shape, ownership, review cost, rejected designs, and why the narrow change is preferable.
 
 ## Recovery
 
-State how to revert, disable, or contain the change when recovery is relevant.
+State how the change could be reverted, disabled, or contained when recovery is relevant.
 
 ## Upstream context
 
@@ -95,7 +104,7 @@ Keep links quiet until contact is deliberate. When submitted, mark intentional d
 
 ## AI assistance
 
-Describe how AI systems contributed to research or implementation, how outputs were checked, and any disclosure required by target policy.
+Describe how AI systems contributed to research or implementation, how outputs were checked, and any disclosure the target policy will require.
 
 ## Human accountability
 
@@ -110,4 +119,4 @@ undisclosed upstream contact: no
 
 ## Maintainer decision requested
 
-State the smallest concrete decision needed. Do not ask maintainers to infer the proposal from the dossier.
+State the smallest concrete decision needed. Don't ask maintainers to infer the proposal from the dossier.
