@@ -23,6 +23,12 @@ This removes `--` from the generated `realpath` calls only. It leaves `dirname -
 
 The changed launcher and recognizer paths are Unix shell paths. Native Windows entrypoints continue to use uv's binary trampoline implementation, and the Windows batch and PowerShell activation paths are unchanged.
 
+### Why this scope
+
+The change needs to cover every place uv writes this relocatable shell fragment, plus the `uv run` path that later reads it. Updating only wheel-installed launchers would leave the Bash and Fish activation scripts inconsistent. Updating the writers without the reader would make the corrected launcher format unrecognizable when `uv run` later copies an entrypoint. Dropping the historical forms would strand launchers written by older uv versions.
+
+It intentionally does not remove `realpath`, because that would change externally symlinked launcher behavior. It leaves `dirname --` in place because BusyBox supports it. It also avoids a broader parser, cross-crate refactor, or generator-host BusyBox check: the four exact generated forms are easy to audit, and one portable runtime fragment worked across the tested GNU, BusyBox, and macOS environments.
+
 Closes #16209.
 
 ### Test plan
