@@ -66,9 +66,9 @@ A listener may either start after the command has already printed something or f
 The implementation includes deterministic coverage for both paths:
 
 - output emitted before `start_streaming_output` subscribes is present in the completed command item after the fix;
-- a deliberately lagged receiver misses chunks while the producer-owned completion buffer retains all bytes within the existing cap;
+- a deliberately lagged receiver misses chunks while the completion buffer retains all bytes within the existing cap;
 - the same lag test covers invalid UTF-8 bytes;
-- a partial streaming transcript is replaced with the producer-owned transcript at completion.
+- a partial streaming transcript is replaced with the completion buffer at completion.
 
 Those are code-level reproductions of the loss boundary. The examples below describe what can follow when a missing chunk contained information Codex needed; they haven't each been reproduced as separate product bugs.
 
@@ -131,7 +131,7 @@ let _ = output_tx.send(bytes);
 output_notify.notify_waiters();
 ```
 
-At completion, the watcher replaces its partial transcript with the producer-owned copy:
+At completion, the watcher replaces its partial transcript with the retained completion copy:
 
 [`async_watcher.rs` in the implementation proof](https://github.com/teamleaderleo/codex/blob/b2a704c708748462d7893fe82cf8971f00ca751e/codex-rs/core/src/unified_exec/async_watcher.rs#L148-L151)
 
@@ -140,7 +140,11 @@ reconcile_transcript(&transcript, &completion_buffer).await;
 output_drained.notify_one();
 ```
 
-The completed result would use the existing bounded head/tail representation. Large command output would still be capped, with the retained beginning and ending plus the existing omission marker. The live listener could still start late or fall behind without changing the completed result.
+The completed result would keep using the existing capped head/tail representation. Large command output would still keep the beginning and ending plus the omission marker.
+
+### What this changes, and what stays separate
+
+A late or lagging live listener would stop deciding what appears in the completed result. The live display could still miss an update, including an interactive prompt. Output lost before it reaches `UnifiedExecProcess`, or output arriving after the current cancellation-grace window, would stay outside this change. The completed item would continue to represent the capped history for the whole process rather than only the output since the last poll.
 
 I put together the four-file implementation and tests here: `teamleaderleo/codex#144`.
 
@@ -151,12 +155,12 @@ At that exact source revision:
 - integration targets compiled;
 - formatting and the four-file source fence passed.
 
-The implementation is there to show the current behavior and one possible repair. The question is:
+The implementation shows the current behavior and one possible repair. The question is:
 
 **Should the completed unified-exec result come from the bounded output kept by the component that received it, rather than from whichever chunks reached the live listener?**
 
 ### Follow-ups
 
-The timeout trigger itself, process cleanup after cancellation, output that arrives after forced termination, and remote execution state sit in other parts of the execution lifecycle. They can follow as separate investigations.
+The timeout trigger itself, reliable delivery of interactive prompts, process cleanup after cancellation, output that arrives after forced termination, and remote execution state sit in other parts of the execution lifecycle. They can follow as separate investigations.
 
 No public upstream interaction has occurred.
