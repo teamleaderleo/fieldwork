@@ -23,6 +23,8 @@ I propose removing `--` from the generated `realpath` calls. We can leave `dirna
 
 `uv run` also needs to recognize both the updated and existing launcher forms so launchers created by older uv versions keep working.
 
+A helper or parser may make sense as a later cleanup, but keeping the four known forms explicit keeps this fix small and easy to review.
+
 ### Test plan
 
 - Updated the wheel and relocatable-venv expectations.
