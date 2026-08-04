@@ -2,9 +2,9 @@
 
 ## Current disposition
 
-`REPAIR — expected-error harness repair committed; exact-head CI queued`
+`REPAIR — Arrow type-code contract corrected; exact-head CI queued`
 
-The current private repair carrier is [`teamleaderleo/duckdb#16`](https://github.com/teamleaderleo/duckdb/pull/16) at exact head `7467f762292151925ceed1af3a030949241ca549`. The preceding exact head `6ff47e3abad0e9412926b6b2dfd33ebb7b18ee2c` passed ordinary Main and all five positive native controls. Its first malformed control raised the intended DuckDB exception, but the fixture treated that expected binder exception as unexpected and leaked the unconsumed single-batch Arrow stream.
+The current private repair carrier is [`teamleaderleo/duckdb#16`](https://github.com/teamleaderleo/duckdb/pull/16) at exact head `44a210f581789e5635f24d20cfa5a957ba0b4dd6`.
 
 No public DuckDB issue, pull request, review, comment, or branch has been modified. Public upstream remains read-only and unauthorized for contact.
 
@@ -22,38 +22,37 @@ No public DuckDB issue, pull request, review, comment, or branch has been modifi
 
 1. Characterization: [`teamleaderleo/duckdb#12`](https://github.com/teamleaderleo/duckdb/pull/12), `ed05ac593498fb4f95546ec591824ee23429088d`.
 2. Passing parent mapping candidate: [`teamleaderleo/duckdb#14`](https://github.com/teamleaderleo/duckdb/pull/14), `c962ece64c1356015aef15a37c0cc636f63b376b`.
-3. Signed-ID repair examined: `bfb8434e380eb69765e8c154e57e6d092e43dd57`.
-4. Superseded invalid offset fixture: `c3513da03af17f6d1ab1166178a03f2d46e47230`.
-5. Valid offset fixture and positive-control head: `6ff47e3abad0e9412926b6b2dfd33ebb7b18ee2c`.
-6. Current expected-error harness repair: `repair/262-arrow-union-malformed-map-controls@7467f762292151925ceed1af3a030949241ca549`.
+3. Initial child-offset repair: `9c6a7d4f5ccbe47a6338233954471586df271968`.
+4. Valid offset fixture and positive-control head: `6ff47e3abad0e9412926b6b2dfd33ebb7b18ee2c`.
+5. Expected-error capture repair: `7467f762292151925ceed1af3a030949241ca549`.
+6. Arrow type-code contract correction commits: `208c9e8b163062aeb6460baa68d92efbce267baf`, `c0509b5b674df3e53e699c8b7c05f45977860a86`, and current head `44a210f581789e5635f24d20cfa5a957ba0b4dd6`.
 7. Clean publication branch: `fix/arrow-union-type-id-mapping@2c9e51aa33dd07e928edae66304430aeb038edd7`, still identical to target base pending focused green.
 
-## Current design
+## Correct Arrow contract
 
-The repair treats Arrow sparse-union type IDs as signed 8-bit values:
+Arrow's union type-code buffer uses signed 8-bit storage. That does not make negative logical codes valid. The Arrow C++ reference implementation explicitly rejects codes below zero, rejects codes above `kMaxTypeCode`, and builds a reverse map of `kMaxTypeCode + 1` entries. The packet's earlier signed-negative extension is superseded.
 
-- accepts the full `[-128, 127]` domain;
-- uses a 256-entry type-ID-to-child-index table;
-- indexes each `int8_t` by its unsigned-byte representation;
-- rejects duplicate signed schema IDs;
+The current repair therefore:
+
+- accepts schema type codes only across `0..127`;
+- retains the parent candidate's 128-entry type-ID-to-child-index table;
+- rejects negative schema codes before construction;
+- rejects duplicate nonnegative schema codes;
 - rejects schema-ID count mismatch;
-- rejects unmapped positive and negative runtime IDs;
+- rejects unmapped nonnegative runtime codes;
+- rejects negative runtime buffer values before indexing;
 - writes the mapped child index as DuckDB's union tag;
 - passes `array.offset + parent_offset` through sparse-union child validity, default, dictionary, and run-end conversion paths.
 
-The valid offset fixture uses an unsliced three-row root containing a sparse-union child with offset one and logical length three over four physical entries. This satisfies Arrow parent/child length invariants while directly exercising the offset supplied to the union's child conversions.
+## Fixture and harness repairs
 
-The current head changes only the expected-error fixture path relative to `6ff47e3...`:
+The offset fixture uses an unsliced three-row root containing a sparse-union child with offset one and logical length three over four physical entries. This satisfies Arrow parent/child length invariants while directly exercising the offset supplied to the union's child conversions.
 
-- each malformed test supplies the exact intended DuckDB error substring;
-- binder exceptions release the unconsumed Arrow stream before assertion;
-- execution-time failures are checked through `QueryResult::HasError()` and `GetError()`;
-- all five malformed controls remain present and are not weakened;
-- production generators and generated-source scope are unchanged.
+Malformed controls provide exact expected error substrings. Binder exceptions release the unconsumed single-batch Arrow stream before assertion; execution-time failures are checked through `QueryResult::HasError()` and `GetError()`.
 
 ## Scope fence
 
-Carrier changes relative to the passing parent candidate remain limited to:
+Carrier changes relative to the passing parent candidate remain exactly:
 
 - `.github/workflows/fieldwork-arrow-union-type-id-candidate.yml`
 - `test/arrow/arrow_union_type_ids.cpp`
@@ -71,7 +70,7 @@ The generated production fence remains exactly seven Arrow source files:
 
 The clean publication also includes `test/arrow/CMakeLists.txt` and `test/arrow/arrow_union_type_ids.cpp`, for an exact nine-file fence.
 
-## Evidence
+## Previous exact-head evidence
 
 At `6ff47e3abad0e9412926b6b2dfd33ebb7b18ee2c`:
 
@@ -80,20 +79,38 @@ At `6ff47e3abad0e9412926b6b2dfd33ebb7b18ee2c`:
 - identity mapping: pass;
 - non-sequential mapping: pass;
 - reordered mapping: pass;
-- signed-boundary mapping: pass;
+- then-configured signed-boundary mapping: pass as implementation behavior, but later superseded because negative schema codes violate Arrow's contract;
 - nonzero sparse-union offset: pass;
-- first malformed control: production raised the intended `Arrow union type ID 5 is duplicated` exception, but the fixture reported it as unexpected;
-- LeakSanitizer then reported the unconsumed 152-byte single-batch stream allocation.
+- first malformed control: production raised the intended duplicate-ID exception, but the fixture reported it as unexpected;
+- LeakSanitizer reported the unconsumed 152-byte single-batch stream allocation.
 
-At current head `7467f762292151925ceed1af3a030949241ca549`:
+## Current exact-head controls
 
-- focused hardening run `30928499515`, job `92056903097`: queued;
-- ordinary Main run `30928504166`: queued;
-- stale characterization run `30928499578`: expected red if executed and is not promotion evidence.
+Positive:
+
+- identity IDs `0,1,2`;
+- non-sequential IDs `5,7,9`;
+- reordered IDs `2,1,0`;
+- upper-bound IDs `0,64,127`;
+- sparse-union offset one over an ignored physical prefix entry.
+
+Malformed:
+
+- duplicate schema ID;
+- negative schema ID;
+- schema type-ID count mismatch;
+- unmapped nonnegative runtime ID;
+- negative runtime buffer value.
+
+Current runs at `44a210f581789e5635f24d20cfa5a957ba0b4dd6`:
+
+- focused hardening `30929505318`: queued;
+- ordinary Main `30929509618`: queued;
+- stale characterization `30929504904`: expected red if executed and not promotion evidence.
 
 ## Public prior-art refresh
 
-Read-only refresh found no superseding implementation:
+Read-only refresh found no superseding logical-ID mapping implementation:
 
 - public issue `duckdb/duckdb#21842` remains open;
 - focused PR `duckdb/duckdb#21843` remains closed and unmerged;
@@ -105,11 +122,11 @@ Read-only refresh found no superseding implementation:
 Do not merge or contact public upstream. Advance the clean branch only after the current exact head has:
 
 1. green Main;
-2. green identity, non-sequential, reordered, signed-boundary, and offset controls;
-3. green duplicate-ID, duplicate-negative-ID, count-mismatch, unmapped-positive-ID, and unmapped-negative-ID controls;
+2. green identity, non-sequential, reordered, upper-bound, and offset controls;
+3. green duplicate-ID, negative-schema-ID, count-mismatch, unmapped-runtime-ID, and negative-runtime-ID controls;
 4. an inspected artifact with all three generation markers and the exact seven generated source files;
 5. a verified clean publication fence.
 
 ## Current receipt and continuation
 
-Resume from `teamleaderleo/duckdb@7467f762292151925ceed1af3a030949241ca549`, focused run `30928499515`, job `92056903097`. Repair only a demonstrated new failure; do not weaken or remove any positive or malformed-input control.
+Resume from `teamleaderleo/duckdb@44a210f581789e5635f24d20cfa5a957ba0b4dd6`, focused run `30929505318`. Repair only a demonstrated new failure; do not weaken or remove any positive or malformed-input control.
