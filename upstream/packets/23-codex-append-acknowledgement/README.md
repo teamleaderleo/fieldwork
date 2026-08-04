@@ -1,80 +1,65 @@
-# Unit 23 — Codex durable append acknowledgement
+# Unit 23 — Codex append acknowledgement
 
 ## Current disposition
 
-`MATERIALIZE: COMPLETE / OWNED-FORK REVIEW: COMPLETE / PUBLIC DELIVERY: HOLD`
+`IMPLEMENTATION PROOF COMPLETE / CURRENT-MAIN REFRESH REQUIRED / PROPOSAL SEQUENCE: SECOND`
 
-The bounded source change is materialized and reviewed on current public Codex base `670f69416bf91c5dfd8b58669e78050b584ff053`. The only remaining hold is public-process authorization: `openai/codex` accepts external code contributions by invitation, and no invitation or public-contact authorization exists.
+The discovery remains present on public Codex main inspected at `7325f348a2ff9e1a7dd931ed9ad65f365d064146`: `record_conversation_items()` and its persistence helpers still discard the live-thread append result before raw-response delivery continues.
 
-## Scope
-
-Return the authoritative rollout append acknowledgement from `Session::record_conversation_items` while preserving current behavior for callers that ignore the return value.
-
-Exact source fence:
+The retained implementation proof is `teamleaderleo/codex#140@babc761faeb1bf618aa4a9495236336f6d63f006`, based on `2b5bdcf67547860f2e5c5a605009a70026796b2b`. It is one reviewed commit touching exactly:
 
 - `codex-rs/core/src/session/mod.rs`
 - `codex-rs/core/src/session/turn_tests.rs`
 - `codex-rs/thread-store/src/in_memory.rs`
 
-Behavior matrix:
+Public main advanced 66 commits after that base and changed `session/mod.rs`, so #140 is evidence and design proof, not a current-main delivery head. Refresh and rerun only when this issue is authorized and reaches its turn in the proposal sequence.
 
-| case | returned acknowledgement | durable item |
+## Finding
+
+The session boundary currently combines three actions:
+
+1. update in-memory conversation history;
+2. attempt authoritative rollout persistence;
+3. deliver raw response items to observers.
+
+The persistence outcome is logged and lost. Observer delivery therefore cannot establish that authoritative history acknowledged the item.
+
+The implementation proof returns a boolean acknowledgement:
+
+| case | acknowledgement | durable item |
 | --- | --- | --- |
-| ephemeral session | `true` | no live store; in-memory session history remains authoritative |
+| no live thread | `true` | persistence not required for the ephemeral session |
 | successful live append | `true` | present |
 | pre-write failure | `false` | absent |
-| commit-then-error acknowledgement loss | `false` | present |
+| commit-then-error | `false` | may already be present |
 
-The boolean is acknowledgement only. `false` intentionally combines definite pre-write failure with ambiguous commit/acknowledgement loss and therefore authorizes no retry, duplicate reconciliation, replay, compaction decision, or remote-effect settlement.
+`false` means only “not acknowledged.” It proves neither absence nor retry safety.
 
-## Current source and review
+## Result-shape decision
 
-- Public base and direct parent: `670f69416bf91c5dfd8b58669e78050b584ff053`
-- Clean source branch: `teamleaderleo/codex:fix/session-durable-append-acknowledgement`
-- Clean source head: `16cb14688dac752a5a13c180e94355b199f240a7`
-- Source review PR: `teamleaderleo/codex#136`
-- Review submission: `4841949952`
-- Source shape: one commit, three files, 190 additions, 7 deletions
-- Merge state in the owned mirror: clean and mergeable
+Fieldwork #503 is complete. Retain `bool` for this first seam because every reviewed production caller discards the value. Widen to typed certainty or a reconciliation receipt only when a concrete caller needs to distinguish confirmed absence from unknown commit outcome.
 
-All four production call sites currently discard the new result. That is the explicit unit boundary: unit 23 exposes the seam but does not change caller policy.
+## Proposal sequence
 
-## Validation receipt
+1. **Terminal output retention first.** Best-effort broadcast can erase bytes from the final command transcript. The four-file source fence remains byte-identical on current public main and its implementation has a complete execution receipt.
+2. **Append acknowledgement second.** Surface the authoritative history append acknowledgement, link to a refreshed #140 implementation, and keep retry/caller policy out of scope.
+3. **Responses Lite lineage third.** Prevent non-generating prewarm state from becoming the predecessor of the first generated request.
+4. **Cleanup and remote outcome uncertainty later.** Coordinate with existing public liveness issues rather than filing a duplicate umbrella report.
 
-Semantic materializer:
+Recent public Codex commit `17df7545a34ac533eedf5b628f49f2f1ad60e44e` reinforces the governing principle: unresolved state must not be mislabeled as cancellation, and late terminal results should remain reportable.
 
-- Carrier PR: `teamleaderleo/codex#132`
-- Carrier head: `4bd35b35dee5649c6ba5af4c3535af2081c58bfc`
-- Workflow run: `30674601315`
-- Job: `91299123673`
-- Generated and tested source head: `06971a3a2b95d70a809472bfbd6fe7884063a563`
-- Exact append controls: `4/4`
-- Full `codex-thread-store` package: `163 passed; 0 failed`
-- Formatting: passed
+## Validation retained
 
-The source branch was later rewritten to `16cb1468...` from the same parent. The tested and current heads contain identical blobs for all three changed files:
+Current-source predecessor materialization run `30754015720` passed formatting, four exact append-outcome controls, the complete `codex-thread-store` package, and the exact three-file gate. Review `4842611857` found no code issue inside the unit fence.
 
-- `session/mod.rs`: `6a35b541245007424fd8f268a408225e9e262009`
-- `turn_tests.rs`: `cd78a86704d6fe152fde0b522c8f8bc2927c36c5`
-- `in_memory.rs`: `bbf69a3c7fb85076eaf0ebcd1d5799433caae9a4`
+Historical exact receipts and superseded sources remain indexed in this packet. PR #136 is closed as superseded; execution carriers are retired.
 
-Current-head owned CI also passed v8-canary, formatting, cargo-deny, codespell, cargo-shear, changed-area detection, and blob-size policy. `blocking-ci` fails outside this three-file fence at a stale `codex-rs/code-mode/Cargo.toml` manifest exception; downstream matrix jobs fail or cancel after that repository gate.
+## Public boundary
 
-## Authoritative record chain
+No public upstream interaction occurred. Before eventual discussion:
 
-1. Fieldwork campaign and prerequisite: `teamleaderleo/fieldwork#83`.
-2. Canonical finding and delivery record: `teamleaderleo/fieldwork#292` and `teamleaderleo/fieldwork#239`.
-3. Historical source/carrier pairs: `teamleaderleo/codex#51/#52`, `#84/#80`, and `#97/#98`.
-4. Direct-transplant conflict diagnostic: `teamleaderleo/codex#131`.
-5. Current semantic materializer and exact execution receipt: `teamleaderleo/codex#132`, run `30674601315`, job `91299123673`.
-6. Current clean source review: `teamleaderleo/codex#136@16cb14688dac752a5a13c180e94355b199f240a7`.
-7. Packet review: `teamleaderleo/fieldwork#449`.
-
-## Governance and contact
-
-Repository and target instructions were read and applied, including Fieldwork coordination, reviewing, batching, upstream packet, and public-contact rules, plus Codex root `AGENTS.md`, `README.md`, and `docs/contributing.md` at the source base.
-
-Public upstream contact authorized: `false`.
-Public upstream interaction performed: `none`.
-
-Exact next action: preserve the owned source and packet until an OpenAI contribution invitation and explicit public-contact authorization both exist; then rebase/revalidate against the authorized delivery base before any public contact.
+- refresh semantically onto the then-current public head;
+- rerun exact and ordinary gates;
+- repeat duplicate and overlap search;
+- link only to the clean implementation proof, not Fieldwork machinery;
+- obtain explicit public-contact authorization.
