@@ -1,52 +1,56 @@
 # Handoff — Unit 11: stabilize lifecycle fanout targets
 
-## In simple words
-
-The OpenTelemetry trace/log lifecycle candidate is repaired, clean, fully green on its exact head, and independently accepted at the technical level. It is ready for the repository owner to decide whether to advance it toward an upstream proposal.
-
 ## Current state
 
-`TECHNICALLY READY — OWNER DECISION REQUESTED`
+`UPSTREAM PREPARATION IN PROGRESS — SOURCE REVIEW ACCEPTED — EXACT-HEAD CI PENDING`
+
+The repository owner approved moving the candidate into upstream preparation. The source has been refreshed onto current public `main`, overlap and contribution logistics have been checked, and the upstream-facing description has been rewritten in the repository's current pull-request format.
+
+The source preview and packet are intentionally draft while the fresh exact-head workflow matrix runs.
 
 ## Exact identities
 
-- base/current-main snapshot: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- refreshed public-main base: `f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`;
 - canonical source branch: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout-v2`;
-- exact source head: `db3d9e5e43d5abc6622784acf0ef87f3b038ac91`;
-- source PR: `teamleaderleo/opentelemetry-js#19`;
-- packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout`;
+- exact prepared source head: `f4cb44bcccffbc0eb39e774284655e0f965cfce1`;
+- source preview PR: `teamleaderleo/opentelemetry-js#19`;
+- packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout-current`;
 - packet path: `upstream/packets/11-opentelemetry-lifecycle-fanout/`;
 - source relation: ahead 1, behind 0.
 
-## Completed repair
+## Completed preparation
 
-1. Trace aggregate lifecycle operations snapshot opening processors and normalize direct synchronous throws without delaying invocation.
-2. Public trace provider force flush separately snapshots targets and clears its timeout after synchronous failure while preserving error-array rejection.
-3. Logs lifecycle operations snapshot opening processors and retain existing timeout/rejection behavior.
-4. Eleven focused assertions cover direct throws, live mutation, provider timer cleanup, error shape, and genuine timeout behavior.
-5. Metrics was removed from scope because the earlier path required private-state mutation.
-6. The source is one six-file commit with no workflow, dependency, lock, generated, publisher, or research residue.
+1. Refreshed public `main` and found it three commits ahead of the earlier base.
+2. Preserved upstream PR #6929's new per-call trace force-flush timeout API.
+3. Preserved the unrelated current-main `MultiSpanProcessor.onEnding()` forwarding behavior.
+4. Rebuilt the six-file candidate as one commit on the refreshed base.
+5. Updated the provider tests to use the current per-call timeout option.
+6. Re-ran issue and PR searches; no equivalent repair was found.
+7. Rechecked current contribution, changelog, and pull-request-template requirements.
+8. Drafted the exact root and experimental changelog lines, pending a real public PR number.
+9. Rewrote the source preview and packet upstream draft in concise upstream-facing form.
+10. Performed a fresh complete-diff source review; no blocking defect was found.
 
-## Exact-head execution
+## Fresh exact-head execution
 
-All passed:
+Started for `f4cb44bcccffbc0eb39e774284655e0f965cfce1`:
 
-- Unit Tests `30756036668`;
-- Lint `30756036660`;
-- W3C `30756036656`;
-- Bundler `30756036678`;
-- API peer dependency `30756036662`;
-- CodeQL `30756036671`;
-- E2E `30756036639`;
-- Zizmor `30756036691`.
+- Unit Tests `30956029453`;
+- Lint `30956029480`;
+- W3C Trace Context Integration Test `30956029456`;
+- Bundler tests `30956029470`;
+- Ensure API Peer Dependency `30956029447`;
+- CodeQL Analysis `30956029506`;
+- E2E Tests `30956029462`;
+- Zizmor GitHub Actions Security Analysis `30956029460`;
+- Old Node.js Compatibility `30956029502`.
 
-## Review result
+## Remaining gate
 
-Independent exact-head review of the complete six-file fence recorded `ACCEPT / TECHNICALLY READY` and found no blocking source defect.
-
-## Decision requested
-
-Approve advancement toward authorized upstream preparation. Filing-time work remains: refresh current main and overlap, confirm current contribution/disclosure policy, add both changelog entries using the real upstream PR number, and explicitly authorize public upstream interaction.
+1. Classify all fresh exact-head workflows.
+2. Repair any candidate-relevant failure rather than parking it.
+3. If the matrix is green, mark the source preview and packet ready and present the final public-contact decision.
+4. After explicit public-contact authorization, create the upstream PR and immediately add both changelog entries using its assigned number.
 
 ## Contact boundary
 
