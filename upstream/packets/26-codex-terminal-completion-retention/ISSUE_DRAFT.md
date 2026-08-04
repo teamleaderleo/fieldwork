@@ -16,7 +16,7 @@ When Codex runs a shell command or another command-based tool, `UnifiedExecProce
 
 The current local output collector skips anything reported as `Lagged`:
 
-[`process.rs` on the latest public source checked](https://github.com/openai/codex/blob/78f00743f92cf4fb875ddadcd30293c5201b48ac/codex-rs/core/src/unified_exec/process.rs#L602-L632)
+[`process.rs` on the latest public source checked](https://github.com/openai/codex/blob/c607da9f371bb66a41cc772c6ddf1989d28137d3/codex-rs/core/src/unified_exec/process.rs#L602-L632)
 
 ```rust
 match receiver.recv().await {
@@ -37,7 +37,7 @@ match receiver.recv().await {
 
 The completion watcher has the same behavior while it builds the transcript:
 
-[`async_watcher.rs` on the latest public source checked](https://github.com/openai/codex/blob/78f00743f92cf4fb875ddadcd30293c5201b48ac/codex-rs/core/src/unified_exec/async_watcher.rs#L88-L110)
+[`async_watcher.rs` on the latest public source checked](https://github.com/openai/codex/blob/c607da9f371bb66a41cc772c6ddf1989d28137d3/codex-rs/core/src/unified_exec/async_watcher.rs#L88-L110)
 
 ```rust
 let chunk = match received {
