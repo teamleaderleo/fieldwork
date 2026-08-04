@@ -120,6 +120,19 @@ Read-only refresh found no superseding logical-ID mapping implementation:
 - broader dense-union PR `duckdb/duckdb#21898` remains closed and unmerged;
 - newer merged union work addresses buffer/chunk offsets and appender behavior, not schema logical-ID-to-child-index mapping.
 
+## Adjacent DuckDB Arrow research
+
+The read-only follow-on sweep is preserved in [`adjacent-duckdb-arrow-research-2026-08-05.md`](adjacent-duckdb-arrow-research-2026-08-05.md).
+
+Key findings:
+
+- dense-union ingestion is a real separate capability gap: merged ADBC Statistics and GetInfo paths now emit required dense unions manually, while `arrow_scan` still rejects `+ud:`;
+- public issue `duckdb/duckdb#21849` remains an unimplemented umbrella for Arrow C Data validation hardening;
+- merged nested-extension work and unit 14 both show that DuckDB-only round trips can miss schema/data-layout incompatibilities, supporting a future reference-consumer interop test lane;
+- active upstream PR `duckdb/duckdb#24483` already owns the ListView disjoint/overlapping child-span bug and should not be duplicated.
+
+These are routing observations only. They do not expand unit 14's source scope or claim new work.
+
 ## Promotion gate
 
 Do not merge or contact public upstream. Advance the clean branch only after the current exact head has:
