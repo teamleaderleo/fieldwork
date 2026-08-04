@@ -21,6 +21,8 @@ realpath: --: No such file or directory
 
 I propose removing `--` from the generated `realpath` calls. We can leave `dirname --` as-is, which leaves quoting and symlink resolution unchanged.
 
+The launcher passes its own path through `$0`, so even a hyphenated filename is received as a path such as `./-tool` rather than a bare option.
+
 `uv run` also needs to recognize both the updated and existing launcher forms so launchers created by older uv versions keep working.
 
 A helper or parser may make sense as a later cleanup, but I think keeping the four known forms explicit is better for the scope of this fix.
