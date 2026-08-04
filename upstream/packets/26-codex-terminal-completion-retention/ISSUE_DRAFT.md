@@ -1,66 +1,81 @@
 # Upstream issue draft — first Codex issue candidate
 
-> Do not post without explicit public-contact authorization. Repeat the public issue and PR search immediately before use.
+> Hold for explicit public-contact authorization. Refresh the public source and overlap search immediately before posting.
 
 ## Title
 
-Completed unified-exec commands can lose output received before or outside the live output subscriber
+Unified exec can drop command output when the live listener starts late or falls behind
 
 ## Body
 
-### Problem
+I started looking at this while trying to understand why some tool calls time out or otherwise finish without a useful result. The timeout itself can come from several parts of the process lifecycle, but I found a narrower problem that makes those failures much harder to understand: Codex can receive command output and still leave some of it out of the completed command record.
 
-Unified exec receives stdout and stderr at the process owner, while live output is delivered through a best-effort broadcast subscriber. The completed command transcript can be assembled from that subscriber’s partial view.
+### What seems to be happening
 
-A subscriber can attach after output has already arrived or fall behind the broadcast channel and receive `Lagged`. In both cases, the process owner received bytes that can be absent from the final completed command item.
+Unified exec receives stdout and stderr at the process owner. Live output is then sent through a best-effort broadcast channel so the UI and other listeners can show progress.
 
-Best-effort delivery is reasonable for live progress. Final command output should not inherit the same loss model.
+That live listener can:
 
-### Deterministic reproduction shape
+- attach after the command has already printed something;
+- fall behind a noisy command and receive `Lagged`;
+- close while the process owner still has valid output.
 
-Two cases expose the boundary:
+The surprising part is that the listener's partial view can become the completed command transcript. That gives a best-effort delivery path authority over the final result.
 
-1. emit output before the streaming subscriber is attached, then complete the process;
-2. emit enough output to lag the subscriber, then complete the process.
+### Why this matters in ordinary Codex use
 
-The completed item can omit producer-received bytes. The same loss can affect invalid UTF-8 because the bytes are lost at the delivery boundary before text rendering.
+A few examples:
 
-### Proposed invariant
+- A test command prints the actual failure early, then continues for a while. Codex can finish with a transcript that misses the useful failure line.
+- A build or search produces enough output to lag the live listener. The completed item can contain an arbitrary partial view rather than the bounded head/tail view of everything Codex received.
+- A command prints progress or an explanation and then times out. The timeout may be real, while the final record loses the output that would explain whether it was compiling, waiting on the network, prompting for input, or stuck during cleanup.
+- A command succeeds, but the model sees an incomplete or empty result and decides to retry, change approach, or report that the command produced nothing.
 
-A bounded producer-owned transcript should be authoritative for completed command output:
+So this appears related to timeout investigations mainly through **lost context around the terminal event**. It also affects commands that complete normally.
 
-- retain accepted stdout/stderr bytes before best-effort broadcast;
-- continue emitting bounded live deltas to observers;
-- on normal close, build the completed transcript from producer-owned state;
-- preserve the existing head/tail output bound and cancellation grace.
+### A small reproduction
 
-### Implementation evidence
+Two deterministic cases expose the boundary:
 
-A focused four-file implementation and tests are available in the owned fork: `teamleaderleo/codex#144`.
+1. Send output before the streaming listener is attached, then finish the command.
+2. Send enough output to lag the listener, then finish the command.
 
-At the exact implementation pin:
+In both cases, the process owner received the bytes, while the completed item can omit them. Invalid UTF-8 has the same basic risk because the loss happens before text rendering.
 
-- 12 focused terminal-retention controls passed;
-- the complete source `codex-core` library passed, alongside a green paired baseline;
+### Possible direction
+
+The process owner could keep one bounded completion transcript before sending live updates:
+
+1. receive stdout or stderr;
+2. add it to the bounded completion buffer;
+3. send the live update on a best-effort basis;
+4. build the completed command item from the producer-owned buffer.
+
+Live streaming would stay best effort. The final command output would come from the component that actually received the bytes.
+
+### Implementation and tests
+
+I put together a focused four-file implementation here: `teamleaderleo/codex#144`.
+
+At that exact source revision:
+
+- 12 focused terminal-output controls passed;
+- the complete source `codex-core` library passed alongside a green paired baseline;
 - integration targets compiled;
-- formatting and the exact four-file fence passed.
+- formatting and the four-file source fence passed.
 
-Public source was refreshed through `78f00743f92cf4fb875ddadcd30293c5201b48ac`, 95 commits after the implementation base. All four source-base files remained byte-identical, and refreshed issue/PR searches found no active proposal for this specific subscriber-timing loss.
+The relevant public files were still byte-identical at the latest source refresh, and the current issue/PR search found no active proposal for this specific late-or-lagged-listener case.
 
-The implementation link is evidence for the failure and one bounded repair, not a request to accept the exact commit without discussion.
+The implementation link is mainly there to make the behavior concrete. The ownership boundary is the important part; the exact shape can follow maintainer preference.
 
 ### Question
 
-Is producer-owned bounded retention the intended authority boundary for final unified-exec output, with broadcast remaining best effort only for live observation?
+Does producer-owned bounded retention sound like the right source of truth for completed unified-exec output, while the broadcast channel stays focused on live progress?
 
-### Limits
+### Scope and follow-ups
 
-This proposal does not attempt to:
+This issue focuses on output Codex has already received by the normal completion or existing cancellation-grace boundary.
 
-- guarantee bytes produced after the existing hard-termination grace boundary;
-- retain unbounded output;
-- solve process-tree cleanup or remote reattachment;
-- change conversation-history persistence;
-- introduce a general execution-receipt framework.
+Closely related follow-ups include the causes of long-running or timed-out tool calls, output that arrives after forced termination, process-tree cleanup, and remote execution settlement. Those have different owners and can be discussed separately without making this first issue carry the entire execution lifecycle.
 
 No public upstream interaction has occurred.
