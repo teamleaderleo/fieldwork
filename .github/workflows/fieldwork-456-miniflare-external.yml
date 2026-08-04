@@ -51,6 +51,8 @@ jobs:
           actual=$(git diff --name-only "$BASE_HEAD..HEAD" | sort)
           test "$actual" = "$expected"
           python -m py_compile .github/fieldwork/456/inject_runtime_wait_boundary.py
+          cp .github/fieldwork/456/inject_runtime_wait_boundary.py \
+            "$RUNNER_TEMP/inject_runtime_wait_boundary.py"
 
       - name: Install exact-base dependencies
         working-directory: workers-sdk
@@ -66,8 +68,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git checkout --detach "$BASE_HEAD"
           mkdir -p receipt
-          python .github/fieldwork/456/inject_runtime_wait_boundary.py
+          python "$RUNNER_TEMP/inject_runtime_wait_boundary.py"
           pnpm exec oxfmt \
             packages/miniflare/src/index.ts \
             packages/miniflare/test/teardown-lifecycle.spec.ts
