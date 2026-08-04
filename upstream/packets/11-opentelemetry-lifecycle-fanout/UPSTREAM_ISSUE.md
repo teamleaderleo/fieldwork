@@ -26,13 +26,15 @@ Metrics is excluded: `MeterProvider` creates an internal collector list, does no
 - snapshot each opening processor list;
 - convert direct synchronous processor throws into rejected promises using an eager helper;
 - let the existing provider force-flush `.catch()` clear its timeout and record the error;
-- retain `Promise.all`, timeout, global-handler, and outward rejection behavior.
+- retain `Promise.all`, timeout, global-handler, and outward rejection behavior;
+- retain the current per-call trace force-flush timeout API introduced by PR #6929.
 
 ## Compatibility
 
-- no public API/type changes;
+- no new public API/type changes;
+- current `ForceFlushOptions` retained;
 - eager invocation retained;
-- one shallow copy per affected operation;
+- one shallow copy per affected lifecycle operation;
 - future mutation retained;
 - aggregate/provider/logs error policies retained;
 - no metrics behavior change.
@@ -43,17 +45,20 @@ No settle-all aggregation, cancellation, retry, idempotence, delayed recursion, 
 
 ## Environment and prior art
 
-- base/current main during repair: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- refreshed current-main base: `f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`;
+- exact prepared candidate: `f4cb44bcccffbc0eb39e774284655e0f965cfce1`;
 - repository-supported Actions matrix;
 - focused two-processor throw/removal fixtures and fake-timer provider control;
-- refreshed open issue/PR searches found no equivalent current repair;
-- historical PR #802 introduced span-processor force-flush fanout but not stable opening membership or synchronous-failure cleanup.
+- refreshed open and closed issue/PR searches found no equivalent repair;
+- historical PR #802 introduced span-processor force-flush fanout but not stable opening membership or synchronous-failure cleanup;
+- merged PR #6929 adds per-call trace timeout configuration and is complementary.
 
 ## Filing checklist
 
-- [ ] repeat current-main and duplicate search at filing time;
-- [ ] confirm focused controls on the then-current revision;
-- [x] exclude metrics private-state-only behavior;
-- [x] avoid prevalence/severity claims beyond evidence;
-- [ ] recheck contribution and AI-disclosure policy;
+- [x] current-main and duplicate search refreshed on `2026-08-05`;
+- [x] focused controls rebased onto the then-current revision;
+- [x] metrics private-state-only behavior excluded;
+- [x] prevalence and severity claims limited to available evidence;
+- [x] current contribution and changelog policy checked;
+- [ ] refresh again immediately before filing;
 - [ ] record explicit public-contact authority.
