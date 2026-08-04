@@ -1,10 +1,10 @@
 # Handoff — Unit 02: uv BusyBox `realpath` compatibility
 
-Updated: `2026-08-04`
+Updated: `2026-08-05`
 
-State: `READY FOR HUMAN REVIEW — CURRENT-MAIN CI QUEUED`
+State: `PUBLIC ISSUE COMMENT POSTED — USER-OWNED PR PENDING; CURRENT-MAIN CI QUEUED`
 
-External contact: `unauthorized; none occurred`
+External contact: `public issue comment posted by teamleaderleo; no upstream PR recorded yet`
 
 ## Canonical locations
 
@@ -16,6 +16,7 @@ External contact: `unauthorized; none occurred`
 - Clean branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
 - Current internal reconciliation PR: `teamleaderleo/uv#29`
 - Existing public issue: `astral-sh/uv#16209`
+- Public issue comment: `astral-sh/uv#16209` comment `5180749150`
 
 ## Exact current source
 
@@ -63,30 +64,35 @@ Fish supplement:
 
 Passed gates include formatting, affected-crate compilation, focused native tests, full locked workspace clippy, GNU/BusyBox/macOS launcher and activation matrices, Bash and Fish, symlinks, spaces, relative/PATH invocation, leading-hyphen path forms, and exact source publication.
 
+## Public-action state
+
+The user independently posted a public issue comment stating that a tested patch is ready, summarizing the realpath-only correction, and announcing intent to open a PR. Fieldwork did not post that comment.
+
+The user has also stated an intention to open the formal upstream PR independently. Do not create, submit, edit, or duplicate that public PR from Fieldwork unless the user explicitly asks for a specific public action.
+
 ## First incomplete step
 
 Read run `30844806321` by first non-green owner. Queue state is not success evidence.
 
 If green:
 
-1. update the packet to `READY FOR PUBLIC-ACTION DECISION`;
+1. record the terminal result and exact receipts;
 2. refresh canonical issue and PR overlap;
-3. review the exact four-file compare;
-4. verify Astral contribution and AI-assistance policy;
-5. present `UPSTREAM_ISSUE.md` and `UPSTREAM_PR.md` for human approval;
-6. require explicit authorization before any public action.
+3. confirm the public PR, if opened, uses the clean four-file source;
+4. move Unit 02 to feedback-only maintenance.
 
 If red:
 
 1. classify formatting, compilation, test, repository-CI, or infrastructure ownership;
 2. repair only the owning layer;
-3. retain the prior cross-platform evidence but do not use it to conceal a current-context failure.
+3. retain the prior cross-platform evidence but do not use it to conceal a current-context failure;
+4. inform the user before they rely on the red run in a public PR.
 
 ## Review guides
 
 - `CODE_WALKTHROUGH.md` explains uv, Rust, the shell fragment, every changed file, and the rejected alternatives.
-- `UPSTREAM_ISSUE.md` contains an optional comment draft for the existing issue.
+- `UPSTREAM_ISSUE.md` records the posted issue comment and issue strategy.
 - `UPSTREAM_PR.md` contains the complete PR draft.
 - `PRESENTATION.md` contains the decision case.
 
-No public issue comment, pull request, review, reaction, email, or other upstream action occurred.
+Unit 02 is frozen except for terminal CI recording and concrete upstream feedback. Continue new uv investigation in a separate Fieldwork lane.
