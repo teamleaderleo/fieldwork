@@ -1,52 +1,36 @@
 # Unit 24 — first generated Responses Lite request after prewarm
 
-## Plain-language finding
+## What this is
 
-Codex sends a startup WebSocket prewarm request with `generate=false`. For Responses Lite, that request includes the tool and instruction prefix but deliberately generates no assistant turn.
+Codex can send a WebSocket prewarm request before the first user turn. For Responses Lite, that request contains tools and instructions and sets `generate=false`.
 
-The first real generated request can nevertheless continue from the prewarm response ID and send only a suffix. That makes a non-generating setup response the parent of generated conversation state.
+The first real model request can then point to the prewarm response ID and send only the new user input.
 
-The proposed invariant is narrower and easier to reason about:
+This unit tests another sequence:
 
 ```text
-prewarm                  -> connection/setup state
-first generated response -> first incremental conversation baseline
-later generated turns    -> ordinary incremental continuation
+prewarm request          -> setup
+first generated request  -> full input
+later generated requests -> continue from the first generated response
 ```
 
-The first generated Lite request is complete and has no prewarm `previous_response_id`. A failed first generation retries complete. Generic non-Lite WebSocket warmup behavior remains unchanged.
+A failed first generation retries the full request. The non-Lite WebSocket path is unchanged.
 
-## Recommended public route
+## Public route
 
 `ISSUE FIRST`
 
-This is the strongest first **original Codex issue** currently prepared in the Fieldwork backlog because it is:
+Codex accepts outside code only by invitation, so the issue is the expected first public step. The code and PR draft are prepared in owned repositories in case the team asks for them.
 
-- one concrete request sequence that can be explained without internal context;
-- visible in current public source;
-- a genuine architecture/correctness question rather than a speculative production diagnosis;
-- backed by a one-hunk implementation proof and focused state-transition tests;
-- compatible with Codex's current contribution rule that external changes begin with an issue and PRs are invitation-only.
+No public upstream contact has occurred.
 
-The durable-append acknowledgement unit is a useful internal prerequisite but does not yet present as strong a standalone public issue. The terminal-completion retention unit has more direct user-facing potential but still needs its current-source repair and exact receipt. Unit 24 is the best first filing candidate now.
+## Current source
 
-Public upstream interaction remains unauthorized and none has occurred.
-
-## Current disposition
-
-`ISSUE FIRST — filing package prepared; corrected current-head execution queued`
-
-Last refreshed: `2026-08-04`
-
-## Exact current source
-
-- Target: `openai/codex:main`
-- Exact inspected public parent: `e4e0c7070e53cf9535fd0083d8fb840b6cd410cf`
-- Exact clean candidate: `abf61e5fb8505181e071674ce224faff17e79d77`
+- Public-source parent: `e4e0c7070e53cf9535fd0083d8fb840b6cd410cf`
+- Candidate head: `abf61e5fb8505181e071674ce224faff17e79d77`
 - Source branch: `teamleaderleo/codex:fix/responses-lite-first-request-e4e0c70`
-- Exact-base alias: `teamleaderleo/codex:fix/responses-lite-first-request-base-e4e0c70`
 - Owned-fork review PR: `teamleaderleo/codex#143`
-- Compare: one commit, exactly three files, `+301/-1`
+- Compare: one commit, three files, `+301/-1`
 
 Changed files:
 
@@ -56,80 +40,70 @@ codex-rs/core/tests/suite/agent_websocket.rs
 codex-rs/core/tests/suite/client_websockets.rs
 ```
 
-No workflow, Fieldwork, manifest, dependency, lock, generated, or snapshot file appears in the source diff.
+The source diff contains no workflow, Fieldwork, manifest, lock, generated, or snapshot file.
 
-## Current implementation
+## What the code changes
 
-At the first request where all three conditions hold:
+For the first generated Responses Lite request after prewarm, Codex stops using the prewarm response ID and sends the full current request.
 
-```text
-not warmup
-Responses Lite enabled
-retained response came from untraced startup prewarm
-```
+After that request succeeds, later requests use the generated response ID and the existing incremental path.
 
-Codex clears the retained prewarm response receiver and skips incremental preparation. The existing full-request serializer sends the complete current Lite request. After generation succeeds, the existing response-state assignment installs the generated response as the ordinary incremental predecessor.
+If the first generated request fails, the retry sends the same full request.
 
-## Focused controls
+## Tests
 
 - `websocket_first_responses_lite_turn_sends_exact_current_request_after_startup_prewarm`
-  - complete first generated request;
-  - no prewarm `previous_response_id`;
-  - exact Lite prefix plus user input.
+  - first generated request has no prewarm `previous_response_id`;
+  - it includes the tool and instruction prefix plus the user message.
 
 - `responses_lite_reuses_generated_response_after_full_first_turn`
-  - later turn continues from the first generated response;
-  - later turn sends only the new suffix.
+  - the next request continues from the first generated response;
+  - it sends only the new suffix.
 
 - `responses_lite_retries_full_first_turn_after_failed_generation`
-  - failed first generation retries complete;
-  - no prewarm ancestry is inherited.
+  - the retry sends the full request;
+  - it does not use the prewarm response ID.
 
-## Review
+## Evidence state
 
-- Historical independent complete-diff review: `4834383404`
-  - result: `ACCEPT — subject to exact-head execution`;
-  - reviewed the same three-file patch before the current-base restack.
-- Current exact-head complete-diff review on PR `#143`: `4848205363`
-  - no source, scope, or packaging blocker;
-  - current immutable-head execution remains the acceptance condition.
-- The public-base advance from the previously reviewed source did not change any of the three unit files.
+The same three Git blobs passed the earlier focused execution at source `9fd4ba575de8dd77bc411362256591ce9e7d8c82`:
 
-## Current execution lanes
+- source fence;
+- formatting;
+- the two client tests;
+- the full-agent request test;
+- clean worktree.
 
-All lanes test immutable Codex source `abf61e5...`; workflow commits are execution-only and excluded from the source diff.
+The current source is a one-commit restack with identical blobs for all three changed files. A run tied to the current commit SHA remains queued and is not recorded as complete.
 
-- Codex carrier: `teamleaderleo/codex#142`, run `30849380733`.
-- Fieldwork isolated carrier: `teamleaderleo/fieldwork#596`, run `30849709951`.
-- Lightweight isolated carrier: `teamleaderleo/smolrunner#286`, run `30849910237`.
+## What this does not claim
 
-The first attempted current-head lane stopped before tests because the workflow ran Cargo from the repository root instead of `codex-rs/`. The carrier was corrected; this was an execution-harness error, not a source or test failure.
+This unit does not show that the current request sequence causes:
 
-## Duplicate and prior-art result
+- GitHub connector hangs;
+- connector calls that never time out;
+- Codex app freezes;
+- model timeouts;
+- tool-execution failures.
 
-Filing-time searches on `2026-08-04` found no issue or PR asking whether a `generate=false` Responses Lite prewarm response should be the parent of the first generated turn.
+Those symptoms pass through other parts of the system. This unit concerns the first model request in a prewarmed Responses Lite session.
 
-Related but non-equivalent public work:
+## Draft workspace
 
-- generic untraced-warmup tracing preserves compressed wire continuation while recording the logical request;
-- Responses Lite places tools and instructions in input items;
-- adjacent reports concern provider capability, request validation, context limits, and error handling rather than this startup ancestry contract.
-
-## Public drafts
-
-- [Issue-first draft](./UPSTREAM_ISSUE.md)
-- [Conditional invited-PR draft](./UPSTREAM_PR.md)
+- [Draft working notes](./DRAFT_NOTES.md)
+- [Issue draft](./UPSTREAM_ISSUE.md)
+- [Conditional PR draft](./UPSTREAM_PR.md)
 - [Tests and receipts](./TESTS.md)
 - [Review record](./REVIEW.md)
 - [Technical deep dive](./DEEP_DIVE.md)
 - [Approaches considered](./APPROACHES.md)
 
-## Remaining steps before filing authorization
+## Next steps
 
-1. Record one corrected immutable-current-head green receipt.
-2. Transfer the receipt into the issue, PR, tests, and review files.
-3. Close and clean the execution-only carriers.
-4. Perform one final duplicate search immediately before filing.
-5. Obtain explicit authorization to open the public issue.
+1. Review the issue explanation and tone.
+2. Settle the current-commit execution run.
+3. Refresh public main and duplicate search before filing.
+4. File the issue only after user authorization.
+5. Submit code only if a Codex maintainer invites a PR and the user authorizes it.
 
 Public upstream interaction: `none`.
