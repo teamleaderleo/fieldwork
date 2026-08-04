@@ -1,16 +1,23 @@
 # Tests and receipts — Unit 11: stabilize lifecycle fanout targets
 
-## In simple words
+## Current evidence state
 
-The exact one-commit candidate passed every named repository workflow. Eleven focused assertions exercise direct synchronous throws, opening-set mutation, provider error shape and timer cleanup, genuine timeout behavior, and trace/log compatibility.
+`CURRENT-MAIN EXACT-HEAD MATRIX RUNNING`
+
+The prepared source is one commit over current public `main`. Eleven focused assertions remain in the six-file fence. Because the head changed during the rebase, the earlier green workflow matrix is historical evidence only until the new runs complete.
 
 ## Identity
 
-- base/current-main snapshot: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- refreshed base: `f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`;
 - source branch: `upstream/unit-11-lifecycle-fanout-v2`;
-- exact candidate: `db3d9e5e43d5abc6622784acf0ef87f3b038ac91`;
+- exact prepared candidate: `f4cb44bcccffbc0eb39e774284655e0f965cfce1`;
 - source PR: `teamleaderleo/opentelemetry-js#19`;
-- relation: ahead 1, behind 0.
+- relation: ahead 1, behind 0;
+- changed files: three production files and three focused tests.
+
+## Rebase-specific compatibility control
+
+Upstream PR #6929 added `TracerProvider.forceFlush({ timeoutMillis })` after the previous base was pinned. The rebased implementation preserves that option. The provider regression tests now pass the timeout per call rather than introducing new use of the deprecated constructor option.
 
 ## Focused assertion set
 
@@ -25,7 +32,7 @@ The exact one-commit candidate passed every named repository workflow. Eleven fo
 
 - synchronous throw still attempts the second processor, preserves the one-element error-array rejection, and leaves no fake timer armed;
 - live removal does not shrink the opening set;
-- a genuinely non-settling processor still times out and rejects, with no timer left afterward.
+- a genuinely non-settling processor still times out using the per-call timeout option and leaves no timer afterward.
 
 ### Logs — four tests
 
@@ -35,27 +42,28 @@ Shutdown and force flush each cover synchronous throw and live removal while ret
 
 The earlier metrics controls reached private provider state. No supported public mutation path was established, and async metric collector methods already normalize reader throws.
 
-## Exact-head workflow receipts
+## Fresh exact-head workflow receipts
 
-| Workflow | Run | Result |
+Started for `f4cb44bcccffbc0eb39e774284655e0f965cfce1`:
+
+| Workflow | Run | Current recorded state |
 | --- | ---: | --- |
-| Unit Tests | `30756036668` | passed |
-| Lint | `30756036660` | passed |
-| W3C Trace Context Integration | `30756036656` | passed |
-| Bundler tests | `30756036678` | passed |
-| Ensure API Peer Dependency | `30756036662` | passed |
-| CodeQL Analysis | `30756036671` | passed |
-| E2E Tests | `30756036639` | passed |
-| Zizmor GitHub Actions Security Analysis | `30756036691` | passed |
+| Unit Tests | `30956029453` | queued at refresh |
+| Lint | `30956029480` | queued at refresh |
+| W3C Trace Context Integration Test | `30956029456` | queued at refresh |
+| Bundler tests | `30956029470` | queued at refresh |
+| Ensure API Peer Dependency | `30956029447` | queued at refresh |
+| CodeQL Analysis | `30956029506` | queued at refresh |
+| E2E Tests | `30956029462` | queued at refresh |
+| Zizmor GitHub Actions Security Analysis | `30956029460` | queued at refresh |
+| Old Node.js Compatibility | `30956029502` | queued at refresh |
 
-Evidence class: target-executed across the named repository workflow matrix. These receipts do not claim behavior outside those gates.
+## Historical exact-head receipts
 
-## Review result
-
-Independent exact-head review of the complete six-file fence found no blocking source defect and recorded `ACCEPT / TECHNICALLY READY`.
+The previous head `db3d9e5e43d5abc6622784acf0ef87f3b038ac91` passed the then-current eight-workflow matrix and received a complete-diff technical acceptance. Those receipts support the unchanged mechanism but are not claimed as fresh validation of the rebased SHA.
 
 ## Current judgment
 
-`TECHNICALLY READY — OWNER DECISION REQUESTED`
+`EXECUTION UNDER SCRUTINY — NOT YET FINAL FILING DECISION`
 
-Filing-time work is limited to current-main/overlap and policy refresh, changelog entries tied to the real upstream PR number, and explicit public-contact authorization.
+Return this packet to a filing decision only after the fresh matrix is classified and the complete rebased diff receives a new exact-head review.
