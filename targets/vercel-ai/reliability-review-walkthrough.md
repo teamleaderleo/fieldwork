@@ -71,6 +71,23 @@ The candidate contains a known defect, incomplete ownership rule, stale evidence
 
 The failure is established, but the production boundary or compatible repair is not yet selected.
 
+## Already submitted publicly
+
+### AsyncIterableStream rejected-read cleanup
+
+Public PR: `vercel/ai#18371`
+
+The public contribution releases the iterator's reader when `reader.read()` rejects, preserves the exact source rejection, avoids cancelling an already-errored stream, and leaves later iterator calls terminal.
+
+Current state:
+
+- the AI SDK automated bugfix review approved the change and classified risk as low;
+- a bot-generated competing PR, `vercel/ai#18400`, implements the same production shape with a consolidated test file;
+- no maintainer-requested source change is currently recorded;
+- the visible Vercel status failure is an external deployment authorization status, not a product-test failure.
+
+Do not prepare or send this campaign again. Any next action should respond only to concrete upstream maintainer direction about which duplicate PR to retain.
+
 ## Current review queue
 
 ### Ready: URL-support regular expressions
@@ -192,6 +209,16 @@ A production repair needs one authoritative operation deadline covering sleeps, 
 The implementation must combine cooperative cancellation with a deadline race because an injected transport may ignore abort. The losing task must be safely adopted. Local timeout must not imply that the already-created remote provider job was cancelled.
 
 Disposition: confirmed research, not yet a delivery patch.
+
+## WorkflowAgent currency
+
+Public main `94e6a99cd9f599b8d400e856d64edb2098d6e349` includes a useful adjacent fix for streaming executed sibling results when another tool pauses, but three campaign gaps remain:
+
+- normal and approved local tools still receive no effective workflow abort signal;
+- approval IDs are still `approval-${toolCallId}`;
+- approved tools still receive `messages: []` even though telemetry receives the initiating prompt messages.
+
+See [`workflow-agent-current-main-check.md`](./workflow-agent-current-main-check.md) for the exact current source boundary.
 
 ## Suggested human review order
 
