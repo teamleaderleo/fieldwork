@@ -11,7 +11,7 @@ Public interaction authorized: `no`
 
 Closes X
 
-### Summary
+## Summary
 
 Since BusyBox `realpath` treats `--` as a pathname, uv-generated relocatable launchers can still run on Alpine while printing:
 
@@ -23,9 +23,9 @@ I propose removing `--` from the generated `realpath` calls. We can leave `dirna
 
 `uv run` also needs to recognize both the updated and existing launcher forms so launchers created by older uv versions keep working.
 
-A helper or parser may make sense as a later cleanup, but keeping the four known forms explicit keeps this fix small and easy to review.
+A helper or parser may make sense as a later cleanup, but I think keeping the four known forms explicit is better for the scope of this fix.
 
-### Test plan
+## Test Plan
 
 - Updated the wheel and relocatable-venv expectations.
 - Added coverage for the current and legacy `python` and `python3` launcher forms.
