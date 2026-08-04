@@ -1,70 +1,65 @@
-# Upstream pull request draft
+# Upstream pull request draft — refresh required
 
-> Do not post without both an OpenAI contribution invitation and explicit Fieldwork public-contact authorization. Rebase and rerun all current gates immediately before use.
+> Do not post this exact draft. The retained source is an implementation proof on an older public pin. Recreate the semantic change on current main and rerun all gates after maintainers agree on the issue boundary.
 
 ## Title
 
-fix(core): expose durable append acknowledgement from session writes
+fix(core): expose append acknowledgement from session history writes
 
 ## Summary
 
-- return the authoritative live-thread append result from `Session::record_conversation_items`;
-- preserve existing in-memory history, analytics, raw-response emission, and fire-and-log behavior for callers that ignore the result;
-- add deterministic one-shot test-store faults for pre-write failure and commit-then-error acknowledgement loss;
-- test ephemeral authority, acknowledged persistence, definite pre-write failure, and ambiguous commit-then-error separately.
+- return whether the required live-thread append acknowledged from `Session::record_conversation_items()`;
+- preserve in-memory history updates, analytics, and raw-response delivery;
+- preserve fire-and-log behavior for existing callers that ignore the result;
+- add deterministic pre-write and commit-then-error controls;
+- prove that an append error is not absence or retry authority.
 
 ## Semantics
 
-The returned boolean means only whether the append call acknowledged:
-
-- `true`: no live store is required, or the live append returned success;
+- `true`: no live append is required, or the live append returned success;
 - `false`: the append returned an error.
 
-`false` is not proof that the item is absent. The commit-then-error test persists the item and then reports an error, so callers must not use this result alone as retry authority.
+`false` intentionally covers both definite pre-write failure and unknown commit outcome. The commit-then-error control writes the item and then returns an error.
 
-This change does not modify current caller policy. Existing production call sites continue to ignore the result.
-
-## Files
+## Intended source fence
 
 - `codex-rs/core/src/session/mod.rs`
 - `codex-rs/core/src/session/turn_tests.rs`
 - `codex-rs/thread-store/src/in_memory.rs`
 
-## Prepared validation receipt
+## Retained evidence
 
-Owned-fork source prepared from public base `670f69416bf91c5dfd8b58669e78050b584ff053`:
+Owned implementation proof: `teamleaderleo/codex#140@babc761faeb1bf618aa4a9495236336f6d63f006` over public base `2b5bdcf67547860f2e5c5a605009a70026796b2b`.
 
-- current source head: `16cb14688dac752a5a13c180e94355b199f240a7`;
-- one direct-child commit, three files;
-- four exact append-outcome controls passed, `4/4`;
-- full `codex-thread-store` package passed, `163/163`;
+At that exact pin:
+
 - formatting passed;
-- current source reviewed with no findings;
-- tested and current source heads have identical blobs for all three changed files.
+- four exact append-outcome controls passed;
+- complete `codex-thread-store` passed;
+- exact three-file fence passed;
+- complete-diff review `4842611857` found no code issue.
 
-## Test plan
+Latest public source inspected at `7325f348a2ff9e1a7dd931ed9ad65f365d064146` still loses the append result, but `session/mod.rs` has changed since the proof base. The delivery source and all receipt identifiers must be replaced after refresh.
+
+## Required refreshed test plan
 
 ```sh
 cd codex-rs
 cargo fmt --all -- --check
 cargo test -p codex-core --lib --locked -- --list
-cargo test -p codex-core --lib --locked 'session::turn::tests::append_outcome_ephemeral_history_is_authoritative' -- --exact --nocapture
-cargo test -p codex-core --lib --locked 'session::turn::tests::append_outcome_reports_successful_live_append' -- --exact --nocapture
-cargo test -p codex-core --lib --locked 'session::turn::tests::append_outcome_reports_prewrite_failure' -- --exact --nocapture
-cargo test -p codex-core --lib --locked 'session::turn::tests::append_outcome_reports_commit_then_error_as_failure' -- --exact --nocapture
+# Resolve and run each append-outcome test by one exact full-name match.
 cargo test -p codex-thread-store --locked
 ```
 
-Before authorized delivery, resolve full test names from `--list`, require exactly one match per selector, rerun against the then-current public base, and update all revisions and counts.
+Also run current project-declared ordinary gates and verify one direct-child commit with only the three intended files.
 
 ## Non-goals
 
+- caller policy changes;
 - typed persistence certainty;
-- retry, replay, or duplicate policy;
-- compaction or resume policy;
+- retry, replay, or duplicate reconciliation;
+- compaction/resume policy;
 - operation receipt ownership;
 - remote-effect settlement.
 
-## Process note
-
-This draft is an owned Fieldwork handoff artifact. Public upstream interaction performed: none.
+No public upstream interaction has occurred.
