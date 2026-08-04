@@ -135,7 +135,7 @@ Corrected paired execution run `30699322569`:
 - integration targets compiled;
 - formatting and exact four-file fence passed.
 
-All four source-base files were still byte-identical on public head `78f00743f92cf4fb875ddadcd30293c5201b48ac` when the packet was last refreshed.
+All four source-base files were still byte-identical on public head `c607da9f371bb66a41cc772c6ddf1989d28137d3` when the packet was last refreshed.
 
 ## Follow-ups
 
