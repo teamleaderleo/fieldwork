@@ -1,74 +1,75 @@
-# Conditional upstream pull-request draft — core: send full first Responses Lite turn after prewarm
+# Conditional upstream pull-request draft — core: send the full first Responses Lite request after prewarm
 
-Draft status: `prepared only if a Codex maintainer invites a PR`  
+Draft status: `use only if a Codex maintainer invites a PR`  
 Required public issue: `<issue number>`  
 Public interaction authorized: `no`  
 Proposed head: `teamleaderleo/codex:fix/responses-lite-first-request-e4e0c70`  
-Exact public-source parent: `e4e0c7070e53cf9535fd0083d8fb840b6cd410cf`  
-Exact candidate head: `abf61e5fb8505181e071674ce224faff17e79d77`
+Public-source parent: `e4e0c7070e53cf9535fd0083d8fb840b6cd410cf`  
+Candidate head: `abf61e5fb8505181e071674ce224faff17e79d77`
 
 ---
 
-# core: send full first Responses Lite turn after prewarm
+# core: send the full first Responses Lite request after prewarm
 
-## What
+## What changed
 
-- End the untraced prewarm response chain before the first generated Responses Lite WebSocket request.
-- Send the complete current Lite input with no prewarm `previous_response_id`.
-- Resume ordinary incremental reuse from the first generated response.
-- Retry a failed first generation with the same complete request.
-- Leave generic non-Lite WebSocket warmup compression unchanged.
+- The first generated Responses Lite request no longer uses the prewarm response ID.
+- It sends the full current input, including the tool and instruction prefix.
+- Later requests continue from the first generated response as before.
+- A failed first generation retries the same full request.
+- The non-Lite WebSocket path is unchanged.
 
 Discussed in #<issue number>.
 
 ## Why
 
-Startup prewarm sends the Responses Lite tool and instruction prefix with `generate=false`. Codex treats this as connection setup rather than an inference attempt, but the first generated request can currently reuse the prewarm response ID and send only an incremental suffix.
+Startup prewarm sends a Responses Lite request with `generate=false`. It sends the tool and instruction prefix and prepares the WebSocket path, but it does not ask the model to produce an answer.
 
-That makes the first real generated turn depend on server-side state created by a request that generated no turn. For Responses Lite, where tools and instructions are input items, the first generated request is easier to reason about and retry when it is complete and self-contained.
+Before this change, the first generated request could use the prewarm response ID as `previous_response_id` and send only the new user input. The service then had to recover the rest of the request from the prewarm response.
 
-This change establishes a narrow boundary:
+This change keeps prewarm as setup. The first generated request is complete. Its response ID becomes the starting point for later incremental requests.
 
 ```text
-prewarm                 -> connection/setup state
-first generated response -> first incremental conversation baseline
-later generated turns    -> ordinary incremental continuation
+prewarm request          -> setup
+first generated request  -> full request
+later generated requests -> continue from the first generated response
 ```
 
 ## How
 
-`ModelClientSession::stream_responses_websocket` detects the first request where:
+`ModelClientSession::stream_responses_websocket` checks whether:
 
-- the call is not itself a warmup;
+- the request is not a warmup request;
 - Responses Lite is enabled; and
-- the retained response came from untraced startup prewarm.
+- the stored response came from startup prewarm.
 
-At that transition, it clears the retained prewarm response receiver and skips incremental request preparation. The existing full-request serializer then sends the complete current request.
+When all three are true, it clears the stored prewarm response and does not build an incremental request. The existing full-request serializer sends the current input.
 
-After the first generated response succeeds, the existing state assignment clears warmup provenance and installs that generated response as the next incremental predecessor. Reconnect and later continuation ownership remain unchanged.
+After the request succeeds, the existing state update stores the generated response ID. Later requests use the normal incremental path.
 
-No public API, wire schema, provider capability, planner behavior, or generic non-Lite transport behavior changes.
+No API or wire-format changes are included.
 
 ## Tests
 
-Added focused mock-WebSocket coverage:
+The added WebSocket tests cover:
 
 - `websocket_first_responses_lite_turn_sends_exact_current_request_after_startup_prewarm`
-  - prewarm uses `generate=false` and carries the Lite tool/instruction prefix;
-  - first generation omits `previous_response_id`;
-  - generated input preserves the complete prewarm prefix and appends the user message.
+  - prewarm uses `generate=false`;
+  - prewarm sends the Lite tool prefix;
+  - the first generated request has no `previous_response_id`;
+  - the first generated request includes the prewarm prefix and the user message.
 
 - `responses_lite_reuses_generated_response_after_full_first_turn`
-  - first generation is complete;
-  - the next turn uses the first generated response ID;
-  - the next turn sends only the new suffix.
+  - the first generated request is full;
+  - the next request uses the first generated response ID;
+  - the next request sends only the new suffix.
 
 - `responses_lite_retries_full_first_turn_after_failed_generation`
-  - first generation fails;
-  - retry sends the same complete request;
-  - retry does not inherit a prewarm predecessor.
+  - the first generation fails;
+  - the retry sends the same full request;
+  - the retry does not use the prewarm response ID.
 
-Validation for the exact current-source head:
+Validation:
 
 ```text
 cargo fmt --all -- --check
@@ -79,25 +80,21 @@ just fix -p codex-core
 git diff --check
 ```
 
-The final receipt should be inserted here after the corrected immutable-head run completes.
+The current-head receipt should be added here after the queued run completes.
 
-## Compatibility and tradeoffs
+## Tradeoff
 
-- Public API: unchanged.
-- Wire schema: unchanged.
-- Generic Responses WebSocket behavior: unchanged.
-- Responses Lite: retransmits the complete prefix once for the first generated request after prewarm.
-- Later turns: remain incremental.
-- Failed first generation: retries independently from prewarm state.
-- Rollback: one atomic commit.
+The first generated request sends the Lite prefix again. Later requests still use incremental continuation.
 
-The principal cost is one additional transmission of the Lite prefix at startup. Live provider latency and cache effects have not been measured; the issue discussion should confirm that this request-state invariant matches the intended backend contract before the PR is submitted.
+This PR does not claim a measured latency improvement or a fix for connector hangs. It changes the request sequence so that the first generated turn does not depend on a `generate=false` response.
 
 ## Scope
 
-This PR does not attempt to fix or explain every Responses Lite validation, provider-compatibility, context-budget, or request-blocking report. It changes only the ownership transition from non-generating prewarm state to the first generated turn.
+This change covers one point in the Responses Lite WebSocket lifecycle: the move from startup prewarm to the first generated request.
 
-## Exact diff
+It does not change tool execution, connector networking, tool-call timeouts, cancellation, model selection, or the generic Responses WebSocket path.
+
+## Diff
 
 ```text
 base    e4e0c7070e53cf9535fd0083d8fb840b6cd410cf
@@ -119,13 +116,13 @@ codex-rs/core/tests/suite/client_websockets.rs
 
 ## Internal submission checklist
 
-- [x] Direct one-commit child of the exact inspected public-source parent.
-- [x] Diff contains one production file and two target-native test files.
+- [x] One commit on the inspected public-source parent.
+- [x] One production file and two test files.
 - [x] No workflow, Fieldwork, manifest, lock, generated, or snapshot file in the source diff.
-- [x] Current contribution guidance rechecked: PR only after explicit maintainer invitation.
-- [x] Public issue-first draft prepared.
+- [x] Contribution guidance rechecked: PR only after a maintainer invitation.
+- [x] Issue-first draft prepared.
 - [ ] Public issue filed and linked.
 - [ ] Maintainer invitation recorded.
-- [ ] Corrected exact-head current-source execution complete.
+- [ ] Current-head execution complete.
 - [ ] Filing-time rebase, duplicate search, and CI state refreshed.
-- [ ] Exact user authorization to submit the invited PR recorded.
+- [ ] User authorization to submit recorded.
