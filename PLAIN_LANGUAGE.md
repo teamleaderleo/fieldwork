@@ -4,19 +4,38 @@
 
 Every durable Fieldwork record should prove that its author understands the subject well enough to explain it without hiding behind source paths, jargon, or a wall of detail.
 
-Plain language does not mean prose-only and does not mean writing for a non-technical audience. Code, pseudocode, state diagrams, traces, equations, and compact tables are often the clearest plain language available for a computing concept.
+Plain language doesn't mean prose-only, and it doesn't mean writing for a non-technical audience. Code, pseudocode, state diagrams, traces, equations, and compact tables are often the clearest plain language available for a computing concept.
 
 ## Lead with the proposal or question
 
 When a record recommends a change, begin with a sentence shaped like:
 
-> I propose changing X so that Y remains true when Z happens.
+> I propose changing X so that Y will remain true when Z happens.
 
 When the work is still investigative, begin with the concrete question:
 
-> Does X publish stale state after Y transfers authority to Z?
+> Does X still publish stale state after Y transfers authority to Z?
 
-Do not make the reader reconstruct the actual proposal from a long history section.
+Don't make the reader reconstruct the actual proposal from a long history section.
+
+## Voice and tense
+
+Write like a technically literate person talking to another technically literate person. Contractions are welcome: use “doesn't,” “won't,” “we'll,” and “it's” when they're the natural phrasing. Don't expand them merely to sound formal.
+
+Use tense to keep the timeline clear:
+
+```text
+current behaviour   → present tense
+proposed effect     → future tense
+completed evidence  → past tense
+remaining work      → future tense
+```
+
+For example:
+
+> Vite currently stops after the first `buildEnd` failure. This change will let the remaining teardown hooks settle before `close()` reports failure. The focused regression passed on the accepted head. We'll replay the patch on current `main` before any public submission.
+
+Don't force every sentence into one tense. Use the tense that tells the reader whether something happens now, will happen after the proposal, already happened in verification, or still needs to happen.
 
 ## Choose the clearest representation
 
@@ -47,7 +66,7 @@ old authority ──replaced──▶ new authority
 
 Prefer one compact representation over several paragraphs that merely narrate the same mechanics.
 
-Bullet lists are optional. Do not use them by reflex. A paragraph, code block, arrow diagram, truth table, before/after diff, or small sequence trace may communicate the model better.
+Bullet lists are optional. Don't use them by reflex. A paragraph, code block, arrow diagram, truth table, before/after diff, or small sequence trace may communicate the model better.
 
 ## Required understanding
 
@@ -57,7 +76,7 @@ Near the top of a target hub, finding, campaign, lane report, retained experimen
 What is being proposed or tested?
 Where does it sit in the system?
 What happens now?
-What should happen instead?
+What will happen instead?
 Why does the difference matter?
 What remains uncertain or blocked?
 ```
@@ -70,9 +89,9 @@ This is an understanding test, not an executive summary and not marketing. It sh
 
 ## Rules
 
-Explain the current model before implementation detail. Prefer concrete nouns and verbs over broad claims such as “improves robustness.” Separate established behaviour from suspicion. State when a consequence is illustrative rather than documented. Do not claim that a small reproduction models an entire production system. Update the explanation when the underlying conclusion changes. Keep caveats near the claim they qualify.
+Explain the current model before implementation detail. Prefer concrete nouns and verbs over broad claims such as “improves robustness.” Separate established behaviour from suspicion. State when a consequence is illustrative rather than documented. Don't claim that a small reproduction models an entire production system. Update the explanation when the underlying conclusion changes. Keep caveats near the claim they qualify.
 
-Do not over-explain an obvious control-flow repair after the invariant is visible. Once code or a diagram makes the mechanism clear, spend prose on the non-obvious judgment: compatibility, ownership, policy, risk, or alternatives.
+Don't over-explain an obvious control-flow repair after the invariant is visible. Once code or a diagram makes the mechanism clear, spend prose on the non-obvious judgment: compatibility, ownership, policy, risk, or alternatives.
 
 ## Examples
 
@@ -82,13 +101,13 @@ Weak:
 
 Stronger:
 
-> I am testing whether reconnecting after a partial provider event appends the same tool arguments twice.
+> I'm testing whether reconnecting after a partial provider event will append the same tool arguments twice.
 >
 > ```text
 > partial event ──disconnect──▶ reconnect ──replay──▶ duplicate append?
 > ```
 >
-> Duplicate arguments could invoke a tool with input different from the model output. The local reproduction is incomplete; the next step is tracing the reconnect path in a real agent session.
+> Duplicate arguments could invoke a tool with input different from the model output. The local reproduction is incomplete; next I'll trace the reconnect path in a real agent session.
 
 Weak:
 
@@ -103,7 +122,7 @@ Stronger:
 >                 └─path B──▶ recover as Y
 > ```
 >
-> The change is worthwhile only if one implementation can preserve the intended cases and make the difference explicit in tests.
+> The change will be worthwhile only if one implementation can preserve the intended cases and make the difference explicit in tests.
 
 ## Synthesis check
 
