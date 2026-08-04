@@ -11,15 +11,17 @@ Public interaction authorized: `no`
 
 ### Summary
 
-BusyBox `realpath` treats `--` as a pathname. As a result, uv-generated relocatable launchers and activation scripts can complete successfully on Alpine while emitting:
+On Alpine, BusyBox `realpath` treats `--` as a pathname instead of an option delimiter. That means uv-generated relocatable launchers can still run successfully while printing:
 
 ```text
 realpath: --: No such file or directory
 ```
 
-This change removes `--` only from generated `realpath` calls. It preserves `dirname --`, quoting, and `realpath` canonicalization, so externally symlinked relocatable entrypoints continue to resolve the environment that owns the launcher.
+This removes `--` from the generated `realpath` calls only. It leaves `dirname --`, quoting, and symlink resolution unchanged.
 
-The generated text is also consumed later by `uv run` when an entrypoint is copied into an overlay environment. That recognizer now accepts corrected and historical relocatable shebangs for both `python` and `python3`, so launchers created before this change remain copyable after an upgrade.
+`uv run` can later copy one of these generated launchers into another environment. The recognizer now accepts both the corrected and historical forms, for `python` and `python3`, so launchers written by older uv versions keep working after an upgrade.
+
+The changed launcher and recognizer paths are Unix shell paths. Native Windows entrypoints continue to use uv's binary trampoline implementation, and the Windows batch and PowerShell activation paths are unchanged.
 
 Closes #16209.
 
