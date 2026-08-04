@@ -1,0 +1,70 @@
+name: Scout 528 Vercel current-main repair
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+jobs:
+  vercel-current-main-deadline:
+    if: github.event.pull_request.head.ref == 'scout/528-agent-runtime-run-authority'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/ai
+          ref: fix/core-video-operation-deadline-1bec
+          path: target
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: target/pnpm-lock.yaml
+      - name: Install workspace
+        working-directory: target
+        run: pnpm install --frozen-lockfile
+      - name: Materialize reviewed candidate
+        working-directory: target
+        run: |
+          python .github/scripts/materialize-core-video-operation-deadline.py
+          python .github/scripts/refine-core-video-operation-deadline.py
+          python .github/scripts/finalize-core-video-operation-deadline.py
+          python .github/scripts/complete-core-video-operation-deadline.py
+          python .github/scripts/polish-core-video-operation-deadline.py
+          pnpm exec oxfmt \
+            packages/ai/src/generate-video/generate-video.ts \
+            packages/ai/src/generate-video/core-video-operation-deadline.test.ts \
+            .changeset/quiet-snails-own.md
+      - name: Retain generated product candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: vercel-current-main-deadline-candidate
+          path: |
+            target/packages/ai/src/generate-video/generate-video.ts
+            target/packages/ai/src/generate-video/core-video-operation-deadline.test.ts
+            target/.changeset/quiet-snails-own.md
+          if-no-files-found: error
+      - name: Build workspace packages
+        working-directory: target
+        run: pnpm run build:packages
+      - name: Run Node deadline and existing suites
+        working-directory: target
+        run: |
+          pnpm -C packages/ai exec vitest --config vitest.node.config.js --run \
+            src/generate-video/core-video-operation-deadline.test.ts \
+            src/generate-video/generate-video.test.ts
+      - name: Run Edge deadline and existing suites
+        working-directory: target
+        run: |
+          pnpm -C packages/ai exec vitest --config vitest.edge.config.js --run \
+            src/generate-video/core-video-operation-deadline.test.ts \
+            src/generate-video/generate-video.test.ts
