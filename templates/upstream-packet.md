@@ -100,12 +100,12 @@ Describe how AI systems contributed to research or implementation, how outputs w
 ## Human accountability
 
 ```text
-reproduced problem:          yes / no
-reviewed every change:       yes / no
-can defend implementation:   yes / no
-ran stated verification:     yes / no
-checked current policy:      yes / no
-undisclosed upstream contact:no
+reproduced problem:           yes / no
+reviewed every change:        yes / no
+can defend implementation:    yes / no
+ran stated verification:      yes / no
+checked current policy:       yes / no
+undisclosed upstream contact: no
 ```
 
 ## Maintainer decision requested
