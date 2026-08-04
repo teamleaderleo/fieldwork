@@ -1,181 +1,85 @@
 # Approaches considered
 
-## 1. Depend on the broadcast subscriber transcript
+## 1. Keep final output subscriber-owned
 
-### Approach
-
-Keep completion output derived from chunks observed by the watcher/subscriber.
-
-### Result
-
-Rejected.
-
-Broadcast delivery is best-effort. Early output can precede subscription, a receiver can lag beyond the ring, and receiver closure can discard delivery. Completion output then depends on timing instead of producer-observed bytes.
-
-### Evidence
-
-The original reproduction in [Fieldwork PR #33](https://github.com/teamleaderleo/fieldwork/pull/33) and the focused tests in [Codex PR #6](https://github.com/teamleaderleo/codex/pull/6) demonstrate output emitted before subscription and partial-stream completion behavior.
+Rejected. Broadcast delivery is intentionally best effort. Pre-subscription output and `Lagged` events make subscriber timing part of the final result.
 
 ## 2. Increase broadcast capacity
 
-### Approach
+Rejected. A larger ring changes probability, not authority. It cannot recover bytes emitted before subscription and can still be overrun.
 
-Make the broadcast ring larger so lag becomes less likely.
+## 3. Attach another subscriber earlier
 
-### Result
+Rejected. This creates another scheduled observer and still makes final correctness depend on broadcast/task lifecycle.
 
-Rejected.
+## 4. Retain unbounded producer output
 
-A larger ring reduces frequency and leaves the contract unchanged. Pre-subscription output remains absent, and sufficiently large or delayed output can still overrun the receiver.
+Rejected. It repairs loss by introducing unbounded per-process memory growth.
 
-## 3. Add a completion-only subscriber earlier
+## 5. Retain one bounded producer transcript
 
-### Approach
+Selected in principle. Final output must come from bytes retained by the process owner before live delivery.
 
-Attach a dedicated subscriber near process start and collect every broadcast chunk for completion.
+## 6. Use a standalone deque and overlap streamed/retained views
 
-### Result
+Implemented in earlier prototypes, then superseded.
 
-Rejected.
+Overlap inference is more complex than necessary and creates repeated-pattern and truncation questions. The current process already uses `HeadTailBuffer`; using the same bounded representation for producer completion state permits direct replacement rather than heuristic suffix/prefix reconciliation.
 
-This still makes authoritative completion depend on broadcast delivery and task lifecycle. It also creates another receiver whose closure, scheduling, and shutdown behavior require coordination.
+## 7. Add a bounded completion buffer beside the ordinary output buffer
 
-## 4. Retain an unbounded producer transcript
+Selected implementation.
 
-### Approach
+- write every accepted local or exec-server chunk to completion state before broadcast;
+- retain existing ordinary output-buffer behavior;
+- preserve live best-effort events;
+- replace the final partial observer transcript from the producer-owned bounded buffer on normal close.
 
-Append every stdout/stderr byte to a producer-owned vector and return it at completion.
+This cleanly separates live observation from terminal authority.
 
-### Result
+## 8. Keep the local intermediate combined broadcast
 
-Rejected.
+Rejected in the selected source.
 
-It solves timing loss and introduces unbounded memory growth for long-running or noisy processes.
+The old local path converted stdout/stderr `mpsc` receivers into an intermediate broadcast receiver before Codex retained output. That added another lossy channel. The source consumes the two `mpsc` receivers directly with `tokio::select!`, preserving merge behavior while retaining before the one live broadcast.
 
-## 5. Bounded producer-owned byte retention
+## 9. Patch only the completion consumer
 
-### Approach
+Rejected. A consumer cannot reconstruct bytes that no subscriber received. The owning producer must preserve them.
 
-Retain raw bytes in bounded stdout/stderr deques before each best-effort broadcast attempt, then return the retained transcript at EOF.
+## 10. Introduce a general receipt framework first
 
-### Result
+Rejected for this issue. The concrete final-output authority bug is independently repairable. A broad receipt abstraction would enlarge the review surface and delay a user-visible correctness fix.
+
+## 11. File one umbrella issue about lost information
+
+Rejected. Terminal bytes, persistence acknowledgement, prewarm lineage, and cleanup certainty have different owners and failure contracts. File bounded issues in sequence and explain the common authority principle only as context.
+
+## 12. First issue: append acknowledgement
+
+Deferred to sequence item 2.
+
+Append acknowledgement is a useful visibility seam, but every current caller discards it. Terminal retention demonstrates actual user-visible information loss and has a stronger first-contact narrative.
+
+## 13. First issue: terminal completion retention
 
 Selected.
 
-This establishes producer authority, decouples final output from subscriber timing, supports invalid UTF-8, and caps memory use.
+Reasons:
 
-### Key implementation choices
+- direct missing output in a completed command;
+- exact producer/observer ownership error;
+- no current public duplicate found;
+- four-file clean source and complete review;
+- 12/12 focused tests plus paired complete library execution;
+- all source-base files unchanged on current public main.
 
-- Retain before broadcast.
-- Keep raw bytes during collection.
-- Evict oldest bytes when the cap is exceeded.
-- Return retained bytes on normal EOF.
-- Keep hard termination prompt.
-- Reconcile retained and streamed views through suffix/prefix overlap.
+## 14. Submit a public PR immediately
 
-## 6. Replace the streamed transcript outright
+Deferred. Start with a bounded issue asking whether producer-owned retention is the intended boundary. Link to the clean owned implementation as evidence after explicit authorization. Restack and rerun only after the issue direction is accepted.
 
-### Approach
+## 15. Treat old setup failures as source evidence
 
-At completion, discard the subscriber transcript and use only retained producer output.
+Rejected. Missing tools, shallow history, guard mismatches, and the superseded wrong broad gate remain carrier diagnostics. The authoritative execution is corrected paired run `30699322569`.
 
-### Result
-
-Partially useful, then refined.
-
-The bounded producer transcript can omit old bytes after eviction while the streamed transcript may contain them. Blind replacement could lose earlier streamed output. The selected reconciliation keeps useful streamed prefix data and appends the authoritative retained suffix without duplication.
-
-## 7. Concatenate streamed and retained output
-
-### Approach
-
-Append retained output directly to streamed output.
-
-### Result
-
-Rejected.
-
-The two views commonly overlap, which would duplicate bytes. The current patch computes suffix/prefix overlap before appending.
-
-## 8. Patch the completion consumer only
-
-### Approach
-
-Teach `process.rs` to recover from lag without changing the producer.
-
-### Result
-
-Rejected.
-
-A consumer cannot reconstruct bytes that no subscriber ever received. The producer must retain them.
-
-## 9. Keep source and workflow in one branch
-
-### Approach
-
-Carry product code and the execution workflow together.
-
-### Result
-
-Used during early experiments, then rejected for the clean source handoff.
-
-Shared carriers helped execute multiple units, yet they obscured source purity and created setup-only failures. The current source branch contains exactly four product/test files. Carrier logic stays separate.
-
-## 10. Reuse the reviewed source blobs on current public main
-
-### Approach
-
-Take the exact four blobs from the live reviewed source in Codex PR #125 and commit them over current public main.
-
-### Result
-
-Selected for unit 26.
-
-The four files were unchanged between the prior source base and current public main, so exact blob reuse creates a clean one-commit restack without manual code rewriting.
-
-### Exact revisions
-
-- Prior live source: `ee605985012dc1b768f03f6b450db16dd5c0467e`
-- Current public base: `670f69416bf91c5dfd8b58669e78050b584ff053`
-- Unit-owned source: `a020d7bd3e7f6886c3fbc21d75b3110586df08f5`
-- Unit-owned tree: `9a067c244d464e863a7b50978826ac9930df680b`
-
-## 11. Treat setup failures as product failures
-
-### Approach
-
-Use missing tools, shallow history, SHA-guard mismatches, or workflow reconstruction failures to judge the source patch.
-
-### Result
-
-Rejected under Fieldwork evidence policy.
-
-The following remain setup/carrier evidence only:
-
-- Codex PR #53 runs involving missing `just`, shallow history, and missing `uv`;
-- Codex PR #94 source-branch consistency failure;
-- any carrier run that stopped before source checkout and target tests.
-
-## 12. Use the authoritative historical pass as current-head proof
-
-### Approach
-
-Declare the current restack ready because run `30587866332` passed the exact controls, full library gate, and integration compile on an earlier source revision.
-
-### Result
-
-Rejected.
-
-That run is strong design and regression evidence. The current source head `a020d7...` still needs execution on current public base `670f694...`.
-
-## 13. Contact public upstream now
-
-### Approach
-
-Open an upstream issue or pull request with the current source.
-
-### Result
-
-Deferred.
-
-The target policy is invitation-only. This packet preserves issue and PR drafts for later use while making zero public-upstream writes.
+No public upstream interaction occurred.
