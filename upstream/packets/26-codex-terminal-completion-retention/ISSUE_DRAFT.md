@@ -4,58 +4,145 @@
 
 ## Title
 
-Unified exec can drop command output when the live listener starts late or falls behind
+Unified exec can lose command output when the live listener starts late or falls behind
 
 ## Body
 
-I started looking at this while trying to understand why some tool calls time out or otherwise finish without a useful result. The timeout itself can come from several parts of the process lifecycle, but I found a narrower problem that makes those failures much harder to understand: Codex can receive command output and still leave some of it out of the completed command record.
+I started looking into this because some tool calls would time out or finish without enough output to explain what had happened. While tracing that, I found a separate problem in unified exec: Codex can receive command output and still leave it out of the completed tool result.
 
-### What seems to be happening
+### Where this happens
 
-Unified exec receives stdout and stderr at the process owner. Live output is then sent through a best-effort broadcast channel so the UI and other listeners can show progress.
+When Codex runs a shell command or another command-based tool, `UnifiedExecProcess` collects the command's stdout and stderr. It sends live chunks through a broadcast channel, and `start_streaming_output` subscribes to that channel and builds the transcript used when the command completes.
 
-That live listener can:
+The current local output collector skips anything reported as `Lagged`:
 
-- attach after the command has already printed something;
-- fall behind a noisy command and receive `Lagged`;
-- close while the process owner still has valid output.
+[`process.rs` on the latest public source checked](https://github.com/openai/codex/blob/78f00743f92cf4fb875ddadcd30293c5201b48ac/codex-rs/core/src/unified_exec/process.rs#L602-L632)
 
-The surprising part is that the listener's partial view can become the completed command transcript. That gives a best-effort delivery path authority over the final result.
+```rust
+match receiver.recv().await {
+    Ok(chunk) => {
+        let mut guard = buffer.lock().await;
+        guard.push_chunk(chunk.clone());
+        drop(guard);
+        let _ = output_tx.send(chunk);
+        output_notify.notify_waiters();
+    }
+    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+        // ...
+        break;
+    }
+}
+```
 
-### Why this matters in ordinary Codex use
+The completion watcher has the same behavior while it builds the transcript:
 
-A few examples:
+[`async_watcher.rs` on the latest public source checked](https://github.com/openai/codex/blob/78f00743f92cf4fb875ddadcd30293c5201b48ac/codex-rs/core/src/unified_exec/async_watcher.rs#L88-L110)
 
-- A test command prints the actual failure early, then continues for a while. Codex can finish with a transcript that misses the useful failure line.
-- A build or search produces enough output to lag the live listener. The completed item can contain an arbitrary partial view rather than the bounded head/tail view of everything Codex received.
-- A command prints progress or an explanation and then times out. The timeout may be real, while the final record loses the output that would explain whether it was compiling, waiting on the network, prompting for input, or stuck during cleanup.
-- A command succeeds, but the model sees an incomplete or empty result and decides to retry, change approach, or report that the command produced nothing.
+```rust
+let chunk = match received {
+    Ok(chunk) => chunk,
+    Err(RecvError::Lagged(_)) => {
+        continue;
+    },
+    Err(RecvError::Closed) => {
+        output_complete = true;
+        break;
+    }
+};
 
-So this appears related to timeout investigations mainly through **lost context around the terminal event**. It also affects commands that complete normally.
+process_chunk(
+    &mut pending,
+    &transcript,
+    // ...
+    chunk,
+).await;
+```
 
-### A small reproduction
+A listener may either start after the command has already printed something or fall behind when a command produces a lot of output. In either case, unified exec can receive bytes that never reach the transcript returned in the completed tool result.
 
-Two deterministic cases expose the boundary:
+### What we've confirmed
 
-1. Send output before the streaming listener is attached, then finish the command.
-2. Send enough output to lag the listener, then finish the command.
+The implementation includes deterministic coverage for both paths:
 
-In both cases, the process owner received the bytes, while the completed item can omit them. Invalid UTF-8 has the same basic risk because the loss happens before text rendering.
+- output emitted before `start_streaming_output` subscribes is present in the completed command item after the fix;
+- a deliberately lagged receiver misses chunks while the producer-owned completion buffer retains all bytes within the existing cap;
+- the same lag test covers invalid UTF-8 bytes;
+- a partial streaming transcript is replaced with the producer-owned transcript at completion.
 
-### Possible direction
+Those are code-level reproductions of the loss boundary. The examples below describe what can follow when a missing chunk contained information Codex needed; they haven't each been reproduced as separate product bugs.
 
-The process owner could keep one bounded completion transcript before sending live updates:
+### Why do we care?
 
-1. receive stdout or stderr;
-2. add it to the bounded completion buffer;
-3. send the live update on a best-effort basis;
-4. build the completed command item from the producer-owned buffer.
+```text
+A test prints the real failure early
+        ↓
+the listener misses that chunk
+        ↓
+the completed result contains later output without the failure
+        ↓
+Codex may rerun the test or inspect the wrong file
+```
 
-Live streaming would stay best effort. The final command output would come from the component that actually received the bytes.
+```text
+A script prints a prompt and waits for input
+        ↓
+the prompt is missing from the completed result
+        ↓
+the command later times out without an explanation
+        ↓
+Codex may increase the timeout or repeat the same command
+```
 
-### Implementation and tests
+```text
+A command succeeds and prints the useful summary
+        ↓
+the listener misses some or all of that summary
+        ↓
+Codex receives an empty or incomplete completed result
+        ↓
+Codex may repeat work that already succeeded
+```
 
-I put together a focused four-file implementation here: `teamleaderleo/codex#144`.
+This probably isn't what starts a timeout. It can remove the output that would explain the timeout and guide the next action. The same loss can affect commands that finish normally.
+
+### Proposed change
+
+The proposed implementation keeps a second bounded `HeadTailBuffer` beside `UnifiedExecProcess`. Each chunk goes into that completion buffer before the live broadcast:
+
+[`process.rs` in the implementation proof](https://github.com/teamleaderleo/codex/blob/b2a704c708748462d7893fe82cf8971f00ca751e/codex-rs/core/src/unified_exec/process.rs#L444-L452)
+
+```rust
+async fn record_output_chunk(
+    output_buffer: &OutputBuffer,
+    completion_buffer: &OutputBuffer,
+    chunk: &[u8],
+) {
+    completion_buffer.lock().await.push_chunk(chunk.to_vec());
+    output_buffer.lock().await.push_chunk(chunk.to_vec());
+}
+```
+
+The producer records the chunk, then sends the live update:
+
+```rust
+Self::record_output_chunk(&output_buffer, &completion_buffer, &bytes).await;
+let _ = output_tx.send(bytes);
+output_notify.notify_waiters();
+```
+
+At completion, the watcher replaces its partial transcript with the producer-owned copy:
+
+[`async_watcher.rs` in the implementation proof](https://github.com/teamleaderleo/codex/blob/b2a704c708748462d7893fe82cf8971f00ca751e/codex-rs/core/src/unified_exec/async_watcher.rs#L148-L151)
+
+```rust
+reconcile_transcript(&transcript, &completion_buffer).await;
+output_drained.notify_one();
+```
+
+The completed result would use the existing bounded head/tail representation. Large command output would still be capped, with the retained beginning and ending plus the existing omission marker. The live listener could still start late or fall behind without changing the completed result.
+
+I put together the four-file implementation and tests here: `teamleaderleo/codex#144`.
 
 At that exact source revision:
 
@@ -64,18 +151,12 @@ At that exact source revision:
 - integration targets compiled;
 - formatting and the four-file source fence passed.
 
-The relevant public files were still byte-identical at the latest source refresh, and the current issue/PR search found no active proposal for this specific late-or-lagged-listener case.
+The implementation is there to show the current behavior and one possible repair. The question is:
 
-The implementation link is mainly there to make the behavior concrete. The ownership boundary is the important part; the exact shape can follow maintainer preference.
+**Should the completed unified-exec result come from the bounded output kept by the component that received it, rather than from whichever chunks reached the live listener?**
 
-### Question
+### Follow-ups
 
-Does producer-owned bounded retention sound like the right source of truth for completed unified-exec output, while the broadcast channel stays focused on live progress?
-
-### Scope and follow-ups
-
-This issue focuses on output Codex has already received by the normal completion or existing cancellation-grace boundary.
-
-Closely related follow-ups include the causes of long-running or timed-out tool calls, output that arrives after forced termination, process-tree cleanup, and remote execution settlement. Those have different owners and can be discussed separately without making this first issue carry the entire execution lifecycle.
+The timeout trigger itself, process cleanup after cancellation, output that arrives after forced termination, and remote execution state sit in other parts of the execution lifecycle. They can follow as separate investigations.
 
 No public upstream interaction has occurred.
