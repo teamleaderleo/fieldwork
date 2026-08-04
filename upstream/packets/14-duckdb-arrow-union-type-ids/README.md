@@ -2,9 +2,9 @@
 
 ## Current disposition
 
-`REPAIR — Arrow type-code contract corrected; exact-head CI queued`
+`REPAIR — spec-conformant type codes and ownership-safe malformed fixture; exact-head CI queued`
 
-The current private repair carrier is [`teamleaderleo/duckdb#16`](https://github.com/teamleaderleo/duckdb/pull/16) at exact head `44a210f581789e5635f24d20cfa5a957ba0b4dd6`.
+The current private repair carrier is [`teamleaderleo/duckdb#16`](https://github.com/teamleaderleo/duckdb/pull/16) at exact head `c9938e6d637217d1cd4b41a739b2c179d97f6b2b`.
 
 No public DuckDB issue, pull request, review, comment, or branch has been modified. Public upstream remains read-only and unauthorized for contact.
 
@@ -25,8 +25,9 @@ No public DuckDB issue, pull request, review, comment, or branch has been modifi
 3. Initial child-offset repair: `9c6a7d4f5ccbe47a6338233954471586df271968`.
 4. Valid offset fixture and positive-control head: `6ff47e3abad0e9412926b6b2dfd33ebb7b18ee2c`.
 5. Expected-error capture repair: `7467f762292151925ceed1af3a030949241ca549`.
-6. Arrow type-code contract correction commits: `208c9e8b163062aeb6460baa68d92efbce267baf`, `c0509b5b674df3e53e699c8b7c05f45977860a86`, and current head `44a210f581789e5635f24d20cfa5a957ba0b4dd6`.
-7. Clean publication branch: `fix/arrow-union-type-id-mapping@2c9e51aa33dd07e928edae66304430aeb038edd7`, still identical to target base pending focused green.
+6. Arrow type-code contract correction: `44a210f581789e5635f24d20cfa5a957ba0b4dd6`.
+7. Current ownership-safe malformed fixture: `c9938e6d637217d1cd4b41a739b2c179d97f6b2b`.
+8. Clean publication branch: `fix/arrow-union-type-id-mapping@2c9e51aa33dd07e928edae66304430aeb038edd7`, still identical to target base pending focused green.
 
 ## Correct Arrow contract
 
@@ -48,7 +49,9 @@ The current repair therefore:
 
 The offset fixture uses an unsliced three-row root containing a sparse-union child with offset one and logical length three over four physical entries. This satisfies Arrow parent/child length invariants while directly exercising the offset supplied to the union's child conversions.
 
-Malformed controls provide exact expected error substrings. Binder exceptions release the unconsumed single-batch Arrow stream before assertion; execution-time failures are checked through `QueryResult::HasError()` and `GetError()`.
+The malformed fixture uses a stack-backed single-batch `ArrowArrayStream` with an idempotent release callback. It does not allocate the ADBC `SingleBatchArrayStream`. This avoids both the prior binder-exception leak and double-release ambiguity when DuckDB copies the stream struct into its wrapper.
+
+Malformed controls provide exact expected error substrings. Binder exceptions are asserted directly; execution-time failures are checked through `QueryResult::HasError()` and `GetError()`.
 
 ## Scope fence
 
@@ -102,11 +105,11 @@ Malformed:
 - unmapped nonnegative runtime ID;
 - negative runtime buffer value.
 
-Current runs at `44a210f581789e5635f24d20cfa5a957ba0b4dd6`:
+Current runs at `c9938e6d637217d1cd4b41a739b2c179d97f6b2b`:
 
-- focused hardening `30929505318`: queued;
-- ordinary Main `30929509618`: queued;
-- stale characterization `30929504904`: expected red if executed and not promotion evidence.
+- focused hardening `30929848690`: queued;
+- ordinary Main `30929853935`: pending;
+- stale characterization `30929848816`: expected red if executed and not promotion evidence.
 
 ## Public prior-art refresh
 
@@ -129,4 +132,4 @@ Do not merge or contact public upstream. Advance the clean branch only after the
 
 ## Current receipt and continuation
 
-Resume from `teamleaderleo/duckdb@44a210f581789e5635f24d20cfa5a957ba0b4dd6`, focused run `30929505318`. Repair only a demonstrated new failure; do not weaken or remove any positive or malformed-input control.
+Resume from `teamleaderleo/duckdb@c9938e6d637217d1cd4b41a739b2c179d97f6b2b`, focused run `30929848690`. Repair only a demonstrated new failure; do not weaken or remove any positive or malformed-input control.
