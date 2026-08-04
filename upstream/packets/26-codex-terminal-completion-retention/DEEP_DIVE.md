@@ -1,150 +1,96 @@
-# Deep dive — producer-owned terminal completion transcript
+# Deep dive — producer-owned terminal completion output
 
-## Problem statement
+## Failure mechanism
 
-Unified exec streams process output through a Tokio broadcast channel. Broadcast delivery is intentionally best-effort: a receiver can attach after early output, lag behind the ring, or disappear. Completion, however, needs an authoritative terminal transcript.
+Unified exec has two different consumers of process output:
 
-Before this change, the completion path could derive its final output from what a subscriber observed. That made final stdout/stderr dependent on subscriber timing. A process could complete successfully while its completion item omitted bytes that the producer had already read.
+- live observers receive `ExecCommandOutputDelta` events through a Tokio broadcast channel;
+- command completion needs one authoritative bounded transcript for `aggregated_output`.
 
-The failure has three important forms:
+Broadcast is intentionally best effort. A receiver can subscribe after the process has already emitted output or receive `Lagged` after falling behind the ring. That is acceptable for live progress. It is not acceptable when the same receiver-owned transcript becomes the completed command record.
 
-1. **Pre-subscription output loss.** The process emits bytes before the completion watcher subscribes.
-2. **Lag loss.** The receiver falls behind the broadcast ring and receives `Lagged` instead of every chunk.
-3. **Receiver closure.** Best-effort broadcast has no active receiver, yet the producer still owns valid output bytes.
+The lost information is not hypothetical observer metadata. It is stdout/stderr already received by the process owner.
 
-## Selected design
+## Selected implementation
 
-The producer retains a bounded byte transcript for stdout and stderr while continuing to publish best-effort chunks.
+`UnifiedExecProcess` owns two bounded head/tail buffers:
 
-### Producer authority
+1. the existing ordinary output buffer used by process reads;
+2. a completion buffer reserved for the authoritative final transcript.
 
-The output-reading task owns the bytes first. It appends each read to a bounded `VecDeque<u8>` before attempting broadcast delivery. Completion therefore has a producer-owned source independent of receiver timing.
+Both local and exec-server producer paths call one helper that writes the chunk to the completion buffer and ordinary output buffer before attempting broadcast.
 
-The ordering rule is deliberate:
+### Local producer
 
-1. read bytes from stdout/stderr;
-2. append them to retained output;
-3. attempt best-effort broadcast;
-4. continue through EOF;
-5. return retained bytes to completion.
+The previous local path combined stdout and stderr through an intermediate broadcast receiver, then used another task to populate the Codex output buffer and live broadcast. That intermediate broadcast could lag before Codex retained the chunk.
 
-A closed or lagging receiver can affect live streaming while leaving final retained output intact.
+The selected source consumes the split stdout/stderr `mpsc` receivers directly with the same `tokio::select!` merge shape. Each chunk is retained before the live broadcast send. This removes one unnecessary lossy hop.
 
-### Bounded retention
+### Exec-server producer
 
-Retention is bounded to prevent an unbounded process transcript from growing memory indefinitely. When capacity is exceeded, the oldest bytes leave the deque. Tests cover that cap and verify forward progress with invalid UTF-8.
+Each ordered server chunk is likewise written into both bounded buffers before broadcast and notification. Sequence filtering remains unchanged.
 
-The selected patch keeps raw bytes in the producer path. Conversion to display text occurs with lossy UTF-8 handling where required. Raw-byte retention avoids splitting assumptions during collection.
+### Completion watcher
 
-### Reconciliation
+The streaming watcher still:
 
-Completion can have two views:
+- emits live UTF-8 deltas under the existing event-size cap;
+- ignores `Lagged` for live observation;
+- enters the existing trailing-output grace after process exit;
+- drains available broadcast events on normal output close.
 
-- bytes already observed through streaming;
-- the producer-retained authoritative transcript.
+Before it signals `output_drained`, it drains the producer-owned completion buffer and replaces the partial observer transcript with that authoritative bounded transcript.
 
-The patch reconciles them by finding suffix/prefix overlap. It appends only the non-overlapping retained suffix, which prevents duplicate output when both views contain the same tail/head boundary.
+This is replacement, not suffix/prefix overlap inference. Older packet descriptions of a standalone deque and overlap algorithm belong to superseded prototypes.
 
-The focused process tests cover:
+## Why replacement is correct here
 
-- output emitted before subscription;
-- replacement of a partial streamed transcript with authoritative completion output;
-- overlap handling.
+The producer and observer transcripts use the same bounded `HeadTailBuffer` semantics. The producer buffer contains the complete bounded view of all chunks received by Codex, including bytes the observer missed. Replacing the observer transcript therefore removes timing dependence without duplicating overlapping chunks.
 
-### Normal EOF
+For synchronous command completion, the existing nonempty fallback remains authoritative. The producer transcript supplies background/unified-exec completion.
 
-Normal EOF collects the producer result and uses it to complete the process item. The final completion output survives best-effort broadcast failure.
+## Concurrency and shutdown
 
-### Hard termination
+`OutputTaskGuard` still publishes output closure if the local output task exits. Producer writes occur before closure publication. The watcher observes closure with acquire ordering before its final drain.
 
-Hard termination has a separate latency contract. It must complete promptly even when an output receiver closes or the stream task remains in an awkward state. The tests preserve this behavior while adding retention.
+The source does not widen the hard-termination contract. If producer bytes arrive only after the existing grace boundary, they are not newly guaranteed. The repair is specifically for information already received before the normal completion boundary but missed by the live subscriber.
 
-## Exact current diff
+## Bounded memory
 
-Current public base:
+The second buffer is bounded by the existing head/tail buffer implementation. The cost is one additional bounded transcript per active process, not unbounded output accumulation.
 
-- [`openai/codex@670f69416bf91c5dfd8b58669e78050b584ff053`](https://redirect.github.com/https://github.com/openai/codex/commit/670f69416bf91c5dfd8b58669e78050b584ff053)
+## Exact source and evidence
 
-Unit-owned source:
+- source PR: `teamleaderleo/codex#144`
+- base: `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`
+- head: `b2a704c708748462d7893fe82cf8971f00ca751e`
+- review: `4856710273`
+- corrected paired execution: run `30699322569`
 
-- [`teamleaderleo/codex@a020d7bd3e7f6886c3fbc21d75b3110586df08f5`](https://github.com/teamleaderleo/codex/commit/a020d7bd3e7f6886c3fbc21d75b3110586df08f5)
-- tree `9a067c244d464e863a7b50978826ac9930df680b`
-- [four-file comparison](https://github.com/teamleaderleo/codex/compare/670f69416bf91c5dfd8b58669e78050b584ff053...a020d7bd3e7f6886c3fbc21d75b3110586df08f5)
+Execution passed 12/12 focused controls, the complete source library (`2,133/2,133`), the paired baseline library (`2,129/2,129`), formatting, exact fence checks, and integration compilation.
 
-Changed files:
+## Current public drift
 
-| File | Role |
-|---|---|
-| `async_watcher.rs` | retain raw producer bytes before best-effort broadcast; preserve EOF/termination behavior |
-| `async_watcher_tests.rs` | exercise early output, lag/closure, invalid UTF-8, bounded retention, and termination |
-| `process.rs` | reconcile streamed output with authoritative retained completion bytes |
-| `process_tests.rs` | cover pre-subscription output and partial-stream reconciliation |
+At public `7325f348a2ff9e1a7dd931ed9ad65f365d064146`, all four source-base files have the same blobs as at `ee0247f...`. The candidate is mechanically file-disjoint from intervening public changes.
 
-The unit-owned restack reuses the exact blobs from live source PR #125 at `ee605985012dc1b768f03f6b450db16dd5c0467e`. It adds no workflow file and no unrelated source change.
+## Wider architectural lesson
 
-## Drift analysis
+This finding is one instance of a recurring authority mistake:
 
-The prior live source base was `3d1d26915a303c3b4765828f973f5464f8c28c5c`. Current public main is `670f69416bf91c5dfd8b58669e78050b584ff053`, 24 commits later at the time of packet preparation.
+- live broadcast is not final transcript authority;
+- raw response delivery is not durable history acknowledgement;
+- a non-generating prewarm response is not generated-turn lineage;
+- a deadline or cancellation request is not terminal effect certainty.
 
-Across that range:
+The correct upstream strategy is not one umbrella rewrite. Preserve each piece of information at its owning boundary through small, separately reviewable issues.
 
-- none of the four source/test files changed;
-- `codex-rs/core/tests/suite/unified_exec.rs` gained one adjacent line;
-- the four exact blobs applied cleanly over current public main.
+## Non-goals
 
-This makes the restack mechanically clean while leaving one semantic duty: run current-head tests because adjacent integration behavior changed.
+- general operation receipts;
+- unbounded terminal history;
+- process-tree termination;
+- remote reattachment or settlement;
+- conversation-history durability;
+- bytes produced after the existing hard-termination grace boundary.
 
-## Failure and evidence chronology
-
-### Initial reproduction and prototype
-
-[Fieldwork PR #33](https://github.com/teamleaderleo/fieldwork/pull/33) documented late-reader loss and the producer-retention design. [Codex PR #6](https://github.com/teamleaderleo/codex/pull/6) provided the first implementation and focused execution:
-
-- formatting/fix/diff checks passed;
-- new pre-subscription and reconciliation tests passed;
-- 99 tests executed, 95 passed;
-- four sandbox/network SIGABRT failures appeared baseline-like.
-
-That work established feasibility and left packaging and execution cleanup.
-
-### Source-only publication and carrier attempts
-
-[Codex PR #49](https://github.com/teamleaderleo/codex/pull/49) published a four-file source-only restack. Shared and specialized carriers followed through PRs #50, #53, and #70. PR #53 recorded setup-only failures including missing `just`, shallow history, and missing `uv`; those runs provide no product evidence.
-
-### Authoritative pass
-
-[Fieldwork PR #268](https://github.com/teamleaderleo/fieldwork/pull/268) exported the strongest accepted execution. Run `30587866332` passed all nine exact controls, the full `codex-core` library gate, and integration-target compilation for source head `8c7ea38419d790032db459816980e6b4dd38f574`.
-
-### Later source lineage
-
-The four-file patch was republished across later public bases in Codex PRs #86, #91, #93, and #125. PR #94 failed a source-consistency guard before product execution.
-
-PR #126 is the latest retained-head carrier. Its source guard, baseline build, and nine exact controls passed for PR #125 head `ee605985012dc1b768f03f6b450db16dd5c0467e`. The broader focused `codex-core` gate failed; the exact failure text remains unavailable in the retained connector response.
-
-## Risks
-
-### Stream-semantics risk
-
-The patch changes ownership of the authoritative completion transcript. Review needs to verify that reconciliation never duplicates, truncates, or reorders bytes across stdout/stderr boundaries.
-
-### Memory-cap risk
-
-Bounded retention intentionally discards oldest bytes beyond the cap. The chosen cap and resulting user-visible semantics deserve explicit review.
-
-### UTF-8 risk
-
-The producer retains bytes and later performs lossy conversion. Tests cover invalid sequences and progress, while reviewers should inspect boundary behavior near the retention cap.
-
-### Termination risk
-
-Normal EOF waits for retained output; hard termination must stay prompt. The test suite contains dedicated termination cases because a seemingly safe await can create a shutdown hang.
-
-### Current-head risk
-
-The current restack is mechanically clean and unexecuted. A current-head carrier run remains required.
-
-## Prior-art search
-
-Searches of public Codex code, issues, and pull requests for the exact title and for terminal broadcast lag/completion transcript terms found no direct existing producer-retention implementation or duplicate proposal. One loose Windows desktop polling issue appeared and was excluded because it concerns a separate path.
-
-No public-upstream comment, issue, branch, or pull request was created.
+No public upstream interaction occurred.
