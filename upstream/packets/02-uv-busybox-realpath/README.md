@@ -2,32 +2,35 @@
 
 ## Disposition
 
-`PUBLIC ISSUE COMMENT POSTED — USER-OWNED PR PENDING; CURRENT-MAIN CI QUEUED`
+`PUBLIC PR OPEN — CANONICAL CI GREEN — AWAITING HUMAN REVIEW`
+
+Public pull request: `astral-sh/uv#20943`  
+Public head: `53a4bd1f7d715f57aed33bd1453954a14bb327e6`  
+Canonical CI: run `30942625490` — success
 
 A clean source-only candidate removes only the unsupported `--` operand from generated `realpath` calls. It preserves every `dirname --`, retains symlink canonicalization, and keeps `uv run` compatible with persisted relocatable launchers generated before the change in both `python` and `python3` forms.
 
-## Canonical internal ownership
+## Canonical ownership
 
 - `teamleaderleo/linux-fieldwork#307` is the completed investigation and reproduction record.
-- `teamleaderleo/fieldwork#435`, unit 02, owns this finished source packet and the internal handoff.
-- No second uv implementation lane is active for this defect.
-- The public issue comment and any formal upstream PR are user-owned public actions, not Fieldwork automation actions.
+- `teamleaderleo/fieldwork#435`, unit 02, owns this internal packet and handoff.
+- `astral-sh/uv#20943` is now the live public review surface, opened by `teamleaderleo`.
+- No second implementation lane is active for this defect.
 
-## Current exact identity
+## Public PR state
 
-- Canonical base: `92b7185783b56e8ad1dbe0bb7600432708f2c9fb`
-- Clean source branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
-- Clean source head: `53a4bd1f7d715f57aed33bd1453954a14bb327e6`
-- Source tree: `9c6099ab9e6489377775d710b48855aae02079c3`
-- Relationship: one commit ahead, zero behind
+- Title: `fix: make relocatable launchers compatible with BusyBox realpath`
+- Public base at the latest check: `08c032ee486dc064ab7892dfe23c02bd0ce203ff`
+- Head branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
+- Head commit: `53a4bd1f7d715f57aed33bd1453954a14bb327e6`
 - Diff: four files, 89 insertions, 15 deletions
-- Internal current-context PR: `teamleaderleo/uv#29`
-- Current-context CI: `30844806321` — queued at last check
-- Existing public issue: `astral-sh/uv#16209`
-- Public issue comment: comment `5180749150`, posted by `teamleaderleo`
-- Formal upstream PR: not recorded at last check; user stated intent to open it independently
+- Mergeability: mergeable at the latest check
+- Canonical CI: run `30942625490` completed successfully
+- Human reviews: none at the latest check
+- Inline review threads: none at the latest check
+- Conversation: only the automated test-inventory comment, recording one added test and no removed tests
 
-The canonical repository advanced by 12 commits from the prior reviewed base. None changed the four touched files. The clean source was rebuilt with the same previously validated four blobs on top of the current canonical tree.
+The public diff is the exact four-file candidate reviewed and validated in this packet. Canonical CI passed formatting, Linux and Windows test shards, builds across supported targets, generated-file checks, docs, lockfiles, lint, release planning, publish dry-run, and simulated benchmarks.
 
 ## Source boundary
 
@@ -46,9 +49,9 @@ A relocatable environment can be generated on one host and executed on another, 
 
 Historical launchers persist across uv upgrades. Exact recognition of corrected and legacy `python` and `python3` forms prevents a migration regression while keeping the accepted grammar narrow.
 
-## Previously completed evidence
+## Evidence
 
-The unchanged four source blobs passed:
+Before public submission, the unchanged source blobs passed:
 
 - exact four-file generation and publication fences;
 - formatting and affected-crate compilation;
@@ -61,31 +64,22 @@ The unchanged four source blobs passed:
 - GNU, Alpine/BusyBox, and macOS Fish activation matrices;
 - Linux direct-shebang `$0` discriminator.
 
-The BusyBox baseline emitted the false diagnostic. The candidate preserved the selected interpreter or environment with empty stderr. GNU and macOS remained clean.
+Canonical upstream CI has now also passed at the public head.
 
-## Public-action record
+## Operating rule
 
-The user posted a public comment to `astral-sh/uv#16209` stating that a tested patch is ready, explaining the realpath-only correction, and announcing intent to open a PR. That comment is now part of the canonical record.
-
-Do not post another issue comment, create a duplicate issue, or create the public PR from Fieldwork. The next public action belongs to the user unless they explicitly delegate a specific action.
+Do not add another issue comment or unsolicited PR comment. The next useful event is concrete maintainer feedback, a requested change, a base conflict, or merge/closure. Respond only to the actual owner of that event.
 
 ## Packet guide
 
 - `PRESENTATION.md` — executive decision brief.
-- `CODE_WALKTHROUGH.md` — baby-to-technical explanation of uv, Rust, shell generation, and every changed file.
+- `CODE_WALKTHROUGH.md` — explanation of uv, Rust, shell generation, and every changed file.
 - `DEEP_DIVE.md` — technical invariants and historical constraints.
 - `APPROACHES.md` — selected, rejected, and deferred designs.
-- `TESTS.md` — exact execution receipts.
-- `UPSTREAM_ISSUE.md` — posted issue comment and issue strategy.
-- `UPSTREAM_PR.md` — complete pull-request draft.
-- `REVIEW.md` — human diff-review guide.
+- `TESTS.md` — execution receipts.
+- `UPSTREAM_ISSUE.md` — issue strategy and posted comment.
+- `UPSTREAM_PR.md` — public PR source material.
+- `REVIEW.md` — diff-review guide.
 - `HANDOFF.md` — current stopping point.
 
-## Remaining gates
-
-- Classify the exact current-context CI run.
-- Refresh canonical overlap immediately before or after the user opens the public PR.
-- Verify the public PR, if opened, points to the clean four-file candidate.
-- Respond only to concrete CI or reviewer feedback.
-
-Unit 02 is frozen except for terminal CI recording and concrete upstream feedback. New uv investigation should proceed in a separate Fieldwork lane.
+Unit 02 is now feedback-only maintenance. New uv work belongs in a separate lane.
