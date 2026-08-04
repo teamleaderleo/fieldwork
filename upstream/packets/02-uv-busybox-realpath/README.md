@@ -2,15 +2,16 @@
 
 ## Disposition
 
-`READY FOR HUMAN REVIEW — CURRENT-MAIN CI QUEUED`
+`PUBLIC ISSUE COMMENT POSTED — USER-OWNED PR PENDING; CURRENT-MAIN CI QUEUED`
 
 A clean source-only candidate removes only the unsupported `--` operand from generated `realpath` calls. It preserves every `dirname --`, retains symlink canonicalization, and keeps `uv run` compatible with persisted relocatable launchers generated before the change in both `python` and `python3` forms.
 
 ## Canonical internal ownership
 
 - `teamleaderleo/linux-fieldwork#307` is the completed investigation and reproduction record.
-- `teamleaderleo/fieldwork#435`, unit 02, owns this finished source packet and the human publication decision.
-- No second UV implementation lane is active for this defect.
+- `teamleaderleo/fieldwork#435`, unit 02, owns this finished source packet and the internal handoff.
+- No second uv implementation lane is active for this defect.
+- The public issue comment and any formal upstream PR are user-owned public actions, not Fieldwork automation actions.
 
 ## Current exact identity
 
@@ -23,7 +24,8 @@ A clean source-only candidate removes only the unsupported `--` operand from gen
 - Internal current-context PR: `teamleaderleo/uv#29`
 - Current-context CI: `30844806321` — queued at last check
 - Existing public issue: `astral-sh/uv#16209`
-- Public upstream interaction authorized: `no`
+- Public issue comment: comment `5180749150`, posted by `teamleaderleo`
+- Formal upstream PR: not recorded at last check; user stated intent to open it independently
 
 The canonical repository advanced by 12 commits from the prior reviewed base. None changed the four touched files. The clean source was rebuilt with the same previously validated four blobs on top of the current canonical tree.
 
@@ -61,6 +63,12 @@ The unchanged four source blobs passed:
 
 The BusyBox baseline emitted the false diagnostic. The candidate preserved the selected interpreter or environment with empty stderr. GNU and macOS remained clean.
 
+## Public-action record
+
+The user posted a public comment to `astral-sh/uv#16209` stating that a tested patch is ready, explaining the realpath-only correction, and announcing intent to open a PR. That comment is now part of the canonical record.
+
+Do not post another issue comment, create a duplicate issue, or create the public PR from Fieldwork. The next public action belongs to the user unless they explicitly delegate a specific action.
+
 ## Packet guide
 
 - `PRESENTATION.md` — executive decision brief.
@@ -68,7 +76,7 @@ The BusyBox baseline emitted the false diagnostic. The candidate preserved the s
 - `DEEP_DIVE.md` — technical invariants and historical constraints.
 - `APPROACHES.md` — selected, rejected, and deferred designs.
 - `TESTS.md` — exact execution receipts.
-- `UPSTREAM_ISSUE.md` — existing-issue strategy and optional comment draft.
+- `UPSTREAM_ISSUE.md` — posted issue comment and issue strategy.
 - `UPSTREAM_PR.md` — complete pull-request draft.
 - `REVIEW.md` — human diff-review guide.
 - `HANDOFF.md` — current stopping point.
@@ -76,8 +84,8 @@ The BusyBox baseline emitted the false diagnostic. The candidate preserved the s
 ## Remaining gates
 
 - Classify the exact current-context CI run.
-- Refresh canonical overlap immediately before any public action.
-- Verify Astral's current contribution and AI-assistance policies.
-- Have a human own the final wording and explicitly authorize upstream contact.
+- Refresh canonical overlap immediately before or after the user opens the public PR.
+- Verify the public PR, if opened, points to the clean four-file candidate.
+- Respond only to concrete CI or reviewer feedback.
 
-No public upstream interaction occurred.
+Unit 02 is frozen except for terminal CI recording and concrete upstream feedback. New uv investigation should proceed in a separate Fieldwork lane.
