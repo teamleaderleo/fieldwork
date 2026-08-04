@@ -2,18 +2,20 @@
 
 ## Disposition
 
-`READY FOR HUMAN REVIEW`
+`READY FOR HUMAN REVIEW — CURRENT-MAIN CI QUEUED`
 
 ## Subject
 
-- Base: `79bbface771210df216b738e9bdc7df95e5a9e6b`
-- Current head: `17fb4489a71cc63a59b90ecc52b08f703ca0d0e8`
-- Tree: `e0832686bd982b5c15f6e9bdd6d6631d30ec24cf`
+- Base: `92b7185783b56e8ad1dbe0bb7600432708f2c9fb`
+- Current head: `53a4bd1f7d715f57aed33bd1453954a14bb327e6`
+- Tree: `9c6099ab9e6489377775d710b48855aae02079c3`
 - Branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
 - Relationship: one commit ahead, zero behind
+- Internal current-context PR: `teamleaderleo/uv#29`
+- Current-context CI: `30844806321` — queued at last check
 - Public authority: none
 
-The current head republishes the same validated source tree as earlier commit `047b724212905c034c15d4f4f6f9ef330bbd2daf`.
+The canonical uv repository advanced by 12 commits after the previously validated source. None changed the four touched files. The current head applies the same validated four source blobs to the newer canonical tree.
 
 ## Changed files
 
@@ -21,6 +23,62 @@ The current head republishes the same validated source tree as earlier commit `0
 - `crates/uv-virtualenv/src/virtualenv.rs`
 - `crates/uv/src/commands/project/run.rs`
 - `crates/uv/tests/python/venv.rs`
+
+## Human review notes — 2026-08-04
+
+The first independent human read found the core correction clear and appropriately narrow:
+
+- remove `--` only from `realpath`;
+- retain supported `dirname --` calls;
+- retain exact legacy recognition;
+- use named constants for the four known migration forms rather than broad parsing.
+
+Public-writing preference:
+
+- make the summary less formal and less report-like;
+- split the explanation into shorter paragraphs;
+- explain why BusyBox users matter;
+- state the Windows boundary directly.
+
+The pull-request draft has been revised accordingly. This is an ongoing review, not an approval or authorization to contact upstream.
+
+## Why BusyBox matters
+
+BusyBox supplies compact implementations of common Unix commands and is widely used in minimal Linux systems. Alpine Linux uses BusyBox utilities by default, and Alpine is common in small container images and CI environments.
+
+The public issue reproduces the problem on Alpine 3.22 with BusyBox 1.37: the installed command succeeds but emits a false-looking `realpath: --:` error. A Python tool manager that advertises portable environments should not produce spurious diagnostics on a supported and common minimal-Linux userland when one tested portable form works across GNU, BusyBox, and macOS.
+
+This does not mean every BusyBox environment is identical or that Alpine is the only affected system. Alpine is the concrete reported and executed carrier.
+
+## Platform and Windows boundary
+
+### Native command launchers
+
+`wheel.rs` emits this shell wrapper only when the target operating-system name is `posix`. The source itself notes that Windows uses binary trampoline launchers, which already support relative executable paths.
+
+### `uv run` migration
+
+The four shell-string constants, the shell-entrypoint copying function, and its regression test are guarded by `#[cfg(unix)]`. Windows has a separate `#[cfg(windows)]` implementation that reads and rewrites binary trampolines. No Windows trampoline code changed.
+
+### Virtual-environment activation
+
+The patch updates the POSIX `activate` and Fish `activate.fish` templates. `activate.bat` is unchanged, and the source notes that `activate.ps1` is already relocatable by default.
+
+A Unix-like shell running on Windows could still consume a Bash or Fish activation file. Therefore the precise claim is **native Windows launcher, batch, and PowerShell behavior are unchanged**, not that no Windows machine could ever read the modified shell text.
+
+### Why there is no Windows runtime matrix
+
+The defect is a command-line contract difference between GNU/macOS-style and BusyBox `realpath` inside POSIX/Fish shell fragments. No Win32 launcher or native Windows activation implementation changed.
+
+The affected behavior was therefore executed in the environments that own that contract:
+
+- GNU/Linux;
+- Alpine 3.22 / BusyBox 1.37;
+- macOS;
+- Bash-compatible activation;
+- Fish activation.
+
+The workspace compile and lint gates still cover the changed Rust source structurally. A Windows generated-text assertion could be added if maintainers request it, but it would not exercise the BusyBox failure and is not currently required to distinguish this patch's behavior.
 
 ## Complete-diff review result
 
@@ -64,7 +122,8 @@ Fish run `30755096609`:
 ## Known limits
 
 - The full repository test suite was not run.
-- Public overlap and current-main applicability require one final refresh.
+- Exact current-main CI remains queued.
+- Public overlap requires one final refresh.
 - The four explicit matcher strings are intentionally narrow. Broader parsing would need a concrete producer or migration case.
 
 ## Human decision
@@ -72,6 +131,7 @@ Fish run `30755096609`:
 Approve this for upstream preparation when the reviewer agrees that:
 
 - the four-string migration recognizer is preferable to a broader parser or refactor;
+- exact current-main CI is adequately classified;
 - exact current-main overlap remains clear;
 - the public contribution policy and authorship requirements are satisfied;
 - the final public action is explicitly authorized.
