@@ -12,34 +12,39 @@ Repair supported mutable processor fanouts only:
 - public `TracerProvider.forceFlush()`: opening snapshot plus synchronous-error normalization through the existing timeout/error path;
 - `MultiLogRecordProcessor`: opening snapshot plus eager synchronous safe-call.
 
-Metrics is excluded. `MeterProvider` constructs its collector list internally and does not retain the caller’s reader array; the prior mutation tests reached private state only. `MetricCollector` lifecycle methods are already async.
+Metrics is excluded. `MeterProvider` constructs its collector list internally and does not retain the caller's reader array; the prior mutation tests reached private state only. `MetricCollector` lifecycle methods are already async.
 
 ## Why trace has two force-flush sites
 
-`TracerProvider.forceFlush()` bypasses `MultiSpanProcessor.forceFlush()` and directly maps the aggregate’s processor list. Repairing only the multi-processor leaves the public provider path exposed to live removal.
+`TracerProvider.forceFlush()` bypasses `MultiSpanProcessor.forceFlush()` and directly maps the aggregate's processor list. Repairing only the multi-processor leaves the public provider path exposed to live removal.
 
-The provider also arms a timeout before processor invocation. A synchronous throw was converted by the Promise executor, but bypassed timeout cleanup. The selected helper converts it to a rejected promise so the existing `.catch()` clears the timer and records the error without changing the provider’s error-array contract.
+The provider also arms a timeout before processor invocation. A synchronous throw bypasses timeout cleanup. The selected helper converts it to a rejected promise so the existing `.catch()` clears the timer and records the error without changing the provider's error-array contract.
+
+Upstream PR #6929 subsequently added a per-call timeout option to this same method. The current preparation keeps that API intact and resolves the timeout before snapshotting and invoking processors.
 
 ## Package decisions
 
 ### Trace aggregate
 
 - snapshot `_spanProcessors`;
-- protect direct lifecycle calls with an eager local try/catch helper;
-- preserve shutdown rejection and force-flush global-handler/resolve structure.
+- protect direct lifecycle calls with an eager local `try`/`catch` helper;
+- preserve shutdown rejection and force-flush global-handler/resolve structure;
+- leave `onStart`, `onEnding`, and `onEnd` unchanged.
 
 ### Trace provider
 
+- preserve `forceFlush(options?: ForceFlushOptions)` from current main;
 - snapshot the processor list before mapping;
 - call each processor through the same eager helper;
 - retain per-processor timeout, result filtering, and outward rejection shape;
+- use the per-call timeout option in the focused tests;
 - retain a non-settling processor test to prove the real timeout path still works.
 
 ### Logs
 
 - snapshot the public processor array;
 - protect direct processor calls;
-- retain timeout wrapping and rejection behavior.
+- retain the per-call timeout option, timeout wrapping, and rejection behavior.
 
 ### Metrics excluded
 
@@ -57,7 +62,8 @@ The provider also arms a timeout before processor invocation. A synchronous thro
 - Settle-all aggregation: changes error timing and types.
 - Repairing only `MultiSpanProcessor`: misses public provider force flush.
 - Keeping metrics for symmetry: broadens the patch without a supported reversing path.
-- Treating queued CI or a named reviewer as a code-repair blocker: confuses evidence/authority with implementation work.
+- Dropping or overriding #6929 during rebase: would regress a newly merged public API.
+- Treating queued CI as a final disposition: confuses pending evidence with acceptance.
 
 ## Decision history
 
@@ -68,17 +74,21 @@ The provider also arms a timeout before processor invocation. A synchronous thro
 5. Deeper review removed metrics entirely as private-state-only.
 6. Deeper trace review added public provider force flush and timeout cleanup.
 7. Follow-up added an explicit genuine-timeout compatibility control and formatting repair.
-8. The exact reviewed six-file tree was collapsed from four commits to one commit on the pinned base.
-9. Packet and source PR were synchronized to the new canonical identity and owner-decision handoff.
+8. The reviewed six-file tree was collapsed to one commit on the earlier pinned base.
+9. The owner approved advancement into upstream preparation.
+10. Public `main` was refreshed to `f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`.
+11. The six-file patch was rebased while preserving #6929's per-call timeout API and current-main `onEnding()` behavior.
+12. The rebased tree was squash-built to one commit and the source preview was returned to draft for fresh exact-head execution.
+13. Current issue/PR overlap and current contribution/changelog/template requirements were refreshed.
 
 ## Exact current state
 
-- base/current-main snapshot: `2c931bf4eec18a234a28706567c6977f08139abd`;
+- refreshed base: `f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`;
 - branch: `upstream/unit-11-lifecycle-fanout-v2`;
-- clean source head: `db3d9e5e43d5abc6622784acf0ef87f3b038ac91`;
-- reviewed pre-squash tree source: `987a2bde097fe2e44531830e38c7c15a59c35c23`;
+- exact prepared head: `f4cb44bcccffbc0eb39e774284655e0f965cfce1`;
 - relation: ahead 1, behind 0;
 - boundary: three production files and three tests;
 - focused assertions: eleven;
 - validation carrier: PR #19;
+- fresh source review: accepted, exact-head CI pending;
 - public upstream contact: unauthorized and not performed.
