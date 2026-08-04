@@ -63,14 +63,14 @@ A listener may either start after the command has already printed something or f
 
 ### What we've confirmed
 
-The implementation includes deterministic coverage for both paths:
+The tests force both timing conditions and check that the proposed completion buffer retains the output:
 
 - output emitted before `start_streaming_output` subscribes is present in the completed command item after the fix;
 - a deliberately lagged receiver misses chunks while the completion buffer retains all bytes within the existing cap;
 - the same lag test covers invalid UTF-8 bytes;
 - a partial streaming transcript is replaced with the completion buffer at completion.
 
-Those are code-level reproductions of the loss boundary. The examples below describe what can follow when a missing chunk contained information Codex needed; they haven't each been reproduced as separate product bugs.
+The examples below describe what can follow when a missing chunk contained information Codex needed; they haven't each been reproduced as separate product bugs.
 
 ### Why do we care?
 
