@@ -68,3 +68,5 @@ jobs:
           pnpm -C packages/ai exec vitest --config vitest.edge.config.js --run \
             src/generate-video/core-video-operation-deadline.test.ts \
             src/generate-video/generate-video.test.ts
+
+# One-time current-main execution receipt for scout 528.
