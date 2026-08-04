@@ -1,158 +1,95 @@
 # Review record
 
-## Review state
+## Disposition
 
-- Review type: packet-owner self-review
-- Independent review: pending
-- Current disposition: **REPAIR**
-- Public-upstream contact: false
+`ACCEPT ISSUE-FIRST SOURCE / REFRESH DIRECT PARENT BEFORE DELIVERY`
 
-Self-review checks packet completeness and source isolation. It does not satisfy the independent-review gate.
+Reviewed source:
 
-## Exact source under review
+- PR: `teamleaderleo/codex#144`
+- base: `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`
+- head: `b2a704c708748462d7893fe82cf8971f00ca751e`
+- review: `4856710273`
+- shape: one commit, four files, 294 additions, 57 deletions
 
-- Repository: `teamleaderleo/codex`
-- Branch: `fieldwork/26-terminal-completion-retention-source`
-- Base: `670f69416bf91c5dfd8b58669e78050b584ff053`
-- Head: `a020d7bd3e7f6886c3fbc21d75b3110586df08f5`
-- Tree: `9a067c244d464e863a7b50978826ac9930df680b`
-- Compare: https://github.com/teamleaderleo/codex/compare/670f69416bf91c5dfd8b58669e78050b584ff053...a020d7bd3e7f6886c3fbc21d75b3110586df08f5
+No blocking code finding was identified inside the stated normal-close scope.
 
-The branch contains one commit and exactly four changed files. No workflow or unrelated unit file is present.
+## Authority review
 
-## Source provenance review
+The old flow lets a broadcast subscriber assemble the final transcript. That subscriber can attach late or receive `Lagged`, so successful live delivery is not a complete record of what the producer received.
 
-The current source uses exact blobs from Codex PR #125 live head `ee605985012dc1b768f03f6b450db16dd5c0467e`:
+The selected source separates the owners:
 
-| File | Blob | Review result |
-|---|---|---|
-| `codex-rs/core/src/unified_exec/async_watcher.rs` | `a0427969dec77d57f6bc3037108cd4be26125cd0` | provenance confirmed |
-| `codex-rs/core/src/unified_exec/async_watcher_tests.rs` | `57002ea930169d2815aed51e42bbb37f27faedc8` | provenance confirmed |
-| `codex-rs/core/src/unified_exec/process.rs` | `ca47e90159328921a3f469fd0dad72c91ef5f86a` | provenance confirmed |
-| `codex-rs/core/src/unified_exec/process_tests.rs` | `b76c9151eb9b5a42e6e6cdfe4ef4b1c0c1686f58` | provenance confirmed |
+- local and exec-server producer paths write each chunk to a bounded completion buffer first;
+- live broadcast remains best effort;
+- the completion watcher reconciles the observer transcript from producer-owned state before signaling output drained;
+- a nonempty synchronous fallback remains authoritative for the synchronous command path.
 
-The earlier claim comment on Fieldwork issue #435 named stale source/base hashes. Live PR metadata and the newly created source branch supersede those values. The completion handoff must use the exact revisions above.
+This is the smallest repair that prevents observer loss from erasing final command bytes.
 
-## Scope review
-
-### Included
-
-- producer-owned bounded stdout/stderr retention;
-- retention before broadcast;
-- completion reconciliation;
-- invalid UTF-8 handling;
-- normal EOF behavior;
-- hard-termination behavior;
-- focused tests in the two touched test files.
-
-### Excluded
-
-- skills async unified-exec contract work from Codex PR #46;
-- permission matcher work from Codex PR #48;
-- unrelated NVIDIA issue #197;
-- unrelated Workers cleanup issue #41;
-- public-upstream submission;
-- carrier workflow changes in the clean source branch.
-
-## Diff review
-
-### `async_watcher.rs`
-
-Review focus:
-
-- retained bytes are appended before best-effort broadcast;
-- deque truncation removes oldest bytes and respects the configured bound;
-- read-loop errors and EOF propagate consistently;
-- invalid UTF-8 cannot stall the loop;
-- hard termination avoids waiting indefinitely for the output task.
-
-Self-review result: design intent is visible and matches the historical test record. Independent concurrency review remains required.
-
-### `async_watcher_tests.rs`
-
-Review focus:
-
-- output produced before subscription reaches final completion;
-- lag and closed-receiver cases preserve retained bytes;
-- invalid UTF-8 advances and remains representable;
-- bounded retention is observable;
-- hard termination completes promptly.
-
-Self-review result: focused cases cover the primary failure modes. The carrier-defined nine-test list should be pinned verbatim in the next execution receipt.
+## File review
 
 ### `process.rs`
 
-Review focus:
+- Adds a separate bounded completion buffer.
+- Records chunks into both the ordinary read buffer and completion buffer before broadcast.
+- Removes the local intermediate combined broadcast receiver and consumes the stdout/stderr `mpsc` receivers directly, eliminating a second lag point before retention.
+- Preserves stdout/stderr selection semantics: the removed helper also merged the two receivers with `tokio::select!`.
+- Preserves output-close notification through `OutputTaskGuard`.
 
-- streamed output and retained completion output reconcile through suffix/prefix overlap;
-- shared bytes appear once;
-- useful streamed prefix survives retention-window eviction;
-- empty and complete-overlap cases behave predictably.
+### `async_watcher.rs`
 
-Self-review result: selected algorithm matches the stated contract. Independent review should stress repeated byte patterns where several overlap lengths are possible.
+- Live deltas remain best effort and retain existing UTF-8/event limits.
+- Subscriber lag no longer affects authoritative completion state.
+- On normal output completion, the watcher drains any remaining broadcast events and then replaces the partial transcript with the producer-owned bounded transcript.
+- Existing cancellation grace remains unchanged.
 
-### `process_tests.rs`
+### Tests
 
-Review focus:
+The tests exercise output sent before subscription, a deliberately lagged receiver, invalid UTF-8, bounded producer retention, transcript replacement, local and remote producer paths, and close/drain behavior.
 
-- pre-subscription completion regression;
-- replacement/reconciliation of a partial streamed transcript;
-- output ordering and exact equality.
-
-Self-review result: tests directly cover the original completion-level symptom.
-
-## Evidence review
+## Risk review
 
 ### Accepted
 
-- Fieldwork run `30587866332`: nine exact controls pass, full `codex-core` library gate pass, integration-target compile pass.
-- Codex run `30651607704`: source guard, baseline build, and nine exact controls pass for source `ee605985...`.
-- Exact four-blob restack over current public main.
+- **Memory:** a second head/tail buffer exists per process, but it is bounded by the existing buffer type rather than unbounded output.
+- **Live/final divergence:** intentional. Live deltas are observational; the final transcript is authoritative.
+- **Drain ownership:** `reconcile_transcript()` drains the completion buffer once into the final transcript after the existing close/grace decision.
+- **Repeated patterns:** replacement uses the producer transcript directly, avoiding heuristic overlap matching.
 
-### Limited
+### Explicit limits
 
-- Codex PR #6 broad run: 95/99 pass with four sandbox/network SIGABRT cases; useful prototype evidence, not a clean full gate.
-- PR #125 local formatting receipt: useful formatting evidence, not target execution.
+- Bytes that arrive only after the existing hard-termination grace boundary are not newly guaranteed.
+- This does not solve process-tree cleanup, reattachment, remote settlement, conversation persistence, or unbounded transcripts.
+- A final direct-parent restack and rerun are required before an authorized PR.
 
-### Rejected as product evidence
+## Current-public comparison
 
-- PR #53 setup failures.
-- PR #94 source-consistency guard failure.
-- shared-carrier setup failures before target execution.
+All four base files remain byte-identical on public `7325f348a2ff9e1a7dd931ed9ad65f365d064146`. The implementation therefore has no file-level conflict with intervening public work.
 
-## Risk map
+This comparison supports issue readiness but does not replace a final current-head execution.
 
-| Risk | Severity | Evidence | Required follow-up |
-|---|---:|---|---|
-| Completion duplicates bytes at overlap boundary | high | reconciliation tests; historical focused passes | independent algorithm review; repeated-pattern cases |
-| Completion truncates useful early streamed output | high | bounded-retention design and partial-stream test | current-head full tests; cap-boundary cases |
-| Retention increases memory use | medium | explicit bounded deque | review cap value and per-process impact |
-| Invalid UTF-8 stalls or shifts bytes | medium | helper tests and lag case | current-head exact controls |
-| Normal EOF waits incorrectly | high | historical exact controls | current-head full library gate |
-| Hard termination hangs after receiver closure | high | dedicated promptness case | current-head exact control and timeout receipt |
-| Adjacent current-main unified-exec integration drift | medium | one adjacent integration file changed after prior base | integration-target compile on current base |
-| Carrier masks a baseline failure | medium | latest broad gate failed after focused pass | paired baseline/source rerun with complete logs |
-| Public submission precedes invitation | high process risk | target policy invitation-only | keep drafts private |
+## Test evidence
 
-## Disposition rationale
+Corrected paired run `30699322569`:
 
-**REPAIR** is the current defensible disposition.
+- baseline library `2,129/2,129`;
+- source focused controls `12/12`;
+- source library `2,133/2,133`;
+- integration compilation passed;
+- exact source fence and formatting passed.
 
-The source has strong historical execution and a clean current-main restack. Readiness still depends on a current-head carrier run, classification of the broader gate, and independent review.
+## Issue suitability
 
-## Required independent review request
+This is the strongest first Codex issue because it is:
 
-Review the exact compare `670f694...a020d7b` with emphasis on:
+- a direct information-loss mechanism;
+- user-visible in the completed command result;
+- bounded to one producer/observer authority error;
+- supported by a complete implementation and paired execution;
+- not duplicated in the current public issue search;
+- independent of the broader receipt architecture.
 
-1. producer retention ordering relative to broadcast;
-2. deque-cap semantics;
-3. overlap reconciliation under repeated byte sequences;
-4. invalid UTF-8 boundaries;
-5. normal EOF versus hard termination;
-6. whether the nine exact controls and full library/integration gates cover the modified contracts.
+The issue should ask whether bounded producer-owned retention is the intended final-output authority and link only to the clean source PR #144 as implementation evidence.
 
-Record the reviewer, reviewed SHA, findings, and verdict in this file or a linked GitHub review. A review of an earlier source head does not automatically cover the current head unless blob identity and base-drift analysis are explicit.
-
-## Handoff verdict
-
-Continue from the current unit-owned source head. Build a separate carrier, execute paired baseline/source gates, preserve full logs and artifacts, obtain independent review, and then reassess REPAIR versus READY or HOLD.
+No public upstream interaction occurred.
