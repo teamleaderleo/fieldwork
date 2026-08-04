@@ -4,19 +4,74 @@
 
 ## Title
 
-fix(core): retain terminal completion output before best-effort broadcast
+fix(core): retain completed command output before live broadcast
 
 ## Summary
 
-- retain bounded stdout/stderr at the unified-exec producer before broadcasting live deltas;
-- keep broadcast best effort for live observers;
-- reconcile the final command transcript from producer-owned state on normal close;
-- preserve existing output bounds, UTF-8 delta handling, cancellation grace, and synchronous fallback behavior;
-- add regressions for pre-subscription output and lagged observers.
+Unified exec currently uses broadcast receivers while collecting command output and again while building the completed transcript. Both paths skip `Lagged`, so output Codex already received can disappear before the completed tool result is created.
 
-## Problem
+This change keeps a bounded completion buffer beside `UnifiedExecProcess`, records each chunk before sending the live update, and uses that buffer when the command completes.
 
-The producer can receive output before the streaming subscriber attaches or while the subscriber is lagged. Because the subscriber currently owns the accumulated completion transcript, those bytes can be missing from the final completed item.
+## Current path
+
+The local collector currently skips lagged chunks before adding them to its buffer:
+
+```rust
+match receiver.recv().await {
+    Ok(chunk) => {
+        buffer.lock().await.push_chunk(chunk.clone());
+        let _ = output_tx.send(chunk);
+    }
+    Err(broadcast::error::RecvError::Lagged(_)) => continue,
+    Err(broadcast::error::RecvError::Closed) => break,
+}
+```
+
+The completion watcher also skips lagged chunks while building `transcript`:
+
+```rust
+let chunk = match received {
+    Ok(chunk) => chunk,
+    Err(RecvError::Lagged(_)) => continue,
+    Err(RecvError::Closed) => break,
+};
+
+process_chunk(&mut pending, &transcript, /* ... */, chunk).await;
+```
+
+A listener can also subscribe after output has already been sent.
+
+## New path
+
+`UnifiedExecProcess` owns a second bounded `HeadTailBuffer` for the completed result:
+
+```rust
+async fn record_output_chunk(
+    output_buffer: &OutputBuffer,
+    completion_buffer: &OutputBuffer,
+    chunk: &[u8],
+) {
+    completion_buffer.lock().await.push_chunk(chunk.to_vec());
+    output_buffer.lock().await.push_chunk(chunk.to_vec());
+}
+```
+
+Each producer records the chunk before broadcasting it:
+
+```rust
+Self::record_output_chunk(&output_buffer, &completion_buffer, &bytes).await;
+let _ = output_tx.send(bytes);
+output_notify.notify_waiters();
+```
+
+When output closes, the completion watcher replaces its partial transcript with that producer-owned buffer:
+
+```rust
+reconcile_transcript(&transcript, &completion_buffer).await;
+output_drained.notify_one();
+```
+
+The existing output cap, head/tail retention, omission marker, UTF-8 live-delta handling, cancellation grace, and synchronous fallback stay in place.
 
 ## Files
 
@@ -25,9 +80,18 @@ The producer can receive output before the streaming subscriber attaches or whil
 - `codex-rs/core/src/unified_exec/process.rs`
 - `codex-rs/core/src/unified_exec/process_tests.rs`
 
-## Prepared evidence
+## Tests
 
-Owned implementation proof: `teamleaderleo/codex#144@b2a704c708748462d7893fe82cf8971f00ca751e`.
+The focused tests cover:
+
+- output emitted before the completion listener subscribes;
+- a deliberately lagged live receiver while the completion buffer retains the bytes;
+- invalid UTF-8 through the same lag path;
+- replacement of a partial streamed transcript with the producer-owned transcript;
+- local and exec-server producer ordering;
+- normal close, cancellation grace, bounded output, and synchronous fallback behavior.
+
+Prepared implementation proof: `teamleaderleo/codex#144@b2a704c708748462d7893fe82cf8971f00ca751e`.
 
 Corrected paired execution run `30699322569`:
 
@@ -37,24 +101,10 @@ Corrected paired execution run `30699322569`:
 - integration targets compiled;
 - formatting and exact four-file fence passed.
 
-All four source-base files were still byte-identical on public head `7325f348a2ff9e1a7dd931ed9ad65f365d064146` when the packet was refreshed.
+All four source-base files were still byte-identical on public head `78f00743f92cf4fb875ddadcd30293c5201b48ac` when the packet was last refreshed.
 
-## Test plan
+## Follow-ups
 
-- output emitted before subscription appears in the completed item;
-- lagged live receivers do not affect producer retention;
-- invalid UTF-8 remains in the authoritative bounded transcript;
-- partial streamed state is replaced by the full bounded producer transcript;
-- local and exec-server producers follow the same authority ordering;
-- normal close and synchronous command behavior remain unchanged;
-- complete `codex-core` library and relevant integration compilation pass.
-
-## Non-goals
-
-- unbounded terminal history;
-- hard-kill output beyond the existing grace boundary;
-- process-tree cleanup or remote reattachment;
-- conversation-history persistence;
-- general operation receipts.
+Timeout triggers, process-tree cleanup, bytes arriving after forced termination, conversation-history persistence, and remote execution settlement stay in their own issue tracks.
 
 No public upstream interaction has occurred.
