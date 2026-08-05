@@ -8,11 +8,11 @@ Authority boundary: owned repositories and forks only. No upstream comments, rea
 
 ### 1. Meson #15998 — CMake CUDA standard normalization
 
-Status: `FOCUSED MODEL GREEN / PROVENANCE CANDIDATE SELECTED / EXECUTION PENDING`.
+Status: `FOCUSED MODEL GREEN / PROVENANCE-ONLY POLICY REJECTED / REPLACEMENT-AUTHORITY HOLD`.
 
-Owned investigation: `teamleaderleo/meson#3@3018ead551dc6f8902ab4b4e636dee4b97f31e55`.
+Owned investigation: `teamleaderleo/meson#3@3e43e0c7d70392b4f22de6838b85ce805b839a98`.
 
-The CMake converter maps CMake `CUDA` file groups to Meson language `cuda`, but the standard-normalization pass visited only C and C++. The first candidate included CUDA in that existing pass.
+The CMake converter maps CMake `CUDA` file groups to Meson language `cuda`, but the original standard-normalization pass visited only C and C++. The first candidate included CUDA in that existing pass.
 
 Execution-only carrier `teamleaderleo/meson#4` completed successfully:
 
@@ -26,27 +26,29 @@ Execution-only carrier `teamleaderleo/meson#4` completed successfully:
 
 The carrier receipt and before/after outputs are retained on source PR #3. Carrier PR #4 closed without merge.
 
-Evidence class: `compiler-free-target-executed` for language classification and raw-flag deduplication.
+Evidence class: `compiler-free-target-executed` for language classification and raw-flag deduplication only.
 
 A later precedence control proved that the one-line model is not a complete fix: converting every effective CUDA standard into a generated target override defeats an ordinary parent-project `cuda_std`. Explicit `cmake.subproject_options()` overrides still replace the generated value, but the reporter's no-explicit-CMake-standard case remains wrong.
 
-The selected next candidate is provenance-gated normalization:
+A provenance-gated second generation was prepared to remove unexplained raw standards and retain only traced explicit target `CUDA_STANDARD` or direct target `-std=` intent. Independent design review found a blocking compatibility case before execution:
 
-- always remove the effective raw CUDA `-std=` fragment;
-- emit a generated `cuda_std` target override only when the CMake trace shows matching explicit target intent through `CUDA_STANDARD` or direct target `COMPILE_OPTIONS`;
-- leave an unexplained effective standard without a target override so the parent Meson project default can remain authoritative;
-- preserve explicit Meson CMake-module overrides as final authority.
+- no explicit target CMake provenance;
+- no Meson parent/subproject `cuda_std` replacement authority;
+- File API reports the only effective CUDA standard.
 
-The exact transformer and four compiler-free controls are retained on PR #3. Read-only execution PR `teamleaderleo/meson#6` targets immutable source `8418a967ba268d323477752fe4fc17e8cf8f8256`.
+That policy would silently drop the only standard and fall back to compiler defaults.
 
-Current carrier state:
+Execution PR `teamleaderleo/meson#6` and run `31019630325` were retired while queued. They are not behavior evidence. The temporary workflow was removed from `master` at `2f4ef1ae42ca3c47d189b06b91e601810dd68d4c`.
 
-- workflow run `31019630325`;
-- job `92352674837`;
-- last observed state: `queued`;
-- this queue state is not source or behavior evidence.
+A production-safe repair needs both provenance and replacement authority. The next design must preserve:
 
-Superseded precedence carrier PR #5 and its obsolete default-branch workflow are retired. The temporary provenance workflow must be removed after exact result transfer.
+- parent Meson `cuda_std` winning when it deliberately replaces an unexplained CMake effective flag;
+- the effective CMake standard remaining when Meson supplies no replacement authority;
+- explicit target `CUDA_STANDARD` and direct target compile options;
+- explicit global/target CMake-module overrides;
+- mixed CXX/CUDA and GNU-extension semantics.
+
+The likely next boundary is passing effective Meson standard authority into conversion, deferring fallback resolution until AST generation, or moving Meson standard authority into the generated CMake toolchain.
 
 ### 2. ShellCheck #3263 — two separate owners
 
@@ -77,25 +79,36 @@ Read-only run `30959236798`, job `92159247440`, against immutable source `a1716b
 - only `src/ShellCheck/Analytics.hs` changed locally;
 - `git diff --check` passed.
 
-Source materialization run `31010993427` succeeded. The final review fence is one commit and one production file, with 27 additions and 4 deletions relative to public base `9af7ee28ce587baadd950b85dd6826a16b9c068d`.
+Source materialization run `31010993427` succeeded. Independent complete-diff review accepted the exact one-file source head. The final review fence is one commit and one production file, with 27 additions and 4 deletions relative to public base `9af7ee28ce587baadd950b85dd6826a16b9c068d`.
 
 Historical packet PR #1 is closed as superseded. Obsolete execution PR #2 and later carrier generations are retired without merge. No temporary workflow is part of source PR #11.
 
-Evidence class: `target-executed` on one Linux/GHC configuration plus clean owned-fork source materialization; broader compiler and OS matrix not run.
+Evidence class: `target-executed` on one Linux/GHC configuration plus clean owned-fork source materialization and complete-diff acceptance; current ordinary repository builds remain queued.
 
 #### Sourced-function flow
 
-Status: `FOCUSED FALSE POSITIVE CONFIRMED / PRODUCTION FIX NOT SELECTED`.
+Status: `FOCUSED FALSE POSITIVE CONFIRMED / DISCRIMINATOR MATRIX PREPARED / PRODUCTION FIX NOT SELECTED`.
 
-Owned investigation: `teamleaderleo/shellcheck#3@898191ab5665e7c4ba01101a15e4c6a8776611f2`.
+Owned investigation: `teamleaderleo/shellcheck#3@74c524d8ad7262983d192150927562331c098d9a`.
 
-Focused Fieldwork run `30839352175`, job `91772318148`, executed the fixture from its directory:
+Focused Fieldwork run `30839352175`, job `91772318148`, executed the primary fixture from its directory:
 
 - the sourced file resolved;
 - SC1091 was absent;
 - SC2031 remained at the later `COMPREPLY` read.
 
 This is a separate function/include/Bats lifecycle defect. The likely owner is CFG-backed function execution or explicit definition-versus-invocation modeling. Simply skipping function bodies would hide legitimate diagnostics and remains rejected.
+
+A fixture-only matrix now separates:
+
+- setup-only sourcing without the redundant first-test include;
+- independent sourcing in each test;
+- source, call, and read in one test;
+- same content through different include paths;
+- a real sourced top-level assignment that must retain warnings;
+- a function defined only in the first isolated test.
+
+The matrix is prepared but unexecuted. It carries no behavior claim until run from its own directory against an exact ShellCheck head.
 
 ### 3. Cargo #16574 — patch source fetch semantics
 
@@ -111,7 +124,7 @@ No production change is justified without an accepted semantic design for when a
 
 ### 4. uv #13505 — Windows path-case duplicates in `uv python list`
 
-Status: `ORDINAL-COMPARISON CANDIDATE SELECTED / WINDOWS EXECUTION PENDING`.
+Status: `ORDINAL-COMPARISON CANDIDATE ACCEPTED FOR EXECUTION / WINDOWS RUN PENDING`.
 
 Owned investigation: `teamleaderleo/uv#39@89eb1dbac9aa018478ded480018faf999097a9ff`.
 
@@ -126,6 +139,8 @@ The selected candidate uses the already-enabled `windows` 0.61 `Win32_Globalizat
 - extend the existing duplicate-PATH integration test with case-varied spellings of the same interpreter directories.
 
 The candidate deliberately avoids canonicalization, file identity, and lossy UTF-8 conversion. Intentional symlink, shim, and queried-path entries remain distinct unless their path strings differ only by Windows case semantics.
+
+Independent design review accepted the exact transformer and test boundary for execution.
 
 Read-only execution PR `teamleaderleo/uv#48` targets immutable source `1da26a68629be6ae5fd7f924a7d49ff54763a7df` on Windows Server 2022.
 
@@ -153,6 +168,8 @@ Review repaired two test-only defects before CI:
 
 - the case-sensitive predicate now matches the actual `Not a valid package...` diagnostic;
 - the deterministic invalid-directory regression requires only `test-python`, not the unrelated PyPI test feature.
+
+The existing `tool_upgrade_empty` integration test already preserves the genuine empty/up-to-date success path.
 
 Current repository CI run `31020821954` is pending. That state is not execution evidence. Durable coordination remains Fieldwork issue #627.
 
@@ -184,10 +201,10 @@ These ownership checks are dated intake evidence and must be refreshed before an
 
 ## Work order
 
-1. Classify Meson provenance run `31019630325`; transfer the exact receipt, remove its temporary workflow, and materialize only a clean reviewed source if the matrix is green.
+1. Locate the Meson replacement-authority boundary and add the no-authority negative control before selecting another source candidate.
 2. Classify uv Windows run `31020377730`; transfer the receipt, remove its temporary workflow, and materialize only a clean four-file source if the matrix is green.
 3. Classify uv PR #47 CI after the reviewed test repairs; keep queue state separate from execution evidence.
-4. Keep the ShellCheck sourced-function case on investigation PR #3 until a current-base architecture is selected.
+4. Execute the ShellCheck sourced-function discriminator matrix only after selecting an exact current-base carrier; retain real top-level and definition-isolation controls.
 5. Keep Cargo held until a semantic design is accepted.
 6. Refresh public ownership before opening any reserve lead.
 
