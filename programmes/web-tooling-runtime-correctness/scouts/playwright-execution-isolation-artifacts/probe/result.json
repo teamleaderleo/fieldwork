@@ -1,0 +1,96 @@
+{
+  "probe": "playwright-retry-teardown-artifacts",
+  "runtime": {
+    "playwright_python": "1.57.0",
+    "chromium": "Chromium 144.0.7559.96 built on Debian GNU/Linux 13 (trixie)",
+    "python": "3.13.5",
+    "os": "Linux-6.12.13-x86_64-with-glibc2.41",
+    "ffmpeg": "ffmpeg version 7.1.3-0+deb13u1 Copyright (c) 2000-2025 the FFmpeg developers"
+  },
+  "ffmpeg_adaptation": {
+    "expected_path": "/home/oai/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux",
+    "supplied_path": "/usr/bin/ffmpeg",
+    "created_symlink": false
+  },
+  "scope": "library-level mechanism probe; retry orchestration is two fresh attempts outside Playwright Test",
+  "attempts": [
+    {
+      "attempt": 0,
+      "simulated_status": "failed",
+      "launched_chromium_pids": [2406, 2426, 2428, 2450, 2455, 2474],
+      "surviving_chromium_pids_after_close": [],
+      "artifacts": {
+        "screenshot": {
+          "path": "screenshot.png",
+          "bytes": 7360,
+          "sha256": "983b578c9611ef418544adf363b570ce8a0921815df7b549ce8650d450a05bfe"
+        },
+        "trace": {
+          "path": "trace.zip",
+          "bytes": 6536,
+          "sha256": "151566ea9a57d511062b5c16fe46d5f0f634a6145e17bc204d4b59d2f1756170",
+          "entries": [
+            "resources/page@a045d0d5d576aeda67232437f6d84836-1785340163783.jpeg",
+            "resources/src@4c6435a6042181441b5be88cb38ef79ea4b0edf9.txt",
+            "trace.network",
+            "trace.stacks",
+            "trace.trace"
+          ],
+          "entry_count": 5,
+          "has_trace": true,
+          "has_network": true
+        },
+        "video": {
+          "path": "video.webm",
+          "bytes": 3978,
+          "sha256": "c63e7a4eb6a7aad1e2848ab5af889f5dab0eeeb920584d194fd14f0a55800bf7"
+        },
+        "video_error": null
+      }
+    },
+    {
+      "attempt": 1,
+      "simulated_status": "passed",
+      "launched_chromium_pids": [2567, 2587, 2588, 2611, 2616, 2650],
+      "surviving_chromium_pids_after_close": [],
+      "artifacts": {
+        "screenshot": {
+          "path": "screenshot.png",
+          "bytes": 7360,
+          "sha256": "983b578c9611ef418544adf363b570ce8a0921815df7b549ce8650d450a05bfe"
+        },
+        "trace": {
+          "path": "trace.zip",
+          "bytes": 6941,
+          "sha256": "17b0ed40cbb67147f2a584ea164c70daacf127ce9a5e2fbc56cba2218620537d",
+          "entries": [
+            "resources/page@b9a6186d6d25242eac5fdc62ee9a4af4-1785340165208.jpeg",
+            "resources/page@b9a6186d6d25242eac5fdc62ee9a4af4-1785340165229.jpeg",
+            "resources/src@4c6435a6042181441b5be88cb38ef79ea4b0edf9.txt",
+            "trace.network",
+            "trace.stacks",
+            "trace.trace"
+          ],
+          "entry_count": 6,
+          "has_trace": true,
+          "has_network": true
+        },
+        "video": {
+          "path": "video.webm",
+          "bytes": 3978,
+          "sha256": "e0a0310191b2f2ec13cd3860fcdc87493012712b75dcfbcb2fb908b42a6c72c0"
+        },
+        "video_error": null
+      }
+    }
+  ],
+  "context_isolation": {
+    "new_context_page_global": null,
+    "new_context_cookie_names": [],
+    "isolated": true,
+    "launched_chromium_pids": [2706, 2725, 2727, 2751, 2756, 2783],
+    "surviving_chromium_pids_after_close": []
+  },
+  "baseline_chromium_pids": [2360, 2361],
+  "new_chromium_pids_after_probe": []
+}
