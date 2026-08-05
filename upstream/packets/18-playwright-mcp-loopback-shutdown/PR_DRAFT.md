@@ -4,6 +4,8 @@ fix(mcp): scope HTTP test shutdown to parent stdin
 
 # Pull request draft
 
+Upstream issue: [MCP HTTP clients can terminate the server through `/killkillkill`](https://redirect.github.com/microsoft/playwright/issues/42129)
+
 ## Summary
 
 - remove the test-only `/killkillkill` HTTP shutdown route;
@@ -13,31 +15,27 @@ fix(mcp): scope HTTP test shutdown to parent stdin
 
 ## Background
 
-`/killkillkill` was introduced on September 19, 2025 by [microsoft/playwright#37484](https://github.com/microsoft/playwright/pull/37484). On Windows, `child.kill('SIGTERM')` terminates the process without running Playwright's graceful shutdown handlers, so the HTTP and SSE lifecycle tests needed another way to exercise the existing `SIGINT` cleanup path.
-
-The route shipped in [Playwright v1.56.0](https://github.com/microsoft/playwright/blob/v1.56.0/packages/playwright/src/mcp/sdk/http.ts) as an unauthenticated `GET`. [microsoft/playwright#40551](https://github.com/microsoft/playwright/pull/40551) later changed it to `POST` plus `x-pw-mcp-kill: 1`. That reduces the CSRF risk, but the fixed public header doesn't authenticate the caller or prove that it owns the process.
-
-At the current base, the route appears in the [HTTP implementation](https://github.com/microsoft/playwright/blob/2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2/packages/playwright-core/src/tools/utils/mcp/http.ts) and is called by the [`http transport browser sigint` test](https://github.com/microsoft/playwright/blob/2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2/tests/mcp/http.spec.ts). I couldn't find a documented workflow that uses it for agent or server administration.
+The endpoint was added so HTTP and SSE lifecycle tests could exercise graceful `SIGINT` cleanup on Windows. It later changed to `POST` plus the fixed `x-pw-mcp-kill: 1` header. That reduces browser-CSRF exposure, but it doesn't distinguish the spawning parent from another programmatic HTTP client.
 
 ## Change
 
-The test parent already owns the child stdin pipe. In HTTP mode under Playwright's test marker, closing that pipe now requests graceful shutdown through the existing `SIGINT` path.
+The test parent already owns the child stdin pipe. After HTTP mode is selected, and only under Playwright's test marker, readable EOF requests graceful shutdown through the existing `SIGINT` path.
 
-The stdio branch returns before the HTTP-only stdin listener is installed, so `StdioServerTransport` remains the sole reader of MCP protocol input.
+The stdio branch returns first, so `StdioServerTransport` remains the sole reader of MCP protocol input.
 
-This approach doesn't remove process supervision. Owners can still use `SIGINT`, `SIGTERM`, or forced termination. A future remote shutdown feature can be introduced separately with authentication and authorization.
+This doesn't remove process supervision. Owners can still use `SIGINT`, `SIGTERM`, or forced termination.
 
 ## Tests
 
-- the former `/killkillkill` request doesn't stop the server;
-- MCP remains responsive before parent stdin EOF;
+- former route is inert;
+- MCP remains responsive before parent EOF;
 - parent EOF produces one graceful close and exit code 0;
-- `PWTEST_UNDER_TEST=0` leaves the HTTP server responsive after EOF;
+- `PWTEST_UNDER_TEST=0` leaves HTTP responsive after EOF;
 - immediate MCP stdio startup and ping remain intact;
-- `npm ci`;
-- `npm run build`;
-- full `tests/mcp/http.spec.ts` with Chromium on Ubuntu, macOS, and Windows;
-- focused ESLint for the three changed files;
-- clean working tree and exact three-file diff checks.
+- full `tests/mcp/http.spec.ts`, build, and focused ESLint pass on Ubuntu 24.04, macOS 15, and Windows Server 2025.
 
-Fixes #<linked-issue>
+When an upstream PR is authorized, add the closing line shown below with the real upstream issue number:
+
+```text
+Fixes #42129
+```
