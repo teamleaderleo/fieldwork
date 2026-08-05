@@ -145,7 +145,7 @@ This mainly affects custom or third-party processors. It is a bounded lifecycle-
 
 A skipped processor may miss its final export or cleanup opportunity. In Node.js, the stale provider timer may also delay natural process termination by the configured force-flush timeout.
 
-A candidate implementation and regression tests are prepared in a fork. I can open a pull request after maintainers confirm whether the trace and logs changes should remain one contribution.
+A candidate implementation and regression tests are prepared in a fork.
 
 A proposed repair would:
 
