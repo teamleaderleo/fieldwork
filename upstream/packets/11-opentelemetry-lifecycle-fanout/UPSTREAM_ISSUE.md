@@ -1,64 +1,204 @@
-# Upstream issue draft — lifecycle fanout can skip opening processors
+# Upstream issue draft
 
-Draft status: `fallback only — direct PR preferred`  
-Public interaction authorized: `no`
+Proposed title: `Lifecycle fanout can skip processors present at operation start`  
+Draft status: `review-ready — issue-first recommended`  
+Public interaction authorized: `no`  
+Internal technical record: [`DEEP_DIVE.md`](./DEEP_DIVE.md)
 
-## Summary
+The text between the dividers is the proposed public issue body. The deep dive keeps the source map, rejected alternatives, exact evidence, and compatibility analysis so this report can stay focused.
 
-Trace and logs lifecycle fanouts can skip a later processor when an earlier callback removes it from the retained processor array during shutdown or force flush.
+---
 
-Direct processor calls can also throw before returning their declared promise, interrupting later invocation. Public `TracerProvider.forceFlush()` performs a separate fanout from `MultiSpanProcessor.forceFlush()` and can leave its per-processor timeout armed after a synchronous throw.
+## What happened?
 
-## Expected behavior
+OpenTelemetry trace and log providers can skip a processor that was registered when `shutdown()` or `forceFlush()` began.
 
-Every processor present when the lifecycle operation starts should be attempted. Mutations should affect future operations without shrinking the current opening set. Existing error behavior should remain unchanged, and synchronous failure should not leave an obsolete timeout armed.
+The lifecycle fanout currently invokes processors while walking a retained array. Two JavaScript behaviors can change the current operation:
 
-## Affected entrypoints
+```text
+processor A throws synchronously
+    -> promise-list construction stops
+    -> processor B is never called
 
-- `MultiSpanProcessor.shutdown()` / `forceFlush()`;
+processor A removes processor B from the retained array
+    -> live iteration no longer sees B
+    -> processor B is never called
+```
+
+`TracerProvider.forceFlush()` has a related cleanup problem. It creates a timeout before invoking each processor. A direct synchronous throw is caught by the surrounding `Promise` constructor, so later `.map()` callbacks still run, but the throw bypasses the returned-promise rejection handler that clears that processor's timeout. The operation reports failure while the obsolete timer remains armed until expiry.
+
+### Steps to reproduce
+
+#### 1. A synchronous shutdown throw skips a later trace processor
+
+```ts
+import type { SpanProcessor } from '@opentelemetry/sdk-trace';
+import { TracerProvider } from '@opentelemetry/sdk-trace';
+
+let secondShutdownCalls = 0;
+
+const first: SpanProcessor = {
+  onStart() {},
+  onEnd() {},
+  forceFlush: async () => {},
+  shutdown() {
+    throw new Error('first processor failed');
+  },
+};
+
+const second: SpanProcessor = {
+  onStart() {},
+  onEnd() {},
+  forceFlush: async () => {},
+  shutdown: async () => {
+    secondShutdownCalls += 1;
+  },
+};
+
+const provider = new TracerProvider({ spanProcessors: [first, second] });
+
+try {
+  await provider.shutdown();
+} catch {}
+
+console.log(secondShutdownCalls); // current: 0, expected: 1
+```
+
+`TracerProvider.shutdown()` delegates to `MultiSpanProcessor.shutdown()`. The first direct throw exits the loop before the second processor is invoked.
+
+The same direct-throw behavior is present in `MultiSpanProcessor.forceFlush()` and in log processor shutdown/force-flush fanout.
+
+#### 2. A synchronous force-flush throw leaves the provider timeout armed
+
+Current `main` supports a per-call timeout:
+
+```ts
+import type { SpanProcessor } from '@opentelemetry/sdk-trace';
+import { TracerProvider } from '@opentelemetry/sdk-trace';
+
+const throwing: SpanProcessor = {
+  onStart() {},
+  onEnd() {},
+  shutdown: async () => {},
+  forceFlush() {
+    throw new Error('processor failed immediately');
+  },
+};
+
+const provider = new TracerProvider({ spanProcessors: [throwing] });
+
+try {
+  await provider.forceFlush({ timeoutMillis: 1000 });
+} catch {
+  console.log('forceFlush rejected');
+}
+
+console.log('the process should now be able to exit immediately');
+```
+
+The rejection is observed immediately, but the timeout for the throwing processor remains referenced until it expires. Running the script with a shell timing command keeps the process alive for roughly the configured timeout.
+
+For released `@opentelemetry/sdk-trace` 2.10.0, configure the same timeout with the deprecated `TracerProvider` constructor option instead; the per-call option was added afterward on `main`.
+
+#### 3. Removing a processor during fanout changes the current operation
+
+The providers retain the supplied processor array. If the first processor synchronously runs `processors.splice(1, 1)` during shutdown or force flush, live iteration can skip the removed processor even though it belonged to the opening set.
+
+## Expected result
+
+Every processor present when a lifecycle operation begins should be invoked once for that operation.
+
+A processor-array mutation may affect later operations, but should not rewrite the operation already in progress. A direct synchronous implementation error should enter the surface's existing asynchronous failure path, and an operation-owned timeout should be cleared after its processor has already failed.
+
+## Actual result
+
+Depending on the entrypoint, a direct synchronous throw or live-array mutation can prevent a later opening processor from being invoked. Public `TracerProvider.forceFlush()` can also retain a referenced timeout after it has already reported the corresponding synchronous failure.
+
+## Additional details
+
+This mainly affects custom or third-party processors. It is a bounded lifecycle-correctness and shutdown-reliability issue, not evidence that built-in processors commonly lose telemetry.
+
+A skipped processor may miss its final export or cleanup opportunity. In Node.js, the stale provider timer may also delay natural process termination by the configured force-flush timeout.
+
+A proposed repair would:
+
+```text
+operation starts
+    -> snapshot the current processor list
+    -> invoke every processor in that snapshot, in order
+    -> convert only direct synchronous throws into rejected promises
+    -> keep each entrypoint's existing outward error policy
+```
+
+Affected implementation points:
+
+- `MultiSpanProcessor.shutdown()` and `forceFlush()`;
 - `TracerProvider.forceFlush()`;
-- `MultiLogRecordProcessor.shutdown()` / `forceFlush()`.
+- `MultiLogRecordProcessor.shutdown()` and `forceFlush()`.
 
-Metrics is excluded: `MeterProvider` creates an internal collector list, does not retain the supplied readers array, and prior mutation controls required private-state access.
+Metrics is intentionally excluded. `MeterProvider` constructs an internal collector list instead of retaining the caller's reader array, prior mutation controls required private-state access, and metric collector lifecycle methods are already `async`.
 
-## Candidate direction
+## OpenTelemetry setup code
 
-- snapshot each opening processor list;
-- convert direct synchronous processor throws into rejected promises using an eager helper;
-- let the existing provider force-flush `.catch()` clear its timeout and record the error;
-- retain `Promise.all`, timeout, global-handler, and outward rejection behavior;
-- retain the current per-call trace force-flush timeout API introduced by PR #6929.
+The reproduction snippets use only public OpenTelemetry provider and processor interfaces.
 
-## Compatibility
+## package.json
 
-- no new public API/type changes;
-- current `ForceFlushOptions` retained;
-- eager invocation retained;
-- one shallow copy per affected lifecycle operation;
-- future mutation retained;
-- aggregate/provider/logs error policies retained;
-- no metrics behavior change.
+For the released-package form of the reproduction:
 
-## Limits
+```json
+{
+  "type": "module",
+  "dependencies": {
+    "@opentelemetry/sdk-logs": "0.221.0",
+    "@opentelemetry/sdk-trace": "2.10.0"
+  }
+}
+```
 
-No settle-all aggregation, cancellation, retry, idempotence, delayed recursion, or post-shutdown admission changes.
+The current-main form was also reproduced against:
 
-## Environment and prior art
+`f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`
 
-- refreshed current-main base: `f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`;
-- exact prepared candidate: `f4cb44bcccffbc0eb39e774284655e0f965cfce1`;
-- repository-supported Actions matrix;
-- focused two-processor throw/removal fixtures and fake-timer provider control;
-- refreshed open and closed issue/PR searches found no equivalent repair;
-- historical PR #802 introduced span-processor force-flush fanout but not stable opening membership or synchronous-failure cleanup;
-- merged PR #6929 adds per-call trace timeout configuration and is complementary.
+## Relevant log output
 
-## Filing checklist
+```text
+secondShutdownCalls: 0
+forceFlush rejected
+process exit delayed until forceFlush timeout expires
+```
 
-- [x] current-main and duplicate search refreshed on `2026-08-05`;
-- [x] focused controls rebased onto the then-current revision;
+## Runtime and version
+
+- Node.js v22.16.0 for the isolated process-lifetime reproduction;
+- current repository test matrix for the target-native regression coverage.
+
+## Proposed compatibility boundary
+
+- no new public API, type, configuration, dependency, or normal telemetry hot-path change;
+- the current per-call trace timeout API remains unchanged;
+- one shallow array copy per affected lifecycle operation;
+- processors remain eagerly invoked in their existing order;
+- mutations remain visible to later operations;
+- existing trace aggregate, provider, and logs settlement policies remain;
+- genuinely pending processors still time out;
+- no `Promise.allSettled`, retry, cancellation, idempotence, malformed-return validation, or multi-error redesign.
+
+## Prior-art check
+
+A refreshed issue and pull-request search found no equivalent repair. The recently merged per-call trace timeout work is complementary: it changes how the timeout is selected, not opening-set membership or synchronous-failure timeout cleanup.
+
+---
+
+## Internal filing checklist
+
+- [x] issue-first route restored;
+- [x] pure OpenTelemetry reproductions included;
+- [x] aggregate throw behavior distinguished from provider Promise-constructor behavior;
+- [x] released-package and current-main timeout forms distinguished;
+- [x] current-main and overlap refreshed on `2026-08-05`;
 - [x] metrics private-state-only behavior excluded;
-- [x] prevalence and severity claims limited to available evidence;
-- [x] current contribution and changelog policy checked;
-- [ ] refresh again immediately before filing;
-- [ ] record explicit public-contact authority.
+- [x] severity and prevalence limited to supported claims;
+- [ ] refresh public `main`, versions, and duplicate search immediately before filing;
+- [ ] confirm the rebased exact-head workflow matrix and renewed review;
+- [ ] record explicit authority for the exact public issue creation.
