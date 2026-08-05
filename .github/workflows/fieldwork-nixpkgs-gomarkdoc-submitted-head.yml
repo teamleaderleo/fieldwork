@@ -4,13 +4,12 @@ on:
   pull_request:
     paths:
       - .github/workflows/fieldwork-nixpkgs-gomarkdoc-submitted-head.yml
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: gomarkdoc-submitted-head-${{ github.event.pull_request.number || github.ref }}
+  group: gomarkdoc-submitted-head-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 env:
@@ -25,17 +24,20 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
     steps:
-      - name: Check out carrier
+      - name: Check out carrier head
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5448d1c267
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Verify carrier fence
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")" = ".github/workflows/fieldwork-nixpkgs-gomarkdoc-submitted-head.yml"
-          git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/fieldwork-nixpkgs-gomarkdoc-submitted-head.yml"
+          git diff --check HEAD^ HEAD
 
       - name: Check out submitted Nixpkgs commit
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5448d1c267
@@ -115,17 +117,20 @@ jobs:
     runs-on: macos-14-arm64
     timeout-minutes: 120
     steps:
-      - name: Check out carrier
+      - name: Check out carrier head
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5448d1c267
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Verify carrier fence
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")" = ".github/workflows/fieldwork-nixpkgs-gomarkdoc-submitted-head.yml"
-          git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/fieldwork-nixpkgs-gomarkdoc-submitted-head.yml"
+          git diff --check HEAD^ HEAD
 
       - name: Check out submitted Nixpkgs commit
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5448d1c267
