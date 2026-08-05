@@ -20,6 +20,10 @@ A processor that throws synchronously before returning its declared promise can 
 
 `TracerProvider.forceFlush()` performs a separate timeout-wrapped fanout. A direct synchronous throw there is caught by the surrounding `Promise` constructor, so it does not stop later `.map()` callbacks, but it bypasses the returned-promise rejection handler that clears that processor's timeout.
 
+The SDK lifecycle contract separates processor invocation from the operation result. Trace and logs require lifecycle calls to reach all registered processors, while the caller should still be told whether the operation succeeded, failed, or timed out. This change does not turn failure into success: a processor failure remains visible through each entrypoint's existing result policy, but it no longer suppresses unrelated processors' final export or cleanup opportunity.
+
+If several operations are deliberately dependent, that dependency can be owned inside one composite processor rather than arising accidentally from a synchronous throw.
+
 Fixes #ISSUE
 
 ## Short description of the changes
@@ -95,10 +99,10 @@ ChatGPT was used to assist with code exploration, implementation review, test pr
 ## Internal filing sequence
 
 1. Finish and independently review the exact-head validation on the private source preview.
-2. Reconfirm public `main`, package versions, contribution guidance, and overlap.
+2. Reconfirm public `main`, package versions, contribution guidance, specification links, and overlap.
 3. Obtain explicit authorization to file the reviewed issue draft.
-4. Let maintainers confirm the combined trace/log scope and preferred test placement.
-5. Update this draft with the real issue number and any maintainer direction.
+4. Give maintainers an initial opportunity to confirm the combined trace/log scope and preferred test placement.
+5. If maintainers respond, incorporate that direction. If there is no scope objection after a short review window, update this draft with the issue number and proceed to the PR decision.
 6. Obtain separate explicit authorization to open the public PR.
 7. Open the PR from the owned fork.
 8. Add the two required changelog entries using the assigned PR number and rerun affected checks.
