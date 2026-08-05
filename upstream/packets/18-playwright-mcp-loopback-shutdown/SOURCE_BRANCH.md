@@ -1,12 +1,19 @@
 # Owned source branch record
 
-- Repository: `teamleaderleo/playwright`
-- Owned source PR: `teamleaderleo/playwright#40`
-- Exact base branch/head: `fieldwork/435-unit-18-base-15b1aec@15b1aec478d90f0293dae7b7b6dafd494d9f0154`
-- Candidate branch/head: `fix/mcp-parent-ipc-shutdown@e99e97da2acfc6c1a67749bc749e1d0cb71b5607`
-- Net changed-file fence: `packages/playwright-core/src/entry/mcp.ts`, `packages/playwright-core/src/tools/utils/mcp/http.ts`, `tests/mcp/http.spec.ts`
-- Temporary workflow files: none
-- Evidence-only files: none in the net diff
-- Incidental comment/newline churn: removed at the current head
-- Submission cleanup: squash transient commits before any authorized upstream submission
-- Public upstream contact: unauthorized
+- repository: `teamleaderleo/playwright`
+- owned source PR: `teamleaderleo/playwright#48`
+- base branch: `fieldwork/435-unit-18-base-current`
+- exact base: `2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2`
+- candidate branch: `fix/mcp-http-parent-stdin-review`
+- exact candidate head: `10e28dfdd7758d92aeed50922fd9c7ce9596c21c`
+- commits: one
+- additions/deletions at review: 66/19
+- exact changed-file fence:
+  - `packages/playwright-core/src/tools/utils/mcp/http.ts`
+  - `packages/playwright-core/src/tools/utils/mcp/server.ts`
+  - `tests/mcp/http.spec.ts`
+- temporary workflow or evidence files in target diff: none
+- current upstream issue: [submitted bug report](https://redirect.github.com/microsoft/playwright/issues/42129)
+- submission state: wait for explicit maintainer approval or assignment
+
+Strict parent IPC PR `teamleaderleo/playwright#40` remains the fully executed fallback. Earlier stdin PRs are superseded by PR #48.
