@@ -88,40 +88,24 @@ create timeout
 
 ## Expected result
 
-- Invoke every processor present when the lifecycle operation begins.
-- Preserve the existing failure result.
-- Clear a processor timeout after that processor has already failed.
+```text
+snapshot opening processors
+call each processor
+report failure through the existing policy
+clear completed processor timers
+```
 
 ## Actual result
 
-- A direct synchronous throw or live-array mutation can skip a later processor.
-- `TracerProvider.forceFlush()` can retain a timeout after reporting the corresponding synchronous failure.
+A direct throw or live-array mutation can skip a processor. A synchronous provider throw can leave its timeout armed.
 
 ## Additional details
 
 A candidate implementation and tests are prepared in a fork.
 
-```text
-operation starts
-    -> snapshot processor list
-    -> call each processor in the snapshot
-    -> convert direct throws to rejected promises
-    -> use the existing error and timeout policy
-```
-
-Affected paths:
-
-- `MultiSpanProcessor.shutdown()` and `forceFlush()`
-- `TracerProvider.forceFlush()`
-- `MultiLogRecordProcessor.shutdown()` and `forceFlush()`
-
-Metrics is not included because its collector list is internally constructed and its lifecycle methods already cross an async boundary.
-
-No public API, configuration, dependency, or normal telemetry hot-path change is proposed.
-
 ## OpenTelemetry setup code
 
-The reproduction above is the complete setup and uses only public OpenTelemetry interfaces.
+The reproduction above is the complete setup.
 
 ## package.json
 
@@ -135,21 +119,17 @@ The reproduction above is the complete setup and uses only public OpenTelemetry 
 }
 ```
 
-Current `main` was also checked at:
-
-`f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`
-
 ## Relevant log output
 
 ```text
 secondCalls: 0
 forceFlush rejected
-process exit delayed until the forceFlush timeout expires
+process exit delayed until timeout expiry
 ```
 
 ## Operating System and Version
 
-Reproduced in a Node.js process; no operating-system-specific behavior is required.
+Not operating-system-specific.
 
 ## Runtime and Version
 
@@ -157,12 +137,4 @@ Node.js v22.16.0.
 
 ---
 
-## Internal filing checklist
-
-- [x] Matches the current bug-report form
-- [x] Uses a pure OpenTelemetry reproduction
-- [x] Separates processor invocation from operation failure
-- [x] Notes the prepared implementation without linking internal staging records
-- [ ] Refresh public `main`, package versions, specification links, and duplicate search before filing
-- [ ] Confirm the rebased exact-head workflows and renewed review
-- [ ] Record explicit authority for the public issue creation
+Before filing: refresh `main`, versions, duplicate search, CI, and review status.
