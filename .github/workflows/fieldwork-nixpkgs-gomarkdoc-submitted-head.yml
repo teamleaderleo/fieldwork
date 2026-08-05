@@ -70,7 +70,11 @@ jobs:
         run: |
           set -euo pipefail
           nix-build . -A gomarkdoc --no-out-link -L 2>&1 | tee ../gomarkdoc-build-linux.log
-          grep -E '^ok[[:space:]]+github\.com/princjef/gomarkdoc/cmd/gomarkdoc' ../gomarkdoc-build-linux.log
+          grep -F 'Running phase: checkPhase' ../gomarkdoc-build-linux.log
+          grep -E 'ok[[:space:]]+github\.com/princjef/gomarkdoc/cmd/gomarkdoc([[:space:]]|$)' ../gomarkdoc-build-linux.log
+          grep -E '^(ok|\?)[[:space:]]+github\.com/princjef/gomarkdoc' ../gomarkdoc-build-linux.log \
+            | sort -u | tee ../gomarkdoc-packages-linux.txt
+          test "$(wc -l < ../gomarkdoc-packages-linux.txt)" -eq 1
 
       - name: Test installed help and version
         shell: bash
@@ -78,8 +82,11 @@ jobs:
         run: |
           set -euo pipefail
           out="$(nix-build . -A gomarkdoc --no-out-link)"
-          "$out/bin/gomarkdoc" --help > ../gomarkdoc-help-linux.txt
-          test -s ../gomarkdoc-help-linux.txt
+          test -x "$out/bin/gomarkdoc"
+          status=0
+          "$out/bin/gomarkdoc" --help > ../gomarkdoc-help-linux.txt 2>&1 || status=$?
+          test "$status" -eq 0 -o "$status" -eq 2
+          grep -Ei 'usage|generate markdown documentation' ../gomarkdoc-help-linux.txt
           nix-build . -A gomarkdoc.tests.version --no-out-link -L 2>&1 | tee ../gomarkdoc-version-linux.log
           grep -F '1.1.0' ../gomarkdoc-version-linux.log
 
@@ -88,9 +95,13 @@ jobs:
         working-directory: nixpkgs
         run: |
           set -euo pipefail
-          nix profile install "github:NixOS/nixpkgs/$NIXPKGS_BASE#nixpkgs-review"
-          nixpkgs-review rev -b "$NIXPKGS_BASE" HEAD --no-shell 2>&1 | tee ../nixpkgs-review-linux.log
-          grep -E 'gomarkdoc' ../nixpkgs-review-linux.log
+          nix-shell \
+            -I "nixpkgs=$PWD" \
+            -p nixpkgs-review \
+            --run "nixpkgs-review rev -b $NIXPKGS_BASE HEAD --no-shell" \
+            2>&1 | tee ../nixpkgs-review-linux.log
+          grep -F '1 package built:' ../nixpkgs-review-linux.log
+          grep -E '^[[:space:]]*gomarkdoc[[:space:]]*$' ../nixpkgs-review-linux.log
 
       - name: Verify source checkout stayed unchanged
         shell: bash
@@ -108,6 +119,7 @@ jobs:
           if-no-files-found: error
           path: |
             gomarkdoc-build-linux.log
+            gomarkdoc-packages-linux.txt
             gomarkdoc-help-linux.txt
             gomarkdoc-version-linux.log
             nixpkgs-review-linux.log
@@ -172,13 +184,19 @@ jobs:
           set -euo pipefail
           baseline_out="$(nix-build baseline -A gomarkdoc --no-out-link -L 2>&1 | tee gomarkdoc-build-darwin-baseline.log | tail -n 1)"
           candidate_out="$(nix-build candidate -A gomarkdoc --no-out-link -L 2>&1 | tee gomarkdoc-build-darwin-candidate.log | tail -n 1)"
-          grep -E '^ok[[:space:]]+github\.com/princjef/gomarkdoc/cmd/gomarkdoc' gomarkdoc-build-darwin-candidate.log
+          grep -F 'Running phase: checkPhase' gomarkdoc-build-darwin-candidate.log
+          grep -E 'ok[[:space:]]+github\.com/princjef/gomarkdoc/cmd/gomarkdoc([[:space:]]|$)' gomarkdoc-build-darwin-candidate.log
+          grep -E '^(ok|\?)[[:space:]]+github\.com/princjef/gomarkdoc' gomarkdoc-build-darwin-candidate.log \
+            | sort -u | tee gomarkdoc-packages-darwin.txt
+          test "$(wc -l < gomarkdoc-packages-darwin.txt)" -eq 1
           test -x "$baseline_out/bin/gomarkdoc"
           test -x "$candidate_out/bin/gomarkdoc"
           cmp "$baseline_out/bin/gomarkdoc" "$candidate_out/bin/gomarkdoc"
           shasum -a 256 "$baseline_out/bin/gomarkdoc" "$candidate_out/bin/gomarkdoc" | tee gomarkdoc-binary-sha256-darwin.txt
-          "$candidate_out/bin/gomarkdoc" --help > gomarkdoc-help-darwin.txt
-          test -s gomarkdoc-help-darwin.txt
+          status=0
+          "$candidate_out/bin/gomarkdoc" --help > gomarkdoc-help-darwin.txt 2>&1 || status=$?
+          test "$status" -eq 0 -o "$status" -eq 2
+          grep -Ei 'usage|generate markdown documentation' gomarkdoc-help-darwin.txt
 
       - name: Run version test
         shell: bash
@@ -206,6 +224,7 @@ jobs:
           path: |
             gomarkdoc-build-darwin-baseline.log
             gomarkdoc-build-darwin-candidate.log
+            gomarkdoc-packages-darwin.txt
             gomarkdoc-binary-sha256-darwin.txt
             gomarkdoc-help-darwin.txt
             gomarkdoc-version-darwin.log
