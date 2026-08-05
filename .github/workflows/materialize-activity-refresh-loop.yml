@@ -26,13 +26,12 @@ jobs:
       - name: Apply canonical instruction update
         run: python3 .github/scripts/materialize-activity-refresh-loop.py
 
-      - name: Verify instruction diff
+      - name: Verify generated instruction diff
         run: |
+          set -euo pipefail
           git diff --check
           mapfile -t changed < <(git status --short | sed 's/^...//' | sort)
           expected=(
-            .github/scripts/materialize-activity-refresh-loop.py
-            .github/workflows/materialize-activity-refresh-loop.yml
             AGENTS.md
             START_HERE.md
           )
@@ -40,11 +39,29 @@ jobs:
 
       - name: Publish self-contained instruction diff
         run: |
+          set -euo pipefail
           rm .github/scripts/materialize-activity-refresh-loop.py
           rm .github/workflows/materialize-activity-refresh-loop.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
-          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = "AGENTS.md START_HERE.md "
+
+          mapfile -t staged < <(git diff --cached --name-only | sort)
+          expected_staged=(
+            .github/scripts/materialize-activity-refresh-loop.py
+            .github/workflows/materialize-activity-refresh-loop.yml
+            AGENTS.md
+            START_HERE.md
+          )
+          test "${staged[*]}" = "${expected_staged[*]}"
+
           git commit -m "docs: require activity refresh and autonomous continuation"
+
+          mapfile -t final < <(git diff --name-only origin/main...HEAD | sort)
+          expected_final=(
+            AGENTS.md
+            START_HERE.md
+          )
+          test "${final[*]}" = "${expected_final[*]}"
+
           git push origin HEAD:process/activity-refresh-continuation
