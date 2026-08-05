@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  EXPERIMENT_HEAD: b537df7d7caf3dd2696dd16ae3200951e49d6a60
+  EXPERIMENT_HEAD: e3bc9b9247bab57a51c3fa543618ed12d3c2969b
   BASE_HEAD: d3ca9ad275e0cc93f985bb7485a776cec023d4ca
   PUBLIC_BASE: 95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d
   CURRENT_MAIN: 42c4227798c21cfde8dbfb087be1bb9078dab185
@@ -78,7 +78,7 @@ jobs:
           test "$(git diff --name-only "$BASE_HEAD" | sort)" = \
             "$(printf '%s\n' packages/miniflare/src/index.ts packages/miniflare/test/teardown-lifecycle.spec.ts | sort)"
           pnpm --filter=miniflare... build 2>&1 | tee receipt/exact-base-build.log
-          pnpm --filter miniflare exec vitest run \
+          pnpm --filter miniflare run test -- \
             test/teardown-lifecycle.spec.ts 2>&1 | tee receipt/exact-base-test.log
           pnpm --filter miniflare check:type 2>&1 | tee receipt/exact-base-typecheck.log
           git diff --binary "$PUBLIC_BASE" -- \
@@ -112,7 +112,7 @@ jobs:
             packages/miniflare/test/teardown-lifecycle.spec.ts \
             > receipt/current-main-source.diff
           pnpm --filter=miniflare... build 2>&1 | tee receipt/current-main-build.log
-          pnpm --filter miniflare exec vitest run \
+          pnpm --filter miniflare run test -- \
             test/teardown-lifecycle.spec.ts 2>&1 | tee receipt/current-main-test.log
           pnpm --filter miniflare check:type 2>&1 | tee receipt/current-main-typecheck.log
           {
