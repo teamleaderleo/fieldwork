@@ -2,9 +2,23 @@
 
 ## In simple words
 
-OpenTelemetry trace and logs shutdown/flush code can skip a processor that was present when the operation started. The repair snapshots that opening set and converts only direct synchronous throws into rejected promises, so later processors are still attempted through the existing error paths.
+I propose snapshotting the trace and log processors present when shutdown or force flush begins, so one processor's immediate failure or array mutation won't prevent the other opening processors from being called.
 
-The candidate has now been rebased onto current public `main`. Upstream added a per-call trace force-flush timeout after the earlier review; the rebased code preserves that API and updates the provider tests to exercise it. Fresh exact-head workflows are running, so the old technical acceptance is no longer presented as acceptance of the new SHA.
+```text
+Current
+processor A fails or removes B
+    -> B can be skipped
+
+Proposed
+snapshot [A, B]
+    -> call A
+    -> call B
+    -> report failure through the existing policy
+```
+
+The patch also routes a synchronous `TracerProvider.forceFlush()` failure through the existing timeout-cleanup path, so an already-failed processor doesn't leave an obsolete timer armed.
+
+The candidate has been rebased onto current public `main`. Upstream added a per-call trace force-flush timeout after the earlier review; the rebased code preserves that API and updates the provider tests to exercise it. Fresh exact-head workflows are running, so the old technical acceptance is historical evidence rather than acceptance of the new SHA.
 
 ## Current state
 
@@ -13,6 +27,22 @@ The candidate has now been rebased onto current public `main`. Upstream added a 
 Last refreshed: `2026-08-05`  
 Priority-zero parent: `teamleaderleo/fieldwork#435`  
 Public upstream contact authorized: `no`
+
+## Two review paths
+
+Start with the short drafts when deciding whether the proposal is understandable and worth raising:
+
+- [Maintainer-facing issue draft](./UPSTREAM_ISSUE.md)
+- [Maintainer-facing PR draft](./UPSTREAM_PR.md)
+
+Use the technical packet when checking ownership, edge cases, evidence, and alternatives:
+
+- [Deep dive](./DEEP_DIVE.md)
+- [Approaches and rejected designs](./APPROACHES.md)
+- [Tests and receipts](./TESTS.md)
+- [Exact-head review](./REVIEW.md)
+
+The public drafts intentionally do not repeat the full investigation history.
 
 ## Contribution
 
@@ -81,16 +111,19 @@ The eight green runs and technical acceptance attached to `db3d9e5e43d5abc662278
 
 1. Classify the fresh exact-head workflow matrix.
 2. Perform a fresh complete-diff review on the rebased SHA.
-3. Insert the assigned public PR number into the root and experimental changelog entries after filing is explicitly authorized.
-4. Reconfirm public `main` and overlap immediately before filing.
+3. Reconfirm public `main`, package versions, contribution guidance, and overlap.
+4. Obtain explicit authorization to file the reviewed issue draft.
+5. Use maintainer feedback to finalize the PR scope and test placement.
+6. Obtain separate authorization to open the public PR.
+7. Insert the assigned PR number into the root and experimental changelog entries and rerun affected checks.
 
-## Packet navigation
+## Full packet navigation
 
+- [Maintainer-facing issue draft](./UPSTREAM_ISSUE.md)
+- [Maintainer-facing PR draft](./UPSTREAM_PR.md)
 - [Deep dive](./DEEP_DIVE.md)
 - [Approaches](./APPROACHES.md)
 - [Tests and receipts](./TESTS.md)
-- [Upstream issue fallback](./UPSTREAM_ISSUE.md)
-- [Upstream PR draft](./UPSTREAM_PR.md)
 - [Review](./REVIEW.md)
 - [Handoff](./HANDOFF.md)
 
