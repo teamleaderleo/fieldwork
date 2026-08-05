@@ -139,37 +139,27 @@ for each processor in opening processors:
     invoke lifecycle method
     route a direct throw into the existing promise failure path
 
-report the operation through the existing result policy
-clear any timer owned by a processor that has already finished or failed
+report through the existing result policy
+clear timers for processors that have finished or failed
 ```
 
 ## Actual result
 
-A direct synchronous throw or live-array mutation can skip a later opening processor. `TracerProvider.forceFlush()` can also retain a referenced timeout after reporting the corresponding synchronous failure.
+A direct throw or live-array mutation can skip a later processor. `TracerProvider.forceFlush()` can leave a timeout armed after reporting the corresponding failure.
 
 ## Additional details
 
-This mainly affects custom or third-party processors. A skipped processor may miss its final export or cleanup opportunity. In Node.js, the stale provider timer can delay natural process termination by the configured timeout.
+This mainly affects custom or third-party processors. A skipped processor can miss its final export or cleanup opportunity. In Node.js, the stale timer can delay process exit.
 
-A candidate implementation and tests are prepared in a fork.
-
-```text
-operation starts
-    -> snapshot processor list
-    -> call each processor in the snapshot
-    -> convert direct throws to rejected promises
-    -> use the existing error and timeout policy
-```
-
-Affected paths:
+A candidate implementation and tests are prepared in a fork. The change covers:
 
 - `MultiSpanProcessor.shutdown()` and `forceFlush()`
 - `TracerProvider.forceFlush()`
 - `MultiLogRecordProcessor.shutdown()` and `forceFlush()`
 
-Metrics stays out of scope because its collector list is internally constructed and its lifecycle methods already cross an async boundary.
+The patch snapshots each processor list and converts direct throws to rejected promises. Public APIs, configuration, dependencies, and normal telemetry processing stay unchanged. Each repaired lifecycle entrypoint adds one shallow array copy.
 
-Public APIs, configuration, dependencies, and normal telemetry processing stay unchanged. Each repaired lifecycle entrypoint adds one shallow array copy.
+Scope is limited to trace and logs. Metrics uses an internally constructed collector list, and its lifecycle methods already cross an async boundary.
 
 ## OpenTelemetry setup code
 
@@ -187,9 +177,7 @@ The reproduction above is the complete setup and uses public OpenTelemetry inter
 }
 ```
 
-Current `main` was also checked at:
-
-`f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`
+The same behavior was checked on current `main` at `f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`.
 
 ## Relevant log output
 
@@ -201,7 +189,7 @@ process exit delayed until the forceFlush timeout expires
 
 ## Operating System and Version
 
-The behavior follows JavaScript control flow and reproduces independently of the operating system.
+The behavior reproduces independently of the operating system.
 
 ## Runtime and Version
 
