@@ -1,0 +1,40 @@
+name: Scout 528 TanStack current-main persistence authority
+
+on:
+  push:
+    branches:
+      - scout/528-agent-runtime-run-authority
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generation-final-result:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: fieldwork
+      - uses: actions/checkout@v4
+        with:
+          repository: TanStack/ai
+          ref: aade077647556a7ea17d7ddf73bd4e7dc0258301
+          path: target
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: target/pnpm-lock.yaml
+      - name: Install target workspace
+        working-directory: target
+        run: pnpm install --frozen-lockfile
+      - name: Install current-main regression
+        run: |
+          cp fieldwork/programmes/open-source-ecosystems/scouts/agent-runtime-run-authority/target-tests/tanstack-generation-final-result.test.ts \
+            target/packages/ai-persistence/tests/fieldwork-generation-final-result.test.ts
+      - name: Run generation final-result authority regression
+        working-directory: target/packages/ai-persistence
+        run: pnpm exec vitest run tests/fieldwork-generation-final-result.test.ts
