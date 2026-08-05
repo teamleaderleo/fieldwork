@@ -27,6 +27,29 @@ processor A removes processor B from the retained array
 
 `TracerProvider.forceFlush()` has a related cleanup problem. It creates a timeout before invoking each processor. A direct synchronous throw is caught by the surrounding `Promise` constructor, so later `.map()` callbacks still run, but the throw bypasses the returned-promise rejection handler that clears that processor's timeout. The operation reports failure while the obsolete timer remains armed until expiry.
 
+## Intended lifecycle behavior
+
+The trace SDK specification requires provider shutdown to invoke shutdown on all internal processors and force flush to invoke force flush on all registered span processors. The logs SDK specification requires the same for all registered log record processors. Both specifications separately say the operation should tell the caller whether it succeeded, failed, or timed out.
+
+Those are separate requirements:
+
+```text
+processor A fails
+processor B succeeds
+
+expected:
+    call A
+    call B
+    report the operation as failed under the existing result policy
+```
+
+This proposal does not turn a failed operation into success. It prevents one processor's failure from suppressing unrelated processors' final export or cleanup opportunity. If several operations are deliberately dependent, that dependency can be owned inside one composite processor rather than arising accidentally from a synchronous throw.
+
+Specification references:
+
+- [Trace SDK — Shutdown and ForceFlush](https://opentelemetry.io/docs/specs/otel/trace/sdk/#shutdown)
+- [Logs SDK — Shutdown and ForceFlush](https://opentelemetry.io/docs/specs/otel/logs/sdk/#shutdown)
+
 ### Steps to reproduce
 
 #### 1. A synchronous shutdown throw skips a later trace processor
@@ -109,6 +132,8 @@ The providers retain the supplied processor array. If the first processor synchr
 Every processor present when a lifecycle operation begins should be invoked once for that operation.
 
 A processor-array mutation may affect later operations, but should not rewrite the operation already in progress. A direct synchronous implementation error should enter the surface's existing asynchronous failure path, and an operation-owned timeout should be cleared after its processor has already failed.
+
+The overall operation may still fail. This issue concerns which processors are attempted, not whether failure is reported.
 
 ## Actual result
 
@@ -195,10 +220,11 @@ A refreshed issue and pull-request search found no equivalent repair. The recent
 - [x] issue-first route restored;
 - [x] pure OpenTelemetry reproductions included;
 - [x] aggregate throw behavior distinguished from provider Promise-constructor behavior;
+- [x] failure reporting distinguished from invoking all processors;
 - [x] released-package and current-main timeout forms distinguished;
 - [x] current-main and overlap refreshed on `2026-08-05`;
 - [x] metrics private-state-only behavior excluded;
 - [x] severity and prevalence limited to supported claims;
-- [ ] refresh public `main`, versions, and duplicate search immediately before filing;
+- [ ] refresh public `main`, versions, specification links, and duplicate search immediately before filing;
 - [ ] confirm the rebased exact-head workflow matrix and renewed review;
 - [ ] record explicit authority for the exact public issue creation.
