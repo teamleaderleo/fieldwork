@@ -5,7 +5,7 @@ Draft status: `review-ready — issue-first recommended`
 Public interaction authorized: `no`  
 Internal technical record: [`DEEP_DIVE.md`](./DEEP_DIVE.md)
 
-The text between the dividers is the proposed public issue body. The deep dive keeps the source map, rejected alternatives, exact evidence, and compatibility analysis so this report can stay focused.
+The text between the dividers is the proposed public issue body. The deep dive keeps the source map, rejected alternatives, exact evidence, and compatibility analysis so the report doesn't repeat them.
 
 ---
 
