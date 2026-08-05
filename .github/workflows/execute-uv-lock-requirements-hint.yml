@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 90
     env:
       UV_BASE: 49e2fc5c821bb69a528308a036b17446bb5ab5a6
-      UV_GENERATOR: 81ef7a2aae15a54c1e61c58fea647e1962a84813
+      UV_GENERATOR: 157ae0fb9087262f967e0a9fcbceb7de8bc1abeb
       CARRIER_BASE: 89a22025c94408ade6e09f316b7facecf8536c63
     steps:
       - name: Check out Fieldwork carrier
@@ -71,8 +71,6 @@ jobs:
           EOF
           diff -u "$RUNNER_TEMP/expected-source-files.txt" "$RUNNER_TEMP/source-files.txt"
           git diff --check
-          git diff --stat | tee "$RUNNER_TEMP/source-stat.txt"
-          git diff > "$RUNNER_TEMP/source.patch"
 
       - name: Install Rust components
         shell: bash
@@ -83,7 +81,13 @@ jobs:
         working-directory: uv
         run: |
           set -euo pipefail
+          cargo fmt --all
+          git diff --name-only | sort > "$RUNNER_TEMP/source-files-formatted.txt"
+          diff -u "$RUNNER_TEMP/expected-source-files.txt" "$RUNNER_TEMP/source-files-formatted.txt"
+          git diff --check
           cargo fmt --all --check
+          git diff --stat | tee "$RUNNER_TEMP/source-stat.txt"
+          git diff > "$RUNNER_TEMP/source.patch"
           cargo check -p uv-requirements -p uv
 
       - name: Run focused integration controls
@@ -128,6 +132,7 @@ jobs:
           path: |
             ${{ runner.temp }}/carrier-files.txt
             ${{ runner.temp }}/source-files.txt
+            ${{ runner.temp }}/source-files-formatted.txt
             ${{ runner.temp }}/source-stat.txt
             ${{ runner.temp }}/source.patch
             ${{ runner.temp }}/focused-tests.txt
