@@ -1,75 +1,41 @@
 # Unit 18 continuation handoff
 
-## Asked
+## Current state
 
-Prepare only upstream unit 18 from Fieldwork issue #435, reconstruct every linked record, create the assigned packet and a clean owned-fork source branch when possible, preserve all evidence and drafts in GitHub, avoid public upstream contact, and continue researching nearby approaches when the candidate became executable.
+The Playwright bug report has been filed and is waiting for maintainer approval for community contribution or assignment:
 
-## Strongest supported finding
+- [MCP HTTP clients can terminate the server through `/killkillkill`](https://redirect.github.com/microsoft/playwright/issues/42129)
 
-The special MCP HTTP shutdown route grants process termination authority to any non-browser caller accepted by listener and Host policy. Direct loopback restriction fails through a local proxy. The canonical parent-owned IPC candidate removes network shutdown authority while preserving the complete native MCP HTTP lifecycle file across Ubuntu, macOS, and Windows.
+Don't open the upstream PR based on elapsed time. Wait for an explicit maintainer response and separate user authorization.
 
-## Canonical artifacts
+## Preferred source
 
-- Packet directory: `upstream/packets/18-playwright-mcp-loopback-shutdown/`
-- Packet branch: `p0/435-unit-18-playwright-mcp-shutdown`
-- Packet PR: [`teamleaderleo/fieldwork#451`](https://github.com/teamleaderleo/fieldwork/pull/451)
-- Canonical finding: [`teamleaderleo/fieldwork#404`](https://github.com/teamleaderleo/fieldwork/issues/404)
-- Source base: `fieldwork/435-unit-18-base-15b1aec@15b1aec478d90f0293dae7b7b6dafd494d9f0154`
-- Canonical source: `fix/mcp-parent-ipc-shutdown@e99e97da2acfc6c1a67749bc749e1d0cb71b5607`
-- Owned source PR: [`teamleaderleo/playwright#40`](https://github.com/teamleaderleo/playwright/pull/40)
-- Net source fence: exactly three files
-- Exact-current execution carrier: [`teamleaderleo/fieldwork#455@0323aeaadc391575b572e869258e5e1ac3c4652c`](https://github.com/teamleaderleo/fieldwork/pull/455)
-- Exact-current workflow: [`30690674059`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690674059)
+- owned source PR: `teamleaderleo/playwright#48`
+- branch: `fix/mcp-http-parent-stdin-review`
+- base: `2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2`
+- head: `10e28dfdd7758d92aeed50922fd9c7ce9596c21c`
+- exact fence: `http.ts`, `server.ts`, `http.spec.ts`
 
-## Exact-current result
+The change removes `/killkillkill`, uses parent stdin EOF only in HTTP test mode, and preserves exclusive stdio ownership.
 
-Source `e99e97da2acfc6c1a67749bc749e1d0cb71b5607` passed unchanged on Ubuntu 24.04, macOS 15, and Windows Server 2025. Every platform passed exact identity and three-file fence verification, locked install, complete build, Chromium, all 18 tests in `tests/mcp/http.spec.ts`, focused ESLint, clean tree, and exact diff.
+## Final execution
 
-- Ubuntu: job `91344705054`, artifact `8815924825`, digest `sha256:80ea42882f0c6ce9255d57d1a21b23e622b8f68aedda9478caacad818c124e4f`
-- macOS: job `91344705071`, artifact `8815562250`, digest `sha256:80a6f32f6b8a560924af3a562c0af5bcc16ee4993cd2fdf05306b3bc67bd2d54`
-- Windows: job `91344705088`, artifact `8815574235`, digest `sha256:804ed03b8a52765366cdec5737cc0f9b3d7f90714b9939b8e613cb39af20bdf4`
+Run `30855503566` completed successfully:
 
-Packet head `ca95ff2bc643c040ad48a73bb1dc80cdfc64fe8c` passed Fieldwork integrity in run `30691135221`. The latest packet update requires a fresh integrity result.
+- Ubuntu 24.04: 21/21 in 34.4s, artifact `8874308670`;
+- macOS 15 ARM64: 21/21 in 37.6s, artifact `8872445482`;
+- Windows Server 2025: 21/21 in 58.6s, artifact `8872373764`.
 
-## New approach research
+Every platform also passed exact identity and fence checks, `npm ci`, complete build, Chromium setup, focused ESLint, clean-tree verification, exact diff verification, and receipt upload.
 
-### Parent stdin EOF
+## Fallback
 
-A new experiment attempted to replace the private IPC message with the already-piped parent stdin lifetime.
-
-- research source PR: [`teamleaderleo/playwright#41`](https://github.com/teamleaderleo/playwright/pull/41)
-- first head `1d6ec11...`: failed on all three platforms because parent EOF emits readable `end`, while the watchdog listened for `close`
-- repaired head: `86d32569b47fd9f6e98c11517d1699cea5a2465a`
-- carrier: [`teamleaderleo/fieldwork#494@2e32e643cdc6af0a322d49499b0cece3ee9e0699`](https://github.com/teamleaderleo/fieldwork/pull/494)
-- workflow `30704592268`: complete success on Ubuntu, macOS, and Windows; Ubuntu ran 17/17 in 21.5s
-
-The repair listens for stdin `end` and consumes stdin. It proves that mode-aware stdin ownership is viable for HTTP, but it is not promoted because the watchdog runs before transport selection. Globally consuming stdin can race the stdio MCP transport and discard early protocol input. See `ADJACENT_RESEARCH.md`.
-
-### Nearby leads
-
-- `packages/playwright-core/src/cli/driver.ts` and `packages/playwright/src/runner/testServer.ts` also use stdin `close` as parent-lifetime ownership. These are source-read leads requiring focused reproductions.
-- MCP exits code 0 for SIGINT/SIGTERM while the general process launcher uses conventional SIGINT code 130 and escalation behavior. Treat this as a separate policy investigation.
-- The canonical IPC listener could be additionally gated by Playwright's test marker, but that would move the fully executed head and requires another matrix.
-
-## Current disposition
-
-`ISSUE FIRST`
-
-The implementation and exact-current execution gates are cleared. The remaining design decision is whether maintainers prefer the fully tested strict parent-IPC hook, a mode-aware owner-stdin hook, or removal of the lifecycle test primitive. Playwright's current contribution process requires issue approval and assignment before a substantive PR.
-
-## Remaining blockers in order
-
-1. Obtain independent complete-diff review and final acceptance.
-2. Prepare a concise issue-first decision surface describing the current route and stdin alternative.
-3. Squash the seven-commit canonical source history before any authorized submission, then prove exact tree equivalence or rerun declared gates.
-4. Refresh the public upstream base and duplicate search immediately before contact.
-5. Obtain Playwright issue approval/assignment.
-6. Obtain separate explicit authority before any public issue, pull request, comment, or reaction.
-
-Full Playwright repository CI and Node versions outside 22 remain evidence limits rather than claimed coverage.
+Strict parent IPC remains fully executed at `teamleaderleo/playwright#40@e99e97da2acfc6c1a67749bc749e1d0cb71b5607`.
 
 ## Next action
 
-Run Fieldwork integrity at the latest packet head, obtain independent review, and keep all upstream-facing activity unposted until explicit authority. Do not replace the canonical IPC branch with the stdin experiment unless a mode-aware design is built and stdio early-message/disconnect controls pass.
+1. Watch the upstream issue for an explicit approval or assignment.
+2. If approved and the user authorizes submission, refresh the base, recheck the issue state, and open the linked PR from the current source.
+3. Use the prepared PR draft and replace its placeholder with the upstream issue number.
 
-Public upstream interaction performed: `none`.
+No additional upstream write should occur automatically.
