@@ -2,9 +2,11 @@
 
 ## Current disposition
 
-`EXECUTED — historical clean source passed all 12 native controls; current-main restack is queued`
+`EXECUTED HISTORICAL SOURCE — current-main publication blocked before build by generation-tool environment; pinned restack base is behind latest inspected main`
 
-Unit 14's focused source repair is no longer waiting on its original CI gate. The exact historical clean source has been published and validated. A separate execution-only carrier is now restacking that source on exact current DuckDB main so generated enum output is regenerated rather than overwritten.
+Unit 14's focused source repair is complete and executed. The exact historical clean source passed all twelve native controls, ordinary Main, and Zizmor. The remaining work is current-main reconstruction, fresh complete-diff review, and delivery routing.
+
+The current-main carrier has not reached compilation. Its latest failure is a deterministic DuckDB generation-environment problem, not an Arrow source or test failure.
 
 No public DuckDB issue, pull request, review, comment, reaction, or branch has been modified. Public upstream remains read-only and unauthorized for contact.
 
@@ -41,7 +43,7 @@ No public DuckDB issue, pull request, review, comment, reaction, or branch has b
 nested-parent-offset expected child-offset=1 actual child-offset=2 outer-offset=1
 ```
 
-The repair passes the same nested fixed-size-list fixture, proving that the test distinguishes the actual offset-propagation defect.
+The repair passes the same nested fixed-size-list fixture, proving that the control distinguishes the actual offset-propagation defect.
 
 ## Correct production contract
 
@@ -77,9 +79,9 @@ The executed source:
 5. unmapped nonnegative runtime ID;
 6. negative runtime type-ID value.
 
-All 12 controls passed at the exact repair head.
+All twelve controls passed at the exact repair head.
 
-## Clean source fence
+## Historical clean source fence
 
 Exactly nine target-source files:
 
@@ -97,28 +99,59 @@ The clean branch contains no Fieldwork workflow, generator, dependency, lock, or
 
 ## Current-main reconciliation
 
-Public main observed at `daa81697e31a3dc97a93f11220037cd2213af6cd` has newer generated `src/common/enum_util.cpp` content. Blindly cherry-picking the historical nine-file source would overwrite unrelated current enum entries.
-
-Execution-only current-main carrier:
+Execution-only carrier:
 
 - PR: `teamleaderleo/duckdb#28`
-- carrier head: `00bd1d019cf2069e2864781ac61ab4db59405040`
-- run: `30948605826` — queued
-- output branch: `candidate/14-arrow-union-type-id-current-main`
+- branch: `exec/262-arrow-union-current-main-restack`
+- current observed PR head: `eebf9eb188d7603f192566b8babe3746e5ba6163`
+- workflow base: `daa81697e31a3dc97a93f11220037cd2213af6cd`
+- intended output: `candidate/14-arrow-union-type-id-current-main`
+- output status: not published
+- newest public source inspected during this research: `043e1894425b49984c5010f253589e5d9c5fdde4`
 
-The workflow applies only the eight human-owned source/test files, regenerates enum output on exact current main, verifies the nine-file fence and generation stability, runs all 12 controls, and pushes the exact tested source commit. The carrier must close without merge after evidence transfer.
+The restack base is already behind the newest inspected main. A final current-main refresh remains required after the mechanical execution path is green.
+
+### Attempt 1 — CMake overlap
+
+- run/job: `30948605826` / `92124739354`
+- artifact: `8913206740`
+- digest: `sha256:e360f2922d56d9c2de4f9382b5de2dff5b74bae4ba0c98cb6a513d038221e3b3`
+- result: source compatible; historical CMake file conflicted with current `arrow_output_version_buffers.cpp` registration.
+
+### Attempt 2 — formatter selection
+
+- run/job: `30971571206` / `92196843611`
+- artifact: `8917080054`
+- digest: `sha256:af1a46808a9b11cf75adef089bc1f8915a56ef309e742db7a70ae48e081128b8`
+- result: seven human-owned files applied and current CMake was edited; `make generate-files` selected system clang-format 18 instead of installed 11.
+
+### Attempt 3 — shell PATH alone was insufficient
+
+- run/job: `30975073370` / `92207294809`
+- artifact: `8917962298`
+- digest: `sha256:580b0b1d2620ee3a62678506665adb8b9a7ddebca913766a3a9044961c7a905c`
+- result: shell assertions proved `$HOME/.local/bin/clang-format` 11.0.1 was selected, but `scripts/capi_v1_regen.sh` hardcoded `python3 scripts/format.py`. `format.py` prepended the `/usr/bin/python3` executable directory to PATH and consequently selected `/usr/bin/clang-format` 18.
+
+No attempt reached formatting gates, build, focused controls, or source publication.
+
+The exact receipt and recommended venv repair are in [`verification-2026-08-05-current-main-restack-toolchain.md`](verification-2026-08-05-current-main-restack-toolchain.md).
 
 ## Follow-on DuckDB research
 
 The research index is [`research/README.md`](research/README.md).
 
-Preserved lanes:
+Ten preserved lanes now cover:
 
-- dense-union ingestion;
-- Arrow C Data validation hardening;
-- reference-producer/reference-consumer interoperability;
-- `arrow_scan` repeatability and one-shot stream semantics;
-- logical-versus-physical coordinate-system auditing.
+1. dense-union ingestion;
+2. Arrow C Data validation hardening;
+3. reference-producer/reference-consumer interoperability;
+4. `arrow_scan` repeatability and one-shot stream semantics;
+5. logical-versus-physical coordinate systems;
+6. provider- and predicate-specific pushdown capabilities;
+7. stream/schema/array/context lifetime and release ownership;
+8. metadata framing and bounded parsing;
+9. dictionary/REE/list/view/array/union encoded-layout invariants;
+10. Arrow extension identity, storage, callback, and schema/appender contracts.
 
 The earlier routing sweep remains in [`adjacent-duckdb-arrow-research-2026-08-05.md`](adjacent-duckdb-arrow-research-2026-08-05.md).
 
@@ -126,13 +159,18 @@ These notes do not expand unit 14's source scope or claim new numbered units.
 
 ## Remaining work
 
-1. observe current-main restack run `30948605826`;
-2. verify the published current-main candidate is exactly nine files and the exact tested SHA;
-3. compare all overlapping current-main changes and classify them;
-4. obtain fresh complete-diff peer review;
-5. route accepted source through Fieldwork review/delivery desks;
-6. keep public filing separately unauthorized.
+1. repair the execution environment with one venv containing Python and all declared generation tools;
+2. verify generated source and current CMake registration are stable;
+3. build and rerun all twelve controls;
+4. publish and inspect the exact nine-file tested current-main source;
+5. refresh the restack from `daa81697...` to the actual latest public main;
+6. classify every overlapping change;
+7. obtain fresh complete-diff peer review;
+8. route accepted source through Fieldwork review/delivery desks;
+9. keep public filing separately unauthorized.
 
 ## Continuation
 
-Resume from `teamleaderleo/duckdb#28@00bd1d019cf2069e2864781ac61ab4db59405040` and run `30948605826`. If the workflow fails, repair only the first demonstrated current-main reconciliation failure. If it passes, verify the artifact and `candidate/14-arrow-union-type-id-current-main`, update this packet with the exact tested source head, and close the execution-only carrier without merge.
+Resume from `teamleaderleo/duckdb#28@eebf9eb188d7603f192566b8babe3746e5ba6163` and the latest failed run `30975073370`.
+
+Use a virtual environment whose `bin` contains both `python3` and `clang-format` 11.0.1, so `scripts/format.py` prepends the same environment rather than `/usr/bin`. Repair only that demonstrated execution blocker first. Once the pinned-base workflow is green, restack the exact tested source on the actual latest main and repeat the source gates and twelve controls before review.
