@@ -27,7 +27,7 @@ Public `main` advanced by three commits after the earlier base was pinned. Most 
 - a per-call `timeoutMillis` overrides the deprecated constructor timeout;
 - new upstream tests cover the per-call and fallback timeout behavior.
 
-The rebase preserves that public signature and timeout selection. The focused provider tests now use `forceFlush({ timeoutMillis: 1000 })` instead of adding new use of the deprecated constructor setting.
+The rebase preserves that public signature and timeout selection. The provider tests now use `forceFlush({ timeoutMillis: 1000 })` instead of adding new use of the deprecated constructor setting.
 
 Current main also contains an unrelated `MultiSpanProcessor.onEnding()` forwarder. The candidate leaves that hot-path behavior unchanged.
 
