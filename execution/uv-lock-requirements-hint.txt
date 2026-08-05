@@ -1,2 +1,2 @@
 uv base: 49e2fc5c821bb69a528308a036b17446bb5ab5a6
-uv generator: 903b416c7a1b514b1aaf0b38e9c38d5ca2d90f3c
+uv generator: a23086a04e9535a32e6fdac712acaff7b3c7fdcf
