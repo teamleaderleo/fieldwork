@@ -4,7 +4,7 @@
 
 `CURRENT-MAIN EXACT-HEAD MATRIX RUNNING`
 
-The prepared source is one commit over current public `main`. Eleven focused assertions remain in the six-file fence. Because the head changed during the rebase, the earlier green workflow matrix is historical evidence only until the new runs complete.
+The prepared source is one commit over current public `main`. Eleven assertions remain in the six-file fence. Because the head changed during the rebase, the earlier green workflow matrix is historical evidence only until the new runs complete.
 
 ## Identity
 
@@ -13,13 +13,13 @@ The prepared source is one commit over current public `main`. Eleven focused ass
 - exact prepared candidate: `f4cb44bcccffbc0eb39e774284655e0f965cfce1`;
 - source PR: `teamleaderleo/opentelemetry-js#19`;
 - relation: ahead 1, behind 0;
-- changed files: three production files and three focused tests.
+- changed files: three production files and three tests.
 
 ## Rebase-specific compatibility control
 
 Upstream PR #6929 added `TracerProvider.forceFlush({ timeoutMillis })` after the previous base was pinned. The rebased implementation preserves that option. The provider regression tests now pass the timeout per call rather than introducing new use of the deprecated constructor option.
 
-## Focused assertion set
+## Assertion set
 
 ### `MultiSpanProcessor` — four tests
 
