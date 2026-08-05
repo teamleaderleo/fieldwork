@@ -24,6 +24,7 @@ jobs:
           node artifacts/tanstack-transform-order-model.mjs
           node artifacts/vercel-resume-adoption-model.mjs
           node artifacts/vercel-poll-deadline-model.mjs
+          node artifacts/authority-token-propagation-model.mjs
 
   tanstack-final-result:
     runs-on: ubuntu-latest
