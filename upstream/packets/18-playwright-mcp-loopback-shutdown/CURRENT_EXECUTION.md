@@ -2,47 +2,31 @@
 
 ## Identity
 
-- Source repository: `teamleaderleo/playwright`
-- Source base: `15b1aec478d90f0293dae7b7b6dafd494d9f0154`
-- Source branch: `fix/mcp-parent-ipc-shutdown`
-- Exact source head: `e99e97da2acfc6c1a67749bc749e1d0cb71b5607`
-- Exact changed-file fence:
-  1. `packages/playwright-core/src/entry/mcp.ts`
-  2. `packages/playwright-core/src/tools/utils/mcp/http.ts`
-  3. `tests/mcp/http.spec.ts`
-- Execution carrier: [`teamleaderleo/fieldwork#455`](https://github.com/teamleaderleo/fieldwork/pull/455)
-- Exact carrier head: `0323aeaadc391575b572e869258e5e1ac3c4652c`
-- Workflow run: [`30690674059`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690674059)
+- source base: `2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2`
+- exact source: `10e28dfdd7758d92aeed50922fd9c7ce9596c21c`
+- execution carrier: `teamleaderleo/fieldwork#603@00b2f0547f260e2bc317ac37acf443af866048a2`
+- workflow: `30855503566`
+- runtime: Node 22.23.1, npm 10.9.8, Chromium
 
-## Declared gate
+Each job verified the exact source, base, and three-file fence; ran `npm ci`, the complete build, Chromium setup, the full native `tests/mcp/http.spec.ts`, focused ESLint, clean-tree verification, exact diff verification, and receipt upload.
 
-Each platform checked out the exact source and base, verified the exact three-file fence and `git diff --check`, ran `npm ci`, complete `npm run build`, Chromium installation, the complete native MCP HTTP file with `npm run test-mcp tests/mcp/http.spec.ts -- --project=chromium`, focused ESLint on the three changed files, a clean source tree, and the exact diff fence. Each job uploaded the test log, exact diff, commit list, and receipt.
+## Results
 
-## Final results
+| Platform | Job | Native suite | Artifact | Digest |
+| --- | --- | --- | --- | --- |
+| Ubuntu 24.04 | `91825452070` | 21/21 in 34.4s | `8874308670` | `sha256:a58a61c91437cf8571b7fa0c7216901525de2bd3abc3182067222406cc6ccd80` |
+| macOS 15 ARM64 | `91825451981` | 21/21 in 37.6s | `8872445482` | `sha256:8de35c03d271b70ebed1b2a2a2595a02e7e866bb8a66f499207eb1db3a831d95` |
+| Windows Server 2025 | `91825452083` | 21/21 in 58.6s | `8872373764` | `sha256:19faaded526b5f9ecd9687c3d9928f4e3f1aa57933174047eacb7007dc349d16` |
 
-| Platform | Job | Native suite | Other gates | Artifact | Digest | State |
-| --- | --- | --- | --- | --- | --- | --- |
-| Ubuntu 24.04, Node 22.23.1 | [`91344705054`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690674059/job/91344705054) | 18/18 passed | exact identity, locked install, complete build, Chromium, focused ESLint, clean tree, exact diff all passed | [`8815924825`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690674059/artifacts/8815924825) | `sha256:80ea42882f0c6ce9255d57d1a21b23e622b8f68aedda9478caacad818c124e4f` | complete success |
-| macOS 15 ARM64, Node 22.23.1 | [`91344705071`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690674059/job/91344705071) | 18/18 passed in 32.6s | same declared gates all passed | [`8815562250`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690674059/artifacts/8815562250) | `sha256:80a6f32f6b8a560924af3a562c0af5bcc16ee4993cd2fdf05306b3bc67bd2d54` | complete success |
-| Windows Server 2025 x64, Node 22.23.1 | [`91344705088`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690674059/job/91344705088) | 18/18 passed in 34.0s | same declared gates all passed | [`8815574235`](https://github.com/teamleaderleo/fieldwork/actions/runs/30690674059/artifacts/8815574235) | `sha256:804ed03b8a52765366cdec5737cc0f9b3d7f90714b9939b8e613cb39af20bdf4` | complete success |
+## Assertions
 
-## Assertions exercised
+- `/killkillkill` no longer returns the successful shutdown response;
+- MCP remains responsive before parent EOF;
+- parent stdin EOF produces one graceful browser close and process exit code 0;
+- `PWTEST_UNDER_TEST=0` leaves HTTP responsive after EOF;
+- immediate MCP stdio startup and ping remain intact;
+- the rest of the native MCP HTTP suite remains green.
 
-The complete 18-test native file proves that the old HTTP shutdown request does not return 200 and MCP remains responsive; a wrong string, wrong version, extra-field object, and inherited-property object are inert; the exact plain-object type/version message sent twice produces one graceful close; IPC disconnect is inert; and the rest of the MCP HTTP lifecycle file remains green.
+## Limits
 
-## Classification
-
-- all three platform results: `target-executed`, exact current head
-- complete focused file: passed on all three platforms
-- build, browser setup, focused lint, clean tree, and exact diff: passed on all three platforms
-- full Playwright repository CI: not run and not claimed
-- Node versions outside 22: not run and not claimed
-- independent source acceptance: still required
-
-## Packet integrity
-
-Packet head `ca95ff2bc643c040ad48a73bb1dc80cdfc64fe8c` passed Fieldwork integrity in run [`30691135221`](https://github.com/teamleaderleo/fieldwork/actions/runs/30691135221). The latest research transfer requires another integrity run.
-
-## Decision
-
-Disposition is `ISSUE FIRST`. The exact execution gate is cleared. Playwright requires a corresponding issue and prior approval/assignment for substantive contributions, and a newly executed stdin-EOF alternative introduces a maintainer-level ownership choice. Public upstream contact remains unauthorized.
+Full Playwright repository CI and Node versions outside 22 weren't run. The focused source and lifecycle gate is complete on all three supported operating-system families.
