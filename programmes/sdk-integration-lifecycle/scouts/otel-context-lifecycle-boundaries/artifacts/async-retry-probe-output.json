@@ -1,0 +1,29 @@
+{
+  "runtime": {
+    "node": "v22.16.0",
+    "platform": "Linux 6.12.13 x86_64"
+  },
+  "status": "pass",
+  "events": [
+    [
+      "pre-existing-consumer",
+      "ROOT"
+    ],
+    [
+      "explicit-capture",
+      "logical-op-19"
+    ],
+    [
+      "send-1",
+      "logical-op-19"
+    ],
+    [
+      "shutdown",
+      "logical-op-19"
+    ],
+    [
+      "send-2",
+      "logical-op-19"
+    ]
+  ]
+}

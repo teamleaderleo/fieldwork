@@ -17,6 +17,7 @@ Fieldwork investigates external systems seriously before asking their maintainer
 - [`WHY_FIELDWORK.md`](WHY_FIELDWORK.md) — plain-language explanation of what Fieldwork does, why the evidence workflow exists, and what current examples prove.
 - [`PROGRAMMES.md`](PROGRAMMES.md) — long-lived directions, scout lanes, branching, and concurrency.
 - [`CODE_FIRST.md`](CODE_FIRST.md) — what kinds of changes are worth investigating and how to understand code before proposing them.
+- [`PROPOSALS.md`](PROPOSALS.md) — how deep findings become reviewable issue drafts, pull-request drafts, design questions, and optional synthesis links.
 - [`PLAIN_LANGUAGE.md`](PLAIN_LANGUAGE.md) — the short understanding check required near the top of durable work.
 - [`TARGET_HUBS.md`](TARGET_HUBS.md) — stable target issues, `target:*` labels, and discovery rules.
 - [`TESTBEDS.md`](TESTBEDS.md) — using owned repositories for controlled realistic integration trials.
@@ -36,6 +37,12 @@ Fieldwork investigates external systems seriously before asking their maintainer
 > Every upstream submission should reduce the maintainer's uncertainty more than it increases their review burden.
 
 A proposed change should also explain what becomes safer, faster, more correct, more compatible, easier to integrate, or easier to maintain.
+
+## Active proposal packets
+
+- **OpenTelemetry JS lifecycle and global ownership** — [target hub #4](https://github.com/teamleaderleo/fieldwork/issues/4), [scout #19](https://github.com/teamleaderleo/fieldwork/issues/19), and [synthesis PR #32](https://github.com/teamleaderleo/fieldwork/pull/32). The current packet separates same-object startup, failed function startup, trace-provider shutdown, metric-reader construction, and process-global ownership into independent review units. No upstream contact is authorized.
+
+Detailed proposal packets stay with their target reports and artifacts. This section is a compact repository-wide pointer, not a substitute for the target hub or independently understandable issue drafts.
 
 ## Active research programmes
 
