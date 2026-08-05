@@ -59,7 +59,9 @@ process_chunk(
 ).await;
 ```
 
-A listener may either start after the command has already printed something or fall behind when a command produces a lot of output. In either case, unified exec can receive bytes that never reach the transcript returned in the completed tool result.
+A listener may either start after the command has already printed something or fall behind when a command produces a lot of output. `Lagged` here only says that an internal receiver didn't read the bounded channel quickly enough. It doesn't identify the skipped output as unsafe, private, or irrelevant.
+
+In either case, unified exec can receive bytes that never reach the transcript returned in the completed tool result.
 
 ### What we've confirmed
 
@@ -105,6 +107,38 @@ Codex may repeat work that already succeeded
 ```
 
 This probably isn't what starts a timeout. It can remove the output that would explain the timeout and guide the next action. The same loss can affect commands that finish normally.
+
+### Why this isn't just normal truncation
+
+Unified exec already has explicit output limits.
+
+[`HeadTailBuffer`](https://github.com/openai/codex/blob/c607da9f371bb66a41cc772c6ddf1989d28137d3/codex-rs/core/src/unified_exec/head_tail_buffer.rs#L1-L120) keeps a capped beginning and ending of the command output and inserts an omission marker when it drops bytes from the middle. Later, [`ExecCommandToolOutput`](https://github.com/openai/codex/blob/c607da9f371bb66a41cc772c6ddf1989d28137d3/codex-rs/core/src/tools/context.rs#L312-L425) applies a separate model-facing token limit and adds a warning when the output is truncated again.
+
+The current path adds another loss before either of those decisions:
+
+```text
+command output
+        ↓
+timing-dependent listener loss
+        ↓
+1 MiB head/tail retention
+        ↓
+model-facing token truncation
+```
+
+That first loss is based on task timing rather than an output policy. The same command can print the same bytes and still produce a different completed tool result depending on whether an internal listener kept up.
+
+The proposed path is:
+
+```text
+command output
+        ↓
+1 MiB head/tail retention
+        ↓
+model-facing token truncation
+```
+
+This wouldn't send unlimited output to the model or bypass the existing limits. It would let those deliberate limits operate on the bounded output this layer received, instead of an arbitrary subset selected by listener timing.
 
 ### Proposed change
 
@@ -157,7 +191,7 @@ At that exact source revision:
 
 The implementation shows the current behavior and one possible repair. The question is:
 
-**Should the completed unified-exec result come from the bounded output kept by the component that received it, rather than from whichever chunks reached the live listener?**
+**Should the completed unified-exec result use the bounded output retained before live delivery, so the explicit collection and model-output limits—not listener timing—decide what survives?**
 
 ### Follow-ups
 
