@@ -9,6 +9,7 @@ A development and build toolchain whose plugin graph, module resolution, invalid
 ## Areas worth understanding
 
 - plugin ordering and lifecycle;
+- Rollup and Rolldown compatibility contracts;
 - module resolution and virtual modules;
 - dependency optimization;
 - HMR and invalidation;
@@ -29,6 +30,24 @@ A development and build toolchain whose plugin graph, module resolution, invalid
 ## Entry standard
 
 Map the plugin and module graph responsible for the behavior. A change should preserve correctness, reduce invalidation or build cost, improve compatibility, or make a demonstrated integration safer.
+
+## Compatibility contract check
+
+Before designing lifecycle behavior, establish which project owns the contract:
+
+```text
+Vite call site
+    ↓
+Rollup hook contract
+    ↓
+Rolldown compatibility behavior
+    ↓
+Vite-specific policy only where the contract leaves room
+```
+
+Read the Vite call site and types, then inspect the matching Rollup contract and Rolldown implementation. Separate a compatibility repair from broader scheduling or error-policy ideas. Test the required argument handoff, ordering, and outward error behavior directly.
+
+A locally coherent improvement can still be the wrong Vite patch when it adds semantics beyond Rollup or Rolldown. Keep settle-all execution, aggregation, deterministic multi-error ordering, and similar policies as separate proposals unless the compatibility contract requires them.
 
 ## Stop conditions
 
