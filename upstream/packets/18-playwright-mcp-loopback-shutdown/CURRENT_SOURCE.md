@@ -1,40 +1,33 @@
 # Current source generation
 
-## Canonical identity
+## Identity
 
-- Base: `teamleaderleo/playwright:fieldwork/435-unit-18-base-15b1aec@15b1aec478d90f0293dae7b7b6dafd494d9f0154`
-- Source: `teamleaderleo/playwright:fix/mcp-parent-ipc-shutdown@e99e97da2acfc6c1a67749bc749e1d0cb71b5607`
-- Owned source PR: [`teamleaderleo/playwright#40`](https://github.com/teamleaderleo/playwright/pull/40)
-- Net fence: exactly three files
-- Public Playwright head checked on `2026-08-01`: `15b1aec478d90f0293dae7b7b6dafd494d9f0154`
+- repository: `teamleaderleo/playwright`
+- owned source PR: `teamleaderleo/playwright#48`
+- branch: `fix/mcp-http-parent-stdin-review`
+- exact public base: `2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2`
+- exact source head: `10e28dfdd7758d92aeed50922fd9c7ce9596c21c`
+- commits ahead: one
 
-## Relation to packet links pinned at `c4c5e2d...`
+## Exact file fence
 
-Earlier packet drafts were written against `c4c5e2db6f0305237be4de4c167dfb2344abb305`. The only later source change removed an unrelated comment rewrite and restored the final newline in `tests/mcp/http.spec.ts`. Production code, test assertions, message controls, and the three-file fence are unchanged. Treat `e99e97d...` as canonical and `c4c5e2d...` as a superseded diff-cleanup predecessor.
+1. `packages/playwright-core/src/tools/utils/mcp/http.ts`
+2. `packages/playwright-core/src/tools/utils/mcp/server.ts`
+3. `tests/mcp/http.spec.ts`
 
-## Exact current diff judgment
+## Behavior
 
-- `packages/playwright-core/src/entry/mcp.ts`: installs a one-shot parent-IPC listener; accepts only a plain ordinary object with exactly own `type` and `version` keys and exact values; removes the listener before emitting SIGINT.
-- `packages/playwright-core/src/tools/utils/mcp/http.ts`: removes the HTTP shutdown branch.
-- `tests/mcp/http.spec.ts`: gives the spawned test child an IPC channel and covers the old route, malformed messages, extension fields, inherited properties, duplicate valid delivery, graceful cleanup, and disconnect.
-- Unrelated comment churn: absent.
-- Missing-final-newline churn: absent.
-- Workflows, receipts, and Fieldwork evidence files: absent from the target net diff.
+- removes the `/killkillkill` HTTP branch;
+- leaves MCP stdio input ownership unchanged;
+- installs the stdin listener only after HTTP mode is selected;
+- requires Playwright's existing test marker;
+- translates readable parent EOF into the existing `SIGINT` cleanup path;
+- handles stdin that already ended before listener setup.
 
-## Exact-head execution
+The test proves the old route is inert, MCP remains responsive before EOF, closing the owning stdin produces one graceful close and exit code 0, disabling the test marker leaves HTTP alive after EOF, and immediate stdio startup still works.
 
-Execution carrier [`teamleaderleo/fieldwork#455`](https://github.com/teamleaderleo/fieldwork/pull/455) pins source head `e99e97da...` and base `15b1aec...`.
+## Upstream state
 
-- macOS 15 ARM64: 18/18 native MCP HTTP tests passed; locked install, complete build, Chromium, focused ESLint, clean tree, and exact three-file diff passed.
-- Windows Server 2025 x64: 18/18 native MCP HTTP tests passed; locked install, complete build, Chromium, focused ESLint, clean tree, and exact three-file diff passed.
-- Ubuntu 24.04: queued before runner allocation; no source execution and no product failure yet.
+Issue filed: [MCP HTTP clients can terminate the server through `/killkillkill`](https://redirect.github.com/microsoft/playwright/issues/42129)
 
-See [`CURRENT_EXECUTION.md`](./CURRENT_EXECUTION.md) for exact run, job, artifact, and digest records.
-
-## History cleanliness
-
-The net source diff is clean, but the branch remains seven commits ahead of its exact base. Those commits include transient preparation and cleanup. Squash to one reviewable commit before any authorized upstream submission, then prove tree equivalence or rerun the declared gates at the resulting exact head.
-
-## Current gate
-
-`EXECUTE`: complete Ubuntu exact-head execution or record an explicit reviewed carry-forward decision. The next contribution route after that gate is `ISSUE FIRST` under Playwright's contribution policy. Independent complete-diff acceptance and public-contact authority remain separate requirements.
+The source is ready for a linked upstream PR after explicit maintainer approval or assignment.
