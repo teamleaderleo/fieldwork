@@ -1,0 +1,245 @@
+diff --git a/crates/uv-install-wheel/src/wheel.rs b/crates/uv-install-wheel/src/wheel.rs
+index 49c0434..f304e6e 100644
+--- a/crates/uv-install-wheel/src/wheel.rs
++++ b/crates/uv-install-wheel/src/wheel.rs
+@@ -104,6 +104,8 @@ fn copy_and_hash(reader: &mut impl Read, writer: &mut impl Write) -> io::Result<
+     ))
+ }
+ 
++const RELOCATABLE_REALPATH: &str = r#"if _uv_realpath_probe=$(realpath -- / 2>/dev/null) && [ "$_uv_realpath_probe" = / ]; then realpath -- "$0"; else realpath "$0"; fi"#;
++
+ /// Format the shebang for a given Python executable.
+ ///
+ /// Like pip, if a shebang is non-simple (too long or contains spaces), we use `/bin/sh` as the
+@@ -125,9 +127,9 @@ fn format_shebang(executable: impl AsRef<Path>, os_name: &str, relocatable: bool
+         // (note: the Windows trampoline binaries natively support relative paths to executable)
+         if shebang_length > 127 || executable.contains(' ') || relocatable {
+             let prefix = if relocatable {
+-                r#""$(dirname -- "$(realpath "$0")")"/"#
++                format!(r#""$(dirname -- "$({RELOCATABLE_REALPATH})")"/"#)
+             } else {
+-                ""
++                String::new()
+             };
+             let executable = format!(
+                 "{}'{}'",
+@@ -1221,14 +1223,17 @@ impl RenameOrCopy {
+ mod test {
+     use std::io::{Cursor, ErrorKind};
+     use std::path::Path;
++    #[cfg(unix)]
++    use std::process::Command;
+ 
+     use anyhow::Result;
+     use assert_fs::prelude::*;
+     use indoc::{formatdoc, indoc};
+ 
+     use super::{
+-        Error, RecordEntry, Script, WheelFile, format_shebang, get_script_executable,
+-        parse_email_message_file, parse_scripts, read_record, write_installer_metadata,
++        Error, RELOCATABLE_REALPATH, RecordEntry, Script, WheelFile, format_shebang,
++        get_script_executable, parse_email_message_file, parse_scripts, read_record,
++        write_installer_metadata,
+     };
+ 
+     #[test]
+@@ -1392,6 +1397,115 @@ mod test {
+         );
+     }
+ 
++    #[cfg(unix)]
++    fn write_executable(path: &Path, contents: &str) {
++        use std::os::unix::fs::PermissionsExt;
++
++        fs_err::write(path, contents).unwrap();
++        let mut permissions = fs_err::metadata(path).unwrap().permissions();
++        permissions.set_mode(0o755);
++        fs_err::set_permissions(path, permissions).unwrap();
++    }
++
++    #[cfg(unix)]
++    #[test]
++    fn relocatable_realpath_uses_delimiter_when_supported() {
++        let temp_dir = assert_fs::TempDir::new().unwrap();
++        let bin = temp_dir.child("bin");
++        bin.create_dir_all().unwrap();
++        let log = temp_dir.child("realpath.log");
++        let realpath = bin.child("realpath");
++        write_executable(
++            realpath.path(),
++            r#"#!/bin/sh
++printf '%s\n' "$*" >> "$UV_REALPATH_LOG"
++if [ "$1" != "--" ]; then
++    echo "missing --" >&2
++    exit 64
++fi
++shift
++for path do
++    case "$path" in
++        /*) printf '%s\n' "$path" ;;
++        *) printf '%s/%s\n' "$PWD" "$path" ;;
++    esac
++done
++"#,
++        );
++        temp_dir.child("-foo").touch().unwrap();
++
++        let output = Command::new("/bin/sh")
++            .arg("-c")
++            .arg(RELOCATABLE_REALPATH)
++            .arg("-foo")
++            .current_dir(temp_dir.path())
++            .env("PATH", bin.path())
++            .env("UV_REALPATH_LOG", log.path())
++            .output()
++            .unwrap();
++
++        assert!(output.status.success());
++        assert!(output.stderr.is_empty());
++        assert_eq!(
++            String::from_utf8(output.stdout).unwrap(),
++            format!("{}\n", temp_dir.child("-foo").path().display())
++        );
++        assert_eq!(
++            fs_err::read_to_string(log.path()).unwrap(),
++            "-- /\n-- -foo\n"
++        );
++    }
++
++    #[cfg(unix)]
++    #[test]
++    fn relocatable_realpath_falls_back_for_busybox() {
++        let temp_dir = assert_fs::TempDir::new().unwrap();
++        let bin = temp_dir.child("bin");
++        bin.create_dir_all().unwrap();
++        let log = temp_dir.child("realpath.log");
++        let realpath = bin.child("realpath");
++        write_executable(
++            realpath.path(),
++            r#"#!/bin/sh
++printf '%s\n' "$*" >> "$UV_REALPATH_LOG"
++status=0
++for path do
++    if [ ! -e "$path" ]; then
++        printf 'realpath: %s: No such file or directory\n' "$path" >&2
++        status=1
++        continue
++    fi
++    case "$path" in
++        /*) printf '%s\n' "$path" ;;
++        *) printf '%s/%s\n' "$PWD" "$path" ;;
++    esac
++done
++exit "$status"
++"#,
++        );
++        temp_dir.child("-foo").touch().unwrap();
++        // A status-only probe would misclassify BusyBox if this path happened to exist.
++        temp_dir.child("--").touch().unwrap();
++
++        let output = Command::new("/bin/sh")
++            .arg("-c")
++            .arg(RELOCATABLE_REALPATH)
++            .arg("-foo")
++            .current_dir(temp_dir.path())
++            .env("PATH", bin.path())
++            .env("UV_REALPATH_LOG", log.path())
++            .output()
++            .unwrap();
++
++        assert!(output.status.success());
++        assert!(output.stderr.is_empty());
++        assert_eq!(
++            String::from_utf8(output.stdout).unwrap(),
++            format!("{}\n", temp_dir.child("-foo").path().display())
++        );
++        assert_eq!(fs_err::read_to_string(log.path()).unwrap(), "-- /\n-foo\n");
++    }
++
+     #[test]
+     fn test_shebang() {
+         // By default, use a simple shebang.
+@@ -1415,7 +1529,7 @@ mod test {
+         let os_name = "posix";
+         assert_eq!(
+             format_shebang(executable, os_name, true),
+-            "#!/bin/sh\n'''exec' \"$(dirname -- \"$(realpath \"$0\")\")\"/'python3' \"$0\" \"$@\"\n' '''"
++            "#!/bin/sh\n'''exec' \"$(dirname -- \"$(if _uv_realpath_probe=$(realpath -- / 2>/dev/null) && [ \"$_uv_realpath_probe\" = / ]; then realpath -- \"$0\"; else realpath \"$0\"; fi)\")\"/'python3' \"$0\" \"$@\"\n' '''"
+         );
+ 
+         // Except on Windows...
+diff --git a/crates/uv-virtualenv/src/virtualenv.rs b/crates/uv-virtualenv/src/virtualenv.rs
+index b251b09..4c07bc1 100644
+--- a/crates/uv-virtualenv/src/virtualenv.rs
++++ b/crates/uv-virtualenv/src/virtualenv.rs
+@@ -482,13 +482,13 @@ pub(crate) fn create(
+                 path: location.clone(),
+             })?;
+         let virtual_env_dir = match (relocatable, name.to_owned()) {
+-            (true, "activate") => {
+-                Cow::Borrowed(r#"'"$(dirname -- "$(dirname -- "$(realpath "$SCRIPT_PATH")")")"'"#)
+-            }
++            (true, "activate") => Cow::Borrowed(
++                r#"'"$(dirname -- "$(dirname -- "$(if _uv_realpath_probe=$(realpath -- / 2>/dev/null) && [ "$_uv_realpath_probe" = / ]; then realpath -- "$SCRIPT_PATH"; else realpath "$SCRIPT_PATH"; fi)")")"'"#,
++            ),
+             (true, "activate.bat") => Cow::Borrowed(r"%~dp0.."),
+-            (true, "activate.fish") => {
+-                Cow::Borrowed(r"'(dirname -- (dirname -- (realpath (status -f))))'")
+-            }
++            (true, "activate.fish") => Cow::Borrowed(
++                r#"'(dirname -- (dirname -- (if set -l _uv_realpath_probe (realpath -- / 2>/dev/null); and test (count $_uv_realpath_probe) -eq 1; and test "$_uv_realpath_probe[1]" = /; realpath -- (status -f); else; realpath (status -f); end)))'"#,
++            ),
+             (true, "activate.nu") => Cow::Borrowed(r"(path self | path dirname | path dirname)"),
+             (false, "activate.nu") => Cow::Owned(format!(
+                 "'{}'",
+diff --git a/crates/uv/src/commands/project/run.rs b/crates/uv/src/commands/project/run.rs
+index b777e60..43f1253 100644
+--- a/crates/uv/src/commands/project/run.rs
++++ b/crates/uv/src/commands/project/run.rs
+@@ -2030,13 +2030,13 @@ enum CopyEntrypointError {
+ 
+ #[cfg(unix)]
+ const RELOCATABLE_SHEBANG: &str = r#"#!/bin/sh
+-'''exec' "$(dirname -- "$(realpath "$0")")"/'python' "$0" "$@"
++'''exec' "$(dirname -- "$(if _uv_realpath_probe=$(realpath -- / 2>/dev/null) && [ "$_uv_realpath_probe" = / ]; then realpath -- "$0"; else realpath "$0"; fi)")"/'python' "$0" "$@"
+ ' '''
+ "#;
+ 
+ #[cfg(unix)]
+ const RELOCATABLE_PYTHON3_SHEBANG: &str = r#"#!/bin/sh
+-'''exec' "$(dirname -- "$(realpath "$0")")"/'python3' "$0" "$@"
++'''exec' "$(dirname -- "$(if _uv_realpath_probe=$(realpath -- / 2>/dev/null) && [ "$_uv_realpath_probe" = / ]; then realpath -- "$0"; else realpath "$0"; fi)")"/'python3' "$0" "$@"
+ ' '''
+ "#;
+ 
+@@ -2107,7 +2107,7 @@ fn copy_entrypoint(
+     }
+ 
+     let Some(contents) = contents
+-        // Check for corrected relocatable shebangs.
++        // Check for current relocatable shebangs.
+         .strip_prefix(RELOCATABLE_SHEBANG)
+         .or_else(|| contents.strip_prefix(RELOCATABLE_PYTHON3_SHEBANG))
+         // Keep recognizing launchers generated before BusyBox compatibility was fixed.
+diff --git a/crates/uv/tests/python/venv.rs b/crates/uv/tests/python/venv.rs
+index f68dc85..75eb4f0 100644
+--- a/crates/uv/tests/python/venv.rs
++++ b/crates/uv/tests/python/venv.rs
+@@ -1699,7 +1699,7 @@ fn verify_pyvenv_cfg_relocatable() {
+     let activate_sh = scripts.child("activate");
+     activate_sh.assert(predicates::path::is_file());
+     activate_sh.assert(predicates::str::contains(
+-        r#"VIRTUAL_ENV=''"$(dirname -- "$(dirname -- "$(realpath "$SCRIPT_PATH")")")"''"#,
++        r#"VIRTUAL_ENV=''"$(dirname -- "$(dirname -- "$(if _uv_realpath_probe=$(realpath -- / 2>/dev/null) && [ "$_uv_realpath_probe" = / ]; then realpath -- "$SCRIPT_PATH"; else realpath "$SCRIPT_PATH"; fi)")")"''"#,
+     ));
+ 
+     let activate_bat = scripts.child("activate.bat");
+@@ -1711,7 +1711,7 @@ fn verify_pyvenv_cfg_relocatable() {
+     let activate_fish = scripts.child("activate.fish");
+     activate_fish.assert(predicates::path::is_file());
+     activate_fish.assert(predicates::str::contains(
+-        r"set -gx VIRTUAL_ENV ''(dirname -- (dirname -- (realpath (status -f))))''",
++        r#"set -gx VIRTUAL_ENV ''(dirname -- (dirname -- (if set -l _uv_realpath_probe (realpath -- / 2>/dev/null); and test (count $_uv_realpath_probe) -eq 1; and test "$_uv_realpath_probe[1]" = /; realpath -- (status -f); else; realpath (status -f); end)))''"#,
+     ));
+     activate_fish.assert(predicates::str::contains(
+         "if string match -qr 'CYGWIN|MSYS|MINGW' (uname); and command -s cygpath >/dev/null",
