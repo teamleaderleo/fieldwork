@@ -107,7 +107,7 @@ Execution-only carrier:
 - workflow base: `daa81697e31a3dc97a93f11220037cd2213af6cd`
 - intended output: `candidate/14-arrow-union-type-id-current-main`
 - output status: not published
-- newest public source inspected during this research: `043e1894425b49984c5010f253589e5d9c5fdde4`
+- newest public source inspected during this research: `58c019320e250a7b369efd756f84c6dfd68bedcb`
 
 The restack base is already behind the newest inspected main. A final current-main refresh remains required after the mechanical execution path is green.
 
@@ -140,7 +140,7 @@ The exact receipt and recommended venv repair are in [`verification-2026-08-05-c
 
 The research index is [`research/README.md`](research/README.md).
 
-Ten preserved lanes now cover:
+Eleven preserved lanes now cover:
 
 1. dense-union ingestion;
 2. Arrow C Data validation hardening;
@@ -151,7 +151,10 @@ Ten preserved lanes now cover:
 7. stream/schema/array/context lifetime and release ownership;
 8. metadata framing and bounded parsing;
 9. dictionary/REE/list/view/array/union encoded-layout invariants;
-10. Arrow extension identity, storage, callback, and schema/appender contracts.
+10. Arrow extension identity, storage, callback, and schema/appender contracts;
+11. `duckdb_data_chunk_from_arrow` multi-column root ownership.
+
+The C API ownership lane is currently the highest-priority private characterization candidate. At public source `58c019320e250a7b369efd756f84c6dfd68bedcb`, root `ArrowArray` ownership is still transferred inside the per-column loop, and the existing roundtrip test still uses one column. The research note defines a recursive-release two-column fixture to prove or disprove the suspected early release without prematurely calling it a confirmed bug.
 
 The earlier routing sweep remains in [`adjacent-duckdb-arrow-research-2026-08-05.md`](adjacent-duckdb-arrow-research-2026-08-05.md).
 
@@ -167,10 +170,13 @@ These notes do not expand unit 14's source scope or claim new numbered units.
 6. classify every overlapping change;
 7. obtain fresh complete-diff peer review;
 8. route accepted source through Fieldwork review/delivery desks;
-9. keep public filing separately unauthorized.
+9. privately characterize the C API multi-column ownership candidate in a separate future lane;
+10. keep public filing separately unauthorized.
 
 ## Continuation
 
-Resume from `teamleaderleo/duckdb#28@eebf9eb188d7603f192566b8babe3746e5ba6163` and the latest failed run `30975073370`.
+Resume unit 14 from `teamleaderleo/duckdb#28@eebf9eb188d7603f192566b8babe3746e5ba6163` and the latest failed run `30975073370`.
 
 Use a virtual environment whose `bin` contains both `python3` and `clang-format` 11.0.1, so `scripts/format.py` prepends the same environment rather than `/usr/bin`. Repair only that demonstrated execution blocker first. Once the pinned-base workflow is green, restack the exact tested source on the actual latest main and repeat the source gates and twelve controls before review.
+
+For follow-on research, begin with [`research/arrow-capi-zero-copy-ownership.md`](research/arrow-capi-zero-copy-ownership.md) and build the expected-negative two-column release-count fixture on exact current source before proposing a repair.
