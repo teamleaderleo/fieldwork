@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  EXPERIMENT_HEAD: bdeaae3240704e76febcb009e675e8ca8150fdc0
+  EXPERIMENT_HEAD: 7a30e4ffcb778b1c408199105743b47caddaad5a
   BASE_HEAD: d3ca9ad275e0cc93f985bb7485a776cec023d4ca
   PUBLIC_BASE: 95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d
   CURRENT_MAIN: 42c4227798c21cfde8dbfb087be1bb9078dab185
