@@ -2,47 +2,48 @@
 
 ## Status
 
-`NO NEW ISSUE — USE EXISTING NixOS/nixpkgs#516481`
+`EXISTING ISSUE LINKED FROM SUBMITTED PULL REQUEST`
 
-A new issue would duplicate the existing regression report. A future authorized pull request should link the issue and correct its causal explanation.
+- Existing issue: [gomarkdoc checkPhase regression](https://redirect.github.com/NixOS/nixpkgs/issues/516481)
+- Submitted pull request: [gomarkdoc: restore checks on Go 1.26](https://redirect.github.com/NixOS/nixpkgs/pull/549377)
 
-Public upstream contact remains unauthorized.
+No duplicate issue was opened. The submitted pull request uses `Closes #516481` and explains the corrected diagnosis.
 
 ## Corrected diagnosis
 
-The issue compares a Go 1.25 release branch with Go 1.26 master. Comparative execution proves:
+The public issue compares a Go 1.25 release branch with Go 1.26 master. Comparative execution established:
 
-- creating `.gomarkdoc-empty.yml` is unnecessary;
-- removing Nix's inherited `GOFLAGS` is unnecessary;
+- creating `.gomarkdoc-empty.yml` is unnecessary for the selected command-test repair;
+- removing Nix's inherited `GOFLAGS` is unnecessary for the selected command-test repair;
 - Go 1.26 fails the command documentation golden even with both cleanups;
-- updating one expected Go 1.26 markdown line restores the command check.
+- updating one expected Go 1.26 Markdown line restores the package-selected command tests;
+- the visible missing-file and unknown-flag messages are captured output, not the failing assertion.
 
-The visible missing-file and unknown-flag messages are captured output, not the failing assertion.
+## Submitted route
 
-## Preferred authorized route
+The user opened a direct pull request against Nixpkgs `master` from:
 
-Open a direct PR against current `master` and use:
+- branch `teamleaderleo/nixpkgs:contrib/gomarkdoc-go126-checks`;
+- head `060a1f8b8af68af858be896715c5dfc540522235`;
+- base `356468b500e85491b610431c87a284ca1f41b7bc`.
 
-```text
-Closes #516481
-```
+The submitted body explains the toolchain difference, the one-line expected-output update, the rejected fixture/`GOFLAGS` explanations, the unchanged installed program, prior Linux/Darwin evidence, and the automation disclosure.
 
-The PR should explain the release-branch/master toolchain difference, the exact Go 1.26 golden update, and the byte-identical installed-binary control.
+## Issue-comment decision
 
-## Optional future issue comment
+A separate issue comment is unnecessary while the pull request carries the diagnosis and closes the issue. Do not add an issue comment merely to repeat the pull-request body.
 
-A separate issue comment is unnecessary if the PR explains the result. If maintainers ask, retained wording is:
+If maintainers ask for clarification, prepare the reply in Fieldwork first and obtain the user's direction for that exact upstream interaction.
 
-> The passing reproducer is a release-25.11 snapshot using Go 1.25, while the failing master snapshot uses Go 1.26. A variant matrix shows fixture and GOFLAGS changes are unnecessary. Updating the one Go 1.26 command golden restores checks, and the checks-enabled installed binary is byte-identical to the current checks-disabled package.
-
-This text is retained only for future explicit authorization.
-
-## Authority checklist
+## Authority and interaction checklist
 
 - [x] Existing issue found.
 - [x] Duplicate issue avoided.
 - [x] Causal claim independently checked.
-- [x] Installed-output identity tested.
-- [x] No public comment, reaction, or maintainer contact performed.
-- [ ] Explicit authorization obtained for future public action.
-- [ ] Current issue state and contribution policy rechecked at submission time.
+- [x] Installed-output identity tested on the prior accepted source fence.
+- [x] Current contribution and automation-disclosure requirements rechecked before submission.
+- [x] User opened the submitted pull request.
+- [x] No automated upstream comment, review, reaction, or message was posted.
+- [ ] Current-head package execution or equivalent upstream CI retained.
+- [ ] Maintainer review resolved.
+- [ ] Merge, closure, withdrawal, or supersession recorded.
