@@ -4,7 +4,7 @@ Date: 2026-08-05
 
 These notes preserve read-only inquiry performed while unit 14 context was fresh. They do not expand unit 14's nine-file source scope, claim new numbered units, or authorize public upstream contact.
 
-The deepest source audit in this index was pinned to DuckDB public source `043e1894425b49984c5010f253589e5d9c5fdde4` (`Add checked cast helper to HTTPUtil`, 2026-08-05). Refresh every source-level claim before implementing a future unit.
+The main deep source audit was pinned to DuckDB public source `043e1894425b49984c5010f253589e5d9c5fdde4`. The C API ownership pattern was rechecked and remained present at newer public source `58c019320e250a7b369efd756f84c6dfd68bedcb`. Refresh every source-level claim before implementing a future unit.
 
 ## Research lanes
 
@@ -68,6 +68,12 @@ A type-by-type validation and safe-span program for dictionaries, run-end encodi
 
 An audit of extension identity, physical storage, DuckDB logical meaning, callback/context lifetime, unknown-extension degradation, and schema/appender agreement. It proposes explicit resolution states and parity tests across output versions, views, offsets, and nested storage.
 
+### 11. C API zero-copy ownership
+
+[`arrow-capi-zero-copy-ownership.md`](arrow-capi-zero-copy-ownership.md)
+
+A source-supported candidate defect in `duckdb_data_chunk_from_arrow`. Root `ArrowArray` ownership is transferred inside the per-column conversion loop, while the existing roundtrip test covers only one column. The note defines a two-column recursive-release fixture that can prove or disprove release-before-later-column conversion without prematurely claiming a confirmed bug.
+
 ## Earlier broad sweep
 
 [`../adjacent-duckdb-arrow-research-2026-08-05.md`](../adjacent-duckdb-arrow-research-2026-08-05.md) records the initial routing-level survey and source links.
@@ -84,7 +90,7 @@ Pushdown and repeatability cannot be inferred from a logical Arrow schema alone.
 
 ### Lifetimes are part of the data contract
 
-A valid schema or array is not enough if its producer, extension context, or release owner has already gone away.
+A valid schema or array is not enough if its producer, extension context, or release owner has already gone away. Ownership must be retained at the root/chunk level rather than accidentally depending on which column aliases producer memory.
 
 ### DuckDB self-roundtrip is necessary but insufficient
 
@@ -94,17 +100,41 @@ Reference consumers are needed to prove schema/data layout agreement, extension 
 
 Fast structural checks should prevent unsafe dereferences and arithmetic. Full content validation should exist as a strict/test oracle without automatically taxing every trusted scan.
 
+## Priority board
+
+### Highest-priority characterization
+
+**C API multi-column ownership**: narrow public API boundary, strong source signal, missing multi-column test, deterministic release-count oracle.
+
+### Strongest product contribution
+
+**Dense-union ingestion**: already demanded by merged ADBC producers and external standards.
+
+### Best small hardening slices
+
+- negative metadata count/length rejection;
+- schema child-count and pointer validation;
+- validity bitmap no-overread;
+- run-end structural/monotonic validation.
+
+### Best enabling infrastructure
+
+- release-count Arrow C Data fixture utility;
+- reference-consumer interop lane;
+- checked span helpers for nested/encoded layouts.
+
 ## Suggested routing order
 
 1. Finish unit 14 current-main reconciliation and complete-diff peer review.
-2. Take **dense-union ingestion** as the strongest separate product contribution.
-3. Take **metadata signed-length validation** and **schema child-structure validation** as small malformed-input units.
-4. Build a reusable **release-count C Data fixture utility**.
-5. Address **`arrow_scan` repeatability** with binding-specific capability or automatic materialization.
-6. Add **reference-consumer interoperability** as enabling infrastructure.
-7. Introduce **checked span helpers** before attempting broad encoded-layout validation.
-8. Add **extension schema/appender parity** and unknown-extension degradation observability.
-9. Revisit provider-specific pushdown after projection/residual-filter invariants are covered.
+2. Privately characterize the **C API multi-column ownership** candidate on exact current source.
+3. Take **dense-union ingestion** as the strongest separate product contribution.
+4. Take **metadata signed-length validation** and **schema child-structure validation** as small malformed-input units.
+5. Build a reusable **release-count C Data fixture utility**.
+6. Address **`arrow_scan` repeatability** with binding-specific capability or automatic materialization.
+7. Add **reference-consumer interoperability** as enabling infrastructure.
+8. Introduce **checked span helpers** before attempting broad encoded-layout validation.
+9. Add **extension schema/appender parity** and unknown-extension degradation observability.
+10. Revisit provider-specific pushdown after projection/residual-filter invariants are covered.
 
 ## Authority
 
