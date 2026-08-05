@@ -8,7 +8,7 @@ Exact prepared head: `f4cb44bcccffbc0eb39e774284655e0f965cfce1`
 Public interaction authorized: `no`  
 Internal technical record: [`DEEP_DIVE.md`](./DEEP_DIVE.md)
 
-The text between the dividers is the proposed public PR body. The issue should be filed and reviewed first; replace `#ISSUE` only after that issue exists. Internal workflow IDs, Fieldwork history, and superseded source generations do not belong in the public body.
+The text between the dividers is the proposed public PR body. The issue should be filed first; replace `#ISSUE` after it exists. The PR may follow after the review window unless someone raises a concrete scope or correctness objection. Internal workflow IDs, Fieldwork history, and superseded source generations do not belong in the public body.
 
 ---
 
@@ -101,8 +101,8 @@ ChatGPT was used to assist with code exploration, implementation review, test pr
 1. Finish and independently review the exact-head validation on the private source preview.
 2. Reconfirm public `main`, package versions, contribution guidance, specification links, and overlap.
 3. Obtain explicit authorization to file the reviewed issue draft.
-4. Give maintainers an initial opportunity to confirm the combined trace/log scope and preferred test placement.
-5. If maintainers respond, incorporate that direction. If there is no scope objection after a short review window, update this draft with the issue number and proceed to the PR decision.
+4. Allow up to 20 hours for concrete scope or correctness objections.
+5. Incorporate any specific objection that affects the contribution. If no such objection is raised, update this draft with the issue number and proceed to the PR decision.
 6. Obtain separate explicit authorization to open the public PR.
 7. Open the PR from the owned fork.
 8. Add the two required changelog entries using the assigned PR number and rerun affected checks.
