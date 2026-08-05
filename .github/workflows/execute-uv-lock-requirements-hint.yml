@@ -15,6 +15,7 @@ jobs:
     timeout-minutes: 90
     env:
       UV_BASE: 49e2fc5c821bb69a528308a036b17446bb5ab5a6
+      UV_GENERATOR: 81ef7a2aae15a54c1e61c58fea647e1962a84813
       CARRIER_BASE: 89a22025c94408ade6e09f316b7facecf8536c63
     steps:
       - name: Check out Fieldwork carrier
@@ -32,7 +33,7 @@ jobs:
           git diff --name-only "$CARRIER_BASE"...HEAD | sort > "$RUNNER_TEMP/carrier-files.txt"
           cat > "$RUNNER_TEMP/expected-carrier-files.txt" <<'EOF'
           .github/workflows/execute-uv-lock-requirements-hint.yml
-          scripts/execution/generate-uv-lock-requirements-hint.py
+          execution/uv-lock-requirements-hint.txt
           EOF
           diff -u "$RUNNER_TEMP/expected-carrier-files.txt" "$RUNNER_TEMP/carrier-files.txt"
 
@@ -44,12 +45,22 @@ jobs:
           fetch-depth: 1
           path: uv
 
+      - name: Check out exact generator
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/uv
+          ref: ${{ env.UV_GENERATOR }}
+          fetch-depth: 1
+          sparse-checkout: scripts/fieldwork/generate-uv-lock-requirements-hint.py
+          sparse-checkout-cone-mode: false
+          path: generator
+
       - name: Generate and fence exact source
         shell: bash
         working-directory: uv
         run: |
           set -euo pipefail
-          python ../carrier/scripts/execution/generate-uv-lock-requirements-hint.py
+          python ../generator/scripts/fieldwork/generate-uv-lock-requirements-hint.py
           git diff --name-only | sort > "$RUNNER_TEMP/source-files.txt"
           cat > "$RUNNER_TEMP/expected-source-files.txt" <<'EOF'
           crates/uv-requirements/Cargo.toml
