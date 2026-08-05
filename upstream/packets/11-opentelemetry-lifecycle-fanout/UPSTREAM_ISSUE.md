@@ -145,6 +145,8 @@ This mainly affects custom or third-party processors. It is a bounded lifecycle-
 
 A skipped processor may miss its final export or cleanup opportunity. In Node.js, the stale provider timer may also delay natural process termination by the configured force-flush timeout.
 
+A candidate implementation and regression tests are prepared in a fork. I can open a pull request after maintainers confirm whether the trace and logs changes should remain one contribution.
+
 A proposed repair would:
 
 ```text
@@ -221,6 +223,7 @@ A refreshed issue and pull-request search found no equivalent repair. The recent
 - [x] pure OpenTelemetry reproductions included;
 - [x] aggregate throw behavior distinguished from provider Promise-constructor behavior;
 - [x] failure reporting distinguished from invoking all processors;
+- [x] prepared implementation noted without linking internal staging records;
 - [x] released-package and current-main timeout forms distinguished;
 - [x] current-main and overlap refreshed on `2026-08-05`;
 - [x] metrics private-state-only behavior excluded;
