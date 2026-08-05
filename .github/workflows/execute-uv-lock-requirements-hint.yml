@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 90
     env:
       UV_BASE: 49e2fc5c821bb69a528308a036b17446bb5ab5a6
-      UV_GENERATOR: e1cfdb1c63dbdbde7292fcdab10a7aff989e47f7
+      UV_GENERATOR: 3e7882fdc906cfabec44c45ad5bd460f0477675a
       CARRIER_BASE: 5dedf5499a696f209650daad7c4ab18cdd0f1256
     steps:
       - name: Check out Fieldwork carrier
@@ -75,6 +75,7 @@ jobs:
 
       - name: Install Rust components
         shell: bash
+        working-directory: uv
         run: rustup component add rustfmt clippy
 
       - name: Format and compile
