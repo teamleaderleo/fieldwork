@@ -1,5 +1,5 @@
 {
-  "executed_at": "2026-08-02",
+  "executed_at": "2026-08-05",
   "environment": {
     "runtime": "Node.js",
     "dependencies": "none",
@@ -9,7 +9,8 @@
     "node artifacts/opencode-stale-idle-model.mjs",
     "node artifacts/tanstack-transform-order-model.mjs",
     "node artifacts/vercel-resume-adoption-model.mjs",
-    "node artifacts/vercel-poll-deadline-model.mjs"
+    "node artifacts/vercel-poll-deadline-model.mjs",
+    "node artifacts/authority-token-propagation-model.mjs"
   ],
   "results": {
     "opencode_stale_idle": {
@@ -56,6 +57,55 @@
         "outcome": "timeout",
         "elapsed": 35
       }
+    },
+    "authority_token_propagation": {
+      "epochWithoutProjectionFence": {
+        "backend": {
+          "epoch": 2,
+          "status": "busy"
+        },
+        "ui": {
+          "status": "idle"
+        }
+      },
+      "epochPropagatedToProjection": {
+        "backend": {
+          "epoch": 2,
+          "status": "busy"
+        },
+        "ui": {
+          "epoch": 2,
+          "status": "busy"
+        }
+      },
+      "replayWithoutAlignment": "hello hello world",
+      "replayWithAlignment": "hello world",
+      "deadlineWithoutProjectionFence": {
+        "operation": {
+          "settlement": "timeout"
+        },
+        "ui": {
+          "status": "completed"
+        }
+      },
+      "deadlinePropagatedToProjection": {
+        "operation": {
+          "settlement": "timeout"
+        },
+        "ui": {
+          "settlement": "timeout",
+          "status": "timed_out"
+        }
+      },
+      "durableIntentWithoutOutcomeProjection": {
+        "coordinator": {
+          "oldWakeAccepted": false,
+          "newPromptAccepted": true
+        },
+        "ui": {
+          "status": "busy"
+        }
+      }
     }
   },
   "evidence_class": "model-executed",
@@ -64,6 +114,7 @@
     "The OpenCode model preserves registry removal, replacement busy publication, and delayed stale idle publication; it does not model the Event effect implementation or HTTP transport.",
     "The TanStack model preserves ordered shared transforms and intermediate persistence; it does not exercise storage adapters or artifact byte handling.",
     "The Vercel resume model preserves assistant-message adoption before resumed identity; it does not exercise framework rendering or transport replay.",
-    "The Vercel polling model uses a virtual elapsed-time counter to distinguish check/sleep/poll orderings. It does not execute provider fetch handlers, clock APIs, or abort signals."
+    "The Vercel polling model uses a virtual elapsed-time counter to distinguish check/sleep/poll orderings. It does not execute provider fetch handlers, clock APIs, or abort signals.",
+    "The authority-token propagation model separates backend record, delivery log, and visible projection to demonstrate composition requirements; it does not claim that every mapped runtime exhibits every reduced failure."
   ]
 }
