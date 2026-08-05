@@ -8,11 +8,11 @@ Authority boundary: owned repositories and forks only. No upstream comments, rea
 
 ### 1. Meson #15998 — CMake CUDA standard normalization
 
-Status: `FOCUSED MODEL GREEN / PRECEDENCE HOLD`.
+Status: `FOCUSED MODEL GREEN / PROVENANCE CANDIDATE SELECTED / EXECUTION PENDING`.
 
-Owned source: `teamleaderleo/meson#3@8418a967ba268d323477752fe4fc17e8cf8f8256`.
+Owned investigation: `teamleaderleo/meson#3@3018ead551dc6f8902ab4b4e636dee4b97f31e55`.
 
-The CMake converter maps CMake `CUDA` file groups to Meson language `cuda`, but the standard-normalization pass visited only C and C++. The candidate includes CUDA in that existing pass.
+The CMake converter maps CMake `CUDA` file groups to Meson language `cuda`, but the standard-normalization pass visited only C and C++. The first candidate included CUDA in that existing pass.
 
 Execution-only carrier `teamleaderleo/meson#4` completed successfully:
 
@@ -28,14 +28,25 @@ The carrier receipt and before/after outputs are retained on source PR #3. Carri
 
 Evidence class: `compiler-free-target-executed` for language classification and raw-flag deduplication.
 
-The candidate is not ready because precedence remains unproved among:
+A later precedence control proved that the one-line model is not a complete fix: converting every effective CUDA standard into a generated target override defeats an ordinary parent-project `cuda_std`. Explicit `cmake.subproject_options()` overrides still replace the generated value, but the reporter's no-explicit-CMake-standard case remains wrong.
 
-- a standard reported by CMake File API compile flags;
-- a traced explicit `CUDA_STANDARD` target property or CMake global;
-- the top-level Meson `cuda_std` project default;
-- an explicit CMake subproject override.
+The selected next candidate is provenance-gated normalization:
 
-Next source work is a three-way or four-way precedence matrix, not another execution trigger for the already-green classification change.
+- always remove the effective raw CUDA `-std=` fragment;
+- emit a generated `cuda_std` target override only when the CMake trace shows matching explicit target intent through `CUDA_STANDARD` or direct target `COMPILE_OPTIONS`;
+- leave an unexplained effective standard without a target override so the parent Meson project default can remain authoritative;
+- preserve explicit Meson CMake-module overrides as final authority.
+
+The exact transformer and four compiler-free controls are retained on PR #3. Read-only execution PR `teamleaderleo/meson#6` targets immutable source `8418a967ba268d323477752fe4fc17e8cf8f8256`.
+
+Current carrier state:
+
+- workflow run `31019630325`;
+- job `92352674837`;
+- last observed state: `queued`;
+- this queue state is not source or behavior evidence.
+
+Superseded precedence carrier PR #5 and its obsolete default-branch workflow are retired. The temporary provenance workflow must be removed after exact result transfer.
 
 ### 2. ShellCheck #3263 — two separate owners
 
@@ -53,6 +64,8 @@ The final command-owned adjacency repair skips a reference only when:
 2. the next flow event is the matching assignment;
 3. token identity and variable name match;
 4. the assignment belongs to a simple command.
+
+This matches the exported/declaration-style synthetic-reference emitters (`export`, `declare`, `typeset`, and `local -x`) without keying the analysis to command-name strings.
 
 Read-only run `30959236798`, job `92159247440`, against immutable source `a1716be3b847dc23761d35137b43cef7752b3c1d` completed successfully on Ubuntu 24.04 with GHC 9.6.6:
 
@@ -98,17 +111,50 @@ No production change is justified without an accepted semantic design for when a
 
 ### 4. uv #13505 — Windows path-case duplicates in `uv python list`
 
-Status: `SOURCE/HISTORY MAPPED / WINDOWS EXECUTION REQUIRED`.
+Status: `ORDINAL-COMPARISON CANDIDATE SELECTED / WINDOWS EXECUTION PENDING`.
 
-Owned investigation: `teamleaderleo/uv#39@708fe0b557a9ac7a0fc98394477ba1771f52f977`.
+Owned investigation: `teamleaderleo/uv#39@89eb1dbac9aa018478ded480018faf999097a9ff`.
 
-Historical issue #9979 and PR #12628 intentionally changed `uv python list` to report the queried executable path instead of only `sys.executable`, preserving shim and search-path provenance. The current final listing then deduplicates with `FxHashSet<PathBuf>`, whose lexical equality remains case-sensitive. Windows case variants such as `C:\Python311\python.exe` and `c:\python311\python.exe` can therefore survive as duplicate rows.
+Historical issue #9979 and PR #12628 intentionally changed `uv python list` to report the queried executable path instead of only `sys.executable`, preserving shim and search-path provenance. The current final listing then deduplicates with case-sensitive Rust path equality. Windows case variants such as `C:\Python311\python.exe` and `c:\python311\python.exe` can therefore survive as duplicate rows.
 
-The packet contains a candidate Windows-only case-folded key and unit controls, but no production source change is applied. A final implementation must first use or introduce a helper matching Windows ordinal case-insensitive path semantics without lossy string conversion.
+The selected candidate uses the already-enabled `windows` 0.61 `Win32_Globalization` binding:
 
-Do not use file identity or canonicalization for this fix: intentional symlink, shim, and queried-path entries are part of the command's observable provenance and may need to remain distinct.
+- add `uv_windows::path_eq_ignore_case` using `CompareStringOrdinal` over UTF-16 path slices;
+- on Windows, scan the small set of already-seen queried paths with ordinal case-insensitive equality;
+- on non-Windows platforms, retain the current exact hash-set behavior;
+- add a direct Unicode/ASCII case control while preserving a distinct shim path;
+- extend the existing duplicate-PATH integration test with case-varied spellings of the same interpreter directories.
 
-Next gate: Windows-targeted unit and integration execution proving case-only duplicates collapse while distinct queried paths remain visible.
+The candidate deliberately avoids canonicalization, file identity, and lossy UTF-8 conversion. Intentional symlink, shim, and queried-path entries remain distinct unless their path strings differ only by Windows case semantics.
+
+Read-only execution PR `teamleaderleo/uv#48` targets immutable source `1da26a68629be6ae5fd7f924a7d49ff54763a7df` on Windows Server 2022.
+
+Current authoritative carrier state:
+
+- workflow run `31020377730`;
+- job `92355236199`;
+- last observed state: `queued`;
+- earlier queued generations are superseded harness runs;
+- queue state is not source or behavior evidence.
+
+The carrier requires a behavioral baseline failure, passing direct and integration controls for the candidate, rustfmt, diff hygiene, and an exact four-file source/test fence. No product source is published by the carrier.
+
+### 5. uv tool upgrade inventory errors
+
+Status: `OWNED-FORK SOURCE REPAIRED / CI PENDING`.
+
+Owned source: `teamleaderleo/uv#47@9e080cb2a92b35b01f42128902d7a6edfdc57481`.
+
+`uv tool upgrade --all` previously converted a top-level `InstalledTools::tools()` enumeration error into an empty inventory with `unwrap_or_default()`, then printed `Nothing to upgrade` and exited successfully.
+
+The production repair is one line: propagate `tools()?`. Complete-diff review confirmed this preserves the existing per-tool receipt-error policy because missing or malformed receipts remain values inside the returned vector; only failure to enumerate or parse the inventory itself stops the command.
+
+Review repaired two test-only defects before CI:
+
+- the case-sensitive predicate now matches the actual `Not a valid package...` diagnostic;
+- the deterministic invalid-directory regression requires only `test-python`, not the unrelated PyPI test feature.
+
+Current repository CI run `31020821954` is pending. That state is not execution evidence. Durable coordination remains Fieldwork issue #627.
 
 ## Occupied stops
 
@@ -138,11 +184,12 @@ These ownership checks are dated intake evidence and must be refreshed before an
 
 ## Work order
 
-1. Build Meson CUDA standard precedence controls on source PR #3.
-2. Locate or design a Windows ordinal path-key helper for uv PR #39, then run Windows-specific controls before applying production source.
-3. Keep the ShellCheck sourced-function case on investigation PR #3 until a current-base architecture is selected.
-4. Keep Cargo held until a semantic design is accepted.
-5. Refresh public ownership before opening any reserve lead.
+1. Classify Meson provenance run `31019630325`; transfer the exact receipt, remove its temporary workflow, and materialize only a clean reviewed source if the matrix is green.
+2. Classify uv Windows run `31020377730`; transfer the receipt, remove its temporary workflow, and materialize only a clean four-file source if the matrix is green.
+3. Classify uv PR #47 CI after the reviewed test repairs; keep queue state separate from execution evidence.
+4. Keep the ShellCheck sourced-function case on investigation PR #3 until a current-base architecture is selected.
+5. Keep Cargo held until a semantic design is accepted.
+6. Refresh public ownership before opening any reserve lead.
 
 ## Evidence boundary
 
