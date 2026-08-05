@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 90
     env:
       UV_BASE: 49e2fc5c821bb69a528308a036b17446bb5ab5a6
-      UV_GENERATOR: 882a675654c846e1365d62af5c6eec51bca05779
+      UV_GENERATOR: 903b416c7a1b514b1aaf0b38e9c38d5ca2d90f3c
       CARRIER_BASE: 5dedf5499a696f209650daad7c4ab18cdd0f1256
     steps:
       - name: Check out Fieldwork carrier
@@ -64,6 +64,7 @@ jobs:
           git add -N crates/uv/tests/pip_install/uv_lock_requirements_hint.rs
           git diff --name-only | sort > "$RUNNER_TEMP/source-files.txt"
           cat > "$RUNNER_TEMP/expected-source-files.txt" <<'EOF'
+          Cargo.lock
           crates/uv-requirements/Cargo.toml
           crates/uv-requirements/src/specification.rs
           crates/uv/src/commands/pip/operations.rs
@@ -90,14 +91,14 @@ jobs:
           cargo fmt --all --check
           git diff --stat | tee "$RUNNER_TEMP/source-stat.txt"
           git diff > "$RUNNER_TEMP/source.patch"
-          cargo check -p uv-requirements -p uv
+          cargo check --locked -p uv-requirements -p uv
 
       - name: Run focused integration controls
         shell: bash
         working-directory: uv
         run: |
           set -euo pipefail
-          cargo test -p uv --test pip_install --features test-python,test-pypi \
+          cargo test --locked -p uv --test pip_install --features test-python,test-pypi \
             uv_lock_requirements_hint -- --nocapture \
             | tee "$RUNNER_TEMP/focused-tests.txt"
 
@@ -106,7 +107,7 @@ jobs:
         working-directory: uv
         run: |
           set -euo pipefail
-          cargo clippy -p uv-requirements -p uv --tests \
+          cargo clippy --locked -p uv-requirements -p uv --tests \
             --features test-python,test-pypi -- -D warnings
 
       - name: Record exact generated tree
@@ -114,9 +115,13 @@ jobs:
         working-directory: uv
         run: |
           set -euo pipefail
+          git diff --check
+          git diff --name-only | sort > "$RUNNER_TEMP/source-files-recorded.txt"
+          diff -u "$RUNNER_TEMP/expected-source-files.txt" "$RUNNER_TEMP/source-files-recorded.txt"
           git config user.name "fieldwork-execution"
           git config user.email "fieldwork-execution@users.noreply.github.com"
           git add \
+            Cargo.lock \
             crates/uv-requirements/Cargo.toml \
             crates/uv-requirements/src/specification.rs \
             crates/uv/src/commands/pip/operations.rs \
@@ -135,6 +140,7 @@ jobs:
             ${{ runner.temp }}/carrier-files.txt
             ${{ runner.temp }}/source-files.txt
             ${{ runner.temp }}/source-files-formatted.txt
+            ${{ runner.temp }}/source-files-recorded.txt
             ${{ runner.temp }}/source-stat.txt
             ${{ runner.temp }}/source.patch
             ${{ runner.temp }}/focused-tests.txt
