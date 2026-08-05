@@ -1,32 +1,27 @@
 # Packet status
 
-Current disposition: `ISSUE FIRST`
+Current disposition: `ISSUE FILED / WAITING FOR MAINTAINER APPROVAL OR ASSIGNMENT`
 
-Exact canonical source head: `e99e97da2acfc6c1a67749bc749e1d0cb71b5607`
+Upstream issue: [MCP HTTP clients can terminate the server through `/killkillkill`](https://redirect.github.com/microsoft/playwright/issues/42129)
 
-Owned source PR: `teamleaderleo/playwright#40`
+## Preferred source
 
-Packet branch: `p0/435-unit-18-playwright-mcp-shutdown`
+- owned source PR: `teamleaderleo/playwright#48`
+- public base: `2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2`
+- exact source: `10e28dfdd7758d92aeed50922fd9c7ce9596c21c`
+- exact file fence:
+  - `packages/playwright-core/src/tools/utils/mcp/http.ts`
+  - `packages/playwright-core/src/tools/utils/mcp/server.ts`
+  - `tests/mcp/http.spec.ts`
 
-Canonical finding: `teamleaderleo/fieldwork#404`
+The source removes `/killkillkill`. In HTTP mode under Playwright's test marker, parent stdin EOF enters the existing `SIGINT` cleanup path. The stdio branch returns before the HTTP-only stdin listener is installed.
 
-Exact-current execution carrier: `teamleaderleo/fieldwork#455@0323aeaadc391575b572e869258e5e1ac3c4652c`
+## Exact-head execution
 
-Current exact-head result: Ubuntu 24.04, macOS 15, and Windows 2025 each passed 18/18 native MCP HTTP tests plus exact identity, locked install, complete build, Chromium, focused ESLint, clean tree, and exact diff in workflow `30690674059`.
+Run `30855503566` passed the full 21-test native MCP HTTP file, build, focused ESLint, clean-tree check, and exact three-file fence on Ubuntu 24.04, macOS 15 ARM64, and Windows Server 2025.
 
-Packet integrity: packet head `2ed6f016b767569f27945a7ad6f0e935b6ffdc5c` passed run `30705107786`. This status-record update creates the next packet head, which must also pass integrity before final handoff.
+## Next gate
 
-Adjacent research: stdin-owner EOF repair head `86d32569b47fd9f6e98c11517d1699cea5a2465a` passed a 17-test three-platform matrix in run `30704592268`, but global stdin consumption can race stdio MCP input. It remains a mode-aware alternative, not the canonical source.
+Wait for an explicit maintainer approval for community contribution or assignment of the upstream issue. Open the linked upstream PR only after that response and separate user authorization.
 
-Remaining gate order:
-
-1. obtain independent complete-diff review and final acceptance;
-2. decide the preferred ownership mechanism during issue-first design discussion;
-3. squash the seven-commit canonical source history before any authorized submission and prove tree equivalence or rerun declared gates;
-4. refresh the public base and duplicate search;
-5. follow Playwright's issue approval and assignment process;
-6. obtain separate explicit authority before public issue, PR, comment, or reaction.
-
-Public upstream contact: unauthorized; none performed.
-
-Read `README.md`, `CURRENT_EXECUTION.md`, `ADJACENT_RESEARCH.md`, `TESTS.md`, `REVIEW.md`, and `HANDOFF.md`.
+Strict parent IPC at `teamleaderleo/playwright#40@e99e97da2acfc6c1a67749bc749e1d0cb71b5607` remains the executed fallback.
