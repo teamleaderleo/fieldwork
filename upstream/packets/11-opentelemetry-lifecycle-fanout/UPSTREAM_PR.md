@@ -39,7 +39,7 @@ The implementation:
 - snapshots the separate `TracerProvider.forceFlush()` target list;
 - routes synchronous provider failures through the existing timeout-clearing and error-array path;
 - preserves the current per-call trace timeout option and log timeout wrapping;
-- adds focused regression coverage for direct throws, opening-set mutation, provider error shape, timeout cleanup, and genuine timeout behavior.
+- adds regression coverage for direct throws, opening-set mutation, provider error shape, timeout cleanup, and genuine timeout behavior.
 
 Metrics is intentionally out of scope. The comparable collector list is internally constructed, prior mutation controls required private-state access, and metric collector lifecycle methods are already `async`.
 
@@ -52,7 +52,7 @@ Metrics is intentionally out of scope. The comparable collector list is internal
 
 ## How Has This Been Tested?
 
-Eleven focused assertions cover:
+Eleven assertions cover:
 
 - trace aggregate shutdown and force flush after a direct synchronous throw;
 - log aggregate shutdown and force flush after a direct synchronous throw;
