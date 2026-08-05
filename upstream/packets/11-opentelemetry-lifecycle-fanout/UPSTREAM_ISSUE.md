@@ -29,21 +29,18 @@ processor A removes processor B from the retained array
 
 ## Intended lifecycle behavior
 
-The trace SDK specification requires provider shutdown to invoke shutdown on all internal processors and force flush to invoke force flush on all registered span processors. The logs SDK specification requires the same for all registered log record processors. Both specifications separately say the operation should tell the caller whether it succeeded, failed, or timed out.
-
-Those are separate requirements:
+The trace SDK specification requires provider shutdown to invoke shutdown on all internal processors and force flush to invoke force flush on all registered span processors. The logs SDK specification requires the same for all registered log record processors. Both specifications also say the operation should tell the caller whether it succeeded, failed, or timed out.
 
 ```text
 processor A fails
 processor B succeeds
 
-expected:
-    call A
-    call B
-    report the operation as failed under the existing result policy
+call A
+call B
+report the operation as failed through the existing result policy
 ```
 
-This proposal doesn't turn a failed operation into success. It prevents one processor's failure from suppressing unrelated processors' final export or cleanup opportunity. If several operations are deliberately dependent, that dependency can be owned inside one composite processor rather than arising accidentally from a synchronous throw.
+Processor failures stay visible while every processor present at operation start gets its lifecycle call.
 
 Specification references:
 
@@ -58,7 +55,7 @@ Specification references:
 import type { SpanProcessor } from '@opentelemetry/sdk-trace';
 import { TracerProvider } from '@opentelemetry/sdk-trace';
 
-let secondCalls = 0;
+let secondShutdownCalls = 0;
 
 const first: SpanProcessor = {
   onStart() {},
@@ -74,7 +71,7 @@ const second: SpanProcessor = {
   onEnd() {},
   forceFlush: async () => {},
   shutdown: async () => {
-    secondCalls += 1;
+    secondShutdownCalls += 1;
   },
 };
 
@@ -84,14 +81,14 @@ try {
   await provider.shutdown();
 } catch {}
 
-console.log(secondCalls); // current: 0, expected: 1
+console.log(secondShutdownCalls); // current: 0, expected: 1
 ```
 
 `TracerProvider.shutdown()` delegates to `MultiSpanProcessor.shutdown()`. The first direct throw exits the loop before the second processor is invoked.
 
-The same direct-throw behavior exists in `MultiSpanProcessor.forceFlush()` and in log processor shutdown and force-flush fanout.
+The same direct-throw behavior is present in `MultiSpanProcessor.forceFlush()` and in log processor shutdown/force-flush fanout.
 
-### A synchronous provider force-flush failure can leave its timeout armed
+### A synchronous force-flush throw leaves the provider timeout armed
 
 Current `main` supports a per-call timeout:
 
@@ -125,47 +122,58 @@ For released `@opentelemetry/sdk-trace` 2.10.0, configure the same timeout with 
 
 ### Removing a processor during fanout changes the current operation
 
-The providers retain the supplied processor array. If the first processor synchronously runs `processors.splice(1, 1)` during shutdown or force flush, live iteration can skip the removed processor even though it belonged to the opening set.
+```text
+processors = [A, B]
+A runs processors.splice(1, 1)
+live iteration skips B
+```
+
+Array mutations should apply to later operations. The operation already in progress should keep its opening processor set.
 
 ## Expected result
 
-Every processor present when a lifecycle operation begins should be invoked once for that operation.
+```text
+opening processors = snapshot(current processors)
 
-A processor-array mutation may affect later operations, but it shouldn't rewrite the operation already in progress. A direct synchronous implementation error should enter the entrypoint's existing asynchronous failure path, and a processor's timeout should be cleared once that processor has already failed.
+for each processor in opening processors:
+    invoke lifecycle method
+    route a direct throw into the existing promise failure path
 
-The overall operation may still fail. This issue concerns which processors are attempted, not whether failure is reported.
+report the operation through the existing result policy
+clear any timer owned by a processor that has already finished or failed
+```
 
 ## Actual result
 
-Depending on the entrypoint, a direct synchronous throw or live-array mutation can prevent a later opening processor from being invoked. `TracerProvider.forceFlush()` can also retain a referenced timeout after it has already reported the corresponding synchronous failure.
+A direct synchronous throw or live-array mutation can skip a later opening processor. `TracerProvider.forceFlush()` can also retain a referenced timeout after reporting the corresponding synchronous failure.
 
 ## Additional details
 
-This mainly affects custom or third-party processors. It's a lifecycle-correctness and shutdown-reliability issue; it isn't evidence that built-in processors routinely lose telemetry.
-
-A skipped processor may miss its final export or cleanup opportunity. In Node.js, the stale provider timer may also delay natural process termination by the configured force-flush timeout.
+This mainly affects custom or third-party processors. A skipped processor may miss its final export or cleanup opportunity. In Node.js, the stale provider timer can delay natural process termination by the configured timeout.
 
 A candidate implementation and tests are prepared in a fork.
 
 ```text
 operation starts
-    -> snapshot the processor list
-    -> invoke every processor in that snapshot
-    -> convert direct synchronous throws into rejected promises
-    -> preserve the existing error and timeout policy
+    -> snapshot processor list
+    -> call each processor in the snapshot
+    -> convert direct throws to rejected promises
+    -> use the existing error and timeout policy
 ```
 
-Affected implementation points:
+Affected paths:
 
 - `MultiSpanProcessor.shutdown()` and `forceFlush()`
 - `TracerProvider.forceFlush()`
 - `MultiLogRecordProcessor.shutdown()` and `forceFlush()`
 
-Metrics isn't included. `MeterProvider` constructs its collector list internally, the earlier mutation control required private-state access, and metric collector lifecycle methods are already `async`.
+Metrics stays out of scope because its collector list is internally constructed and its lifecycle methods already cross an async boundary.
+
+Public APIs, configuration, dependencies, and normal telemetry processing stay unchanged. Each repaired lifecycle entrypoint adds one shallow array copy.
 
 ## OpenTelemetry setup code
 
-The reproduction above is the complete setup and uses only public OpenTelemetry interfaces.
+The reproduction above is the complete setup and uses public OpenTelemetry interfaces.
 
 ## package.json
 
@@ -186,14 +194,14 @@ Current `main` was also checked at:
 ## Relevant log output
 
 ```text
-secondCalls: 0
+secondShutdownCalls: 0
 forceFlush rejected
 process exit delayed until the forceFlush timeout expires
 ```
 
 ## Operating System and Version
 
-I reproduced this in a Node.js process; it doesn't depend on a specific operating system.
+The behavior follows JavaScript control flow and reproduces independently of the operating system.
 
 ## Runtime and Version
 
