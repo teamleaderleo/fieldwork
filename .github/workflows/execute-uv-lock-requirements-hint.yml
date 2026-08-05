@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 90
     env:
       UV_BASE: 49e2fc5c821bb69a528308a036b17446bb5ab5a6
-      UV_GENERATOR: 3e7882fdc906cfabec44c45ad5bd460f0477675a
+      UV_GENERATOR: 3ef99f4a3cca9381295ab08ddb6277ee39351fb9
       CARRIER_BASE: 5dedf5499a696f209650daad7c4ab18cdd0f1256
     steps:
       - name: Check out Fieldwork carrier
@@ -66,7 +66,7 @@ jobs:
           cat > "$RUNNER_TEMP/expected-source-files.txt" <<'EOF'
           crates/uv-requirements/Cargo.toml
           crates/uv-requirements/src/specification.rs
-          crates/uv/src/commands/diagnostics.rs
+          crates/uv/src/commands/pip/operations.rs
           crates/uv/tests/pip_install/main.rs
           crates/uv/tests/pip_install/uv_lock_requirements_hint.rs
           EOF
@@ -119,7 +119,7 @@ jobs:
           git add \
             crates/uv-requirements/Cargo.toml \
             crates/uv-requirements/src/specification.rs \
-            crates/uv/src/commands/diagnostics.rs \
+            crates/uv/src/commands/pip/operations.rs \
             crates/uv/tests/pip_install/main.rs \
             crates/uv/tests/pip_install/uv_lock_requirements_hint.rs
           git commit -m "fix: hint when uv lockfiles are used as requirements"
