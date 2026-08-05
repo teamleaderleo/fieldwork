@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "batch_id": "B20260805-001",
+  "title": "Vite, Rollup, and Rolldown lifecycle contract map",
+  "state": "ready",
+  "coordinator": "teamleaderleo",
+  "created_at": "2026-08-05",
+  "parent_issue": 639,
+  "programme_issue": 15,
+  "target_issue": 9,
+  "source_context_issue": 624,
+  "purpose": "Map Rollup and Rolldown lifecycle contracts independently, then reconcile them against Vite before proposing further compatibility or policy changes.",
+  "intended_claim_scope": "interface",
+  "synthesis_context_path": null,
+  "exclusions": [
+    "No upstream contact.",
+    "No implementation changes during A001 or A002.",
+    "No promotion of Rollup or Rolldown to recurring targets without continuing independent work.",
+    "No broad scheduler or multi-error policy proposal presented as a compatibility repair."
+  ],
+  "constraints": {
+    "upstream_contact_authorized": false,
+    "max_parallel": 2,
+    "default_time_boundary": "Produce a bounded contract map and ranked next questions; stop before speculative implementation."
+  },
+  "dimensions": {
+    "targets": [
+      "vitejs/vite",
+      "rollup/rollup",
+      "rolldown/rolldown"
+    ],
+    "questions": [
+      "What lifecycle contract does Rollup document, implement, and test?",
+      "Which Rollup-compatible lifecycle behaviors does Rolldown implement or intentionally differ from?",
+      "Where does Vite match, adapt, or diverge from those contracts?"
+    ],
+    "methods": [
+      "source-map",
+      "contract-review",
+      "test-map",
+      "compatibility-matrix",
+      "bounded-probe"
+    ],
+    "context_lenses": [
+      "mechanism",
+      "contract",
+      "compatibility"
+    ]
+  },
+  "assignments": [
+    {
+      "id": "A001",
+      "kind": "probe",
+      "target": "rollup/rollup",
+      "source_revision": "Pin exact master SHA at claim time; retrieval boundary 2026-08-05 or later.",
+      "question": "What lifecycle, scheduling, argument, watch, shutdown, and outward-error contracts does Rollup document, implement, and test?",
+      "method": "contract and source map",
+      "claim_scope": "interface",
+      "claim_to_support_or_falsify": "Rollup supplies a concrete lifecycle contract that can be used as the first comparison boundary for Vite plugin behavior.",
+      "preferred_primary_sources": [
+        "Rollup source at the claimed exact revision",
+        "Rollup public types",
+        "Rollup official documentation",
+        "Rollup external-behavior tests"
+      ],
+      "evidence_labels_allowed": [
+        "Normative",
+        "Documented",
+        "Observed",
+        "Inferred",
+        "Unknown"
+      ],
+      "integration_context_path": null,
+      "deliverable": "Lifecycle diagram, exact source and test map, error and scheduling table, negative results, and ranked comparison questions.",
+      "owned_path": "batches/B20260805-001-vite-rollup-rolldown-contract-map/results/A001.md",
+      "dependencies": [],
+      "state": "ready",
+      "stop_condition": "Stop after the contract map is sufficient for comparison, or record blocked/unknown semantics that cannot be established from public source and tests.",
+      "upstream_contact_authorized": false
+    },
+    {
+      "id": "A002",
+      "kind": "probe",
+      "target": "rolldown/rolldown",
+      "source_revision": "Pin exact main SHA at claim time; retrieval boundary 2026-08-05 or later.",
+      "question": "Which Rollup-compatible lifecycle behaviors does Rolldown implement, test, intentionally differ from, or leave incomplete?",
+      "method": "compatibility and source map",
+      "claim_scope": "interface",
+      "claim_to_support_or_falsify": "Rolldown exposes an observable compatibility surface that Vite lifecycle work must consider alongside Rollup.",
+      "preferred_primary_sources": [
+        "Rolldown source at the claimed exact revision",
+        "Rolldown public types and compatibility layers",
+        "Rolldown official documentation",
+        "Rolldown compatibility and integration tests"
+      ],
+      "evidence_labels_allowed": [
+        "Normative",
+        "Documented",
+        "Observed",
+        "Inferred",
+        "Unknown"
+      ],
+      "integration_context_path": null,
+      "deliverable": "Compatibility matrix, exact source and test map, deliberate deviations, migration hazards, negative results, and ranked Vite questions.",
+      "owned_path": "batches/B20260805-001-vite-rollup-rolldown-contract-map/results/A002.md",
+      "dependencies": [],
+      "state": "ready",
+      "stop_condition": "Stop after observable compatibility behavior and known gaps are mapped, or record a blocked result where public evidence is insufficient.",
+      "upstream_contact_authorized": false
+    },
+    {
+      "id": "A003",
+      "kind": "probe",
+      "target": "vitejs/vite",
+      "source_revision": "Pin exact default-branch SHA after A001 and A002 handoffs are accepted.",
+      "question": "Where does Vite match, adapt, or diverge from Rollup and Rolldown lifecycle contracts, and which differences deserve bounded follow-up?",
+      "method": "cross-target synthesis and bounded probe",
+      "claim_scope": "interface",
+      "claim_to_support_or_falsify": "A Vite lifecycle difference can be classified as shared contract, intentional adaptation, plausible compatibility defect, or separate policy proposal.",
+      "preferred_primary_sources": [
+        "Accepted A001 and A002 results",
+        "Vite source at the claimed exact revision",
+        "Vite public types and documentation",
+        "Vite lifecycle and plugin-container tests"
+      ],
+      "evidence_labels_allowed": [
+        "Normative",
+        "Documented",
+        "Observed",
+        "Inferred",
+        "Unknown"
+      ],
+      "integration_context_path": null,
+      "deliverable": "Vite compatibility matrix, exact call-site and test map, one bounded probe or explicit feasibility limit, ranked next investigations, and target-promotion recommendation.",
+      "owned_path": "batches/B20260805-001-vite-rollup-rolldown-contract-map/results/A003.md",
+      "dependencies": [
+        "A001 accepted handoff",
+        "A002 accepted handoff"
+      ],
+      "state": "blocked",
+      "stop_condition": "Stop after differences are classified and bounded next questions are ranked; do not implement or contact upstream.",
+      "upstream_contact_authorized": false
+    }
+  ]
+}
