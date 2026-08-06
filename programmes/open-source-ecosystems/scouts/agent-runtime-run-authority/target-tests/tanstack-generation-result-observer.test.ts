@@ -1,7 +1,33 @@
 import { describe, expect, it, vi } from 'vitest'
-import { generateImage } from '../../src/index'
+import {
+  generateImage,
+  type GenerationMiddleware,
+  type ImageAdapter,
+} from '../../src/index'
 import { observeGenerationResult } from '../../src/adapter-internals'
-import type { GenerationMiddleware } from '../../src/activities/middleware'
+
+function imageAdapter(url: string): ImageAdapter<string> {
+  return {
+    kind: 'image',
+    name: 'fieldwork-image-provider',
+    model: 'fieldwork-image-model',
+    '~types': {
+      providerOptions: {},
+      modelProviderOptionsByName: {},
+      modelSizeByName: {},
+      modelInputModalitiesByName: {},
+    },
+    generateImages: vi.fn(async () => ({
+      images: [{ url }],
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        unitsBilled: 1,
+      },
+    })),
+  }
+}
 
 describe('generation final-result observers', () => {
   it('observes the result only after every registered transform', async () => {
@@ -35,23 +61,8 @@ describe('generation final-result observers', () => {
       },
     }
 
-    const adapter = {
-      kind: 'image' as const,
-      name: 'fieldwork-image-provider',
-      model: 'fieldwork-image-model',
-      generateImages: vi.fn(async () => ({
-        images: [{ url: 'https://provider.test/original.png' }],
-        usage: {
-          promptTokens: 0,
-          completionTokens: 0,
-          totalTokens: 0,
-          unitsBilled: 1,
-        },
-      })),
-    }
-
     const result = await generateImage({
-      adapter: adapter as any,
+      adapter: imageAdapter('https://provider.test/original.png'),
       prompt: 'final-result observer',
       middleware: [observer, laterTransform],
     })
@@ -73,28 +84,14 @@ describe('generation final-result observers', () => {
         })
       },
     }
-    const adapter = {
-      kind: 'image' as const,
-      name: 'fieldwork-image-provider',
-      model: 'fieldwork-image-model',
-      generateImages: vi.fn(async () => ({
-        images: [{ url: 'https://provider.test/image.png' }],
-        usage: {
-          promptTokens: 0,
-          completionTokens: 0,
-          totalTokens: 0,
-          unitsBilled: 1,
-        },
-      })),
-    }
 
     await generateImage({
-      adapter: adapter as any,
+      adapter: imageAdapter('https://provider.test/first.png'),
       prompt: 'first observer call',
       middleware: [observer],
     })
     await generateImage({
-      adapter: adapter as any,
+      adapter: imageAdapter('https://provider.test/second.png'),
       prompt: 'second observer call',
       middleware: [],
     })
