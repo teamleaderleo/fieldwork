@@ -21,15 +21,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: teamleaderleo/opencode
-          ref: 78113035e0cba4d2165857ba870d382ece22f5c2
+          ref: 5312a23530613fbc00588e83fcb1a7b4e837701a
           fetch-depth: 1
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
 
-      - name: Verify exact repair head
-        run: test "$(git rev-parse HEAD)" = "78113035e0cba4d2165857ba870d382ece22f5c2"
+      - name: Verify exact current-dev repair head
+        run: test "$(git rev-parse HEAD)" = "5312a23530613fbc00588e83fcb1a7b4e837701a"
 
       - name: Install workspace
         run: bun install --frozen-lockfile
@@ -54,4 +54,4 @@ jobs:
             src/session/run-state.ts \
             test/session/run-state-idle-authority.test.ts
 
-# Owned-fork repair acceptance only. No upstream write.
+# Exact current-dev owned-fork repair acceptance. No upstream write.
