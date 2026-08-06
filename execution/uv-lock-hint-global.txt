@@ -1,5 +1,6 @@
 uv base: b358fb6fce199fb1977913d310ddb6d573e44031
 source commit: 51c9fe109f037d084fd17647dc78a6451c2938f2
-refinement commit: 30545ac85da74cfc7942fb964c1812da9633c0e6
+refinement commit: 7a1c5bc91fd7a3d89d24f58d46db4a86cd7bc94d
 carrier fence: exact event base/head SHAs
 source provenance: public base plus fork candidate
+rust components: explicit rustfmt and clippy
