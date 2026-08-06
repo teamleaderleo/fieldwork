@@ -4,6 +4,18 @@
 
 State what is being reviewed, what transition is requested, the strongest supported result, and the main reason it should be accepted, repaired, held, executed, or rejected.
 
+This template is a menu for a complete review. Use the smallest set of fields that establishes scope, evidence, limits, disposition, and the next transition. Add detail when the work creates a real decision need. An equivalent narrative, table, or machine-readable receipt is valid.
+
+## Feedback level
+
+Classify each review item before asking for a change:
+
+- **Blocking finding** — concrete defect, unsupported claim, missing evidence, broken boundary, or unsafe transition.
+- **Recommendation** — stronger route, useful control, clearer explanation, or maintainability improvement.
+- **Presentation preference** — wording, order, naming, or visual taste.
+
+Only blocking findings prevent the requested transition. State the observed risk, supporting evidence, and outcome required for clearance. Leave the repair method open unless an exact mechanism is part of the contract.
+
 ## Scope
 
 - Repository:
