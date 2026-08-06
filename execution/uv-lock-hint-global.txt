@@ -1,7 +1,7 @@
 uv base: b358fb6fce199fb1977913d310ddb6d573e44031
 source commit: 51c9fe109f037d084fd17647dc78a6451c2938f2
-refinement commit: 7a1c5bc91fd7a3d89d24f58d46db4a86cd7bc94d
+refinement commit: 32164398a12cbab0bf3e7240b3179ecdd33d9e31
 carrier fence: exact event base/head SHAs
 source provenance: public base plus fork candidate
 rust components: explicit rustfmt and clippy
-workflow pin: aligned to refinement commit
+applied source: unstaged before exact seven-file diff fence
