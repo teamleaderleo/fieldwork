@@ -1,20 +1,13 @@
 name: Scout 528 Vercel clean-source acceptance
 
 on:
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   vercel-clean-source-deadline:
-    if: github.event.pull_request.head.ref == 'scout/528-agent-runtime-run-authority'
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
@@ -97,4 +90,4 @@ jobs:
             target/packages/ai/src/generate-video/core-video-operation-deadline.test.ts
           if-no-files-found: error
 
-# Exact-head independent acceptance for Scout 528. No upstream write.
+# Retained exact-head acceptance. Completed green on run 31102253443.
