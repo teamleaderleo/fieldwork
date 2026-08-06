@@ -6,6 +6,8 @@ Every durable Fieldwork record should prove that its author understands the subj
 
 Plain language doesn't mean prose-only, and it doesn't mean writing for a non-technical audience. Code, pseudocode, state diagrams, traces, equations, and compact tables are often the clearest plain language available for a computing concept.
 
+`## In simple words` is a useful default entry point because readers recognize it across the repository. A clearer audience-specific heading, proposal sentence, question, diagram, or table can serve the same purpose. Use the exact heading when a validator or assignment depends on it; elsewhere optimize for comprehension.
+
 ## Lead with the proposal or question
 
 When a record recommends a change, begin with a sentence shaped like:
@@ -21,6 +23,8 @@ Don't make the reader reconstruct the actual proposal from a long history sectio
 ## Voice and tense
 
 Write like a technically literate person talking to another technically literate person. Contractions are welcome: use “doesn't,” “won't,” “we'll,” and “it's” when they're the natural phrasing. Don't expand them merely to sound formal.
+
+Preserve the author's voice while improving accuracy, clarity, and consequence. A house style should help readers navigate; it should never flatten every report into the same rhythm.
 
 Use tense to keep the timeline clear:
 
@@ -81,7 +85,7 @@ Why does the difference matter?
 What remains uncertain or blocked?
 ```
 
-The answers may be expressed as prose, code, diagrams, or a mixture. The format should match the subject.
+The answers may be expressed as prose, code, diagrams, or a mixture. The format should match the subject. One compact passage can carry several answers; use separate sections only when they help the reader.
 
 ## Purpose
 
@@ -92,6 +96,8 @@ This is an understanding test, not an executive summary and not marketing. It sh
 Explain the current model before implementation detail. Prefer concrete nouns and verbs over broad claims such as “improves robustness.” Separate established behaviour from suspicion. State when a consequence is illustrative rather than documented. Don't claim that a small reproduction models an entire production system. Update the explanation when the underlying conclusion changes. Keep caveats near the claim they qualify.
 
 Don't over-explain an obvious control-flow repair after the invariant is visible. Once code or a diagram makes the mechanism clear, spend prose on the non-obvious judgment: compatibility, ownership, policy, risk, or alternatives.
+
+State stable facts once and link to them from supporting records. Repetition is useful when a record must stand alone; ritual restatement across a packet usually hides the current answer.
 
 ## Examples
 
