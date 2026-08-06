@@ -4,3 +4,4 @@ refinement commit: 7a1c5bc91fd7a3d89d24f58d46db4a86cd7bc94d
 carrier fence: exact event base/head SHAs
 source provenance: public base plus fork candidate
 rust components: explicit rustfmt and clippy
+workflow pin: aligned to refinement commit
