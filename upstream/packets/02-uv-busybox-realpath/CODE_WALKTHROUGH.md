@@ -1,109 +1,102 @@
 # Code walkthrough — uv BusyBox `realpath` compatibility
 
-## What uv is
+## What uv is doing
 
-uv is a Python project and package-management tool. It can create virtual environments, install packages, run tools, maintain lockfiles, and generate executable command wrappers for installed Python applications.
+uv can generate executable wrappers for Python commands and activation scripts for relocatable virtual environments. Those files cannot hard-code the environment's original absolute path, so they find their own location at runtime and select the neighboring Python interpreter or environment directory.
 
-When a Python package exposes a command such as `ruff`, `normalizer`, or `pytest`, uv may create a small launcher file in an environment's `bin` directory. The launcher finds the Python interpreter belonging to that environment and then runs the package's Python entrypoint.
+Rust owns the code that generates this shell text and, in one path, recognizes previously generated launcher text later.
 
-A relocatable environment cannot safely hard-code its original absolute path. Its launcher instead computes its own location at runtime and selects the neighboring interpreter.
+## The final generated decision
 
-## What Rust is doing here
-
-uv is implemented mainly in Rust. Rust is a compiled systems language with static types, explicit ownership rules, pattern matching, and strong tooling. In this patch, Rust is not performing low-level memory work. It is mostly:
-
-- constructing shell-script strings;
-- matching generated strings later;
-- updating exact tests;
-- using conditional compilation so Unix-only code is not compiled on Windows.
-
-The behavior being fixed is shell behavior. Rust owns the code that **generates and later recognizes** that shell text.
-
-## The generated shell launcher
-
-The important fragment is:
+The final submitted patch used this POSIX shell fragment:
 
 ```sh
-"$(dirname -- "$(realpath -- "$0")")"/'python'
+if _uv_realpath_probe=$(realpath -- / 2>/dev/null) &&
+    [ "$_uv_realpath_probe" = / ]; then
+    realpath -- "$0"
+else
+    realpath "$0"
+fi
 ```
 
-Read it from the inside out:
+Read it in order:
 
-1. `$0` is the path used to invoke the launcher.
-2. `realpath` converts it to a canonical absolute path and follows symlinks.
-3. `dirname` removes the launcher filename, leaving its containing `bin` directory.
-4. `/'python'` selects the Python interpreter beside the launcher.
-5. `exec` replaces the shell process with that Python interpreter.
+1. Run `realpath -- /` and capture stdout.
+2. Suppress the expected BusyBox diagnostic from the probe.
+3. Require a successful exit status.
+4. Require the captured output to equal `/`.
+5. If both checks pass, resolve the launcher with the protected `realpath -- "$0"` form.
+6. Otherwise use the BusyBox-compatible `realpath "$0"` form.
 
-The candidate changes only the inner call:
+Checking both status and output handles the edge case where a file named `--` exists. BusyBox may then resolve both `--` and `/` successfully, but the captured output contains more than `/` and fails the capability check.
 
-```sh
-"$(dirname -- "$(realpath "$0")")"/'python'
-```
-
-BusyBox `realpath` does not parse `--` as an option terminator. It treats it as a pathname and prints an error. BusyBox `dirname` does support its existing `--`, so that delimiter stays.
+The surrounding launcher still uses `dirname --`, quoting, and `realpath` canonicalization.
 
 ## File 1: `crates/uv-install-wheel/src/wheel.rs`
 
-This crate installs Python wheels and writes console-script entrypoints.
+This crate installs wheels and writes console-script entrypoints.
 
-The relevant Rust function is `format_shebang`. For a relocatable POSIX launcher it chooses a shell wrapper rather than a fixed absolute shebang.
-
-Conceptually:
+The patch introduced a Rust constant containing the shell capability decision:
 
 ```rust
-let prefix = if relocatable {
-    r#""$(dirname -- "$(realpath "$0")")"/"#
-} else {
-    ""
-};
+const RELOCATABLE_REALPATH: &str =
+    r#"if _uv_realpath_probe=$(realpath -- / 2>/dev/null) && [ "$_uv_realpath_probe" = / ]; then realpath -- "$0"; else realpath "$0"; fi"#;
 ```
 
-This is a Rust raw string literal. The `r#"..."#` syntax lets the source contain many quotes without escaping each one.
+`format_shebang` inserts that fragment into the existing shell/Python launcher wrapper:
 
-The functional change is one removed token in the generated text. The nearby test compares the entire generated launcher string, so its expected text changes too.
+```rust
+format!(r#""$(dirname -- "$({RELOCATABLE_REALPATH})")"/"#)
+```
 
-Why test the full string? These launchers are an external artifact. Small quoting differences can change shell parsing, so exact-text coverage is useful.
+The compressed Rust string is the same multiline shell logic shown above. It is a constant because the generator and tests need one exact artifact fragment.
+
+### Tests in this file
+
+Two Unix tests create fake `realpath` executables and place them first in `PATH`:
+
+- `relocatable_realpath_uses_delimiter_when_supported`
+- `relocatable_realpath_falls_back_for_busybox`
+
+The fake utilities record their arguments, letting the tests verify the probe and final call rather than merely checking the final pathname.
+
+The tests cover:
+
+- a compliant implementation using `--` for the probe and operand;
+- a BusyBox-style implementation falling back without `--`;
+- a bare launcher operand named `-foo`;
+- a literal file named `--`;
+- clean stderr.
+
+macOS temporary paths were canonicalized in the expectation because paths such as `/var` may resolve through `/private/var`.
 
 ## File 2: `crates/uv-virtualenv/src/virtualenv.rs`
 
-This crate creates virtual environments and renders activation scripts.
+This crate renders activation scripts.
 
-Relocatable activation scripts also need to discover the environment from the activation file's location. The same incompatibility appears in:
+The existing `match` selects generated text for each activation format. The final patch inserted equivalent capability decisions into:
 
-- POSIX/Bash-compatible activation generation;
-- Fish activation generation.
+- POSIX `activate`, using `$SCRIPT_PATH`;
+- Fish `activate.fish`, using `(status -f)`.
 
-The candidate changes only their `realpath` calls:
+They need separate syntax because POSIX shell and Fish are different languages.
 
-```text
-realpath -- "$SCRIPT_PATH"  ->  realpath "$SCRIPT_PATH"
-realpath -- (status -f)     ->  realpath (status -f)
-```
-
-The surrounding nested `dirname --` calls remain unchanged.
-
-This file uses a Rust `match` expression. Rust pattern matching selects the generated template according to whether the environment is relocatable and which activation filename is being rendered.
+Windows batch and Nushell branches retain their existing relocation mechanisms. `activate.csh` remains unavailable for relocatable environments because csh cannot determine its own sourced script location reliably.
 
 ## File 3: `crates/uv/src/commands/project/run.rs`
 
-This is where most of the 89 added lines come from.
+`uv run` may copy an installed entrypoint into another environment and replace its Python executable. Before doing so, it checks whether the file starts with launcher text uv knows how to interpret.
 
-The BusyBox fix itself is not 80 lines. The extra code handles **migration compatibility**.
+The patch recognizes a fixed two-by-two compatibility matrix:
 
-`uv run` may copy an installed entrypoint into an overlay environment and replace its old Python shebang with a new one. Before copying, it checks whether the file begins with launcher text that uv knows how to interpret.
+| Generated form | Interpreter |
+| --- | --- |
+| current runtime-probe launcher | `python` |
+| current runtime-probe launcher | `python3` |
+| historical `realpath --` launcher | `python` |
+| historical `realpath --` launcher | `python3` |
 
-Changing generated text creates two generations:
-
-- historical launchers containing `realpath --`;
-- corrected launchers containing `realpath` without `--`.
-
-There are also two interpreter spellings that uv can generate:
-
-- `python`;
-- `python3`.
-
-The patch therefore defines four exact Unix-only string constants:
+That appears as four exact constants:
 
 ```rust
 RELOCATABLE_SHEBANG
@@ -112,106 +105,48 @@ LEGACY_RELOCATABLE_SHEBANG
 LEGACY_RELOCATABLE_PYTHON3_SHEBANG
 ```
 
-`#[cfg(unix)]` means the item exists only in Unix builds. Windows uses binary trampoline launchers instead of this shell format.
+The recognizer chains `strip_prefix` calls. It accepts only launcher formats uv is known to have generated rather than using a loose shell parser or regular expression.
 
-The recognizer uses chained `Option` operations:
+The test feeds all four forms through the real private `copy_entrypoint` function and checks that:
 
-```rust
-contents
-    .strip_prefix(RELOCATABLE_SHEBANG)
-    .or_else(|| contents.strip_prefix(RELOCATABLE_PYTHON3_SHEBANG))
-    .or_else(|| contents.strip_prefix(LEGACY_RELOCATABLE_SHEBANG))
-    .or_else(|| contents.strip_prefix(LEGACY_RELOCATABLE_PYTHON3_SHEBANG))
-```
-
-`strip_prefix` returns:
-
-- `Some(remaining_text)` when the launcher begins with that exact prefix;
-- `None` otherwise.
-
-`or_else` tries the next known form only when the previous attempt returned `None`.
-
-This is deliberately not a loose regular expression. It accepts only text uv is known to generate.
-
-The test creates a temporary executable file for each of the four forms, calls the real private `copy_entrypoint` function, and checks:
-
-- the output shebang points to the new Python executable;
+- the output points to the new Python executable;
 - the Python body remains intact;
 - executable permissions remain intact.
 
-That is why the patch looks like “90 lines for one token.” Most of those lines prove that upgrading uv does not strand old generated launchers.
+The Unix-only constant import in the test module is guarded with `#[cfg(unix)]`, preventing a Windows Clippy unused-import failure.
 
 ## File 4: `crates/uv/tests/python/venv.rs`
 
-This is an existing integration test for relocatable virtual environments.
+This existing integration surface checks generated relocatable activation text. Its expected POSIX and Fish forms were updated to include the capability decision.
 
-It checks the generated POSIX and Fish activation text. The candidate updates two expected strings to match the corrected generator.
+## Why the patch became large
 
-No new test framework is introduced. The patch updates uv's existing target-native coverage.
+The production behavior is a small shell branch. Most additions are:
 
-## Data flow through the patch
+- fake-utility test harness code;
+- edge-case controls;
+- exact current and historical launcher signatures;
+- platform-specific test corrections.
 
-```text
-Rust generator
-    |
-    v
-shell launcher / activation text written to disk
-    |
-    +--> user runs it under GNU, BusyBox, or macOS utilities
-    |
-    +--> later uv code may recognize and copy that generated text
-```
+The repetition in `run.rs` is a fixed set of compatibility signatures. A helper could generate them programmatically, but the explicit constants make the accepted historical file formats visible and auditable.
 
-A complete fix must update both the writers and the reader. Editing only `wheel.rs` would fix some new launchers while leaving activation scripts noisy and the project-run consumer out of sync.
+## Alternatives and their failure modes
 
-## Alternatives considered
+- Removing `--` globally loses option protection for a bare `-foo` operand.
+- Retrying after failure can capture the resolved path twice on BusyBox.
+- Prefixing `$0` with `./` can point into the current directory instead of the location found through `PATH`.
+- `command -v` does not cover sourced activation scripts.
+- Generation-time detection can inspect a different utility from the one selected at execution time.
+- BusyBox name, help, or symlink detection is brittle.
 
-### Remove every `--`
+`APPROACHES.md` preserves the detailed comparison.
 
-Rejected as broader than necessary. BusyBox `dirname` supports `--`; retaining it preserves operand protection where it works.
+## Final source and outcome
 
-### Detect BusyBox and generate different text
+- Public PR: [astral-sh/uv#20943](https://redirect.github.com/astral-sh/uv/pull/20943)
+- Final head: `28b00fc950c7eb924ab243418d44ce16ac5bee5a`
+- Final diff: four files, 207 additions, 16 deletions
+- Final canonical CI: run `31059965759` — success
+- State: closed without merge
 
-Rejected. A relocatable environment may be created on one machine and executed on another. The generation host should not permanently choose the runtime shell fragment when one portable form works across the tested platforms.
-
-### Remove `realpath`
-
-Rejected. `realpath` was added to preserve behavior when a launcher is invoked through an external symlink. Removing it could make the launcher select Python beside the symlink rather than Python in the original environment.
-
-### Redirect `realpath` stderr
-
-Rejected. That would hide genuine path-resolution failures along with the false BusyBox diagnostic.
-
-### Replace `realpath` with `readlink -f`
-
-Rejected. It changes the utility and portability contract and can alter symlink semantics.
-
-### Parse launchers with a regular expression or general shell parser
-
-Deferred/rejected for this unit. Four exact generated forms are easier to audit and do not accidentally accept unrelated shell scripts.
-
-### Recognize any neighboring interpreter name
-
-Rejected. Only `python` and `python3` were established as actual producer forms. Broad matching would enlarge the accepted grammar without evidence.
-
-### Centralize the shell fragment across crates
-
-Deferred. Centralization may be worthwhile separately, but it is a refactor rather than a requirement for this compatibility fix. It would broaden review and conflict risk.
-
-### Normalize a hypothetical bare `$0` beginning with `-`
-
-Not selected. Real direct-shebang and `./-tool` probes supplied a path form that works without `realpath --`. No supported failing bare-option-like `$0` invocation was demonstrated.
-
-## Current reconciliation
-
-- Canonical base: `92b7185783b56e8ad1dbe0bb7600432708f2c9fb`
-- Candidate head: `53a4bd1f7d715f57aed33bd1453954a14bb327e6`
-- Candidate tree: `9c6099ab9e6489377775d710b48855aae02079c3`
-- One commit ahead, zero behind
-- Four files, 89 insertions, 15 deletions
-
-The canonical repository advanced 12 commits after the prior validation base. None touched these four files. The candidate was rebuilt by applying the same validated four blobs to the current canonical tree.
-
-Current-context CI is running in the controlled fork as `teamleaderleo/uv#29`, workflow `30844806321`.
-
-No public upstream interaction occurred.
+The code worked as tested. uv maintainers declined the runtime and maintenance cost and chose an upstream BusyBox repair instead: [vda-linux/busybox_mirror#26](https://redirect.github.com/vda-linux/busybox_mirror/issues/26).
