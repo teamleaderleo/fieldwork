@@ -1,6 +1,6 @@
 # Developer tools and build systems scout — Round 006
 
-Updated: 2026-08-05
+Updated: 2026-08-06
 
 Authority boundary: owned repositories and forks only. No upstream comments, reactions, claims, branches, or pull requests were created.
 
@@ -24,66 +24,47 @@ Execution-only carrier `teamleaderleo/meson#4` completed successfully:
 - an unrelated NVCC generate-code flag survived;
 - Python compilation and diff hygiene passed.
 
-The carrier receipt and before/after outputs are retained on source PR #3. Carrier PR #4 closed without merge.
+This is valid compiler-free target evidence for language classification and raw-flag deduplication only.
 
-Evidence class: `compiler-free-target-executed` for language classification and raw-flag deduplication only.
+A later precedence control proved that unconditional normalization is not a complete fix: a generated target `cuda_std` override defeats an ordinary parent-project default in the reporter's no-explicit-CMake-standard case.
 
-A later precedence control proved that the one-line model is not a complete fix: converting every effective CUDA standard into a generated target override defeats an ordinary parent-project `cuda_std`. Explicit `cmake.subproject_options()` overrides still replace the generated value, but the reporter's no-explicit-CMake-standard case remains wrong.
+A provenance-gated second generation was then rejected before execution. It would remove an unexplained effective standard even when Meson supplied no replacement authority, silently falling back to compiler defaults. Execution PR #6 and queued run `31019630325` were retired as non-evidence; the temporary workflow was removed.
 
-A provenance-gated second generation was prepared to remove unexplained raw standards and retain only traced explicit target `CUDA_STANDARD` or direct target `-std=` intent. Independent design review found a blocking compatibility case before execution:
+A safe repair needs both provenance and replacement authority. It must preserve:
 
-- no explicit target CMake provenance;
-- no Meson parent/subproject `cuda_std` replacement authority;
-- File API reports the only effective CUDA standard.
-
-That policy would silently drop the only standard and fall back to compiler defaults.
-
-Execution PR `teamleaderleo/meson#6` and run `31019630325` were retired while queued. They are not behavior evidence. The temporary workflow was removed from `master` at `2f4ef1ae42ca3c47d189b06b91e601810dd68d4c`.
-
-A production-safe repair needs both provenance and replacement authority. The next design must preserve:
-
-- parent Meson `cuda_std` winning when it deliberately replaces an unexplained CMake effective flag;
-- the effective CMake standard remaining when Meson supplies no replacement authority;
+- parent Meson `cuda_std` when it deliberately replaces an unexplained CMake effective flag;
+- the effective CMake standard when Meson supplies no replacement;
 - explicit target `CUDA_STANDARD` and direct target compile options;
-- explicit global/target CMake-module overrides;
+- explicit global and target CMake-module overrides;
 - mixed CXX/CUDA and GNU-extension semantics.
 
-The likely next boundary is passing effective Meson standard authority into conversion, deferring fallback resolution until AST generation, or moving Meson standard authority into the generated CMake toolchain.
+The next owning boundary is likely effective Meson option authority passed into conversion, deferred fallback resolution during AST generation, or propagation through the generated CMake toolchain.
 
 ### 2. ShellCheck #3263 — two separate owners
 
 #### Synthetic export references
 
-Status: `CLEAN SOURCE MATERIALIZED / OWNED-FORK DRAFT`.
+Status: `TECHNICALLY ACCEPTED / READY FOR OWNER REFINEMENT / ORDINARY PACKAGING WORKFLOW BLOCKED`.
 
 Clean source review: `teamleaderleo/shellcheck#11@83316fa272e4fc1caeffdfe39f946819bc723353`.
 
-Replacement forms such as `export foo=baz` contribute a command-owned synthetic reference immediately before the matching assignment. The first fork candidate ignored every same-name assignment-token reference. That fixed literal replacement but incorrectly suppressed the genuine read in `export foo+=baz`.
+The final command-owned adjacency repair skips a reference only when the assignment-token reference is immediately followed by the matching assignment event with identical token identity and variable name, and that assignment belongs to the enclosing simple command. This preserves append, bare-export, RHS, and ordinary later reads.
 
-The final command-owned adjacency repair skips a reference only when:
-
-1. the reference token is an assignment token;
-2. the next flow event is the matching assignment;
-3. token identity and variable name match;
-4. the assignment belongs to a simple command.
-
-This matches the exported/declaration-style synthetic-reference emitters (`export`, `declare`, `typeset`, and `local -x`) without keying the analysis to command-name strings.
-
-Read-only run `30959236798`, job `92159247440`, against immutable source `a1716be3b847dc23761d35137b43cef7752b3c1d` completed successfully on Ubuntu 24.04 with GHC 9.6.6:
+Read-only run `30959236798`, job `92159247440`, completed successfully on Ubuntu 24.04 with GHC 9.6.6:
 
 - complete `cabal v2-test test-shellcheck --test-show-details=direct` passed;
 - `exe:shellcheck` built;
 - literal replacement emitted no SC2030/SC2031;
-- append export retained SC2030 and SC2031;
-- bare export retained SC2030 and SC2031;
+- append and bare-export controls retained both diagnostics;
+- explicit RHS and ordinary later reads retained warnings;
 - only `src/ShellCheck/Analytics.hs` changed locally;
 - `git diff --check` passed.
 
-Source materialization run `31010993427` succeeded. Independent complete-diff review accepted the exact one-file source head. The final review fence is one commit and one production file, with 27 additions and 4 deletions relative to public base `9af7ee28ce587baadd950b85dd6826a16b9c068d`.
+Source materialization run `31010993427` succeeded. Independent complete-diff review accepted the exact one-commit, one-file source head.
 
-Historical packet PR #1 is closed as superseded. Obsolete execution PR #2 and later carrier generations are retired without merge. No temporary workflow is part of source PR #11.
+Current-head ordinary workflow runs `31016803810` and `31014496631` both failed in `Package Source Code` before tests. Their merge checkout has no reachable tags, so `git describe` fails inside `setgitversion`; test, build, binary-package, and deployment jobs were skipped. This is fork packaging/tag-topology evidence, not a source regression.
 
-Evidence class: `target-executed` on one Linux/GHC configuration plus clean owned-fork source materialization and complete-diff acceptance; current ordinary repository builds remain queued.
+The focused complete-suite receipt remains the product authority. The item is visible on Human Review Desk #387 for owner refinement. No temporary workflow is part of source PR #11.
 
 #### Sourced-function flow
 
@@ -97,18 +78,9 @@ Focused Fieldwork run `30839352175`, job `91772318148`, executed the primary fix
 - SC1091 was absent;
 - SC2031 remained at the later `COMPREPLY` read.
 
-This is a separate function/include/Bats lifecycle defect. The likely owner is CFG-backed function execution or explicit definition-versus-invocation modeling. Simply skipping function bodies would hide legitimate diagnostics and remains rejected.
+A fixture-only matrix now separates setup-only sourcing, independent per-test sourcing, same-test execution, same content through different paths, a real top-level sourced assignment, and cross-test definition isolation. The matrix is prepared but unexecuted and carries no behavior claim.
 
-A fixture-only matrix now separates:
-
-- setup-only sourcing without the redundant first-test include;
-- independent sourcing in each test;
-- source, call, and read in one test;
-- same content through different include paths;
-- a real sourced top-level assignment that must retain warnings;
-- a function defined only in the first isolated test.
-
-The matrix is prepared but unexecuted. It carries no behavior claim until run from its own directory against an exact ShellCheck head.
+The likely owner remains function/include invocation modeling or a CFG-backed analysis. Simply skipping function bodies remains rejected.
 
 ### 3. Cargo #16574 — patch source fetch semantics
 
@@ -116,98 +88,85 @@ Status: `DESIGN HOLD WITH EXECUTED NEGATIVE EVIDENCE`.
 
 Owned fork draft: `teamleaderleo/cargo#1@868c4450a5c5a3bf78ef942cbafe326952373842`.
 
-The broad no-fetch contract still reaches the original source. A separate exact `=0.1.0`, single-path-patch probe also reached the original git source, so the historical exact-version fast path is absent on the tested head.
+Both the broad no-fetch contract and an exact `=0.1.0`, single-path-patch probe reached the unreachable original git source. The exact-version fast path is absent on the tested head.
 
-The exact probe's product classification is valid: Cargo exited 101 after contacting the unreachable original source. The runner lacked `rg`, so its guarded auxiliary source-map capture was empty. Treat the product behavior as executed evidence and the source map as missing, not as a successful fallback map.
+Cargo exited 101 after contacting the original source. The runner lacked `rg`, so its guarded auxiliary source-map capture was empty. Treat the product behavior as valid executed evidence and the source map as missing.
 
-No production change is justified without an accepted semantic design for when a patched source may avoid fetching its original source while preserving registry, git, checksum, lockfile, and diagnostic behavior.
+No production change is justified without an accepted semantic design preserving source identity, version and feature selection, lockfiles, checksums, registries, git sources, and diagnostics.
 
 ### 4. uv #13505 — Windows path-case duplicates in `uv python list`
 
-Status: `ORDINAL-COMPARISON CANDIDATE ACCEPTED FOR EXECUTION / WINDOWS RUN PENDING`.
+Status: `SOURCE/HISTORY MAPPED / DUPLICATED-PATH REPRODUCER ABSENT / CANDIDATE UNEXECUTED`.
 
-Owned investigation: `teamleaderleo/uv#39@89eb1dbac9aa018478ded480018faf999097a9ff`.
+Owned investigation: `teamleaderleo/uv#39@0bd5bb057a4df542951fb6c69018e5509a5445a0`.
 
-Historical issue #9979 and PR #12628 intentionally changed `uv python list` to report the queried executable path instead of only `sys.executable`, preserving shim and search-path provenance. The current final listing then deduplicates with case-sensitive Rust path equality. Windows case variants such as `C:\Python311\python.exe` and `c:\python311\python.exe` can therefore survive as duplicate rows.
+Historical issue #9979 and PR #12628 intentionally changed `uv python list` to report queried executable paths, preserving shim and search-path provenance. The final list still uses case-sensitive Rust path equality, so Windows ordinal comparison remains a plausible boundary.
 
-The selected candidate uses the already-enabled `windows` 0.61 `Win32_Globalization` binding:
+Read-only Windows run `31047448111`, job `92446355170`, applied the UTF-16 case-variant integration control and candidate transformer cleanly, compiled the immutable baseline, and ran exactly one focused `python_list_duplicate_path_entries` test.
 
-- add `uv_windows::path_eq_ignore_case` using `CompareStringOrdinal` over UTF-16 path slices;
-- on Windows, scan the small set of already-seen queried paths with ordinal case-insensitive equality;
-- on non-Windows platforms, retain the current exact hash-set behavior;
-- add a direct Unicode/ASCII case control while preserving a distinct shim path;
-- extend the existing duplicate-PATH integration test with case-varied spellings of the same interpreter directories.
+The baseline passed and listed each Python once. Therefore case-varied copies of the same `UV_PYTHON_SEARCH_PATH` directories do not reproduce the public report on the tested head. An earlier discovery layer already collapses or avoids those duplicates.
 
-The candidate deliberately avoids canonicalization, file identity, and lossy UTF-8 conversion. Intentional symlink, shim, and queried-path entries remain distinct unless their path strings differ only by Windows case semantics.
+The candidate stage was skipped. The result is not candidate evidence and does not establish that the public issue is fixed.
 
-Independent design review accepted the exact transformer and test boundary for execution.
+Transcript artifact: `8948402487`; SHA-256 `a136314c4f7d4b21c7d29fdd105de187fb6faccedfd1d01815485964ea37aabc`.
 
-Read-only execution PR `teamleaderleo/uv#48` targets immutable source `1da26a68629be6ae5fd7f924a7d49ff54763a7df` on Windows Server 2022.
+Execution PR #48 was retired, its branch reset to cleaned `main`, and the temporary workflow removed at `fb6f822820fb2234035610066527b749d3a153cf`.
 
-Current authoritative carrier state:
+The retained ordinal-comparison design remains unexecuted. A renewed experiment must either:
 
-- workflow run `31020377730`;
-- job `92355236199`;
-- last observed state: `queued`;
-- earlier queued generations are superseded harness runs;
-- queue state is not source or behavior evidence.
+1. reproduce one interpreter through distinct discovery routes such as PATH plus registry or shim;
+2. directly isolate the final-list inclusion boundary with case-varied queried paths;
+3. preserve a negative control for genuinely distinct shim/search-path locations.
 
-The carrier requires a behavioral baseline failure, passing direct and integration controls for the candidate, rustfmt, diff hygiene, and an exact four-file source/test fence. No product source is published by the carrier.
+No new Windows carrier should run until its baseline control distinguishes current behavior.
 
 ### 5. uv tool upgrade inventory errors
 
-Status: `OWNED-FORK SOURCE REPAIRED / CI PENDING`.
+Status: `OWNED-FORK SOURCE ACCEPTED / CI QUEUED`.
 
 Owned source: `teamleaderleo/uv#47@9e080cb2a92b35b01f42128902d7a6edfdc57481`.
 
-`uv tool upgrade --all` previously converted a top-level `InstalledTools::tools()` enumeration error into an empty inventory with `unwrap_or_default()`, then printed `Nothing to upgrade` and exited successfully.
+`uv tool upgrade --all` previously converted a top-level `InstalledTools::tools()` error into an empty inventory with `unwrap_or_default()`, then printed `Nothing to upgrade` and exited successfully.
 
-The production repair is one line: propagate `tools()?`. Complete-diff review confirmed this preserves the existing per-tool receipt-error policy because missing or malformed receipts remain values inside the returned vector; only failure to enumerate or parse the inventory itself stops the command.
+The production repair is one line: propagate `tools()?`. Complete-diff review confirmed that missing or malformed receipts remain per-tool values inside a successfully enumerated vector; only failure to enumerate or parse the inventory itself stops the command.
 
 Review repaired two test-only defects before CI:
 
 - the case-sensitive predicate now matches the actual `Not a valid package...` diagnostic;
-- the deterministic invalid-directory regression requires only `test-python`, not the unrelated PyPI test feature.
+- the deterministic invalid-directory regression requires only `test-python`, not the unrelated PyPI feature.
 
-The existing `tool_upgrade_empty` integration test already preserves the genuine empty/up-to-date success path.
+The existing `tool_upgrade_empty` integration test preserves the genuine empty/up-to-date success path. Current-head independent review accepted the source.
 
-Current repository CI run `31020821954` is pending. That state is not execution evidence. Durable coordination remains Fieldwork issue #627.
+Repository CI run `31020821954` remains queued. Queue state is not execution evidence. The item is visible on Human Review Desk #387 as a watch, not yet as a final ready decision. Durable coordination remains Fieldwork issue #627.
 
 ## Occupied stops
 
-The following reports were not entered because an active implementation or explicit contributor claim already existed at intake:
+The following reports were not entered because active implementation or explicit intent already existed at intake:
 
-- Meson #15989 — active implementation PR.
-- Meson #16024 — active PR #16029.
-- ripgrep #3477 — active PR #3478.
-- fd #2067 — active implementation PR.
-- Vite #23032 — active implementation PRs.
-- Vite #23146 — active PR #23147.
-- Vite #22957 — active PR #22958.
-- Vite #23108 — explicit contributor claim and later implementation PR.
-- Biome #10838 — active PRs #10976 and #10984.
-- uv #20949 — active PR #20950.
-- uv #20744 — active PR #20787.
-- uv #20678 — active PR #20922.
-- uv #16209 — active PR #20943.
+- Meson #15989 and #16024;
+- ripgrep #3477;
+- fd #2067;
+- Vite #23032, #23146, #22957, and #23108;
+- Biome #10838;
+- uv #20949, #20744, #20678, and #16209.
 
-These ownership checks are dated intake evidence and must be refreshed before any future entry.
+These checks are dated intake evidence and must be refreshed before future entry.
 
 ## Reserve leads
 
-- Biome #11174 — potentially valid type-flow false positive, but wider analyzer semantics than the completed scout round.
-- just #3684 — bounded completion defect with historical overlap requiring a refreshed ownership check.
-- fd #2033 — ordering behavior worth characterization after refreshing ownership and fork availability.
+- Biome #11174 — potentially valid type-flow false positive, but wider analyzer semantics;
+- just #3684 — bounded completion defect with historical overlap requiring refresh;
+- fd #2033 — ordering behavior worth characterization after ownership and fork refresh.
 
 ## Work order
 
-1. Locate the Meson replacement-authority boundary and add the no-authority negative control before selecting another source candidate.
-2. Classify uv Windows run `31020377730`; transfer the receipt, remove its temporary workflow, and materialize only a clean four-file source if the matrix is green.
-3. Classify uv PR #47 CI after the reviewed test repairs; keep queue state separate from execution evidence.
-4. Execute the ShellCheck sourced-function discriminator matrix only after selecting an exact current-base carrier; retain real top-level and definition-isolation controls.
+1. Design a uv #13505 baseline that uses distinct discovery sources or directly owns final-list inclusion; do not rerun the retired PATH-only carrier.
+2. Classify uv PR #47 CI when it moves and transfer any exact result to issue #627 and the owner desk.
+3. Locate Meson's replacement-authority boundary and add the no-authority negative control before selecting another source candidate.
+4. Execute the ShellCheck sourced-function matrix only through an exact current-base read-only carrier.
 5. Keep Cargo held until a semantic design is accepted.
-6. Refresh public ownership before opening any reserve lead.
+6. Refresh public overlap before opening reserve leads.
 
 ## Evidence boundary
 
-This report records owned-fork research, execution, and source-review state. It does not authorize or claim public upstream filing, review, reaction, release, or deployment.
+This report records owned-fork research, execution, source review, and owner visibility. It does not authorize or claim public upstream filing, review, reaction, release, or deployment.
