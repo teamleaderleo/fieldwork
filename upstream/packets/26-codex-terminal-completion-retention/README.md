@@ -2,22 +2,22 @@
 
 ## Current disposition
 
-`ISSUE FIRST / TECHNICAL EVIDENCE COMPLETE / PUBLIC CONTACT HOLD`
+`SUBMITTED — UPSTREAM ISSUE OPEN / MAINTAINER TRIAGE PENDING`
 
-This remains the first proposed Codex issue in the internal sequence after refreshing public source and duplicate state through `openai/codex@78f00743f92cf4fb875ddadcd30293c5201b48ac`.
+The owner reviewed the issue packet and filed [openai/codex#37207](https://redirect.github.com/openai/codex/issues/37207).
 
-The concrete failure is information loss: unified exec receives terminal bytes at the process producer, then relies on a best-effort broadcast subscriber to assemble the completed command transcript. Output emitted before subscription or skipped by a lagged receiver can therefore disappear from the completed item.
+The report covers one concrete failure: unified exec can receive terminal bytes and still omit them from the completed command result when the completion listener subscribes late or falls behind.
 
 ## Selected boundary
 
-The process producer must retain one bounded authoritative transcript before broadcasting live deltas.
+The process producer retains the completion transcript before broadcasting live deltas.
 
 - producer-owned retention is authoritative for completion;
-- broadcast remains best effort for live observation;
-- late or lagged observers cannot erase producer-received terminal bytes;
+- live delivery can still miss updates;
+- late or lagged listeners cannot erase output already received by the process layer;
 - invalid UTF-8 remains retained as bytes;
-- existing head/tail bounds remain in force;
-- normal close replaces partial observer state from the producer-owned bounded transcript.
+- existing head/tail limits remain in force;
+- normal close replaces partial listener state with the retained transcript.
 
 ## Clean implementation proof
 
@@ -38,9 +38,9 @@ Review `4856710273` found no blocking issue inside the stated normal-close scope
 
 ## Latest public comparison
 
-Latest public source inspected: `78f00743f92cf4fb875ddadcd30293c5201b48ac`, 95 commits after the implementation base.
+Latest public source inspected before filing: `78f00743f92cf4fb875ddadcd30293c5201b48ac`, 95 commits after the implementation base.
 
-All four source-base files remain byte-identical at that public head:
+All four source-base files remained byte-identical at that public head:
 
 | File | Public-base/latest blob |
 | --- | --- |
@@ -49,9 +49,7 @@ All four source-base files remain byte-identical at that public head:
 | `process.rs` | `dd10930547f61f73b1ceb6c520e2f9db685c6a2a` |
 | `process_tests.rs` | `e7f99e38ee731241e1b2a1cb6f590d4a560a5ad1` |
 
-Recent public work added durable user-submission queues, paginated transcript history, and related session features, but did not modify this four-file terminal-output boundary. The implementation therefore remains mechanically file-disjoint from intervening public changes. Before an authorized PR, recreate it as a direct child of the then-current public head and rerun the gate.
-
-Refreshed public issue and PR searches found no active proposal specifically covering completed unified-exec transcript loss caused by pre-subscription or lagged best-effort observers.
+The duplicate search found no active proposal covering this specific late-or-lagged-listener loss in completed unified-exec output.
 
 ## Authoritative execution
 
@@ -64,38 +62,17 @@ Execution carrier `teamleaderleo/codex#137`, corrected run `30699322569`:
 - formatting and exact four-file fence passed;
 - paired baseline/source artifacts and logs retained.
 
-Earlier failed carriers remain historical setup or wrong-gate evidence and do not weaken this paired receipt.
+## Submission receipt
 
-## Why this issue comes first
+- Upstream issue: [openai/codex#37207](https://redirect.github.com/openai/codex/issues/37207)
+- State at filing: open
+- Label at filing: `bug`
+- Filed by the owner after reviewing the final four-section issue form
+- Public implementation PR: none
+- Owned implementation proof: `teamleaderleo/codex#144`
 
-This is the clearest first contact because it has all four properties at once:
+## Next state
 
-1. **Direct user-visible loss:** a completed command can omit stdout or stderr that Codex already received.
-2. **Exact owner error:** a best-effort observer is allowed to own the final record instead of the producer.
-3. **Bounded repair:** four files, no public API or generalized receipt framework.
-4. **Strong evidence:** deterministic reproductions, paired full-library execution, integration compilation, and a reviewed clean source.
+Wait for maintainer triage. A public PR would require a separate owner decision and a fresh current-main restack, baseline-red regression run, and full gate.
 
-The next bounded issues are:
-
-1. append acknowledgement at the session persistence boundary;
-2. Responses Lite first-generated-request lineage after prewarm;
-3. cleanup and remote-outcome visibility only where it does not duplicate existing public liveness reports.
-
-Do not file an umbrella “Codex loses information” issue. Use the shared authority principle as context while keeping each failure independently actionable.
-
-## Limits
-
-This unit does not claim:
-
-- recovery of bytes produced after the existing hard-termination grace boundary;
-- unbounded output retention;
-- process-tree cleanup or reattachment;
-- durable conversation-history append;
-- remote effect settlement;
-- a general receipt architecture.
-
-## Eventual issue approach
-
-Lead with the concrete loss mechanism and the two deterministic cases. Ask whether producer-owned bounded retention is the intended authority boundary. Link near the end to Codex #144 as implementation evidence. Do not link execution carriers, Fieldwork packet machinery, or superseded sources.
-
-No public upstream issue, comment, pull request, review, or reaction has occurred.
+No further public comment, reaction, pull request, review, or other upstream interaction is authorized.
