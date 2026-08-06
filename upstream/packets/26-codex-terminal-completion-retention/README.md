@@ -23,7 +23,7 @@ The process producer retains the completion transcript before broadcasting live 
 
 - Owned source PR: `teamleaderleo/codex#144`
 - Base: `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`
-- Current head: `87d4ef9ecc07fc1469136b0bf6e6c325bea6a877`
+- Current head: `d4ff73f50e30e96b6db4a08205c9d3600e15488e`
 - Branch: `fieldwork/26-terminal-completion-retention-source`
 - Shape: four Rust files
 
@@ -40,10 +40,15 @@ This removes the partial-update window between the two retained views and cuts p
 
 Current-head CI:
 
-- `blocking-ci` run `31072609551`: pending at this update;
-- `v8-canary` run `31072609433`: running at this update.
+- `blocking-ci` run `31072774224`;
+- `v8-canary` run `31072774070`;
+- formatting: passed;
+- cargo-shear: passed;
+- blob-size policy, cargo-deny, and codespell: passed;
+- Linux Bazel test, clippy, release build, and argument lint: still running at this update;
+- repository manifest, SDK, Windows, and macOS jobs failed before reaching this four-file Rust change and are not current implementation evidence.
 
-The earlier exact receipt remains evidence for the behavior and four-file scope, but it does not validate the current single-mutex head. Replace it with the current-head receipt once CI finishes.
+The earlier exact receipt remains evidence for the behavior and four-file scope, but it does not validate the current single-mutex head. Replace it with the current-head receipt after the useful Linux jobs finish.
 
 ## Latest public comparison
 
@@ -82,6 +87,6 @@ Execution carrier `teamleaderleo/codex#137`, corrected run `30699322569`, covere
 
 ## Next state
 
-Check current-head CI. If it passes, update the receipt and review the complete single-mutex diff. A public PR still requires a separate owner decision and a fresh current-main restack with baseline-red regression evidence.
+Finish the current-head Linux CI checks, update the receipt, and review the complete single-mutex diff. A public PR still requires a separate owner decision and a fresh current-main restack with baseline-red regression evidence.
 
 No further public comment, reaction, pull request, review, or other upstream interaction is authorized.
