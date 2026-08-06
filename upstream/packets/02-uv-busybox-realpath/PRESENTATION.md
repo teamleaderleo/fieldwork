@@ -1,10 +1,12 @@
-# Decision brief — uv BusyBox `realpath` compatibility
+# Closeout brief — uv BusyBox `realpath` compatibility
 
 ## Recommendation
 
-Advance Unit 02 to human upstream preparation after the current-context CI run completes successfully.
+Retire Unit 02 as a downstream uv contribution and retain the packet as negative-result evidence.
 
-This is one of the stronger candidates in the backlog: the public defect remains open and recently reproduced, the product change is narrow, historical behavior is preserved, every known source owner moves together, and the unchanged four source blobs already have exact cross-platform evidence.
+The [public uv pull request](https://redirect.github.com/astral-sh/uv/pull/20943) closed without merge. uv maintainers prefer to repair BusyBox `realpath` upstream rather than add a runtime capability probe to generated uv launchers.
+
+Preferred upstream repair: [vda-linux/busybox_mirror#26](https://redirect.github.com/vda-linux/busybox_mirror/issues/26)
 
 ## The user-visible problem
 
@@ -14,98 +16,66 @@ On Alpine and other BusyBox systems, a successful uv-generated command can print
 realpath: --: No such file or directory
 ```
 
-The command may still work. That makes the defect easy to dismiss technically and costly operationally: successful automation gains error-looking stderr, logs become noisy, and users investigate the wrong failure.
+The launcher usually continues and resolves the next operand, so the defect is primarily a false error on stderr rather than a complete launch failure.
 
-uv generates these launchers as durable user-facing artifacts. They can outlive the uv command that created them and can move between systems.
+## What was submitted
 
-## The proposed change
+### First candidate
 
-Current generated fragment:
+Remove `--` only from generated `realpath` calls while retaining `dirname --`, quoting, symlink canonicalization, and current/historical launcher recognition.
 
-```sh
-"$(dirname -- "$(realpath -- "$0")")"
-```
+Maintainer review identified a real regression risk: a bare entrypoint name beginning with `-` could be reinterpreted as an option by implementations that support ordinary option parsing.
 
-Candidate:
+### Revised candidate
 
-```sh
-"$(dirname -- "$(realpath "$0")")"
-```
+Probe the runtime implementation with `realpath -- /`. Preserve the delimiter when the probe succeeds and returns `/`; otherwise use the BusyBox-compatible form.
 
-Only the unsupported `realpath --` delimiter is removed.
+The revised patch covered:
 
-The source commit also:
+- POSIX launchers;
+- POSIX and Fish activation generation;
+- current and historical `python` / `python3` launcher recognition;
+- compliant and BusyBox-style fake utilities;
+- bare `-foo` operands;
+- a literal file named `--`;
+- Linux, macOS, and Windows ordinary CI.
 
-- updates POSIX and Fish activation generation;
-- updates uv's existing exact generated-text expectations;
-- keeps `realpath` canonicalization for externally symlinked launchers;
-- recognizes corrected and historical launchers using `python` or `python3` during project-run copying.
+Final public head: `28b00fc950c7eb924ab243418d44ce16ac5bee5a`  
+Final canonical CI: run `31059965759` — success  
+Final diff: four files, 207 additions, 16 deletions
 
-## Why this shape deserves support
+## Why it did not land
 
-### It fixes the demonstrated defect, not a broader theory
+The final patch was technically coherent and fully green, but uv maintainers rejected its tradeoff:
 
-BusyBox `realpath` rejects the delimiter. BusyBox `dirname` supports it. The candidate changes the former and preserves the latter.
+- one additional `realpath` invocation for each affected launcher execution;
+- more generated shell in every relocatable launcher and relevant activation script;
+- downstream maintenance for a BusyBox standards mismatch.
 
-### It protects the historical reason `realpath` exists
+They chose to pursue `--` support in BusyBox `realpath` instead.
 
-Canonicalization exists so a launcher invoked through an external symlink still locates the original environment. The patch preserves that algorithm.
+## What the research established
 
-### It respects relocation
+The explored alternatives were useful even though the patch was retired:
 
-A generated environment may execute on a different host from the one that generated it. One portable fragment is safer than encoding generator-host BusyBox detection into a durable artifact.
+- unconditional delimiter removal weakens option safety;
+- retry fallback can duplicate resolved output on BusyBox;
+- `./$0` can resolve the wrong file after `PATH` lookup;
+- `command -v` does not solve sourced activation scripts;
+- generation-time detection can inspect the wrong runtime utility;
+- BusyBox fingerprinting by name or help output is brittle;
+- runtime behavior probing works, but the target project does not want its cost.
 
-### It handles upgrades
+## Process takeaway
 
-Generated launchers persist. The project-run recognizer accepts old and new text for both observed interpreter basenames, avoiding an upgrade-time migration regression.
+When maintainer guidance leaves a design constraint ambiguous, ask the smallest architectural question before expanding the implementation.
 
-### It is tested at the correct layers
+Private research should keep the full option tree. Maintainer-facing discussion should begin with the relevant finding and requested decision, then provide deeper alternatives only when they help the review.
 
-Evidence includes source assertions, the consumer migration test, uv's existing relocatable-venv integration test, full workspace clippy, and executable launcher and activation matrices on GNU, Alpine/BusyBox, and macOS with Bash and Fish.
+Target contribution and AI policies must be checked before public replies. The contributor remains responsible for writing the final maintainer-facing message directly and understanding every technical claim.
 
-## Current reconciliation
+## Final ask
 
-- Canonical base: `92b7185783b56e8ad1dbe0bb7600432708f2c9fb`
-- Clean head: `53a4bd1f7d715f57aed33bd1453954a14bb327e6`
-- Tree: `9c6099ab9e6489377775d710b48855aae02079c3`
-- One commit ahead, zero behind
-- Four files, 89 insertions, 15 deletions
-- Internal reconciliation PR: `teamleaderleo/uv#29`
-- Current-context CI: `30844806321` — queued at last check
+No approval or public action is pending for this unit.
 
-Canonical main advanced 12 commits from the prior reviewed base. None touched the four candidate paths. The branch was rebuilt with the same validated blobs on top of the current canonical tree.
-
-## Likely objections
-
-### “The command already succeeds.”
-
-Successful commands should not emit false errors. CI wrappers, log scanners, and users treat stderr as a health signal.
-
-### “Just detect BusyBox.”
-
-Detection adds branching and can select the wrong artifact for a relocatable environment that later runs elsewhere. The unconditional candidate already passed the tested userlands.
-
-### “Removing `--` weakens leading-dash safety.”
-
-The candidate retains every `dirname --`. Direct launcher and activation matrices cover `./-tool` and `./-activate`; direct shebang probes show `$0` is supplied as the script path. No supported failing bare option-like `$0` case was demonstrated.
-
-### “The project-run matcher is too much code for a one-token fix.”
-
-The matcher is migration compatibility. Old generated text persists, and both `python` and `python3` are observed producer forms. Four exact strings keep the accepted grammar narrow and reviewable.
-
-### “Why not centralize all fragments?”
-
-That can be considered separately. Centralization broadens the patch without reducing the compatibility or migration work required here.
-
-## Remaining risks
-
-- The current-context CI run is not yet complete.
-- The complete uv repository test suite was not run in the earlier exact validation; affected crates, focused tests, full workspace clippy, and platform matrices were green.
-- Upstream overlap must be refreshed immediately before action.
-- A human must verify Astral's current contribution and AI-assistance policy and own the public wording and submission.
-
-## The ask
-
-Review `CODE_WALKTHROUGH.md`, the exact four-file diff, `UPSTREAM_ISSUE.md`, and `UPSTREAM_PR.md`. If current-context CI is green and overlap remains clear, authorize preparation of a human-authored pull request referencing `astral-sh/uv#16209`.
-
-No public upstream interaction occurred.
+Keep the packet for future portability work and BusyBox context. Do not reopen or resubmit the downstream uv approach unless uv maintainers explicitly request it.
