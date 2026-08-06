@@ -55,6 +55,16 @@ Owned-fork branches, characterization pull requests, candidates, execution carri
 
 Public upstream filing, comments, reviews, reactions, messages, releases, and deployments remain separately unauthorized unless the owner explicitly approves that exact interaction.
 
+## Direct maintainer communication
+
+Public upstream communication is a human-owned action, not a research artifact.
+
+- Read the target project's contribution and AI policies before filing or replying.
+- Research assistance may explore options and prepare private notes, but the owner writes the final maintainer-facing message directly and must be able to explain every claim.
+- When maintainer guidance leaves an architectural constraint unclear, ask the smallest decision question before expanding the implementation.
+- Lead with the relevant finding, requested decision, and evidence. Keep rejected alternatives available, but do not paste the full exploration unless it helps the maintainer decide.
+- A technically coherent patch may still be retired when its runtime, compatibility, maintenance, or project-policy cost does not fit the target.
+
 ## Review assistance
 
 Workers should inspect and repair other active lanes when doing so materially improves technical quality, evidence, reviewability, or delivery probability.
