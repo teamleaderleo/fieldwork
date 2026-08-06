@@ -68,6 +68,10 @@ describe('generation persistence result authority', () => {
         captureRequestId,
         withGenerationPersistence(persistence, {
           threadId: 'fieldwork:result-authority',
+          // This regression concerns final-result metadata ordering, not
+          // artifact-byte persistence. Disable extraction so the synthetic
+          // provider URL never becomes a network dependency.
+          extractArtifacts: () => [],
         }),
         laterTransform,
       ],
