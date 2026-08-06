@@ -17,7 +17,7 @@ jobs:
       UV_BASE: b358fb6fce199fb1977913d310ddb6d573e44031
       SOURCE_BASE: 49e2fc5c821bb69a528308a036b17446bb5ab5a6
       SOURCE_COMMIT: 51c9fe109f037d084fd17647dc78a6451c2938f2
-      REFINEMENT_COMMIT: 30545ac85da74cfc7942fb964c1812da9633c0e6
+      REFINEMENT_COMMIT: 7a1c5bc91fd7a3d89d24f58d46db4a86cd7bc94d
     steps:
       - name: Check out Fieldwork carrier
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
