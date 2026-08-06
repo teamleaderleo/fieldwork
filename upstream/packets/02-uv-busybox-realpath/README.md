@@ -2,84 +2,95 @@
 
 ## Disposition
 
-`PUBLIC PR OPEN — CANONICAL CI GREEN — AWAITING HUMAN REVIEW`
+`RETIRED — PUBLIC PR CLOSED UNMERGED — UPSTREAM BUSYBOX FIX PREFERRED`
 
-Public pull request: `astral-sh/uv#20943`  
-Public head: `53a4bd1f7d715f57aed33bd1453954a14bb327e6`  
-Canonical CI: run `30942625490` — success
+Public issue: [astral-sh/uv#16209](https://redirect.github.com/astral-sh/uv/issues/16209)  
+Public pull request: [astral-sh/uv#20943](https://redirect.github.com/astral-sh/uv/pull/20943)  
+Preferred upstream repair: [vda-linux/busybox_mirror#26](https://redirect.github.com/vda-linux/busybox_mirror/issues/26)  
+Final public head: `28b00fc950c7eb924ab243418d44ce16ac5bee5a`  
+Final canonical CI: run `31059965759` — success
 
-A clean source-only candidate removes only the unsupported `--` operand from generated `realpath` calls. It preserves every `dirname --`, retains symlink canonicalization, and keeps `uv run` compatible with persisted relocatable launchers generated before the change in both `python` and `python3` forms.
+The downstream uv candidate is no longer a landing proposal. uv maintainers rejected runtime capability probing because the extra command and generated-shell complexity did not fit the project's preferred tradeoff. They chose to pursue POSIX-compatible `--` handling in BusyBox `realpath` instead.
 
-## Canonical ownership
+This was a project-level design decision, not a test failure. The final uv candidate was fully green.
 
-- `teamleaderleo/linux-fieldwork#307` is the completed investigation and reproduction record.
-- `teamleaderleo/fieldwork#435`, unit 02, owns this internal packet and handoff.
-- `astral-sh/uv#20943` is now the live public review surface, opened by `teamleaderleo`.
-- No second implementation lane is active for this defect.
+## What the submitted PR became
 
-## Public PR state
+The first candidate removed `--` only from generated `realpath` calls. Maintainer review identified that a bare option-like entrypoint such as `-foo` could then be interpreted as an option on implementations that support normal option parsing.
 
-- Title: `fix: make relocatable launchers compatible with BusyBox realpath`
-- Public base at the latest check: `08c032ee486dc064ab7892dfe23c02bd0ce203ff`
-- Head branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
-- Head commit: `53a4bd1f7d715f57aed33bd1453954a14bb327e6`
-- Diff: four files, 89 insertions, 15 deletions
-- Mergeability: mergeable at the latest check
-- Canonical CI: run `30942625490` completed successfully
-- Human reviews: none at the latest check
-- Inline review threads: none at the latest check
-- Conversation: only the automated test-inventory comment, recording one added test and no removed tests
+The revised candidate preserved `--` where supported and used the compatibility form only when the runtime implementation failed a capability probe:
 
-The public diff is the exact four-file candidate reviewed and validated in this packet. Canonical CI passed formatting, Linux and Windows test shards, builds across supported targets, generated-file checks, docs, lockfiles, lint, release planning, publish dry-run, and simulated benchmarks.
+```sh
+if _uv_realpath_probe=$(realpath -- / 2>/dev/null) &&
+    [ "$_uv_realpath_probe" = / ]; then
+    realpath -- "$0"
+else
+    realpath "$0"
+fi
+```
 
-## Source boundary
+The probe checked both status and output. That also handled the edge case where a literal file named `--` existed and BusyBox resolved both operands.
+
+The same decision was applied to POSIX and Fish activation generation. `uv run` continued to recognize current and historical `python` and `python3` relocatable launcher forms.
+
+## Final source boundary
 
 | File | Change |
 | --- | --- |
-| `crates/uv-install-wheel/src/wheel.rs` | Generate `realpath "$0"` while retaining `dirname --`; update the exact launcher assertion. |
-| `crates/uv-virtualenv/src/virtualenv.rs` | Apply the same realpath-only correction to POSIX and Fish activation generation. |
-| `crates/uv/src/commands/project/run.rs` | Recognize corrected and historical `python`/`python3` relocatable shebangs; test all four forms. |
-| `crates/uv/tests/python/venv.rs` | Update uv's existing relocatable activation expectations. |
+| `crates/uv-install-wheel/src/wheel.rs` | Generate a relocatable launcher with the runtime `realpath` capability probe and add branch-specific fake-utility tests. |
+| `crates/uv-virtualenv/src/virtualenv.rs` | Apply equivalent runtime selection to POSIX and Fish activation generation. |
+| `crates/uv/src/commands/project/run.rs` | Recognize current and historical `python` / `python3` launcher text. |
+| `crates/uv/tests/python/venv.rs` | Update relocatable activation expectations. |
 
-## Why this boundary
+Final public diff: four files, 207 additions, 16 deletions.
 
-BusyBox `dirname` accepts an optional `--`. BusyBox `realpath` treats every argument as a pathname and reports `--` as missing. The candidate removes the incompatible token and leaves the rest of the path-resolution algorithm intact.
+## Durable findings
 
-A relocatable environment can be generated on one host and executed on another, so generation-host BusyBox detection is weaker than one portable fragment.
+The investigation established why the obvious downstream alternatives were incomplete:
 
-Historical launchers persist across uv upgrades. Exact recognition of corrected and legacy `python` and `python3` forms prevents a migration regression while keeping the accepted grammar narrow.
+- Unconditionally removing `--` weakens operand protection for bare names beginning with `-`.
+- Retrying `realpath -- "$0"` without the delimiter can capture the resolved path twice on BusyBox because BusyBox processes both operands before returning failure.
+- Prefixing relative `$0` with `./` can resolve the wrong file when the launcher was found through `PATH`.
+- `command -v` does not provide the same answer for sourced activation scripts.
+- Generation-time detection can inspect a different `realpath` from the executable later selected through runtime `PATH`.
+- Identifying BusyBox by executable name, help text, or symlink layout is brittle.
+- Runtime capability probing works technically, but uv does not want its per-launcher runtime and maintenance cost.
 
-## Evidence
+The final project choice was therefore to repair BusyBox rather than carry a downstream uv compatibility branch.
 
-Before public submission, the unchanged source blobs passed:
+## Evidence retained
 
-- exact four-file generation and publication fences;
-- formatting and affected-crate compilation;
-- wheel generated-shebang test;
-- four-form `uv run` migration test;
-- existing relocatable-venv integration test;
-- full locked workspace/all-target/all-feature clippy;
-- GNU and Alpine 3.22 / BusyBox 1.37 launcher matrices;
-- GNU, Alpine/BusyBox, and macOS Bash activation probes;
-- GNU, Alpine/BusyBox, and macOS Fish activation matrices;
-- Linux direct-shebang `$0` discriminator.
+The final candidate covered:
 
-Canonical upstream CI has now also passed at the public head.
+- implementations that accept `realpath --`;
+- BusyBox-style implementations that treat `--` as a pathname;
+- a bare `-foo` operand;
+- a literal file named `--`;
+- current and historical `python` / `python3` launcher recognition;
+- POSIX and Fish activation generation;
+- Linux, macOS, and Windows ordinary CI.
 
-## Operating rule
+The final upstream CI run completed successfully. The measured local overhead of the additional probe was about `0.4 ms` per relocatable launcher execution.
 
-Do not add another issue comment or unsolicited PR comment. The next useful event is concrete maintainer feedback, a requested change, a base conflict, or merge/closure. Respond only to the actual owner of that event.
+## Closeout rule
+
+Do not reopen, rework, or resubmit the downstream uv candidate unless uv maintainers explicitly request another downstream direction.
+
+Keep this packet as:
+
+- a negative-result record;
+- a shell-portability case study;
+- evidence for the upstream BusyBox repair;
+- a reminder to check an ambiguous architectural direction before expanding a full implementation.
 
 ## Packet guide
 
 - `PRESENTATION.md` — executive decision brief.
 - `CODE_WALKTHROUGH.md` — explanation of uv, Rust, shell generation, and every changed file.
 - `DEEP_DIVE.md` — technical invariants and historical constraints.
-- `APPROACHES.md` — selected, rejected, and deferred designs.
+- `APPROACHES.md` — selected, rejected, and project-preferred designs.
 - `TESTS.md` — execution receipts.
-- `UPSTREAM_ISSUE.md` — issue strategy and posted comment.
-- `UPSTREAM_PR.md` — public PR source material.
+- `UPSTREAM_ISSUE.md` — issue history and upstream handoff.
+- `UPSTREAM_PR.md` — submitted PR history and closeout.
 - `REVIEW.md` — diff-review guide.
-- `HANDOFF.md` — current stopping point.
-
-Unit 02 is now feedback-only maintenance. New uv work belongs in a separate lane.
+- `HANDOFF.md` — terminal disposition and continuation boundary.
