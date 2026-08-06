@@ -23,9 +23,9 @@ The process producer retains the completion transcript before broadcasting live 
 
 - Owned source PR: `teamleaderleo/codex#144`
 - Base: `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`
-- Head: `b2a704c708748462d7893fe82cf8971f00ca751e`
+- Current head: `87d4ef9ecc07fc1469136b0bf6e6c325bea6a877`
 - Branch: `fieldwork/26-terminal-completion-retention-source`
-- Shape: one commit, four Rust files, 294 additions, 57 deletions
+- Shape: four Rust files
 
 Files:
 
@@ -34,7 +34,16 @@ Files:
 - `codex-rs/core/src/unified_exec/process.rs`
 - `codex-rs/core/src/unified_exec/process_tests.rs`
 
-Review `4856710273` found no blocking issue inside the stated normal-close scope.
+The first tested implementation used separate mutexes for the polling and completion buffers. The current head places both `HeadTailBuffer` values in one shared `OutputState` mutex and exposes separate polling and completion views. Each producer updates both views while holding that one lock, then releases it before broadcasting the live chunk.
+
+This removes the partial-update window between the two retained views and cuts producer-side locking from two acquisitions to one. The existing regression tests now exercise the shared state.
+
+Current-head CI:
+
+- `blocking-ci` run `31072609551`: pending at this update;
+- `v8-canary` run `31072609433`: running at this update.
+
+The earlier exact receipt remains evidence for the behavior and four-file scope, but it does not validate the current single-mutex head. Replace it with the current-head receipt once CI finishes.
 
 ## Latest public comparison
 
@@ -51,9 +60,9 @@ All four source-base files remained byte-identical at that public head:
 
 The duplicate search found no active proposal covering this specific late-or-lagged-listener loss in completed unified-exec output.
 
-## Authoritative execution
+## Earlier authoritative execution
 
-Execution carrier `teamleaderleo/codex#137`, corrected run `30699322569`:
+Execution carrier `teamleaderleo/codex#137`, corrected run `30699322569`, covered source head `b2a704c708748462d7893fe82cf8971f00ca751e`:
 
 - baseline `codex-core` library: `2,129/2,129` passed;
 - source exact terminal-retention controls: `12/12` passed;
@@ -73,6 +82,6 @@ Execution carrier `teamleaderleo/codex#137`, corrected run `30699322569`:
 
 ## Next state
 
-Wait for maintainer triage. A public PR would require a separate owner decision and a fresh current-main restack, baseline-red regression run, and full gate.
+Check current-head CI. If it passes, update the receipt and review the complete single-mutex diff. A public PR still requires a separate owner decision and a fresh current-main restack with baseline-red regression evidence.
 
 No further public comment, reaction, pull request, review, or other upstream interaction is authorized.
