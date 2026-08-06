@@ -4,84 +4,117 @@
 
 The compatibility defect is specific to BusyBox `realpath`, not BusyBox `dirname`.
 
-BusyBox `realpath` treats `--` as another pathname. A generated launcher therefore succeeds but emits `realpath: --: No such file or directory`. BusyBox `dirname` removes an optional `--` before validating its single operand.
+BusyBox `realpath` treats `--` as another pathname. A generated launcher can therefore resolve its real operand and continue while also emitting:
 
-The selected generated form is:
-
-```sh
-"$(dirname -- "$(realpath "$0")")"
+```text
+realpath: --: No such file or directory
 ```
 
-For POSIX and Fish activation, the same rule applies: remove `--` only from `realpath`; preserve nested `dirname --` calls.
+Normal POSIX-style implementations consume `--` as the end-of-options delimiter. Removing it unconditionally weakens protection for a bare operand beginning with `-`.
 
-## Why unconditional generation is correct
+## Final downstream design
 
-A maintainer-side suggestion on the public issue proposed detecting BusyBox and post-processing the launcher as an edge case. That approach binds generated text to the generation host.
+The final submitted uv patch used a runtime behavior probe:
 
-Relocatable artifacts can move between hosts. A virtual environment generated under GNU userland may later execute under BusyBox, or the reverse. The selected fragment is accepted by GNU, BusyBox, and macOS, so unconditional portable generation avoids a host-flavour branch and produces one stable artifact format.
+```sh
+if _uv_realpath_probe=$(realpath -- / 2>/dev/null) &&
+    [ "$_uv_realpath_probe" = / ]; then
+    realpath -- "$0"
+else
+    realpath "$0"
+fi
+```
+
+### Why probe `/`
+
+`/` is an existing operand with a known canonical result. The probe does not depend on the current directory, temporary files, symlinks, permissions, or user configuration.
+
+### Why check status and output
+
+On an ordinary implementation:
+
+- `--` is consumed as a delimiter;
+- `/` is the only operand;
+- output is `/`;
+- status is successful.
+
+On BusyBox, `--` is treated as a pathname. When no such file exists, the probe may still print `/` for the second operand but returns failure. If a literal file named `--` exists, BusyBox can return success after resolving both operands, but the captured output is not equal to the single value `/`.
+
+Both conditions are therefore required.
+
+## Runtime rather than generation-time selection
+
+A relocatable environment may be generated in one environment and executed under another `PATH`. The launcher uses whichever `realpath` the execution environment resolves.
+
+Generation-time detection can inspect a different implementation from the one that later executes the artifact. Runtime probing observes the actual dependency.
 
 ## Historical constraint
 
-`realpath` itself must remain. Upstream added canonicalization to preserve externally symlinked relocatable entrypoints. Removing `realpath`, replacing it casually with another utility, or deriving the interpreter from the symlink location would reintroduce that class of bug.
+`realpath` itself must remain. uv uses canonicalization so an externally symlinked launcher still locates the interpreter beside the original launcher rather than beside the alias.
 
-The patch therefore changes the unsupported delimiter, not the resolution algorithm.
+The patch therefore selected the argument form without replacing the resolution algorithm.
 
 ## Ownership and migration
 
-Wheel generation and virtualenv activation generation own emitted text. Project-run owns an exact recognizer used when copying an entrypoint into an overlay environment.
+Wheel generation and virtualenv activation generation own emitted text. Project-run owns an exact recognizer used when copying entrypoints.
 
-Unix environment discovery may preserve `python` or `python3` as the executable spelling. Persisted relocatable launchers can therefore contain either basename.
+Persisted launchers create a two-by-two compatibility matrix:
 
-The recognizer accepts exactly four forms:
+1. current runtime-probe launcher + `python`;
+2. current runtime-probe launcher + `python3`;
+3. historical `realpath --` launcher + `python`;
+4. historical `realpath --` launcher + `python3`.
 
-1. corrected `python`;
-2. corrected `python3`;
-3. historical `realpath --` + `python`;
-4. historical `realpath --` + `python3`.
+Four explicit prefixes keep migration authority narrow. A general shell parser would accept more than the known producer formats.
 
-The absolute-shebang fallback is unchanged. The narrow four-form grammar protects migrations without turning the recognizer into a general shell parser.
+## Failure modes of the alternatives
 
-## Invariants retained
+### Unconditional delimiter removal
 
-- Resolve the real launcher before selecting its sibling interpreter.
-- Preserve external-symlink behavior.
-- Preserve quoting, spaces, arguments, relative/PATH invocation, and executable mode.
-- Keep success stderr clean on BusyBox.
-- Keep old generated launchers copyable after uv upgrades.
-- Preserve every supported `dirname --` delimiter.
-- Generate one portable artifact independent of the generation host.
+A bare `-foo` operand may be reinterpreted as an option on implementations with normal option parsing.
 
-## Exact source
+### Retry after a protected call fails
 
-- Base: `79bbface771210df216b738e9bdc7df95e5a9e6b`
-- Current head: `17fb4489a71cc63a59b90ecc52b08f703ca0d0e8`
-- Previous byte-identical head: `047b724212905c034c15d4f4f6f9ef330bbd2daf`
-- Tree: `e0832686bd982b5c15f6e9bdd6d6631d30ec24cf`
-- Diff: four files, 89 insertions, 15 deletions
+BusyBox can resolve `$0`, fail on the separate `--` pathname, and then execute the fallback. Command substitution can capture the resolved path twice.
 
-The source diff contains five generated-source `realpath --` removals, two matching native expectation changes, four exact migration constants, replacement of one inline matcher with four named exact matchers, and one private-function regression test.
+### Prefix relative `$0` with `./`
+
+A launcher found through `PATH` may live outside the current directory. Rewriting a bare `$0` as `./$0` can select a different file.
+
+### `command -v`
+
+Useful for executable commands found through `PATH`, but not a common solution for sourced activation scripts.
+
+### BusyBox fingerprinting
+
+Executable names, help text, versions, and symlink layouts describe packaging rather than the required behavior and can vary independently.
+
+## Exact final source
+
+- Final public head: `28b00fc950c7eb924ab243418d44ce16ac5bee5a`
+- Diff: four files, 207 additions, 16 deletions
+- Final canonical CI: run `31059965759` — success
+- Public PR: [astral-sh/uv#20943](https://redirect.github.com/astral-sh/uv/pull/20943)
 
 ## Evidence
 
-The exact source passed:
+The final candidate covered:
 
-- formatting and affected-crate compilation;
-- three focused/native Rust tests;
-- full locked workspace/all-target/all-feature clippy;
-- GNU and Alpine/BusyBox launcher matrices;
-- GNU, Alpine/BusyBox, and macOS Bash activation probes;
-- GNU, Alpine/BusyBox, and macOS Fish activation probes;
-- Linux direct-shebang `$0` discrimination;
-- exact one-commit publication fences.
+- compliant and BusyBox-style fake `realpath` implementations;
+- probe and final-call argument recording;
+- a bare `-foo` operand;
+- a literal file named `--`;
+- clean stderr;
+- current and historical `python` / `python3` launcher forms;
+- POSIX and Fish activation generation;
+- Linux, macOS, and Windows ordinary CI.
 
-The BusyBox baseline reproduced the false diagnostic. The candidate selected the same canonical interpreter/environment and kept stderr empty. GNU and macOS remained clean.
+The measured local cost of the extra probe was about `0.4 ms` per relocatable launcher execution.
 
-## Review result
+## Project decision
 
-A fresh exact-diff review found no remaining source defect. The principal review choice is stylistic and architectural: whether four explicit migration strings are preferable to a broader helper. The current shape is transparent, allocation-free, bounded to observed producers, and covered by one table-style regression loop.
+The runtime probe solved the demonstrated compatibility problem while preserving option safety, but uv maintainers did not accept the added invocation and generated-shell complexity as a downstream tradeoff.
 
-## Evidence limits
+They preferred to make BusyBox `realpath` support the POSIX delimiter directly. That repair is tracked at [vda-linux/busybox_mirror#26](https://redirect.github.com/vda-linux/busybox_mirror/issues/26).
 
-- The entire repository test suite was not run.
-- The source remains pinned to the reviewed public base and requires current-main reconciliation before submission.
-- No public upstream contact occurred.
+The final disposition is therefore `RETIRE`, not because the candidate failed its evidence, but because the target project selected a different ownership boundary.
