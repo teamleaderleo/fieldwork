@@ -2,11 +2,11 @@
 
 ## Current disposition
 
-`EXECUTED HISTORICAL SOURCE — pinned current-main restack fence repaired and queued; separate C API projected-column ownership defect confirmed with focused repair queued`
+`EXECUTED HISTORICAL UNIT SOURCE — pinned current-main restack queued. Two adjacent C API defects confirmed with separate one-file repair carriers queued.`
 
 The unit-14 sparse-union source repair is complete and historically executed. The exact clean source passed all twelve focused controls, ordinary Main, and Zizmor. Remaining unit work is pinned current-main publication, refresh to actual latest main, complete-diff review, and delivery routing.
 
-A separate adjacent C API ownership defect has now been confirmed and is being repaired in its own private lane. It does not expand unit 14's nine-file Arrow-union source scope.
+Two adjacent Arrow C API defects were confirmed during the deeper audit. They remain separate from unit 14's nine-file union source scope and have separate private repair carriers.
 
 No public DuckDB issue, pull request, review, comment, reaction, or branch has been modified. Public upstream remains read-only and unauthorized for contact.
 
@@ -108,7 +108,7 @@ Execution history:
 2. system formatter selection — `30971571206` / `92196843611`, artifact `8917080054`.
 3. interpreter-directory PATH rewrite — `30975073370` / `92207294809`, artifact `8917962298`.
 4. unified venv exposed missing `typos` — `31102660606` / `92619838993`, artifact `8968255091`, digest `sha256:d9a1b7365d5616d9c52d9976ed2142cba1d33197e49c78f074a35930152bd802`.
-5. repository-declared generation tools passed, then fence accounting failed — `31103378104` / `92622266648`, artifact `8968685807`, digest `sha256:1c63e52f1ae315834dbb5326024df0d6d2803417d4e200e1f43d25ad1be05a27`.
+5. repository-declared tools passed, then fence accounting failed — `31103378104` / `92622266648`, artifact `8968685807`, digest `sha256:1c63e52f1ae315834dbb5326024df0d6d2803417d4e200e1f43d25ad1be05a27`.
 
 Attempt five proved Python, clang-format 11.0.1, `typos` 1.45.1, patch application, C API generation, grammar generation, and formatting. Its apparent four-file delta was a receipt bug: `git apply --3way` staged applied files, while plain `git diff` reported only unstaged changes.
 
@@ -131,7 +131,7 @@ Only four unit-14 fence files moved:
 
 The two human-source overlaps are in different functions from unit 14's union mapping and offset logic. No semantic collision is currently apparent. Final latest-main work must still regenerate enum output and preserve current CMake registrations.
 
-## Confirmed adjacent defect: projected later-column ownership
+## Confirmed adjacent defect 1 — projected later-column ownership
 
 Closed private characterization:
 
@@ -150,40 +150,61 @@ surviving second output=-9999,-9999,-9999
 
 Diagnosis: only column zero's copied root wrapper carries the real release callback. A later-column alias can outlive the source chunk while retaining only a no-op wrapper. Destroying the source chunk releases the Arrow root and invalidates the surviving column.
 
-## Active adjacent repair: one shared root owner
-
-Private repair carrier:
+### Focused repair 1 — one shared root owner
 
 - PR: `teamleaderleo/duckdb#32`
-- title: `[REPAIR] Share one Arrow root owner across C API output columns`
 - base/head: `7a91c3658f9411ab17556e55f9df34b3b2140f6e` / `35ceeae91aa02eef76cbd737dfbd68b26f17ba5e`
 - focused run: `31106146125` — queued
 - ordinary Main: `31106148007` — queued
 - carrier fence: one workflow, one generator, CMake registration, one regression test
 - generated production fence: exactly `src/main/capi/arrow-c.cpp`.
 
-The focused repair creates one shared `ArrowArrayWrapper` before the column loop and assigns that exact owner to every column state. It intentionally preserves current consume-on-error behavior; transactional failure ownership remains separate.
+The repair creates one shared `ArrowArrayWrapper` before the column loop and assigns the same owner to every column state. It intentionally preserves current consume-on-error behavior; transactional failure ownership remains separate.
 
-## Other active characterizations
+## Confirmed adjacent defect 2 — runtime root child count ignored
 
-### Runtime schema/array child-count agreement
+Closed private characterization:
 
-- PR: `teamleaderleo/duckdb#30`
-- base/head: `7a91c3658f9411ab17556e55f9df34b3b2140f6e` / `41c76c97cdcbf5fbd6ecfc7b1f130b4f853166af`
-- ordinary Main `31103829101` — success
-- focused run `31103828472` — building
-- expected-negative:
+- PR: `teamleaderleo/duckdb#30` — closed without merge;
+- base/head: `7a91c3658f9411ab17556e55f9df34b3b2140f6e` / `41c76c97cdcbf5fbd6ecfc7b1f130b4f853166af`;
+- ordinary Main: `31103829101` — success;
+- focused run/job: `31103828472` / `92623801218`;
+- artifact: `8969719861`;
+- digest: `sha256:a81a04c00cd838b13b321e44545ee820eae57ff3414220373f3781453d0e5876`.
+
+The focused workflow's grep missed only because Catch wrapped the diagnostic. The retained artifact proves DuckDB accepted a runtime root declaring one child and returned two columns:
 
 ```text
-declared runtime child count=1 accepted=1 output columns=2 second output=21,22
+CHECK( error != nullptr )
+with expansion:
+  nullptr != nullptr
+with message:
+  declared runtime child count=1 accepted=1 output columns=2 second output=21,
+  22
 ```
 
-### Null optional Arrow field name
+### Focused repair 2 — validate count before conversion
+
+- PR: `teamleaderleo/duckdb#33`
+- base/head: `7a91c3658f9411ab17556e55f9df34b3b2140f6e` / `d96e1053801c5f8514e21c17a51c5a93dd1f345d`
+- focused run: `31107012002` — queued
+- ordinary Main: `31107013196` — queued
+- generated production fence: exactly `src/main/capi/arrow-c.cpp`.
+
+The repair:
+
+1. initializes `*out_chunk = nullptr`;
+2. compares runtime child count with converted-schema column count;
+3. rejects disagreement before allocation, ownership transfer, or child dereference;
+4. returns stable invalid-input text;
+5. leaves caller ownership intact on validation failure.
+
+## Active conformance characterization — null optional field name
 
 - PR: `teamleaderleo/duckdb#31`
 - base/head: `7a91c3658f9411ab17556e55f9df34b3b2140f6e` / `301993f1832aa66f05edf210b1bef3fd36f16848`
-- ordinary Main `31105521009` — success
-- focused run `31105519352` — queued
+- ordinary Main: `31105521009` — success
+- focused run: `31105519352` — queued
 - expected-negative:
 
 ```text
@@ -192,27 +213,31 @@ empty field name accepted=1 null field name accepted=0
 
 ## Follow-on research
 
-The current index is [`research/README.md`](research/README.md). Seventeen lanes are preserved, including dense unions, validation levels, reference interoperability, stream repeatability, coordinate systems, pushdown, lifetimes, metadata, encoded layouts, extensions, confirmed projected ownership, stream errors, schema/array agreement, dictionary-cache closure, failure ownership, transactional shared-root design, and null field names.
+The current index is [`research/README.md`](research/README.md). Eighteen lanes are preserved, including dense unions, validation levels, reference interoperability, stream repeatability, coordinate systems, pushdown, lifetimes, metadata, encoded layouts, extensions, two confirmed C API defects, stream errors, failure ownership, transactional shared-root design, null field names, and C ABI exception containment.
 
 Failure-atomic ownership remains explicitly separate. The stable C API describes ownership moving to the returned `DataChunk`, while current conversion may consume the root before returning an error with no chunk. The preferred full model is validation first, one disarmed shared owner during conversion, and release-callback commit only after complete success.
+
+Several pre-conversion operations also sit outside the current conversion catch block, including negative-length casts, chunk initialization, metadata lookup, state allocation, and child-table dereference. The next focused characterization should test negative root length and confirm whether an exception escapes the C ABI.
 
 ## Remaining work
 
 1. observe unit-14 restack run `31104694815`;
 2. inspect the exact artifact and nine-file candidate after success;
-3. refresh the tested source onto actual latest main and rerun all gates and twelve controls;
+3. refresh the tested unit-14 source onto actual latest main and rerun all gates and twelve controls;
 4. inspect repair PR #32 and publish a clean source-only candidate after focused green;
-5. resolve PRs #30 and #31, preserving exact receipts and closing without merge;
-6. characterize failure-atomic ownership before broadening the C API repair;
-7. classify complete latest-main diffs and obtain peer review;
-8. route accepted source through Fieldwork review/delivery desks;
-9. keep public filing separately unauthorized.
+5. inspect repair PR #33 and publish a clean source-only candidate after focused green;
+6. resolve PR #31, preserving exact receipt and closing without merge;
+7. characterize negative-length exception containment;
+8. characterize failure-atomic ownership before broadening either C API repair;
+9. classify complete latest-main diffs and obtain peer review;
+10. route accepted source through Fieldwork review/delivery desks;
+11. keep public filing separately unauthorized.
 
 ## Continuation
 
 - unit 14: `teamleaderleo/duckdb#28@37990d09f8493fe3bcca05f81aa8fd2b806c6205`, run `31104694815`;
 - shared-root repair: `teamleaderleo/duckdb#32@35ceeae91aa02eef76cbd737dfbd68b26f17ba5e`, run `31106146125`;
-- child-count characterization: `teamleaderleo/duckdb#30@41c76c97cdcbf5fbd6ecfc7b1f130b4f853166af`, run `31103828472`;
+- child-count repair: `teamleaderleo/duckdb#33@d96e1053801c5f8514e21c17a51c5a93dd1f345d`, run `31107012002`;
 - null-name characterization: `teamleaderleo/duckdb#31@301993f1832aa66f05edf210b1bef3fd36f16848`, run `31105519352`.
 
-Do not merge any execution or characterization carrier. Do not contact public upstream.
+Do not merge any execution, repair, or characterization carrier. Do not contact public upstream.
