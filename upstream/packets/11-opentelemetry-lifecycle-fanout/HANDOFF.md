@@ -1,58 +1,86 @@
-# Handoff — Unit 11: stabilize lifecycle fanout targets
+# Handoff — Unit 11: OpenTelemetry lifecycle fanout
 
 ## Current state
 
-`UPSTREAM PREPARATION IN PROGRESS — SOURCE REVIEW ACCEPTED — EXACT-HEAD CI PENDING`
+`SUBMITTED — WAITING ON REVIEWERS`
 
-The repository owner approved moving the candidate into upstream preparation. The source has been refreshed onto current public `main`, overlap and contribution logistics have been checked, and the upstream-facing description has been rewritten in the repository's current pull-request format.
+- issue: [open-telemetry/opentelemetry-js#6977](https://redirect.github.com/open-telemetry/opentelemetry-js/issues/6977)
+- pull request: [open-telemetry/opentelemetry-js#6980](https://redirect.github.com/open-telemetry/opentelemetry-js/pull/6980)
+- final signed head: `1e5bd20fb823a9c47a2b2ccc974e18d88b765f16`
+- EasyCLA: passing
+- owned-fork exact-head workflows: all passing
+- upstream workflow state: maintainer approval required before jobs run
+- dashboard: waiting on reviewers
 
-The source preview and packet are intentionally draft while the fresh exact-head workflow matrix runs.
+## Next actions
 
-## Exact identities
+1. Wait for a maintainer to approve workflow execution and review the patch.
+2. Respond to concrete review comments in the contributor's own words.
+3. Rebase only when upstream movement or review makes it necessary.
+4. Sign every replacement commit and preserve both trailers.
+5. Re-run exact-head checks after any code, test, or changelog change.
+6. Give reviewers a few days before any ping.
 
-- refreshed public-main base: `f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`;
-- canonical source branch: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout-v2`;
-- exact prepared source head: `f4cb44bcccffbc0eb39e774284655e0f965cfce1`;
-- source preview PR: `teamleaderleo/opentelemetry-js#19`;
-- packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout-current`;
-- packet path: `upstream/packets/11-opentelemetry-lifecycle-fanout/`;
-- source relation: ahead 1, behind 0.
+## Lessons for the next upstream contribution
 
-## Completed preparation
+### Prepare the final publication sequence early
 
-1. Refreshed public `main` and found it three commits ahead of the earlier base.
-2. Preserved upstream PR #6929's new per-call trace force-flush timeout API.
-3. Preserved the unrelated current-main `MultiSpanProcessor.onEnding()` forwarding behavior.
-4. Rebuilt the six-file candidate as one commit on the refreshed base.
-5. Updated the provider tests to use the current per-call timeout option.
-6. Re-ran issue and PR searches; no equivalent repair was found.
-7. Rechecked current contribution, changelog, and pull-request-template requirements.
-8. Drafted the exact root and experimental changelog lines, pending a real public PR number.
-9. Rewrote the source preview and packet upstream draft in concise upstream-facing form.
-10. Performed a fresh complete-diff source review; no blocking defect was found.
+The real sequence was:
 
-## Fresh exact-head execution
+```text
+prepare source
+file issue
+open PR to obtain PR number
+add numbered changelog entries
+amend and sign
+force-push
+verify exact head
+```
 
-Started for `f4cb44bcccffbc0eb39e774284655e0f965cfce1`:
+A changelog that requires the PR number cannot be final before the upstream PR exists. Plan for one immediate signed amendment after opening.
 
-- Unit Tests `30956029453`;
-- Lint `30956029480`;
-- W3C Trace Context Integration Test `30956029456`;
-- Bundler tests `30956029470`;
-- Ensure API Peer Dependency `30956029447`;
-- CodeQL Analysis `30956029506`;
-- E2E Tests `30956029462`;
-- Zizmor GitHub Actions Security Analysis `30956029460`;
-- Old Node.js Compatibility `30956029502`.
+### Inspect the changed-file list after every amendment
 
-## Remaining gate
+The first AI-disclosure amendment updated the commit message while the changelog files were absent from the commit. The reliable check is:
 
-1. Classify all fresh exact-head workflows.
-2. Repair any candidate-relevant failure rather than parking it.
-3. If the matrix is green, mark the source preview and packet ready and present the final public-contact decision.
-4. After explicit public-contact authorization, create the upstream PR and immediately add both changelog entries using its assigned number.
+```sh
+git status --short
+git diff --cached --stat
+git show --stat --oneline HEAD
+```
 
-## Contact boundary
+Then verify the live PR's changed-file list.
 
-Public upstream interaction authorized: `false`.  
-Public upstream interaction performed: `false`.
+### Keep mutable commit identities out of the PR body
+
+An exact SHA in the description became stale after the changelog amendment. Record stable facts in the public body and keep exact-head identities in Fieldwork receipts.
+
+### Treat signatures, sign-off, CLA, and AI disclosure as separate gates
+
+- `-S` creates the cryptographic signature.
+- `-s` adds the `Signed-off-by` trailer.
+- EasyCLA authorizes the contributor.
+- `Assisted-by:` records significant model assistance.
+
+One does not substitute for another.
+
+### Distinguish workflow approval from workflow failure
+
+For a first-time fork contribution, GitHub can report `action_required` with no jobs. That means a maintainer must approve execution. It is not a failing test result.
+
+### Match the repository's changelog conventions
+
+The stable and experimental changelogs used different link styles. Follow the local section rather than forcing one global format.
+
+### Use quiet links in Fieldwork interaction text
+
+Fieldwork pull-request bodies and comments should cite third-party GitHub work through `redirect.github.com`. Repository files may link directly, but this packet uses redirect links consistently.
+
+### Keep the production explanation small
+
+The implementation is three opening-set snapshots plus a local direct-throw adapter. The tests are larger because trace, logs, and provider paths have separate result policies. Explain that mapping directly.
+
+## Contact record
+
+Public upstream interaction authorized: `true`  
+Public upstream interaction performed: `true`

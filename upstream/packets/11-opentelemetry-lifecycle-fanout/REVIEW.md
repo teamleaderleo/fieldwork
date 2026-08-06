@@ -1,85 +1,71 @@
-# Review — Unit 11: stabilize lifecycle fanout targets
+# Review — Unit 11: OpenTelemetry lifecycle fanout
 
-## Current disposition
+## Final disposition
 
-`SOURCE REVIEW ACCEPTED — EXACT-HEAD EXECUTION PENDING`
+`SOURCE REVIEW ACCEPTED — SUBMITTED UPSTREAM`
 
-The current-main rebase remains one clean six-file commit. A fresh complete-diff source review found no blocking defect in the rebased mechanism, including its integration with the newly merged per-call trace force-flush timeout. Fresh repository workflows are still running, so this is not yet a final filing-ready disposition.
+The final patch is one signed commit over the submission base. It contains three production files, three regression-test files, and two changelog files. The complete diff remains limited to the reported lifecycle-fanout defect.
 
-## Subject
+## Identity
 
-- target: `open-telemetry/opentelemetry-js`;
-- refreshed base: `f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`;
-- branch: `upstream/unit-11-lifecycle-fanout-v2`;
-- exact source head: `f4cb44bcccffbc0eb39e774284655e0f965cfce1`;
-- source PR: `teamleaderleo/opentelemetry-js#19`;
-- relation: one commit ahead, zero behind;
-- boundary: three production files and three tests;
-- public upstream authority: none.
+- upstream issue: [#6977](https://redirect.github.com/open-telemetry/opentelemetry-js/issues/6977)
+- upstream pull request: [#6980](https://redirect.github.com/open-telemetry/opentelemetry-js/pull/6980)
+- submission base: `7f3e7eaa9f6bbc9622136479ed846f98c760a408`
+- final head: `1e5bd20fb823a9c47a2b2ccc974e18d88b765f16`
+- source branch: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout-v2`
+- commit count: one
+- changed files: eight
+- signature: verified locally
+- sign-off: present
+- AI assistance trailer: present
+- EasyCLA: passing
 
-## Fresh rebase findings
-
-### Current-main overlap
-
-Public `main` advanced by three commits from the earlier base. The only source overlap is upstream PR #6929, which adds `ForceFlushOptions` and a per-call timeout to `TracerProvider.forceFlush()`.
-
-The rebased candidate preserves:
-
-- the `ForceFlushOptions` import and public signature;
-- per-call timeout precedence over the deprecated constructor setting;
-- upstream's existing timeout tests;
-- the unrelated `MultiSpanProcessor.onEnding()` forwarder added on current main.
-
-No current issue or pull request was found that duplicates the synchronous-throw/opening-set repair.
+## Technical review
 
 ### `MultiSpanProcessor`
 
-- snapshots the opening processor set before any child invocation;
-- invokes children eagerly through a local `try`/`catch` helper;
-- converts only direct synchronous throws into rejected promises;
-- preserves shutdown rejection and force-flush global-error-handler/resolve behavior;
-- leaves normal `onStart`, `onEnding`, and `onEnd` hot paths unchanged.
+- snapshots the opening processor set;
+- invokes children eagerly;
+- converts direct synchronous throws into rejected promises;
+- preserves shutdown rejection;
+- preserves force-flush global-error reporting and resolution;
+- leaves normal span processing unchanged.
 
 ### `TracerProvider.forceFlush()`
 
-- separately snapshots its direct fanout targets;
-- resolves the current timeout from the per-call option before fanout as upstream now requires;
-- creates each timeout before invocation as before;
-- routes synchronous throws through the existing catch path;
-- clears the timeout and preserves the existing collected error-array rejection;
-- retains genuine timeout rejection for non-settling processors.
+- snapshots the direct fanout targets;
+- keeps the per-call timeout option;
+- routes direct throws through the existing catch path;
+- clears the processor timer;
+- preserves the existing error-array rejection;
+- retains genuine timeout behavior.
 
 ### `MultiLogRecordProcessor`
 
-- snapshots the retained public processor array;
-- protects direct calls without microtask deferral;
-- preserves the current per-call timeout option, timeout wrapper, and rejection behavior.
+- snapshots the retained processor list;
+- protects direct lifecycle calls without microtask deferral;
+- preserves timeout wrapping and rejection behavior.
 
-### Metrics exclusion
+### Test judgment
 
-- provider collector membership is internally constructed;
-- prior mutation controls required private-state access;
-- metric collector lifecycle methods are async;
-- symmetry alone does not justify widening the patch.
+Eleven regression tests are appropriate for the three distinct implementations and their different outward policies. Trace and logs need separate coverage because they are maintained in separate packages. The provider tests cover the additional timer and error-array behavior.
 
-## Regression coverage
+## Validation judgment
 
-Eleven focused assertions cover direct throws, opening-set mutation, provider error-array shape, timeout cleanup, and genuine timeout behavior. The rebased provider tests use the new per-call timeout option rather than the deprecated constructor option.
+Every workflow on the owned fork passed for the final signed head. The upstream runs are waiting for maintainer approval and have not produced failing jobs.
 
-## Compatibility boundary
+## Scope judgment
 
-- no new public API or type change;
-- upstream's new per-call timeout API is retained;
-- eager fanout and existing order are retained;
-- existing trace aggregate, provider, and logs settlement policies are retained;
-- future mutations remain visible to future operations;
-- one shallow copy per affected lifecycle operation;
-- no settle-all aggregation, retries, cancellation, idempotence, or metrics change.
+The patch includes:
 
-## Remaining evidence gate
+- opening-set preservation;
+- direct-throw normalization;
+- provider timer cleanup;
+- regression tests;
+- required changelog entries.
 
-The fresh exact-head workflow matrix for `f4cb44bcccffbc0eb39e774284655e0f965cfce1` must complete and be classified. The earlier green matrix and acceptance on `db3d9e5e43d5abc6622784acf0ef87f3b038ac91` are historical evidence only.
+The patch excludes metrics, retries, cancellation, settle-all aggregation, multi-error redesign, dependency changes, and public API changes.
 
 ## Recommendation
 
-Keep the source preview and packet in draft until the fresh matrix is green or any candidate-relevant failure is repaired. Once that gate closes, present the prepared upstream wording and explicit public-contact decision to the repository owner.
+Leave the upstream pull request with reviewers. Make further changes only for a concrete review request, upstream movement that affects the patch, or an actual check failure.

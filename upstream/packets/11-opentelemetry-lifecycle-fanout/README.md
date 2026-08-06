@@ -1,133 +1,80 @@
-# Unit 11 — fix: stabilize lifecycle fanout targets
-
-## In simple words
-
-I propose snapshotting the trace and log processors present when shutdown or force flush begins, so one processor's immediate failure or array mutation won't prevent the other opening processors from being called.
-
-```text
-Current
-processor A fails or removes B
-    -> B can be skipped
-
-Proposed
-snapshot [A, B]
-    -> call A
-    -> call B
-    -> report failure through the existing policy
-```
-
-The patch also routes a synchronous `TracerProvider.forceFlush()` failure through the existing timeout-cleanup path, so an already-failed processor doesn't leave an obsolete timer armed.
-
-The candidate has been rebased onto current public `main`. Upstream added a per-call trace force-flush timeout after the earlier review; the rebased code preserves that API and updates the provider tests to exercise it. Fresh exact-head workflows are running, so the old technical acceptance is historical evidence rather than acceptance of the new SHA.
+# Unit 11 — OpenTelemetry lifecycle fanout
 
 ## Current state
 
-`UPSTREAM PREPARATION IN PROGRESS — CURRENT-MAIN REBASE COMPLETE — EXACT-HEAD CI RUNNING`
+`SUBMITTED — UPSTREAM PR OPEN — WAITING ON REVIEWERS`
 
-Last refreshed: `2026-08-05`  
-Priority-zero parent: `teamleaderleo/fieldwork#435`  
-Public upstream contact authorized: `no`
+Last refreshed: `2026-08-06`
 
-## Two review paths
+- live issue: [open-telemetry/opentelemetry-js#6977](https://redirect.github.com/open-telemetry/opentelemetry-js/issues/6977)
+- live pull request: [open-telemetry/opentelemetry-js#6980](https://redirect.github.com/open-telemetry/opentelemetry-js/pull/6980)
+- owned source preview: [teamleaderleo/opentelemetry-js#19](https://github.com/teamleaderleo/opentelemetry-js/pull/19)
+- final source head: `1e5bd20fb823a9c47a2b2ccc974e18d88b765f16`
+- upstream base at submission: `7f3e7eaa9f6bbc9622136479ed846f98c760a408`
+- packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout-current`
 
-Start with the short drafts when deciding whether the proposal is understandable and worth raising:
-
-- [Maintainer-facing issue draft](./UPSTREAM_ISSUE.md)
-- [Maintainer-facing PR draft](./UPSTREAM_PR.md)
-
-Use the technical packet when checking ownership, edge cases, evidence, and alternatives:
-
-- [Deep dive](./DEEP_DIVE.md)
-- [Approaches and rejected designs](./APPROACHES.md)
-- [Tests and receipts](./TESTS.md)
-- [Exact-head review](./REVIEW.md)
-
-The public drafts intentionally do not repeat the full investigation history.
+The issue was filed first. The pull request followed after the review window, with `Fixes #6977`, two changelog entries, a signed commit, a signed CLA, and an `Assisted-by: ChatGPT GPT-5.6 Thinking` trailer.
 
 ## Contribution
 
-`MultiSpanProcessor` and `MultiLogRecordProcessor` traverse retained mutable processor arrays while invoking lifecycle methods. A processor can remove a later opening processor or throw synchronously before returning its declared promise, preventing later invocation.
+The patch preserves the processor set present when lifecycle work begins:
 
-Public `TracerProvider.forceFlush()` performs a separate direct fanout. Live mutation can skip a later processor there, and a synchronous throw can bypass the normal timeout-clearing promise path.
+```text
+opening processors = snapshot(current processors)
 
-The candidate:
+call every processor in the snapshot
+route direct throws into the existing promise path
+preserve the existing result and timeout policy
+```
 
-- snapshots the processors present when each lifecycle operation begins;
-- invokes each child eagerly through a local `try`/`catch` helper;
-- converts only direct synchronous throws into rejected promises;
-- preserves each surface's existing settlement and timeout policy;
-- preserves the newly merged per-call trace timeout option from upstream PR #6929.
+The production change is limited to:
 
-Metrics remains excluded because the comparable collector list is internally constructed and the earlier mutation control required private-state access.
+- shallow snapshots in trace and log lifecycle fanout;
+- a small direct-throw adapter;
+- provider timeout cleanup through the existing catch path.
 
-## Exact identities
-
-- target: `open-telemetry/opentelemetry-js`;
-- refreshed public-main base: `f278e3b8427c406c271b8cba2c0f1a9c47c2f15e`;
-- canonical source branch: `teamleaderleo/opentelemetry-js:upstream/unit-11-lifecycle-fanout-v2`;
-- exact prepared source head: `f4cb44bcccffbc0eb39e774284655e0f965cfce1`;
-- owned source preview: `teamleaderleo/opentelemetry-js#19`;
-- source relation: ahead 1, behind 0;
-- packet branch: `p0/435-unit-11-opentelemetry-lifecycle-fanout-current`;
-- proposed title: `fix(sdk-trace, sdk-logs): invoke all lifecycle processors`.
+Metrics remains outside the patch. Public APIs, configuration, dependencies, and normal telemetry processing remain unchanged.
 
 ## Final code boundary
 
-1. `packages/sdk-trace/src/MultiSpanProcessor.ts`
-2. `packages/sdk-trace/src/TracerProvider.ts`
-3. `packages/sdk-trace/test/common/MultiSpanProcessor.attempt-all.test.ts`
-4. `packages/sdk-trace/test/common/TracerProvider.attempt-all.test.ts`
-5. `experimental/packages/sdk-logs/src/MultiLogRecordProcessor.ts`
-6. `experimental/packages/sdk-logs/test/common/MultiLogRecordProcessor.attempt-all.test.ts`
+1. `CHANGELOG.md`
+2. `experimental/CHANGELOG.md`
+3. `packages/sdk-trace/src/MultiSpanProcessor.ts`
+4. `packages/sdk-trace/src/TracerProvider.ts`
+5. `packages/sdk-trace/test/common/MultiSpanProcessor.attempt-all.test.ts`
+6. `packages/sdk-trace/test/common/TracerProvider.attempt-all.test.ts`
+7. `experimental/packages/sdk-logs/src/MultiLogRecordProcessor.ts`
+8. `experimental/packages/sdk-logs/test/common/MultiLogRecordProcessor.attempt-all.test.ts`
 
-No metrics, dependency, lock, generated, publisher, or temporary workflow file is present.
+## Validation
 
-## Current-main and overlap refresh
+All workflows on the owned fork passed for the final signed head:
 
-- public `main` was three commits ahead of the earlier base;
-- two commits were dependency/workflow maintenance;
-- upstream PR #6929 changed `TracerProvider.forceFlush()` to accept a per-call timeout;
-- that nearby change is complementary, not duplicative, and is retained in the prepared branch;
-- current issue and PR searches found no equivalent synchronous-throw/opening-set repair;
-- current contribution guidance requires unit tests and changelog entries for behavior changes.
+- Unit Tests `31073507119`
+- Lint `31073507124`
+- E2E Tests `31073507094`
+- Bundler tests `31073507109`
+- W3C Trace Context Integration Test `31073507096`
+- CodeQL Analysis `31073507092`
+- Ensure API Peer Dependency `31073507111`
+- Zizmor GitHub Actions Security Analysis `31073507376`
+- changelog `31073507108`
 
-## Exact-head execution
+The upstream workflows currently show `action_required` because a maintainer must approve workflow execution for the fork-originated pull request. No upstream test job has failed.
 
-Fresh workflows were started for `f4cb44bcccffbc0eb39e774284655e0f965cfce1`:
+EasyCLA passes. The pull-request dashboard reports `Waiting on reviewers`.
 
-- Unit Tests `30956029453`;
-- Lint `30956029480`;
-- W3C Trace Context Integration Test `30956029456`;
-- Bundler tests `30956029470`;
-- Ensure API Peer Dependency `30956029447`;
-- CodeQL Analysis `30956029506`;
-- E2E Tests `30956029462`;
-- Zizmor GitHub Actions Security Analysis `30956029460`;
-- Old Node.js Compatibility `30956029502`.
+## Packet navigation
 
-The eight green runs and technical acceptance attached to `db3d9e5e43d5abc6622784acf0ef87f3b038ac91` remain useful historical evidence, but they do not substitute for fresh exact-head evidence after the rebase.
-
-## Remaining preparation work
-
-1. Classify the fresh exact-head workflow matrix.
-2. Perform a fresh complete-diff review on the rebased SHA.
-3. Reconfirm public `main`, package versions, contribution guidance, and overlap.
-4. Obtain explicit authorization to file the reviewed issue draft.
-5. Use maintainer feedback to finalize the PR scope and test placement.
-6. Obtain separate authorization to open the public PR.
-7. Insert the assigned PR number into the root and experimental changelog entries and rerun affected checks.
-
-## Full packet navigation
-
-- [Maintainer-facing issue draft](./UPSTREAM_ISSUE.md)
-- [Maintainer-facing PR draft](./UPSTREAM_PR.md)
+- [Submitted issue record](./UPSTREAM_ISSUE.md)
+- [Submitted pull-request record](./UPSTREAM_PR.md)
 - [Deep dive](./DEEP_DIVE.md)
-- [Approaches](./APPROACHES.md)
+- [Approaches and rejected designs](./APPROACHES.md)
 - [Tests and receipts](./TESTS.md)
-- [Review](./REVIEW.md)
-- [Handoff](./HANDOFF.md)
+- [Final review](./REVIEW.md)
+- [Handoff and lessons](./HANDOFF.md)
 
-## Contact boundary
+## Contact record
 
-Public upstream interaction authorized: `false`.  
-Public upstream interaction performed: `false`.
+Public upstream interaction authorized: `true`  
+Public upstream interaction performed: `true`
