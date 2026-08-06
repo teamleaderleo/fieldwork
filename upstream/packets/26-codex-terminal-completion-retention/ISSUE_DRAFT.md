@@ -38,24 +38,10 @@ I made another test that forces a live receiver to report `Lagged`. The live rec
 
 I ran the same lag test with invalid UTF-8, and I added a test that starts with a partial streaming transcript and checks that completion replaces it with the process-owned copy.
 
-### Proposed high-level fix
+### Proposed change
 
 Store each output chunk before sending it to the live stream. When the command finishes, build the completed result from that retained output instead of from the listener's partial transcript.
 
-The implementation adds a second `HeadTailBuffer` to `UnifiedExecProcess`. Each output chunk goes into that buffer before Codex broadcasts it. When output closes, the completion watcher replaces its partial transcript with the retained copy.
+[This implementation](https://github.com/teamleaderleo/codex/pull/144) adds a second `HeadTailBuffer` to `UnifiedExecProcess`. Each output chunk goes into that buffer before Codex broadcasts it. When output closes, the completion watcher replaces its partial transcript with the retained copy.
 
-The live stream can still miss updates. The completed command result won't depend on whether the listener kept up.
-
-The existing output caps still apply, including the head-and-tail retention and omission marker.
-
-### Implementation and tests
-
-The four-file change is here: [`teamleaderleo/codex#144`](https://github.com/teamleaderleo/codex/pull/144).
-
-At that revision:
-
-- 12 focused terminal-output tests passed.
-- All 2,133 changed `codex-core` tests passed.
-- All 2,129 tests passed on the paired unmodified baseline.
-- The relevant integration targets compiled.
-- Formatting and the four-file source check passed.
+That way, the completed command result won't depend on whether the listener kept up.
