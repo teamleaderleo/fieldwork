@@ -1,10 +1,10 @@
 # DuckDB Arrow follow-on research index
 
-Date: 2026-08-05
+Date: 2026-08-06
 
-These notes preserve read-only inquiry performed while unit 14 context was fresh. They do not expand unit 14's nine-file source scope, claim new numbered units, or authorize public upstream contact.
+These notes preserve read-only public-source inquiry and private Fieldwork characterization performed while unit 14 context was fresh. They do not expand unit 14's nine-file source scope, claim new numbered units, or authorize public upstream contact.
 
-The main deep source audit was pinned to DuckDB public source `043e1894425b49984c5010f253589e5d9c5fdde4`. The C API ownership pattern was rechecked and remained present at newer public source `58c019320e250a7b369efd756f84c6dfd68bedcb`. Refresh every source-level claim before implementing a future unit.
+The newest public DuckDB main observed during this pass is `7a91c3658f9411ab17556e55f9df34b3b2140f6e`. The focused source audits and active C API characterization are pinned to `58c019320e250a7b369efd756f84c6dfd68bedcb`; the intervening public changes inspected were unrelated benchmark infrastructure. Refresh every source claim before implementation.
 
 ## Research lanes
 
@@ -12,37 +12,37 @@ The main deep source audit was pinned to DuckDB public source `043e1894425b49984
 
 [`dense-union-ingestion.md`](dense-union-ingestion.md)
 
-A substantial separate capability candidate. DuckDB now has merged ADBC paths that manually produce required dense unions, while `arrow_scan` still rejects `+ud:`. The note defines the two-coordinate conversion model, narrow ingestion-only scope, validation boundaries, and a discriminating regression matrix.
+A substantial separate capability candidate. DuckDB has merged ADBC paths that manually produce required dense unions, while `arrow_scan` still rejects `+ud:`. The note defines the two-coordinate conversion model, narrow ingestion-only scope, validation boundaries, and a discriminating regression matrix.
 
 ### 2. Arrow C Data validation
 
 [`arrow-c-data-validation.md`](arrow-c-data-validation.md)
 
-A proposed sequence of small malformed-input hardening units under public issue `duckdb/duckdb#21849`: schema child structure, parameterized format parsing, schema/array child agreement, buffer structure, and metadata arithmetic.
+A sequence of small malformed-input hardening units under public issue `duckdb/duckdb#21849`: schema child structure, parameterized format parsing, schema/array agreement, buffer structure, and metadata arithmetic.
 
 ### 3. Reference-consumer interoperability
 
 [`reference-consumer-interop.md`](reference-consumer-interop.md)
 
-A testing-infrastructure candidate. DuckDB-only round trips can miss schema/layout incompatibilities. The note compares duckdb-python/PyArrow, a small core `arro3` or Arrow C++ oracle, and nanoarrow-based options, with a bidirectional fixture matrix.
+A testing-infrastructure candidate. DuckDB-only round trips can miss schema/layout incompatibilities. The note compares duckdb-python/PyArrow, a small core Arrow C++ or `arro3` oracle, and nanoarrow-based options, with a bidirectional fixture matrix.
 
 ### 4. `arrow_scan` repeatability and single-consumer semantics
 
 [`arrow-scan-single-consumer.md`](arrow-scan-single-consumer.md)
 
-A correctness lane covering explicit multiple references and optimizer-introduced duplicated scans. It compares capability flags, binding-specific repeatability, automatic materialization, and narrow rewrite guards.
+A correctness lane covering explicit multiple references and optimizer-introduced duplicate scans. It compares capability flags, binding-specific repeatability, automatic materialization, and narrow rewrite guards.
 
 ### 5. Logical versus physical coordinates
 
 [`arrow-coordinate-systems.md`](arrow-coordinate-systems.md)
 
-A cross-cutting audit taxonomy for parent offsets, chunk offsets, list child starts, dictionary positions, run ends, sparse/dense unions, and ListView spans. It includes fixture-design guidance intended to expose the exact physical slot read.
+A cross-cutting taxonomy for parent offsets, chunk offsets, list child starts, dictionary positions, run ends, sparse/dense unions, and ListView spans. It includes fixture-design guidance intended to expose the exact physical slot read.
 
 ### 6. Pushdown capability contract
 
 [`arrow-pushdown-capability-contract.md`](arrow-pushdown-capability-contract.md)
 
-A planner/provider contract investigation. Pushdown safety depends on predicate kind, scalar construction, whole-batch layout, projection identity, residual-filter handling, and stream provider—not only the filtered DuckDB type. The note proposes a binding-specific capability model and a plan-and-result test matrix.
+Pushdown safety depends on predicate kind, scalar construction, whole-batch layout, projection identity, residual-filter handling, and stream provider—not only the filtered DuckDB type. The note proposes a binding-specific capability model and plan-and-result test matrix.
 
 ### 7. Lifetime and ownership
 
@@ -66,13 +66,42 @@ A type-by-type validation and safe-span program for dictionaries, run-end encodi
 
 [`arrow-extension-contracts.md`](arrow-extension-contracts.md)
 
-An audit of extension identity, physical storage, DuckDB logical meaning, callback/context lifetime, unknown-extension degradation, and schema/appender agreement. It proposes explicit resolution states and parity tests across output versions, views, offsets, and nested storage.
+An audit of extension identity, physical storage, DuckDB logical meaning, callback/context lifetime, unknown-extension degradation, and schema/appender agreement. Current built-in callbacks copy output or preserve DuckDB buffer references; no core alias-lifetime defect was established there.
 
-### 11. C API zero-copy ownership
+### 11. C API projected-column ownership
 
 [`arrow-capi-zero-copy-ownership.md`](arrow-capi-zero-copy-ownership.md)
 
-A source-supported candidate defect in `duckdb_data_chunk_from_arrow`. Root `ArrowArray` ownership is transferred inside the per-column conversion loop, while the existing roundtrip test covers only one column. The note defines a two-column recursive-release fixture that can prove or disprove release-before-later-column conversion without prematurely claiming a confirmed bug.
+Active private characterization: [`teamleaderleo/duckdb#29`](https://github.com/teamleaderleo/duckdb/pull/29), exact base `58c019320e250a7b369efd756f84c6dfd68bedcb`.
+
+The original broad hypothesis—release during ordinary per-column conversion—was corrected. Generic conversion attaches each column's copied root wrapper to the output vector buffer, so the complete source chunk remains safe. The refined risk is that only column zero's wrapper carries the actual root release callback. A later-column projection can outlive the source chunk while retaining only a no-op wrapper. The expected-negative fixture keeps column two, destroys the source chunk, and uses a root release callback that poisons column two.
+
+Correct behavior keeps the root alive until the surviving projection is destroyed. The expected defect signature is:
+
+```text
+root release count after source chunk destroy=1
+surviving second output=-9999,-9999,-9999
+```
+
+No defect should be called confirmed until the exact-head focused workflow reproduces that signature.
+
+### 12. Arrow C Stream error contracts
+
+[`arrow-stream-error-contracts.md`](arrow-stream-error-contracts.md)
+
+A small wrapper-level hardening candidate. Arrow permits `get_last_error` to return `NULL`; DuckDB currently constructs a `string` directly from that optional pointer after stream callback failures. The note defines null-detail, missing-callback, partial-output, numeric-error, and release-count controls.
+
+### 13. C API schema/array agreement
+
+[`arrow-capi-schema-array-agreement.md`](arrow-capi-schema-array-agreement.md)
+
+A high-confidence structural validation candidate. `duckdb_data_chunk_from_arrow` uses the converted-schema column count and dereferences runtime child pointers without first checking root child count, child table presence, required child pointers, release state, or logical spans. The note defines deterministic non-crashing mismatch fixtures and a pre-transfer O(1) validator.
+
+### 14. Dictionary cache identity
+
+[`arrow-dictionary-cache-identity.md`](arrow-dictionary-cache-identity.md)
+
+Audited and closed as a defect avenue for conforming producers. DuckDB's cached dictionary vector retains the owning root array. Arrow forbids the producer from mutating or recycling that dictionary object before release, so pointer identity remains adequate while ownership retention is preserved.
 
 ## Earlier broad sweep
 
@@ -82,7 +111,7 @@ A source-supported candidate defect in `duckdb_data_chunk_from_arrow`. Root `Arr
 
 ### Logical and physical coordinates
 
-Dense unions, sparse unions, ListView, dictionaries, run ends, and fixed arrays all need explicit checked spans rather than ad hoc offset arithmetic.
+Dense unions, sparse unions, ListView, dictionaries, run ends, and fixed arrays need explicit checked spans rather than ad hoc offset arithmetic.
 
 ### Capability belongs to the bound provider
 
@@ -90,7 +119,7 @@ Pushdown and repeatability cannot be inferred from a logical Arrow schema alone.
 
 ### Lifetimes are part of the data contract
 
-A valid schema or array is not enough if its producer, extension context, or release owner has already gone away. Ownership must be retained at the root/chunk level rather than accidentally depending on which column aliases producer memory.
+A valid schema or array is not enough if its producer, root owner, extension context, or release holder has gone away. A shared root owner should be represented once and propagated to every alias, not copied after its release callback has already been moved away.
 
 ### DuckDB self-roundtrip is necessary but insufficient
 
@@ -100,18 +129,27 @@ Reference consumers are needed to prove schema/data layout agreement, extension 
 
 Fast structural checks should prevent unsafe dereferences and arithmetic. Full content validation should exist as a strict/test oracle without automatically taxing every trusted scan.
 
+### Losing avenues must stay recorded
+
+The dictionary-cache analysis and the corrected broad ownership hypothesis are retained to stop future workers from repeating the same incomplete reasoning.
+
 ## Priority board
 
-### Highest-priority characterization
+### Active characterization
 
-**C API multi-column ownership**: narrow public API boundary, strong source signal, missing multi-column test, deterministic release-count oracle.
+**Projected later-column C API ownership** — exact private PR #29, narrow public API boundary, deterministic poisoned-buffer oracle.
+
+### Highest-confidence next hardening
+
+**C API schema/array agreement** — child-count and pointer checks before ownership transfer or conversion.
 
 ### Strongest product contribution
 
-**Dense-union ingestion**: already demanded by merged ADBC producers and external standards.
+**Dense-union ingestion** — already demanded by merged ADBC producers and external standards.
 
 ### Best small hardening slices
 
+- null-safe Arrow stream error detail;
 - negative metadata count/length rejection;
 - schema child-count and pointer validation;
 - validity bitmap no-overread;
@@ -121,23 +159,24 @@ Fast structural checks should prevent unsafe dereferences and arithmetic. Full c
 
 - release-count Arrow C Data fixture utility;
 - reference-consumer interop lane;
-- checked span helpers for nested/encoded layouts.
+- checked span helpers for nested and encoded layouts.
 
 ## Suggested routing order
 
-1. Finish unit 14 current-main reconciliation and complete-diff peer review.
-2. Privately characterize the **C API multi-column ownership** candidate on exact current source.
-3. Take **dense-union ingestion** as the strongest separate product contribution.
-4. Take **metadata signed-length validation** and **schema child-structure validation** as small malformed-input units.
-5. Build a reusable **release-count C Data fixture utility**.
-6. Address **`arrow_scan` repeatability** with binding-specific capability or automatic materialization.
-7. Add **reference-consumer interoperability** as enabling infrastructure.
-8. Introduce **checked span helpers** before attempting broad encoded-layout validation.
-9. Add **extension schema/appender parity** and unknown-extension degradation observability.
-10. Revisit provider-specific pushdown after projection/residual-filter invariants are covered.
+1. Finish unit 14's pinned current-main execution path, then refresh to actual latest main and obtain complete-diff review.
+2. Resolve private characterization PR #29: confirm the refined projected-column defect or close it as disproven.
+3. Characterize C API schema/array disagreement with non-crashing count and pointer fixtures.
+4. Take dense-union ingestion as the strongest separate product contribution.
+5. Take stream-null-error, metadata signed-length, and schema child-structure validation as small units.
+6. Build a reusable release-count C Data fixture utility.
+7. Address `arrow_scan` repeatability with binding-specific capability or automatic materialization.
+8. Add reference-consumer interoperability as enabling infrastructure.
+9. Introduce checked span helpers before broad encoded-layout validation.
+10. Revisit provider-specific pushdown after projection and residual-filter invariants are covered.
 
 ## Authority
 
 - Public DuckDB contact: not authorized.
 - Public repository writes during this research: none.
-- New target-source branches or claims created by these notes: none.
+- Private characterization PRs are execution evidence only and must not merge.
+- No new numbered unit is claimed by these notes.
