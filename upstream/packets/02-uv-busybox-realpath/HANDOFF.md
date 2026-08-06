@@ -1,23 +1,20 @@
 # Handoff — Unit 02: uv BusyBox `realpath` compatibility
 
-Updated: `2026-08-05`
+Updated: `2026-08-07`
 
-State: `PUBLIC PR OPEN — CANONICAL CI GREEN — AWAITING HUMAN REVIEW`
+State: `RETIRED — PUBLIC PR CLOSED UNMERGED — UPSTREAM BUSYBOX FIX PREFERRED`
 
-## Live public surface
+## Terminal public state
 
-- Public issue: `astral-sh/uv#16209`
-- Public pull request: `astral-sh/uv#20943`
-- Title: `fix: make relocatable launchers compatible with BusyBox realpath`
-- Public base at latest check: `08c032ee486dc064ab7892dfe23c02bd0ce203ff`
-- Public head: `53a4bd1f7d715f57aed33bd1453954a14bb327e6`
-- Canonical CI: run `30942625490` — success
-- Mergeability: mergeable at latest check
-- Human review submissions: none
-- Inline review threads: none
-- Current conversation content: automated test inventory only; one test added, none removed
+- Public issue: [astral-sh/uv#16209](https://redirect.github.com/astral-sh/uv/issues/16209)
+- Public pull request: [astral-sh/uv#20943](https://redirect.github.com/astral-sh/uv/pull/20943)
+- Preferred upstream repair: [vda-linux/busybox_mirror#26](https://redirect.github.com/vda-linux/busybox_mirror/issues/26)
+- Final public head: `28b00fc950c7eb924ab243418d44ce16ac5bee5a`
+- Final canonical CI: run `31059965759` — success
+- Public PR state: closed without merge
+- Final diff: four files, 207 additions, 16 deletions
 
-The public pull request is the exact four-file candidate validated by this packet.
+The final uv candidate passed its full visible CI. Closure was a project-level design decision: uv maintainers did not want a runtime capability probe in generated launchers and chose to pursue POSIX-compatible `--` handling in BusyBox instead.
 
 ## Canonical internal locations
 
@@ -25,55 +22,47 @@ The public pull request is the exact four-file candidate validated by this packe
 - Completed investigation: `teamleaderleo/linux-fieldwork#307`
 - Packet branch: `teamleaderleo/fieldwork:upstream/02-uv-busybox-realpath-packet`
 - Packet path: `upstream/packets/02-uv-busybox-realpath/`
-- Fork branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
-- Historical internal reconciliation PR: `teamleaderleo/uv#29`
+- Final fork branch: `teamleaderleo/uv:upstream/02-busybox-realpath`
 
-## Source identity
+## Final downstream behavior
 
-- Head commit: `53a4bd1f7d715f57aed33bd1453954a14bb327e6`
-- Source tree: `9c6099ab9e6489377775d710b48855aae02079c3`
-- Diff: four files, 89 insertions, 15 deletions
+The submitted PR evolved from unconditional `realpath` delimiter removal into a runtime capability check:
 
-Changed-file blobs:
+- probe `realpath -- /`;
+- require both success and output equal to `/`;
+- retain `realpath -- "$0"` when supported;
+- use `realpath "$0"` for BusyBox-style implementations;
+- apply equivalent behavior to POSIX and Fish activation scripts;
+- recognize current and historical `python` / `python3` launchers in `uv run`.
 
-```text
-49c04343714990cfbc8bf891162b4889678b08f5  crates/uv-install-wheel/src/wheel.rs
-b251b09b63771e6833b872ef05003e5290501bd3  crates/uv-virtualenv/src/virtualenv.rs
-91bfe0517944f19aa3ac79f6788619131cd07949  crates/uv/src/commands/project/run.rs
-f68dc858066242be1888b922262d53e22975856a  crates/uv/tests/python/venv.rs
-```
+## Retained evidence
 
-## Selected behavior
+The final candidate covered:
 
-- Remove only unsupported `realpath --` delimiters.
-- Retain every `dirname --` delimiter.
-- Preserve `realpath` canonicalization for external symlinks.
-- Generate corrected POSIX and Fish activation text.
-- Recognize historical and corrected `python` / `python3` launchers during entrypoint copying.
-- Preserve generated script bodies and executable modes.
+- compliant and BusyBox-style `realpath` behavior;
+- a bare `-foo` operand;
+- a literal file named `--`;
+- current and historical relocatable shebangs;
+- POSIX and Fish generation;
+- Linux, macOS, and Windows ordinary CI.
 
-## Evidence
+The investigation also preserved the failure modes of retry fallback, `./$0`, `command -v`, generation-time detection, and BusyBox fingerprinting. See `APPROACHES.md`.
 
-Pre-submission evidence covered Linux, Alpine/BusyBox, macOS, Bash, Fish, symlinks, spaces, relative/PATH invocation, leading-hyphen path forms, focused Rust tests, compilation, formatting, and full workspace clippy.
+## Process closeout
 
-Canonical UV CI run `30942625490` subsequently passed all planned jobs, including:
+The initial maintainer instruction to identify and specialize for BusyBox was reasonably read as permitting a runtime capability probe. The later clarification added an unstated constraint: per-launcher probing was itself unacceptable.
 
-- Rust, Python, and Prettier formatting;
-- Linux and all three Windows cargo-test shards;
-- Linux, Windows, macOS, FreeBSD, Android, musl, ARM, and AArch64 builds;
-- docs, generated files, lockfile checks, lint, release planning, publish dry-run, and benchmarks.
+Future upstream work should ask the smallest architectural question before expanding an ambiguous review direction. Private research may retain the full option tree, while maintainer-facing discussion should lead with the most relevant finding and requested decision. Target contribution and AI policies must be checked before public replies.
 
 ## Next action
 
-Wait for a concrete upstream event.
+No further downstream uv action is active.
 
-Act only when one of these occurs:
+Do not:
 
-1. a maintainer leaves a review or question;
-2. CI is rerun and changes state;
-3. the base moves into conflict;
-4. the PR is merged or closed.
+- reopen the closed PR;
+- publish a replacement runtime-probe PR;
+- add another uv issue or PR comment without a concrete maintainer event;
+- compete with the announced BusyBox patch unless the user deliberately chooses that work after checking current ownership.
 
-Do not post a status-ping comment or duplicate explanation. If a reviewer requests a change, inspect the exact requested invariant and update this packet together with the public head identity.
-
-Unit 02 is feedback-only maintenance. Continue other uv investigation separately.
+Retain this packet as a negative result, portability reference, and continuation record. Continue unrelated uv work in separate lanes.
