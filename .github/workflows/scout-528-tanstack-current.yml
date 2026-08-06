@@ -16,7 +16,7 @@ jobs:
   generation-final-result:
     if: github.event.pull_request.head.ref == 'scout/528-agent-runtime-run-authority'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,6 +46,10 @@ jobs:
       - name: Install target workspace
         working-directory: target
         run: pnpm install --frozen-lockfile
+
+      - name: Build persistence package and dependencies
+        working-directory: target
+        run: pnpm --filter @tanstack/ai-persistence... build
 
       - name: Install current-main regression
         run: |
