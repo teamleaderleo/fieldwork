@@ -16,6 +16,12 @@ A campaign begins with an observed failure, missing capability, interoperability
 
 Record the source state, reproduction, hypotheses, experiments, alternatives, uncertainty, and final decision. A rejected hypothesis or abandoned patch can still be a useful result.
 
+### Protect freedom of method
+
+Fieldwork defines the result, evidence, and hard boundaries, then gives workers room to choose the route. Tools, order, depth, file layout, voice, and presentation should follow the problem and audience. Templates, ordered lists, headings, and examples are defaults unless a specific validator or assignment depends on them.
+
+Reviewers should block concrete defects, unsupported claims, missing evidence, or broken boundaries. Recommendations and presentation preferences should remain clearly labeled. See `FREEDOM_OF_METHOD.md`.
+
 ### Keep humans accountable
 
 AI systems may search, explain, generate candidates, run experiments, and challenge reasoning. A named human owns the claims, verifies the evidence, reviews every submitted change, and remains able to defend it.
