@@ -1,22 +1,26 @@
 # Upstream issue draft — first Codex issue candidate
 
-> Hold for explicit public-contact authorization. Refresh the public source and overlap search immediately before posting.
+> Hold for explicit public-contact authorization. Refresh the public source links and duplicate search immediately before posting.
 
 ## Title
 
-Unified exec can lose command output when the live listener starts late or falls behind
+Unified exec can omit command output when its completion listener starts late or falls behind
 
 ## Body
 
-I started looking into this because some tool calls would time out or finish without enough output to explain what had happened. While tracing that, I found a separate problem in unified exec: Codex can receive command output and still leave it out of the completed tool result.
+### Summary
 
-### Where this happens
+Codex can receive stdout or stderr from a command and still leave those bytes out of the completed tool result.
 
-When Codex runs a shell command or another command-based tool, `UnifiedExecProcess` collects the command's stdout and stderr. It sends live chunks through a broadcast channel, and `start_streaming_output` subscribes to that channel and builds the transcript used when the command completes.
+Unified exec sends live output through a Tokio broadcast channel. The code that collects local process output skips chunks when its receiver reports `Lagged`. The completion watcher also skips `Lagged` chunks while building the transcript returned when the command finishes.
 
-The current local output collector skips anything reported as `Lagged`:
+A completion listener can also subscribe after the command has already produced output. In both cases, the final transcript depends on when the listener started and whether it kept up with the broadcast channel.
 
-[`process.rs` on the latest public source checked](https://github.com/openai/codex/blob/c607da9f371bb66a41cc772c6ddf1989d28137d3/codex-rs/core/src/unified_exec/process.rs#L602-L632)
+### Current behavior
+
+The local output collector currently handles lag like this:
+
+[`process.rs` on the public source checked](https://github.com/openai/codex/blob/c607da9f371bb66a41cc772c6ddf1989d28137d3/codex-rs/core/src/unified_exec/process.rs#L602-L632)
 
 ```rust
 match receiver.recv().await {
@@ -28,121 +32,55 @@ match receiver.recv().await {
         output_notify.notify_waiters();
     }
     Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
-    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-        // ...
-        break;
-    }
+    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
 }
 ```
 
-The completion watcher has the same behavior while it builds the transcript:
+The completion watcher follows the same rule while building the completed transcript:
 
-[`async_watcher.rs` on the latest public source checked](https://github.com/openai/codex/blob/c607da9f371bb66a41cc772c6ddf1989d28137d3/codex-rs/core/src/unified_exec/async_watcher.rs#L88-L110)
+[`async_watcher.rs` on the public source checked](https://github.com/openai/codex/blob/c607da9f371bb66a41cc772c6ddf1989d28137d3/codex-rs/core/src/unified_exec/async_watcher.rs#L88-L110)
 
 ```rust
 let chunk = match received {
     Ok(chunk) => chunk,
-    Err(RecvError::Lagged(_)) => {
-        continue;
-    },
-    Err(RecvError::Closed) => {
-        output_complete = true;
-        break;
-    }
+    Err(RecvError::Lagged(_)) => continue,
+    Err(RecvError::Closed) => break,
 };
 
-process_chunk(
-    &mut pending,
-    &transcript,
-    // ...
-    chunk,
-).await;
+process_chunk(&mut pending, &transcript, /* ... */, chunk).await;
 ```
 
-A listener may either start after the command has already printed something or fall behind when a command produces a lot of output. `Lagged` here only says that an internal receiver didn't read the bounded channel quickly enough. It doesn't identify the skipped output as unsafe, private, or irrelevant.
+`Lagged` means that an internal receiver did not read the bounded broadcast channel quickly enough. It does not mean that the skipped output was unimportant. Once those chunks have been skipped, the completion watcher cannot reconstruct them.
 
-In either case, unified exec can receive bytes that never reach the transcript returned in the completed tool result.
+### What we have confirmed
 
-### What we've confirmed
+One test sends output before `start_streaming_output` subscribes. The proposed completion buffer preserves that early output and includes it in the completed command item.
 
-The tests force both timing conditions and check that the proposed completion buffer retains the output:
+A second test sends enough output to make a live receiver report `Lagged`. The live receiver misses chunks, while the proposed completion buffer retains the bytes accepted by `UnifiedExecProcess` within the existing output cap.
 
-- output emitted before `start_streaming_output` subscribes is present in the completed command item after the fix;
-- a deliberately lagged receiver misses chunks while the completion buffer retains all bytes within the existing cap;
-- the same lag test covers invalid UTF-8 bytes;
-- a partial streaming transcript is replaced with the completion buffer at completion.
+The same lag test also covers invalid UTF-8, so the retained completion state is based on raw command bytes rather than only successfully decoded text.
 
-The examples below describe what can follow when a missing chunk contained information Codex needed; they haven't each been reproduced as separate product bugs.
+Another test starts with a partial streaming transcript and confirms that completion replaces it with the producer-owned bounded transcript.
 
-### Why do we care?
+These tests establish the listener-timing loss and show that producer-owned retention prevents it. They do not establish how often users encounter the problem or attribute every incomplete command result to this path.
 
-```text
-A test prints the real failure early
-        ↓
-the listener misses that chunk
-        ↓
-the completed result contains later output without the failure
-        ↓
-Codex may rerun the test or inspect the wrong file
-```
+### Why this matters
 
-```text
-A script prints a prompt and waits for input
-        ↓
-the prompt is missing from the completed result
-        ↓
-the command later times out without an explanation
-        ↓
-Codex may increase the timeout or repeat the same command
-```
+The completed tool result is part of the evidence Codex uses for its next decision. If the missing output contains the actual test failure, Codex can inspect the wrong code or rerun a test that already explained the problem. If the missing output contains an interactive prompt, the command can later time out without the result explaining what it was waiting for. If the missing output contains a success summary, Codex can repeat work that already completed.
 
-```text
-A command succeeds and prints the useful summary
-        ↓
-the listener misses some or all of that summary
-        ↓
-Codex receives an empty or incomplete completed result
-        ↓
-Codex may repeat work that already succeeded
-```
+This issue is not claiming that listener lag starts a timeout. It can remove the output that would explain the timeout or guide the next action. The same loss can affect commands that finish normally.
 
-This probably isn't what starts a timeout. It can remove the output that would explain the timeout and guide the next action. The same loss can affect commands that finish normally.
+### Why this is not ordinary truncation
 
-### Why this isn't just normal truncation
+Unified exec already limits command output. `HeadTailBuffer` keeps a bounded beginning and ending and inserts an omission marker when it drops bytes from the middle. The model-facing formatter can apply another token limit and reports that truncation as well.
 
-Unified exec already has explicit output limits.
+The listener-timing loss happens before those policies. It has no omission marker, and the amount lost depends on task scheduling and receiver speed. Two commands that print the same bytes can therefore produce different completed transcripts even when both are below the same configured output limits.
 
-[`HeadTailBuffer`](https://github.com/openai/codex/blob/c607da9f371bb66a41cc772c6ddf1989d28137d3/codex-rs/core/src/unified_exec/head_tail_buffer.rs#L1-L120) keeps a capped beginning and ending of the command output and inserts an omission marker when it drops bytes from the middle. Later, [`ExecCommandToolOutput`](https://github.com/openai/codex/blob/c607da9f371bb66a41cc772c6ddf1989d28137d3/codex-rs/core/src/tools/context.rs#L312-L425) applies a separate model-facing token limit and adds a warning when the output is truncated again.
+The proposed change does not remove either existing limit or send unlimited output to the model. It allows those limits to operate on the bounded output received by unified exec instead of on whichever chunks happened to reach the live listener.
 
-The current path adds another loss before either of those decisions:
+### Proposed direction
 
-```text
-command output
-        ↓
-timing-dependent listener loss
-        ↓
-1 MiB head/tail retention
-        ↓
-model-facing token truncation
-```
-
-That first loss is based on task timing rather than an output policy. The same command can print the same bytes and still produce a different completed tool result depending on whether an internal listener kept up.
-
-The proposed path is:
-
-```text
-command output
-        ↓
-1 MiB head/tail retention
-        ↓
-model-facing token truncation
-```
-
-This wouldn't send unlimited output to the model or bypass the existing limits. It would let those deliberate limits operate on the bounded output this layer received, instead of an arbitrary subset selected by listener timing.
-
-### Proposed change
-
-The proposed implementation keeps a second bounded `HeadTailBuffer` beside `UnifiedExecProcess`. Each chunk goes into that completion buffer before the live broadcast:
+The implementation proof adds a second bounded `HeadTailBuffer` to `UnifiedExecProcess`. Each local or exec-server output chunk is written to that completion buffer before the live broadcast is attempted.
 
 [`process.rs` in the implementation proof](https://github.com/teamleaderleo/codex/blob/b2a704c708748462d7893fe82cf8971f00ca751e/codex-rs/core/src/unified_exec/process.rs#L444-L452)
 
@@ -157,15 +95,7 @@ async fn record_output_chunk(
 }
 ```
 
-The producer records the chunk, then sends the live update:
-
-```rust
-Self::record_output_chunk(&output_buffer, &completion_buffer, &bytes).await;
-let _ = output_tx.send(bytes);
-output_notify.notify_waiters();
-```
-
-At completion, the watcher replaces its partial transcript with the retained completion copy:
+When output closes, the completion watcher replaces its partial listener-built transcript with the bounded producer-owned copy:
 
 [`async_watcher.rs` in the implementation proof](https://github.com/teamleaderleo/codex/blob/b2a704c708748462d7893fe82cf8971f00ca751e/codex-rs/core/src/unified_exec/async_watcher.rs#L148-L151)
 
@@ -174,27 +104,34 @@ reconcile_transcript(&transcript, &completion_buffer).await;
 output_drained.notify_one();
 ```
 
-The completed result would keep using the existing capped head/tail representation. Large command output would still keep the beginning and ending plus the omission marker.
+Live output remains best effort. The change only separates live observation from the completed command record.
 
-### What this changes, and what stays separate
+### Scope
 
-A late or lagging live listener would stop deciding what appears in the completed result. The live display could still miss an update, including an interactive prompt. Output lost before it reaches `UnifiedExecProcess`, or output arriving after the current cancellation-grace window, would stay outside this change. The completed item would continue to represent the capped history for the whole process rather than only the output since the last poll.
+This change would preserve output that reached `UnifiedExecProcess` before the existing completion boundary. It would not repair output lost by a driver or remote backend before that point. It would not guarantee bytes that arrive after the existing cancellation-grace window. It would not make interactive live prompts reliable, change process cleanup, or change remote execution settlement.
 
-I put together the four-file implementation and tests here: `teamleaderleo/codex#144`.
+The completed item would continue to use the existing bounded head-and-tail representation for the whole process.
 
-At that exact source revision:
+### Implementation and validation
+
+The four-file implementation proof is available at [`teamleaderleo/codex#144`](https://github.com/teamleaderleo/codex/pull/144).
+
+At that source revision:
 
 - 12 focused terminal-output controls passed;
-- the complete source `codex-core` library passed alongside a green paired baseline;
-- integration targets compiled;
-- formatting and the four-file source fence passed.
+- the complete changed `codex-core` library passed with 2,133 tests;
+- the paired unmodified baseline passed with 2,129 tests;
+- the relevant integration targets compiled;
+- formatting and the four-file source check passed.
 
-The implementation shows the current behavior and one possible repair. The question is:
+Before submitting a patch, I would recreate it on current public main, add a direct baseline-red characterization for the new regressions, and rerun the same gates.
 
-**Should the completed unified-exec result use the bounded output retained before live delivery, so the explicit collection and model-output limits—not listener timing—decide what survives?**
+### Question
 
-### Follow-ups
+Should the completed unified-exec result come from the bounded output retained by the component that received the process bytes, rather than from the subset that reached a best-effort live listener?
 
-The timeout trigger itself, reliable delivery of interactive prompts, process cleanup after cancellation, output that arrives after forced termination, and remote execution state sit in other parts of the execution lifecycle. They can follow as separate investigations.
+### Related work
+
+#35528 discusses output caps, omitted-byte accounting, persistence, and other residual-information problems. This report concerns an earlier loss point: command bytes can disappear because of listener timing before the existing truncation policies are applied.
 
 No public upstream interaction has occurred.
