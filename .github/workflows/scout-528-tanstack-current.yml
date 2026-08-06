@@ -1,20 +1,13 @@
-name: Scout 528 TanStack current-main persistence authority
+name: Scout 528 TanStack persistence characterization
 
 on:
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   generation-final-result:
-    if: github.event.pull_request.head.ref == 'scout/528-agent-runtime-run-authority'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -51,13 +44,14 @@ jobs:
         working-directory: target
         run: pnpm --filter @tanstack/ai-persistence... build
 
-      - name: Install current-main regression
+      - name: Install characterization
         run: |
           cp fieldwork/programmes/open-source-ecosystems/scouts/agent-runtime-run-authority/target-tests/tanstack-generation-final-result.test.ts \
             target/packages/ai-persistence/tests/fieldwork-generation-final-result.test.ts
 
-      - name: Run generation final-result authority regression
+      - name: Run generation final-result authority characterization
         working-directory: target/packages/ai-persistence
         run: pnpm exec vitest run tests/fieldwork-generation-final-result.test.ts
 
-# Current-head characterization only. No upstream write.
+# Retained exact-head defect receipt. Run 31103183149 failed with persisted
+# provider URL while the live result contained the later transformed URL.
