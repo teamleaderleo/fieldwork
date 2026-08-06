@@ -10,7 +10,7 @@ Unified exec can omit command output when its completion listener starts late or
 
 Unified exec can receive stdout or stderr from a command and still leave those bytes out of the completed tool result. Since Codex uses that result to decide what to do next, it can miss the line that explains a failure, a timeout, or a successful command.
 
-The problem is that live output and final output both depend on best-effort broadcast listeners.
+Both the local output collector and the completion watcher read from broadcast receivers that can miss earlier or lagged chunks.
 
 The local output collector skips chunks when its receiver reports `Lagged`:
 
@@ -38,11 +38,13 @@ I made another test that forces a live receiver to report `Lagged`. The live rec
 
 I ran the same lag test with invalid UTF-8, and I added a test that starts with a partial streaming transcript and checks that completion replaces it with the process-owned copy.
 
-### The change
+### Proposed high-level fix
 
-I added a second `HeadTailBuffer` to `UnifiedExecProcess`. Each output chunk goes into that completion buffer before Codex broadcasts it live. When output closes, the completion watcher replaces its partial transcript with the retained copy.
+Store each output chunk before sending it to the live stream. When the command finishes, build the completed result from that retained output instead of from the listener's partial transcript.
 
-The live stream stays best effort. The completed command result no longer depends on whether the live listener kept up.
+The implementation adds a second `HeadTailBuffer` to `UnifiedExecProcess`. Each output chunk goes into that buffer before Codex broadcasts it. When output closes, the completion watcher replaces its partial transcript with the retained copy.
+
+The live stream can still miss updates. The completed command result won't depend on whether the listener kept up.
 
 The existing output caps still apply, including the head-and-tail retention and omission marker.
 
@@ -57,11 +59,3 @@ At that revision:
 - All 2,129 tests passed on the paired unmodified baseline.
 - The relevant integration targets compiled.
 - Formatting and the four-file source check passed.
-
-Before sending a PR upstream, I'd recreate the change on current public main, run the new tests against unmodified main to record the expected failures, and rerun the same checks.
-
-The completed unified-exec result should come from the output retained by the component that received the process bytes, not from the subset that reached a best-effort live listener.
-
-### Related work
-
-#35528 covers output caps, omitted-byte accounting, persistence, and other cases where information gets lost. This issue covers an earlier loss point: command output can disappear because of listener timing before the existing truncation rules run.
