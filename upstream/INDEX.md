@@ -21,7 +21,7 @@ Only the coordinator should reorder or renumber this file. Unit workers own thei
 | No. | Initial state | Target | Proposed contribution | Assigned packet path | Primary current source |
 | ---: | --- | --- | --- | --- | --- |
 | 01 | DIRECT | Vite | `fix(dev): continue invalidation after watchChange errors` | `upstream/packets/01-vite-watchchange-errors/` | [`teamleaderleo/vite#4`](https://github.com/teamleaderleo/vite/pull/4) |
-| 02 | DIRECT | uv | `fix: make relocatable launchers compatible with BusyBox realpath` | `upstream/packets/02-uv-busybox-realpath/` | [`teamleaderleo/uv#3`](https://github.com/teamleaderleo/uv/pull/3) |
+| 02 | RETIRE | uv | `fix: make relocatable launchers compatible with BusyBox realpath` | `upstream/packets/02-uv-busybox-realpath/` | [closed uv PR](https://redirect.github.com/astral-sh/uv/pull/20943); [BusyBox handoff](https://redirect.github.com/vda-linux/busybox_mirror/issues/26) |
 | 03 | DIRECT | DuckDB | `fix(window): saturate ROWS FOLLOWING overflow at partition end` | `upstream/packets/03-duckdb-rows-following-overflow/` | [`teamleaderleo/duckdb#8`](https://github.com/teamleaderleo/duckdb/pull/8) |
 | 04 | DIRECT | DuckDB | `fix(parquet): preserve literal Hive default-partition marker` | `upstream/packets/04-duckdb-hive-partition-marker/` | [`teamleaderleo/duckdb#7`](https://github.com/teamleaderleo/duckdb/pull/7) |
 | 05 | DIRECT | Gemini CLI | `fix(core): transfer background shell cleanup ownership atomically` | `upstream/packets/05-gemini-background-ownership/` | [`#11`](https://github.com/teamleaderleo/gemini-cli/pull/11), [`#13`](https://github.com/teamleaderleo/gemini-cli/pull/13), [`#17`](https://github.com/teamleaderleo/gemini-cli/pull/17) |
