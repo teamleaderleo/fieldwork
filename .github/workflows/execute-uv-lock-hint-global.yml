@@ -52,6 +52,11 @@ jobs:
           sparse-checkout-cone-mode: false
           path: refinement
 
+      - name: Install Rust components
+        shell: bash
+        working-directory: uv
+        run: rustup component add rustfmt clippy
+
       - name: Generate and fence exact source
         shell: bash
         working-directory: uv
