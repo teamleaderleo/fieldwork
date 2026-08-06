@@ -1,36 +1,52 @@
-# Pull-request draft — Unit 02
+# Pull-request record — Unit 02
 
-Status: `DRAFT FOR HUMAN EDITING`  
-Public interaction authorized: `no`
+Status: `CLOSED WITHOUT MERGE`  
+Public interaction: complete
 
-## Proposed title
+Public pull request: [astral-sh/uv#20943](https://redirect.github.com/astral-sh/uv/pull/20943)
 
-`fix: make relocatable launchers compatible with BusyBox realpath`
+## Submitted title
 
-## Draft body
+`Make relocatable launchers compatible with BusyBox realpath`
 
-Closes #16209
+## Evolution of the submitted approach
 
-## Summary
+### Initial submission
 
-BusyBox `realpath` treats `--` as a pathname, so uv-generated relocatable launchers can still run on Alpine while printing:
+The first public candidate removed `--` only from generated `realpath` calls while retaining `dirname --`, quoting, symlink canonicalization, and current/historical launcher recognition.
 
-```text
-realpath: --: No such file or directory
-```
+Maintainer review rejected that form because a bare entrypoint name beginning with `-` could be reinterpreted as an option on implementations that support ordinary option parsing.
 
-This removes `--` from the generated `realpath` calls. It leaves `dirname --`, quoting, and `realpath`-based symlink resolution unchanged.
+### Revised submission
 
-The launcher passes its own path through `$0`, so even a hyphenated filename is received as a path such as `./-tool` rather than a bare option.
+The PR was reworked around a runtime capability probe. It preserved `realpath -- "$0"` when `realpath -- /` succeeded and returned `/`, and used the BusyBox-compatible form otherwise.
 
-`uv run` also reads these generated launchers, so I added four constants for the current and previous `python` and `python3` forms. This keeps launchers created by older uv versions working without adding a broader parser to this fix.
+The revised patch added:
 
-## Test Plan
+- fake compliant and BusyBox-style `realpath` test executables;
+- a bare `-foo` operand control;
+- a literal file named `--` control;
+- current and historical `python` / `python3` launcher recognition;
+- POSIX and Fish activation updates.
 
-* Updated the wheel and relocatable-venv expectations.
-* Added coverage for the current and legacy `python` and `python3` launcher forms.
-* Ran formatting, compilation, Clippy, and launcher and activation checks on GNU/Linux, BusyBox/Alpine, and macOS.
+Final public head: `28b00fc950c7eb924ab243418d44ce16ac5bee5a`  
+Final canonical CI: run `31059965759` — success  
+Final diff: four files, 207 additions, 16 deletions
 
-## Internal note
+## Review outcome
 
-This is the current human-authored draft. No public upstream action has been taken.
+uv maintainers clarified that runtime probing was not an acceptable downstream tradeoff because of its per-launcher runtime cost and generated-shell complexity. The PR was closed without merge.
+
+The preferred direction moved upstream to BusyBox: [vda-linux/busybox_mirror#26](https://redirect.github.com/vda-linux/busybox_mirror/issues/26).
+
+This was not a correctness or CI rejection of the final patch. It was a project-level choice about where the compatibility responsibility should live.
+
+## Communication closeout
+
+The public thread included a detailed explanation of explored alternatives. The useful process lesson is to keep that exploration in the packet, lead maintainer discussion with the most relevant finding, and ask a narrow architectural question before implementing an ambiguous requested direction.
+
+The target project's AI policy was surfaced during closeout. Future packets for that project must require the contributor to write final maintainer-facing text directly in their own words.
+
+## Final rule
+
+Do not reopen this PR or submit a replacement downstream probe unless uv maintainers explicitly request a new downstream approach.
