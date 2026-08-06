@@ -2,11 +2,9 @@
 
 ## Current disposition
 
-`EXECUTED HISTORICAL SOURCE — current-main publication blocked before build by generation-tool environment; pinned restack base is behind latest inspected main`
+`EXECUTED HISTORICAL SOURCE — pinned current-main execution path repaired through declared generation tools; run 31103378104 queued; final latest-main refresh still required`
 
-Unit 14's focused source repair is complete and executed. The exact historical clean source passed all twelve native controls, ordinary Main, and Zizmor. The remaining work is current-main reconstruction, fresh complete-diff review, and delivery routing.
-
-The current-main carrier has not reached compilation. Its latest failure is a deterministic DuckDB generation-environment problem, not an Arrow source or test failure.
+Unit 14's focused source repair is complete and executed. The historical clean source passed all twelve native controls, ordinary Main, and Zizmor. Remaining unit work is mechanical current-main reconstruction, exact-source publication, complete-diff review, and delivery routing.
 
 No public DuckDB issue, pull request, review, comment, reaction, or branch has been modified. Public upstream remains read-only and unauthorized for contact.
 
@@ -103,48 +101,63 @@ Execution-only carrier:
 
 - PR: `teamleaderleo/duckdb#28`
 - branch: `exec/262-arrow-union-current-main-restack`
-- current observed PR head: `eebf9eb188d7603f192566b8babe3746e5ba6163`
-- workflow base: `daa81697e31a3dc97a93f11220037cd2213af6cd`
+- current carrier head: `60b540592bdc8ef01cd7d28371bf039d691ffe62`
+- pinned workflow base: `daa81697e31a3dc97a93f11220037cd2213af6cd`
+- newest public main observed: `7a91c3658f9411ab17556e55f9df34b3b2140f6e`
 - intended output: `candidate/14-arrow-union-type-id-current-main`
 - output status: not published
-- newest public source inspected during this research: `58c019320e250a7b369efd756f84c6dfd68bedcb`
+- current run: `31103378104` — queued
 
-The restack base is already behind the newest inspected main. A final current-main refresh remains required after the mechanical execution path is green.
+The pinned base is behind latest main. The pinned workflow must prove the mechanical source-generation and test path first; then the same source must be refreshed onto actual latest main and rerun before review.
 
 ### Attempt 1 — CMake overlap
 
 - run/job: `30948605826` / `92124739354`
 - artifact: `8913206740`
 - digest: `sha256:e360f2922d56d9c2de4f9382b5de2dff5b74bae4ba0c98cb6a513d038221e3b3`
-- result: source compatible; historical CMake file conflicted with current `arrow_output_version_buffers.cpp` registration.
+- source applied; historical CMake conflicted with the newer `arrow_output_version_buffers.cpp` registration.
 
 ### Attempt 2 — formatter selection
 
 - run/job: `30971571206` / `92196843611`
 - artifact: `8917080054`
 - digest: `sha256:af1a46808a9b11cf75adef089bc1f8915a56ef309e742db7a70ae48e081128b8`
-- result: seven human-owned files applied and current CMake was edited; `make generate-files` selected system clang-format 18 instead of installed 11.
+- `make generate-files` selected system clang-format 18 instead of installed 11.
 
-### Attempt 3 — shell PATH alone was insufficient
+### Attempt 3 — shell PATH insufficient
 
 - run/job: `30975073370` / `92207294809`
 - artifact: `8917962298`
 - digest: `sha256:580b0b1d2620ee3a62678506665adb8b9a7ddebca913766a3a9044961c7a905c`
-- result: shell assertions proved `$HOME/.local/bin/clang-format` 11.0.1 was selected, but `scripts/capi_v1_regen.sh` hardcoded `python3 scripts/format.py`. `format.py` prepended the `/usr/bin/python3` executable directory to PATH and consequently selected `/usr/bin/clang-format` 18.
+- `capi_v1_regen.sh` hardcoded `python3`; `format.py` prepended that interpreter's directory and restored `/usr/bin/clang-format` 18.
 
-No attempt reached formatting gates, build, focused controls, or source publication.
+### Attempt 4 — unified venv exposed missing declared spell tool
 
-The exact receipt and recommended venv repair are in [`verification-2026-08-05-current-main-restack-toolchain.md`](verification-2026-08-05-current-main-restack-toolchain.md).
+- carrier head: `40b88981ca27c23806941e13d764a4d25352f632`
+- run/job: `31102660606` / `92619838993`
+- artifact: `8968255091`
+- digest: `sha256:d9a1b7365d5616d9c52d9976ed2142cba1d33197e49c78f074a35930152bd802`
+- one venv correctly supplied Python 3.12 and clang-format 11.0.1;
+- generation reached header formatting and then failed because `typos` was absent;
+- this is repository tooling, not source behavior.
+
+### Attempt 5 — repository-declared toolchain
+
+Current carrier `60b540592bdc8ef01cd7d28371bf039d691ffe62` additionally invokes DuckDB's own `make spell_tools`, pinned by the repository to `typos` 1.45.1. Run `31103378104` is the current authority.
+
+No current-main attempt has yet reached source gates, compilation, focused controls, or publication.
+
+The earlier environment receipt is [`verification-2026-08-05-current-main-restack-toolchain.md`](verification-2026-08-05-current-main-restack-toolchain.md). It should be supplemented with attempt-four and attempt-five evidence after the current run resolves.
 
 ## Follow-on DuckDB research
 
 The research index is [`research/README.md`](research/README.md).
 
-Eleven preserved lanes now cover:
+Fourteen preserved lanes cover:
 
 1. dense-union ingestion;
 2. Arrow C Data validation hardening;
-3. reference-producer/reference-consumer interoperability;
+3. reference-consumer interoperability;
 4. `arrow_scan` repeatability and one-shot stream semantics;
 5. logical-versus-physical coordinate systems;
 6. provider- and predicate-specific pushdown capabilities;
@@ -152,31 +165,61 @@ Eleven preserved lanes now cover:
 8. metadata framing and bounded parsing;
 9. dictionary/REE/list/view/array/union encoded-layout invariants;
 10. Arrow extension identity, storage, callback, and schema/appender contracts;
-11. `duckdb_data_chunk_from_arrow` multi-column root ownership.
+11. C API projected later-column root ownership;
+12. Arrow C Stream null-detail and error preservation;
+13. C API schema/array structural agreement;
+14. dictionary cache identity, audited and closed as a defect avenue for conforming producers.
 
-The C API ownership lane is currently the highest-priority private characterization candidate. At public source `58c019320e250a7b369efd756f84c6dfd68bedcb`, root `ArrowArray` ownership is still transferred inside the per-column loop, and the existing roundtrip test still uses one column. The research note defines a recursive-release two-column fixture to prove or disprove the suspected early release without prematurely calling it a confirmed bug.
+### Active private characterization
 
-The earlier routing sweep remains in [`adjacent-duckdb-arrow-research-2026-08-05.md`](adjacent-duckdb-arrow-research-2026-08-05.md).
+- PR: `teamleaderleo/duckdb#29`
+- title: `[CHARACTERIZATION] C API Arrow projected-column root ownership`
+- exact base: `58c019320e250a7b369efd756f84c6dfd68bedcb`
+- current head: `b2017ce61d9c39c5faee8899bc4c50ca71a46bd0`
+- focused run: `31102985877` — queued
+- ordinary Main: `31102986494` — queued
+- changed-files fence: exactly one workflow, CMake registration, and one focused C API test.
+
+The original broad early-release hypothesis was corrected. Generic conversion retains each per-column wrapper through vector auxiliary data. The refined expected-negative checks whether a reference to column two survives destruction of the original source chunk, given that only column zero's wrapper appears to carry the actual root release callback.
+
+Expected defect signature:
+
+```text
+root release count after source chunk destroy=1
+surviving second output=-9999,-9999,-9999
+```
+
+Do not call this defect confirmed until the exact-head run reproduces both lines. The characterization carrier must close without merge after evidence transfer.
+
+### Strong structural candidate
+
+`duckdb_data_chunk_from_arrow` does not first prove that the runtime root array agrees with the converted schema's child count and required pointers before dereferencing children. The deterministic fixture plan is in [`research/arrow-capi-schema-array-agreement.md`](research/arrow-capi-schema-array-agreement.md).
+
+### Stream error candidate
+
+Arrow permits `get_last_error` to return null. DuckDB currently constructs a string directly from that optional pointer after callback failures. The null-safe error-preservation matrix is in [`research/arrow-stream-error-contracts.md`](research/arrow-stream-error-contracts.md).
+
+The broad routing sweep remains in [`adjacent-duckdb-arrow-research-2026-08-05.md`](adjacent-duckdb-arrow-research-2026-08-05.md).
 
 These notes do not expand unit 14's source scope or claim new numbered units.
 
 ## Remaining work
 
-1. repair the execution environment with one venv containing Python and all declared generation tools;
-2. verify generated source and current CMake registration are stable;
-3. build and rerun all twelve controls;
-4. publish and inspect the exact nine-file tested current-main source;
-5. refresh the restack from `daa81697...` to the actual latest public main;
-6. classify every overlapping change;
-7. obtain fresh complete-diff peer review;
-8. route accepted source through Fieldwork review/delivery desks;
-9. privately characterize the C API multi-column ownership candidate in a separate future lane;
+1. observe pinned restack run `31103378104`;
+2. repair only its first demonstrated mechanical failure, if any;
+3. verify source gates, debug build, all twelve controls, exact artifact, and nine-file publication;
+4. refresh the exact tested source from pinned `daa81697...` to actual latest public main;
+5. rerun generation, source gates, build, and all twelve controls on that refreshed base;
+6. classify every overlapping change and obtain complete-diff peer review;
+7. resolve characterization PR #29 and preserve its receipt;
+8. characterize C API schema/array disagreement next if #29 is disproven or completed;
+9. route accepted unit-14 source through Fieldwork review/delivery desks;
 10. keep public filing separately unauthorized.
 
 ## Continuation
 
-Resume unit 14 from `teamleaderleo/duckdb#28@eebf9eb188d7603f192566b8babe3746e5ba6163` and the latest failed run `30975073370`.
+Resume unit 14 from `teamleaderleo/duckdb#28@60b540592bdc8ef01cd7d28371bf039d691ffe62`, run `31103378104`.
 
-Use a virtual environment whose `bin` contains both `python3` and `clang-format` 11.0.1, so `scripts/format.py` prepends the same environment rather than `/usr/bin`. Repair only that demonstrated execution blocker first. Once the pinned-base workflow is green, restack the exact tested source on the actual latest main and repeat the source gates and twelve controls before review.
+Resume projected-column ownership characterization from `teamleaderleo/duckdb#29@b2017ce61d9c39c5faee8899bc4c50ca71a46bd0`, focused run `31102985877`.
 
-For follow-on research, begin with [`research/arrow-capi-zero-copy-ownership.md`](research/arrow-capi-zero-copy-ownership.md) and build the expected-negative two-column release-count fixture on exact current source before proposing a repair.
+Do not merge either execution carrier. If the pinned restack succeeds, inspect its artifact and exact published candidate before refreshing to latest main. If PR #29's focused workflow succeeds, that means the expected-negative reproduced; inspect the exact logs and release-count artifact before designing any repair.
