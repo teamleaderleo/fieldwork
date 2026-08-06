@@ -1,3 +1,4 @@
 uv base: 4d5ad0f61ab331d01ad46ecfb4cbf278b691b038
 source commit: 51c9fe109f037d084fd17647dc78a6451c2938f2
 refinement commit: 3018e64800f961e626d1f1366e38e83c97f85051
+carrier fence: exact event base/head SHAs
