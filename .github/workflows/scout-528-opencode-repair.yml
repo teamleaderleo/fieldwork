@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: teamleaderleo/opencode
-          ref: 5312a23530613fbc00588e83fcb1a7b4e837701a
+          ref: 08edecfbf3e98b6c80d16c68e0e37001ef637d5d
           fetch-depth: 1
 
       - uses: oven-sh/setup-bun@v2
@@ -29,7 +29,7 @@ jobs:
           bun-version-file: package.json
 
       - name: Verify exact current-dev repair head
-        run: test "$(git rev-parse HEAD)" = "5312a23530613fbc00588e83fcb1a7b4e837701a"
+        run: test "$(git rev-parse HEAD)" = "08edecfbf3e98b6c80d16c68e0e37001ef637d5d"
 
       - name: Install workspace
         run: bun install --frozen-lockfile
