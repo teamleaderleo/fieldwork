@@ -34,10 +34,10 @@ jobs:
           printf '%s\n' execution/uv-lock-hint-global.txt > "$RUNNER_TEMP/expected-carrier-files.txt"
           diff -u "$RUNNER_TEMP/expected-carrier-files.txt" "$RUNNER_TEMP/carrier-files.txt"
 
-      - name: Check out exact uv source
+      - name: Check out exact public uv source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          repository: teamleaderleo/uv
+          repository: astral-sh/uv
           ref: ${{ env.UV_BASE }}
           fetch-depth: 0
           path: uv
@@ -57,7 +57,7 @@ jobs:
         working-directory: uv
         run: |
           set -euo pipefail
-          git fetch origin "$SOURCE_BASE" "$SOURCE_COMMIT"
+          git fetch https://github.com/teamleaderleo/uv "$SOURCE_BASE" "$SOURCE_COMMIT"
           git diff "$SOURCE_BASE" "$SOURCE_COMMIT" -- . ':(exclude)Cargo.lock' > "$RUNNER_TEMP/source-without-lock.patch"
           git apply --3way --whitespace=error-all "$RUNNER_TEMP/source-without-lock.patch"
           python ../refinement/scripts/fieldwork/refine-uv-lock-requirements-hint.py
