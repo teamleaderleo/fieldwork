@@ -1,0 +1,99 @@
+name: React Flight weak-thenable retention probe
+
+on:
+  push:
+    branches:
+      - research/react-flight-weak-retention
+    paths:
+      - investigations/react-flight-weak-retention/**
+      - .github/workflows/react-flight-weak-retention.yml
+  pull_request:
+    paths:
+      - investigations/react-flight-weak-retention/**
+      - .github/workflows/react-flight-weak-retention.yml
+
+permissions:
+  contents: read
+
+jobs:
+  gc-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact Fieldwork head
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch exact React source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git init react
+          git -C react remote add origin https://github.com/teamleaderleo/react.git
+          git -C react fetch --depth=1 origin 11eddecd916843f31d88630e4d6f8ab7f52b3a8c
+          git -C react checkout --detach FETCH_HEAD
+          test "$(git -C react rev-parse HEAD)" = 11eddecd916843f31d88630e4d6f8ab7f52b3a8c
+
+      - name: Inject focused GC characterization
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp \
+            investigations/react-flight-weak-retention/ReactFlightWeakThenableRetention-test.js \
+            react/packages/react-server-dom-webpack/src/__tests__/
+          git -C react diff --check
+
+      - name: Install React test dependencies
+        working-directory: react
+        shell: bash
+        run: |
+          set -euxo pipefail
+          corepack enable
+          yarn install --frozen-lockfile --non-interactive
+
+      - name: Run exact weak-retention probe
+        working-directory: react
+        shell: bash
+        env:
+          NODE_ENV: development
+          RELEASE_CHANNEL: experimental
+        run: |
+          set -euxo pipefail
+          mkdir -p ../investigations/react-flight-weak-retention/run
+          node --expose-gc \
+            ./scripts/jest/jest.js \
+            --config ./scripts/jest/config.source.js \
+            ReactFlightWeakThenableRetention-test \
+            --runInBand \
+            2>&1 | tee ../investigations/react-flight-weak-retention/run/jest.log
+
+      - name: Retain identity and checksums
+        shell: bash
+        run: |
+          set -euxo pipefail
+          out=investigations/react-flight-weak-retention/run
+          {
+            echo "fieldwork_head=$(git rev-parse HEAD)"
+            echo "react_head=$(git -C react rev-parse HEAD)"
+            node --version
+            yarn --version
+            uname -a
+          } | tee "$out/identity.txt"
+          sha256sum \
+            investigations/react-flight-weak-retention/ReactFlightWeakThenableRetention-test.js \
+            "$out/jest.log" \
+            "$out/identity.txt" \
+            | tee "$out/SHA256SUMS"
+          git diff --check
+
+      - name: Upload retained receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: react-flight-weak-retention
+          path: investigations/react-flight-weak-retention/run/
+          if-no-files-found: error
+          retention-days: 14
