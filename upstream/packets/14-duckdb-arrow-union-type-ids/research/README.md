@@ -94,17 +94,35 @@ Only column zero's copied wrapper carries the real root release callback. A late
 
 Null optional `get_last_error` details, callback validation, partial outputs, numeric codes, and release handling.
 
-### 13. C API schema/array agreement
+### 13. C API schema/array agreement — confirmed
 
 [`arrow-capi-schema-array-agreement.md`](arrow-capi-schema-array-agreement.md)
 
-Active private PR [`teamleaderleo/duckdb#30`](https://github.com/teamleaderleo/duckdb/pull/30), base/head `7a91c3658f9411ab17556e55f9df34b3b2140f6e` / `41c76c97cdcbf5fbd6ecfc7b1f130b4f853166af`.
+Confirmed by closed, unmerged private PR [`teamleaderleo/duckdb#30`](https://github.com/teamleaderleo/duckdb/pull/30):
 
-Expected-negative:
+- base/head: `7a91c3658f9411ab17556e55f9df34b3b2140f6e` / `41c76c97cdcbf5fbd6ecfc7b1f130b4f853166af`;
+- ordinary Main `31103829101` — success;
+- focused run/job `31103828472` / `92623801218`;
+- artifact `8969719861`;
+- digest `sha256:a81a04c00cd838b13b321e44545ee820eae57ff3414220373f3781453d0e5876`.
+
+The workflow's grep missed because Catch wrapped the diagnostic. The artifact proved exact acceptance:
 
 ```text
-declared runtime child count=1 accepted=1 output columns=2 second output=21,22
+CHECK( error != nullptr )
+with expansion:
+  nullptr != nullptr
+with message:
+  declared runtime child count=1 accepted=1 output columns=2 second output=21,
+  22
 ```
+
+Focused repair [`teamleaderleo/duckdb#33`](https://github.com/teamleaderleo/duckdb/pull/33) is active:
+
+- base/head: `7a91c3658f9411ab17556e55f9df34b3b2140f6e` / `d96e1053801c5f8514e21c17a51c5a93dd1f345d`;
+- generated production fence: exactly `src/main/capi/arrow-c.cpp`;
+- focused run `31107012002` and Main `31107013196` queued;
+- regression requires stable invalid-input text, null output, unchanged caller release, and zero pre-caller release count.
 
 ### 14. Dictionary cache identity — closed avenue
 
@@ -146,6 +164,12 @@ Expected-negative:
 empty field name accepted=1 null field name accepted=0
 ```
 
+### 18. C API exception containment
+
+[`arrow-capi-exception-containment.md`](arrow-capi-exception-containment.md)
+
+Negative lengths, chunk initialization, schema-map access, state allocation, and child-table dereferences occur outside the current per-column conversion catch block. The next focused characterization should prove whether negative root length lets a C++ exception escape the C ABI.
+
 ## Cross-lane findings
 
 ### One root owner, not one copy per column
@@ -160,6 +184,10 @@ Child counts, pointer tables, required children, release state, and checked span
 
 Either transfer is success-only and transactional, or the API must explicitly document consume-on-entry semantics. Current behavior should not remain implicit.
 
+### C ABI containment is separate from validation
+
+Fast validation should prevent predictable malformed-input failures. One outer exception boundary must still prevent allocation, cast, and unexpected conversion exceptions from escaping the C API.
+
 ### Losing avenues stay recorded
 
 The dictionary-cache analysis and corrected broad early-release hypothesis prevent repeated incomplete reasoning.
@@ -167,14 +195,15 @@ The dictionary-cache analysis and corrected broad early-release hypothesis preve
 ## Priority board
 
 1. Finish unit 14 pinned restack, then refresh to actual latest main.
-2. Execute and inspect focused repair PR #32.
-3. Resolve schema/array agreement PR #30.
+2. Execute and inspect shared-root repair PR #32.
+3. Execute and inspect child-count repair PR #33.
 4. Resolve null-name PR #31.
-5. Characterize conversion-failure ownership before broadening the shared-root repair.
-6. Take dense-union ingestion as the strongest separate product contribution.
-7. Take stream-null-error, metadata signed-length, and child-pointer validation as small units.
-8. Build reusable release-count and checked-span helpers.
-9. Add reference-consumer interoperability.
+5. Characterize negative-length exception containment.
+6. Characterize conversion-failure ownership before broadening the shared-root repair.
+7. Take dense-union ingestion as the strongest separate product contribution.
+8. Take stream-null-error, metadata signed-length, and child-pointer validation as small units.
+9. Build reusable release-count and checked-span helpers.
+10. Add reference-consumer interoperability.
 
 ## Authority
 
