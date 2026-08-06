@@ -65,12 +65,14 @@ The focused tests cover:
 
 ## Current implementation
 
-Prepared implementation proof: `teamleaderleo/codex#144@87d4ef9ecc07fc1469136b0bf6e6c325bea6a877`.
+Prepared implementation proof: `teamleaderleo/codex#144@d4ff73f50e30e96b6db4a08205c9d3600e15488e`.
 
-Current-head CI started after the single-mutex update:
+Current-head CI:
 
-- `blocking-ci` run `31072609551`;
-- `v8-canary` run `31072609433`.
+- `blocking-ci` run `31072774224`;
+- `v8-canary` run `31072774070`;
+- formatting and cargo-shear passed;
+- Linux Bazel test, clippy, release build, and argument lint were still running at the last update.
 
 The earlier paired run `30699322569` validated the previous two-mutex head. It remains evidence for the behavior and four-file scope, but the current head needs its own completed receipt.
 
