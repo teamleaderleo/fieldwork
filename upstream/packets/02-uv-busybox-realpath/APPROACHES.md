@@ -1,62 +1,91 @@
 # Approaches — Unit 02
 
-## Selected
+## Final downstream candidate
 
-Remove `--` only from generated `realpath` calls, retain every `dirname --`, update uv's existing generated-text expectations, and recognize corrected/historical `python`/`python3` shebangs in project-run.
+Preserve the `--` operand delimiter when the runtime `realpath` implementation supports it and fall back to the BusyBox-compatible form only when a capability probe fails.
 
-## Why selected
+```sh
+if _uv_realpath_probe=$(realpath -- / 2>/dev/null) &&
+    [ "$_uv_realpath_probe" = / ]; then
+    realpath -- "$0"
+else
+    realpath "$0"
+fi
+```
 
-- It fixes the exact BusyBox failure.
-- It preserves delimiter protection where BusyBox supports it.
-- It leaves utility order, quoting, symlink resolution, and command count unchanged.
-- It generates one artifact format that works on GNU, BusyBox, and macOS regardless of the generation host.
-- It handles persisted launchers across an upgrade.
-- It changes exactly four source/test files.
-- It passed the full declared Rust lint plus focused source and runtime gates.
+Equivalent logic was generated for POSIX and Fish activation scripts. `uv run` recognized current and historical relocatable launcher text in both `python` and `python3` forms.
+
+## Why this candidate was technically selected
+
+- It preserved operand protection on normal POSIX-style implementations.
+- It avoided the BusyBox false diagnostic.
+- It selected behavior using the exact runtime utility reached through `PATH`.
+- The `/` probe had a stable existing operand and known output.
+- Checking both status and output avoided a false positive when a literal file named `--` existed.
+- It retained quoting, `dirname --`, and `realpath`-based symlink resolution.
+- It covered generated launchers and sourced activation scripts with the same capability decision.
 
 ## Alternatives reviewed
 
-### Remove both delimiters
+### Remove `--` from every generated `realpath` call
 
-This works in the tested ordinary cases but is broader than the defect. BusyBox `dirname` supports `--`, so removing it discards useful operand protection without buying compatibility.
+This was the first submitted approach. Maintainer review rejected it because a bare operand such as `-foo` can be reinterpreted as an option on implementations that support option parsing.
 
-### Detect BusyBox at generation time
+### Retry without `--` after failure
 
-Rejected. Relocatable artifacts may execute on a different host from the host that generated them. Host detection can encode the wrong launcher form into a moved environment, and the unconditional candidate already passes all tested platforms.
+```sh
+realpath -- "$0" 2>/dev/null || realpath "$0"
+```
 
-### Detect BusyBox at launcher runtime
+BusyBox processes both operands. It can resolve `$0`, fail on the `--` pathname, and then run the fallback. Command substitution can therefore receive the resolved path twice.
 
-Rejected. It adds process and branching complexity to every generated launcher. No supported platform requires that branch because the selected realpath-only form is already portable across the completed matrix.
+### Prefix a relative `$0` with `./`
+
+```sh
+case "$0" in
+    /*) realpath "$0" ;;
+    *)  realpath "./$0" ;;
+esac
+```
+
+This makes an option-like name safe, but it can change the target. A launcher found as `-foo` through `PATH` may actually live at `/opt/venv/bin/-foo`; `./$0` instead points into the current directory.
+
+### Use `command -v`
+
+This can recover an executable launcher found through `PATH`, but it does not provide the same solution for sourced activation scripts, which need not be executable commands.
+
+### Detect BusyBox when generating the artifact
+
+Rejected because a relocatable environment may execute with a different `PATH` and `realpath` implementation from the generation environment.
+
+### Identify BusyBox by name, help text, version output, or symlink layout
+
+Rejected as brittle. The required distinction is behavior, not branding or installation shape.
 
 ### Redirect `realpath` stderr
 
-Rejected. It hides genuine path-resolution errors together with the false BusyBox diagnostic.
+Rejected because it hides genuine resolution errors together with the false BusyBox diagnostic.
 
-### Replace `realpath` with `readlink -f`
+### Replace or remove `realpath`
 
-Rejected. This changes the utility and portability contract and risks the historical symlink behavior the canonicalization was added to protect.
+Rejected because it changes the portability and symlink-canonicalization contract that the launcher already relies on.
 
-### Remove `realpath`
+### Broaden launcher recognition into a parser
 
-Rejected. External-symlink invocation would derive the interpreter from the alias location instead of the original relocatable environment.
+Rejected. The known generated formats are a fixed compatibility matrix: current and historical forms, each using `python` or `python3`. Exact prefixes keep the accepted grammar narrow.
 
-### Normalize speculative bare option-like `$0`
+## Project-preferred approach
 
-Deferred. Direct shebang probes supply the script path; `./-tool` passes. No supported invocation producing a bare `-tool` `$0` was demonstrated.
+uv maintainers ultimately rejected runtime capability probing as a downstream tradeoff. Although the candidate was fully green, they did not want the additional command invocation and generated-shell complexity in every affected launcher.
 
-### Recognize arbitrary interpreter basenames
+The project-preferred solution is to add normal `--` handling to BusyBox `realpath` itself. The upstream handoff is tracked at [vda-linux/busybox_mirror#26](https://redirect.github.com/vda-linux/busybox_mirror/issues/26).
 
-Rejected. Exact producers were found for `python` and `python3`. A broader grammar would expand migration authority without a concrete generated case.
+## Final outcome
 
-### Cross-crate centralization
+- Public uv PR: [astral-sh/uv#20943](https://redirect.github.com/astral-sh/uv/pull/20943)
+- State: closed without merge
+- Final uv head: `28b00fc950c7eb924ab243418d44ce16ac5bee5a`
+- Final canonical CI: run `31059965759` — success
+- Disposition: `RETIRE` downstream candidate; retain as negative-result evidence
 
-Deferred. A shared fragment may be a useful cleanup later, but it would broaden this compatibility fix and does not reduce the required migration recognition.
-
-## Final source
-
-- Base: `79bbface771210df216b738e9bdc7df95e5a9e6b`
-- Current head: `17fb4489a71cc63a59b90ecc52b08f703ca0d0e8`
-- Previous byte-identical head: `047b724212905c034c15d4f4f6f9ef330bbd2daf`
-- Tree: `e0832686bd982b5c15f6e9bdd6d6631d30ec24cf`
-
-No public upstream contact occurred.
+Public upstream interaction occurred and is complete. No further uv comment or replacement PR is planned unless maintainers request a new downstream direction.
