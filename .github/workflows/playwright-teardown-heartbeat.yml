@@ -1,0 +1,131 @@
+name: Playwright teardown heartbeat watchdog probe
+
+on:
+  push:
+    branches:
+      - research/playwright-teardown-heartbeat
+    paths:
+      - investigations/playwright-teardown-heartbeat/**
+      - .github/workflows/playwright-teardown-heartbeat.yml
+  pull_request:
+    paths:
+      - investigations/playwright-teardown-heartbeat/**
+      - .github/workflows/playwright-teardown-heartbeat.yml
+
+permissions:
+  contents: read
+
+jobs:
+  watchdog-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact Fieldwork head
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch exact Playwright source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git init playwright
+          git -C playwright remote add origin https://github.com/teamleaderleo/playwright.git
+          git -C playwright fetch --depth=1 origin beaf223604b5c199b25287cd3c66bb8a9801a30c
+          git -C playwright checkout --detach FETCH_HEAD
+          test "$(git -C playwright rev-parse HEAD)" = beaf223604b5c199b25287cd3c66bb8a9801a30c
+
+      - name: Inject focused runner characterization
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp \
+            investigations/playwright-teardown-heartbeat/fieldwork-heartbeat-watchdog.spec.ts \
+            playwright/tests/playwright-test/
+          git -C playwright diff --check
+
+      - name: Install and build Playwright
+        working-directory: playwright
+        shell: bash
+        run: |
+          set -euxo pipefail
+          npm ci
+          npm run build
+          npm --prefix tests/playwright-test/stable-test-runner ci
+
+      - name: Run finite teardown control
+        working-directory: playwright
+        shell: bash
+        env:
+          FIELDWORK_HEARTBEAT_MODE: finite
+          DEBUG: pw:test:protocol
+        run: |
+          set -euxo pipefail
+          mkdir -p ../investigations/playwright-teardown-heartbeat/run
+          npm run ttest -- \
+            fieldwork-heartbeat-watchdog.spec.ts \
+            --workers=1 \
+            2>&1 | tee ../investigations/playwright-teardown-heartbeat/run/finite.log
+          grep -F FIELDWORK_FINITE_TEARDOWN_COMPLETE \
+            ../investigations/playwright-teardown-heartbeat/run/finite.log
+          ! grep -F force-killed \
+            ../investigations/playwright-teardown-heartbeat/run/finite.log
+
+      - name: Run externally bounded stuck teardown
+        working-directory: playwright
+        shell: bash
+        run: |
+          set -euxo pipefail
+          out=../investigations/playwright-teardown-heartbeat/run/stuck.log
+          set +e
+          timeout --signal=TERM --kill-after=2s 12s \
+            env FIELDWORK_HEARTBEAT_MODE=stuck DEBUG=pw:test:protocol \
+            npm run ttest -- \
+              fieldwork-heartbeat-watchdog.spec.ts \
+              --workers=1 \
+            >"$out" 2>&1
+          status=$?
+          set -e
+          cat "$out"
+          echo "$status" >../investigations/playwright-teardown-heartbeat/run/stuck-status.txt
+          test "$status" -eq 124
+          heartbeat_count="$(grep -c '__heartbeat__' "$out" || true)"
+          echo "$heartbeat_count" \
+            >../investigations/playwright-teardown-heartbeat/run/heartbeat-count.txt
+          test "$heartbeat_count" -ge 3
+          ! grep -F force-killed "$out"
+          ! grep -F 'never-settling teardown unexpectedly returned' "$out"
+
+      - name: Retain identity and checksums
+        shell: bash
+        run: |
+          set -euxo pipefail
+          out=investigations/playwright-teardown-heartbeat/run
+          {
+            echo "fieldwork_head=$(git rev-parse HEAD)"
+            echo "playwright_head=$(git -C playwright rev-parse HEAD)"
+            node --version
+            npm --version
+            timeout --version | head -n1
+            uname -a
+          } | tee "$out/identity.txt"
+          sha256sum \
+            investigations/playwright-teardown-heartbeat/fieldwork-heartbeat-watchdog.spec.ts \
+            "$out/finite.log" \
+            "$out/stuck.log" \
+            "$out/stuck-status.txt" \
+            "$out/heartbeat-count.txt" \
+            "$out/identity.txt" \
+            | tee "$out/SHA256SUMS"
+          git diff --check
+
+      - name: Upload retained receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-teardown-heartbeat
+          path: investigations/playwright-teardown-heartbeat/run/
+          if-no-files-found: error
+          retention-days: 14
