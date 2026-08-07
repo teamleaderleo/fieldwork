@@ -32,7 +32,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Node 22
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        uses: actions/setup-node@48b55a011dba9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: 22
           cache: npm
@@ -109,6 +109,10 @@ jobs:
           materialize 0507c948720c7758714360a7058fea1e187c1e73 tests/mcp/session-secrets.spec.ts
           run_case saved-session-secret chromium tests/mcp/session-secrets.spec.ts "configured secret values are redacted in saved session tool arguments"
           rm tests/mcp/session-secrets.spec.ts
+
+          materialize 72d064fe839d3306a8bec4efab1713ea45ab67d3 tests/mcp/output-budget-current-console.spec.ts
+          run_case current-console-budget chromium tests/mcp/output-budget-current-console.spec.ts "output budget keeps console artifact linked by current response"
+          rm tests/mcp/output-budget-current-console.spec.ts
 
           echo "base=$(git rev-parse HEAD)" | tee -a "$summary"
           git status --short | tee ../fieldwork-receipts/final-status.txt
