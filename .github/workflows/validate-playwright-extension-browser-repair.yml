@@ -1,0 +1,52 @@
+name: validate Playwright extension browser repair
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone exact owned candidate
+        run: |
+          git clone --single-branch --branch research/mcp-extension-firefox-fallback https://github.com/teamleaderleo/playwright.git candidate
+          cd candidate
+          test "$(git rev-parse HEAD)" = "51ea48acef1aea30a69c5f92ebf5e22098973b37"
+      - name: Apply exact extension-browser repair
+        working-directory: candidate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('packages/playwright-core/src/tools/mcp/config.ts')
+          text = path.read_text()
+          old = '''export function resolveExtensionOptions(cliOptions: CLIOptions): { channel: string, executablePath?: string } {\n  const browser = cliOptions.browser ?? envToString(process.env.PLAYWRIGHT_MCP_BROWSER);\n  const { channel } = resolveBrowserParam(browser);\n  const executablePath = cliOptions.executablePath ?? envToString(process.env.PLAYWRIGHT_MCP_EXECUTABLE_PATH);\n  return { channel: channel ?? 'chrome', executablePath };\n}'''
+          new = '''export function resolveExtensionOptions(cliOptions: CLIOptions): { channel: string, executablePath?: string } {\n  const browser = cliOptions.browser ?? envToString(process.env.PLAYWRIGHT_MCP_BROWSER);\n  const { browserName, channel } = resolveBrowserParam(browser);\n  if (browser && browserName !== 'chromium')\n    throw new Error(`Browser ${browser} is not supported in extension mode.`);\n  const executablePath = cliOptions.executablePath ?? envToString(process.env.PLAYWRIGHT_MCP_EXECUTABLE_PATH);\n  return { channel: channel ?? 'chrome', executablePath };\n}'''
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one resolveExtensionOptions body, found {count}')
+          path.write_text(text.replace(old, new))
+          PY
+          git diff --check
+          test "$(git diff --name-only)" = "packages/playwright-core/src/tools/mcp/config.ts"
+      - name: Install and build
+        working-directory: candidate
+        run: |
+          npm ci
+          npm run build
+          npx playwright install chromium
+      - name: Run focused extension control
+        working-directory: candidate
+        run: npx playwright test -c tests/extension/playwright.config.ts --project=chromium tests/extension/invalid-browser.spec.ts
+      - name: Run focused lint
+        working-directory: candidate
+        run: npx eslint packages/playwright-core/src/tools/mcp/config.ts tests/extension/invalid-browser.spec.ts
+      - name: Record repair diff
+        working-directory: candidate
+        run: |
+          git diff --check
+          git diff -- packages/playwright-core/src/tools/mcp/config.ts
