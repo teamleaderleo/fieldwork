@@ -10,9 +10,15 @@ The source candidate validates `backgroundFetchSize`, captures one immutable pro
 
 - public/owned-fork base: `16b3a916662ab449d496b7b4b4f04132565d1d28`;
 - canonical source PR: `teamleaderleo/node-lru-cache#2`;
-- exact source head: `47fef8068ab3e4a36b939e6d4c05b2ea085f6314`;
+- exact source head: `1191f6607d4df62bf302ce86cdc3287f9e2c57e0`;
+- relation: ahead 1, behind 0;
 - changed files: exactly `src/index.ts` and `test/background-fetch-size.ts`;
 - no dependency, lockfile, workflow, generated-output, or Fieldwork file.
+
+The canonical branch was history-collapsed from reviewed head `5dce70a1765b6985244cd46325e011c19920dd80`. The two changed-file blobs are byte-identical across that collapse:
+
+- `src/index.ts`: `c3549a638b84ce096b13ebd7e3f71496dbe5afd5`;
+- `test/background-fetch-size.ts`: `ce5f70eac6ed995361fe55ddc9b445f85fcbd07a`.
 
 ## Accepted contract
 
@@ -24,9 +30,9 @@ The source candidate validates `backgroundFetchSize`, captures one immutable pro
 - caches without size tracking ignore irrelevant later mutation;
 - the internal receipt is optional on the exported type for source compatibility and required at the accounting boundary.
 
-## Exact execution
+## Execution for the identical tree
 
-Focused formatted-head run `30754588900`, job `91514469959`:
+Reviewed-tree focused run `30754588900`, job `91514469959`:
 
 - install and repository build passed;
 - 95/95 focused assertions passed;
@@ -34,13 +40,15 @@ Focused formatted-head run `30754588900`, job `91514469959`:
 - repository Prettier passed;
 - diff and tracked-worktree hygiene passed.
 
-Current-head native evidence:
+The later tree cleanup removed only an unrelated TTL-autopurge scheduler control; product source and all `backgroundFetchSize` assertions are unchanged.
 
-- Benchmarks `30754536526`: success;
-- CI `30754536472`:
+Exact reviewed tree `5dce70a1765b6985244cd46325e011c19920dd80`:
+
+- Benchmarks `31010354657`: success;
+- CI `31010353969`:
   - Ubuntu Node 24/25: success;
   - macOS Node 24/25: success;
-  - Windows Node 24/25 under Bash and PowerShell: repository harness failure before tests.
+  - Windows Node 24/25 under Bash and PowerShell: repository harness failure before product tests.
 
 Every Windows failure has the same unchanged-base signature:
 
@@ -53,17 +61,19 @@ The source candidate does not modify `.taprc`, package dependencies, or the lock
 
 ## Review conclusion
 
-Complete-diff review accepts the two-file source. The numeric guard avoids hostile coercion, the receipt is captured before the synchronous provider boundary, stale/no-size paths retain their existing ownership, and no unrelated repository repair enters the source diff.
+Complete-diff review accepts the identical two-file tree. The numeric guard avoids hostile coercion, the receipt is captured before the synchronous provider boundary, stale/no-size paths retain their existing ownership, and no unrelated repository repair enters the source diff.
 
-The detailed mechanism, rejected approaches, historical executions, drafts, and exact current-head receipt remain in the adjacent packet files.
+Fresh public-state refresh found public `isaacs/node-lru-cache` still at the exact candidate base and no issue or pull-request overlap for `backgroundFetchSize`.
+
+The detailed mechanism, rejected approaches, historical executions, drafts, and receipts remain in the adjacent packet files.
 
 ## Remaining gates
 
-Immediately before any authorized filing:
+Before any public filing:
 
-1. refresh public main and duplicate/prior-art search;
-2. read current contribution and AI-disclosure policy;
-3. decide issue-first versus direct PR;
-4. obtain explicit public-contact authorization.
+1. final interaction-text and disclosure check;
+2. explicit public-contact authorization.
+
+Current `CONTRIBUTING.md` contains only the neveragain.tech pledge request and states no additional repository-specific contribution procedure.
 
 No public upstream interaction occurred or is authorized.
