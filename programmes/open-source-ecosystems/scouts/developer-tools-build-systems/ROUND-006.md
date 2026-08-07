@@ -133,9 +133,9 @@ No new Windows carrier should run until its baseline control distinguishes curre
 
 ### 5. uv tool upgrade inventory errors
 
-Status: `CURRENT-MAIN SOURCE REPAIR / TEST-ASSERTION REPAIR HOLD / EXACT-HEAD CI PENDING`.
+Status: `CURRENT-MAIN SOURCE ACCEPTED / FOCUSED ASSERTIONS RESTORED / EXACT-HEAD CI PENDING`.
 
-Canonical current source: `teamleaderleo/uv#57@7adc99b16789434e65fc9f20b966afcd1499b576`, based on uv source `507230998c9541d67814b57463ac00e454ff6991`.
+Canonical current source: `teamleaderleo/uv#57@96170fa4d0b540e698d845258549e44b9f280762`, based on uv source `507230998c9541d67814b57463ac00e454ff6991`.
 
 The earlier source PR #47 and execution PR #52 are closed as superseded. Historical focused run `31043690842` proved the reversing behavior on the older source generation but is not current-head evidence.
 
@@ -145,16 +145,21 @@ The production repair remains one line:
 
 That preserves the intended semantic boundary: top-level inventory enumeration/parsing failure stops `uv tool upgrade --all`; per-tool receipt failures remain per-tool values after successful enumeration; genuine empty inventory still reaches the existing `Nothing to upgrade` success path.
 
-Independent review of the rebased PR #57 found a test regression. The current invalid-directory regression checks only that the command fails. It lost two assertions from the previously accepted contract:
+Re-review of the first current-main rebase found that its invalid-directory regression had weakened to generic `.failure()`. That review defect is now repaired on the current head with a dedicated `tool_upgrade_inventory` test module:
 
-1. stderr must contain the actual `Not a valid package...` parse diagnostic;
-2. stderr must not contain `Nothing to upgrade`.
+- gated by `test-python` only rather than the broad module's unrelated `test-pypi` gate;
+- creates an invalid tool-directory package name deterministically;
+- requires command failure;
+- requires stderr to contain `Not a valid package`;
+- requires stderr not to contain `Nothing to upgrade`.
 
-Without those guards an unrelated failure could satisfy the test and the motivating misleading-success behavior is not protected. PR #57 is therefore on repair hold even though the one-line product change remains sound.
+The older generic failure test remains as redundant coverage. The focused module restores the accepted user-visible regression contract.
 
-Current exact-head CI run `31200368519` is pending with no jobs materialized at the latest check. Pending state is not execution evidence and cannot clear the test-review hold.
+Current fence is four paths: one product source file plus three test/plumbing files. Only `crates/uv/src/commands/tool/upgrade.rs` changes product behavior.
 
-Durable coordination remains Fieldwork issue #627.
+Fresh exact-head CI run `31201691790` is pending. Pending state is not execution evidence. Superseded run `31200368519` belongs to the weaker pre-repair head and must not be promoted.
+
+Durable coordination issue #627 now records the current source and source-review acceptance pending execution.
 
 ## Occupied stops
 
@@ -177,7 +182,7 @@ These checks are dated intake evidence and must be refreshed before future entry
 
 ## Work order
 
-1. Repair uv PR #57's invalid-directory regression so it asserts both the real parse diagnostic and absence of `Nothing to upgrade`; only then classify exact-head CI.
+1. Classify uv PR #57 exact-head CI `31201691790`; do not promote the superseded pre-repair run.
 2. Implement the Meson deferred-settlement probe in source form with the mandatory `cuda_std=none` no-authority fallback control; do not create a runner before that source boundary is reviewable.
 3. Design a uv #13505 baseline that uses distinct discovery sources or directly owns final-list inclusion; do not rerun the retired PATH-only carrier.
 4. Execute the ShellCheck sourced-function matrix through a dedicated exact-head read-only carrier rather than generic packaging CI.
