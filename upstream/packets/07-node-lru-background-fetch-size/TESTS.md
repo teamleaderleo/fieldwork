@@ -3,82 +3,56 @@
 ## Exact identity
 
 - base: `16b3a916662ab449d496b7b4b4f04132565d1d28`;
-- canonical one-commit candidate: `1191f6607d4df62bf302ce86cdc3287f9e2c57e0`;
-- reviewed identical-tree head: `5dce70a1765b6985244cd46325e011c19920dd80`;
-- changed files: `src/index.ts`, `test/background-fetch-size.ts`.
-
-History collapse changed no bytes in the two-file fence:
-
-- `src/index.ts`: `c3549a638b84ce096b13ebd7e3f71496dbe5afd5` on both heads;
-- `test/background-fetch-size.ts`: `ce5f70eac6ed995361fe55ddc9b445f85fcbd07a` on both heads.
+- canonical one-commit candidate: `4a80ff2cec44d259907e474336a64ec984a465a5`;
+- changed files: `src/index.ts`, `test/background-fetch-size.ts`;
+- source blob: `c3549a638b84ce096b13ebd7e3f71496dbe5afd5`;
+- test blob: `00b81ade21068c55c23623d95992acbe9f26ebb2`.
 
 ## Baseline characterization
 
-Released `lru-cache@11.5.2` probes on Node 22/24/26 established:
+Released `lru-cache@11.5.2` probes established that invalid `backgroundFetchSize` values can enter provisional accounting: `NaN` poisons calculated size, negative/fractional values are accepted, infinity disrupts provisional caching/coalescing, and runtime strings can reach coercive arithmetic. Zero remains coherent and coalesced.
 
-- `NaN` poisons calculated size;
-- negative and fractional values enter live accounting;
-- positive infinity prevents provisional caching and breaks same-key coalescing;
-- runtime string `'2'` reaches string arithmetic, entry loss, negative count, and `Invalid array length` rejections;
-- zero remains coherent and coalesced.
+## Final focused coverage
 
-Receipt: Fieldwork run `30491292307`.
+The final feature test preserves the upstream `t.clock` setup and uses representative cases rather than an exhaustive type inventory.
 
-## Focused candidate gate
+It covers:
 
-Run `30754588900`, job `91514469959`, Ubuntu 24.04 ARM, Node 24.18.0, on accepted predecessor tree:
+- constructor rejection for negative, fractional, `NaN`, infinity, string, symbol, and hostile-coercion-object values;
+- zero and positive integer acceptance;
+- invalid post-construction mutation rejected before provider dispatch;
+- synchronous callback mutation not changing the current operation's captured charge;
+- later operations observing later valid mutation;
+- no-size caches ignoring irrelevant mutation;
+- stale refresh using the existing entry size;
+- zero-size same-key coalescing;
+- corrupt internal provisional receipt rejection.
 
-- dependency install and repository build: success;
-- focused `test/background-fetch-size.ts`: 95/95 assertions;
-- OXLint on both changed files: zero warnings/errors;
-- Prettier on both changed files: success;
-- diff and tracked-worktree hygiene: success.
+This reduces the feature-test addition from +269 lines to +190 while preserving every distinct behavioral invariant needed by the source change.
 
-The focused matrix covered invalid primitive values, hostile non-coercion, constructor/default versus mutated `undefined`, pre-dispatch rejection, callback re-entry, next-operation mutation, zero coalescing, stale/no-size behavior, settlement, internal receipt corruption, and one unrelated TTL-autopurge control.
+## Prior execution evidence
 
-The final reviewed tree removed only that unrelated TTL-autopurge control. Product source and every `backgroundFetchSize` assertion are unchanged.
+Earlier executions on the unchanged production blob established:
 
-## Exact reviewed-tree native matrix
+- focused behavior/build/OXLint/Prettier/diff hygiene success;
+- Ubuntu Node 24/25 success;
+- macOS Node 24/25 success;
+- benchmark success;
+- Windows Node 24/25 Bash/PowerShell stopping before product test discovery because the unchanged repository TAP configuration could not load `@tapjs/clock`.
 
-At `5dce70a1765b6985244cd46325e011c19920dd80`:
+The Windows condition is an unchanged-base harness limit; this contribution does not modify `.taprc`, package dependencies, or the lockfile.
 
-Benchmarks `31010354657`: success.
+## Final exact-head execution
 
-CI `31010353969`:
+Because `test/background-fetch-size.ts` was simplified, prior test-tree receipts are historical support only. Fresh final-head runs are the source of truth for the final tree:
 
-| Lane | Result |
-| --- | --- |
-| Ubuntu Node 24 | success |
-| Ubuntu Node 25 | success |
-| macOS Node 24 | success |
-| macOS Node 25 | success |
-| Windows Node 24 Bash | harness failure before product tests |
-| Windows Node 24 PowerShell | harness failure before product tests |
-| Windows Node 25 Bash | harness failure before product tests |
-| Windows Node 25 PowerShell | harness failure before product tests |
+- CI `31227785209`: queued at this record update;
+- Benchmarks `31227785205`: queued at this record update.
 
-All Windows failures occur after install/build and before product test collection:
-
-```text
-'@tapjs/clock' does not appear to be a tap plugin.
-Cannot find module '@tapjs/clock'
-```
-
-The public-base `.taprc` requests the plugin while the clean repository dependency graph does not install it. Exact-version base/candidate comparison showed both can execute without coverage after temporary plugin injection, while both remain red under the native coverage command. No dependency or lockfile repair belongs in this candidate.
-
-The canonical one-commit head reuses this execution receipt by exact changed-file blob identity, not by pretending the commit SHA itself ran those jobs.
-
-## Reversing controls
-
-- invalid constructor and mutated values are rejected without coercion;
-- provider dispatch remains zero on invalid missing-key consumption;
-- synchronous provider mutation cannot change the current operation’s captured charge;
-- valid mutation applies to the next operation;
-- zero remains cached and coalesced;
-- stale refresh and no-size caches ignore the irrelevant field;
-- corrupted internal receipt fails at the accounting boundary;
-- pending provisional size becomes the resolved value’s calculated size on settlement.
+Do not claim final exact-head success until those runs execute.
 
 ## Final judgment
 
-`TARGET-EXECUTED / TECHNICALLY READY`, with a declared unchanged-base Windows coverage-harness limit and exact-tree carry-forward to the one-commit canonical source. No public upstream interaction occurred or is authorized.
+`OWNER REVIEW / EXACT-HEAD EXECUTION PENDING`.
+
+The test organization and coverage are now aligned with the repository's feature-focused style while keeping the source diff to the original two-file ownership boundary. No public upstream interaction occurred.
