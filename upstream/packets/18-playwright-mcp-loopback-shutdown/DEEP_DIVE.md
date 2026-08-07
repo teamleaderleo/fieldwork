@@ -2,50 +2,46 @@
 
 ## Problem
 
-The MCP HTTP dispatcher includes `/killkillkill`. A matching `POST` with `x-pw-mcp-kill: 1` returns success and emits `SIGINT` in the server process. The route was added for a cross-platform lifecycle test, but it is reachable through the same HTTP listener as ordinary MCP traffic.
+The MCP HTTP dispatcher exposed `/killkillkill` in ordinary HTTP launches. A matching request emitted `SIGINT` in the server process. The route existed to exercise Playwright's graceful shutdown path in tests, but a programmatic client that could reach an accepted host could also invoke it.
 
-The fixed header reduces browser-CSRF exposure. It doesn't authenticate a script or agent that can reach the accepted host.
+The fixed POST/header requirement reduced browser-CSRF exposure. It didn't distinguish a test harness from another script or agent.
 
-## Invariant
+## Filed issue
 
-> The spawning process may control the child lifecycle. Ordinary MCP HTTP clients may not gain that authority from listener reachability alone.
+[MCP HTTP clients can terminate the server through `/killkillkill`](https://redirect.github.com/microsoft/playwright/issues/42129)
 
-## Selected implementation
+The report included a self-contained reproduction, route history, current source references, and a fully tested alternate implementation.
 
-Source: `teamleaderleo/playwright#48@10e28dfdd7758d92aeed50922fd9c7ce9596c21c`
+## Maintainer-selected fix
 
-- `http.ts` removes the shutdown route.
-- `server.ts` returns from the stdio branch before installing any HTTP stdin handling.
-- In HTTP mode, `isUnderTest()` gates a one-shot readable-EOF listener.
-- If stdin already ended, the same shutdown path is requested immediately.
-- EOF emits the existing `SIGINT` event, so browser and connection cleanup remains centralized.
-- `http.spec.ts` proves route inertness, liveness before EOF, graceful close and exit code 0, production-scope gating, and immediate stdio startup.
+[Only enable `/killkillkill` under test](https://redirect.github.com/microsoft/playwright/pull/42133)
 
-## Why stdin is an ownership signal
+The selected change does not remove the endpoint. Instead it draws the boundary at Playwright's test marker:
 
-The parent creates and owns the child's stdin pipe. Closing its writable side is available to the spawning test process without exposing a command through HTTP. If the child doesn't respond, the parent or supervisor still retains normal OS process controls.
+- `http.ts` imports `isUnderTest()`;
+- `/killkillkill` is handled only when `isUnderTest()` is true;
+- ordinary MCP HTTP servers therefore don't expose the shutdown route;
+- the lifecycle test can still simulate `SIGINT` directly;
+- the test-only route no longer needs the fixed POST/custom-header check.
 
-## Transport safety
+The upstream pull request is two files, 3 additions and 9 deletions. Pavel Feldman approved it. It is currently open and not yet merged.
 
-Stdio MCP mode already uses stdin for protocol bytes. Installing a global listener or calling `resume()` before transport selection could consume those bytes. The selected source installs the listener only after stdio mode has returned, so HTTP lifetime handling and stdio protocol handling don't compete.
+## What the maintainer choice says about the boundary
 
-## Compatibility
+The accepted issue was the route's availability in ordinary MCP HTTP servers. The maintainers did not treat the existence of a shutdown endpoint inside Playwright's own test environment as a problem.
 
-- MCP protocol: unchanged
-- public CLI options: unchanged
-- ordinary HTTP launches: no stdin-driven shutdown because the test marker is absent
-- test HTTP launches: parent EOF requests graceful shutdown
-- process supervision: unchanged
-- persistent data or migration: none
+That is narrower than Fieldwork's original design preference, which removed the endpoint entirely and moved lifecycle control to the spawning parent. Both prevent ordinary production HTTP clients from invoking shutdown; the maintainer change does so with less code and no new lifecycle handling.
 
-## Evidence
+## Fieldwork research evidence
+
+Fieldwork's parent-stdin candidate remains at `teamleaderleo/playwright#48@10e28dfdd7758d92aeed50922fd9c7ce9596c21c`.
 
 Run `30855503566` passed the complete 21-test MCP HTTP file, full build, focused lint, clean tree, and exact three-file diff on Ubuntu 24.04, macOS 15 ARM64, and Windows Server 2025.
 
-Full repository CI and Node versions outside 22 weren't run.
+That evidence made the issue report stronger, but it is not the upstream implementation and should not be submitted competitively.
 
-## Upstream state
+## Contribution result
 
-Issue: [MCP HTTP clients can terminate the server through `/killkillkill`](https://redirect.github.com/microsoft/playwright/issues/42129)
+This unit succeeded at the issue level: the report was assigned, targeted for `v1.63`, linked to a maintainer-owned fix, and that fix received maintainer approval.
 
-The next step is a linked PR after explicit maintainer approval or assignment.
+Next finalization step: record the merge and issue closure when they happen.
