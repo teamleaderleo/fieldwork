@@ -1,0 +1,230 @@
+name: Execute submitted gomarkdoc head
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fieldwork-nixpkgs-gomarkdoc-submitted-head.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gomarkdoc-submitted-head-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  NIXPKGS_BASE: 356468b500e85491b610431c87a284ca1f41b7bc
+  NIXPKGS_HEAD: 060a1f8b8af68af858be896715c5dfc540522235
+  PACKAGE_PATH: pkgs/by-name/go/gomarkdoc/package.nix
+  PACKAGE_BLOB: 53f4eef322e84133c2c867070a55c60bb14e09ae
+
+jobs:
+  linux:
+    name: x86_64-linux submitted head
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out carrier head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5448d1c267
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Verify carrier fence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/fieldwork-nixpkgs-gomarkdoc-submitted-head.yml"
+          git diff --check HEAD^ HEAD
+
+      - name: Check out submitted Nixpkgs commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5448d1c267
+        with:
+          repository: teamleaderleo/nixpkgs
+          ref: ${{ env.NIXPKGS_HEAD }}
+          fetch-depth: 2
+          persist-credentials: false
+          path: nixpkgs
+
+      - name: Verify exact source identity and diff
+        shell: bash
+        working-directory: nixpkgs
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$NIXPKGS_HEAD"
+          test "$(git rev-parse HEAD^)" = "$NIXPKGS_BASE"
+          test "$(git diff --name-only "$NIXPKGS_BASE" "$NIXPKGS_HEAD")" = "$PACKAGE_PATH"
+          test "$(git hash-object "$PACKAGE_PATH")" = "$PACKAGE_BLOB"
+          test "$(git diff --numstat "$NIXPKGS_BASE" "$NIXPKGS_HEAD")" = $'6\t4\t'"$PACKAGE_PATH"
+          git diff --check "$NIXPKGS_BASE" "$NIXPKGS_HEAD"
+          git log -1 --format=%B | grep -Fx 'Assisted-by: ChatGPT (GPT-5.6 Thinking)'
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@61cbfe2efc2d4e7a8a6d56967c3c1058e846c858
+
+      - name: Build package and run selected command tests
+        shell: bash
+        working-directory: nixpkgs
+        run: |
+          set -euo pipefail
+          nix-build . -A gomarkdoc --no-out-link -L 2>&1 | tee ../gomarkdoc-build-linux.log
+          grep -F 'Running phase: checkPhase' ../gomarkdoc-build-linux.log
+          grep -E 'ok[[:space:]]+github\.com/princjef/gomarkdoc/cmd/gomarkdoc([[:space:]]|$)' ../gomarkdoc-build-linux.log
+          grep -E '^(ok|\?)[[:space:]]+github\.com/princjef/gomarkdoc' ../gomarkdoc-build-linux.log \
+            | sort -u | tee ../gomarkdoc-packages-linux.txt
+          test "$(wc -l < ../gomarkdoc-packages-linux.txt)" -eq 1
+
+      - name: Test installed help and version
+        shell: bash
+        working-directory: nixpkgs
+        run: |
+          set -euo pipefail
+          out="$(nix-build . -A gomarkdoc --no-out-link)"
+          test -x "$out/bin/gomarkdoc"
+          status=0
+          "$out/bin/gomarkdoc" --help > ../gomarkdoc-help-linux.txt 2>&1 || status=$?
+          test "$status" -eq 0 -o "$status" -eq 2
+          grep -Ei 'usage|generate markdown documentation' ../gomarkdoc-help-linux.txt
+          nix-build . -A gomarkdoc.tests.version --no-out-link -L 2>&1 | tee ../gomarkdoc-version-linux.log
+          grep -F '1.1.0' ../gomarkdoc-version-linux.log
+
+      - name: Run exact-parent nixpkgs-review
+        shell: bash
+        working-directory: nixpkgs
+        run: |
+          set -euo pipefail
+          nix-shell \
+            -I "nixpkgs=$PWD" \
+            -p nixpkgs-review \
+            --run "nixpkgs-review rev -b $NIXPKGS_BASE HEAD --no-shell" \
+            2>&1 | tee ../nixpkgs-review-linux.log
+          grep -F '1 package built:' ../nixpkgs-review-linux.log
+          grep -E '^[[:space:]]*gomarkdoc[[:space:]]*$' ../nixpkgs-review-linux.log
+
+      - name: Verify source checkout stayed unchanged
+        shell: bash
+        working-directory: nixpkgs
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          test "$(git rev-parse HEAD)" = "$NIXPKGS_HEAD"
+
+      - name: Upload Linux receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gomarkdoc-submitted-head-linux-${{ env.NIXPKGS_HEAD }}
+          if-no-files-found: error
+          path: |
+            gomarkdoc-build-linux.log
+            gomarkdoc-packages-linux.txt
+            gomarkdoc-help-linux.txt
+            gomarkdoc-version-linux.log
+            nixpkgs-review-linux.log
+
+  darwin:
+    name: aarch64-darwin submitted head
+    runs-on: macos-14-arm64
+    timeout-minutes: 120
+    steps:
+      - name: Check out carrier head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5448d1c267
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Verify carrier fence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/fieldwork-nixpkgs-gomarkdoc-submitted-head.yml"
+          git diff --check HEAD^ HEAD
+
+      - name: Check out submitted Nixpkgs commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5448d1c267
+        with:
+          repository: teamleaderleo/nixpkgs
+          ref: ${{ env.NIXPKGS_HEAD }}
+          fetch-depth: 2
+          persist-credentials: false
+          path: candidate
+
+      - name: Check out exact submitted base
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5448d1c267
+        with:
+          repository: teamleaderleo/nixpkgs
+          ref: ${{ env.NIXPKGS_BASE }}
+          fetch-depth: 1
+          persist-credentials: false
+          path: baseline
+
+      - name: Verify exact source identity and diff
+        shell: bash
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$NIXPKGS_HEAD"
+          test "$(git rev-parse HEAD^)" = "$NIXPKGS_BASE"
+          test "$(git diff --name-only "$NIXPKGS_BASE" "$NIXPKGS_HEAD")" = "$PACKAGE_PATH"
+          test "$(git hash-object "$PACKAGE_PATH")" = "$PACKAGE_BLOB"
+          test "$(git diff --numstat "$NIXPKGS_BASE" "$NIXPKGS_HEAD")" = $'6\t4\t'"$PACKAGE_PATH"
+          git diff --check "$NIXPKGS_BASE" "$NIXPKGS_HEAD"
+          git log -1 --format=%B | grep -Fx 'Assisted-by: ChatGPT (GPT-5.6 Thinking)'
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@61cbfe2efc2d4e7a8a6d56967c3c1058e846c858
+
+      - name: Build baseline and submitted candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline_out="$(nix-build baseline -A gomarkdoc --no-out-link -L 2>&1 | tee gomarkdoc-build-darwin-baseline.log | tail -n 1)"
+          candidate_out="$(nix-build candidate -A gomarkdoc --no-out-link -L 2>&1 | tee gomarkdoc-build-darwin-candidate.log | tail -n 1)"
+          grep -F 'Running phase: checkPhase' gomarkdoc-build-darwin-candidate.log
+          grep -E 'ok[[:space:]]+github\.com/princjef/gomarkdoc/cmd/gomarkdoc([[:space:]]|$)' gomarkdoc-build-darwin-candidate.log
+          grep -E '^(ok|\?)[[:space:]]+github\.com/princjef/gomarkdoc' gomarkdoc-build-darwin-candidate.log \
+            | sort -u | tee gomarkdoc-packages-darwin.txt
+          test "$(wc -l < gomarkdoc-packages-darwin.txt)" -eq 1
+          test -x "$baseline_out/bin/gomarkdoc"
+          test -x "$candidate_out/bin/gomarkdoc"
+          cmp "$baseline_out/bin/gomarkdoc" "$candidate_out/bin/gomarkdoc"
+          shasum -a 256 "$baseline_out/bin/gomarkdoc" "$candidate_out/bin/gomarkdoc" | tee gomarkdoc-binary-sha256-darwin.txt
+          status=0
+          "$candidate_out/bin/gomarkdoc" --help > gomarkdoc-help-darwin.txt 2>&1 || status=$?
+          test "$status" -eq 0 -o "$status" -eq 2
+          grep -Ei 'usage|generate markdown documentation' gomarkdoc-help-darwin.txt
+
+      - name: Run version test
+        shell: bash
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          nix-build . -A gomarkdoc.tests.version --no-out-link -L 2>&1 | tee ../gomarkdoc-version-darwin.log
+          grep -F '1.1.0' ../gomarkdoc-version-darwin.log
+
+      - name: Verify source checkouts stayed unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git -C candidate status --porcelain)"
+          test -z "$(git -C baseline status --porcelain)"
+          test "$(git -C candidate rev-parse HEAD)" = "$NIXPKGS_HEAD"
+          test "$(git -C baseline rev-parse HEAD)" = "$NIXPKGS_BASE"
+
+      - name: Upload Darwin receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gomarkdoc-submitted-head-darwin-${{ env.NIXPKGS_HEAD }}
+          if-no-files-found: error
+          path: |
+            gomarkdoc-build-darwin-baseline.log
+            gomarkdoc-build-darwin-candidate.log
+            gomarkdoc-packages-darwin.txt
+            gomarkdoc-binary-sha256-darwin.txt
+            gomarkdoc-help-darwin.txt
+            gomarkdoc-version-darwin.log
