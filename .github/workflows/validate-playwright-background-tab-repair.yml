@@ -16,7 +16,7 @@ jobs:
         run: |
           git clone --single-branch --branch research/mcp-hung-background-tab-current https://github.com/teamleaderleo/playwright.git candidate
           cd candidate
-          test "$(git rev-parse HEAD)" = "f3af5735f4f83d8a5e9d6a0e10276f49d61ea97a"
+          test "$(git rev-parse HEAD)" = "080c156a018ed00b3f193b6f7091247d2bbcc510"
       - name: Apply exact background-header repair
         working-directory: candidate
         run: |
