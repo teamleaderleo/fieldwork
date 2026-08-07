@@ -1,0 +1,51 @@
+name: validate Playwright variadic permissions repair
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone exact owned candidate
+        run: |
+          git clone --single-branch --branch research/mcp-variadic-permissions https://github.com/teamleaderleo/playwright.git candidate
+          cd candidate
+          test "$(git rev-parse HEAD)" = "ea9da51c8f53ede998cf8c6b9529f440c41a1bc0"
+      - name: Apply exact parser repair
+        working-directory: candidate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('packages/playwright-core/src/tools/mcp/program.ts')
+          text = path.read_text()
+          old = '''      .option('--grant-permissions <permissions...>', 'List of permissions to grant to the browser context, for example "geolocation", "clipboard-read", "clipboard-write".', commaSeparatedList)'''
+          new = '''      .option('--grant-permissions <permissions...>', 'List of permissions to grant to the browser context, for example "geolocation", "clipboard-read", "clipboard-write".', (value, previous: string[] | undefined) => [...(previous ?? []), ...(commaSeparatedList(value) ?? [])])'''
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one grant-permissions declaration, found {count}')
+          path.write_text(text.replace(old, new))
+          PY
+          git diff --check
+          test "$(git diff --name-only)" = "packages/playwright-core/src/tools/mcp/program.ts"
+      - name: Install and build
+        working-directory: candidate
+        run: |
+          npm ci
+          npm run build
+      - name: Run focused parser controls
+        working-directory: candidate
+        run: npx playwright test -c tests/mcp/playwright.config.ts --project=chromium tests/mcp/program-options.spec.ts
+      - name: Run focused lint
+        working-directory: candidate
+        run: npx eslint packages/playwright-core/src/tools/mcp/program.ts tests/mcp/program-options.spec.ts
+      - name: Record repair diff
+        working-directory: candidate
+        run: |
+          git diff --check
+          git diff -- packages/playwright-core/src/tools/mcp/program.ts
