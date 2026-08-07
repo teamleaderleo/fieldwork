@@ -1,0 +1,83 @@
+name: validate workerd Worker-global receiver shadow repair
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone exact owned candidate
+        run: |
+          git clone --single-branch --branch unit-10/receiver-aware-types https://github.com/teamleaderleo/workerd.git candidate
+          cd candidate
+          test "$(git rev-parse HEAD)" = "a1628283d6160c1b8ebbfcc34b50cd5e73945977"
+      - name: Apply narrow Worker-global shadow repair
+        working-directory: candidate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          globals_path = Path('types/src/transforms/globals.ts')
+          text = globals_path.read_text()
+          anchor = '''  // Called with each class/interface that should have its methods/properties\n  // extracted into global functions/consts. Recursively visits superclasses.\n  function extractGlobalNodes('''
+          helper = '''  function collectReceiverMethodShadows(\n    node: ts.InterfaceDeclaration | ts.ClassDeclaration,\n    typeArgs?: ts.NodeArray<ts.TypeNode>\n  ): Map<string, (ts.MethodSignature | ts.MethodDeclaration)[]> {\n    const shadows = new Map<\n      string,\n      (ts.MethodSignature | ts.MethodDeclaration)[]\n    >();\n\n    const typeArgInlines = new Map<string, ts.TypeNode>();\n    if (node.typeParameters) {\n      assert(\n        node.typeParameters.length === typeArgs?.length,\n        `Expected ${node.typeParameters.length} type argument(s), got ${typeArgs?.length}`\n      );\n      node.typeParameters.forEach((typeParam, index) => {\n        typeArgInlines.set(typeParam.name.text, typeArgs[index]);\n      });\n    }\n    const inlineVisitor = createInlineVisitor(ctx, typeArgInlines);\n\n    if (node.heritageClauses !== undefined) {\n      for (const originalClause of node.heritageClauses) {\n        const transformedClause = ts.visitNode(\n          originalClause,\n          inlineVisitor,\n          ts.isHeritageClause\n        );\n        assert.strictEqual(\n          transformedClause.types.length,\n          originalClause.types.length\n        );\n        transformedClause.types.forEach((superType, index) => {\n          const superTypeDeclaration = getHeritageDeclaration(\n            checker,\n            declarations,\n            originalClause.types[index],\n            superType\n          );\n          const inherited = collectReceiverMethodShadows(\n            superTypeDeclaration,\n            superType.typeArguments\n          );\n          for (const [name, members] of inherited) {\n            shadows.set(name, [...(shadows.get(name) ?? []), ...members]);\n          }\n        });\n      }\n    }\n\n    const own = new Map<\n      string,\n      (ts.MethodSignature | ts.MethodDeclaration)[]\n    >();\n    for (const member of node.members) {\n      if (\n        (!ts.isMethodSignature(member) && !ts.isMethodDeclaration(member)) ||\n        !ts.isIdentifier(member.name) ||\n        hasStaticModifier(member) ||\n        getGeneratedReceiverOwner(member.parameters[0]) === undefined\n      ) {\n        continue;\n      }\n      const globalMember = withContextGlobalReceiver(ctx, member);\n      assert(\n        ts.isMethodSignature(globalMember) ||\n          ts.isMethodDeclaration(globalMember)\n      );\n      const inlined = ts.visitNode(\n        globalMember,\n        inlineVisitor,\n        (value): value is ts.MethodSignature | ts.MethodDeclaration =>\n          ts.isMethodSignature(value) || ts.isMethodDeclaration(value)\n      );\n      const members = own.get(member.name.text) ?? [];\n      members.push(inlined);\n      own.set(member.name.text, members);\n    }\n\n    // A nearer declaration owns its method name. This avoids manufacturing an\n    // ancestor overload when a Worker-global superclass already replaced it.\n    for (const [name, members] of own) shadows.set(name, members);\n    return shadows;\n  }\n\n  function withInheritedReceiverShadows(\n    node: ts.InterfaceDeclaration | ts.ClassDeclaration\n  ): ts.InterfaceDeclaration | ts.ClassDeclaration {\n    const ownMethodNames = new Set(\n      node.members\n        .filter(\n          (member): member is ts.MethodSignature | ts.MethodDeclaration =>\n            ts.isMethodSignature(member) || ts.isMethodDeclaration(member)\n        )\n        .filter((member) => ts.isIdentifier(member.name))\n        .map((member) => (member.name as ts.Identifier).text)\n    );\n    const inherited = new Map<\n      string,\n      (ts.MethodSignature | ts.MethodDeclaration)[]\n    >();\n\n    if (node.heritageClauses !== undefined) {\n      for (const clause of node.heritageClauses) {\n        clause.types.forEach((superType) => {\n          const superTypeDeclaration = getHeritageDeclaration(\n            checker,\n            declarations,\n            superType,\n            superType\n          );\n          const shadows = collectReceiverMethodShadows(\n            superTypeDeclaration,\n            superType.typeArguments\n          );\n          for (const [name, members] of shadows) {\n            if (!ownMethodNames.has(name))\n              inherited.set(name, [...(inherited.get(name) ?? []), ...members]);\n          }\n        });\n      }\n    }\n\n    if (inherited.size === 0) return node;\n\n    if (ts.isInterfaceDeclaration(node)) {\n      const shadows = [...inherited.values()]\n        .flat()\n        .map((member) =>\n          ctx.factory.createMethodSignature(\n            /* modifiers */ undefined,\n            member.name,\n            member.questionToken,\n            member.typeParameters,\n            member.parameters,\n            member.type\n          )\n        );\n      return ctx.factory.updateInterfaceDeclaration(\n        node,\n        node.modifiers,\n        node.name,\n        node.typeParameters,\n        node.heritageClauses,\n        ctx.factory.createNodeArray([...node.members, ...shadows])\n      );\n    }\n\n    const shadows = [...inherited.values()]\n      .flat()\n      .map((member) =>\n        ctx.factory.createMethodDeclaration(\n          /* modifiers */ undefined,\n          ts.isMethodDeclaration(member) ? member.asteriskToken : undefined,\n          member.name,\n          member.questionToken,\n          member.typeParameters,\n          member.parameters,\n          member.type,\n          /* body */ undefined\n        )\n      );\n    return ctx.factory.updateClassDeclaration(\n      node,\n      node.modifiers,\n      node.name,\n      node.typeParameters,\n      node.heritageClauses,\n      ctx.factory.createNodeArray([...node.members, ...shadows])\n    );\n  }\n\n  // Called with each class/interface that should have its methods/properties\n  // extracted into global functions/consts. Recursively visits superclasses.\n  function extractGlobalNodes('''
+          if text.count(anchor) != 1:
+              raise SystemExit('global visitor anchor mismatch')
+          text = text.replace(anchor, helper)
+          old = '''      const globalScope = widenContextGlobalScopeDeclaration(ctx, node);\n      return [globalScope, ...extractGlobalNodes(globalScope)];'''
+          new = '''      const globalScope = widenContextGlobalScopeDeclaration(ctx, node);\n      const shadowedGlobalScope = withInheritedReceiverShadows(globalScope);\n      return [shadowedGlobalScope, ...extractGlobalNodes(globalScope)];'''
+          if text.count(old) != 1:
+              raise SystemExit('ServiceWorkerGlobalScope return anchor mismatch')
+          globals_path.write_text(text.replace(old, new))
+
+          spec_path = Path('types/test/transforms/globals.spec.ts')
+          spec = spec_path.read_text()
+          old = '''    .replace(\n      'this: __JSG_GENERATED_RECEIVER__<ServiceWorkerGlobalScope>',\n      'this: ServiceWorkerGlobalScope | typeof globalThis | null | void'\n    );'''
+          new = '''    .replace(\n      'this: __JSG_GENERATED_RECEIVER__<ServiceWorkerGlobalScope>',\n      'this: ServiceWorkerGlobalScope | typeof globalThis | null | void'\n    )\n    .replace(\n      '    get console(): Console; // GetAccessorDeclaration\\n}\\n',\n      '    get console(): Console; // GetAccessorDeclaration\\n' +\n        '    addEventListener<Type extends keyof WorkerGlobalScopeEventMap>(this: EventTarget<WorkerGlobalScopeEventMap> | typeof globalThis | null | void, type: Type, handler: (event: WorkerGlobalScopeEventMap[Type]) => void): void;\\n' +\n        '    dispatchEvent(this: EventTarget<WorkerGlobalScopeEventMap> | typeof globalThis | null | void, event: WorkerGlobalScopeEventMap[keyof WorkerGlobalScopeEventMap]): void;\\n' +\n        '}\\n'\n    );'''
+          if spec.count(old) != 1:
+              raise SystemExit('globals spec expectation anchor mismatch')
+          spec_path.write_text(spec.replace(old, new))
+
+          type_path = Path('types/test/types/fetch-receiver.ts')
+          type_text = type_path.read_text()
+          type_text += '''\n\nconst inheritedFromSelf = self.addEventListener;\ninheritedFromSelf('fetch', () => {});\ninheritedFromSelf.call(undefined, 'fetch', () => {});\ninheritedFromSelf.call(null, 'fetch', () => {});\ninheritedFromSelf.call(globalThis, 'fetch', () => {});\ninheritedFromSelf.call(self, 'fetch', () => {});\n\nconst ordinaryTarget = new EventTarget();\nconst inheritedFromOrdinaryTarget = ordinaryTarget.addEventListener;\n// @ts-expect-error Ordinary EventTarget methods remain owner-bound.\ninheritedFromOrdinaryTarget('ordinary', () => {});\ninheritedFromOrdinaryTarget.call(ordinaryTarget, 'ordinary', () => {});\n// @ts-expect-error Worker-global fallback must not widen a separate EventTarget.\ninheritedFromOrdinaryTarget.call(undefined, 'ordinary', () => {});\n'''
+          type_path.write_text(type_text)
+          PY
+          git diff --check
+          test "$(git diff --name-only | sort)" = $'types/src/transforms/globals.ts\ntypes/test/transforms/globals.spec.ts\ntypes/test/types/fetch-receiver.ts'
+      - name: Set up repository toolchain
+        uses: ./candidate/.github/actions/setup-runner
+        with:
+          GOOGLESOURCE_COOKIE: ''
+      - name: Run focused receiver targets
+        working-directory: candidate
+        run: |
+          bazelisk test \
+            //types:test/index.spec \
+            //types:test/transforms/overrides/index.spec \
+            //types:test/transforms/overrides/replacement-receiver-generics.spec \
+            //types:test/transforms/globals.spec \
+            //types:test/types/fetch-receiver \
+            --test_output=errors
+      - name: Run complete types package and lint
+        working-directory: candidate
+        run: |
+          bazelisk test //types/... --test_output=errors
+          bazelisk test //types:types_lib@eslint --test_output=errors
+      - name: Build generated declarations and check marker cleanup
+        working-directory: candidate
+        run: |
+          bazelisk build //types
+          ! grep -R '__JSG_GENERATED_RECEIVER__' bazel-bin/types/definitions
+      - name: Record repair diff
+        working-directory: candidate
+        run: |
+          git diff --check
+          git diff -- types/src/transforms/globals.ts types/test/transforms/globals.spec.ts types/test/types/fetch-receiver.ts
