@@ -1,8 +1,8 @@
 # Adjacent research — Unit 18
 
-## Selected design
+## Fieldwork alternate: mode-aware parent stdin EOF
 
-Mode-aware parent stdin EOF is now the preferred implementation:
+Before the upstream issue was assigned, Fieldwork developed a parent-owned stdin design:
 
 - source: `teamleaderleo/playwright#48@10e28dfdd7758d92aeed50922fd9c7ce9596c21c`
 - execution: run `30855503566`
@@ -14,11 +14,17 @@ The important placement rule is that stdin is consumed only after the stdio tran
 
 The first experiment closed the parent side of the pipe but listened for readable `close`; it failed on all three platforms. Ordinary parent EOF is observed as `end`, and the stream must be consumed for that event to arrive.
 
-A repaired global experiment listened for `end` and resumed stdin. It proved the mechanism worked, but its placement before transport selection could race stdio input. The final source moved the listener into the HTTP-only branch and added an immediate stdio startup control.
+A repaired global experiment listened for `end` and resumed stdin. It proved the mechanism worked, but its placement before transport selection could race stdio input. The final Fieldwork source moved the listener into the HTTP-only branch and added an immediate stdio startup control.
+
+## Why it remains research
+
+After the issue was filed, maintainers chose a smaller fix: [only enable `/killkillkill` under test](https://redirect.github.com/microsoft/playwright/pull/42133). Pavel Feldman approved that implementation.
+
+The parent-stdin work is therefore retained as an alternate design record rather than an upstream submission candidate.
 
 ## Executed fallback
 
-Strict parent IPC remains available at:
+Strict parent IPC also remains available at:
 
 ```text
 teamleaderleo/playwright#40
@@ -26,7 +32,7 @@ e99e97da2acfc6c1a67749bc749e1d0cb71b5607
 run 30690674059
 ```
 
-It passed its complete focused matrix on Ubuntu, macOS, and Windows. It isn't selected because parent stdin already expresses child lifetime without a private message schema, version, parser, or extra IPC descriptor.
+It passed its complete focused matrix on Ubuntu, macOS, and Windows.
 
 ## Separate leads
 
