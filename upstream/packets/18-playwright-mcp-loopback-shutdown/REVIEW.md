@@ -1,44 +1,38 @@
 # Review — Unit 18 Playwright MCP shutdown authority
 
-## Review subject
+## Upstream review outcome
 
-- target: `microsoft/playwright`
-- preferred source: `teamleaderleo/playwright#48@10e28dfdd7758d92aeed50922fd9c7ce9596c21c`
-- base: `2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2`
-- exact fence: `http.ts`, `server.ts`, `http.spec.ts`
-- upstream issue: [submitted bug report](https://redirect.github.com/microsoft/playwright/issues/42129)
+Issue: [submitted bug report](https://redirect.github.com/microsoft/playwright/issues/42129)
 
-## Diff review
+Maintainer fix: [only enable `/killkillkill` under test](https://redirect.github.com/microsoft/playwright/pull/42133)
 
-### `http.ts`
+Simon Knott self-assigned the issue and opened the linked fix. Pavel Feldman approved that pull request.
 
-Deletes the special shutdown branch. Ordinary Host validation, SSE, and streamable HTTP dispatch remain unchanged.
+## Maintainer-selected diff
 
-### `server.ts`
+The upstream source changes two files:
 
-After the stdio branch returns, HTTP test mode consumes readable stdin EOF and emits `SIGINT`. The listener is gated by `isUnderTest()` and handles an already-ended stream.
+- `packages/playwright-core/src/tools/utils/mcp/http.ts`
+- `tests/mcp/http.spec.ts`
 
-### `http.spec.ts`
+The HTTP handler now serves `/killkillkill` only when `isUnderTest()` is true. The lifecycle test uses the test-only route directly. The fixed POST/custom-header check is removed because ordinary MCP HTTP launches no longer expose the endpoint.
 
-The fixture exposes `closeStdin` and process exit. Tests prove route inertness, liveness before EOF, one graceful close and exit code 0, no stdin shutdown outside test mode, and immediate stdio startup.
+This is a smaller fix than the Fieldwork parent-stdin candidate and directly addresses the reported production exposure.
 
-## Execution review
+## CI state
 
-Run `30855503566` passed 21/21 and every declared gate on Ubuntu 24.04, macOS 15 ARM64, and Windows Server 2025.
+The linked upstream CI reported one unrelated Firefox annotate/screencast failure. Playwright's CI triage classified it as a pre-existing flake and stated that the pull request itself was clear.
 
-No source defect was found in the exact three-file diff. Same-account reviews on earlier owned PRs are supporting records, not independent review.
+The upstream pull request remains open and not yet merged.
 
-## Remaining judgment
+## Fieldwork source review
 
-Maintainers may still prefer a different lifecycle mechanism or decide the route is intentional. The filed issue is the current decision point.
+Fieldwork's alternate source remains `teamleaderleo/playwright#48@10e28dfdd7758d92aeed50922fd9c7ce9596c21c`. Run `30855503566` passed 21/21 and every declared focused gate on Ubuntu 24.04, macOS 15 ARM64, and Windows Server 2025.
 
-## Limits
-
-- full repository CI wasn't run;
-- only Node 22 was exercised;
-- no claim is made about deployment prevalence or severity;
-- the upstream PR isn't authorized until the issue is approved or assigned.
+No defect was found in that alternate, but it no longer needs upstream review because maintainers selected their own smaller implementation.
 
 ## Disposition
 
-`ACCEPT SOURCE / WAIT FOR UPSTREAM ISSUE RESPONSE`
+`ISSUE CONTRIBUTION SUCCEEDED / MAINTAINER FIX APPROVED / NO COMPETING PR`
+
+Count the issue report as the upstream contribution for this unit. Retain the Fieldwork source as research only unless maintainers request it.
