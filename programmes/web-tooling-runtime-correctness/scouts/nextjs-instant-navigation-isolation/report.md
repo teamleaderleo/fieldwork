@@ -2,14 +2,15 @@
 
 Does Next.js's experimental `@next/playwright` `instant()` helper keep its testing state scoped to the application origin it was asked to control?
 
-At `v16.3.0-preview.9`, acquisition is hostname-scoped, while release is browser-context-wide for every cookie named `next-instant-navigation-testing`. A dependency-free model of that exact selection logic shows that entering `instant()` for app A deletes an existing instant-navigation cookie for app B on another origin in the same Playwright `BrowserContext`. Unrelated cookies survive. The package also rejects a simultaneous `instant()` scope for app B solely because the two pages share a browser context.
+At `v16.3.0-preview.9`, acquisition is hostname-scoped, while release is browser-context-wide for every cookie named `next-instant-navigation-testing`. A dependency-free model of that exact selection logic shows that entering `instant()` for app A deletes an existing instant-navigation cookie for app B on another origin in the same Playwright `BrowserContext`. Unrelated cookies survive. The helper also rejects a simultaneous `instant()` scope for app B solely because the two pages share a browser context.
 
-This establishes an interface-level isolation candidate with `source-read` and `model-executed` evidence. Target-native Next.js/Playwright execution remains the promotion gate.
+The result now has `source-read`, `model-executed`, and `target-test-prepared` evidence. A one-file characterization test is retained on the owned Next.js fork at exact preview source. Target-native execution remains the promotion gate.
 
 ## Assignment
 
 - Programme: `web-tooling-runtime-correctness` / issue #15
 - Scout issue: #693
+- Fieldwork PR: #694
 - Worker: ChatGPT research assistant
 - Owned path: `programmes/web-tooling-runtime-correctness/scouts/nextjs-instant-navigation-isolation/`
 - Target: Next.js
@@ -21,14 +22,14 @@ This establishes an interface-level isolation candidate with `source-read` and `
 
 ## Question
 
-When one Playwright `BrowserContext` contains pages for two application origins, should `instant(pageA, ...)` preserve an existing `next-instant-navigation-testing` cookie belonging to app B, and should app B be able to hold an independent instant-navigation scope at the same time?
+When one Playwright `BrowserContext` contains pages for two application origins, should `instant(pageA, ...)` preserve an existing `next-instant-navigation-testing` cookie belonging to app B?
 
-The candidate invariant is:
+A related question remains separate: should app A and app B be able to hold independent instant-navigation scopes at the same time when they share a browser context?
 
 ```text
 one BrowserContext
 ├── app-a.example ── instant(A) may mutate A's testing cookie
-└── app-b.example ── B's testing cookie and lock remain owned by B
+└── app-b.example ── B's testing cookie remains owned by B
 
 unrelated cookies remain untouched on both origins
 ```
@@ -46,21 +47,15 @@ The same `packages/next-playwright/src/index.ts` blob is present in `v16.3.0-can
 
 ### Acquisition
 
-`instant()` resolves the page or supplied base URL, extracts one `hostname`, and writes the testing cookie with that hostname and path `/`.
+`instant()` resolves one hostname and writes the testing cookie for that hostname at `/`.
 
 ```text
-page A URL
-   │
-   ▼
-hostname A
-   │
-   ▼
-next-instant-navigation-testing @ A /
+page A URL ──▶ hostname A ──▶ next-instant-navigation-testing @ A /
 ```
 
 ### Release
 
-`releaseInstantCookie(context)` calls `context.cookies()` with no URL filter, selects every entry whose name is `next-instant-navigation-testing`, and expires each selected domain/path pair.
+`releaseInstantCookie(context)` calls `context.cookies()` with no URL filter, selects every entry whose name is `next-instant-navigation-testing`, and expires each selected domain/path pair. The same routine runs before acquisition and during callback cleanup.
 
 ```text
 BrowserContext cookie jar
@@ -71,23 +66,21 @@ BrowserContext cookie jar
    └── B / session ────────────────────────── keep
 ```
 
-That release routine runs both before acquisition and in the callback cleanup path.
-
 ### Scope ownership
 
-The helper tracks active scopes in a `WeakSet<BrowserContext>`. Any second `instant()` call in the same browser context throws before considering whether the two pages have different origins.
+The helper tracks active scopes in a `WeakSet<BrowserContext>`. Any second `instant()` call in the same browser context throws before considering whether the pages have different origins.
 
-The current test suite covers nested-scope rejection, stale-cookie recovery, and concurrent scopes across separate browser contexts. This reconnaissance pass found no same-context, distinct-origin isolation control.
+The existing suite covers nested-scope rejection, stale-cookie recovery, and concurrent scopes across separate browser contexts. This reconnaissance pass found no same-context, distinct-origin isolation control.
 
 ### Client lock
 
-The client-side navigation lock is local to a page runtime and preserves the domain/path of the cookie entry it observes when Next.js rewrites the captured value. This makes the package-level browser-context cleanup boundary worth testing independently: the external helper aggregates cookie ownership more broadly than each page's client runtime.
+The client navigation lock lives in each page runtime and preserves the observed cookie entry's domain/path when rewriting its captured value. That page-local behavior makes the package-level context-wide cleanup boundary independently testable.
 
 ## Relevant history
 
 The current cleanup algorithm came from [PR 94947, “Release the instant navs lock without clearing the whole cookie jar”](https://redirect.github.com/vercel/next.js/pull/94947), landed in commit [`82cd9945b2c374dd2fb9c335617bf486cac690dc`](https://redirect.github.com/vercel/next.js/commit/82cd9945b2c374dd2fb9c335617bf486cac690dc).
 
-That repair replaced Playwright's filtered `clearCookies` path because Playwright temporarily emptied the complete cookie jar before restoring non-matching cookies. Next.js could react to the instant-cookie deletion during that empty interval and render without application cookies. The replacement reads matching entries and individually expires them, successfully preserving unrelated cookie names.
+That repair replaced Playwright's filtered `clearCookies` path because Playwright temporarily emptied the complete cookie jar before restoring non-matching cookies. Next.js could react during that interval and render without application cookies. The replacement reads matching entries and individually expires them, preserving unrelated cookie names.
 
 The retained question is narrower: the replacement still matches by name across the complete browser context, so another origin's same-named instant-navigation cookie enters the deletion set.
 
@@ -101,24 +94,9 @@ Command:
 node programmes/web-tooling-runtime-correctness/scouts/nextjs-instant-navigation-isolation/artifacts/cookie-scope-probe.mjs
 ```
 
-Executed environment:
+Executed environment: Node `v22.16.0`.
 
-```text
-Node v22.16.0
-```
-
-The probe mirrors the relevant pinned helper operations with an in-memory Playwright-cookie model:
-
-1. seed app B with an existing instant-navigation cookie;
-2. seed unrelated session cookies on apps A and B;
-3. enter `instant()` for app A;
-4. inspect the jar while A owns the scope and after release;
-5. attempt a distinct-origin second scope in the same browser context;
-6. run the same concurrency control using separate contexts.
-
-Retained result: `artifacts/latest.json`.
-
-Observed outcomes:
+Retained machine result: `artifacts/latest.json`.
 
 | Observation | Result |
 | --- | --- |
@@ -129,7 +107,37 @@ Observed outcomes:
 | second origin in same context can enter concurrently | `false` — `already active` |
 | separate contexts can enter concurrently | `true` |
 
-Evidence class: `model-executed` for these exact selection and ownership semantics. The probe deliberately does not claim browser CookieStore timing, Next.js rendering behavior, or production impact.
+Evidence class: `model-executed` for these exact selection and ownership semantics. The model deliberately leaves browser CookieStore timing and Next.js rendering behavior outside its claim.
+
+## Target-native characterization test
+
+Owned fork: `teamleaderleo/next.js`.
+
+Exact base branch:
+
+```text
+fieldwork/instant-navigation-origin-isolation-base
+838bd19bdef0e41254f0868516b0c6c6e59e70d7
+```
+
+Characterization branch/head:
+
+```text
+fieldwork/instant-navigation-origin-isolation
+b1257ec33f56b7aa67bff2b87531c0ad70f84b01
+```
+
+Owned-fork draft PR: `teamleaderleo/next.js` PR 1.
+
+Changed file fence:
+
+```text
+test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-origin-isolation.test.ts
+```
+
+The prepared test uses the actual Next.js e2e harness and native Playwright browser context. It seeds another domain with an existing `next-instant-navigation-testing` cookie, enters `instant()` for the Next.js page, and expects the other-domain cookie to remain. On the pinned implementation, source analysis predicts that assertion will fail during `instant()`'s pre-acquire cleanup.
+
+Evidence class: `target-test-prepared`. No target-native execution receipt exists yet, so this is not described as a failing target test.
 
 ## Competing explanations
 
@@ -137,27 +145,25 @@ Evidence class: `model-executed` for these exact selection and ownership semanti
 
 The helper should release only the cookie entry or origin it acquired. The browser-context-wide name filter accidentally couples distinct origins.
 
-Distinguishing evidence: a real Playwright context with two Next.js origins shows B's instant cookie disappearing when A enters or leaves `instant()`.
+Distinguishing evidence: the prepared target test executes and observes B's cookie disappearing when A enters `instant()`.
 
 ### H2 — browser-context-global ownership is intentional
 
 `@next/playwright` intentionally defines one instant-navigation scope per Playwright context, even when the context hosts several origins. Under this contract, deleting every same-named instant cookie and rejecting cross-origin concurrency is expected.
 
-Distinguishing evidence: source, tests, or documented design explicitly require global ownership, or a target-native experiment demonstrates that origin-local ownership breaks the protocol.
+Distinguishing evidence: source, tests, or target-native behavior demonstrates a protocol requirement for context-global ownership.
 
 ### H3 — cleanup and concurrency have separate boundaries
 
-Global active-scope exclusion could be intentional while cookie cleanup still needs origin scoping, or vice versa. The two observations should remain separable during target-native testing.
-
-Distinguishing evidence: test each property independently instead of treating one as proof of the other.
+Global active-scope exclusion could be intentional while cookie cleanup still needs origin scoping, or vice versa. Keep the two properties independently falsifiable.
 
 ## Negative results and controls
 
-- The current algorithm does preserve unrelated cookie names; the earlier empty-cookie-jar defect addressed by PR 94947 is absent from this model.
-- Separate Playwright browser contexts remain isolated and can run concurrent model scopes.
-- The probe establishes no cross-origin user-visible rendering failure yet.
-- No target-native test has run in this scout yet.
-- No claim is made about the frequency of multi-origin same-context use.
+- The current selection algorithm preserves unrelated cookie names; the earlier empty-cookie-jar failure addressed by PR 94947 is absent from the model.
+- Separate browser contexts remain isolated in the model.
+- The model establishes no user-visible rendering failure.
+- The target test is prepared and unexecuted.
+- Multi-origin same-context frequency remains unmeasured.
 
 ## Ranked branch candidates
 
@@ -165,43 +171,36 @@ Distinguishing evidence: test each property independently instead of treating on
 
 **Consequence:** one app's helper scope can delete another origin's same-named testing-control cookie inside a shared context.
 
-**Likely owning boundary:** `packages/next-playwright/src/index.ts`, specifically the resource identity passed from acquisition into `releaseInstantCookie`.
+**Likely owning boundary:** `packages/next-playwright/src/index.ts`, specifically the identity passed from acquisition into `releaseInstantCookie`.
 
-**Evidence needed:** real Playwright + two origins in one context; preserve app B's cookie through app A acquire/release; retain existing stale-cookie and unrelated-cookie controls.
+**Evidence needed:** execute the prepared test, then retain stale-cookie and unrelated-cookie controls around any candidate.
 
-**Current rank:** strongest candidate.
+**Rank:** strongest candidate.
 
 ### 2. Distinct-origin concurrency ownership
 
-**Consequence:** independent app origins sharing one browser context cannot hold simultaneous `instant()` scopes because activity is keyed only by `BrowserContext`.
+**Consequence:** independent origins sharing one browser context cannot hold simultaneous `instant()` scopes because activity is keyed only by `BrowserContext`.
 
-**Likely owning boundary:** `contextsWithActiveScope` ownership key and the relationship between one scope and one cookie origin.
+**Likely owning boundary:** `contextsWithActiveScope` and the relation between one scope and one cookie origin.
 
-**Evidence needed:** two actual Next.js pages on different origins; verify each page's client lock remains independent when both cookies exist; test same-origin concurrency as the negative control.
+**Evidence needed:** an independently prepared target control that distinguishes same-origin conflict from distinct-origin independence.
 
-**Current rank:** strong adjacent candidate, likely coupled to candidate 1 but independently falsifiable.
+**Rank:** strong adjacent candidate.
 
 ### 3. Explicit context-global contract
 
-If target-native behavior proves that the protocol requires one context-global scope, the useful outcome becomes a contract/test result instead of an implementation change.
+If target-native evidence demonstrates that the protocol requires one context-global scope, retain the result as a contract finding and stop implementation work.
 
-**Evidence needed:** demonstrate why domain-local cleanup or concurrency violates a real Next.js invariant.
-
-**Current rank:** fallback interpretation.
+**Rank:** fallback interpretation.
 
 ## Next gate
 
-Run one target-native Next.js/Playwright fixture with two origins inside the same `BrowserContext` and distinguish:
+Execute the owned-fork characterization test at `b1257ec33f56b7aa67bff2b87531c0ad70f84b01` using the target repository's e2e harness. Classify setup/harness failures separately from the assertion.
 
-```text
-A acquire/release ──▶ does B retain its cookie and lock?
-A + B concurrent  ──▶ independent by origin, or intentionally global?
-```
-
-If the target-native result matches the model and no protocol constraint requires global ownership, promote the narrow isolation finding. If actual runtime behavior contradicts the model-level consequence, retain the source observation and stop or revise the hypothesis.
+If the assertion fails for the predicted cookie deletion and no protocol constraint requires global ownership, promote the narrow isolation finding. If runtime evidence contradicts the source/model consequence, revise or stop the branch.
 
 ## Current disposition
 
 `research-active`
 
-The source/model result is durable and specific enough to justify target-native execution. No upstream issue, pull request, comment, review, reaction, or message has been created or authorized.
+The source/model result and exact target test are durable. Upstream contact remains unauthorized, and no upstream interaction has occurred.
