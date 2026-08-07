@@ -162,6 +162,21 @@ jobs:
             expect(parsed.result).toContain(secret);
             expect(parsed.result).not.toContain('<secret>TOKEN</secret>');
           });
+
+          test('JSON snapshot output is corrupted when a secret equals a JSON literal', async ({ cli, server }, testInfo) => {
+            const secretsFile = testInfo.outputPath('literal-secrets.env');
+            await fs.promises.writeFile(secretsFile, 'TOKEN=true\n');
+            server.setContent('/', '<button disabled>Click</button>', 'text/html');
+
+            await cli('open', server.PREFIX, {
+              env: { PLAYWRIGHT_MCP_SECRETS_FILE: secretsFile },
+            });
+
+            const json = await cli('--json', 'snapshot');
+            console.log('literal-secret JSON output:', json.output);
+            expect(json.output).toContain('<secret>TOKEN</secret>');
+            expect(() => JSON.parse(json.output)).toThrow();
+          });
           EOF
 
       - name: Run MCP CLI probes
