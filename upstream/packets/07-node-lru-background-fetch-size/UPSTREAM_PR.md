@@ -1,8 +1,8 @@
 # Upstream pull-request draft — fix: snapshot `backgroundFetchSize` before invoking user code
 
 Draft status: `technically ready — public contact unauthorized`  
-Proposed head: `teamleaderleo/node-lru-cache:repair/background-fetch-size-source` at `47fef8068ab3e4a36b939e6d4c05b2ea085f6314`  
-Proposed base: `isaacs/node-lru-cache:main` at inspected base `16b3a916662ab449d496b7b4b4f04132565d1d28`
+Proposed head: `teamleaderleo/node-lru-cache:repair/background-fetch-size-source` at `1191f6607d4df62bf302ce86cdc3287f9e2c57e0`  
+Proposed base: `isaacs/node-lru-cache:main` at `16b3a916662ab449d496b7b4b4f04132565d1d28`
 
 ---
 
@@ -31,12 +31,16 @@ The public field remains mutable. Mutation inside one provider callback applies 
 
 ## Tests
 
-- focused exact-head gate: run `30754588900`, job `91514469959` — build, 95/95 assertions, OXLint, Prettier, and diff hygiene passed;
-- Benchmarks `30754536526` — passed;
-- native CI `30754536472`:
+The canonical source is one commit over the unchanged public base and has byte-identical changed-file blobs to reviewed head `5dce70a1765b6985244cd46325e011c19920dd80`.
+
+Identical-tree evidence:
+
+- focused run `30754588900`, job `91514469959` — build, 95/95 assertions, OXLint, Prettier, and diff hygiene passed before the later removal of one unrelated TTL-autopurge control;
+- exact reviewed-tree Benchmarks `31010354657` — passed;
+- exact reviewed-tree native CI `31010353969`:
   - Ubuntu Node 24/25 passed;
   - macOS Node 24/25 passed;
-  - Windows Node 24/25 under Bash and PowerShell stopped before tests because the unchanged repository configuration could not load `@tapjs/clock`.
+  - Windows Node 24/25 under Bash and PowerShell stopped before product tests because the unchanged repository configuration could not load `@tapjs/clock`.
 
 The Windows coverage failure is present independently of the two-file candidate and is not repaired by adding package or lockfile churn to this change.
 
@@ -45,8 +49,13 @@ The Windows coverage failure is present independently of the two-file candidate 
 - existing option and mutable field remain;
 - invalid runtime values now throw `TypeError`;
 - zero, positive integers, explicit constructor `undefined`, same-key coalescing, stale refresh, no-size caches, settlement, abort, replacement, and eviction behavior remain covered;
-- one validation and one internal promise property are added per missing-key size-tracked fetch;
-- rollback is one source commit.
+- one validation and one internal promise property are added per missing-key size-tracked fetch.
+
+## Current public state
+
+- public `main` remains at the exact inspected base;
+- current GitHub issue and pull-request searches found no `backgroundFetchSize` overlap;
+- `CONTRIBUTING.md` currently states only the neveragain.tech pledge request.
 
 ## Limits
 
@@ -61,11 +70,12 @@ The Windows coverage failure is present independently of the two-file candidate 
 - [x] Exact source is one commit over the inspected public base.
 - [x] Diff contains only `src/index.ts` and `test/background-fetch-size.ts`.
 - [x] No workflow, dependency, lockfile, generated output, or Fieldwork file is present.
-- [x] Focused build/test/lint/format gate passed.
-- [x] Benchmarks passed.
-- [x] Linux and macOS native matrices passed.
-- [x] Windows native red is classified as unchanged-base TAP/coverage setup before tests.
-- [x] Complete-diff technical review accepted the source.
-- [ ] Current public main and overlap search repeated immediately before filing.
-- [ ] Current contribution and AI-disclosure policy checked.
+- [x] Focused build/test/lint/format gate passed on the identical relevant tree.
+- [x] Exact reviewed-tree benchmarks passed.
+- [x] Linux and macOS native matrices passed on the exact reviewed tree.
+- [x] Windows native red is classified as unchanged-base TAP/coverage setup before product tests.
+- [x] Complete-diff technical review accepted the identical source tree.
+- [x] Public main and overlap search refreshed.
+- [x] Current repository-specific contribution file checked.
+- [ ] Final interaction text / AI-disclosure wording checked.
 - [ ] Exact user authorization to interact publicly recorded.
