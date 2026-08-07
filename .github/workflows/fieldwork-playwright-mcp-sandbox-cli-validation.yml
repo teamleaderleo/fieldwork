@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   validate:
-    name: MCP CLI parser receipts on Ubuntu
+    name: MCP CLI parser and JSON receipts on Ubuntu
     runs-on: ubuntu-24.04
     timeout-minutes: 45
 
@@ -76,7 +76,6 @@ jobs:
               browser: { launchOptions: { chromiumSandbox: false } },
             }));
 
-            // The resolver itself has the expected precedence when given sandbox:true.
             const direct = await tools.resolveCLIConfigForMCP({
               browser: 'chrome',
               config: configFile,
@@ -84,8 +83,6 @@ jobs:
             }, {});
             expect(direct.browser.launchOptions.chromiumSandbox).toBe(true);
 
-            // The real Commander path normalizes the explicit true to undefined,
-            // so the config-file false survives and Chrome launches with --no-sandbox.
             const { client } = await startClient({
               args: [`--config=${configFile}`, '--sandbox'],
             });
@@ -140,6 +137,33 @@ jobs:
           });
           EOF
 
+          cat > tests/mcp/fieldwork-cli-json-redaction.spec.ts <<'EOF'
+          import fs from 'fs';
+          import { test, expect } from './cli-fixtures';
+
+          test('JSON console output misses a secret containing a backslash', async ({ cli, server }, testInfo) => {
+            const secret = 'alpha\\beta';
+            const secretsFile = testInfo.outputPath('secrets.env');
+            await fs.promises.writeFile(secretsFile, `TOKEN=${secret}\n`);
+            server.setContent('/', `<script>console.log(${JSON.stringify(secret)})</script>`, 'text/html');
+
+            await cli('open', server.PREFIX, {
+              env: { PLAYWRIGHT_MCP_SECRETS_FILE: secretsFile },
+            });
+
+            const normal = await cli('console');
+            console.log('normal console output:', normal.output);
+            expect(normal.output).toContain('<secret>TOKEN</secret>');
+            expect(normal.output).not.toContain(secret);
+
+            const json = await cli('--json', 'console');
+            const parsed = JSON.parse(json.output);
+            console.log('JSON console result:', parsed.result);
+            expect(parsed.result).toContain(secret);
+            expect(parsed.result).not.toContain('<secret>TOKEN</secret>');
+          });
+          EOF
+
       - name: Run MCP CLI probes
         shell: bash
         working-directory: playwright
@@ -147,7 +171,7 @@ jobs:
           CI: "1"
         run: |
           set -o pipefail
-          npm run test-mcp tests/mcp/fieldwork-cli-parser.spec.ts -- --project=chrome 2>&1 | tee ../fieldwork-receipts/playwright-mcp-cli-test.log
+          npm run test-mcp tests/mcp/fieldwork-cli-parser.spec.ts tests/mcp/fieldwork-cli-json-redaction.spec.ts -- --project=chrome 2>&1 | tee ../fieldwork-receipts/playwright-mcp-cli-test.log
 
       - name: Record receipt
         if: always()
