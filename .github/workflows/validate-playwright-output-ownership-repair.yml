@@ -16,7 +16,7 @@ jobs:
         run: |
           git clone --single-branch --branch research/mcp-output-budget-foreign-file https://github.com/teamleaderleo/playwright.git candidate
           cd candidate
-          test "$(git rev-parse HEAD)" = "e27f3966bda4bade56a0da8fe40c0bc8b3171c66"
+          test "$(git rev-parse HEAD)" = "e92ba4078d0a73dc14d90dfe1bb8b9f443d32b48"
       - name: Apply exact ownership repair
         working-directory: candidate
         run: |
