@@ -2,7 +2,7 @@
 
 ## Disposition
 
-`TECHNICALLY READY — OWNER REVIEW / PUBLIC CONTACT HOLD`
+`OWNER REVIEW — FINAL EXACT-HEAD RUNS PENDING`
 
 The source candidate validates `backgroundFetchSize`, captures one immutable provisional-size receipt before synchronous user `fetchMethod` code runs, and consumes that receipt during missing-key accounting.
 
@@ -10,70 +10,46 @@ The source candidate validates `backgroundFetchSize`, captures one immutable pro
 
 - public/owned-fork base: `16b3a916662ab449d496b7b4b4f04132565d1d28`;
 - canonical source PR: `teamleaderleo/node-lru-cache#2`;
-- exact source head: `1191f6607d4df62bf302ce86cdc3287f9e2c57e0`;
+- exact source head: `4a80ff2cec44d259907e474336a64ec984a465a5`;
 - relation: ahead 1, behind 0;
 - changed files: exactly `src/index.ts` and `test/background-fetch-size.ts`;
+- diff: +223 / -2;
 - no dependency, lockfile, workflow, generated-output, or Fieldwork file.
 
-The canonical branch was history-collapsed from reviewed head `5dce70a1765b6985244cd46325e011c19920dd80`. The two changed-file blobs are byte-identical across that collapse:
+Final changed-file blobs:
 
 - `src/index.ts`: `c3549a638b84ce096b13ebd7e3f71496dbe5afd5`;
-- `test/background-fetch-size.ts`: `ce5f70eac6ed995361fe55ddc9b445f85fcbd07a`.
+- `test/background-fetch-size.ts`: `00b81ade21068c55c23623d95992acbe9f26ebb2`.
+
+The production source blob is unchanged from the previously reviewed candidate. The test file was simplified to match repository conventions and preserves the original TAP clock setup.
 
 ## Accepted contract
 
-- constructor values must be primitive finite nonnegative integers; explicit `undefined` retains omission/default behavior;
+- constructor values must be primitive finite nonnegative integers;
 - mutated invalid values reject before provider dispatch when missing-key size accounting is active;
 - zero remains valid and same-key callers remain coalesced;
 - synchronous callback mutation affects later operations only;
 - stale refresh continues to reuse the existing entry size;
 - caches without size tracking ignore irrelevant later mutation;
-- the internal receipt is optional on the exported type for source compatibility and required at the accounting boundary.
+- the internal receipt is optional on the exported type for source compatibility and checked at the accounting boundary.
 
-## Execution for the identical tree
+## Test placement and style
 
-Reviewed-tree focused run `30754588900`, job `91514469959`:
+Upstream already created `test/background-fetch-size.ts` for this option. Broad constructor validation also exists in `test/basic.ts`, but moving one closely related option check there would expand this contribution to a third file. The final candidate keeps all `backgroundFetchSize` regressions in the dedicated feature test.
 
-- install and repository build passed;
-- 95/95 focused assertions passed;
-- OXLint passed with zero warnings/errors;
-- repository Prettier passed;
-- diff and tracked-worktree hygiene passed.
+The invalid-value coverage was reduced from an exhaustive JavaScript type inventory to representative cases proving distinct invariants: numeric-domain rejection, runtime non-number rejection, non-coercion, zero support, pre-dispatch mutation validation, operation-local snapshotting, stale/no-size exceptions, zero coalescing, and defensive receipt validation.
 
-The later tree cleanup removed only an unrelated TTL-autopurge scheduler control; product source and all `backgroundFetchSize` assertions are unchanged.
+## Execution boundary
 
-Exact reviewed tree `5dce70a1765b6985244cd46325e011c19920dd80`:
+Previous executions on the unchanged production logic established passing focused behavior/build/lint/format, Ubuntu/macOS native CI, and benchmarks. Windows stopped before product test discovery on the unchanged-base missing `@tapjs/clock` TAP configuration.
 
-- Benchmarks `31010354657`: success;
-- CI `31010353969`:
-  - Ubuntu Node 24/25: success;
-  - macOS Node 24/25: success;
-  - Windows Node 24/25 under Bash and PowerShell: repository harness failure before product tests.
+Because the final test file changed, exact-head success is not carried forward by blob identity. Fresh runs for `4a80ff2cec44d259907e474336a64ec984a465a5` are pending:
 
-Every Windows failure has the same unchanged-base signature:
+- CI `31227785209`;
+- Benchmarks `31227785205`.
 
-```text
-'@tapjs/clock' does not appear to be a tap plugin.
-Cannot find module '@tapjs/clock'
-```
+No green exact-head claim is made until those runs execute.
 
-The source candidate does not modify `.taprc`, package dependencies, or the lockfile. A separate exact-version investigation established that injecting the matching TAP plugin lets unchanged base and candidate execute without coverage, while the coverage-enabled Windows command remains red for both. The Windows result is retained as a baseline harness limit, not presented as a green product suite.
+## Remaining boundary
 
-## Review conclusion
-
-Complete-diff review accepts the identical two-file tree. The numeric guard avoids hostile coercion, the receipt is captured before the synchronous provider boundary, stale/no-size paths retain their existing ownership, and no unrelated repository repair enters the source diff.
-
-Fresh public-state refresh found public `isaacs/node-lru-cache` still at the exact candidate base and no issue or pull-request overlap for `backgroundFetchSize`.
-
-The detailed mechanism, rejected approaches, historical executions, drafts, and receipts remain in the adjacent packet files.
-
-## Remaining gates
-
-Before any public filing:
-
-1. final interaction-text and disclosure check;
-2. explicit public-contact authorization.
-
-Current `CONTRIBUTING.md` contains only the neveragain.tech pledge request and states no additional repository-specific contribution procedure.
-
-No public upstream interaction occurred or is authorized.
+The public-facing draft is ready for owner review. No public upstream interaction occurred or is authorized; the repository owner will perform any eventual submission manually.
