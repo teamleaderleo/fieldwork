@@ -1,0 +1,51 @@
+name: validate Playwright invalid browser repair
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone exact owned candidate
+        run: |
+          git clone --single-branch --branch research/mcp-invalid-browser-option https://github.com/teamleaderleo/playwright.git candidate
+          cd candidate
+          test "$(git rev-parse HEAD)" = "183c6c59e4eca22198980af0b6f15afda42fedcb"
+      - name: Apply exact browser validation repair
+        working-directory: candidate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('packages/playwright-core/src/tools/mcp/config.ts')
+          text = path.read_text()
+          old = '''function configFromCLIOptions(cliOptions: CLIOptions): Config & { configFile?: string } {\n  const { browserName, channel } = resolveBrowserParam(cliOptions.browser);\n\n  // Launch options'''
+          new = '''function configFromCLIOptions(cliOptions: CLIOptions): Config & { configFile?: string } {\n  const { browserName, channel } = resolveBrowserParam(cliOptions.browser);\n  if (cliOptions.browser && !browserName)\n    throw new Error(`Invalid browser: ${cliOptions.browser}.`);\n\n  // Launch options'''
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one configFromCLIOptions anchor, found {count}')
+          path.write_text(text.replace(old, new))
+          PY
+          git diff --check
+          test "$(git diff --name-only)" = "packages/playwright-core/src/tools/mcp/config.ts"
+      - name: Install and build
+        working-directory: candidate
+        run: |
+          npm ci
+          npm run build
+      - name: Run focused config control
+        working-directory: candidate
+        run: npx playwright test -c tests/mcp/playwright.config.ts --project=chromium tests/mcp/config-invalid-browser.spec.ts
+      - name: Run focused lint
+        working-directory: candidate
+        run: npx eslint packages/playwright-core/src/tools/mcp/config.ts tests/mcp/config-invalid-browser.spec.ts
+      - name: Record repair diff
+        working-directory: candidate
+        run: |
+          git diff --check
+          git diff -- packages/playwright-core/src/tools/mcp/config.ts
