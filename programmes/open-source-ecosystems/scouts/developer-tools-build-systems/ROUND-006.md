@@ -8,11 +8,11 @@ Authority boundary: owned repositories and forks only. No upstream comments, rea
 
 ### 1. Meson #15998 — CMake CUDA standard normalization
 
-Status: `FOCUSED MODEL GREEN / DEFERRED-SETTLEMENT BOUNDARY SELECTED / IMPLEMENTATION UNEXECUTED`.
+Status: `FOCUSED MODEL GREEN / BASE-COMPLETE RUNTIME-DEFERRED PACKET PREPARED / UNEXECUTED`.
 
-Owned investigation: `teamleaderleo/meson#3@e44c4547bd3a9b1d3dce9956c876908f657aeef4`.
+Owned investigation: `teamleaderleo/meson#3@7766bd292c2ea7fbde18f027ea426fca35092882`.
 
-The CMake converter maps CMake `CUDA` file groups to Meson language `cuda`, but the original standard-normalization pass visited only C and C++. The first candidate included CUDA in that existing pass.
+The original CMake standard-normalization pass visited C and C++ but not CUDA. A one-line classification probe added CUDA to that pass.
 
 Execution-only carrier `teamleaderleo/meson#4` completed successfully:
 
@@ -24,32 +24,34 @@ Execution-only carrier `teamleaderleo/meson#4` completed successfully:
 - an unrelated NVCC generate-code flag survived;
 - Python compilation and diff hygiene passed.
 
-This is valid compiler-free target evidence for language classification and raw-flag deduplication only.
+This remains valid compiler-free evidence for language classification and raw-flag deduplication only.
 
-Two complete-fix policies remain rejected:
+Three later complete-fix generations were rejected or refined by static review:
 
-1. unconditional normalization, because a generated target `cuda_std` override defeats an ordinary parent-project default;
-2. provenance-only suppression, because an unexplained effective standard would be dropped when Meson supplied no replacement authority.
+1. unconditional normalization loses ordinary parent Meson precedence because a generated target `cuda_std` override wins;
+2. provenance-only suppression can silently drop the only effective standard when no Meson replacement authority exists;
+3. querying `OptionStore` while generating the CMake-to-Meson AST is still too early for final subproject-scoped compiler options.
 
-Execution PR #6 and queued run `31019630325` were retired as non-evidence; the temporary workflow was removed.
+The third finding follows directly from Meson's execution order: CMake analysis and `pretend_to_be_meson()` produce the AST before `_do_subproject_meson()` constructs the real subproject `Interpreter` with its `default_options`, command-line and machine-file augments. A root/global `OptionKey('cuda_std')` therefore does not prove the final value returned by `get_option('cuda_std')` inside the generated subproject.
 
-Static architecture review now identifies a narrower next boundary. `ConverterTarget.postprocess()` is too early to settle an unexplained File API standard. During later target AST generation the interpreter can see both replacement authorities:
+The current experiment moves the final choice into the generated Meson program itself.
 
-- the surrounding Meson option store for effective `cuda_std`;
-- global and target-specific `cmake.subproject_options()` state through `TargetOptions`.
+Authoritative immutable-base entry point: `fieldwork/15998/apply_runtime_candidate.py`.
 
-The selected next experiment is deferred settlement:
+It first normalizes the two CUDA-classification anchors missing from public base `f07114eaa3c4c0957a819f632c28dcd2c1bf1c69`, then applies the runtime-deferred implementation:
 
-1. explicit target CMake provenance becomes a generated target `cuda_std` override;
-2. explicit `cmake.subproject_options()` replacement suppresses an unexplained fallback;
-3. effective Meson `cuda_std != none` suppresses the unexplained fallback without creating a target override, allowing the project/subproject standard to win;
-4. with no replacement authority, retain the effective CMake `-std=` as a raw CUDA fallback.
+- reliable target-level CMake `CUDA_STANDARD` or matching direct target `-std=` provenance becomes a generated `cuda_std=...` override;
+- a supported but unexplained CUDA standard remains raw and in place while being recorded as deferred metadata;
+- unknown CUDA standards remain raw instead of being newly discarded;
+- explicit global/target `cmake.subproject_options()` standard overrides choose the clean compile-argument branch statically;
+- otherwise generated `cuda_args` uses a Meson ternary on the real subproject `get_option('cuda_std')`: `none` keeps the raw CMake fallback; non-`none` selects the clean list;
+- cleanup removes only converter-owned discovered flags before appended `TargetOptions` compile args are added, preserving an explicitly appended equal flag.
 
-This preserves both the reporter case and the previously blocking no-authority case. A small `TargetOptions.has_override_option(...)`-style query is the preferred interface boundary.
+The packet includes converter/unit controls plus a generated-AST control. The AST control is a useful baseline discriminator: the immutable baseline can generate the target but has no runtime `cuda_std` branch, while the candidate should emit one. A companion explicit-module-override control requires the raw fallback and runtime branch to disappear.
+
+These controls are prepared but unexecuted. AST shape still does not prove a genuinely late subproject-scoped option at runtime, so any later execution matrix must include at least one `default_options` or equivalent subproject augment case.
 
 Directory/global `CMAKE_CUDA_STANDARD` remains explicitly unresolved because final trace-variable state does not reliably identify the value that initialized a particular target. No production claim should include that case until creation-time provenance or intended precedence is explicit.
-
-The mandatory next negative control is: unexplained effective CUDA standard + Meson `cuda_std=none` + no CMake-module override must retain the effective standard after AST settlement.
 
 ### 2. ShellCheck #3263 — two separate owners
 
@@ -79,9 +81,9 @@ The focused complete-suite receipt remains the product authority. The item is vi
 
 #### Sourced-function flow
 
-Status: `FOCUSED FALSE POSITIVE CONFIRMED / DISCRIMINATOR MATRIX PREPARED / PRODUCTION FIX NOT SELECTED`.
+Status: `FOCUSED FALSE POSITIVE CONFIRMED / SIX-FILE STATIC MATRIX REPAIRED / PRODUCTION FIX NOT SELECTED`.
 
-Owned investigation: `teamleaderleo/shellcheck#3@74c524d8ad7262983d192150927562331c098d9a`.
+Owned investigation: `teamleaderleo/shellcheck#3@810f2d418bdb87d0e77ea8a517c992242ead2b90`.
 
 Focused Fieldwork run `30839352175`, job `91772318148`, executed the primary fixture from its directory:
 
@@ -89,9 +91,18 @@ Focused Fieldwork run `30839352175`, job `91772318148`, executed the primary fix
 - SC1091 was absent;
 - SC2031 remained at the later `COMPREPLY` read.
 
-A fixture-only matrix now separates setup-only sourcing, independent per-test sourcing, same-test execution, same content through different paths, a real top-level sourced assignment, and cross-test definition isolation. The matrix is prepared but unexecuted and carries no behavior claim.
+The static discriminator matrix now contains six controls:
 
-The likely owner remains function/include invocation modeling or a CFG-backed analysis. Simply skipping function bodies remains rejected. Generic fork packaging CI is not a useful substitute for this matrix.
+- setup-only sourcing without the redundant first-test source;
+- independent sourcing in each test;
+- source/call/read in one test;
+- identical content through different include paths;
+- a real top-level sourced assignment that must preserve cross-test warning behavior;
+- `function-body-warning.bats`, which deliberately requires SC2086 inside an ordinary function body so a broad function-body exclusion is executable as a rejected policy.
+
+Review found that the earlier `definition-isolation.bats` contract was overclaimed as a ShellCheck discriminator. ShellCheck cannot reliably diagnose a bare command as an unavailable function because the command may be an external executable. That fixture is retained only as optional Bats runtime semantic context and is not counted among the six static ShellCheck controls.
+
+The six static controls remain unexecuted and carry no behavior claim. The likely owner remains function/include invocation modeling or a CFG-backed analysis. Generic fork packaging CI is not a substitute for this matrix.
 
 ### 3. Cargo #16574 — patch source fetch semantics
 
@@ -145,7 +156,7 @@ The production repair remains one line:
 
 That preserves the intended semantic boundary: top-level inventory enumeration/parsing failure stops `uv tool upgrade --all`; per-tool receipt failures remain per-tool values after successful enumeration; genuine empty inventory still reaches the existing `Nothing to upgrade` success path.
 
-Re-review of the first current-main rebase found that its invalid-directory regression had weakened to generic `.failure()`. That review defect is now repaired on the current head with a dedicated `tool_upgrade_inventory` test module:
+Re-review of the first current-main rebase found that its invalid-directory regression had weakened to generic `.failure()`. That review defect is repaired on the current head with a dedicated `tool_upgrade_inventory` test module:
 
 - gated by `test-python` only rather than the broad module's unrelated `test-pypi` gate;
 - creates an invalid tool-directory package name deterministically;
@@ -157,9 +168,9 @@ The older generic failure test remains as redundant coverage. The focused module
 
 Current fence is four paths: one product source file plus three test/plumbing files. Only `crates/uv/src/commands/tool/upgrade.rs` changes product behavior.
 
-Fresh exact-head CI run `31201691790` is pending. Pending state is not execution evidence. Superseded run `31200368519` belongs to the weaker pre-repair head and must not be promoted.
+Fresh exact-head CI run `31201691790` is pending with no jobs materialized at the latest check. Pending state is not execution evidence. Superseded run `31200368519` belongs to the weaker pre-repair head and must not be promoted.
 
-Durable coordination issue #627 now records the current source and source-review acceptance pending execution.
+Durable coordination issue #627 records the current source and source-review acceptance pending execution.
 
 ## Occupied stops
 
@@ -183,9 +194,9 @@ These checks are dated intake evidence and must be refreshed before future entry
 ## Work order
 
 1. Classify uv PR #57 exact-head CI `31201691790`; do not promote the superseded pre-repair run.
-2. Implement the Meson deferred-settlement probe in source form with the mandatory `cuda_std=none` no-authority fallback control; do not create a runner before that source boundary is reviewable.
+2. Finish static review of Meson runtime-deferred packet; only then create a read-only carrier that proves the baseline AST discriminator, candidate unit/AST controls, exact diff fence, and at least one late subproject-option behavior case.
 3. Design a uv #13505 baseline that uses distinct discovery sources or directly owns final-list inclusion; do not rerun the retired PATH-only carrier.
-4. Execute the ShellCheck sourced-function matrix through a dedicated exact-head read-only carrier rather than generic packaging CI.
+4. Execute the repaired six-file ShellCheck static matrix through a dedicated exact-head read-only carrier; keep `definition-isolation.bats` separate as optional runtime context.
 5. Keep Cargo held until a semantic design is accepted.
 6. Refresh public overlap before opening reserve leads.
 
