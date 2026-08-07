@@ -1,26 +1,25 @@
 # Upstream issue record
 
-Status: `submitted / open / waiting for maintainer response`
+Status: `accepted into maintainer work / assigned / v1.63 / linked fix approved`
 
 Issue: [MCP HTTP clients can terminate the server through `/killkillkill`](https://redirect.github.com/microsoft/playwright/issues/42129)
 
-Filed title:
+Maintainer fix: [only enable `/killkillkill` under test](https://redirect.github.com/microsoft/playwright/pull/42133)
 
-```text
-[Bug]: MCP HTTP clients can terminate the server through /killkillkill
-```
+## Filed report
 
-## Report contents
+The issue reported that an ordinary programmatic HTTP client that could reach an accepted MCP host could reproduce the fixed `/killkillkill` request and cause the server to emit `SIGINT`.
 
-- version: `1.63.0-next` at public base `2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2`, with the route also present in 1.62.0;
-- reproduction: start `@playwright/mcp` in HTTP mode and send the fixed `POST` and header;
-- expected: ordinary HTTP clients can't terminate the server process;
-- actual: the request returns success and emits `SIGINT`;
-- context: route introduction, later POST/header change, current in-tree test use, and the parent-stdin replacement;
-- environment: Ubuntu 24.04.4, Node 22.23.1, npm 10.9.8.
+The report included the route history, the later POST/custom-header hardening, a command-line reproduction, current source references, and the completed parent-stdin research implementation.
 
-The report stays narrow. Orphan-process and failed-cleanup issues weren't included because they concern a different failure mode.
+## Maintainer response
 
-## Next gate
+Simon Knott self-assigned the issue and added the `v1.63` label. He opened the linked pull request that closes the issue. Pavel Feldman approved that pull request.
 
-Wait for an explicit maintainer approval for community contribution or assignment. Don't open an upstream PR based only on elapsed time.
+The chosen fix is smaller than the proposed parent-stdin replacement: `/killkillkill` remains available only under Playwright's own `isUnderTest()` marker. Ordinary MCP HTTP servers no longer expose it.
+
+## Contribution outcome
+
+Count this unit as a successful issue contribution. The report directly resulted in maintainer-owned corrective work. A Fieldwork-authored upstream pull request is not needed.
+
+Current finalization gate: maintainer PR merge and issue closure.
