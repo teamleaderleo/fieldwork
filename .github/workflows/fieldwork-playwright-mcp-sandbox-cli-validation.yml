@@ -177,6 +177,18 @@ jobs:
             expect(json.output).toContain('<secret>TOKEN</secret>');
             expect(() => JSON.parse(json.output)).toThrow();
           });
+
+          test('negative mousewheel delta is parsed as an option unless -- is used', async ({ cli, server }) => {
+            await cli('open', server.HELLO_WORLD);
+
+            const direct = await cli('mousewheel', '0', '-500');
+            console.log('negative mousewheel direct:', JSON.stringify({ exitCode: direct.exitCode, output: direct.output, error: direct.error }));
+            expect(direct.exitCode).toBe(1);
+
+            const escaped = await cli('mousewheel', '0', '--', '-500');
+            console.log('negative mousewheel after --:', JSON.stringify({ exitCode: escaped.exitCode, output: escaped.output, error: escaped.error }));
+            expect(escaped.exitCode).toBe(0);
+          });
           EOF
 
       - name: Run MCP CLI probes
