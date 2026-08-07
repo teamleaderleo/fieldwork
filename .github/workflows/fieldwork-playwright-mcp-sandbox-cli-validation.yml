@@ -1,4 +1,4 @@
-name: Fieldwork Playwright MCP sandbox CLI validation
+name: Fieldwork Playwright MCP CLI validation
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   validate:
-    name: MCP sandbox CLI receipt on Ubuntu
+    name: MCP CLI parser receipts on Ubuntu
     runs-on: ubuntu-24.04
     timeout-minutes: 45
 
@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           test "$(git -C playwright rev-parse HEAD)" = "931121dc6f1ce8d672ce2bd5845220203cb98920"
           mkdir -p fieldwork-receipts
-          echo "source=931121dc6f1ce8d672ce2bd5845220203cb98920" > fieldwork-receipts/playwright-mcp-sandbox-cli-receipt.txt
+          echo "source=931121dc6f1ce8d672ce2bd5845220203cb98920" > fieldwork-receipts/playwright-mcp-cli-receipt.txt
 
       - name: Install exact dependencies
         working-directory: playwright
@@ -58,49 +58,96 @@ jobs:
         working-directory: playwright
         run: npx playwright install --with-deps chrome
 
-      - name: Add execution-only regression probe
+      - name: Add execution-only probes
         shell: bash
         working-directory: playwright
         run: |
-          cat > tests/mcp/fieldwork-sandbox-cli.spec.ts <<'EOF'
+          cat > tests/mcp/fieldwork-cli-parser.spec.ts <<'EOF'
+          import fs from 'fs';
           import { execFileSync } from 'child_process';
+          import { Command } from 'commander';
           import { test, expect } from './fixtures';
           import { tools } from '../../packages/playwright-core/lib/coreBundle';
+          import { commaSeparatedList } from '../../packages/playwright-core/src/tools/mcp/config';
 
-          test('real MCP CLI default disagrees with sandbox config default', async ({ startClient, server }) => {
-            const config = await tools.resolveCLIConfigForMCP({ browser: 'chrome' }, {});
-            expect(config.browser.launchOptions.chromiumSandbox).toBe(true);
+          test('explicit --sandbox is lost before it can override config', async ({ startClient, server }, testInfo) => {
+            const configFile = testInfo.outputPath('config.json');
+            await fs.promises.writeFile(configFile, JSON.stringify({
+              browser: { launchOptions: { chromiumSandbox: false } },
+            }));
 
-            const { client } = await startClient();
+            // The resolver itself has the expected precedence when given sandbox:true.
+            const direct = await tools.resolveCLIConfigForMCP({
+              browser: 'chrome',
+              config: configFile,
+              sandbox: true,
+            }, {});
+            expect(direct.browser.launchOptions.chromiumSandbox).toBe(true);
+
+            // The real Commander path normalizes the explicit true to undefined,
+            // so the config-file false survives and Chrome launches with --no-sandbox.
+            const { client } = await startClient({
+              args: [`--config=${configFile}`, '--sandbox'],
+            });
             await client.callTool({
               name: 'browser_navigate',
               arguments: { url: server.PREFIX },
             });
 
             const processList = execFileSync('ps', ['-eo', 'args='], { encoding: 'utf8' });
-            const profileRoot = test.info().outputPath('ms-playwright');
             const browserLines = processList.split('\n').filter(line =>
-              line.includes(profileRoot) &&
               line.includes('--remote-debugging-pipe') &&
               !line.includes('--type=')
             );
-
-            console.log('resolved chromiumSandbox:', config.browser.launchOptions.chromiumSandbox);
+            console.log('direct chromiumSandbox:', direct.browser.launchOptions.chromiumSandbox);
             console.log('browser process:', browserLines.join('\n'));
+            expect(browserLines.length).toBeGreaterThan(0);
+            expect(browserLines.some(line => line.includes('--no-sandbox'))).toBe(true);
+          });
 
-            expect(browserLines).toHaveLength(1);
-            expect(browserLines[0]).toContain('--no-sandbox');
+          test('unknown browser silently resolves to default Chrome', async () => {
+            const config = await tools.resolveCLIConfigForMCP({ browser: 'definitely-not-a-browser' }, {});
+            console.log('unknown browser resolved as:', JSON.stringify({
+              browserName: config.browser.browserName,
+              channel: config.browser.launchOptions.channel,
+            }));
+            expect(config.browser.browserName).toBe('chromium');
+            expect(config.browser.launchOptions.channel).toBe('chrome');
+          });
+
+          test('unknown device silently resolves to default context', async () => {
+            const config = await tools.resolveCLIConfigForMCP({ device: 'Definitely Not A Device' }, {});
+            console.log('unknown device context:', JSON.stringify(config.browser.contextOptions));
+            expect(config.browser.contextOptions.userAgent).toBeUndefined();
+            expect(config.browser.contextOptions.isMobile).toBeUndefined();
+          });
+
+          test('documented PLAYWRIGHT_MCP_NO_SANDBOX env is ignored', async () => {
+            const config = await tools.resolveCLIConfigForMCP({ browser: 'chrome' }, {
+              PLAYWRIGHT_MCP_NO_SANDBOX: '1',
+            });
+            console.log('NO_SANDBOX env chromiumSandbox:', config.browser.launchOptions.chromiumSandbox);
+            expect(config.browser.launchOptions.chromiumSandbox).toBe(true);
+          });
+
+          test('custom comma parser drops earlier values from variadic option', () => {
+            const command = new Command();
+            command.exitOverride();
+            command.option('--grant-permissions <permissions...>', '', commaSeparatedList);
+            command.parse(['--grant-permissions', 'geolocation', 'clipboard-read'], { from: 'user' });
+            console.log('parsed grant permissions:', JSON.stringify(command.opts().grantPermissions));
+            expect(command.opts().grantPermissions).toEqual(['clipboard-read']);
           });
           EOF
 
-      - name: Run real MCP CLI probe
+      - name: Run MCP CLI probes
         shell: bash
         working-directory: playwright
         env:
           CI: "1"
         run: |
           set -o pipefail
-          npm run test-mcp tests/mcp/fieldwork-sandbox-cli.spec.ts -- --project=chrome 2>&1 | tee ../fieldwork-receipts/playwright-mcp-sandbox-cli-test.log
+          npm run test-mcp tests/mcp/fieldwork-cli-parser.spec.ts -- --project=chrome 2>&1 | tee ../fieldwork-receipts/playwright-mcp-cli-test.log
 
       - name: Record receipt
         if: always()
@@ -110,13 +157,13 @@ jobs:
             echo "carrier=${{ github.event.pull_request.head.sha }}"
             echo "source=931121dc6f1ce8d672ce2bd5845220203cb98920"
             echo "platform=ubuntu-24.04"
-          } >> fieldwork-receipts/playwright-mcp-sandbox-cli-receipt.txt
+          } >> fieldwork-receipts/playwright-mcp-cli-receipt.txt
 
       - name: Upload receipt
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: playwright-mcp-sandbox-cli-${{ github.run_id }}-${{ github.run_attempt }}
+          name: playwright-mcp-cli-${{ github.run_id }}-${{ github.run_attempt }}
           path: fieldwork-receipts/
           if-no-files-found: error
           retention-days: 14
