@@ -1,5 +1,7 @@
 # Owned source branch record
 
+## Fieldwork research source
+
 - repository: `teamleaderleo/playwright`
 - owned source PR: `teamleaderleo/playwright#48`
 - base branch: `fieldwork/435-unit-18-base-current`
@@ -13,7 +15,15 @@
   - `packages/playwright-core/src/tools/utils/mcp/server.ts`
   - `tests/mcp/http.spec.ts`
 - temporary workflow or evidence files in target diff: none
-- current upstream issue: [submitted bug report](https://redirect.github.com/microsoft/playwright/issues/42129)
-- submission state: wait for explicit maintainer approval or assignment
 
-Strict parent IPC PR `teamleaderleo/playwright#40` remains the fully executed fallback. Earlier stdin PRs are superseded by PR #48.
+Run `30855503566` passed the complete focused matrix on Ubuntu, macOS, and Windows.
+
+## Upstream outcome
+
+Issue: [submitted bug report](https://redirect.github.com/microsoft/playwright/issues/42129)
+
+Maintainer fix: [only enable `/killkillkill` under test](https://redirect.github.com/microsoft/playwright/pull/42133)
+
+The maintainer-owned fix is approved and uses a smaller `isUnderTest()` gate. PR #48 is therefore retained as research evidence, not an upstream submission candidate.
+
+Strict parent IPC PR `teamleaderleo/playwright#40` remains another executed research fallback.
