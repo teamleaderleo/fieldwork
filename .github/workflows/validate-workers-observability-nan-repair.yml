@@ -1,0 +1,58 @@
+name: validate workers observability NaN repair
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone exact owned candidate
+        run: |
+          git clone --single-branch --branch fieldwork/665-observability-nan-repro https://github.com/teamleaderleo/workers-sdk.git candidate
+          cd candidate
+          test "$(git rev-parse HEAD)" = "ff46d59f4db386a73766c9fd8091ac209a2ddc9b"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.1'
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+      - name: Apply exact repair
+        working-directory: candidate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('packages/workers-utils/src/config/validation.ts')
+          text = path.read_text()
+          old = 'if (samplingRate && (samplingRate < 0 || samplingRate > 1)) {'
+          new = '''if (\n\t\tsamplingRate !== undefined &&\n\t\t(!Number.isFinite(samplingRate) || samplingRate < 0 || samplingRate > 1)\n\t) {'''
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one sampling-rate guard, found {count}')
+          path.write_text(text.replace(old, new))
+          PY
+          git diff --check
+          test "$(git diff --name-only)" = "packages/workers-utils/src/config/validation.ts"
+      - name: Install dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile
+      - name: Run focused workers-utils control
+        working-directory: candidate
+        run: pnpm --filter @cloudflare/workers-utils test:ci -- tests/config/validation/observability-sampling-rate.test.ts
+      - name: Run focused typecheck and format
+        working-directory: candidate
+        run: |
+          pnpm --filter @cloudflare/workers-utils check:type
+          pnpm exec oxfmt --check packages/workers-utils/src/config/validation.ts packages/workers-utils/tests/config/validation/observability-sampling-rate.test.ts
+      - name: Record repair diff
+        working-directory: candidate
+        run: |
+          git diff --check
+          git diff -- packages/workers-utils/src/config/validation.ts
