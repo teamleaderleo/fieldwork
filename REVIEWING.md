@@ -78,10 +78,17 @@ When prepared work needs retained target evidence:
 6. Classify setup failures and incorrect premises as harness findings rather than target defects.
 7. When the result changes the theory, update the test, issue, report, pull-request description, and queue card before promotion.
 8. Transfer the retained receipt to the canonical source record and remove or close temporary execution machinery.
+9. Treat APIs that can return results together with an error as partial-outcome APIs. Consume and preserve the completed results before handling the terminal error.
+10. Reconcile receipts conservatively: remove an entry only after confirmed completion, and retain failed, skipped, unknown, and unattempted entries by default.
+11. Distinguish workflow admission from execution. A queued, pending, skipped, `action_required`, or jobless run proves only platform state, not that setup, source generation, tests, cleanup, or self-removal occurred.
 
 An execution carrier is never a merge or upstream candidate merely because it produced a useful result.
 
 A workflow that intends to delete itself remains an active execution carrier until a later exact head proves that the workflow is absent and exposes the resulting source, tests, report, and retained receipt for review. Future self-removal is not evidence transfer.
+
+A committed workflow file is not evidence that GitHub can or did trigger it. Verify the event source, the branch or pull-request base from which workflow definitions are loaded, token-trigger restrictions, job creation, and the exact step that ran. If the trigger does not occur, remove the dormant machinery and retain the work as prepared or blocked rather than claiming execution.
+
+Mutation and recovery operations may legitimately complete some work and then return a terminal error. The caller must preserve those completed rows, update undo or recovery receipts before returning, and keep the terminal error visible. Structured or human-readable results should be emitted before a nonzero process result when practical. Safe skips may remain successful, but a reported candidate-level mutation failure must not silently produce a successful process exit.
 
 ## Exact-head review receipt
 
@@ -94,6 +101,8 @@ A promotion review should record:
 - work class;
 - each disposition-relevant claim and its evidence class;
 - validation commands, workflow runs, platforms, and retained results;
+- workflow admission state separately from executed job and step evidence;
+- partial results, terminal errors, and receipt reconciliation when the operation can complete work before failing;
 - unresolved failures, skipped jobs, and checks that did not run;
 - dependencies, replacements, and superseded branches;
 - reviewed coordination inputs when they affect the decision, including the issue number and a body digest or explicit body revision marker;
@@ -164,7 +173,9 @@ Repair or remove wording that says:
 - an execution carrier is the canonical implementation;
 - a full gate passed when only focused or model evidence ran;
 - a named full gate proves integrations or properties it did not exercise;
-- a workflow has transferred evidence merely because it contains future self-removal instructions.
+- a workflow has transferred evidence merely because it contains future self-removal instructions;
+- a queued or admitted workflow is target execution when no intended job and assertion ran;
+- a partially successful mutation is a total failure or total success without preserving both the completed results and terminal error.
 
 Issue-body `State:` text and live `state:*` labels must agree. A generated queue or review index must carry a validation timestamp and exact referenced states; otherwise it is a snapshot, not a current queue.
 
@@ -178,6 +189,10 @@ Reject or repair:
 - generated files without a reproducible generator or source identity;
 - one test stack that requires multiple unrelated production fixes;
 - reporting or cleanup code that can replace the primary error it promises to preserve;
+- callers that discard partial results merely because the same operation also returned an error;
+- receipt reconciliation that drops unattempted work instead of removing only confirmed completion;
+- commands that report candidate-level mutation failures but still return a successful process status;
+- dormant temporary workflows whose trigger authority and cleanup have not been demonstrated;
 - unbounded retained evidence, logs, receipts, or state;
 - compatibility claims without a negative control;
 - changes that widen authority merely to make a test pass.
@@ -198,6 +213,10 @@ Before moving a pull request out of draft or advancing a Fieldwork issue:
 - [ ] current-main relation is known or explicitly not applicable;
 - [ ] complete current diff was reviewed;
 - [ ] checks and failures are described truthfully;
+- [ ] workflow admission is distinguished from executed jobs and assertions;
+- [ ] partial results and terminal errors were both preserved where the operation supports them;
+- [ ] recovery receipts retain failed, skipped, unknown, and unattempted entries unless completion was confirmed;
+- [ ] candidate-level mutation failures produce a non-success status without suppressing structured results;
 - [ ] author eligibility is explicit;
 - [ ] dependencies and supersession are current;
 - [ ] execution carriers are closed or clearly non-canonical;
