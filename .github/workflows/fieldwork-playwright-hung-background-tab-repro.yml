@@ -1,0 +1,117 @@
+name: Fieldwork Playwright hung background tab repro
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-playwright-hung-background-tab-repro.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    name: Reproduce on Ubuntu Chromium
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out exact execution carrier
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Check out exact Playwright research source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/playwright
+          ref: b2ba540a674629aae40ba0915d1ae2552de2163d
+          fetch-depth: 0
+          path: playwright
+          persist-credentials: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+
+      - name: Verify exact identities and test-only fence
+        shell: bash
+        run: |
+          set -euo pipefail
+          carrier="${{ github.event.pull_request.head.sha }}"
+          source="b2ba540a674629aae40ba0915d1ae2552de2163d"
+          base="931121dc6f1ce8d672ce2bd5845220203cb98920"
+          expected='tests/mcp/tabs-resilience-research.spec.ts'
+
+          test "$(git -C fieldwork rev-parse HEAD)" = "$carrier"
+          test "$(git -C playwright rev-parse HEAD)" = "$source"
+          git -C playwright cat-file -e "$base^{commit}"
+          git -C playwright diff --check "$base" "$source"
+          test "$(git -C playwright diff --name-only "$base" "$source")" = "$expected"
+
+          mkdir -p fieldwork-receipts
+          git -C playwright diff --binary "$base" "$source" > fieldwork-receipts/playwright-hung-background-tab-repro.diff
+
+      - name: Install exact dependencies
+        working-directory: playwright
+        run: npm ci
+
+      - name: Build exact source
+        working-directory: playwright
+        run: npm run build
+
+      - name: Install Chromium and Linux dependencies
+        working-directory: playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run existing tabs control
+        shell: bash
+        working-directory: playwright
+        run: |
+          set -euo pipefail
+          npm run test-mcp -- --project=chromium tests/mcp/tabs.spec.ts -g "select tab" 2>&1 | tee ../fieldwork-receipts/control.log
+
+      - name: Reproduce background-tab blocking
+        shell: bash
+        working-directory: playwright
+        run: |
+          set -uo pipefail
+          set +e
+          npm run test-mcp -- --project=chromium tests/mcp/tabs-resilience-research.spec.ts 2>&1 | tee ../fieldwork-receipts/repro.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "Probe unexpectedly passed; current source did not reproduce the suspected blocking" >&2
+            exit 1
+          fi
+          echo "hung_background_tab_reproduced=true" > ../fieldwork-receipts/repro.txt
+
+      - name: Run focused ESLint
+        working-directory: playwright
+        run: npx eslint tests/mcp/tabs-resilience-research.spec.ts
+
+      - name: Record receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "carrier=${{ github.event.pull_request.head.sha }}"
+            echo "source=b2ba540a674629aae40ba0915d1ae2552de2163d"
+            echo "base=931121dc6f1ce8d672ce2bd5845220203cb98920"
+            echo "platform=ubuntu-24.04"
+            echo "control=pass"
+            echo "hung_background_tab_expected_failure=observed"
+          } > fieldwork-receipts/receipt.txt
+
+      - name: Upload reproduction receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: playwright-hung-background-tab-repro-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fieldwork-receipts/
+          if-no-files-found: error
+          retention-days: 14
