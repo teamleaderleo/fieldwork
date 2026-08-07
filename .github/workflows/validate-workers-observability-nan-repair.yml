@@ -16,7 +16,7 @@ jobs:
         run: |
           git clone --single-branch --branch fieldwork/665-observability-nan-repro https://github.com/teamleaderleo/workers-sdk.git candidate
           cd candidate
-          test "$(git rev-parse HEAD)" = "ff46d59f4db386a73766c9fd8091ac209a2ddc9b"
+          test "$(git rev-parse HEAD)" = "83eff698ea30671393c2644556a03a46960b04b9"
       - uses: actions/setup-node@v4
         with:
           node-version: '22.22.1'
