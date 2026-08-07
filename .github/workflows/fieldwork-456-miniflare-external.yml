@@ -1,0 +1,134 @@
+name: Fieldwork 456 external Miniflare runtime wait
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fieldwork-456-miniflare-external.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fieldwork-456-miniflare-external-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  EXPERIMENT_HEAD: 7a30e4ffcb778b1c408199105743b47caddaad5a
+  BASE_HEAD: d3ca9ad275e0cc93f985bb7485a776cec023d4ca
+  PUBLIC_BASE: 95d9b12f2c707f254b66b446e0bd9fd6b8b7d96d
+  CURRENT_MAIN: 42c4227798c21cfde8dbfb087be1bb9078dab185
+
+jobs:
+  execute:
+    name: Validate Miniflare successor and current-main application
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out exact Workers SDK experiment
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: teamleaderleo/workers-sdk
+          ref: ${{ env.EXPERIMENT_HEAD }}
+          path: workers-sdk
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up repository Node version
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.22.1
+
+      - name: Verify exact experiment identity
+        working-directory: workers-sdk
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPERIMENT_HEAD"
+          test "$(git merge-base HEAD "$BASE_HEAD")" = "$BASE_HEAD"
+          expected=$(printf '%s\n' \
+            .github/fieldwork/456/inject_runtime_wait_boundary.py \
+            .github/workflows/fieldwork-456-miniflare-runtime-wait.yml | sort)
+          actual=$(git diff --name-only "$BASE_HEAD..HEAD" | sort)
+          test "$actual" = "$expected"
+          python -m py_compile .github/fieldwork/456/inject_runtime_wait_boundary.py
+          cp .github/fieldwork/456/inject_runtime_wait_boundary.py \
+            "$RUNNER_TEMP/inject_runtime_wait_boundary.py"
+
+      - name: Install exact-base dependencies
+        working-directory: workers-sdk
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm --version
+          pnpm install --frozen-lockfile
+
+      - name: Apply and validate exact-base successor
+        working-directory: workers-sdk
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "$BASE_HEAD"
+          mkdir -p receipt
+          python "$RUNNER_TEMP/inject_runtime_wait_boundary.py"
+          pnpm exec oxfmt \
+            packages/miniflare/src/index.ts \
+            packages/miniflare/test/teardown-lifecycle.spec.ts
+          git diff --check
+          test "$(git diff --name-only "$BASE_HEAD" | sort)" = \
+            "$(printf '%s\n' packages/miniflare/src/index.ts packages/miniflare/test/teardown-lifecycle.spec.ts | sort)"
+          pnpm --filter=miniflare... build 2>&1 | tee receipt/exact-base-build.log
+          pnpm --filter miniflare exec vitest run \
+            test/teardown-lifecycle.spec.ts 2>&1 | tee receipt/exact-base-test.log
+          pnpm --filter miniflare check:type 2>&1 | tee receipt/exact-base-typecheck.log
+          git diff --binary "$PUBLIC_BASE" -- \
+            .changeset/fuzzy-cats-dispose.md \
+            packages/miniflare/src/index.ts \
+            packages/miniflare/test/teardown-lifecycle.spec.ts \
+            > "$RUNNER_TEMP/miniflare-runtime-wait.patch"
+
+      - name: Apply validated patch to current main
+        working-directory: workers-sdk
+        shell: bash
+        run: |
+          set -euo pipefail
+          git reset --hard
+          git checkout --detach "$CURRENT_MAIN"
+          git apply --3way "$RUNNER_TEMP/miniflare-runtime-wait.patch"
+          pnpm install --frozen-lockfile
+          pnpm exec oxfmt \
+            packages/miniflare/src/index.ts \
+            packages/miniflare/test/teardown-lifecycle.spec.ts
+          git diff --check
+          expected=$(printf '%s\n' \
+            .changeset/fuzzy-cats-dispose.md \
+            packages/miniflare/src/index.ts \
+            packages/miniflare/test/teardown-lifecycle.spec.ts | sort)
+          actual=$(git diff --name-only "$CURRENT_MAIN" | sort)
+          test "$actual" = "$expected"
+          git diff "$CURRENT_MAIN" -- \
+            .changeset/fuzzy-cats-dispose.md \
+            packages/miniflare/src/index.ts \
+            packages/miniflare/test/teardown-lifecycle.spec.ts \
+            > receipt/current-main-source.diff
+          pnpm --filter=miniflare... build 2>&1 | tee receipt/current-main-build.log
+          pnpm --filter miniflare exec vitest run \
+            test/teardown-lifecycle.spec.ts 2>&1 | tee receipt/current-main-test.log
+          pnpm --filter miniflare check:type 2>&1 | tee receipt/current-main-typecheck.log
+          {
+            echo "experiment_head=$EXPERIMENT_HEAD"
+            echo "base_head=$BASE_HEAD"
+            echo "public_base=$PUBLIC_BASE"
+            echo "current_main=$CURRENT_MAIN"
+            echo "node=$(node --version)"
+            echo "pnpm=$(pnpm --version)"
+          } > receipt/identity.txt
+
+      - name: Upload exact receipt
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: fieldwork-456-miniflare-runtime-wait-external
+          path: workers-sdk/receipt/
+          if-no-files-found: warn
+          retention-days: 30
