@@ -106,6 +106,10 @@ jobs:
           run_case symlink-root-escape chromium tests/mcp/symlink-file-access.spec.ts "explicit output cannot escape workspace through a symlink"
           rm tests/mcp/symlink-file-access.spec.ts
 
+          materialize 0507c948720c7758714360a7058fea1e187c1e73 tests/mcp/session-secrets.spec.ts
+          run_case saved-session-secret chromium tests/mcp/session-secrets.spec.ts "configured secret values are redacted in saved session tool arguments"
+          rm tests/mcp/session-secrets.spec.ts
+
           echo "base=$(git rev-parse HEAD)" | tee -a "$summary"
           git status --short | tee ../fieldwork-receipts/final-status.txt
 
