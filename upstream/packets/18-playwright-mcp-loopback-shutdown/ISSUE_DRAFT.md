@@ -4,7 +4,9 @@
 
 [MCP HTTP clients can terminate the server through `/killkillkill`](https://redirect.github.com/microsoft/playwright/issues/42129)
 
-Status when recorded: open, awaiting maintainer response.
+Current status: open, assigned to Simon Knott, labeled `v1.63`, with an approved linked maintainer fix.
+
+Maintainer fix: [only enable `/killkillkill` under test](https://redirect.github.com/microsoft/playwright/pull/42133)
 
 ## Filed title
 
@@ -12,29 +14,18 @@ Status when recorded: open, awaiting maintainer response.
 
 ## Reported behavior
 
-A programmatic HTTP client that can reach an accepted MCP host can send:
+A programmatic HTTP client that can reach an accepted MCP host could send the fixed `/killkillkill` request and cause the server to emit `SIGINT`.
 
-```http
-POST /killkillkill
-x-pw-mcp-kill: 1
-```
+The report explained that the fixed header reduced browser-CSRF exposure but did not distinguish the test harness from another programmatic client.
 
-The server returns success and emits `SIGINT`. The fixed header reduces browser-CSRF exposure, but it doesn't authenticate the caller or show process ownership.
+## Proposed direction in the report
 
-## Expected behavior
+Fieldwork proposed removing the HTTP route and using parent stdin EOF in HTTP test mode. That implementation was fully validated across Ubuntu, macOS, and Windows.
 
-Ordinary MCP HTTP clients shouldn't be able to terminate the server process. The spawning parent or an authorized supervisor should own lifecycle control.
+## Maintainer-selected direction
 
-## Proposed direction
+The maintainers chose a smaller fix: keep the route only while `isUnderTest()` is true. Ordinary MCP HTTP servers therefore no longer expose it. Pavel Feldman approved that implementation.
 
-Remove the HTTP route. In HTTP test mode, translate EOF on the child stdin pipe owned by the spawning test parent into the existing `SIGINT` cleanup path. Return from stdio mode before installing that listener.
+## Contribution result
 
-## Evidence included
-
-- route history and current in-tree use;
-- self-contained command-line reproduction;
-- current-main source reference;
-- Ubuntu 24.04 environment;
-- completed implementation and three-platform focused validation.
-
-The upstream PR remains blocked on explicit maintainer approval or assignment.
+The report produced a direct maintainer-owned fix, so the issue itself is the upstream contribution for this unit. No competing Fieldwork pull request is planned.
