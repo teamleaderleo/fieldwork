@@ -1,6 +1,6 @@
 # Developer tools and build systems scout — Round 006
 
-Updated: 2026-08-06
+Updated: 2026-08-08
 
 Authority boundary: owned repositories and forks only. No upstream comments, reactions, claims, branches, or pull requests were created.
 
@@ -8,9 +8,9 @@ Authority boundary: owned repositories and forks only. No upstream comments, rea
 
 ### 1. Meson #15998 — CMake CUDA standard normalization
 
-Status: `FOCUSED MODEL GREEN / PROVENANCE-ONLY POLICY REJECTED / REPLACEMENT-AUTHORITY HOLD`.
+Status: `FOCUSED MODEL GREEN / DEFERRED-SETTLEMENT BOUNDARY SELECTED / IMPLEMENTATION UNEXECUTED`.
 
-Owned investigation: `teamleaderleo/meson#3@3e43e0c7d70392b4f22de6838b85ce805b839a98`.
+Owned investigation: `teamleaderleo/meson#3@e44c4547bd3a9b1d3dce9956c876908f657aeef4`.
 
 The CMake converter maps CMake `CUDA` file groups to Meson language `cuda`, but the original standard-normalization pass visited only C and C++. The first candidate included CUDA in that existing pass.
 
@@ -26,19 +26,30 @@ Execution-only carrier `teamleaderleo/meson#4` completed successfully:
 
 This is valid compiler-free target evidence for language classification and raw-flag deduplication only.
 
-A later precedence control proved that unconditional normalization is not a complete fix: a generated target `cuda_std` override defeats an ordinary parent-project default in the reporter's no-explicit-CMake-standard case.
+Two complete-fix policies remain rejected:
 
-A provenance-gated second generation was then rejected before execution. It would remove an unexplained effective standard even when Meson supplied no replacement authority, silently falling back to compiler defaults. Execution PR #6 and queued run `31019630325` were retired as non-evidence; the temporary workflow was removed.
+1. unconditional normalization, because a generated target `cuda_std` override defeats an ordinary parent-project default;
+2. provenance-only suppression, because an unexplained effective standard would be dropped when Meson supplied no replacement authority.
 
-A safe repair needs both provenance and replacement authority. It must preserve:
+Execution PR #6 and queued run `31019630325` were retired as non-evidence; the temporary workflow was removed.
 
-- parent Meson `cuda_std` when it deliberately replaces an unexplained CMake effective flag;
-- the effective CMake standard when Meson supplies no replacement;
-- explicit target `CUDA_STANDARD` and direct target compile options;
-- explicit global and target CMake-module overrides;
-- mixed CXX/CUDA and GNU-extension semantics.
+Static architecture review now identifies a narrower next boundary. `ConverterTarget.postprocess()` is too early to settle an unexplained File API standard. During later target AST generation the interpreter can see both replacement authorities:
 
-The next owning boundary is likely effective Meson option authority passed into conversion, deferred fallback resolution during AST generation, or propagation through the generated CMake toolchain.
+- the surrounding Meson option store for effective `cuda_std`;
+- global and target-specific `cmake.subproject_options()` state through `TargetOptions`.
+
+The selected next experiment is deferred settlement:
+
+1. explicit target CMake provenance becomes a generated target `cuda_std` override;
+2. explicit `cmake.subproject_options()` replacement suppresses an unexplained fallback;
+3. effective Meson `cuda_std != none` suppresses the unexplained fallback without creating a target override, allowing the project/subproject standard to win;
+4. with no replacement authority, retain the effective CMake `-std=` as a raw CUDA fallback.
+
+This preserves both the reporter case and the previously blocking no-authority case. A small `TargetOptions.has_override_option(...)`-style query is the preferred interface boundary.
+
+Directory/global `CMAKE_CUDA_STANDARD` remains explicitly unresolved because final trace-variable state does not reliably identify the value that initialized a particular target. No production claim should include that case until creation-time provenance or intended precedence is explicit.
+
+The mandatory next negative control is: unexplained effective CUDA standard + Meson `cuda_std=none` + no CMake-module override must retain the effective standard after AST settlement.
 
 ### 2. ShellCheck #3263 — two separate owners
 
@@ -80,7 +91,7 @@ Focused Fieldwork run `30839352175`, job `91772318148`, executed the primary fix
 
 A fixture-only matrix now separates setup-only sourcing, independent per-test sourcing, same-test execution, same content through different paths, a real top-level sourced assignment, and cross-test definition isolation. The matrix is prepared but unexecuted and carries no behavior claim.
 
-The likely owner remains function/include invocation modeling or a CFG-backed analysis. Simply skipping function bodies remains rejected.
+The likely owner remains function/include invocation modeling or a CFG-backed analysis. Simply skipping function bodies remains rejected. Generic fork packaging CI is not a useful substitute for this matrix.
 
 ### 3. Cargo #16574 — patch source fetch semantics
 
@@ -122,22 +133,28 @@ No new Windows carrier should run until its baseline control distinguishes curre
 
 ### 5. uv tool upgrade inventory errors
 
-Status: `OWNED-FORK SOURCE ACCEPTED / CI QUEUED`.
+Status: `CURRENT-MAIN SOURCE REPAIR / TEST-ASSERTION REPAIR HOLD / EXACT-HEAD CI PENDING`.
 
-Owned source: `teamleaderleo/uv#47@9e080cb2a92b35b01f42128902d7a6edfdc57481`.
+Canonical current source: `teamleaderleo/uv#57@7adc99b16789434e65fc9f20b966afcd1499b576`, based on uv source `507230998c9541d67814b57463ac00e454ff6991`.
 
-`uv tool upgrade --all` previously converted a top-level `InstalledTools::tools()` error into an empty inventory with `unwrap_or_default()`, then printed `Nothing to upgrade` and exited successfully.
+The earlier source PR #47 and execution PR #52 are closed as superseded. Historical focused run `31043690842` proved the reversing behavior on the older source generation but is not current-head evidence.
 
-The production repair is one line: propagate `tools()?`. Complete-diff review confirmed that missing or malformed receipts remain per-tool values inside a successfully enumerated vector; only failure to enumerate or parse the inventory itself stops the command.
+The production repair remains one line:
 
-Review repaired two test-only defects before CI:
+- `installed_tools.tools().unwrap_or_default()` -> `installed_tools.tools()?`.
 
-- the case-sensitive predicate now matches the actual `Not a valid package...` diagnostic;
-- the deterministic invalid-directory regression requires only `test-python`, not the unrelated PyPI feature.
+That preserves the intended semantic boundary: top-level inventory enumeration/parsing failure stops `uv tool upgrade --all`; per-tool receipt failures remain per-tool values after successful enumeration; genuine empty inventory still reaches the existing `Nothing to upgrade` success path.
 
-The existing `tool_upgrade_empty` integration test preserves the genuine empty/up-to-date success path. Current-head independent review accepted the source.
+Independent review of the rebased PR #57 found a test regression. The current invalid-directory regression checks only that the command fails. It lost two assertions from the previously accepted contract:
 
-Repository CI run `31020821954` remains queued. Queue state is not execution evidence. The item is visible on Human Review Desk #387 as a watch, not yet as a final ready decision. Durable coordination remains Fieldwork issue #627.
+1. stderr must contain the actual `Not a valid package...` parse diagnostic;
+2. stderr must not contain `Nothing to upgrade`.
+
+Without those guards an unrelated failure could satisfy the test and the motivating misleading-success behavior is not protected. PR #57 is therefore on repair hold even though the one-line product change remains sound.
+
+Current exact-head CI run `31200368519` is pending with no jobs materialized at the latest check. Pending state is not execution evidence and cannot clear the test-review hold.
+
+Durable coordination remains Fieldwork issue #627.
 
 ## Occupied stops
 
@@ -160,10 +177,10 @@ These checks are dated intake evidence and must be refreshed before future entry
 
 ## Work order
 
-1. Design a uv #13505 baseline that uses distinct discovery sources or directly owns final-list inclusion; do not rerun the retired PATH-only carrier.
-2. Classify uv PR #47 CI when it moves and transfer any exact result to issue #627 and the owner desk.
-3. Locate Meson's replacement-authority boundary and add the no-authority negative control before selecting another source candidate.
-4. Execute the ShellCheck sourced-function matrix only through an exact current-base read-only carrier.
+1. Repair uv PR #57's invalid-directory regression so it asserts both the real parse diagnostic and absence of `Nothing to upgrade`; only then classify exact-head CI.
+2. Implement the Meson deferred-settlement probe in source form with the mandatory `cuda_std=none` no-authority fallback control; do not create a runner before that source boundary is reviewable.
+3. Design a uv #13505 baseline that uses distinct discovery sources or directly owns final-list inclusion; do not rerun the retired PATH-only carrier.
+4. Execute the ShellCheck sourced-function matrix through a dedicated exact-head read-only carrier rather than generic packaging CI.
 5. Keep Cargo held until a semantic design is accepted.
 6. Refresh public overlap before opening reserve leads.
 
