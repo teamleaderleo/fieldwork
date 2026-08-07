@@ -102,6 +102,10 @@ jobs:
           run_case cancel-navigation chromium tests/mcp/cancellation.spec.ts "client cancellation aborts in-flight navigation"
           rm tests/mcp/cancellation.spec.ts
 
+          materialize b5cc28558afd82d1694e249cc217a8b0f391e2f8 tests/mcp/symlink-file-access.spec.ts
+          run_case symlink-root-escape chromium tests/mcp/symlink-file-access.spec.ts "explicit output cannot escape workspace through a symlink"
+          rm tests/mcp/symlink-file-access.spec.ts
+
           echo "base=$(git rev-parse HEAD)" | tee -a "$summary"
           git status --short | tee ../fieldwork-receipts/final-status.txt
 
