@@ -180,10 +180,12 @@ Owned clean candidate:
 
 - https://github.com/teamleaderleo/helix/pull/7
 - branch: `fix/final-view-replay-loops-clean`
-- currently workflow-only
+- base: corrected control head `6e34c90b877167679d4f7d753ea6816059869699`
+- runner commit: `aa068dddb9111f304c0246b836095e6827261396`
+- current diff: one temporary workflow only
 - production source commit: not yet present
 
-The candidate branch is behind the latest corrected control head and should be rebased before final execution.
+The ordinary PR Build matrix is queued on the rebased candidate. The branch-local runner is prepared to apply and test the bounded source repair, then remove itself and commit only the two production files if all gates pass.
 
 ## Recommendation
 
