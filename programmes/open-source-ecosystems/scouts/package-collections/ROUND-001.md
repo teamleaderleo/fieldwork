@@ -1,12 +1,15 @@
 # Package Collections Scout — Round 001
 
 Date: 2026-07-30  
+Disposition refresh: 2026-08-05  
 Programme: [Open-Source Ecosystems](../../STATUS.md)  
 Scout issue: [#208](https://github.com/teamleaderleo/fieldwork/issues/208)
 
 ## In simple words
 
-Package collections offer a continuing supply of useful work because each failure exposes both a packaged project and the machinery used to build, test, patch, and distribute it. The strongest reports already carry pinned revisions and direct build commands. The first lane should harvest those reports, then classify whether the correction belongs in the package, the shared build tooling, or upstream.
+Package collections offer a continuing supply of useful work because each failure exposes both a packaged project and the machinery used to build, test, patch, and distribute it. The strongest reports already carry pinned revisions and direct build commands. The first lane harvested those reports, then classified whether each correction belonged in the package, the shared build tooling, or upstream.
+
+The gomarkdoc selection completed investigation and owner review. The user submitted [gomarkdoc: restore checks on Go 1.26](https://redirect.github.com/NixOS/nixpkgs/pull/549377). Canonical submission state is tracked in #241.
 
 ## Surfaces inspected
 
@@ -20,7 +23,7 @@ Useful issue classes found in this round:
 - a package test phase disabled after a shared build-tool regression;
 - known-good/known-bad revision comparisons;
 - architecture-specific firmware or virtualization regressions;
-- locally reproducible failures that Hydra does not reproduce.
+- locally reproducible failures that Hydra doesn't reproduce.
 
 ### Homebrew Core
 
@@ -36,44 +39,46 @@ These trackers are better starting points than an unfiltered formula scan becaus
 
 ## Deep dive A — restore `gomarkdoc` tests
 
-Issue: [`gomarkdoc` test-regression issue](https://redirect.github.com/NixOS/nixpkgs/issues/516481)
+Issue: [`gomarkdoc` test-regression issue](https://redirect.github.com/NixOS/nixpkgs/issues/516481)  
+Submitted pull request: [gomarkdoc: restore checks on Go 1.26](https://redirect.github.com/NixOS/nixpkgs/pull/549377)  
+Current disposition: `submitted`
 
-### Evidence
+### Original evidence and hypotheses
 
-- Build succeeds at nixpkgs revision `4590696c8693fea477850fe379a01544293ca4e2`.
-- `checkPhase` fails at `acd02b8` and later sampled revisions.
+- Build succeeded at Nixpkgs revision `4590696c8693fea477850fe379a01544293ca4e2`.
+- `checkPhase` failed at `acd02b8` and later sampled revisions.
 - The package version and package expression stayed unchanged across the reported regression window.
-- Current `pkgs/by-name/go/gomarkdoc/package.nix` sets `doCheck = false`.
-- The package comment attributes the failure to tests calling `main()` directly while nixpkgs exports `GOFLAGS=-mod=vendor`; gomarkdoc's parser accepts only `-tags`.
-- The original issue also reports a missing `../.gomarkdoc-empty.yml`, so working-directory or subpackage test selection may be a second boundary.
+- `pkgs/by-name/go/gomarkdoc/package.nix` set `doCheck = false`.
+- The package comment blamed tests calling `main()` while Nixpkgs exported `GOFLAGS=-mod=vendor`; gomarkdoc's parser accepted only `-tags`.
+- The public issue also reported a missing `../.gomarkdoc-empty.yml`.
 
-### Likely owning areas
+The first executable matrix varied inherited flags, supported-tag filtering, working directory, fixture presence, package selection, Go generation, and pinned Nixpkgs revisions.
 
-```text
-pkgs/by-name/go/gomarkdoc/package.nix
-pkgs/build-support/go/module.nix
-gomarkdoc cmd/gomarkdoc tests
-Go test environment and GOFLAGS handling
-```
+### Final diagnosis
 
-### First executable probe
+The visible `GOFLAGS` and missing-config diagnostics were captured output, not the failing assertion. Removing `-mod=vendor` and creating `.gomarkdoc-empty.yml` weren't sufficient.
 
-1. Override `doCheck = true` on current nixpkgs.
-2. Run the check with the package's current `subPackages` setting.
-3. Repeat with `GOFLAGS` cleared, filtered to accepted flags, and left unchanged.
-4. Record the test working directory and presence of `.gomarkdoc-empty.yml`.
-5. Run the same matrix at the known-good revision.
+The failing Go 1.26 assertion was one generated-Markdown expected-output difference: a field reference became a documentation link.
 
-Distinguishing outcomes:
+The selected repair:
 
-- clearing or filtering `GOFLAGS` restores the suite;
-- changing the test working directory or subpackage selection restores the fixture path;
-- both changes are required;
-- the upstream test itself relies on an unsupported invocation pattern.
+- keeps the current Go 1.26 builder;
+- retains `subPackages = [ "cmd/gomarkdoc" ]`;
+- updates one expected Markdown line with `substituteInPlace --replace-fail`;
+- removes `doCheck = false`;
+- doesn't create the missing fixture or rewrite `GOFLAGS`;
+- doesn't change the package version, source, vendor hash, linker flags, selected command, or installed executable.
 
-### Promotion rule
+Broader root, formatter, and `lang` package discovery exposed additional old standard-library prose goldens and wasn't selected. The contribution claim remains limited to the existing package-selected `cmd/gomarkdoc` tests.
 
-Promote when the suite can be restored with a bounded package or shared-tool correction and the fix avoids hiding valid Go flags from ordinary packages. Retain a negative result if the upstream tests intentionally parse the process-wide `GOFLAGS` in a way incompatible with supported Go behavior.
+### Submission and evidence boundary
+
+- submitted branch: `teamleaderleo/nixpkgs:contrib/gomarkdoc-go126-checks`;
+- submitted base: `356468b500e85491b610431c87a284ca1f41b7bc`;
+- submitted head: `060a1f8b8af68af858be896715c5dfc540522235`;
+- final package-file blob: `53f4eef322e84133c2c867070a55c60bb14e09ae`.
+
+Prior Linux and Darwin execution applies to that identical package-file blob. Exact-current-head execution remains pending. The earlier Go 1.25/fixture/flag-filter candidate is superseded.
 
 ## Deep dive B — AAVMF regression
 
@@ -81,7 +86,7 @@ Issue: [AAVMF regression issue](https://redirect.github.com/NixOS/nixpkgs/issues
 
 The issue includes a QEMU script and pinned good and bad revisions. Firmware from stable reaches PXE behavior; sampled unstable revisions stop after the UEFI banner. No matching pull request was found in this round.
 
-This belongs behind an aarch64 QEMU or VM capability gate. The first retained artifact should turn the observed console boundary into a pass/fail script and bisect package inputs rather than only nixpkgs commits.
+This belongs behind an aarch64 QEMU or VM capability gate. The first retained artifact should turn the observed console boundary into a pass/fail script and bisect package inputs rather than only Nixpkgs commits.
 
 Likely areas:
 
@@ -119,8 +124,10 @@ Retain as a platform-transition diagnosis example. Stop independent implementati
 
 ## Return
 
-- **Promote:** `gomarkdoc` into Linux Fieldwork LF-35.
+- **Submitted:** `gomarkdoc` through Linux Fieldwork LF-35; monitor CI and maintainer review in #241 and `teamleaderleo/linux-fieldwork#136`.
 - **Capability queue:** AAVMF.
 - **Recurring intake:** Homebrew blocked updates and OpenSSL migration.
 - **Stop duplicate implementation:** pandoc Lua and Darwin libffi.
 - **Next scout expansion:** Debian reproducibility/autopkgtest and Fedora FTBFS after the first package probe is executable.
+
+The user opened the submitted gomarkdoc pull request. Fieldwork automation didn't perform additional upstream contact.

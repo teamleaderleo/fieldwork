@@ -1,12 +1,16 @@
 # Broad-Spectrum Ecosystem Round — 2026-07-30
 
+Disposition refresh: 2026-08-05
+
 ## In simple words
 
 This round surveyed live contribution queues across package collections, runtimes, developer tools, foundational libraries, databases, and Linux user space. It retained the places where useful work repeatedly appears, reduced several current issues to likely owning code and tests, and separated open work from candidates already covered by active pull requests, assignments, or contributor claim intent.
 
+The Nixpkgs gomarkdoc candidate promoted by this round has completed investigation and owner review. The user submitted [gomarkdoc: restore checks on Go 1.26](https://redirect.github.com/NixOS/nixpkgs/pull/549377). Canonical submission state is #241.
+
 ## Source boundary
 
-Research was performed on 2026-07-30 against public GitHub issue, pull-request, assignment, comment, and source views. Exact issue and source revisions are recorded in the scout reports. This is reconnaissance and local planning only; no upstream contact was authorized or made.
+Research was performed on 2026-07-30 against public GitHub issue, pull-request, assignment, comment, and source views. Exact issue and source revisions are recorded in the scout reports. At the original round boundary this was reconnaissance and local planning only; no upstream contact was authorized or made.
 
 Promotion state is perishable. A live review refresh found that libarchive #3337 gained PR #3340 after the original scan, and a later refresh found a contributor publicly asking to take Ruff #27026. The round retains those cases as references and stops independent implementation unless coordination reopens them. Every candidate must be rechecked immediately before a branch is created.
 
@@ -21,7 +25,7 @@ The portfolio can sustain broad parallel discovery. The highest-yield surfaces s
 ## Best immediate current-CI candidates
 
 1. **DuckDB #24308 — partitioned COPY can lose data.** SQL NULL and the literal string `__HIVE_DEFAULT_PARTITION__` map to the same directory. The issue remains open, reproduced, unassigned, without comments or a matching pull request in the review refresh.
-2. **Nixpkgs #516481 — restore `gomarkdoc` tests.** The package currently disables `checkPhase`. The failure is pinned to a nixpkgs revision window and points toward `buildGoModule`, `GOFLAGS`, working-directory behavior, or an upstream test assumption. No active claim or matching pull request was found.
+2. **Nixpkgs #516481 — restore `gomarkdoc` tests.** **Submitted.** The original scan pointed toward `buildGoModule`, `GOFLAGS`, working-directory behavior, or an upstream test assumption. Execution rejected those as the selected cause: the failing Go 1.26 assertion was one generated-Markdown expected-output difference. The submitted patch keeps Go 1.26, updates that line, and removes `doCheck = false`. Prior Linux/Darwin evidence applies to the identical package-file blob; exact-current-head execution remains pending.
 3. **DuckDB #24307 — large FOLLOWING frames return non-empty results.** The pure SQL reproducer remains open, reproduced, unassigned, without comments or a matching pull request in the review refresh.
 4. **DuckDB #24314 — high-precision median error.** The issue offers a compact analytical boundary behind the first two database probes.
 5. **Ruff #27022 and #27024 — automatic fixes change string or buffer behavior.** Both carry compact before/after fixtures, but overlap must be refreshed before selection.
@@ -43,7 +47,7 @@ libarchive #3337 now has active PR #3340 with the same small-buffer reproducer a
 
 - **systemd #43174:** `systemd-oomd` silently drops a continuously running `user@<uid>.service` after a user-manager reload. Route through a VM and `TEST-55-OOMD.sh`.
 - **CPython #154916:** free-threaded `GenericAlias` iterator data race between `next()` and `__reduce__()`. Route through a free-threaded ThreadSanitizer build and keep the regression test small enough for maintainer review.
-- **Nixpkgs #485220:** AAVMF regression with pinned good and bad nixpkgs revisions. Requires aarch64 QEMU or equivalent VM capacity.
+- **Nixpkgs #485220:** AAVMF regression with pinned good and bad Nixpkgs revisions. Requires aarch64 QEMU or equivalent VM capacity.
 - **libarchive #3283:** Windows signed-shift undefined behavior. Requires a Windows CLANG64 UBSan environment.
 
 ## Duplicate-work stops retained as examples
@@ -65,7 +69,7 @@ These remain useful as contribution-packet examples, test-design references, and
 
 ## Retained files
 
-- [`CANDIDATE_QUEUE.md`](CANDIDATE_QUEUE.md) — ranked live queue and dispositions;
+- [`CANDIDATE_QUEUE.md`](CANDIDATE_QUEUE.md) — ranked queue and current dispositions;
 - [`SEARCH_PLAYBOOK.md`](SEARCH_PLAYBOOK.md) — recurring searches and overlap checks;
 - [`../../scouts/package-collections/ROUND-001.md`](../../scouts/package-collections/ROUND-001.md) — package-collection report;
 - [`../../scouts/runtimes-standard-libraries/ROUND-001.md`](../../scouts/runtimes-standard-libraries/ROUND-001.md) — runtime and standard-library report;
@@ -74,4 +78,6 @@ These remain useful as contribution-packet examples, test-design references, and
 
 ## Current decision
 
-Promote DuckDB #24308, Nixpkgs #516481, and DuckDB #24307 into the first independent executable probes. Keep Ruff #27026 as a coordination/reference packet until the contributor intent is resolved. Keep one VM lane and one free-threaded/TSAN lane ready behind them. Retain libarchive #3337 as an active-fix reference. Run pull-request, linked-work, assignee, contributor-intent, and claim-comment checks immediately before code work begins.
+Monitor the submitted Nixpkgs gomarkdoc pull request through current-head CI and maintainer review; don't reopen the rejected Go 1.25/fixture/`GOFLAGS` design. Continue DuckDB #24308 and DuckDB #24307 as independent executable probes. Keep Ruff #27026 as a coordination/reference packet until contributor intent is resolved. Keep one VM lane and one free-threaded/TSAN lane ready behind them. Retain libarchive #3337 as an active-fix reference. Run pull-request, linked-work, assignee, contributor-intent, and claim-comment checks immediately before code work begins.
+
+The user opened the linked gomarkdoc pull request. Fieldwork automation didn't perform additional upstream contact.
