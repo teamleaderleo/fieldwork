@@ -45,7 +45,7 @@ jobs:
         working-directory: candidate
         run: |
           cat > tests/mcp/navigation-abort-edge-repair.spec.ts <<'EOF'
-          import { test, expect } from '@playwright/test';
+          import { test, expect } from './fixtures';
           import { Tab } from '../../packages/playwright-core/src/tools/backend/tab';
 
           test('does not start navigation when abort lands while listener is attached', async () => {
@@ -76,7 +76,7 @@ jobs:
               waitForLoadState: async () => {},
             };
 
-            await expect((Tab.prototype.navigate as any).call(fakeTab, 'https://example.test', signal)).rejects.toThrow('edge cancellation');
+            await expect(Tab.prototype.navigate.call(fakeTab as unknown as Tab, 'https://example.test', signal)).rejects.toThrow('edge cancellation');
             expect(gotoCalls).toBe(0);
           });
           EOF
