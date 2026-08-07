@@ -4,22 +4,24 @@
 
 `SUBMITTED — UPSTREAM ISSUE OPEN / MAINTAINER TRIAGE PENDING`
 
-The owner reviewed the issue packet and filed [openai/codex#37207](https://redirect.github.com/openai/codex/issues/37207).
+The owner filed [openai/codex#37207](https://redirect.github.com/openai/codex/issues/37207).
 
 The report covers one concrete failure: unified exec can receive terminal bytes and still omit them from the completed command result when the completion listener subscribes late or falls behind.
+
+As of the latest check, the issue is open with `bug`, `CLI`, and `tool-calls` labels and has no maintainer comments yet.
 
 ## Selected boundary
 
 The process producer retains the completion transcript before broadcasting live deltas.
 
-- producer-owned retention is authoritative for completion;
+- producer-owned retention supplies the completed result;
 - live delivery can still miss updates;
-- late or lagged listeners cannot erase output already received by the process layer;
+- late or lagged listeners cannot erase output already accepted by the process layer;
 - invalid UTF-8 remains retained as bytes;
 - existing head/tail limits remain in force;
 - normal close replaces partial listener state with the retained transcript.
 
-## Clean implementation proof
+## Current implementation proof
 
 - Owned source PR: `teamleaderleo/codex#144`
 - Base: `ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff`
@@ -34,41 +36,25 @@ Files:
 - `codex-rs/core/src/unified_exec/process.rs`
 - `codex-rs/core/src/unified_exec/process_tests.rs`
 
-The first tested implementation used separate mutexes for the polling and completion buffers. The current head places both `HeadTailBuffer` values in one shared `OutputState` mutex and exposes separate polling and completion views. Each producer updates both views while holding that one lock, then releases it before broadcasting the live chunk.
+The first fully executed implementation used separate mutexes for the polling and completion buffers. The current head places both `HeadTailBuffer` values in one shared `OutputState` mutex and exposes separate polling and completion views. Each producer updates both views under one lock before broadcasting the live chunk.
 
-This removes the partial-update window between the two retained views and cuts producer-side locking from two acquisitions to one. The existing regression tests exercise the shared state.
+That removes the partial-update window between the two retained views and reduces producer-side lock acquisition from two to one.
 
-## Current-head CI receipt
+## Current-head CI
 
 - `v8-canary` run `31072774070`: passed;
-- `blocking-ci` run `31072774224`: completed with repository-level failures;
+- `blocking-ci` run `31072774224`: failed;
 - formatting and Rust benchmark smoke: passed;
 - cargo-shear: passed;
-- blob-size policy, cargo-deny, and codespell: passed;
-- repository manifest and SDK jobs failed before reaching this four-file Rust change;
-- Windows and macOS Bazel jobs failed before producing useful evidence for this change;
-- the Linux Bazel test, clippy, release-build, and argument-lint jobs were cancelled after the blocking run had already failed elsewhere.
+- blob-size policy, cargo-deny, and codespell: passed.
 
-This run therefore does not replace the earlier complete paired execution receipt. It does show that the current single-mutex head is formatted and clears the lightweight Rust/repository checks that completed.
+The first deterministic blocking-CI failure is outside the four-file patch: `verify_cargo_workspace_manifests.py` reports a stale `code-mode/Cargo.toml` feature-exception entry in the owned fork. Later SDK/Bazel/platform failures are broad repository-state signals and are not treated as validation of this patch.
 
-## Latest public comparison
+The current single-mutex head therefore does not yet have an equivalent paired source-vs-baseline receipt.
 
-Latest public source inspected before filing: `78f00743f92cf4fb875ddadcd30293c5201b48ac`, 95 commits after the implementation base.
+## Earlier paired execution
 
-All four source-base files remained byte-identical at that public head:
-
-| File | Public-base/latest blob |
-| --- | --- |
-| `async_watcher.rs` | `d20a85843b1c108f94abb07a25c76cd7e156cb84` |
-| `async_watcher_tests.rs` | `66fd8dba1194a17d1a1b19b3d257750fd88eb56e` |
-| `process.rs` | `dd10930547f61f73b1ceb6c520e2f9db685c6a2a` |
-| `process_tests.rs` | `e7f99e38ee731241e1b2a1cb6f590d4a560a5ad1` |
-
-The duplicate search found no active proposal covering this specific late-or-lagged-listener loss in completed unified-exec output.
-
-## Earlier authoritative execution
-
-Execution carrier `teamleaderleo/codex#137`, corrected run `30699322569`, covered source head `b2a704c708748462d7893fe82cf8971f00ca751e`:
+Execution carrier `teamleaderleo/codex#137`, corrected run `30699322569`, covered the previous two-mutex source head `b2a704c708748462d7893fe82cf8971f00ca751e`:
 
 - baseline `codex-core` library: `2,129/2,129` passed;
 - source exact terminal-retention controls: `12/12` passed;
@@ -77,17 +63,56 @@ Execution carrier `teamleaderleo/codex#137`, corrected run `30699322569`, covere
 - formatting and exact four-file fence passed;
 - paired baseline/source artifacts and logs retained.
 
+This remains strong evidence for the behavior, but it is not an exact-head receipt for the single-mutex revision.
+
+## Latest public comparison
+
+Latest public head checked: `b3278e96cb6df4b77b8dd93cf6c65d74990a033d`.
+
+Public main has now changed the two production files in the source fence:
+
+- `async_watcher.rs`: `5ffbfaaafd7ea1e74cbc80ff2b04f321519b1406`;
+- `process.rs`: `e8ec6b98828ee896f96d50dbde995fb3435c2644`.
+
+The two test files remain byte-identical to the implementation base:
+
+- `async_watcher_tests.rs`: `66fd8dba1194a17d1a1b19b3d257750fd88eb56e`;
+- `process_tests.rs`: `e7f99e38ee731241e1b2a1cb6f590d4a560a5ad1`.
+
+The main overlapping public change is merged `openai/codex#37083`, which consolidates the existing output buffer, notifications, closed state, and cancellation token into `OutputHandles`.
+
+That refactor does not fix issue #37207. On the latest checked head:
+
+- `start_streaming_output` still continues after `RecvError::Lagged(_)` while its listener-owned transcript is being built;
+- the local output collector still continues after `RecvError::Lagged(_)` before the missed chunks can be added to its retained output buffer.
+
+A future public PR therefore needs a semantic restack onto the current `OutputHandles` shape rather than a mechanical replay of the owned branch.
+
+## Historical intent of `Lagged`
+
+Merged `openai/codex#4992` introduced the explicit `Lagged(_) => continue` handling so a receiver that falls behind would skip missed messages but keep the output task alive and continue streaming later output.
+
+That supports the current issue framing: continuing after lag is a useful resilience behavior for live delivery. The problem is allowing that lossy observation path to define the completed command record as well.
+
 ## Submission receipt
 
 - Upstream issue: [openai/codex#37207](https://redirect.github.com/openai/codex/issues/37207)
-- State at filing: open
-- Label at filing: `bug`
-- Filed by the owner after reviewing the final four-section issue form
+- State: open
+- Labels: `bug`, `CLI`, `tool-calls`
+- Maintainer comments at latest check: none
 - Public implementation PR: none
 - Owned implementation proof: `teamleaderleo/codex#144`
 
 ## Next state
 
-No further upstream action is needed for the issue-first state. Leave the public issue alone unless a maintainer engages. If a public PR is later authorized, recreate the single-mutex patch on then-current public main, collect baseline-red regression evidence, and rerun the full gate.
+Leave the public issue alone unless a maintainer engages.
+
+If a public PR is later invited and authorized:
+
+1. restack the single-state design onto then-current public main;
+2. add sustained stdout/stderr plus concurrent-polling stress coverage;
+3. add cancellation-boundary timing coverage;
+4. run a fresh paired baseline/source gate on the exact proposed head;
+5. review the final diff against any additional unified-exec changes.
 
 No further public comment, reaction, pull request, review, or other upstream interaction is authorized.
