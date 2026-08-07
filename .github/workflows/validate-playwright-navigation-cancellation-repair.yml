@@ -1,0 +1,60 @@
+name: validate Playwright navigation cancellation repair
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone exact owned candidate
+        run: |
+          git clone --single-branch --branch research/mcp-cancel-navigation https://github.com/teamleaderleo/playwright.git candidate
+          cd candidate
+          test "$(git rev-parse HEAD)" = "5918a1c85665bfac43ae9a527df1eca79547fea0"
+      - name: Apply exact cancellation repair
+        working-directory: candidate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          navigate_path = Path('packages/playwright-core/src/tools/backend/navigate.ts')
+          navigate = navigate_path.read_text()
+          old = '''  handle: async (context, params, response) => {\n    const tab = await context.ensureTab();\n    const url = await tab.checkUrlAndNavigate(params.url);'''
+          new = '''  handle: async (context, params, response, signal) => {\n    const tab = await context.ensureTab();\n    const url = await tab.checkUrlAndNavigate(params.url, signal);'''
+          if navigate.count(old) != 1:
+              raise SystemExit('navigate tool anchor mismatch')
+          navigate_path.write_text(navigate.replace(old, new))
+
+          tab_path = Path('packages/playwright-core/src/tools/backend/tab.ts')
+          tab = tab_path.read_text()
+          old = '''  async checkUrlAndNavigate(url: string): Promise<string> {\n    try {\n      new URL(url);\n    } catch (e) {\n      if (url.startsWith('localhost'))\n        url = 'http://' + url;\n      else\n        url = 'https://' + url;\n    }\n    this.context.checkUrlAllowed(url);\n    await this.navigate(url);\n    return url;\n  }\n\n  async navigate(url: string) {\n    await this._initializedPromise;\n\n    this._clearCollectedArtifacts();\n\n    const { promise: downloadEvent, abort: abortDownloadEvent } = eventWaiter<playwright.Download>(this.page, 'download', 3000);\n    try {\n      await this.page.goto(url, { waitUntil: 'domcontentloaded', ...this.navigationTimeoutOptions });\n      abortDownloadEvent();\n    } catch (_e: unknown) {\n      const e = _e as Error;\n      if (!e.message.includes('Download is starting')) {\n        abortDownloadEvent();\n        throw e;\n      }\n      const download = await downloadEvent;\n      if (!download)\n        throw e;\n      // Make sure other "download" listeners are notified first.\n      await new Promise(resolve => setTimeout(resolve, 500));\n      return;\n    }\n\n    // Cap load event to 5 seconds, the page is operational at this point.\n    await this.waitForLoadState('load', { timeout: 5000 });\n  }'''
+          new = '''  async checkUrlAndNavigate(url: string, signal?: AbortSignal): Promise<string> {\n    try {\n      new URL(url);\n    } catch (e) {\n      if (url.startsWith('localhost'))\n        url = 'http://' + url;\n      else\n        url = 'https://' + url;\n    }\n    this.context.checkUrlAllowed(url);\n    await this.navigate(url, signal);\n    return url;\n  }\n\n  async navigate(url: string, signal?: AbortSignal) {\n    await this._initializedPromise;\n    signal?.throwIfAborted();\n\n    this._clearCollectedArtifacts();\n\n    let rejectAbort!: (reason?: unknown) => void;\n    const abortPromise = new Promise<never>((_, reject) => rejectAbort = reject);\n    const abortNavigation = () => {\n      void this.page.evaluate(() => window.stop()).catch(() => {});\n      rejectAbort(signal?.reason ?? new Error('Operation aborted'));\n    };\n    signal?.addEventListener('abort', abortNavigation, { once: true });\n\n    const navigation = async () => {\n      const { promise: downloadEvent, abort: abortDownloadEvent } = eventWaiter<playwright.Download>(this.page, 'download', 3000);\n      try {\n        await this.page.goto(url, { waitUntil: 'domcontentloaded', ...this.navigationTimeoutOptions });\n        signal?.throwIfAborted();\n        abortDownloadEvent();\n      } catch (_e: unknown) {\n        const e = _e as Error;\n        if (!e.message.includes('Download is starting')) {\n          abortDownloadEvent();\n          throw e;\n        }\n        const download = await downloadEvent;\n        if (!download)\n          throw e;\n        signal?.throwIfAborted();\n        // Make sure other "download" listeners are notified first.\n        await new Promise(resolve => setTimeout(resolve, 500));\n        signal?.throwIfAborted();\n        return;\n      }\n\n      // Cap load event to 5 seconds, the page is operational at this point.\n      signal?.throwIfAborted();\n      await this.waitForLoadState('load', { timeout: 5000 });\n      signal?.throwIfAborted();\n    };\n\n    try {\n      if (signal)\n        await Promise.race([navigation(), abortPromise]);\n      else\n        await navigation();\n    } finally {\n      signal?.removeEventListener('abort', abortNavigation);\n    }\n  }'''
+          if tab.count(old) != 1:
+              raise SystemExit('tab navigation anchor mismatch')
+          tab_path.write_text(tab.replace(old, new))
+          PY
+          git diff --check
+          test "$(git diff --name-only | sort)" = $'packages/playwright-core/src/tools/backend/navigate.ts\npackages/playwright-core/src/tools/backend/tab.ts'
+      - name: Install and build
+        working-directory: candidate
+        run: |
+          npm ci
+          npm run build
+          npx playwright install chromium
+      - name: Run focused cancellation control
+        working-directory: candidate
+        run: npx playwright test -c tests/mcp/playwright.config.ts --project=chromium tests/mcp/cancellation.spec.ts
+      - name: Run focused lint
+        working-directory: candidate
+        run: npx eslint packages/playwright-core/src/tools/backend/navigate.ts packages/playwright-core/src/tools/backend/tab.ts tests/mcp/cancellation.spec.ts
+      - name: Record repair diff
+        working-directory: candidate
+        run: |
+          git diff --check
+          git diff -- packages/playwright-core/src/tools/backend/navigate.ts packages/playwright-core/src/tools/backend/tab.ts
