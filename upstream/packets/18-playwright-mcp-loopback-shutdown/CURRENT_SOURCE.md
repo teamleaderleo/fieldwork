@@ -1,33 +1,38 @@
 # Current source generation
 
-## Identity
+## Upstream-selected source
+
+Maintainer fix: [only enable `/killkillkill` under test](https://redirect.github.com/microsoft/playwright/pull/42133)
+
+Current upstream head: `5074f70234d518b04400227c616ca682f6f0c309`
+
+The upstream pull request changes two files with 3 additions and 9 deletions:
+
+1. `packages/playwright-core/src/tools/utils/mcp/http.ts`
+2. `tests/mcp/http.spec.ts`
+
+Behavior:
+
+- import and use `isUnderTest()` in the HTTP dispatcher;
+- serve `/killkillkill` only while Playwright is running under its test marker;
+- keep the existing `SIGINT` simulation for the lifecycle test;
+- simplify the test request because the route is no longer exposed in ordinary MCP HTTP launches.
+
+Pavel Feldman approved this source. It is currently open and not yet merged.
+
+## Fieldwork research source
+
+The previously preferred alternate remains:
 
 - repository: `teamleaderleo/playwright`
 - owned source PR: `teamleaderleo/playwright#48`
 - branch: `fix/mcp-http-parent-stdin-review`
-- exact public base: `2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2`
-- exact source head: `10e28dfdd7758d92aeed50922fd9c7ce9596c21c`
-- commits ahead: one
+- exact base: `2cc9f3ee7fdd82feb87edb7f24af77442bdc10e2`
+- exact head: `10e28dfdd7758d92aeed50922fd9c7ce9596c21c`
+- exact fence: `http.ts`, `server.ts`, `http.spec.ts`
 
-## Exact file fence
+That source removes the route entirely and uses parent stdin EOF only in HTTP test mode. Run `30855503566` passed the full 21-test file and all declared gates on Ubuntu 24.04, macOS 15 ARM64, and Windows Server 2025.
 
-1. `packages/playwright-core/src/tools/utils/mcp/http.ts`
-2. `packages/playwright-core/src/tools/utils/mcp/server.ts`
-3. `tests/mcp/http.spec.ts`
+## Decision
 
-## Behavior
-
-- removes the `/killkillkill` HTTP branch;
-- leaves MCP stdio input ownership unchanged;
-- installs the stdin listener only after HTTP mode is selected;
-- requires Playwright's existing test marker;
-- translates readable parent EOF into the existing `SIGINT` cleanup path;
-- handles stdin that already ended before listener setup.
-
-The test proves the old route is inert, MCP remains responsive before EOF, closing the owning stdin produces one graceful close and exit code 0, disabling the test marker leaves HTTP alive after EOF, and immediate stdio startup still works.
-
-## Upstream state
-
-Issue filed: [MCP HTTP clients can terminate the server through `/killkillkill`](https://redirect.github.com/microsoft/playwright/issues/42129)
-
-The source is ready for a linked upstream PR after explicit maintainer approval or assignment.
+The upstream-selected `isUnderTest()` gate supersedes the need to submit the Fieldwork alternate. Retain PR #48 as research evidence only unless maintainers request it.
