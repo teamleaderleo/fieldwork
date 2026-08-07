@@ -1,0 +1,60 @@
+name: validate Playwright background tab repair
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone exact owned candidate
+        run: |
+          git clone --single-branch --branch research/mcp-hung-background-tab-current https://github.com/teamleaderleo/playwright.git candidate
+          cd candidate
+          test "$(git rev-parse HEAD)" = "f3af5735f4f83d8a5e9d6a0e10276f49d61ea97a"
+      - name: Apply exact background-header repair
+        working-directory: candidate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          tab_path = Path('packages/playwright-core/src/tools/backend/tab.ts')
+          tab = tab_path.read_text()
+          old = '''  async headerSnapshot(): Promise<TabHeader & { changed: boolean }> {\n    let title: string | undefined;\n    let consoleCounts = { total: 0, errors: 0, warnings: 0 };\n    if (!this.crashed) {\n      await this._raceAgainstModalStates(async () => {\n        title = await this.page.title();\n      });\n      consoleCounts = await this.consoleMessageCount();\n    }\n    const newHeader: TabHeader = {\n      title: title ?? '',\n      url: this.page.url(),\n      current: this.isCurrentTab(),\n      crashed: this.crashed,\n      mainDocumentStatus: this._mainDocumentStatus,\n      console: consoleCounts,\n    };\n\n    if (!tabHeaderEquals(this._lastHeader, newHeader)) {\n      this._lastHeader = newHeader;\n      return { ...this._lastHeader, changed: true };\n    }\n    return { ...this._lastHeader, changed: false };\n  }'''
+          new = '''  async headerSnapshot(options?: { timeout?: number }): Promise<TabHeader & { changed: boolean }> {\n    const compute = async (): Promise<TabHeader> => {\n      let title: string | undefined;\n      let consoleCounts = { total: 0, errors: 0, warnings: 0 };\n      if (!this.crashed) {\n        await this._raceAgainstModalStates(async () => {\n          title = await this.page.title();\n        });\n        consoleCounts = await this.consoleMessageCount();\n      }\n      return {\n        title: title ?? '',\n        url: this.page.url(),\n        current: this.isCurrentTab(),\n        crashed: this.crashed,\n        mainDocumentStatus: this._mainDocumentStatus,\n        console: consoleCounts,\n      };\n    };\n\n    let newHeader: TabHeader | undefined;\n    if (options?.timeout !== undefined) {\n      newHeader = await Promise.race([\n        compute(),\n        new Promise<undefined>(resolve => setTimeout(resolve, options.timeout)),\n      ]);\n      if (!newHeader)\n        return this.cachedHeaderSnapshot();\n    } else {\n      newHeader = await compute();\n    }\n\n    if (!tabHeaderEquals(this._lastHeader, newHeader)) {\n      this._lastHeader = newHeader;\n      return { ...this._lastHeader, changed: true };\n    }\n    return { ...this._lastHeader, changed: false };\n  }\n\n  cachedHeaderSnapshot(): TabHeader & { changed: boolean } {\n    const newHeader = {\n      ...this._lastHeader,\n      url: this.page.url(),\n      current: this.isCurrentTab(),\n      crashed: this.crashed,\n      mainDocumentStatus: this._mainDocumentStatus,\n    };\n    const changed = !tabHeaderEquals(this._lastHeader, newHeader);\n    if (changed)\n      this._lastHeader = newHeader;\n    return { ...this._lastHeader, changed };\n  }'''
+          if tab.count(old) != 1:
+              raise SystemExit('tab header anchor mismatch')
+          tab_path.write_text(tab.replace(old, new))
+
+          response_path = Path('packages/playwright-core/src/tools/backend/response.ts')
+          response = response_path.read_text()
+          old = '''    const tabHeaders = await Promise.all(this._context.tabs().map(tab => tab.headerSnapshot()));'''
+          new = '''    const tabHeaders = await Promise.all(this._context.tabs().map(tab =>\n      tab.headerSnapshot(tab.isCurrentTab() ? undefined : { timeout: 500 })\n    ));'''
+          if response.count(old) != 1:
+              raise SystemExit('response header anchor mismatch')
+          response_path.write_text(response.replace(old, new))
+          PY
+          git diff --check
+          test "$(git diff --name-only | sort)" = $'packages/playwright-core/src/tools/backend/response.ts\npackages/playwright-core/src/tools/backend/tab.ts'
+      - name: Install and build
+        working-directory: candidate
+        run: |
+          npm ci
+          npm run build
+          npx playwright install chromium
+      - name: Run tab isolation controls
+        working-directory: candidate
+        run: npx playwright test -c tests/mcp/playwright.config.ts --project=chromium tests/mcp/tabs.spec.ts tests/mcp/tabs-resilience-research.spec.ts
+      - name: Run focused lint
+        working-directory: candidate
+        run: npx eslint packages/playwright-core/src/tools/backend/tab.ts packages/playwright-core/src/tools/backend/response.ts tests/mcp/tabs-resilience-research.spec.ts
+      - name: Record repair diff
+        working-directory: candidate
+        run: |
+          git diff --check
+          git diff -- packages/playwright-core/src/tools/backend/tab.ts packages/playwright-core/src/tools/backend/response.ts
