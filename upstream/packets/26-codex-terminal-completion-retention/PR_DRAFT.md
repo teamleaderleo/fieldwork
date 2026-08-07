@@ -69,12 +69,12 @@ Prepared implementation proof: `teamleaderleo/codex#144@d4ff73f50e30e96b6db4a082
 
 Current-head CI:
 
-- `blocking-ci` run `31072774224`;
-- `v8-canary` run `31072774070`;
-- formatting and cargo-shear passed;
-- Linux Bazel test, clippy, release build, and argument lint were still running at the last update.
+- `v8-canary` run `31072774070`: passed;
+- `blocking-ci` run `31072774224`: completed with repository-level failures;
+- formatting, Rust benchmark smoke, cargo-shear, blob-size policy, cargo-deny, and codespell passed;
+- manifest/SDK and platform Bazel failures prevented the blocking workflow from completing the useful Linux Bazel test, clippy, release-build, and argument-lint gates, which were cancelled.
 
-The earlier paired run `30699322569` validated the previous two-mutex head. It remains evidence for the behavior and four-file scope, but the current head needs its own completed receipt.
+The earlier paired run `30699322569` remains the complete execution receipt for the previous two-mutex head. The current single-mutex head is the preferred implementation shape, but a future public PR should be recreated on current main and receive a fresh complete gate.
 
 ## Before a public PR
 
