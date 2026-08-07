@@ -101,6 +101,20 @@ Do not use “done,” “polished,” “ready,” or “green” without the e
 - Patch-only transport remains D2 or D1 until the canonical direct source diff is independently reviewable.
 - Do not create a duplicate entry when a canonical candidate already exists.
 
+## Submission-commit boundary
+
+The final contribution commit is a human-attributed release artifact, not a repeatable CI output.
+
+- Research and execution branches may be mutable and noisy.
+- Create the upstream-intended submission commit deliberately **once** after the candidate is accepted.
+- After that point, CI validates the exact submission SHA; CI must not recreate equivalent signed-off commits on every research update.
+- Never infer the contributor name or email from a base commit, upstream author, repository owner, nearby commit, or stale workflow configuration.
+- Before an upstream compare link or PR is handed to the submitter, verify the exact source diff, GitHub-resolved author and committer, `Signed-off-by:` trailer when required, and any assistance/coauthor trailers.
+- Disposable or internal commits should not carry canonical `Fixes`/`Closes` metadata that would create external issue events.
+- Temporary write-capable materializers, force-push workflows, and execution carriers must be disabled or removed when the durable submission branch exists.
+
+See `research/postmortems/2026-08-07-cloud-hypervisor-submission-materializer.md` for the incident that established this rule.
+
 ## Worker handoff
 
 Workers update the canonical Fieldwork issue and implementation PR first. Add or update a Delivery Desk entry only when the next useful human action changes.
