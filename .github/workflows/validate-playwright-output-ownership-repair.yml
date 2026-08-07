@@ -32,7 +32,7 @@ jobs:
           context = context.replace(old, new)
 
           old = '''    this.options = options;\n    this._rawBrowserContext = browserContext;\n    testDebug('create context');'''
-          new = '''    this.options = options;\n    this._rawBrowserContext = browserContext;\n    this._preExistingOutputFiles = options.config.outputDir ? snapshotOutputFiles(outputDir(options)) : new Set();\n    testDebug('create context');'''
+          new = '''    this.options = options;\n    this._rawBrowserContext = browserContext;\n    this._preExistingOutputFiles = snapshotOutputFiles(outputDir(options));\n    testDebug('create context');'''
           if context.count(old) != 1:
               raise SystemExit('context constructor anchor mismatch')
           context = context.replace(old, new)
@@ -100,6 +100,28 @@ jobs:
           PY
           git diff --check
           test "$(git diff --name-only | sort)" = $'packages/playwright-core/src/tools/backend/context.ts\npackages/playwright-core/src/tools/backend/response.ts\npackages/playwright-core/src/tools/backend/tracing.ts'
+      - name: Add execution-only default-directory ownership control
+        working-directory: candidate
+        run: |
+          cat >> tests/mcp/output-max-size.spec.ts <<'EOF'
+
+          test('does not evict pre-existing files from the default output directory', async ({ startClient, server }, testInfo) => {
+            const cwd = testInfo.outputPath('workspace');
+            const outputDir = path.join(cwd, '.playwright-mcp');
+            await fs.promises.mkdir(outputDir, { recursive: true });
+            const preExistingFile = path.join(outputDir, 'project-notes.txt');
+            await fs.promises.writeFile(preExistingFile, 'keep me');
+
+            const { client } = await startClient({
+              cwd,
+              config: { outputMaxSize: 1 },
+            });
+
+            await client.callTool({ name: 'browser_navigate', arguments: { url: server.HELLO_WORLD } });
+
+            expect(fs.existsSync(preExistingFile)).toBe(true);
+          });
+          EOF
       - name: Install and build
         working-directory: candidate
         run: |
@@ -115,5 +137,7 @@ jobs:
       - name: Record repair diff
         working-directory: candidate
         run: |
+          git checkout -- tests/mcp/output-max-size.spec.ts
           git diff --check
+          test "$(git diff --name-only | sort)" = $'packages/playwright-core/src/tools/backend/context.ts\npackages/playwright-core/src/tools/backend/response.ts\npackages/playwright-core/src/tools/backend/tracing.ts'
           git diff -- packages/playwright-core/src/tools/backend/context.ts packages/playwright-core/src/tools/backend/response.ts packages/playwright-core/src/tools/backend/tracing.ts
