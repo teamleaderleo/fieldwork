@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260802-zustand-storage-replacement-hydration",
+  "question": "Can old storage hydration work publish or persist after setOptions transfers ownership to a replacement storage backend?",
+  "owner": "chatgpt:gpt-5.6-thinking",
+  "created_at": "2026-08-02",
+  "state": "complete",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "Pinned Zustand persist source",
+      "url": "https://github.com/pmndrs/zustand/blob/beca84e600e4e250f6b244d22878e72948f331c7/src/middleware/persist.ts",
+      "revision": "beca84e600e4e250f6b244d22878e72948f331c7",
+      "retrieved_at": "2026-08-02",
+      "claim": "Hydration binds the initiating storage read while later migration persistence uses mutable current storage; setOptions could replace storage without advancing hydration authority.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Accepted storage-replacement candidate",
+      "url": "https://github.com/teamleaderleo/zustand/pull/7",
+      "revision": "665e0399ee5dc3e877f4cbd431a326eac56f42db",
+      "retrieved_at": "2026-08-05",
+      "claim": "Only actual storage-object replacement advances the hydration generation; identical-object reapplication preserves current hydration.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Exact candidate execution carrier",
+      "url": "https://github.com/teamleaderleo/zustand/pull/8",
+      "revision": "a9e77b3f38448440b1d4d65b227fd30397bfb445",
+      "retrieved_at": "2026-08-05",
+      "claim": "Exact source identity, two-file fence, repository formatting, types, lint, complete specs, diff hygiene, and clean tree passed for the accepted candidate.",
+      "evidence_label": "Observed"
+    }
+  ],
+  "command": "pnpm run test:format && pnpm run test:types && pnpm run test:lint && pnpm run test:spec",
+  "environment": {
+    "runtime": "repository Node LTS and pnpm",
+    "platform": "Ubuntu 24.04 GitHub Actions runner",
+    "dependencies": [
+      "repository lockfile"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "Old read applies and old migration writes through replacement storage on the characterization head.",
+      "interpretation": "Storage ownership transfer did not invalidate earlier hydration authority."
+    },
+    {
+      "observation": "The accepted candidate suppresses old publication and cross-backend writes after actual replacement while later hydration succeeds.",
+      "interpretation": "Advancing the existing generation at storage-object replacement repairs the authority transfer."
+    },
+    {
+      "observation": "Reapplying the identical storage object preserves the active hydration and exact completion signals.",
+      "interpretation": "No-op storage assignment remains distinct from ownership transfer."
+    },
+    {
+      "observation": "Exact-head format, type, lint, complete spec, identity, and hygiene gates pass.",
+      "interpretation": "The repaired two-file source is technically accepted within the tested repository boundary."
+    }
+  ],
+  "stop_condition": "Stop after exact repaired-head repository execution, complete two-file review, durable evidence transfer, and carrier retirement.",
+  "network_policy": "explicit",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260802-zustand-storage-replacement-hydration/README.md"
+  ],
+  "promoted_to": "teamleaderleo/zustand#7@665e0399ee5dc3e877f4cbd431a326eac56f42db"
+}
