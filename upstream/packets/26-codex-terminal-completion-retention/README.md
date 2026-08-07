@@ -36,19 +36,20 @@ Files:
 
 The first tested implementation used separate mutexes for the polling and completion buffers. The current head places both `HeadTailBuffer` values in one shared `OutputState` mutex and exposes separate polling and completion views. Each producer updates both views while holding that one lock, then releases it before broadcasting the live chunk.
 
-This removes the partial-update window between the two retained views and cuts producer-side locking from two acquisitions to one. The existing regression tests now exercise the shared state.
+This removes the partial-update window between the two retained views and cuts producer-side locking from two acquisitions to one. The existing regression tests exercise the shared state.
 
-Current-head CI:
+## Current-head CI receipt
 
-- `blocking-ci` run `31072774224`;
-- `v8-canary` run `31072774070`;
-- formatting: passed;
+- `v8-canary` run `31072774070`: passed;
+- `blocking-ci` run `31072774224`: completed with repository-level failures;
+- formatting and Rust benchmark smoke: passed;
 - cargo-shear: passed;
 - blob-size policy, cargo-deny, and codespell: passed;
-- Linux Bazel test, clippy, release build, and argument lint: still running at this update;
-- repository manifest, SDK, Windows, and macOS jobs failed before reaching this four-file Rust change and are not current implementation evidence.
+- repository manifest and SDK jobs failed before reaching this four-file Rust change;
+- Windows and macOS Bazel jobs failed before producing useful evidence for this change;
+- the Linux Bazel test, clippy, release-build, and argument-lint jobs were cancelled after the blocking run had already failed elsewhere.
 
-The earlier exact receipt remains evidence for the behavior and four-file scope, but it does not validate the current single-mutex head. Replace it with the current-head receipt after the useful Linux jobs finish.
+This run therefore does not replace the earlier complete paired execution receipt. It does show that the current single-mutex head is formatted and clears the lightweight Rust/repository checks that completed.
 
 ## Latest public comparison
 
@@ -87,6 +88,6 @@ Execution carrier `teamleaderleo/codex#137`, corrected run `30699322569`, covere
 
 ## Next state
 
-Finish the current-head Linux CI checks, update the receipt, and review the complete single-mutex diff. A public PR still requires a separate owner decision and a fresh current-main restack with baseline-red regression evidence.
+No further upstream action is needed for the issue-first state. Leave the public issue alone unless a maintainer engages. If a public PR is later authorized, recreate the single-mutex patch on then-current public main, collect baseline-red regression evidence, and rerun the full gate.
 
 No further public comment, reaction, pull request, review, or other upstream interaction is authorized.
