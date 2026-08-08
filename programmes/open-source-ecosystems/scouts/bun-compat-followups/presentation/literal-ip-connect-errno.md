@@ -1,36 +1,22 @@
-# Candidate: preserve synchronous literal-IP `Bun.connect` errno
+# Coverage note: synchronous literal-IP `Bun.connect` errno
 
-Fieldwork #709 follow-up. Prepared 2026-08-09.
+Fieldwork #709 follow-up. Reclassified 2026-08-09.
 
 Automated upstream contact: **none**.
-
-## Proposed title
-
-`net: preserve errno when Bun.connect fails synchronously`
 
 ## Parent breadcrumb
 
 https://redirect.github.com/oven-sh/bun/pull/37093
 
-That PR fixes several connect-error fidelity paths and explicitly leaves one gap: a literal-IP connect that fails synchronously still surfaces as generic `FailedToOpenSocket`, even though the native failure has a real errno.
+The parent PR description still says one gap remains: a literal-IP connect that fails synchronously surfaces as generic `FailedToOpenSocket`.
 
-## Current-main mechanism
+That description is now stale relative to the PR head.
 
-Revalidated against Bun main `9d519e8ca9f63a19f94790c47019bd7b6752c27a`.
+## Current parent-head behavior
 
-`src/uws_sys/SocketGroup.rs` currently defines:
+Revalidated against #37093 head `36cb6413a17ad220ae91953f6217eb282c624f6b`.
 
-```rust
-pub enum ConnectResult {
-    Socket(*mut us_socket_t),
-    Connecting(*mut ConnectingSocket),
-    Failed,
-}
-```
-
-`SocketGroup::connect()` calls `us_socket_group_connect(...)`; when the returned pointer is null it immediately returns payload-less `ConnectResult::Failed`.
-
-The caller in `src/runtime/socket/socket_body.rs` then maps that branch to:
+`src/runtime/socket/socket_body.rs::do_connect()` still has an internal payload-less failure:
 
 ```rust
 uws::ConnectResult::Failed => {
@@ -38,58 +24,44 @@ uws::ConnectResult::Failed => {
 }
 ```
 
-So the diagnostic loss occurs at the C/Rust boundary: the native call fails on the calling thread, but the Rust enum carries no errno payload.
+But the caller in `Listener.rs::connect_finish()` now catches any synchronous `do_connect()` error before it escapes to JS. On that path it:
 
-The later asynchronous `handle_connect_error()` path already knows how to turn real connect errnos such as `EADDRNOTAVAIL` into a `SystemError { code, errno, syscall: "connect", message: "Failed to connect" }`. The follow-up should reuse that vocabulary instead of inventing another error surface.
+- reads `WSAGetLastError()` on Windows or `bun_sys::last_errno()` elsewhere;
+- handles Unix-socket errors separately;
+- for synchronous TCP/local-bind failures preserves `EADDRINUSE`, `EADDRNOTAVAIL`, `EACCES`, and `EINVAL`;
+- normalizes other synchronous TCP failures to `ECONNREFUSED`;
+- calls the existing `NewSocket::handle_connect_error(...)`, so the promise and `connectError` callback use the normal Node-style connect `SystemError` path.
 
-## Small implementation seam
+That is the follow-up implementation we were preparing. It appears to have been incorporated into the parent branch after the PR description was written.
 
-Likely narrow repair:
+## Why the stale description happened
 
-1. Change the synchronous failure variant to carry an errno, e.g. `Failed(c_int)`.
-2. Capture the platform's last socket error immediately after `us_socket_group_connect(...)` returns null, before any Rust/C helper can disturb it.
-3. At the `socket_body.rs` match, convert that errno through the same connect-error mapping used by `handle_connect_error()`.
-4. Keep a generic fallback only when the captured error is zero/unknown.
+The parent is still under active review. Its later commits changed the synchronous-error path while its scope paragraph was not updated. The discussion also caught a Windows-specific error-source issue in the same area (`LIBUS_ERR` / Winsock vs CRT `errno`), which confirms this code was still moving after the original “remaining gap” text was authored.
 
-Windows needs the socket error source corresponding to uSockets' `LIBUS_ERR` / WSA error convention, not CRT `errno`.
+This is useful evidence for our mining method: **PR prose is a breadcrumb, not a durable ownership/status record. Re-read the head before preparing overlapping work.**
 
-A small helper extracting `SystemError` construction from `handle_connect_error()` would avoid duplicating its Windows normalization and errno-code table. If #37093 lands first, build directly on its expanded table for `ETIMEDOUT` / `EHOSTUNREACH` / `ENETUNREACH`.
+## Prepared regression remains useful
 
-## Deterministic regression candidate
+Fieldwork still carries:
 
-Use a valid literal destination plus an invalid local bind address. Node's vendored `test-http-localaddress-bind-error.js` uses `1.2.3.4` as `invalidLocalAddress`; binding that address should fail synchronously with `EADDRNOTAVAIL` on a normal host.
+`../candidate-tests/bun-connect-sync-errno.test.ts`
 
-For Bun's direct socket API:
+It uses a live loopback destination plus `localAddress: "1.2.3.4"` (the invalid local address used by Bun's vendored Node local-bind fixture) and expects:
 
-```ts
-await Bun.connect({
-  hostname: "127.0.0.1",
-  port,
-  localAddress: "1.2.3.4",
-  socket: { data() {} },
-});
-```
+- `code === "EADDRNOTAVAIL"`;
+- `syscall === "connect"`;
+- message `"Failed to connect"`;
+- the same fidelity in `connectError` if that callback fires.
 
-Expected rejection after the fix:
-
-- `code === "EADDRNOTAVAIL"`
-- `syscall === "connect"`
-- message uses the normal connect-error shape (`"Failed to connect"`)
-- must not be `FailedToOpenSocket`
-
-A loopback server can hold `port` open so the only failure is the local bind.
-
-## Scope
-
-Keep this to the synchronous `SocketGroup::connect` null-return path. Do not reopen the asynchronous multi-address behavior owned by #37093.
+The current #37093 test patch does not add this local-bind regression; its visible new socket test targets a different peer-close/false-`ECONNRESET` case. So our test can remain as an optional coverage suggestion after exact-target execution, even though there is no independent implementation patch to make.
 
 ## Evidence
 
-- Bun implementation: `source-read`
-- Node invalid-local-address fixture: `source-read`
-- Bun regression: `target-test-prepared` once the candidate test is added
-- Exact Bun execution: not available in the current scout environment
+- parent description: `source-read`
+- current parent-head implementation: `source-read`
+- prepared local-bind regression: `target-test-prepared`
+- exact Bun execution: unavailable in the current scout environment
 
 ## Disposition
 
-**High-confidence small follow-up.** This is currently the strongest independent candidate after the Request precedence work. Prepare internally; wait for #37093 to stabilize/land before considering human upstream submission.
+**Retire as an independent fix.** #37093 head appears to have absorbed the behavior. Keep the regression as coverage-only material and re-check after the parent lands.
