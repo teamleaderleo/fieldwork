@@ -1,13 +1,17 @@
 import { expect, test } from "bun:test";
 
-// Prepared compatibility regression for the synchronous literal-IP connect
-// failure left out of oven-sh/bun#37093.
+// Fieldwork-owned coverage candidate for oven-sh/bun#37093.
+// Evidence: target-test-prepared. This file has NOT been executed on Bun.
+//
+// #37093's current head appears to have absorbed the synchronous local-bind
+// errno fix even though its PR description still calls this a remaining gap.
+// This test is therefore coverage material, not evidence of an independent
+// implementation still being needed.
 //
 // The destination is a live loopback listener so the remote endpoint itself is
 // valid. `1.2.3.4` is the invalid local bind address used by Node's vendored
-// test-http-localaddress-bind-error.js. On a normal host the bind fails before
-// the connect can become asynchronous, which currently loses the errno and
-// rejects as generic FailedToOpenSocket.
+// test-http-localaddress-bind-error.js. On a normal host the local bind should
+// fail with EADDRNOTAVAIL before an asynchronous connect is established.
 test("Bun.connect preserves EADDRNOTAVAIL from a synchronous local bind failure", async () => {
   using server = Bun.listen({
     hostname: "127.0.0.1",
@@ -41,8 +45,6 @@ test("Bun.connect preserves EADDRNOTAVAIL from a synchronous local bind failure"
   expect(err.message).toBe("Failed to connect");
   expect(err.code).not.toBe("FailedToOpenSocket");
 
-  // Some synchronous-failure implementations may not enter the callback path.
-  // If it does fire, it must carry the same error fidelity as the promise.
   if (callbackError !== undefined) {
     expect(callbackError.code).toBe("EADDRNOTAVAIL");
     expect(callbackError.syscall).toBe("connect");
