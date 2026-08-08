@@ -15,10 +15,10 @@ diff --git a/src/js/node/child_process.ts b/src/js/node/child_process.ts
      signal: options.signal,
    });
 
-diff --git a/test/js/node/child_process/execfile-timeout-single-owner.test.ts b/test/js/node/child_process/execfile-timeout-single-owner.test.ts
+diff --git a/test/js/node/child_process/execfile-timeout-single-owner.test.js b/test/js/node/child_process/execfile-timeout-single-owner.test.js
 new file mode 100644
 --- /dev/null
-+++ b/test/js/node/child_process/execfile-timeout-single-owner.test.ts
++++ b/test/js/node/child_process/execfile-timeout-single-owner.test.js
 @@
 +import { expect, test } from "bun:test";
 +import { execFile } from "node:child_process";
@@ -60,12 +60,12 @@ new file mode 100644
 +      child.once("error", reject);
 +    });
 +
-+    // The timeout starts before the child prints "ready". Wait beyond the
-+    // full timeout from that readiness point so every timeout owner has run.
++    // The timeout starts before the child prints "ready". Waiting beyond the
++    // full timeout from readiness guarantees every timeout owner has run.
 +    await Bun.sleep(1200);
 +    expect(timeoutKillCalls).toHaveLength(1);
 +
-+    // Cleanup is deliberately excluded from timeoutKillCalls.
++    // Cleanup uses the original method so it stays outside the measured count.
 +    originalKill("SIGKILL");
 +    await callbackDone;
 +    expect(callbackError?.signal).toBe("SIGKILL");
