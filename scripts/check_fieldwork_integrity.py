@@ -88,7 +88,10 @@ def validate_manifest(path: Path) -> list[str]:
     if not isinstance(constraints, dict):
         errors.append(f"{path}: constraints must be an object")
     elif constraints.get("upstream_contact_authorized") is not False:
-        errors.append(f"{path}: batch upstream contact must default to false")
+        errors.append(
+            f"{path}: batch upstream_contact_authorized must be false; "
+            "automated upstream contact is prohibited"
+        )
 
     assignments = data["assignments"]
     if not isinstance(assignments, list):
@@ -134,7 +137,8 @@ def validate_manifest(path: Path) -> list[str]:
 
         if assignment["upstream_contact_authorized"] is not False:
             errors.append(
-                f"{path}: {location} upstream contact must default to false"
+                f"{path}: {location} upstream_contact_authorized must be false; "
+                "automated upstream contact is prohibited"
             )
 
     return errors
