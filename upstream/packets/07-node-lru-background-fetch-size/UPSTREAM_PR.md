@@ -12,46 +12,29 @@ Compare / create-PR page: https://redirect.github.com/isaacs/node-lru-cache/comp
 
 ### Summary
 
-`backgroundFetchSize` is the provisional size used for a missing-key background fetch while the real value is still pending.
+`backgroundFetchSize` is used to account for a background fetch while its value is still pending.
 
-The option was added as a special case inside the normal size-validation path. Ordinary item sizes are checked as positive integers, but a background-fetch placeholder can return `backgroundFetchSize` directly from that exception. As a result, invalid runtime values can reach cache accounting without the normal size check.
+Unlike normal cache sizes, it currently bypasses the usual size validation. Invalid values such as negative numbers, fractions, `NaN`, or `Infinity` can therefore reach the cache's size accounting.
 
-There is also a re-entry window: `fetchMethod` starts running synchronously before the placeholder is inserted. Because `backgroundFetchSize` is public and mutable, callback code can change it before provisional accounting reads it.
+There's also a timing issue when `fetchMethod` changes `backgroundFetchSize` synchronously. The current fetch can end up using the new value even though it started with the old one.
 
-This change:
-
-- accepts `0` and positive finite integers for `backgroundFetchSize`;
-- rejects negative, fractional, non-finite, and representative non-number values without coercing caller objects;
-- captures the missing-key provisional size before invoking `fetchMethod`;
-- stores that operation-local value on the internal background fetch;
-- uses the captured value for provisional accounting instead of rereading the mutable public field.
-
-### Behavior
-
-`0` remains supported: an in-flight fetch can occupy a cache slot while contributing zero provisional calculated size, and same-key callers still coalesce onto the same fetch.
-
-A mutation performed by one `fetchMethod` call can still affect later fetches, but it cannot change the provisional charge of the fetch already in progress.
-
-Existing behavior is preserved for stale refreshes, caches without size tracking, normal settlement, replacement, abort, and eviction paths.
-
-One intentional validation choice is visible for review: an explicitly invalid `backgroundFetchSize` now throws `TypeError` at construction even when that particular cache is not currently using size tracking. The essential correctness fix is the validation/snapshot at the missing-key size-tracked fetch boundary; constructor fail-fast behavior can be narrowed if preferred.
+This change validates `backgroundFetchSize` and snapshots it before calling `fetchMethod`, so each in-flight fetch keeps the size it started with. `0` remains valid, and changes to `backgroundFetchSize` still apply to later fetches.
 
 ### Tests
 
-Coverage stays in the existing `test/background-fetch-size.ts` feature test and preserves its TAP clock setup.
+Added coverage for:
 
-The added cases cover:
+- invalid `backgroundFetchSize` values;
+- rejecting invalid runtime values without coercing them;
+- mutation from inside `fetchMethod`;
+- mutations applying to later, but not already-running, fetches;
+- `backgroundFetchSize: 0`;
+- stale refreshes and caches without size tracking;
+- invalid internal provisional-size state.
 
-- negative, fractional, `NaN`, and infinite values;
-- runtime string/symbol values and a hostile object that must not be coerced;
-- invalid post-construction mutation rejecting before provider dispatch;
-- synchronous `fetchMethod` mutation not changing the current operation's captured size;
-- valid mutation applying to later operations;
-- zero-size coalescing;
-- stale-refresh and no-size-cache behavior;
-- defensive rejection of a corrupt internal provisional-size receipt.
+The existing `test/background-fetch-size.ts` test file and TAP clock setup are preserved.
 
-Fresh CI and benchmarks for the final exact head are currently queued. The production logic is unchanged from the previously reviewed tree, which passed the focused behavioral gate, Ubuntu/macOS native CI, and benchmarks. The known Windows native lanes stop before product test discovery because the unchanged repository TAP configuration references unavailable `@tapjs/clock`.
+Linux and macOS CI passed for the same production change. The Windows jobs stop before test discovery because the repository's TAP configuration references an unavailable `@tapjs/clock` plugin.
 
 ---
 
