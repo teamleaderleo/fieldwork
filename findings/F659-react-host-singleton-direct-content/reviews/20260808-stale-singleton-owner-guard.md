@@ -48,7 +48,9 @@ Those guards encode one known stale-owner route in reconciler traversal.
 
 An ownership check instead protects the shared persistent host node itself. It also covers future stale call paths that reach update/release after ownership has moved, without requiring every reconciler path to reproduce the same hidden-state condition.
 
-## Expected behavior against the existing Activity matrix
+## Existing Activity matrix
+
+Expected behavior:
 
 1. **First hide releases previous props** — allowed because the DOM association points to that owner or its alternate.
 2. **Hidden update after visible owner acquisition** — skipped because the body association points to the visible owner's different Fiber pair.
@@ -58,6 +60,37 @@ An ownership check instead protects the shared persistent host node itself. It a
 6. **Hidden descendant Placement** — not globally suppressed by the leading contribution model; it can be valid if correctly ordered into the hidden owner's own child contribution.
 
 So this is a containment repair for exclusive singleton state, not a complete child-ownership repair.
+
+## Public Suspense reachability
+
+The public Suspense-anywhere Fiber regression `can render a Suspense boundary above the <html> tag` provides a production-feature version of the same ownership overlap.
+
+Its checked-in behavior explicitly demonstrates:
+
+- a primary document/body is visible;
+- the primary suspends;
+- a fallback document/body acquires the same persistent singleton nodes;
+- the primary managed children remain mounted and hidden in the physical document;
+- later resolution reacquires the primary document.
+
+That is exactly the lifecycle in which stale hidden primary singleton properties could race with the visible fallback owner.
+
+### New PR 41 public control
+
+PR 41 now adds a test derived from that public harness:
+
+1. render primary document/body with `data-owner="primary"` and a primary click handler;
+2. suspend so fallback document/body becomes visible with `data-owner="fallback"` and its own click handler;
+3. while the same promise is still pending, re-render the app with the hidden primary body changed to `data-owner="hidden-update"`;
+4. require the physical body to remain `fallback` and a click to reach only the fallback handler;
+5. resolve the promise;
+6. require the reappearing primary body to use `hidden-update` and its primary event props.
+
+The workflow applies the test **before** the source experiment and requires untouched current source to fail. It then applies the ownership guard and requires the same public Suspense control to pass.
+
+If this executes as expected, stale singleton property ownership is reachable through the public Suspense document feature, not only through direct Activity API usage.
+
+If untouched current source unexpectedly passes, downgrade the owner-guard case back to Activity-only and inspect why the Suspense hidden tree does not commit the body property update while fallback remains visible.
 
 ## Keyed replacement compatibility
 
@@ -73,42 +106,38 @@ Skipping stale release prevents `detachDeletedInstance(instance)` from deleting 
 
 These were two independently observed corruption modes in the Activity review.
 
-## Critical integration dependency: preamble marker cleanup
+## Integration dependency: DOM ownership association lifecycle
 
-A strict DOM-owner guard cannot be promoted independently while current Fizz preamble cleanup can destroy a legitimate current owner association.
+A strict DOM-owner guard cannot be promoted if another lifecycle can erase a legitimate current singleton association without making that owner actually stale.
 
-Current `clearSingletonPreambleContribution(instance)` calls `detachDeletedInstance(instance)` without any old HostSingleton Fiber handle. HostSingleton hydration can already have associated the persistent node with the current client Fiber/props before nested dehydrated-boundary cleanup runs.
+The preamble-marker detach hypothesis initially looked like such a dependency, but the first event regression used a synthetic marker arrangement that real Fizz does not normally emit. React PR 43 now falsifies that hypothesis against a real Fizz fallback-body takeover before it is allowed to become a production dependency.
 
-If marker cleanup deletes that association, a later legitimate HostSingleton update sees no matching body owner. React DOM's generic `getInstanceFromNode(body)` may then return a nearest ancestor Fiber (for example the html singleton) or null rather than the current body Fiber. The strict guard classifies the body update as stale and skips it.
+Interpret the dependency conservatively:
 
-So the guard currently depends on one of two things:
+- if PR 43 real-Fizz takeover passes current source, remove that specific preamble concern from the owner-guard blocker list;
+- if it fails, the owner guard needs the corresponding association repair or a richer owner token;
+- independent render-phase HostSingleton hydration binding remains a broader lifecycle concern because current `hydrateInstance()` still eagerly binds during complete work and `bindInstance()` documents a future commit-time direction.
 
-1. fix preamble cleanup so it preserves the current client singleton association (React PR 43 is the narrow experiment); or
-2. introduce a richer ownership state than the raw DOM -> Fiber map so a missing association can be distinguished from an intentionally released owner.
-
-Simply treating a missing owner as authorized is insufficient: after a real singleton release, null/missing ownership is exactly what should make repeated hidden updates/releases lose authority.
-
-This is a real integration dependency, not a reason to return to Offscreen-specific guards.
+Do not solve a hypothetical missing-association case by treating `owner == null` as automatically authorized: after a real release, missing ownership is precisely what should make repeated hidden updates/releases stale.
 
 ## Executable lane
 
 Owned React draft PR 41 is the verifier-only experiment.
 
-- Base at PR creation: current fork/public main `2042572329425f9ebf35ae6287ea5bab72b2c497`.
+- Base: current fork/public main `2042572329425f9ebf35ae6287ea5bab72b2c497`.
 - Source packet: one reconciler host-effect patch using existing `getInstanceFromNode`.
-- Contract: the existing five-test Activity ownership matrix.
-- Expected pass subset: first hide, stale hidden update containment, repeated hidden release containment, reappear with latest props.
+- Contracts: five-test Activity matrix plus public Suspense hidden-primary/fallback-owner control.
+- Current-source public Suspense control is required red before the experiment is applied.
+- Expected experiment pass subset: first hide, stale hidden update containment, repeated hidden release containment, reappear with latest props, public Suspense fallback authority.
 - Required remaining red: detached managed-child restoration after another owner used direct HTML.
 
-The workflow also preflights the hand-built patches before installation/tests so patch-packet errors are kept separate from semantic failures.
-
-A future integration verifier should add a preamble-cleanup-then-body-update control before any owner guard is promoted beyond the isolated Activity experiment.
+The workflow preflights every hand-built patch before installation/tests so packet errors remain separate from semantic failures.
 
 ## Limits
 
 - the guard depends on correct lifecycle ownership of the DOM association itself;
-- body child contributions still need the separate contribution/range semantics;
-- opaque content needs node + slot provenance;
+- body child contributions still need the separate slot/range semantics;
+- opaque content needs node provenance;
 - opaque Activity visibility needs explicit top-level-node hide/unhide handling;
 - reappearance acquisition still occurs in layout and has its existing phase-order TODO;
 - a third-party renderer that advertises singleton support must have `getInstanceFromNode` semantics compatible with returning its internal instance handle; React DOM satisfies this.
@@ -119,10 +148,10 @@ Read-only public PR searches for HostSingleton stale-owner / hidden-owner contai
 
 ## Disposition
 
-**EXECUTE as a narrow containment experiment; do not promote independently of current-owner association correctness.**
+**EXECUTE as a narrow containment experiment. Public Suspense reachability is now the key discriminator.**
 
-This is more general and cleaner than the two Offscreen-specific guards for the update/release corruption subset, but PR 43 (or equivalent owner-preservation work) is now an explicit dependency for production use.
+Do not promote it as complete body ownership; it protects exclusive singleton properties/events only. The contribution model remains responsible for children.
 
 ## Evidence class
 
-Source-read plus target-test-prepared PR 41, with a source-read integration dependency on #708/PR 43. No execution receipt yet.
+Current-source/history read plus target-test-prepared PR 41. Public Suspense reachability remains unexecuted until the custom workflow runs. No public upstream interaction performed.
