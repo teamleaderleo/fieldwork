@@ -4,6 +4,7 @@
   "target_repository": "tauri-apps/tauri",
   "target_revision": "34ec18ba5e1acabebd66ae79d6fc746f63d8eb96",
   "model_path": "programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/ipc_transport_model.mjs",
+  "candidate_patch": "programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/ipc-head-negotiation.patch",
   "runtime": "node v22.16.0",
   "command": "node ipc_transport_model.mjs",
   "result": "pass",
@@ -14,10 +15,14 @@
     "a navigation abort after dispatch rejects the modeled invoke without a second transport dispatch",
     "a later transport failure rejects instead of risking duplicate side effects"
   ],
+  "candidate_probe": {
+    "method": "HEAD",
+    "reason": "Tauri dispatches IPC commands only for POST; HEAD reaches the same custom-protocol handler without calling Webview::on_message. Fetch treats HEAD as a CORS-safelisted method, and the probe carries the same IPC request headers so relevant header preflight is exercised. A 405 response still represents a non-network response and therefore demonstrates that the custom-protocol request reached the handler."
+  },
   "limits": [
     "This is a dependency-free state-machine model, not WebView2 or WKWebView execution.",
-    "It assumes a side-effect-free custom-protocol probe predicts whether the side-effecting POST can use the same transport.",
-    "Browser CSP, CORS, preflight, custom-scheme, navigation, and channel behavior still require target-platform execution."
+    "The candidate still needs platform proof that HEAD plus the IPC headers predicts usable POST custom-protocol IPC across each supported webview.",
+    "Browser CSP, CORS, preflight, custom-scheme, navigation, binary channel, and custom InvokeOptions header behavior still require target-platform execution."
   ],
   "upstream_contact_authorized": false
 }
