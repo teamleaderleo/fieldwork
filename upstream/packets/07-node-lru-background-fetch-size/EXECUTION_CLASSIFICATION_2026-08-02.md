@@ -1,93 +1,79 @@
-# Unit 07 exact-head execution classification — 2026-08-02
+# Unit 07 execution classification — historical receipt from 2026-08-02
 
-## Exact identity
+## Scope of this receipt
 
-- Public `isaacs/node-lru-cache` main and inspected base: `16b3a916662ab449d496b7b4b4f04132565d1d28`.
-- Canonical owned source head: `47fef8068ab3e4a36b939e6d4c05b2ea085f6314`.
-- Source PR: `teamleaderleo/node-lru-cache#2`.
-- Source fence: exactly `src/index.ts` and `test/background-fetch-size.ts`.
-- Current public main has not moved beyond the inspected base.
-- Canonical source contains no workflow, dependency, lockfile, generated-output, or Fieldwork-only file.
+This file records execution performed on an earlier product-identical generation of the Unit 07 source. It is retained as historical evidence for the production logic, not as an exact submitted-head green receipt.
+
+Final owner submission: [isaacs/node-lru-cache#410](https://redirect.github.com/isaacs/node-lru-cache/pull/410).
+
+Submitted source:
+
+- public base: `16b3a916662ab449d496b7b4b4f04132565d1d28`;
+- submitted head: `364a8c1c07c9f6281fbe19943eacd261bd410fc4`;
+- source PR: `teamleaderleo/node-lru-cache#2`;
+- source fence: `src/index.ts`, `test/background-fetch-size.ts`;
+- production source blob: `c3549a638b84ce096b13ebd7e3f71496dbe5afd5`.
+
+The final regression-scope cleanup changed only the test blob, so the production-source observations below remain applicable while exact final-tree execution remains a separate receipt question.
 
 ## Native repository execution retained
 
 ### Benchmarks
 
-Run `30674842990` on product-identical predecessor `70a9e62...`: passed.
+Run `30674842990` on predecessor `70a9e62...`: passed.
 
 ### CI
 
-Run `30674843003` on product-identical predecessor `70a9e62...` completed with an overall failure, but the job-level classification matters:
+Run `30674843003` on predecessor `70a9e62...` completed with an overall failure, with this job-level classification:
 
 - Ubuntu Node 24 and Node 25: passed;
 - macOS Node 24 and Node 25: passed;
-- Windows Node 24/25, PowerShell and Bash: failed before test execution because Tap could not load the repository-configured `@tapjs/clock` plugin.
+- Windows Node 24/25, PowerShell and Bash: stopped before test execution because Tap could not load the repository-configured `@tapjs/clock` plugin.
 
-The Windows diagnostic is:
+Windows diagnostic:
 
 ```text
 '@tapjs/clock' does not appear to be a tap plugin.
 Cannot find module '@tapjs/clock'
 ```
 
-The public base's `.taprc` references the plugin, while the package does not install it. This is a baseline repository dependency/configuration failure. It does not execute or reject the `backgroundFetchSize` candidate assertions.
+The public base's `.taprc` references the plugin while the package does not install it. This is an unchanged-base repository dependency/configuration failure; it did not execute or reject the Unit 07 assertions.
 
-## Pre-format exact-source carrier
+## Focused source gate
 
-Fieldwork run `30674901995` checked out exact predecessor `70a9e62...` on Node 22, 24, and 26.
+Fieldwork run `30674901995` checked out predecessor `70a9e62...` on Node 22, 24, and 26. Every version passed dependency installation, source/declaration build, focused `test/background-fetch-size.ts` execution with coverage disabled, and OXLint. Those jobs then exposed formatting drift in the historical test tree.
 
-Every version passed:
+Execution-only PR #5 used the repository's installed Prettier to generate the corrected test formatting. No workflow, dependency, or lockfile change entered the canonical source.
 
-- exact checkout verification;
-- dependency installation;
-- source and declaration build;
-- the focused `test/background-fetch-size.ts` gate with coverage disabled;
-- OXLint with zero warnings and zero errors.
+Execution-only PR #6, workflow `30754588900`, job `91514469959`, then established on the formatted production generation:
 
-The focused test reported 95 passing assertions on the inspected Node 22 job. All three jobs then failed only because Prettier reported `test/background-fetch-size.ts` as unformatted.
-
-## Formatting repair
-
-Execution-only PR #5 ran the repository's installed Prettier and published the exact formatted file. The output was copied byte-for-byte to the canonical two-file source at commit `47fef8068ab3e4a36b939e6d4c05b2ea085f6314`.
-
-PR #5 was closed without merge. No workflow or carrier file entered the canonical source.
-
-## Exact formatted-head gate
-
-Execution-only PR #6, workflow `30754588900`, job `91514469959`, Ubuntu 24.04 ARM, Node 24.18.0:
-
-- dependency installation and repository build: passed;
-- focused `test/background-fetch-size.ts`: 95/95 assertions passed;
-- OXLint on both changed files: 0 warnings, 0 errors;
-- Prettier check on both changed files: passed;
+- dependency installation/build: passed;
+- focused test: 95/95 assertions passed;
+- OXLint: zero warnings/errors;
+- Prettier: passed;
 - `git diff --check`: passed;
 - tracked worktree hygiene: passed.
 
-PR #6 was closed without merge after receipt transfer.
+## What this receipt supports
 
-## Product classification
+Supported for the unchanged production logic:
 
-Supported:
+- source/declaration build;
+- focused behavior on the historical broader regression tree;
+- lint and formatting;
+- Ubuntu/macOS native CI on Node 24/25;
+- benchmarks;
+- classification of the Windows result as a pre-test baseline harness failure.
 
-- exact formatted candidate builds and passes its 95-assertion focused gate;
-- both changed files pass OXLint and repository Prettier;
-- predecessor behavior also passed on Node 22/24/26;
-- Linux and macOS native CI passed on Node 24/25;
-- benchmarks passed;
-- Windows native jobs are blocked before tests by an upstream baseline Tap-plugin dependency failure.
+It does **not** establish exact submitted-head green status because the final test file was later narrowed to supported regression boundaries.
 
-Current-head native CI `30754536472` and Benchmarks `30754536526` are queued. They are not represented as passes or failures.
+Fresh submitted-head fork runs at the submission record update:
 
-Remaining work:
+- CI `31231433021`: queued;
+- Benchmarks `31231433009`: queued.
 
-1. classify the current-head native matrix when it executes;
-2. obtain a Windows product-test receipt through an execution-only harness that installs the baseline-declared Tap plugin, or retain the baseline blocker explicitly;
-3. perform current-head complete-diff review.
+## Disposition
 
-Do not add `@tapjs/clock`, package-lock churn, or workflow files to the canonical two-file source merely to repair the upstream baseline harness.
+Historical execution receipt retained under a `SUBMITTED` unit. Do not add `@tapjs/clock`, package-lock churn, or workflow files to the submitted two-file source merely to repair the unchanged-base harness.
 
-## Current disposition
-
-`EXECUTE — exact formatted focused gate passed; current-head native matrix pending`.
-
-Public upstream interaction remains unauthorized and none occurred.
+No additional upstream interaction is authorized from Fieldwork without explicit owner direction.
