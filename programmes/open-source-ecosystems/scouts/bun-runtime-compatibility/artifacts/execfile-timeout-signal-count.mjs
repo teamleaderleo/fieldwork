@@ -9,15 +9,14 @@ if (process.platform === "win32") {
 }
 
 const dir = mkdtempSync(join(tmpdir(), "fieldwork-bun-execfile-timeout-"));
-const receipt = join(dir, "signals.txt");
+const receipt = join(dir, "signals.bin");
+const start = performance.now();
 
 const childSource = String.raw`
   const { appendFileSync, writeFileSync } = require("node:fs");
   const receipt = process.argv[1];
   writeFileSync(receipt, "");
-  process.on("SIGUSR1", () => {
-    appendFileSync(receipt, "x");
-  });
+  process.on("SIGUSR1", () => appendFileSync(receipt, "1"));
   setInterval(() => {}, 1000);
 `;
 
@@ -25,6 +24,7 @@ let child;
 let callbackError = null;
 let callbackStdout = "";
 let callbackStderr = "";
+const killCalls = [];
 
 try {
   await new Promise(resolve => {
@@ -44,27 +44,37 @@ try {
       },
     );
 
-    // The timeout signal is deliberately handled by the child, so ensure the
-    // probe always reaches a terminal state after the observation window.
-    const cleanup = setTimeout(() => {
-      child.kill("SIGKILL");
-    }, 1600);
+    // Both Node and Bun implement timeout by calling the public ChildProcess
+    // kill() method. Wrap that method after execFile() returns so the probe can
+    // count timeout attempts even if the OS coalesces identical pending
+    // standard signals before the child runs its SIGUSR1 handler.
+    const originalKill = child.kill.bind(child);
+    child.kill = signal => {
+      killCalls.push({
+        signal: signal ?? "SIGTERM",
+        atMs: Math.round(performance.now() - start),
+      });
+      return originalKill(signal);
+    };
 
+    // Use the original method so probe cleanup is excluded from killCallCount.
+    const cleanup = setTimeout(() => originalKill("SIGKILL"), 1600);
     child.once("close", () => clearTimeout(cleanup));
   });
 
-  let receiptText = null;
+  let signalCount = null;
   try {
-    receiptText = readFileSync(receipt, "utf8");
+    signalCount = readFileSync(receipt).length;
   } catch {
-    // A missing receipt means the child never reached its ready write. Report
-    // that directly so a slow-start harness failure cannot look like zero signals.
+    // A missing receipt means the child never reached its ready write. Keep
+    // this distinct from a valid zero-signal observation.
   }
 
   const result = {
     runtime: process.versions.bun ? `bun ${process.versions.bun}` : `node ${process.versions.node}`,
-    signalCount: receiptText === null ? null : receiptText.length,
-    receiptBytes: receiptText,
+    killCallCount: killCalls.length,
+    killCalls,
+    signalCount,
     callbackError: callbackError
       ? {
           name: callbackError.name,
@@ -79,14 +89,19 @@ try {
 
   console.log(JSON.stringify(result, null, 2));
 
-  const expected = process.env.EXPECT_SIGNALS;
-  if (expected !== undefined) {
+  for (const [envName, actual] of [
+    ["EXPECT_KILL_CALLS", result.killCallCount],
+    ["EXPECT_SIGNALS", result.signalCount],
+  ]) {
+    const expected = process.env[envName];
+    if (expected === undefined) continue;
+
     const n = Number(expected);
     if (!Number.isInteger(n) || n < 0) {
-      console.error(`EXPECT_SIGNALS must be a non-negative integer, got ${JSON.stringify(expected)}`);
+      console.error(`${envName} must be a non-negative integer, got ${JSON.stringify(expected)}`);
       process.exitCode = 2;
-    } else if (result.signalCount !== n) {
-      console.error(`Expected ${n} SIGUSR1 deliveries, observed ${String(result.signalCount)}.`);
+    } else if (actual !== n) {
+      console.error(`${envName}: expected ${n}, observed ${String(actual)}.`);
       process.exitCode = 1;
     }
   }
