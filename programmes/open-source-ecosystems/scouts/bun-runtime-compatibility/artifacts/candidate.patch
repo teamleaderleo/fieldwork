@@ -1,0 +1,74 @@
+diff --git a/src/js/node/child_process.ts b/src/js/node/child_process.ts
+--- a/src/js/node/child_process.ts
++++ b/src/js/node/child_process.ts
+@@
+   const child = spawn(file, args, {
+     cwd: options.cwd,
+     env: options.env,
+-    timeout: options.timeout,
+-    killSignal: options.killSignal,
+     uid: options.uid,
+     gid: options.gid,
+     windowsHide: options.windowsHide,
+     windowsVerbatimArguments: options.windowsVerbatimArguments,
+     shell: options.shell,
+     signal: options.signal,
+   });
+
+diff --git a/test/js/node/child_process/execfile-timeout-single-owner.test.ts b/test/js/node/child_process/execfile-timeout-single-owner.test.ts
+new file mode 100644
+--- /dev/null
++++ b/test/js/node/child_process/execfile-timeout-single-owner.test.ts
+@@
++import { expect, test } from "bun:test";
++import { execFile } from "node:child_process";
++
++test.skipIf(process.platform === "win32")(
++  "execFile timeout calls ChildProcess.kill once when the timeout signal is handled",
++  async () => {
++    const childSource = `
++      process.on("SIGUSR1", () => {});
++      process.stdout.write("ready\\n");
++      setInterval(() => {}, 1000);
++    `;
++
++    let callbackError;
++    let resolveCallback;
++    const callbackDone = new Promise(resolve => {
++      resolveCallback = resolve;
++    });
++
++    const child = execFile(
++      process.execPath,
++      ["-e", childSource],
++      { timeout: 1000, killSignal: "SIGUSR1" },
++      error => {
++        callbackError = error;
++        resolveCallback();
++      },
++    );
++
++    const originalKill = child.kill.bind(child);
++    const timeoutKillCalls = [];
++    child.kill = signal => {
++      timeoutKillCalls.push(signal);
++      return originalKill(signal);
++    };
++
++    await new Promise((resolve, reject) => {
++      child.stdout.once("data", resolve);
++      child.once("error", reject);
++    });
++
++    // Keep the child alive after SIGUSR1 long enough for every timeout owner
++    // to run. Node reaches this point with exactly one call to child.kill().
++    await Bun.sleep(400);
++    expect(timeoutKillCalls).toHaveLength(1);
++
++    // Cleanup is deliberately excluded from timeoutKillCalls.
++    originalKill("SIGKILL");
++    await callbackDone;
++    expect(callbackError?.signal).toBe("SIGKILL");
++  },
++  5000,
++);
