@@ -72,7 +72,9 @@ Every assignment includes:
 - dependencies;
 - state;
 - stop condition;
-- upstream-contact authorization, defaulting to `false`.
+- upstream-contact authorization: `false`.
+
+For agents and automated workers, upstream-contact authorization is always `false` and cannot be changed by a user request, campaign decision, or coordinator. If a human independently performs an upstream interaction, record that completed action separately.
 
 For citation or context assignments, also include:
 
@@ -108,7 +110,7 @@ Before fan-out, the coordinator:
 6. assigns unique output paths;
 7. identifies dependencies and shared assumptions;
 8. chooses a maximum useful concurrency;
-9. confirms that upstream contact remains unauthorized;
+9. confirms that automated third-party upstream contact is prohibited;
 10. dispatches immutable assignment packets.
 
 Workers do not expand their assignment into additional repositories, claims, or questions without reporting the proposed expansion.
@@ -150,7 +152,8 @@ A synthesis may conclude that an isolated bug is real while its supposed wider i
 - Avoid one PR per trivial observation.
 - Never allow several workers to update one shared status or context file concurrently.
 - Never use an external upstream repository as the coordination surface.
+- Never mutate a third-party upstream repository from a worker or coordinator automation path.
 
 ## Future automation
 
-Ostensibly or another coordinator may later generate assignments, claims, reminders, citation queues, and synthesis queues. The durable interface is intentionally simple: JSON manifests, stable IDs, issue numbers, exact state tokens, claim scopes, evidence labels, owned paths, and explicit handoff blocks.
+Ostensibly or another coordinator may later generate assignments, claims, reminders, citation queues, and synthesis queues. It may not automate any mutation of a third-party upstream repository. The durable interface is intentionally simple: JSON manifests, stable IDs, issue numbers, exact state tokens, claim scopes, evidence labels, owned paths, and explicit handoff blocks.
