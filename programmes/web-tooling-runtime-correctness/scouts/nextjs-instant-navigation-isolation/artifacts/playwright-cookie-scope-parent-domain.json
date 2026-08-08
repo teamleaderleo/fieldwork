@@ -1,0 +1,66 @@
+{
+  "evidence_class": "integration-executed",
+  "executed_at": "2026-08-08",
+  "environment": {
+    "playwright_python": "1.57.0",
+    "chromium": "144.0.7559.96"
+  },
+  "scope_url": "https://app-a.example.com/account",
+  "setup": [
+    {
+      "name": "next-instant-navigation-testing",
+      "value": "b-only",
+      "domain": "app-b.example.com",
+      "path": "/"
+    },
+    {
+      "name": "next-instant-navigation-testing",
+      "value": "shared-parent",
+      "domain": ".example.com",
+      "path": "/"
+    },
+    {
+      "name": "session",
+      "value": "a-session",
+      "domain": "app-a.example.com",
+      "path": "/"
+    },
+    {
+      "name": "session",
+      "value": "b-session",
+      "domain": "app-b.example.com",
+      "path": "/"
+    }
+  ],
+  "cookies_scope_url": [
+    {
+      "name": "next-instant-navigation-testing",
+      "value": "shared-parent",
+      "domain": ".example.com",
+      "path": "/"
+    },
+    {
+      "name": "session",
+      "value": "a-session",
+      "domain": "app-a.example.com",
+      "path": "/"
+    }
+  ],
+  "selected_instant_entries": [
+    {
+      "name": "next-instant-navigation-testing",
+      "value": "shared-parent",
+      "domain": ".example.com",
+      "path": "/"
+    }
+  ],
+  "observations": {
+    "b_only_in_scope_lookup": false,
+    "parent_domain_in_scope_lookup": true,
+    "b_only_survives_scoped_expiry": true,
+    "parent_domain_removed_by_scoped_expiry": true,
+    "unrelated_sessions_survive": true
+  },
+  "interpretation": "Playwright URL-filtered cookie lookup follows cookie applicability rather than exact domain equality: a parent-domain cookie that affects app A remains eligible for cleanup, while a same-named cookie that only affects app B is not selected.",
+  "limit": "This executes the Playwright/Chromium cookie interface, not the Next.js e2e harness or the @next/playwright package itself."
+}
