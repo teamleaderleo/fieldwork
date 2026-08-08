@@ -10,20 +10,24 @@ Upstream contact authorized: `false`
 
 ## In simple words
 
-Two candidates survived the first deep pass.
+Two strong candidates and two adjacent event-lifecycle gaps survived the deep pass.
 
-1. Tauri's Rust event manager runs user callbacks while its handler mutex is held. A caught callback panic can poison that mutex. Later `listen`, `unlisten`, and `emit` operations treat the poison result like ordinary lock contention, queue themselves, and can leave the manager silently unable to deliver future events. A focused regression and narrow panic-preserving repair are prepared against the pinned Tauri source.
+1. Tauri's Rust event manager runs user callbacks while its handler mutex is held. A callback panic poisons that mutex. If the caller catches the panic, later `listen`, `unlisten`, and `emit` operations mistake the poisoned result for ordinary contention, queue themselves, and stop making progress. This now reproduces on the pinned Tauri source. A narrow catch/flush/resume candidate preserves the original panic and passes the same later-dispatch regression in two corrected Linux executions.
 2. Tauri's IPC fallback decides to switch transports after a side-effecting custom-protocol request may already have reached Rust. Navigation can make the frontend `fetch()` reject after dispatch, causing the same logical invoke to be resent over `postMessage`. A cleaner candidate is to negotiate the transport with a side-effect-free `HEAD` request before any command runs, then execute each command through one transport only.
+3. Public `emit_filter` has a second panic/reentrancy boundary before the Rust handler map: the JS-listener filter path holds `js_event_listeners` while running the user-supplied filter. A filter panic can poison that mutex, so the verified callback-panic patch must not be described as general filter-panic recovery.
+4. Filesystem `Scope` uses a related callback-under-lock plus `emitting` flag design. A callback panic can skip `emitting = false` and poison `event_listeners`. This looks like a sibling invariant gap after the merged reentrant-deadlock repair and deserves its own regression.
 
-The first candidate is compact Rust correctness work. The second is the stronger answer to the long-running reload/duplicate-invoke problem, but it needs WebView2 and WKWebView execution before implementation is promoted.
+The verified Rust callback candidate is compact correctness work. The IPC candidate is the higher-leverage answer to the long-running reload/duplicate-invoke problem, but it still needs WebView2 and WKWebView execution before implementation is promoted.
 
 ## Evidence class
 
 - Tauri implementation, tests, history, current issues and pull requests: `source-read`.
 - IPC transport-selection state-machine probe: `model-executed`; retained in `ipc-model-receipt-20260809.json`.
 - IPC `HEAD` negotiation candidate patch: `target-test-prepared`.
-- Listener-panic regression and candidate patch: `target-test-prepared`.
-- Listener-panic execution carrier run `31283181973`: queued on exact execution head `3427e21a6400314f662539cc0c15851cb3f15c49` at this handoff; no target-executed claim yet.
+- Core Rust listener callback-panic baseline and candidate: `target-executed` on a focused Linux regression; retained in `listener-execution-receipt-20260809.json`.
+- First listener execution attempt, run `31283181973`: invalid harness evidence; retained in `listener-execution-invalid-20260809.json` and excluded from the target claim.
+- Public `emit_filter` JS-filter panic/reentrancy seam: `source-read` only.
+- Filesystem `Scope` callback-panic seam: `source-read` only.
 - Owned application / WebView2 / WKWebView execution: absent.
 
 ## Code map
@@ -111,7 +115,7 @@ This proves only the state-machine property. It does not prove that WebView2 or 
 ```text
 emit_filter
   -> handlers.try_lock()
-  -> lock held while filter and callback run
+  -> lock held while Rust handler filter and callback run
        -> nested listen/unlisten/emit cannot lock
        -> nested action enters pending queue
   -> callback returns
@@ -128,12 +132,12 @@ Current `Pending::Emit` stores only `EmitArgs`. If a filtered emit is deferred, 
 
 The public `Emitter::emit_filter` closure has no `Send` or `'static` bound. A previous repair attempted to store the closure in the pending queue by widening those public bounds. That path is a poor fit for the existing API.
 
-### Callback panic path
+### Rust callback panic path
 
-The handler map uses `std::sync::Mutex`. Both filter evaluation and user callbacks run under its guard.
+The Rust handler map uses `std::sync::Mutex`, and user callbacks run under its guard.
 
 ```text
-callback/filter panic
+callback panic
   -> MutexGuard drops during unwind
   -> handler mutex becomes poisoned
   -> later handlers.try_lock() returns Poisoned
@@ -144,13 +148,41 @@ callback/filter panic
 
 This appears absent from the current Tauri issue search.
 
-A closely related filesystem scope manager uses an `emitting` flag plus a pending queue. That code was introduced to repair reentrant scope-event deadlocks. Its callback loop still runs under `event_listeners`, and a user panic skips the `emitting = false` transition while poisoning the listener mutex. Existing predecessor issue: `https://redirect.github.com/tauri-apps/tauri/issues/15468`.
+### Public filter path is a separate boundary
+
+Public `Emitter::emit_filter` routes through the manager in this order:
+
+```text
+manager.emit_filter
+  -> listeners.emit_js_filter(..., &filter)
+       -> js_event_listeners.lock().unwrap()
+       -> user filter runs while JS-listener mutex is held
+  -> listeners.emit_filter(..., &filter)
+       -> Rust handler mutex path
+```
+
+Consequences from source reading:
+
+- a user filter panic can poison `js_event_listeners` before the verified Rust callback-panic candidate is reached;
+- later JS listener operations use `.lock().unwrap()` and can panic on that poisoned mutex;
+- the same public filter is evaluated across two distinct lock domains;
+- a reentrant call from the filter back into JS-event emission may attempt to acquire `js_event_listeners` again while it is already held, so reentrancy deserves its own executable probe.
+
+Do not roll this into the verified callback claim without a separate test and repair boundary.
+
+### Filesystem scope sibling
+
+Filesystem `Scope::emit` has its own `event_listeners` mutex, an atomic `emitting` flag, and a pending-event queue. The current path sets `emitting = true`, invokes user listeners while holding `event_listeners`, then clears `emitting` and drains pending work.
+
+If a listener panics, unwind skips the clear and poisons the listener mutex. A caller that catches the panic can therefore leave the scope permanently in its “already emitting” state while future operations accumulate in the pending queue or encounter the poisoned lock.
+
+The emitting/pending mechanism was added by the merged repair for the reentrant scope-event deadlock tracked at `https://redirect.github.com/tauri-apps/tauri/issues/15468`. Its regression covers reentrancy/deadlock. Panic cleanup is a distinct invariant and currently has no matching open issue in the search performed for this scout.
 
 ## Listener panic probe
 
 Question: after one Rust event callback panics and the caller catches the unwind, can the same event manager still register and deliver a different event?
 
-Prepared regression:
+Regression:
 
 1. register a callback that panics;
 2. call `emit` inside `catch_unwind` and verify the panic propagated;
@@ -158,9 +190,9 @@ Prepared regression:
 4. emit the second event;
 5. require the second callback to run.
 
-Prepared candidate:
+Candidate:
 
-- catch an unwind from filter/callback execution while the handler mutex guard remains owned outside the catch boundary;
+- catch the callback unwind while the handler mutex guard remains owned outside the catch boundary;
 - let the guard drop normally, avoiding mutex poisoning;
 - flush pending reentrant actions, including `once` self-removal;
 - resume the original panic with `resume_unwind`.
@@ -169,16 +201,40 @@ Retained artifacts:
 
 - `probe/listener_panic_test.rs`
 - `probe/candidate.patch`
+- `listener-execution-receipt-20260809.json`
+- `listener-execution-invalid-20260809.json`
 
-The exact target workflow was created and then removed from the current branch after dispatch. Run `31283181973` remains queued against the execution head. Treat this candidate as prepared until an exact receipt exists.
+### Corrected target execution
+
+Pinned target: `34ec18ba5e1acabebd66ae79d6fc746f63d8eb96`  
+Runner: Ubuntu 24.04.4 x86_64  
+Rust: `rustc 1.97.1 (8bab26f4f 2026-07-14)`  
+Cargo: `cargo 1.97.1 (c980f4866 2026-06-30)`  
+Command: `cargo test -p tauri --lib --no-default-features listener_panic_does_not_stall_future_events -- --nocapture`
+
+Primary corrected run `31284095629`:
+
+- baseline exited `101` and matched the intended assertion `event manager stopped dispatching after callback panic`;
+- candidate patch applied successfully;
+- candidate test exited `0`.
+
+Independent confirmation run `31284174704` repeated the comparison:
+
+- baseline printed the intentional callback panic, then failed on the exact post-panic stall assertion;
+- candidate printed the same intentional panic, showing the unwind still reached the test's `catch_unwind`, then delivered the later event and passed `1/1` focused tests (`57` filtered out).
+
+Evidence class for this exact callback-panic/later-delivery claim is now `target-executed`. It is a focused Linux result, not a full Tauri gate and not proof of public filter-panic recovery.
+
+The first execution attempt `31283181973` is retained only as invalid harness evidence. Its baseline ran Cargo from the Fieldwork root rather than the Tauri checkout; its candidate stopped at a malformed retained-patch hunk. Neither old job contributes to the target claim.
 
 ## Ranked branch candidates
 
 1. **IPC `HEAD` transport negotiation before side-effecting dispatch** — highest leverage. It removes the ambiguous retry boundary instead of guessing why a command-level fetch rejected. Next evidence: one WebView2 and one WKWebView fixture covering local page, CSP-blocked custom protocol, external page, custom invoke headers, reload during a long-running command, binary channel traffic, and recovery after a post-negotiation transport failure.
-2. **Core event callback panic recovery** — compact correctness candidate. Promote only after the prepared baseline fails for the intended assertion and the candidate passes while preserving the caller-visible panic.
-3. **Filtered nested emit without public bound widening** — confirmed source defect with an awkward API constraint. Revisit callback ownership / lock lifetime after the panic candidate; avoid storing arbitrary public filter closures in the pending queue.
-4. **Filesystem scope panic recovery** — likely sibling failure after the reentrant-deadlock repair. Give it its own regression after core event behavior is established.
-5. **Runtime-wry native window/webview listener reentrancy and panic audit** — issue #15468 identified the same callback-under-lock family there. Map current dispatch sites before opening another candidate.
+2. **Core Rust event callback panic recovery** — reproduced and candidate-validated on the focused Linux regression. Next controls: a panicking `once` callback, ordinary reentrant `listen`/`unlisten`, and the crate's broader relevant test set before any human-facing patch packet is called ready.
+3. **Public `emit_filter` JS-listener panic/reentrancy** — source-supported separate lock boundary. Add a focused executable probe before choosing a repair; do not widen the verified callback patch by assumption.
+4. **Filtered nested emit without public bound widening** — confirmed source defect with an awkward API constraint. Revisit callback ownership / lock lifetime after the panic candidate; avoid storing arbitrary public filter closures in the pending queue.
+5. **Filesystem `Scope` callback panic recovery** — likely sibling failure after the reentrant-deadlock repair. Give it its own baseline/candidate regression rather than bundling it into the core event patch.
+6. **Runtime-wry native window/webview listener reentrancy and panic audit** — the same callback-under-lock family has appeared in adjacent runtime paths. Map current dispatch sites before opening another candidate.
 
 ## Negative results and stops
 
@@ -187,11 +243,12 @@ The exact target workflow was created and then removed from the current branch a
 - Command-level retry after an ambiguous rejection cannot promise at-most-once side effects.
 - A user-issued `OPTIONS` capability probe is less attractive than `HEAD`: `OPTIONS` is not a CORS-safelisted method, while `HEAD` and the real `POST` are.
 - Adding `Send + 'static` to `emit_filter` solely so the pending queue can own the closure widens an existing public contract.
+- The verified core callback patch does not repair the separate `js_event_listeners` filter-panic boundary.
 - Existing asset multi-range and immediate JS-unlisten fixes are occupied work and stay outside this scout.
 - No automated third-party upstream mutation was attempted or performed.
 
 ## Next transition
 
-The best next execution is the `HEAD` transport-selection fixture on Windows/WebView2 and macOS/WKWebView. It should compare current and candidate behavior on predeclared cases: CSP failure before dispatch, external-page custom protocol, additional invoke headers, reload after dispatch, channel traffic, and a later transport failure.
+The highest-value execution remains the `HEAD` transport-selection fixture on Windows/WebView2 and macOS/WKWebView. It should compare current and candidate behavior on predeclared cases: CSP failure before dispatch, external-page custom protocol, additional invoke headers, reload after dispatch, channel traffic, and a later transport failure.
 
-In parallel, consume run `31283181973` only when GitHub produces an exact receipt. If the listener baseline and candidate behave as predicted, add `once`-panic and filesystem-scope controls before preparing a human-facing patch packet.
+For the event family, run a `once`-panic control against the now-validated core candidate, then give the public-filter JS mutex seam and filesystem `Scope` panic seam separate regressions. Promote only the exact invariants those probes establish.
