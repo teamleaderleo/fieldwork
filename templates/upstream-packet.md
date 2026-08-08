@@ -4,6 +4,8 @@ Campaign:
 Target:  
 State: `candidate`
 
+> This packet is preparation-only. Fieldwork agents and automated workers must never submit, post, comment, review, react, or otherwise mutate a third-party upstream repository. A human must perform any upstream interaction manually outside Fieldwork automation.
+
 ## Proposal
 
 Begin with the smallest defensible statement:
@@ -100,7 +102,7 @@ State how the change could be reverted, disabled, or contained when recovery is 
 
 ## Upstream context
 
-Keep links quiet until contact is deliberate. When submitted, mark intentional direct references according to `REFERENCE_POLICY.md`.
+Keep links quiet while preparing the packet. If a human later submits upstream manually, Fieldwork may record that already-existing interaction according to `REFERENCE_POLICY.md`. The packet itself never authorizes an automated upstream write.
 
 ## AI assistance
 
@@ -114,9 +116,9 @@ reviewed every change:        yes / no
 can defend implementation:    yes / no
 ran stated verification:      yes / no
 checked current policy:       yes / no
-undisclosed upstream contact: no
+automated upstream write:     no
 ```
 
 ## Maintainer decision requested
 
-State the smallest concrete decision needed. Don't ask maintainers to infer the proposal from the dossier.
+State the smallest concrete decision a human may eventually ask upstream maintainers to make. Don't ask maintainers to infer the proposal from the dossier.
