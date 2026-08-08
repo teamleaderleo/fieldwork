@@ -66,7 +66,7 @@ If outside code later appends a node:
 
 So empty -> managed or empty -> nonempty still returns to React's old logical slot rather than jumping after the later append.
 
-## Interstitial outside nodes remain a policy question
+## Interstitial outside nodes remain a policy question, but do not require per-gap identity mapping
 
 If outside code inserts a node **between two React-owned top-level opaque nodes**, no single boundary can preserve a meaningful one-to-one gap when the next DSIH string may contain a completely different number/kind of top-level nodes.
 
@@ -74,9 +74,21 @@ Ownership must still preserve that outside node, but replacement policy has to c
 
 A right-edge policy naturally leaves surviving interstitial outside nodes before the replacement after old owned nodes are removed. A left-edge policy would put them after the replacement.
 
-Neither can infer author intent from arbitrary replacement markup. Do not pretend the Range solves this semantic ambiguity.
+Neither can infer author intent from arbitrary replacement markup.
 
-Add an explicit regression/policy decision before promotion for an outside node inserted between two opaque top-level nodes.
+However, the original HostSingleton contract helps bound what must be preserved. Its key constraint says Head and Body must never reposition, reorder, or otherwise alter the placement of style-related nodes **outside React**. The core interoperability concern was physically unmounting/reinserting those outside stylesheet/style nodes and triggering reload/unload behavior.
+
+A right-edge opaque replacement can satisfy that ownership constraint without inventing a mapping from old opaque nodes to new opaque nodes:
+
+- remove only React-owned old opaque nodes;
+- leave an interstitial external style node physically attached where it is;
+- insert the new React-owned fragment on the chosen side of that surviving node.
+
+The external node's sibling index may change as React-owned nodes disappear/appear, but React never removes, reinserts, or directly moves that outside node itself.
+
+This is a plausible reading of the founding invariant, not a fully specified cascade-order guarantee. Keep an explicit regression for an interstitial external style node and document which side of replacement content it remains on.
+
+Do not add per-gap mutation tracking unless a stronger compatibility requirement demands it.
 
 ## Ownership versus position
 
@@ -140,4 +152,4 @@ This strengthens the placement/contribution direction but does not make PR 32 pr
 
 ## Evidence class
 
-Standards-read against the current DOM Standard plus React source/control-flow analysis. No public upstream interaction performed.
+Standards-read against the current DOM Standard plus React source/control-flow analysis and the original HostSingleton contract. No public upstream interaction performed.
