@@ -1,11 +1,9 @@
 name: execute-118-tauri-listener-panic
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/**'
-      - '.github/workflows/execute-118-tauri-listener-panic.yml'
+  push:
+    branches:
+      - 'execute/118-tauri-listener-panic'
 
 permissions:
   contents: read
