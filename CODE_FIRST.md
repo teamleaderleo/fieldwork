@@ -86,7 +86,7 @@ For SDKs, libraries, runtimes, build tools, observability systems, and developer
 
 ### 6. Decide whether change is justified
 
-Choose among continue research, keep a local improvement, publish a finding, prepare an upstream proposal, or stop.
+Choose among continue research, keep a local improvement, publish a finding, prepare a human-facing upstream proposal, or stop.
 
 ## Meaningful refactors
 
@@ -121,4 +121,4 @@ Deep reading does not guarantee a patch. Record negative results, expected behav
 
 ## Upstream boundary
 
-Code-first investigation is still quiet by default. Reading, modeling, and testing do not authorize external issues, comments, reactions, or pull requests.
+Third-party upstream repositories are permanently read-only to Fieldwork agents and automated workers. Reading, modeling, testing, source inspection, and packet preparation are allowed. Creating or modifying upstream issues, pull requests, discussions, comments, reviews, reactions, labels, branches, files, commits, workflows, or any other upstream state is prohibited even when the user explicitly asks. A human must perform any upstream interaction manually outside Fieldwork automation.
