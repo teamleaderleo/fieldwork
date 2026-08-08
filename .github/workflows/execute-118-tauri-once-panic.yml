@@ -1,9 +1,9 @@
 name: execute-118-tauri-once-panic
 
 on:
-  pull_request:
+  push:
     branches:
-      - 'execute/118-tauri-listener-panic'
+      - 'execute/118-tauri-once-panic-control'
 
 permissions:
   contents: read
