@@ -60,9 +60,9 @@ new file mode 100644
 +      child.once("error", reject);
 +    });
 +
-+    // Keep the child alive after SIGUSR1 long enough for every timeout owner
-+    // to run. Node reaches this point with exactly one call to child.kill().
-+    await Bun.sleep(400);
++    // The timeout starts before the child prints "ready". Wait beyond the
++    // full timeout from that readiness point so every timeout owner has run.
++    await Bun.sleep(1200);
 +    expect(timeoutKillCalls).toHaveLength(1);
 +
 +    // Cleanup is deliberately excluded from timeoutKillCalls.
