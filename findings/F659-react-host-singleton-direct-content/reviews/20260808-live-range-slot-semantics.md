@@ -6,84 +6,138 @@ Can an in-memory live DOM `Range` represent the logical position of a body opaqu
 
 ## Standards result
 
-**Yes, as a position token, with a deterministic boundary policy.**
+**Yes, as a position token, with a deterministic boundary policy. A collapsed Range at the contribution's right edge is preferable to the earlier left-edge idea.**
 
 The DOM Standard's insertion algorithm updates a live range boundary in a parent only when that boundary's offset is **greater than** the reference child's index. Equality does not shift it.
 
-For append-before-null, the insertion algorithm does not run that reference-child offset adjustment at all.
+For append-before-null, the reference-child offset adjustment does not run.
 
 The removal algorithm decreases a parent boundary offset when the boundary is greater than the removed node's index.
 
-These rules give a collapsed Range useful left-sticky behavior.
+These rules make a live Range useful for remembering a child-list position while outside code mutates siblings.
 
-## Empty-at-end example
+## Why the earlier left-edge model is insufficient
+
+A collapsed Range before the first React-owned opaque node solves the empty-at-end example, but it has an undesirable nonempty edge case.
+
+Suppose the contribution begins with owned node A and the Range sits immediately before A. If outside code later calls `insertBefore(X, A)`, insertion occurs at exactly the Range offset, so the Range does not move. The Range now sits before X.
+
+On React's next opaque replacement, inserting at that left Range would place the new React content before X. The outside node that was deliberately inserted **before the old React content** would migrate to the other side of the replacement.
+
+That is a poor default preservation rule.
+
+## Prefer a right-edge Range
+
+For a contribution whose owned top-level nodes end immediately before some outside node R, store the collapsed Range **after the owned contribution / before R**.
+
+If the contribution is at the end of body, store the Range at `(body, body.childNodes.length)`.
+
+This behaves better for ordinary outside insertions.
+
+### Outside insertion before the contribution
+
+If outside code inserts before an owned node, that insertion index is less than the right-edge Range offset. The live Range shifts right with the insertion and therefore remains after the React contribution.
+
+When React later removes its owned nodes, the Range shifts left appropriately but remains after the outside node. Replacement inserted at the captured right edge stays **after** the outside-before node.
+
+### Outside insertion after the contribution
+
+If outside code inserts at the exact right edge — for example before R, or appends when the Range is at body end — equality means the Range does not shift.
+
+The new outside node therefore lands to the **right** of React's remembered slot. A later replacement inserted at the slot stays before that outside-after node.
+
+This gives the intuitive behavior for the two common adjacency cases:
+
+- insert before React -> remains before React after replacement;
+- insert after React -> remains after React after replacement.
+
+## Empty-at-end example still works
 
 Suppose body has `N` children and React owns an empty opaque contribution at the logical end.
 
-Store a collapsed range at `(body, N)`.
+The right edge and left edge are the same collapsed point: `(body, N)`.
 
 If outside code later appends a node:
 
-- the append occurs before `null`;
+- append occurs before `null`;
 - the Range remains at offset `N`;
-- the body length becomes `N + 1`;
-- the Range is now immediately **before** the newly appended outside node.
+- body length becomes `N + 1`;
+- the Range is now immediately before the newly appended outside node.
 
-So a later empty -> managed or empty -> nonempty transition can still insert at React's old logical slot instead of jumping after the outside append.
+So empty -> managed or empty -> nonempty still returns to React's old logical slot rather than jumping after the later append.
 
-## Insertions before the slot
+## Interstitial outside nodes remain a policy question
 
-If outside code inserts before a child whose index is less than the Range offset, the Range offset increases with the insertion. It therefore continues pointing at the same logical place relative to the pre-existing content.
+If outside code inserts a node **between two React-owned top-level opaque nodes**, no single boundary can preserve a meaningful one-to-one gap when the next DSIH string may contain a completely different number/kind of top-level nodes.
 
-## Insertions exactly at the slot
+Ownership must still preserve that outside node, but replacement policy has to choose which side of the new opaque contribution it lands on.
 
-If outside code inserts before the child currently at the exact Range offset, the Range does not shift because the update condition is `offset > child.index`, not `>=`.
+A right-edge policy naturally leaves surviving interstitial outside nodes before the replacement after old owned nodes are removed. A left-edge policy would put them after the replacement.
 
-That means the new outside node lands after the conceptual React slot.
+Neither can infer author intent from arbitrary replacement markup. Do not pretend the Range solves this semantic ambiguity.
 
-A live Range cannot infer whether outside code intended that exact-boundary insertion to mean "before React" or "inside/after React". A repair using this primitive must choose and document a deterministic policy. Left-sticky behavior naturally gives exact-boundary outside insertions to the **right** of React's slot.
+Add an explicit regression/policy decision before promotion for an outside node inserted between two opaque top-level nodes.
 
 ## Ownership versus position
 
-The Range should not define which DOM nodes React owns.
+The Range must **not** define which DOM nodes React owns.
 
-Ownership should remain explicit, e.g. a list/set of top-level nodes produced by the opaque write. Otherwise an outside node inserted between React-owned top-level nodes could become accidentally included in a range-based delete operation.
+Ownership remains explicit, e.g. the exact top-level nodes produced by the opaque write. Otherwise an outside node inserted between React-owned nodes could accidentally become part of a range-based delete operation.
 
-The useful split is therefore:
+The useful split remains:
 
 - **node provenance:** exact React-produced top-level nodes;
-- **slot provenance:** one collapsed live Range.
+- **slot provenance:** one collapsed live right-edge Range.
 
-## Replacement order
+## Replacement mechanics
 
-The Range also allows the corrected lifecycle order identified separately:
+Do not use `Range.insertNode()` as the primary insertion primitive. Its collapsed-range semantics expand the Range around the inserted node, which is different bookkeeping from what the contribution model needs.
 
-1. retain the collapsed slot Range;
-2. remove previous React-owned nodes;
-3. insert the replacement at the Range boundary.
+Instead:
 
-For insertion, avoid `Range.insertNode()` if the intent is to keep the Range collapsed and left-sticky: the Range algorithm expands a collapsed range's end after insertion. Instead, derive the reference child from `range.startContainer/startOffset` and insert a `DocumentFragment` with the ordinary DOM insertion operation. The live Range remains at the left edge because its offset equals the insertion index.
+1. derive a fixed `before` node from `range.startContainer.childNodes[range.startOffset]` (or `null` at end);
+2. retire old React-owned nodes;
+3. insert a parsed `DocumentFragment` once before that fixed node, preserving fragment child order;
+4. re-establish the collapsed Range **after the newly inserted opaque contribution / before the same outside right anchor**.
 
-## Hide / reappear
+Using a single fragment insertion also avoids reversing nodes when multiple parsed top-level nodes are installed at one slot.
 
-A per-Fiber Range is also potentially useful across singleton release/reacquire:
+### Opaque -> managed
 
-- release can remove the owned nodes while leaving the Range state associated with the still-retained hidden Fiber;
-- reappearance can reconstitute opaque nodes at the remembered slot;
-- if the Fiber is permanently deleted, a WeakMap keyed by the Fiber/alternate pair can let the Range state become collectible without a DOM marker.
+Before removing the opaque contribution, snapshot the right-hand `before` node from the Range. Retire opaque owned nodes, then make replacement child Placements use that fixed `before` node for the transition commit. Once the tree becomes managed, opaque Range metadata can be discarded.
 
-This does not by itself solve commit-phase timing or stale-owner singleton mutations.
+### Managed -> opaque
+
+Capture a right-edge Range after the managed contribution before child deletions. Normal mutation effects retire the old managed children. Then insert the new opaque fragment at the remembered right edge and reset the Range after the new owned nodes.
+
+### Opaque -> opaque
+
+Keep the right edge, retire only old owned nodes, insert replacement fragment before the fixed right anchor, then reset the Range after the new contribution.
+
+This preserves the retire-before-install lifecycle ordering required for custom elements.
+
+## Activity relevance
+
+The Range model fits the stronger body ownership synthesis: hidden managed contributions can remain connected and hidden while another owner's opaque contribution occupies a separate ordered slot.
+
+For opaque contributions owned by a hidden Activity, additional explicit hide/unhide bookkeeping is still required because DSIH nodes have no child Fibers for normal Offscreen traversal.
+
+## Server/hydration relevance
+
+A live Range solves only client position tracking. Hydrated server DSIH still needs a collision-proof provenance protocol that identifies its owned nodes and initial right edge.
+
+The rejected PR 34 direct-stream experiment cannot provide that because arbitrary DSIH comments collide with React's boundary-control comment namespace.
 
 ## Cost / risk
 
-Live ranges are updated by DOM tree mutations, and the DOM Standard explicitly notes that maintaining them has mutation-time cost. The expected HostSingleton count is tiny, but this should still be measured/reviewed before promotion.
+Live ranges are updated by DOM tree mutations, and the DOM Standard notes the maintenance cost. HostSingleton count is tiny, but this should still be measured/reviewed before promotion.
 
 ## Disposition
 
-**Retain as a viable body-slot primitive.**
+**Retain a collapsed right-edge live Range as the leading client slot primitive. Reject the earlier left-edge recommendation for nonempty contributions.**
 
-This raises confidence in the placement-unit direction but does not rescue the current PR 32 implementation. PR 32 still has wrong replacement ordering, no empty Range state, hydration provenance gaps, and hide/reappear work.
+This strengthens the placement/contribution direction but does not make PR 32 promotable. PR 32 still lacks Range state, correct replacement order, hydration provenance, opaque Activity visibility, and explicit interstitial-node policy.
 
 ## Evidence class
 
-Standards-read against the current DOM Standard plus React source-read. No public upstream interaction performed.
+Standards-read against the current DOM Standard plus React source/control-flow analysis. No public upstream interaction performed.
