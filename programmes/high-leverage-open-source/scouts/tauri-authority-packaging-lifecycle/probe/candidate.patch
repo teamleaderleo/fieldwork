@@ -32,7 +32,8 @@ index afcc3ca5b..000000000 100644
        }
      }
  
-     if maybe_pending {
+-    if maybe_pending {
++    if maybe_pending || callback_panic.is_some() {
        self.flush_pending()?;
      }
 +    if let Some(payload) = callback_panic {
