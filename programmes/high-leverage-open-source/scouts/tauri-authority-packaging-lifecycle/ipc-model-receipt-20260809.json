@@ -8,12 +8,18 @@
   "runtime": "node v22.16.0",
   "command": "node ipc_transport_model.mjs",
   "result": "pass",
+  "stdout": [
+    "PASS normal: one custom-protocol dispatch",
+    "PASS CSP block: HEAD probe selects postMessage before command dispatch",
+    "PASS reload after dispatch: ambiguous invoke rejects after one Rust dispatch",
+    "PASS later transport break: failed invoke is not replayed; next invoke recovers via postMessage"
+  ],
   "observations": [
     "current fallback model dispatches twice when navigation aborts after the custom-protocol dispatch",
     "negotiating transport before command dispatch preserves one Rust dispatch in the normal path",
     "a CSP-blocked custom protocol can select postMessage before the modeled command dispatch",
     "a navigation abort after dispatch rejects the modeled invoke without a second transport dispatch",
-    "a later transport failure rejects instead of risking duplicate side effects"
+    "a later custom-protocol failure rejects the ambiguous invoke and moves the next invoke to postMessage"
   ],
   "candidate_probe": {
     "method": "HEAD",
