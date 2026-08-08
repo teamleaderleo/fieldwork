@@ -72,6 +72,7 @@ programmes:
       - playwright
       - biome
       - workers-sdk
+      - swc
     likely_testbeds:
       - elatura
       - scrapbook
@@ -90,6 +91,10 @@ programmes:
         issue: 27
         target: biome
         state: ready
+      - id: swc-runtime-semantics-and-recovery
+        issue: 718
+        target: swc
+        state: claimed
 
   - id: data-durable-workflows
     issue: 16
