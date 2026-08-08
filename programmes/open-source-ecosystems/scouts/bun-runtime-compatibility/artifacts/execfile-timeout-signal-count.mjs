@@ -16,7 +16,7 @@ const childSource = String.raw`
   const receipt = process.argv[1];
   writeFileSync(receipt, "");
   process.on("SIGUSR1", () => {
-    appendFileSync(receipt, "SIGUSR1\n");
+    appendFileSync(receipt, "x");
   });
   setInterval(() => {}, 1000);
 `;
@@ -53,21 +53,18 @@ try {
     child.once("close", () => clearTimeout(cleanup));
   });
 
-  let lines = [];
+  let receiptText = null;
   try {
-    lines = readFileSync(receipt, "utf8")
-      .split("\n")
-      .filter(Boolean);
+    receiptText = readFileSync(receipt, "utf8");
   } catch {
     // A missing receipt means the child never reached its ready write. Report
     // that directly so a slow-start harness failure cannot look like zero signals.
-    lines = null;
   }
 
   const result = {
     runtime: process.versions.bun ? `bun ${process.versions.bun}` : `node ${process.versions.node}`,
-    signalCount: lines === null ? null : lines.length,
-    receipts: lines,
+    signalCount: receiptText === null ? null : receiptText.length,
+    receiptBytes: receiptText,
     callbackError: callbackError
       ? {
           name: callbackError.name,
