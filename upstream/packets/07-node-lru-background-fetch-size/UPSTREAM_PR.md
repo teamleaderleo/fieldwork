@@ -2,7 +2,7 @@
 
 Draft status: `ready for owner copy/paste review — no upstream post performed`  
 Proposed title: `fix: snapshot backgroundFetchSize before invoking user code`  
-Proposed head: `teamleaderleo/node-lru-cache:repair/background-fetch-size-source` at `4a80ff2cec44d259907e474336a64ec984a465a5`  
+Proposed head: `teamleaderleo/node-lru-cache:repair/background-fetch-size-source` at `364a8c1c07c9f6281fbe19943eacd261bd410fc4`  
 Proposed base: `isaacs/node-lru-cache:main` at `16b3a916662ab449d496b7b4b4f04132565d1d28`  
 Compare / create-PR page: https://redirect.github.com/isaacs/node-lru-cache/compare/main...teamleaderleo:repair/background-fetch-size-source?expand=1
 
@@ -29,8 +29,7 @@ Added coverage for:
 - mutation from inside `fetchMethod`;
 - mutations applying to later, but not already-running, fetches;
 - `backgroundFetchSize: 0`;
-- stale refreshes and caches without size tracking;
-- invalid internal provisional-size state.
+- stale refreshes and caches without size tracking.
 
 The existing `test/background-fetch-size.ts` test file and TAP clock setup are preserved.
 
@@ -40,39 +39,55 @@ Linux and macOS CI passed for the same production change. The Windows jobs stop 
 
 ## Internal submission notes — do not paste upstream
 
+### Regression scope
+
+The final test suite is intentionally limited to supported behavior and realistic regression boundaries.
+
+A previous test imported the exported `BackgroundFetch` type, reached through `unsafeExposeInternals()`, changed the hidden `__size` receipt to `NaN`, and reinserted that internal Promise through `set()`. That test was removed. The repository's own documentation warns that mutating values returned by `unsafeExposeInternals()` may cause strange breakage, so malformed private state isn't part of the supported contract this PR needs to promise.
+
+The accounting boundary still validates the stored receipt defensively. That guard is cheap protection against an impossible/malformed internal state, but it doesn't need a dedicated public-behavior regression test.
+
+The remaining added tests each protect a distinct contract:
+
+- constructor validation of the option's numeric domain and representative non-number values;
+- non-coercion of hostile runtime input;
+- validation of post-construction mutation before provider dispatch;
+- snapshotting before synchronous `fetchMethod` mutation, including later-operation behavior and same-key coalescing;
+- no-size caches ignoring an irrelevant mutated option;
+- stale refreshes continuing to use the existing entry size;
+- zero-size background fetches remaining coalesced.
+
 ### Test placement / style check
 
 Repository convention has two relevant patterns:
 
-- broad constructor-option validation appears in `test/basic.ts` (for example TTL/maxSize validation);
-- feature-specific behavior lives in dedicated files such as `test/size-calculation.ts`, and upstream itself introduced `test/background-fetch-size.ts` with this option.
+- broad constructor-option validation appears in `test/basic.ts`;
+- feature-specific behavior lives in dedicated files, and upstream itself introduced `test/background-fetch-size.ts` with this option.
 
-Keeping the `backgroundFetchSize` constructor and behavior regressions together in the dedicated feature file avoids expanding the contribution to a third file for one closely related check. This is the better ownership/scope tradeoff here.
-
-The earlier test matrix enumerated many redundant JavaScript types. It has been reduced to representative cases that each prove a distinct invariant. The final test delta is +190 / -1 instead of +269 / -1.
+Keeping the closely related constructor and runtime regressions together in the existing feature file avoids adding a third changed file and keeps review focused.
 
 ### Why this hole existed
 
 `backgroundFetchSize` was added in 11.5 by commit `4708153206daf822a3ad440ce47248b9cfbdb973`.
 
-Before that change, background-fetch placeholders were a special case in `#requireSize()` and simply returned provisional size `0`. Version 11.5 moved the special case inside the invalid-explicit-size branch and changed the returned provisional value from `0` to `this.backgroundFetchSize`.
-
-That direct return never passes through the normal positive-integer validator used for explicit sizes and `sizeCalculation()` results. The option therefore inherited the background-fetch exception but not the surrounding size invariant.
+Before that change, background-fetch placeholders were a special case in `#requireSize()` and simply returned provisional size `0`. Version 11.5 changed that special-case return to `this.backgroundFetchSize` without adding the normal size guard around the new option.
 
 ### Why not use only `isPosInt()`
 
-The repository already has `isPosInt()` for ordinary positive size/count contracts. `backgroundFetchSize` is intentionally different because `0` is useful and supported.
+The repository already has `isPosInt()` for ordinary positive size/count contracts. `backgroundFetchSize` is different because `0` is useful and supported.
 
-The new nonnegative wrapper first requires `typeof value === "number"`, then accepts zero or delegates positive values to `isPosInt()`. The type-first check matters because the property is public and mutable at runtime: JavaScript callers can assign symbols or objects even though TypeScript declares `number`. This avoids invoking conversion hooks merely to reject an invalid value.
+The new nonnegative wrapper first requires a primitive number, then accepts zero or delegates positive values to `isPosInt()`. That type-first check also avoids invoking caller conversion hooks merely to reject an invalid runtime value.
 
 ### Final source state
 
-- canonical head: `4a80ff2cec44d259907e474336a64ec984a465a5`;
+- canonical head: `364a8c1c07c9f6281fbe19943eacd261bd410fc4`;
 - one commit over the exact public base;
 - exactly two files;
 - `src/index.ts`: +33 / -1;
-- `test/background-fetch-size.ts`: +190 / -1;
-- total: +223 / -2;
+- `test/background-fetch-size.ts`: +160 / -0;
+- total: +193 / -1;
+- source blob: `c3549a638b84ce096b13ebd7e3f71496dbe5afd5`;
+- test blob: `a83968f5110bfe42cfe32aae55cb6018aba6aebd`;
 - no dependency, lockfile, workflow, snapshot, generated-output, or Fieldwork file.
 
 The repository's original `t.clock` setup remains unchanged.
@@ -88,8 +103,8 @@ The repository's original `t.clock` setup remains unchanged.
 
 - production source is unchanged from the previously reviewed candidate;
 - prior focused production-tree gate, Ubuntu/macOS native CI, and benchmarks passed;
-- final exact-head CI `31227785209`: queued at this edit;
-- final exact-head Benchmarks `31227785205`: queued at this edit;
+- final exact-head CI `31231433021`: queued at this edit;
+- final exact-head Benchmarks `31231433009`: queued at this edit;
 - no exact-head success is claimed until those execute;
 - Windows `@tapjs/clock` failure remains an unchanged-base repository harness limit, not repaired in this contribution.
 
