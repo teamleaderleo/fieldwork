@@ -37,13 +37,38 @@ Owned React PR 24 is a verifier only. It contains:
 - one workflow running the focused singleton tests in development and production plus changed-file lint;
 - no clean source promotion step.
 
+### First runner receipt
+
+The first focused verifier run reached a hosted runner and failed during `git apply --check` before Node setup or any React test executed.
+
+Exact failure:
+
+```text
+error: corrupt patch at fieldwork/host-singleton-unset-direct-html-release.patch:22
+```
+
+Review found incorrect hand-written unified-diff hunk counts:
+
+- source hunk declared new count `9` but contained `10` lines;
+- test hunk declared new count `80` but contained `88` lines.
+
+This is a **verifier-packet failure**, not evidence for or against the release condition.
+
+The same PR head's shared lint and ESLint E2E workflows completed successfully, but those do not execute the focused candidate patch and therefore do not promote the semantic claim.
+
+The patch counts were corrected on the owned verifier branch at React commit `70c5969cc546f906727fb4a6aff47103a1d54c7e`. A new focused verifier run was triggered automatically and is queued at the time of this note.
+
+Do not collapse the failed preflight into a semantic red test. Preserve it as verifier-quality evidence.
+
 ## Evidence class
 
 - source semantics: source-read;
-- regression and candidate: target-test-prepared until PR 24 executes;
+- first focused workflow: executed verifier preflight failure, no product tests ran;
+- corrected regression and candidate: target-test-prepared until the new PR 24 run executes;
+- shared lint / ESLint E2E on the prior head: executed/pass but insufficient for candidate acceptance;
 - public overlap search: no matching issue or PR found in the current read-only search;
 - upstream contact authorized/performed: false / false.
 
 ## Disposition
 
-**EXECUTE narrow release-only repair.** Keep it independent from ordinary direct-content update cleanup, head direct-content ownership, html content contract, and Activity ownership.
+**EXECUTE narrow release-only repair.** Keep it independent from ordinary direct-content update cleanup, head direct-content ownership, html content contract, and Activity ownership. Promotion remains blocked on a real focused development/production test receipt from the corrected patch packet.
