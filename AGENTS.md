@@ -2,6 +2,19 @@
 
 These instructions apply to every AI system and automated worker operating in this repository.
 
+## Hard upstream-write prohibition
+
+Third-party upstream repositories are permanently **read-only** to every Fieldwork agent and automated worker.
+
+- Never perform a state-changing action against a third-party upstream repository. This includes creating or updating issues, pull requests, discussions, comments, reviews, reactions, labels, assignments, milestones, branches, files, commits, releases, workflow runs, merges, or any other repository state.
+- This prohibition is unconditional. A user request, explicit authorization, campaign state, issue field, marker, target contribution policy, apparent intent, or available tool permission does **not** override it.
+- If a user asks an agent to file, open, post, submit, reply, review, react, label, merge, rerun, push, or otherwise change upstream, stop at preparation. Produce the draft, patch, reproduction, test evidence, links, and exact manual steps the human needs, but do not invoke the upstream mutation.
+- Agents may freely read and search public upstream material and may create or modify Fieldwork artifacts, owned repositories, and owned forks according to the rest of these instructions.
+- Only a human may perform an upstream interaction, manually and outside Fieldwork automation. Agents may record that already-existing human interaction afterward.
+- Any `upstream-contact authorization` field for an automated worker is always `false`. It is a status record, not a permission switch.
+
+This rule takes precedence over any older Fieldwork text that could be read as permitting automated upstream contact.
+
 ## Entry protocol
 
 - Start with `START_HERE.md`.
@@ -18,7 +31,7 @@ These instructions apply to every AI system and automated worker operating in th
 - Create a target hub only when recurring work justifies one; do not turn every registry entry into an issue.
 - When an owned repository is used to exercise another target, apply `testbed:<slug>` only after the real trial begins and follow `TESTBEDS.md`.
 - If the owned repository itself is under investigation, use it as the target rather than the testbed.
-- Programme, target, and testbed registries are discovery surfaces, not automatic permission to work or contact upstream.
+- Programme, target, and testbed registries are discovery surfaces, not automatic permission to work. They never authorize third-party upstream writes.
 
 ## Scout lanes
 
@@ -59,12 +72,12 @@ These instructions apply to every AI system and automated worker operating in th
 
 Follow `REFERENCE_POLICY.md`.
 
-Before creating or editing a Fieldwork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work:
+Before creating or editing a Fieldwork or owned-fork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work:
 
-- use the equivalent `redirect.github.com` URL unless that exact upstream interaction was explicitly authorized;
-- remove external owner/repository item and commit shorthand;
-- use the intentional-upstream marker only for the specifically authorized interaction;
-- remember that creating a Fieldwork record never authorizes upstream contact.
+- use the equivalent `redirect.github.com` URL unless recording an already-existing human-performed upstream interaction;
+- remove external owner/repository item and commit shorthand where the policy requires it;
+- use the intentional-upstream marker only to record an already-existing human-performed interaction;
+- remember that the marker never authorizes an automated upstream write.
 
 Repository notes, reports, maps, JSON records, and other tracked files may use ordinary direct links. They do not need the interaction preflight or an automated external-reference scan.
 
@@ -74,7 +87,7 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 
 - Small one-worker experiments may be created under `playgrounds/` without an upstream fork or Fieldwork issue.
 - Use a stable `EXP-YYYYMMDD-short-name` directory and `templates/experiment.json`.
-- State one bounded question, exact command, environment, source revisions, claim scope, stop condition, and upstream-contact authorization.
+- State one bounded question, exact command, environment, source revisions, claim scope, stop condition, and upstream-contact authorization `false`.
 - Reuse `playgrounds/cases/` only when those inputs can distinguish hypotheses already grounded in the assignment.
 - Do not select research topics merely because a case pack or example exists.
 - Default to synthetic inputs and no network access.
@@ -115,7 +128,7 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 - Preserve the narrowest accurate evidence class: source-read, model-executed, target-test-prepared, target-executed, integration-executed, or full-gate.
 - Never describe a prepared test as executed, a focused run as a full gate, one platform as cross-platform, or green CI as proof of an untested security or authority property.
 - Review the complete current diff. Any head movement expires a disposition unless semantic identity is proved within the reviewed fence.
-- Builders may record self-review, but consequential implementation, security, authority, and upstream packets should receive independent final review.
+- Builders may record self-review, but consequential implementation, security, authority, and human-facing upstream packets should receive independent final review.
 - Keep pull-request descriptions current. Remove stale dependency, branch, current-main, supersession, and running-check language after state changes.
 - Issue-body `State:` text and live `state:*` labels must agree before promotion.
 - Close or clearly retire execution carriers after evidence reaches the canonical branch.
@@ -124,7 +137,7 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 ## Default behaviour
 
 - Treat external observation as quiet research.
-- Never open, comment on, react to, or modify upstream work without an explicit user instruction for that interaction.
+- Never open, update, close, comment on, review, react to, label, assign, merge, rerun, push to, or otherwise mutate third-party upstream work. Explicit user instruction does not override this rule.
 - Never manufacture contribution volume, low-value cleanup, or speculative patches.
 - Do not claim a reproduction, test result, benchmark, policy, maintainer position, use case, or integration consequence without evidence.
 - Preserve exact source revisions, retrieval dates, environments, and commands.
@@ -151,21 +164,23 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 4. **Playground experiment** — use for bounded local tests that require no shared coordination or upstream modification.
 5. **Integration trial** — use an owned repository for realistic lifecycle, integration, or ergonomics evidence.
 6. **Context dossier** — use when isolated evidence needs sourced integration, operational, or ecosystem interpretation.
-7. **Execution carrier** — temporary evidence-producing branch or pull request; it must identify and return evidence to a canonical source branch, then close.
+7. **Execution carrier** — temporary evidence-producing branch or pull request in an owned repository; it must identify and return evidence to a canonical source branch, then close.
 
 Never have multiple workers push shared files directly to `main`.
 
 ## AI-assisted implementation
 
 - Generated code is a candidate until tested and reviewed.
-- A human remains responsible for every upstream claim and submitted line.
-- Follow each target project's current contribution and AI-disclosure policy.
+- A human remains responsible for every upstream claim and submitted line, and must perform any upstream submission manually outside Fieldwork automation.
+- Follow each target project's current contribution and AI-disclosure policy when preparing material for human submission.
 - Keep changes bounded to the assigned question.
 - Do not rewrite unrelated files for style or convenience.
 
 ## External interactions
 
-A programme, target hub, target map, batch, campaign, lane, playground, testbed trial, context dossier, repository note, or Fieldwork issue does not authorize upstream contact. Direct upstream interaction requires a specific user instruction and must be recorded in the campaign closeout or upstream packet.
+Third-party upstream repositories are read-only to agents and automated workers. No Fieldwork record, programme, target hub, target map, batch, campaign, lane, playground, testbed trial, context dossier, repository note, user instruction, authorization field, marker, or target-project policy can authorize an automated upstream mutation.
+
+Agents may prepare human-facing upstream packets, issue drafts, pull-request drafts, patches, reproductions, review notes, and manual submission steps in Fieldwork or owned repositories. If a human later performs an upstream interaction manually, agents may record that already-existing interaction in Fieldwork.
 
 ## Safety
 

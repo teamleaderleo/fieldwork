@@ -1,6 +1,8 @@
 # External Reference Policy
 
-Third-party GitHub issue, pull-request, and discussion references are **non-invasive by default in GitHub conversations**. The purpose of this policy is to prevent research coordination from creating backlinks, notifications, or implied participation in an upstream project before that interaction is authorized.
+Third-party GitHub issue, pull-request, and discussion references are **non-invasive by default in GitHub conversations**. The purpose of this policy is to prevent research coordination from creating backlinks, notifications, or implied participation in an upstream project.
+
+This reference policy does not grant authority to mutate third-party repositories. For every Fieldwork agent and automated worker, third-party upstream repositories are permanently read-only. See `AGENTS.md`.
 
 ## Where the backlink risk exists
 
@@ -48,11 +50,9 @@ Direct links to third-party commits and `OWNER/REPOSITORY@SHA` commit shorthand 
 
 Inline code spans and fenced code blocks are inert evidence text. The interaction scanner ignores third-party references inside those code regions while continuing to scan prose and Markdown link destinations.
 
-## Preflight before posting interaction text
+## Preflight before posting Fieldwork interaction text
 
-A draft pull request is already a live GitHub interaction. GitHub parses its title and body when it is created, before CI can run. The same applies to issues, comments, reviews, and inline review comments.
-
-Run the interaction scanner against generated or carefully prepared interaction text before posting:
+Before creating or editing a Fieldwork or owned-fork issue, pull request, comment, review, inline review comment, or discussion containing third-party work, run the interaction scanner against generated or carefully prepared interaction text:
 
 ```sh
 node scripts/check_interaction_references.js --stdin < proposed-body.md
@@ -62,24 +62,19 @@ A post-write workflow remains a detector and cleanup aid. Preflight is the preve
 
 A plain repository-file write that creates no issue, pull request, comment, review, or discussion does not require this preflight.
 
-## Intentional upstream contact
+## Human-performed upstream interactions
 
-A direct third-party issue, pull-request, or discussion link in interaction text is allowed only when it records a specifically authorized interaction, such as:
+A human may independently choose to interact with an upstream project outside Fieldwork automation. Agents may later record that already-existing interaction in Fieldwork, but they must not create, update, reply to, react to, review, label, assign, merge, rerun, or otherwise mutate the third-party upstream repository themselves.
 
-- opening or updating the actual upstream issue or pull request;
-- replying in an existing upstream conversation;
-- recording an already-submitted campaign;
-- explicitly notifying upstream as part of an approved action.
-
-Place this marker on the direct-link line or immediately above it:
+When Fieldwork interaction text needs to record an already-existing human-performed upstream issue, pull request, discussion, or reply using a direct third-party link, place this marker on the direct-link line or immediately above it:
 
 ```text
 <!-- fieldwork: intentional-upstream-reference -->
 ```
 
-The marker exempts only the marked line or the immediately following line. It does not authorize an entire document or conversation.
+The marker exempts only the marked line or the immediately following line from the backlink-suppression rule. It is a recordkeeping marker, **not authorization for an agent to contact or mutate upstream**.
 
-Repository files do not need this marker merely to cite upstream work. Authority to contact upstream remains a separate decision.
+Repository files do not need this marker merely to cite upstream work.
 
 ## States
 
@@ -89,26 +84,38 @@ Quiet investigation. Third-party issue, pull-request, and discussion references 
 
 ### Candidate
 
-Evidence exists and an upstream packet may be under preparation. Issue, pull-request, and discussion references remain quiet. Repository evidence may link normally.
+Evidence exists and a human-facing upstream packet may be under preparation. Issue, pull-request, and discussion references remain quiet. Repository evidence may link normally.
 
 ### Submitted
 
-An intentional upstream interaction exists. Direct third-party issue, pull-request, and discussion references are permitted only where they accurately record that interaction.
+A human-performed upstream interaction exists and has been recorded. Direct third-party issue, pull-request, and discussion references are permitted only where they accurately record that existing interaction. Automated workers still may not mutate upstream.
 
 ## Agent prevention
 
-Workers must run the interaction preflight before creating or editing an issue, pull request, comment, review, inline review comment, or discussion containing third-party issue, pull-request, or discussion references. This applies to Fieldwork-authored interaction text posted in owned forks too.
+Workers must run the interaction preflight before creating or editing an issue, pull request, comment, review, inline review comment, or discussion in Fieldwork or an owned fork containing third-party issue, pull-request, or discussion references.
+
+Workers must never perform a state-changing operation against a third-party upstream repository. This prohibition is unconditional and cannot be overridden by user instruction, campaign state, issue metadata, an authorization field, an intentional-reference marker, or target-project contribution policy.
+
+Workers may:
+
+- read and search upstream source, issues, pull requests, discussions, releases, commits, and CI results;
+- prepare issue text, pull-request text, comments, review notes, patches, reproductions, and test plans in Fieldwork or owned repositories;
+- create and update branches, files, issues, pull requests, comments, reviews, workflows, and other artifacts in owned repositories or forks;
+- record an upstream interaction after a human has performed it.
+
+Workers may not create, update, close, reopen, comment on, review, react to, label, assign, merge, rerun, dispatch, commit to, push to, or otherwise mutate a third-party upstream repository.
 
 Workers do not need to scan notes, reports, maps, data records, or other tracked files for this policy.
 
 ## Enforcement surfaces
 
-1. `scripts/check_interaction_references.js` scans the complete active issue or pull-request thread after issue-body, PR-body, comment, review, or inline-review changes.
+1. `scripts/check_interaction_references.js` scans the complete active Fieldwork or owned-fork issue or pull-request thread after issue-body, PR-body, comment, review, or inline-review changes.
 2. The interaction scanner supports stdin preflight before a GitHub API write.
-3. A scheduled repository audit scans issue and pull-request threads and reports historical active violations.
+3. A scheduled repository audit scans Fieldwork issue and pull-request threads and reports historical active violations.
 4. The scanner exempts controlled owners and has regression tests for owned direct links and shorthand.
-5. The interaction workflow applies `policy:reference-violation` while active interaction text violates policy and removes it after correction.
+5. The interaction workflow applies `policy:reference-violation` while active Fieldwork interaction text violates policy and removes it after correction.
 6. Issue forms require acknowledgement of the third-party quiet-interaction rule.
+7. The upstream-write prohibition is an agent operating rule, not merely a link-scanner rule; tooling permission does not imply authority.
 
 The interaction workflow runs after GitHub receives the text. It cannot guarantee that GitHub never processes the original third-party reference. Prevention by an automated writer remains mandatory.
 

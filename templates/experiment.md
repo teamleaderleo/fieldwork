@@ -140,10 +140,12 @@ Choose one:
 - promote to a campaign lane;
 - run an owned-repository integration trial;
 - preserve as a regression fixture;
-- add or revise an integration-context dossier.
+- add or revise an integration-context dossier;
+- prepare a human-facing upstream packet for manual submission.
 
 ## Boundaries
 
-- Upstream contact remains unauthorized unless explicitly recorded otherwise.
+- Automated third-party upstream contact is prohibited. The experiment may prepare material for a human, but an agent must never perform the upstream write, even when explicitly asked.
+- `upstream_contact_authorized` remains `false` for automated workers.
 - No secrets, production payloads, or proprietary inputs were retained.
 - Mechanism evidence and one owned testbed are not presented as general integration or operational proof without supporting context.

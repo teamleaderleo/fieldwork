@@ -50,8 +50,10 @@ Only create the directories the experiment actually needs. Small experiments may
 - expected observations or distinguishing outcomes;
 - stop condition;
 - network policy;
-- upstream-contact authorization, always `false` unless explicitly changed by the user;
+- upstream-contact authorization: always `false` for agents and automated workers;
 - state: `draft`, `running`, `complete`, `negative-result`, `blocked`, or `promoted`.
+
+The upstream-contact field is a status record, not a permission switch. It must never be changed to `true` for an automated worker. If a human later performs an upstream interaction manually, record that completed human action elsewhere.
 
 Use `templates/experiment.json` and `templates/experiment.md`, or run `scripts/new_experiment.py` to scaffold both records and a runnable stub.
 
@@ -99,6 +101,7 @@ Not every experiment needs every category. Select cases only after the assignmen
 - Do not silently overwrite a result used by another report; preserve the prior run or record the changed revision.
 - Generated code remains a candidate until the experiment demonstrates the claimed behaviour.
 - State what the model preserves and what it omits.
+- Third-party upstream repositories remain read-only throughout the experiment.
 
 ## Results
 
@@ -123,9 +126,9 @@ Promote a playground when it stops being disposable:
 - **to a probe result** when it belongs to a batch;
 - **to a campaign lane** when it gains dependencies, parallel work, or sustained scope;
 - **to a regression fixture** when it should protect future Fieldwork tooling;
-- **to an upstream packet** only after deliberate review, supported context, and explicit authorization.
+- **to a human-facing upstream packet** when deliberate review shows the material is ready for a human to inspect and, if desired, submit manually.
 
-Promotion preserves the experiment ID, source revision, commands, result paths, claim scope, and context relationship.
+Promotion preserves the experiment ID, source revision, commands, result paths, claim scope, and context relationship. It never authorizes an automated upstream write.
 
 ## Cleanup
 

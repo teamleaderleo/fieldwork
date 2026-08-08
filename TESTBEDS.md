@@ -106,8 +106,10 @@ Choose one:
 - keep the change as an owned-project feature;
 - promote the result to a Fieldwork finding;
 - open a campaign for deeper investigation;
-- prepare an upstream packet after explicit authorization;
+- prepare a human-facing upstream packet for manual human submission;
 - record a negative result.
+
+Preparing a packet never authorizes an automated upstream mutation.
 
 ## Labels
 
@@ -128,4 +130,4 @@ If the owned repository itself is the subject of investigation rather than a pla
 - Record destructive operations and cleanup.
 - Do not merge experimental degradation into the default branch.
 - Preserve attribution when generated code or external source material is involved.
-- A testbed trial never authorizes upstream contact.
+- Third-party upstream repositories are permanently read-only to agents and automated workers. A human must perform any upstream interaction manually.

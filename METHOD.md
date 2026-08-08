@@ -4,7 +4,9 @@
 
 Start with a concrete system question. Understand the code and explain it simply. Reproduce the important behaviour. Try it in a realistic owned application when that adds evidence. Propose change only when the consequence and improvement are demonstrated.
 
-Fieldwork is organised around bounded **campaigns**. A campaign can end in a patch, an issue, a design proposal, a published finding, an owned-project improvement, a local workaround, or a negative result.
+Fieldwork is organised around bounded **campaigns**. A campaign can end in a patch, an issue draft, a design proposal, a published finding, an owned-project improvement, a local workaround, or a negative result.
+
+Third-party upstream repositories are permanently read-only to Fieldwork agents. Agents may prepare upstream-facing material; a human must perform any actual upstream interaction manually.
 
 ## 1. Target and question
 
@@ -87,28 +89,32 @@ Separate documented use, directly observed behaviour, inference, illustrative sc
 
 ## 10. Decision gate
 
-Choose one outcome: continue research, retain an owned-project improvement, keep a local workaround, publish a finding, seek upstream direction, prepare a patch, or stop.
+Choose one outcome: continue research, retain an owned-project improvement, keep a local workaround, publish a finding, prepare a human-facing upstream packet, prepare a patch in an owned fork, or stop.
 
 The decision must explain why the chosen action is worth its implementation and review cost.
 
 ## 11. Upstream packet
 
-Before contact, prepare the problem, reproduction, demonstrated cause or bounded uncertainty, proposed direction, invariant, scope, evidence, compatibility and security consequences, rejected alternatives, recovery path, required AI-assistance disclosure, and confirmation that the submitter reviewed and can defend every line.
+Prepare the problem, reproduction, demonstrated cause or bounded uncertainty, proposed direction, invariant, scope, evidence, compatibility and security consequences, rejected alternatives, recovery path, required AI-assistance disclosure, and confirmation that the human submitter reviewed and can defend every line.
 
 Start with the proposal. Use code-shaped explanation for mechanics and prose for judgment. Do not force a maintainer to excavate the requested change from a dossier.
 
 Use [`templates/upstream-packet.md`](templates/upstream-packet.md).
 
+An upstream packet is preparation-only. It never authorizes an automated write to the third-party repository.
+
 ## 12. Fork and implementation
 
-Candidate upstream code belongs in a fork or branch associated with the campaign. Keep commits reviewable and avoid unrelated cleanup. Preserve the research dossier independently of the fork.
+Candidate upstream code belongs in an owned fork or branch associated with the campaign. Keep commits reviewable and avoid unrelated cleanup. Preserve the research dossier independently of the fork.
 
 Candidate owned-project code belongs on its recorded testbed branch and follows that repository's standards.
 
-## 13. Submission and review
+## 13. Human submission and review
 
-Once contact is deliberate, change the campaign state to **Submitted**. Record review feedback, revisions, decisions, and final outcome without turning the dossier into a complaint log.
+If a human decides to contact upstream, the human performs that interaction manually outside Fieldwork automation. Agents must not create, update, comment on, review, react to, label, merge, rerun, push to, or otherwise mutate the third-party upstream repository, even when explicitly asked.
+
+After a human-performed interaction exists, Fieldwork may record the submitted state, exact link, review feedback, revisions, decisions, and final outcome. Recording a human action is not permission for the agent to continue the upstream conversation.
 
 ## 14. Closeout
 
-Every campaign ends with a plain-language result, outcome and date, exact submitted and tested revisions, what was learned, consequence established, unresolved uncertainty, reusable artifacts, owned-project changes retained, follow-up conditions, ledger entries, and a negative result where applicable.
+Every campaign ends with a plain-language result, outcome and date, exact submitted and tested revisions where a human submission exists, what was learned, consequence established, unresolved uncertainty, reusable artifacts, owned-project changes retained, follow-up conditions, ledger entries, and a negative result where applicable.

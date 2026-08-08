@@ -6,6 +6,8 @@ Use this runbook whenever a person or agent is told to investigate something thr
 
 Find the programme and target hub, claim one bounded scout or lane, read the code, explain the system simply, reproduce or model the important behaviour, and use an owned application as a controlled testbed when realistic use adds evidence. Report what was established, what remains unknown, and which branches are actually worth opening.
 
+Third-party upstream repositories are read-only to Fieldwork agents. Agents may prepare everything a human needs for an upstream interaction, but they must never perform the upstream write themselves, even when explicitly asked.
+
 ## 1. Read the rules
 
 Read, in order:
@@ -76,7 +78,9 @@ For a scout or lane, record:
 - target source revision or retrieval boundary;
 - intended claim scope;
 - stop condition;
-- upstream-contact authorization, normally `false`.
+- upstream-contact authorization: `false`.
+
+For automated workers, that field is always `false`. It does not become `true` when a user asks for an upstream interaction. If a human later performs an upstream action manually, record that completed human interaction separately.
 
 A scout must return code and test maps, at least one runnable probe or explicit reason none is feasible, ranked branch candidates, and a recommendation to stop, retain a finding, open a campaign, or run another scout.
 
@@ -90,7 +94,8 @@ For an experiment, record in `experiment.json`:
 - distinguishing outcomes;
 - integration-context path when required;
 - stop condition;
-- upstream-contact authorization, normally `false`.
+- upstream-contact authorization: `false`;
+- state: `draft`, `running`, `complete`, `negative-result`, `blocked`, or `promoted`.
 
 For an integration trial, record:
 
@@ -107,11 +112,13 @@ One worker may edit only the owned scout, experiment, trial branch, or assignmen
 
 ## 4. Protect external projects before posting interaction text
 
-Before creating or editing any Fieldwork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work:
+Third-party upstream repositories are read-only to agents. This section governs references inside Fieldwork and owned-fork interaction text; it does not create an upstream-write exception.
 
-- convert third-party GitHub issue, pull-request, discussion, and commit links to `redirect.github.com`;
+Before creating or editing any Fieldwork or owned-fork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work:
+
+- convert third-party GitHub issue, pull-request, discussion, and commit links to `redirect.github.com` where `REFERENCE_POLICY.md` requires it;
 - remove third-party shorthand cross-references;
-- use the intentional marker only after explicit authorization for that interaction.
+- use the intentional marker only to record an already-existing interaction that a human performed manually.
 
 Repository reports, experiment notes, context dossiers, data records, and other tracked files may use ordinary direct links. They do not need the interaction preflight or an automated external-reference check.
 
@@ -141,7 +148,9 @@ A testbed trial may become a useful owned-project feature. It does not by itself
 
 ## 7. Work quietly and preserve evidence
 
-Fieldwork itself and explicitly selected owned testbeds may be updated as part of the assignment. External upstream interaction remains prohibited unless the user explicitly authorizes that exact interaction.
+Fieldwork itself and explicitly selected owned testbeds or owned forks may be updated as part of the assignment. Third-party upstream repositories remain read-only to agents under all circumstances.
+
+If a user asks the agent to file, submit, post, comment, review, react, merge, rerun, push, or otherwise mutate upstream, prepare the material and stop before the mutation. A human must perform the actual upstream interaction manually outside Fieldwork automation.
 
 Preserve:
 
@@ -190,7 +199,7 @@ Use the templates under `templates/`. Avoid several agents editing one shared re
 
 ## 10. Self-review before handoff
 
-Follow `REVIEWING.md` and complete `templates/review.md` before asking another reviewer to accept, execute, promote, merge, or prepare work for upstream use.
+Follow `REVIEWING.md` and complete `templates/review.md` before asking another reviewer to accept, execute, promote, merge, or prepare work for human upstream use.
 
 At minimum:
 
@@ -200,7 +209,8 @@ At minimum:
 4. inspect the complete current diff and current-main relation;
 5. synchronize the issue, report, pull-request description, receipts, and queue or Delivery Desk entry;
 6. mark non-applicable fields instead of inventing evidence;
-7. prove temporary workflows or execution carriers are absent from the final canonical head before calling them retired.
+7. prove temporary workflows or execution carriers are absent from the final canonical head before calling them retired;
+8. confirm that no automated third-party upstream mutation was attempted or performed.
 
 Self-review prepares the handoff. It does not replace eligible independent acceptance.
 
@@ -229,7 +239,8 @@ Evidence labels used: <labels>
 Uncertainty: <remaining uncertainty>
 Dependencies discovered: <none or exact records>
 Decision needed: <none or exact decision>
-Upstream contact authorized: no | yes, with explicit authority
+Automated upstream contact: prohibited
+Human-performed upstream interaction recorded: none | <exact existing interaction>
 ```
 
 If repository writes are unavailable, place the full handoff in the issue and apply `needs:materialization`.

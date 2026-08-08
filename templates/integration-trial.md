@@ -107,11 +107,13 @@ Choose one:
 - keep as an owned-project feature;
 - promote to a finding;
 - open or extend a campaign;
-- prepare an upstream packet after explicit authorization;
+- prepare a human-facing upstream packet for manual submission;
 - negative result.
 
 ## Upstream boundary
 
-Upstream contact authorized: `no`
+Automated third-party upstream contact: `prohibited`
 
-Interaction performed: `none`
+Human-performed upstream interaction recorded: `none`
+
+An agent must never perform the upstream write, even when explicitly asked. If a human later submits or comments manually, record that already-existing interaction here.
