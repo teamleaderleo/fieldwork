@@ -16,31 +16,32 @@ Because Fiber alternates are reused, a healthy visible owner update can see the 
 
 If a competing visible singleton owner acquires the same body/head/html node, acquisition calls `precacheFiberNode` with that different owner's Fiber pair.
 
-This gives the renderer enough information to distinguish a legitimate update/release from stale work belonging to a previously released owner.
+This gives React enough information to distinguish a legitimate update/release from stale work belonging to a previously released owner.
 
-## Proposed containment predicate
+## Implementation refinement
 
-Conceptually:
+The generic reconciler host config already exposes `getInstanceFromNode`; no new DOM-only API and no `releaseSingletonInstance` signature expansion are required for the experiment.
+
+The containment helper can live in `ReactFiberCommitHostEffects.js`:
 
 ```js
-function isCurrentSingletonOwner(instance, internalInstanceHandle) {
-  const owner = getInstanceFromNodeDOMTree(instance);
-  return (
-    owner === internalInstanceHandle ||
-    owner === internalInstanceHandle.alternate
-  );
+function isCurrentHostSingletonOwner(fiber) {
+  const owner = getInstanceFromNode(fiber.stateNode);
+  return owner === fiber || owner === fiber.alternate;
 }
 ```
 
-For a HostSingleton `commitUpdate`, return without DOM/property bookkeeping when that predicate is false.
+Before a HostSingleton `commitHostUpdate`, return when this predicate is false.
 
-For `releaseSingletonInstance`, pass the releasing Fiber handle into the host config and return without clearing/detaching when the predicate is false.
+Before `commitHostSingletonRelease`, return when this predicate is false.
 
-A null DOM owner also means the singleton was already released, so repeated hidden updates/releases naturally become no-ops until reacquisition.
+A null DOM owner means the singleton was already released, so repeated hidden updates/releases naturally become no-ops until reacquisition.
+
+A props-identity-only variant was considered and rejected. `updateFiberProps` preserves useful current-owner props, but distinct Fibers can theoretically share the same props object when a React element is reused; the DOM -> Fiber association is the stronger ownership token.
 
 ## Why this is better than the current partial Offscreen guards
 
-The existing experiment guards two call sites with `offscreenSubtreeWasHidden`:
+The earlier experiment guards two call sites with `offscreenSubtreeWasHidden`:
 
 - skip HostSingleton update under an already-hidden subtree;
 - skip eager HostSingleton release when deleting an already-hidden subtree.
@@ -51,14 +52,12 @@ An ownership check instead protects the shared persistent host node itself. It a
 
 ## Expected behavior against the existing Activity matrix
 
-The existing verifier controls imply:
-
-1. **First hide releases previous props** — still allowed because the DOM association points to that owner or its alternate.
+1. **First hide releases previous props** — allowed because the DOM association points to that owner or its alternate.
 2. **Hidden update after visible owner acquisition** — skipped because the body association points to the visible owner's different Fiber pair.
 3. **Delete already-hidden owner while visible owner remains** — repeated release skipped for the same reason.
-4. **Reappear after hidden prop updates** — hidden updates changed Fiber memoized props even though host mutation was skipped; reacquisition applies those latest props and replaces the DOM association.
-5. **Restore children detached by another owner's DSIH** — still unresolved. This guard cannot synthesize Placement for surviving child Fibers.
-6. **Hidden descendant Placement** — still unresolved. Child Placement can mutate the shared body even when the HostSingleton's own update is rejected.
+4. **Reappear after hidden prop updates** — hidden work still updates Fiber memoized props; reacquisition applies those latest props and replaces the DOM association.
+5. **Restore children detached by another owner's DSIH** — unresolved. This guard cannot synthesize Placement for surviving child Fibers.
+6. **Hidden descendant Placement** — unresolved. Child Placement can mutate the shared body even when the HostSingleton's own update is rejected.
 
 So this is a containment repair, not a complete Activity/opaque-child ownership repair.
 
@@ -70,11 +69,23 @@ Once a different owner has already acquired the node, an old owner's later clean
 
 ## Event / props benefit
 
-Skipping stale `commitUpdate` also prevents `updateFiberProps(instance, hiddenProps)` from overwriting the visible owner's current event-handler props while the DOM Fiber pointer still belongs to the visible owner.
+Skipping stale `commitHostUpdate` prevents `updateFiberProps(instance, hiddenProps)` from overwriting the visible owner's current event-handler props while the DOM Fiber pointer belongs to the visible owner.
 
 Skipping stale release prevents `detachDeletedInstance(instance)` from deleting the visible owner's Fiber/props mapping.
 
 These were two independently observed corruption modes in the Activity review.
+
+## Executable lane
+
+Owned React draft PR 41 is the verifier-only experiment.
+
+- Base at PR creation: current fork/public main `2042572329425f9ebf35ae6287ea5bab72b2c497`.
+- Source packet: one reconciler host-effect patch using existing `getInstanceFromNode`.
+- Contract: the existing five-test Activity ownership matrix.
+- Expected pass subset: first hide, stale hidden update containment, repeated hidden release containment, reappear with latest props.
+- Required remaining red: detached managed-child restoration after another owner used direct HTML.
+
+The workflow also preflights the hand-built patches before installation/tests so patch-packet errors are kept separate from semantic failures.
 
 ## Limits
 
@@ -82,7 +93,7 @@ These were two independently observed corruption modes in the Activity review.
 - managed children physically detached by another owner still need preservation/restoration;
 - opaque content needs node + slot provenance;
 - reappearance acquisition still occurs in layout and has its existing phase-order TODO;
-- the Fiber/alternate match should be implemented in reconciler-visible code or through a renderer helper with deliberate typing, rather than relying on an undocumented Object field casually.
+- a third-party renderer that advertises singleton support must have `getInstanceFromNode` semantics compatible with returning its internal instance handle; React DOM satisfies this.
 
 ## Public overlap
 
@@ -90,10 +101,10 @@ Read-only public PR searches for HostSingleton stale-owner / hidden-owner contai
 
 ## Disposition
 
-**Worth an isolated verifier-only experiment.**
+**EXECUTE as a narrow containment experiment; never treat it as complete Activity ownership.**
 
-This appears strictly better scoped than the two Offscreen-specific guards for the update/release corruption subset, while making no claim to solve child ownership.
+This is more general and cleaner than the two Offscreen-specific guards for the update/release corruption subset.
 
 ## Evidence class
 
-Source-read and existing-test-matrix reasoning. Target-test-prepared experiment recommended; no execution receipt yet.
+Source-read plus target-test-prepared PR 41. No execution receipt yet.
