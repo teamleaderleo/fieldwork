@@ -13,7 +13,7 @@ Upstream contact authorized: `false`
 Two candidates survived the first deep pass.
 
 1. Tauri's Rust event manager runs user callbacks while its handler mutex is held. A caught callback panic can poison that mutex. Later `listen`, `unlisten`, and `emit` operations treat the poison result like ordinary lock contention, queue themselves, and can leave the manager silently unable to deliver future events. A focused regression and narrow panic-preserving repair are prepared against the pinned Tauri source.
-2. Tauri's IPC fallback decides to switch transports after a side-effecting custom-protocol request may already have reached Rust. Navigation can make the frontend `fetch()` reject after dispatch, causing the same logical invoke to be resent over `postMessage`. A cleaner candidate is to select the transport with a side-effect-free probe before any command runs, then execute each command through one transport only.
+2. Tauri's IPC fallback decides to switch transports after a side-effecting custom-protocol request may already have reached Rust. Navigation can make the frontend `fetch()` reject after dispatch, causing the same logical invoke to be resent over `postMessage`. A cleaner candidate is to negotiate the transport with a side-effect-free `HEAD` request before any command runs, then execute each command through one transport only.
 
 The first candidate is compact Rust correctness work. The second is the stronger answer to the long-running reload/duplicate-invoke problem, but it needs WebView2 and WKWebView execution before implementation is promoted.
 
@@ -21,6 +21,7 @@ The first candidate is compact Rust correctness work. The second is the stronger
 
 - Tauri implementation, tests, history, current issues and pull requests: `source-read`.
 - IPC transport-selection state-machine probe: `model-executed`; retained in `ipc-model-receipt-20260809.json`.
+- IPC `HEAD` negotiation candidate patch: `target-test-prepared`.
 - Listener-panic regression and candidate patch: `target-test-prepared`.
 - Listener-panic execution carrier run `31283181973`: queued on exact execution head `3427e21a6400314f662539cc0c15851cb3f15c49` at this handoff; no target-executed claim yet.
 - Owned application / WebView2 / WKWebView execution: absent.
@@ -54,24 +55,37 @@ The callback and error ids are generated as random `u32` values per document. Th
 
 ### Side-effect-free transport selection
 
-The Rust custom-protocol handler already has an `OPTIONS` branch that returns without calling `Webview::on_message`. That creates an existing side-effect-free probe boundary.
+Tauri's Rust IPC custom-protocol handler dispatches a command only for `POST`. `OPTIONS` handles preflight without calling `Webview::on_message`; every other method returns `405 Method Not Allowed` through the normal response wrapper, which adds the CORS origin/exposed-header response fields.
+
+That makes `HEAD` useful as a probe:
+
+- `HEAD` is a CORS-safelisted method, like the real `POST`;
+- the probe can carry the same Tauri IPC headers and content type, exercising the relevant unsafe-header preflight path;
+- Tauri returns `405` without command dispatch, and `fetch()` still receives a normal response rather than a network error when the custom protocol/CSP/CORS path is usable;
+- CSP `connect-src` applies to the probe just as it applies to the command fetch.
 
 Candidate document-local state machine:
 
 ```text
 first invoke(s)
-  -> await one shared custom-protocol capability probe
-  -> probe succeeds: choose custom protocol for this document
-  -> probe fails: choose postMessage for this document
+  -> await one shared HEAD capability probe carrying the IPC headers
+  -> probe resolves: choose custom protocol for this document
+  -> probe rejects: choose postMessage for this document
   -> dispatch command once through the selected transport
-  -> command-level transport rejection never triggers cross-transport replay
+  -> if a later custom-protocol command rejects:
+       reject that invoke; mark custom protocol blocked for future invokes
+  -> future invokes use postMessage
 ```
+
+The key rule is that a command-level rejection never triggers replay of the same command over a second transport. Once a side-effecting `POST` may have reached Rust, the caller gets the failure and the next invoke can recover through `postMessage`.
 
 This directly addresses the known fallback use case: CSP can block custom-protocol `fetch`, especially on externally loaded pages. It also removes dependence on `pagehide` / `beforeunload` ordering, which differs across Chromium and WebKit.
 
-A bare `OPTIONS` request may fail to predict every platform's `POST` behavior. If platform testing disproves equivalence, the same design can use an internal side-effect-free probe request that traverses the exact custom-protocol POST path and is intercepted before command dispatch.
+The public invoke API permits custom request headers. A later header profile can still make a previously usable custom transport fail. Under this candidate, that one invoke rejects without duplicate side effects and flips subsequent calls to `postMessage`; it does not replay the ambiguous call.
 
-Android regular command IPC already uses `postMessage` because request bodies are unavailable through that custom-protocol path. Preserve its special channel-data behavior when testing this candidate.
+Android regular command IPC already uses `postMessage` because request bodies are unavailable through that custom-protocol path. The candidate keeps the existing special channel-data custom-protocol fallback separate.
+
+Prepared patch: `probe/ipc-head-negotiation.patch`.
 
 ## IPC model probe
 
@@ -85,12 +99,12 @@ Observed:
 
 ```text
 PASS normal: one custom-protocol dispatch
-PASS CSP block: probe selects postMessage before command dispatch
+PASS CSP block: HEAD probe selects postMessage before command dispatch
 PASS reload after dispatch: no cross-transport retry; Rust sees one command
 PASS late transport break: invoke rejects instead of risking duplicate side effect
 ```
 
-This proves only the state-machine property. It does not prove that WebView2 or WKWebView will treat the proposed probe exactly like the command POST.
+This proves only the state-machine property. It does not prove that WebView2 or WKWebView will treat the proposed `HEAD` + IPC-header probe as a reliable predictor for the later `POST`.
 
 ## Rust event path
 
@@ -160,7 +174,7 @@ The exact target workflow was created and then removed from the current branch a
 
 ## Ranked branch candidates
 
-1. **IPC transport negotiation before side-effecting dispatch** — highest leverage. It removes the ambiguous retry boundary instead of guessing why a command-level fetch rejected. Next evidence: one WebView2 and one WKWebView fixture covering normal local page, CSP-blocked custom protocol, reload during a long-running command, and a command after successful negotiation.
+1. **IPC `HEAD` transport negotiation before side-effecting dispatch** — highest leverage. It removes the ambiguous retry boundary instead of guessing why a command-level fetch rejected. Next evidence: one WebView2 and one WKWebView fixture covering local page, CSP-blocked custom protocol, external page, custom invoke headers, reload during a long-running command, binary channel traffic, and recovery after a post-negotiation transport failure.
 2. **Core event callback panic recovery** — compact correctness candidate. Promote only after the prepared baseline fails for the intended assertion and the candidate passes while preserving the caller-visible panic.
 3. **Filtered nested emit without public bound widening** — confirmed source defect with an awkward API constraint. Revisit callback ownership / lock lifetime after the panic candidate; avoid storing arbitrary public filter closures in the pending queue.
 4. **Filesystem scope panic recovery** — likely sibling failure after the reentrant-deadlock repair. Give it its own regression after core event behavior is established.
@@ -171,12 +185,13 @@ The exact target workflow was created and then removed from the current branch a
 - `pagehide` / `beforeunload` alone cannot serve as the cross-platform reload fix; observed ordering differs between WebView2 and WKWebView.
 - Remembering that the custom protocol succeeded once leaves a later transport-failure ambiguity and can pin a document to a broken transport.
 - Command-level retry after an ambiguous rejection cannot promise at-most-once side effects.
+- A user-issued `OPTIONS` capability probe is less attractive than `HEAD`: `OPTIONS` is not a CORS-safelisted method, while `HEAD` and the real `POST` are.
 - Adding `Send + 'static` to `emit_filter` solely so the pending queue can own the closure widens an existing public contract.
 - Existing asset multi-range and immediate JS-unlisten fixes are occupied work and stay outside this scout.
 - No automated third-party upstream mutation was attempted or performed.
 
 ## Next transition
 
-The best next execution is the IPC transport-selection fixture on Windows/WebView2 and macOS/WKWebView. It should make the current implementation and candidate lose on exact, predeclared cases: CSP failure before dispatch, reload after dispatch, and a later transport failure.
+The best next execution is the `HEAD` transport-selection fixture on Windows/WebView2 and macOS/WKWebView. It should compare current and candidate behavior on predeclared cases: CSP failure before dispatch, external-page custom protocol, additional invoke headers, reload after dispatch, channel traffic, and a later transport failure.
 
 In parallel, consume run `31283181973` only when GitHub produces an exact receipt. If the listener baseline and candidate behave as predicted, add `once`-panic and filesystem-scope controls before preparing a human-facing patch packet.
