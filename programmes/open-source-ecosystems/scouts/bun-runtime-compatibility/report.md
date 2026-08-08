@@ -6,209 +6,163 @@ Parent scout: #209
 Target: `oven-sh/bun` / `target:bun`  
 Worker: `chatgpt:gpt-5.6-sol`  
 Retrieval date: 2026-08-08  
-Exact Bun source: `f972c287f9b7a71754b0b0b1cd18722aa3c75280`  
+Exact Bun source inspected: `f972c287f9b7a71754b0b0b1cd18722aa3c75280`  
 Comparison Node source: `aed4eaf89dd8d47b9e399bccecc9a9fc588e0284`  
 Claim scope: `interface`  
-Upstream contact authorized: `false`
+Automated upstream contact authorized: `false`
 
-## In simple words
+## Outcome
 
-Bun's Node-compatible `child_process.execFile()` currently gives one timeout two owners. It passes `timeout` and `killSignal` into Bun's internal `spawn()`, which arms a kill timer, and then `execFile()` arms another kill timer of its own.
+Confirmed Node-compatibility defect and locally validated repair.
 
-Current Node keeps `execFile()`'s timeout at the `execFile()` layer. One `execFile()` call therefore produces one timeout `ChildProcess.kill()` attempt in Node.
+Bun's `child_process.execFile()` gave one timeout two owners: it forwarded `timeout` and `killSignal` into internal `spawn()`, which armed one timeout kill, while `execFile()` armed another timeout kill itself. Current Node keeps the timeout at the `execFile()` layer and does not forward those two options to `spawn()`.
 
-The retained discriminator now measures both the parent's actual `ChildProcess.kill()` calls and the child's received `SIGUSR1` count. Counting parent calls is important because ordinary POSIX signals can coalesce while pending, so one child handler invocation does not prove that only one signal-send attempt occurred.
+The divergence was first predicted from source, then reproduced on a user-run Mac with Bun `1.3.14+0d9b296af`, and then reproduced again against a debug build from the exact inspected Bun revision.
 
-Node 22.16.0 control: `killCallCount: 1`, `signalCount: 1`.
+The user manually opened Bun pull request [#37186](https://redirect.github.com/oven-sh/bun/pull/37186), `node:child_process: avoid duplicate execFile timeout kill`.
 
-Exact Bun execution is the remaining promotion gate.
-
-## Assignment contract
-
-Question: when `execFile()` uses a timeout with a handled non-terminating custom signal, does Bun invoke `ChildProcess.kill()` twice for one timeout while Node invokes it once?
-
-Expected deliverable: source/test map, overlap check, runnable discriminator, sampled adjacent surfaces, ranked continuation.
-
-Owned output path: `programmes/open-source-ecosystems/scouts/bun-runtime-compatibility/`.
-
-Stop condition: one executable discriminator plus enough source, test, overlap, and negative evidence to decide whether to promote or stop.
-
-External target access is read-only. Automated upstream contact remains prohibited.
+Fieldwork automation made no upstream mutation. The upstream pull request and subsequent branch updates were human-performed.
 
 ## Source map
 
-### Bun `src/js/node/child_process.ts`
+At Bun `f972c287f9b7a71754b0b0b1cd18722aa3c75280`:
 
-At `f972c287f9b7a71754b0b0b1cd18722aa3c75280`:
+1. `spawn()` validates and owns its own optional timeout.
+2. `spawn({ timeout, killSignal })` arms a timer that calls `child.kill(killSignal)`.
+3. `execFile()` passed its `timeout` and `killSignal` into that internal `spawn()` call.
+4. `execFile()` also armed its own timeout timer, whose local kill helper tears down buffered stdout/stderr and calls `child.kill(options.killSignal)`.
 
-1. `spawn()` validates `options.timeout` and `options.killSignal`.
-2. When `timeout > 0`, `spawn()` creates a timer that calls `child.kill(killSignal)`.
-3. `execFile()` calls `spawn()` and forwards both `timeout: options.timeout` and `killSignal: options.killSignal`.
-4. `execFile()` then creates another timeout timer whose `kill()` helper destroys stdout/stderr and calls `child.kill(options.killSignal)`.
-5. Both timers use the public `ChildProcess.kill()` method and are created for the same timeout duration.
-6. `ChildProcess.kill()` consults the native handle's terminated state. A handled signal that leaves the process alive does not inherently make the second attempt disappear.
+At Node `aed4eaf89dd8d47b9e399bccecc9a9fc588e0284`, `execFile()` calls `spawn()` without `timeout` or `killSignal`; the `execFile()` layer owns the deadline.
 
-The source therefore contains two independent timeout callbacks for one `execFile()` operation.
+## Runtime confirmation
 
-### Node `lib/child_process.js`
+### Installed Bun receipt
 
-At comparison revision `aed4eaf89dd8d47b9e399bccecc9a9fc588e0284`, Node's `execFile()` calls `spawn()` without forwarding `timeout` or `killSignal`. `execFile()` owns one timeout timer and sends the configured signal from that one timer.
-
-## Existing timeout tests and the blind spot
-
-Bun vendors Node's ordinary `exec` timeout tests. The inspected cases use terminating signals such as `SIGTERM` and `SIGKILL` and assert the resulting exit/error state.
-
-Those are healthy compatibility tests, but the first signal terminates the child, so they cannot distinguish one timeout owner from two same-deadline timeout owners.
-
-The retained probe uses a handled non-terminating `SIGUSR1` to keep the process alive through the timeout boundary.
-
-## Prepared discriminator
-
-Artifact: `artifacts/execfile-timeout-signal-count.mjs`
-
-The probe:
-
-1. creates an isolated temporary receipt;
-2. launches a child through `execFile(process.execPath, ...)`;
-3. uses `timeout: 1000` and `killSignal: "SIGUSR1"`;
-4. has the child append one byte for each delivered `SIGUSR1` while remaining alive;
-5. wraps the returned child's public `kill()` method immediately after `execFile()` returns and records every timeout-driven call;
-6. uses the original unwrapped kill method for a later `SIGKILL` cleanup, keeping cleanup out of `killCallCount`;
-7. reports parent kill attempts, child signal receipts, callback result, and runtime identity as JSON.
-
-### Why count kill attempts separately
-
-Standard POSIX signals do not queue multiple pending instances. Two back-to-back `kill(SIGUSR1)` calls may therefore produce only one handler execution if the second arrives while the first signal is still pending.
-
-That makes child-side signal count useful consequence evidence, but insufficient mechanism evidence on its own. The wrapped public method directly distinguishes one Node timeout attempt from two Bun timeout attempts.
-
-### Control receipt
-
-Executed locally under Node 22.16.0:
+User-run macOS probe under Bun `1.3.14+0d9b296af`:
 
 ```json
 {
-  "runtime": "node 22.16.0",
-  "killCallCount": 1,
-  "killCalls": [{ "signal": 10, "atMs": 1010 }],
-  "signalCount": 1,
-  "callbackError": {
-    "name": "Error",
-    "code": null,
-    "signal": "SIGKILL",
-    "killed": true
-  }
+  "runtime": "bun 1.3.14",
+  "killCallCount": 2,
+  "killCalls": [19, 19],
+  "exitCode": null,
+  "signalCode": null
 }
 ```
 
-The final `SIGKILL` is explicit probe cleanup after the handled timeout signal.
+A single `execFile()` timeout therefore reached `ChildProcess.kill()` twice while the child remained alive.
 
-Suggested Node control:
+Node 22.16.0 control for the same mechanism recorded one timeout-driven kill call.
 
-```sh
-EXPECT_KILL_CALLS=1 EXPECT_SIGNALS=1 node programmes/open-source-ecosystems/scouts/bun-runtime-compatibility/artifacts/execfile-timeout-signal-count.mjs
+### Exact-source fail-before
+
+The user built Bun from `f972c287f9b7a71754b0b0b1cd18722aa3c75280` on macOS and added the focused regression before changing production code.
+
+```text
+bun test v1.4.0 (f972c287f)
+Expected length: 1
+Received length: 2
+✗ execFile timeout invokes ChildProcess.kill once
+0 pass
+1 fail
 ```
 
-Exact Bun discriminator:
+This established the defect on the exact inspected source rather than only on an installed release build.
 
-```sh
-EXPECT_KILL_CALLS=2 bun programmes/open-source-ecosystems/scouts/bun-runtime-compatibility/artifacts/execfile-timeout-signal-count.mjs
+## Repair
+
+The production repair is intentionally small: remove these fields from `execFile()`'s internal `spawn()` options:
+
+```diff
+-    timeout: options.timeout,
+-    killSignal: options.killSignal,
 ```
 
-Interpretation:
+`execFile()` keeps its existing timeout logic. `spawn()` still supports its own timeout when callers use `spawn()` directly.
 
-- Bun `killCallCount: 2`: source divergence is target-executed. Record whether `signalCount` is 1 or 2 separately; either value is compatible with two send attempts because standard signals may coalesce.
-- Bun `killCallCount: 1`: the apparent source double-owner path is suppressed at runtime; retain a negative result and stop this branch unless another direct consequence appears.
-- another count or harness failure: inspect exact timer order and process state before promotion.
+This matches Node's ownership boundary.
 
-## Execution carrier
+## Regression test
 
-Fieldwork PR #707 is an execution-only carrier. It installs exact Bun revision `f972c287f9b7a71754b0b0b1cd18722aa3c75280` with `oven-sh/setup-bun`, reruns the Node 22.16.0 control, and runs the Bun discriminator.
+The submitted regression lives in `test/js/node/child_process/child_process.test.ts` and is POSIX-only.
 
-The workflow file is temporary and must not enter the canonical scout. Transfer its receipt into this report and retire #707 after execution.
+It launches `sleep 10` with `timeout: 300` and non-terminating `SIGCONT`, wraps the returned `ChildProcess.kill()` method, and checks the timeout behavior while the child remains alive.
 
-## Overlap and recent-work check
+The final submitted form was refined after automated review:
 
-Fieldwork #345 already owns Bun global executable replacement atomicity. That package-manager publication question stays in its existing lane.
+- wait for the first observable timeout kill rather than sleeping for the whole timeout window;
+- allow a bounded 100 ms polling window for a second timeout owner to reveal itself;
+- assert the exact platform-correct signal using `node:os` `constants.signals.SIGCONT`, because Bun sanitizes signal names to numeric values before this call path;
+- clean up with the original unwrapped `kill("SIGKILL")`, keeping cleanup outside the measured call list.
 
-Fieldwork intake #457 records `findPackageJSON`, `threadCpuUsage`, and async-generator inspection as occupied Bun work.
+Current upstream PR head observed read-only: `1e71275eb909099c22c193126527a3b078a02fd2`.
 
-Current Bun pull request [#35805](https://redirect.github.com/oven-sh/bun/pull/35805) addresses timeout-timer event-loop liveness: it proposes keeping the existing timeout timers referenced so an unref'd child still receives its deadline signal. Its stated scope leaves the separate `execFile()` double-owner question open.
+CodeRabbit's latest review of the refined test reported no actionable comments.
 
-Searches for an open Bun issue or pull request specifically describing duplicate `execFile()` timeout kill attempts returned no matching result during this pass. This is an overlap observation, not proof of novelty across all history.
+## Pass-after and controls
 
-## Surrounding code sampled
+After removing only the two forwarded fields, the identical focused regression passed:
 
-### Child-process IPC and serialization
+```text
+bun test v1.4.0 (f972c287f)
+✓ execFile timeout invokes ChildProcess.kill once
+1 pass
+0 fail
+```
 
-`fork()` routes through the same `spawn()` implementation. `spawn()` validates `serialization: "json" | "advanced"` and forwards it into `Bun.spawn`, while IPC message and disconnect callbacks are wired through the native subprocess handle.
+Additional local validation:
 
-No specific unoccupied defect was established from this pass. The surface is deeper than the timeout lead and already has native/JS ownership boundaries, so it should get its own scout only when a concrete mismatch appears.
+- full `test/js/node/child_process/child_process.test.ts`: passed with expected skips;
+- `test-child-process-exec-timeout-expire.js`: exit `0` under Bun's intended Node-test configuration;
+- `test-child-process-exec-timeout-kill.js`: exit `0` under Bun's intended Node-test configuration.
 
-### Extra stdio descriptors
+Running those vendored Node files through the repository's full local runner also surfaced small LeakSanitizer teardown reports. Direct execution with the same Node-test config and event-loop-drain behavior passed, so those LSAN reports were not treated as timeout-assertion regressions from this two-line JS repair.
 
-On POSIX, Bun maps extra `"pipe"` descriptors (`fd >= 3`) to a `socket-fd` ownership mode and wraps the parent side in `net.Socket`, with comments explicitly protecting against double-close. This is a recently intentional ownership boundary rather than an obvious loose end.
+## Retained discriminator artifact
 
-Disposition: sampled; no candidate promoted.
+`artifacts/execfile-timeout-signal-count.mjs` remains the source-independent discriminator used during the scout.
 
-### Worker teardown
+It counts parent-side calls to `ChildProcess.kill()` separately from child-side signal receipts. That distinction is important because ordinary POSIX signals can coalesce while pending, so one child handler execution can hide multiple signal-send attempts.
 
-Current main has focused lifetime coverage for constructor `ref: false`, late `terminate/ref/unref`, nested-worker lifetime, DNS teardown under ASAN, and worker termination while server streams are active.
+## Upstream submission
 
-Disposition: sampled and parked.
+Human-created Bun PR: [#37186](https://redirect.github.com/oven-sh/bun/pull/37186).
 
-### Package-manager replacement
+The PR is open for maintainer review. Fieldwork automation continues to treat `oven-sh/bun` as read-only and will not comment, react, edit, merge, close, or otherwise mutate the upstream repository or PR.
 
-Global executable replacement remains occupied by #345.
+Human-performed upstream interaction recorded:
 
-Disposition: no duplicate work.
+- fork created by user;
+- repair branch pushed by user;
+- PR #37186 opened by user;
+- test refinements pushed by user after review feedback.
 
-## Competing explanations
+## Overlap and surrounding code
 
-### H1 — two timeout kill attempts execute
+Fieldwork #345 owns Bun global executable replacement atomicity and remains separate.
 
-Both same-duration timers reach the public `child.kill(SIGUSR1)` method.
+Fieldwork #457 records `findPackageJSON`, `threadCpuUsage`, and async-generator inspection as occupied Bun work.
 
-Discriminator: Bun `killCallCount: 2`, Node `killCallCount: 1`.
+Bun [PR #35805](https://redirect.github.com/oven-sh/bun/pull/35805) addresses timeout-timer event-loop liveness. It is related to timeout implementation but distinct from duplicate `execFile()` timeout ownership.
 
-### H2 — one timer is suppressed before calling `ChildProcess.kill()`
+Adjacent child-process IPC backpressure, advanced serialization, stdio stream passing, spawn-failure normalization, piped-stdio Socket parity, and diagnostics-channel gaps already had public ownership and were excluded from this lane.
 
-Some runtime settlement path prevents one callback from reaching the public method.
-
-Discriminator: Bun `killCallCount: 1`.
-
-### H3 — two attempts occur while one signal is delivered
-
-Both callbacks call `kill()`, but the OS coalesces two pending standard `SIGUSR1` instances.
-
-Discriminator: Bun `killCallCount: 2`, `signalCount: 1`.
-
-### H4 — two attempts and two deliveries occur
-
-The child processes the first signal before the second send lands.
-
-Discriminator: Bun `killCallCount: 2`, `signalCount: 2`.
-
-## Ranked branch candidates
-
-1. **Complete exact Bun execution for the `execFile()` double-timeout ownership probe.** Narrowest and strongest current candidate.
-2. **If confirmed, prepare one target-native regression and smallest repair.** The Node-shaped repair candidate is to leave timeout ownership at `execFile()` and stop forwarding its timeout/killSignal into internal `spawn()`.
-3. **Continue #345 separately.** Its package-publication question has different ownership, evidence, and failure injection.
-4. **Return to IPC/worker/extra-stdio areas only with a concrete mismatch.** Current reading alone does not justify another lane.
+Worker teardown was sampled and parked because current Bun main already had focused lifetime regression coverage.
 
 ## Evidence classification
 
-- Bun timer ownership and call flow: `source-read`.
+- Bun timeout ownership and call flow: `source-read`.
 - Node comparison implementation: `source-read`.
-- Node 22.16.0 discriminator control: `model-executed`.
-- Bun kill-attempt consequence: `target-test-prepared` pending #707.
-- Child-side duplicate delivery: `target-test-prepared`; may be coalesced by POSIX signal semantics.
-- Broader operational consequence: `Unknown` until target execution and realistic caller interpretation.
+- Node 22.16.0 comparison control: `model-executed`.
+- Installed Bun duplicate kill behavior: `target-executed`.
+- Exact Bun source fail-before: `target-executed`.
+- Two-line repair focused pass-after: `target-executed`.
+- Full Bun child-process test file: `target-executed`.
+- Two relevant vendored Node timeout controls: `target-executed`.
+- Upstream submission state: human-performed, open for review.
 
 ## Recommendation
 
-Finish #707. If exact Bun executes two timeout `ChildProcess.kill()` calls while Node executes one, promote a narrow Node-compatibility finding. Keep the repair tiny: one timeout owner for `execFile()`, a handled-signal regression, ordinary terminating-signal controls, and interaction with the pending timer-liveness work checked explicitly.
+Scout work is complete for this candidate. The actionable result is now upstream as human-submitted PR [#37186](https://redirect.github.com/oven-sh/bun/pull/37186).
 
-If exact Bun records one kill attempt, retain the source difference as a negative result and stop this branch.
-
-No Bun repository mutation or maintainer-facing interaction occurred during this scout.
+No further automated upstream action is authorized. Any future Fieldwork work should be limited to read-only observation or durable recording of a user-provided/observed upstream outcome.
