@@ -8,9 +8,28 @@ Does server-rendered `<body dangerouslySetInnerHTML>` occupy the same logical bo
 
 **No. Current Fizz serialization hoists body DSIH into the document preamble, so its raw nodes are emitted before ordinary body-scope segment content regardless of the body's Fiber position.**
 
-This is a server-side counterpart to the client body-placement defect.
+This is a server-side counterpart to the client body-placement defect and conflicts with an explicit public Fiber ordering regression.
 
-## Source path
+## Public Fiber contract
+
+Public Suspense-anywhere Fiber change #32163 deliberately made most HostSingletons invisible from host positioning. Its PR description says:
+
+- `body` and `html` do not directly participate in host positioning;
+- `head` is the special singleton scope.
+
+The same change added a document-root regression whose expected physical body order is explicitly:
+
+```text
+root sibling before
+body child inside
+root sibling after
+```
+
+The test evolves insertions/deletions around all three regions and repeatedly asserts that body descendants remain interleaved with root-level body-scope siblings in Fiber order.
+
+So this is not merely an inferred implementation detail: current client React has a public regression contract for body child positioning relative to siblings outside `<body>`.
+
+## Fizz source path
 
 ### Body singleton serialization
 
@@ -42,11 +61,11 @@ Therefore:
 
 ### Flush order
 
-Fizz treats the preamble as document-opening content and flushes it before the ordinary shell/root segment. The Suspense-anywhere server design explicitly relies on this: document singleton openings plus head contents are preamble, while normal body-scope content follows inside the physical body.
+Fizz treats the preamble as document-opening content and flushes it before the ordinary shell/root segment. The Suspense-anywhere server design relies on this: document singleton openings plus head contents are preamble, while normal body-scope content follows inside the physical body.
 
 So anything serialized directly into `bodyChunks` is physically earlier in the body than ordinary root segment nodes.
 
-## Minimal ordering counterexample
+## Minimal valid-order counterexample
 
 Conceptual tree:
 
@@ -65,18 +84,19 @@ Conceptual tree:
 </>
 ```
 
-Fiber/client body-scope semantics intentionally treat `body` as invisible to host positioning. The logical host order is:
+This follows the same body-scope model tested by the public Fiber regression: host nodes outside the singleton are routed into physical `document.body` and are ordered around the body contribution according to React tree position.
+
+Expected client/Fiber host order:
 
 ```text
 before
 opaque body contribution
-
 after
 ```
 
-Current Fizz output instead has to flush the body preamble before the ordinary segment containing `before` and `after`.
+Current Fizz output must flush the body preamble before the ordinary segment containing `before` and `after`.
 
-The physical order is therefore:
+Physical server order becomes:
 
 ```text
 opaque body contribution
@@ -85,6 +105,8 @@ after
 ```
 
 The DSIH contribution has been hoisted out of its React-tree body-scope position.
+
+The existing React DOM nesting warning for arbitrary host nodes at the document root does not invalidate the host-order contract: the public Fiber regression intentionally exercises exactly this root/body-scope behavior while carrying the warning as a TODO until nesting validation is loosened.
 
 ## Managed-body reversing control
 
@@ -98,9 +120,9 @@ With managed body children instead of DSIH:
 
 Fizz renders the managed child through the ordinary task/segment traversal, so it can participate in the same body-scope ordering as root-level siblings.
 
-This makes the asymmetry specific to direct HTML, not to the existence of a body singleton itself.
+This makes the server asymmetry specific to direct HTML, not to the existence of a body singleton itself.
 
-## Why this matters beyond aesthetics
+## Cross-renderer consequence
 
 The same React tree can have different document-body order between:
 
@@ -146,6 +168,12 @@ and use the equivalent managed-body case as a reversing control.
 
 No separate execution PR is opened from this note yet; the mechanism is source-deterministic and the current runner queue is already saturated.
 
+## Disposition
+
+**HIGH-CONFIDENCE CROSS-RENDERER CONTRACT DEFECT.**
+
+This is now one of the load-bearing requirements for any body DSIH design: the server and client must agree on the contribution's body-scope position.
+
 ## Evidence class
 
-Fizz source/control-flow read plus established preamble flush semantics. Public upstream interaction: none.
+Fizz source/control-flow read plus public Fiber PR/test contract. No public upstream interaction performed.
