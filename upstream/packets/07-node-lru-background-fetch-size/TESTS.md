@@ -3,16 +3,17 @@
 ## Exact identity
 
 - base: `16b3a916662ab449d496b7b4b4f04132565d1d28`;
-- canonical one-commit candidate: `364a8c1c07c9f6281fbe19943eacd261bd410fc4`;
+- submitted one-commit candidate: `364a8c1c07c9f6281fbe19943eacd261bd410fc4`;
 - changed files: `src/index.ts`, `test/background-fetch-size.ts`;
 - source blob: `c3549a638b84ce096b13ebd7e3f71496dbe5afd5`;
-- test blob: `a83968f5110bfe42cfe32aae55cb6018aba6aebd`.
+- test blob: `a83968f5110bfe42cfe32aae55cb6018aba6aebd`;
+- upstream submission: [isaacs/node-lru-cache#410](https://redirect.github.com/isaacs/node-lru-cache/pull/410).
 
 ## Baseline characterization
 
 Released `lru-cache@11.5.2` probes established that invalid `backgroundFetchSize` values can enter provisional accounting: `NaN` poisons calculated size, negative/fractional values are accepted, infinity disrupts provisional caching/coalescing, and runtime strings can reach coercive arithmetic. Zero remains coherent and coalesced.
 
-## Final regression coverage
+## Submitted regression coverage
 
 The feature test preserves the upstream `t.clock` setup and keeps one case for each distinct supported behavior boundary:
 
@@ -25,9 +26,9 @@ The feature test preserves the upstream `t.clock` setup and keeps one case for e
 - stale refresh using the existing entry size;
 - zero-size same-key coalescing.
 
-A previous test deliberately modified a hidden background-fetch receipt through `unsafeExposeInternals()` and reinserted it. It was removed because upstream documents mutation of exposed internals as unsupported and potentially breakage-inducing. The test suite no longer treats malformed private state as a regression contract.
+A previous test deliberately modified a hidden background-fetch receipt through `unsafeExposeInternals()` and reinserted it. It was removed because upstream documents mutation of exposed internals as unsupported and potentially breakage-inducing. The submitted suite does not treat malformed private state as a regression contract.
 
-## Prior execution evidence
+## Execution evidence
 
 Earlier executions on the unchanged production blob established:
 
@@ -37,19 +38,17 @@ Earlier executions on the unchanged production blob established:
 - benchmark success;
 - Windows Node 24/25 Bash/PowerShell stopping before product test discovery because the unchanged repository TAP configuration could not load `@tapjs/clock`.
 
-The Windows condition is an unchanged-base harness limit; this contribution doesn't modify `.taprc`, package dependencies, or the lockfile.
+The Windows condition is an unchanged-base harness limit; this contribution does not modify `.taprc`, package dependencies, or the lockfile.
 
-## Final exact-head execution
+Fresh exact-head fork runs for the submitted test tree remain queued at this record update:
 
-Because `test/background-fetch-size.ts` changed, previous test-tree receipts are historical support only. Fresh final-head runs are the source of truth:
+- CI `31231433021`;
+- Benchmarks `31231433009`.
 
-- CI `31231433021`: queued at this record update;
-- Benchmarks `31231433009`: queued at this record update.
-
-Do not claim final exact-head success until those runs execute.
+Do not retroactively describe those queued runs as exact-head green. Their status is an evidence limit, not a submission blocker.
 
 ## Final judgment
 
-`OWNER REVIEW / EXACT-HEAD EXECUTION PENDING`.
+`SUBMITTED`.
 
-The final suite focuses on plausible regressions of the public option and fetch behavior, not exhaustive or deliberately corrupted internal states. No public upstream interaction occurred.
+The owner opened the upstream pull request manually. No additional upstream interaction is authorized from Fieldwork without explicit owner direction.
