@@ -1,6 +1,6 @@
 # Fieldwork-owned proposed patch for oven-sh/bun#35557 head
 # Base: 2f2125e73a65cebef62c32c32acd3d114ac67e09
-# Evidence: source-read. This patch has NOT been executed on Bun.
+# Evidence: source-read + target-test-prepared. This patch has NOT been executed on Bun.
 # Upstream contact: none.
 
 diff --git a/src/js_parser/p.rs b/src/js_parser/p.rs
@@ -108,3 +108,33 @@ diff --git a/src/js_parser/parse/parse_entry.rs b/src/js_parser/parse/parse_entr
 +                );
 +            }
          }
+diff --git a/test/bundler/transpiler/transpiler.test.js b/test/bundler/transpiler/transpiler.test.js
+--- a/test/bundler/transpiler/transpiler.test.js
++++ b/test/bundler/transpiler/transpiler.test.js
+@@
+     describe(".scanImports() reports the injected JSX runtime import", () => {
+       const dev = { loader: "tsx", define: { "process.env.NODE_ENV": JSON.stringify("development") } };
+       const jsxDevRuntime = [{ kind: "import-statement", path: "react/jsx-dev-runtime" }];
+@@
+       ])("%s", (_, opts, src, expected) => {
+         const t = new Bun.Transpiler(opts);
+         expect(t.scanImports(src)).toEqual(expected);
+         expect(t.scan(src).imports).toEqual(expected);
+       });
++
++      it("reports the bare package for the key-after-spread createElement fallback", () => {
++        const t = new Bun.Transpiler(dev);
++        const src = 'export default <div {...obj} key="after" />;';
++        const expected = [{ kind: "import-statement", path: "react" }];
++        expect(t.scanImports(src)).toEqual(expected);
++        expect(t.scan(src).imports).toEqual(expected);
++      });
++
++      it("reports both JSX dependencies when a file mixes automatic and fallback elements", () => {
++        const t = new Bun.Transpiler(dev);
++        const src = 'export const a = <span />; export const b = <div {...obj} key="after" />;';
++        for (const imports of [t.scanImports(src), t.scan(src).imports]) {
++          expect(new Set(imports.map(x => x.path))).toEqual(new Set(["react/jsx-dev-runtime", "react"]));
++        }
++      });
+     });
