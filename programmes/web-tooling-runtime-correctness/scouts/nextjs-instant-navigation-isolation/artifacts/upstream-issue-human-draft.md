@@ -1,3 +1,13 @@
+# Archived pre-filing issue draft
+
+The human owner filed the structured upstream issue manually at:
+
+https://redirect.github.com/vercel/next.js/issues/96961
+
+This artifact preserves the earlier narrative draft used to develop the final field-by-field report. The filed issue is shorter and follows Next.js's structured bug form.
+
+---
+
 # `@next/playwright instant()` clears testing cookies for other origins
 
 `instant()` scopes its testing cookie to the application hostname, but cleanup currently reads every cookie in the Playwright `BrowserContext` and expires every cookie named `next-instant-navigation-testing`.
