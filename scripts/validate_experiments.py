@@ -107,9 +107,10 @@ def validate_experiment(directory: Path) -> None:
             f"{metadata_path}: unsupported network_policy {network_policy!r}"
         )
 
-    if not isinstance(data.get("upstream_contact_authorized"), bool):
+    if data.get("upstream_contact_authorized") is not False:
         raise ValidationError(
-            f"{metadata_path}: upstream_contact_authorized must be boolean"
+            f"{metadata_path}: upstream_contact_authorized must be false; "
+            "automated upstream contact is prohibited"
         )
 
     environment = data.get("environment")
