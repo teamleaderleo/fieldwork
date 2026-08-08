@@ -17,7 +17,7 @@ Bun's Node-compatible `child_process.execFile()` appears to schedule the same ti
 
 Current Node keeps `execFile()`'s timeout at the `execFile()` layer, so this operation has one timeout timer there.
 
-The source difference is established. A small POSIX probe can tell us whether a child that handles `SIGUSR1` and stays alive receives one signal under Node and two under Bun. Until that probe runs on Bun, this remains a source-level compatibility lead.
+The source difference is established. A small POSIX probe can tell us whether a child that handles `SIGUSR1` and stays alive receives one signal under Node and two under Bun. The corrected probe records exactly one signal under Node 22.16.0. Bun execution remains the missing cell, so this is still a source-level compatibility lead.
 
 ## Assignment contract
 
@@ -72,7 +72,7 @@ The probe:
 1. creates a temporary receipt path;
 2. launches a child through `execFile(process.execPath, ...)`;
 3. gives `execFile()` `timeout: 1000` and `killSignal: "SIGUSR1"`;
-4. has the child append one receipt per `SIGUSR1` while continuing to run;
+4. has the child append one byte per `SIGUSR1` while continuing to run;
 5. sends `SIGKILL` later only to guarantee cleanup;
 6. reports the observed signal count as JSON;
 7. optionally asserts a count through `EXPECT_SIGNALS`.
@@ -88,6 +88,30 @@ Candidate execution:
 ```sh
 EXPECT_SIGNALS=1 bun programmes/open-source-ecosystems/scouts/bun-runtime-compatibility/artifacts/execfile-timeout-signal-count.mjs
 ```
+
+### Comparison control executed
+
+The corrected probe ran in the available Linux analysis environment with Node `22.16.0`:
+
+```json
+{
+  "runtime": "node 22.16.0",
+  "signalCount": 1,
+  "receiptBytes": "x",
+  "callbackError": {
+    "name": "Error",
+    "code": null,
+    "signal": "SIGKILL",
+    "killed": true
+  },
+  "callbackStdout": "",
+  "callbackStderr": ""
+}
+```
+
+The terminal `SIGKILL` is the probe's explicit cleanup after the observation window. The timeout itself delivered one handled `SIGUSR1`.
+
+An initial harness draft used an escaped textual delimiter whose parsing could collapse several signal deliveries into one logical row. The Node control exposed that ambiguity before handoff. The retained artifact now writes exactly one byte per signal and counts bytes directly.
 
 Interpretation:
 
@@ -155,9 +179,10 @@ Discriminator: record count plus callback error, exit code, and terminating sign
 
 - Bun timer ownership and call flow: `source-read`.
 - Node comparison behavior from implementation: `source-read`.
+- Node 22.16.0 signal-count control: `model-executed` comparison evidence.
 - Worker teardown coverage: `source-read`.
-- Duplicate signal consequence: `target-test-prepared`; execution receipt absent.
-- Broader operational impact: `Unknown` until the discriminator runs and a realistic caller consequence is identified.
+- Duplicate signal consequence in Bun: `target-test-prepared`; execution receipt absent.
+- Broader operational impact: `Unknown` until the Bun discriminator runs and a realistic caller consequence is identified.
 
 ## Recommendation
 
