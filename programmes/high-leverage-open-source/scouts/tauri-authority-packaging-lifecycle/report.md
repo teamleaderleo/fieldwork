@@ -10,20 +10,20 @@ Upstream contact authorized: `false`
 
 ## In simple words
 
-Two lifecycle boundaries are worth pushing.
+Two candidates survived the first deep pass.
 
-First, Tauri's custom-protocol IPC can already have dispatched a Rust command when navigation makes the frontend `fetch()` reject. The frontend then interprets the rejection as transport failure and retries the same logical invoke over `postMessage`. WebView2 and WKWebView order navigation teardown differently, so page-lifecycle flags haven't produced one cross-platform answer.
+1. Tauri's Rust event manager runs user callbacks while its handler mutex is held. A caught callback panic can poison that mutex. Later `listen`, `unlisten`, and `emit` operations treat the poison result like ordinary lock contention, queue themselves, and can leave the manager silently unable to deliver future events. A focused regression and narrow panic-preserving repair are prepared against the pinned Tauri source.
+2. Tauri's IPC fallback decides to switch transports after a side-effecting custom-protocol request may already have reached Rust. Navigation can make the frontend `fetch()` reject after dispatch, causing the same logical invoke to be resent over `postMessage`. A cleaner candidate is to select the transport with a side-effect-free probe before any command runs, then execute each command through one transport only.
 
-Second, Tauri's Rust event manager invokes user callbacks while its handler mutex is held. Reentrant event operations are deferred through a pending queue. That design already loses `emit_filter` semantics on the deferred path. A callback panic exposes a second failure mode: unwinding poisons the handler mutex, and later `try_lock()` calls classify poison the same way as ordinary contention and keep queuing work. A closely related filesystem scope event manager keeps an `emitting` flag set across callbacks, so a callback panic can leave that flag set as well.
-
-The first executable probe targets the panic case because it is platform-independent, bounded, and currently appears unreported. The IPC branch remains active research until we can distinguish transport failure from post-dispatch navigation on both Chromium and WebKit.
+The first candidate is compact Rust correctness work. The second is the stronger answer to the long-running reload/duplicate-invoke problem, but it needs WebView2 and WKWebView execution before implementation is promoted.
 
 ## Evidence class
 
 - Tauri implementation, tests, history, current issues and pull requests: `source-read`.
-- Maintainer-reported WebView2/WKWebView ordering: `Documented` upstream context; no Fieldwork platform execution yet.
-- Listener-panic regression: `target-test-prepared`; execution carrier attached to this scout.
-- Owned application execution: absent.
+- IPC transport-selection state-machine probe: `model-executed`; retained in `ipc-model-receipt-20260809.json`.
+- Listener-panic regression and candidate patch: `target-test-prepared`.
+- Listener-panic execution carrier run `31283181973`: queued on exact execution head `3427e21a6400314f662539cc0c15851cb3f15c49` at this handoff; no target-executed claim yet.
+- Owned application / WebView2 / WKWebView execution: absent.
 
 ## Code map
 
@@ -31,7 +31,7 @@ The first executable probe targets the panic case because it is platform-indepen
 
 ```text
 frontend invoke
-  -> random callback/error ids
+  -> random success/error callback ids
   -> custom-protocol fetch
   -> Rust parses request
   -> Webview::on_message dispatches command
@@ -48,17 +48,57 @@ Relevant target files:
 - `crates/tauri/src/ipc/protocol.rs`
 - `crates/tauri/src/webview/mod.rs`
 
-The callback and error ids are generated as random `u32` values per document. Both transports carry those same ids for a fallback of the same invoke. This gives the backend a potential logical-request identity, but cross-document collision and stale-response behavior must be handled before treating those ids as a durable deduplication key.
-
 Current issue context: `https://redirect.github.com/tauri-apps/tauri/issues/14154`.
 
-### Rust event path
+The callback and error ids are generated as random `u32` values per document. The fallback reuses the same message and therefore the same pair. Backend deduplication is possible in principle, but it would need response handoff, expiry, document identity, and collision handling. It is heavier than preventing ambiguous cross-transport retry in the first place.
+
+### Side-effect-free transport selection
+
+The Rust custom-protocol handler already has an `OPTIONS` branch that returns without calling `Webview::on_message`. That creates an existing side-effect-free probe boundary.
+
+Candidate document-local state machine:
+
+```text
+first invoke(s)
+  -> await one shared custom-protocol capability probe
+  -> probe succeeds: choose custom protocol for this document
+  -> probe fails: choose postMessage for this document
+  -> dispatch command once through the selected transport
+  -> command-level transport rejection never triggers cross-transport replay
+```
+
+This directly addresses the known fallback use case: CSP can block custom-protocol `fetch`, especially on externally loaded pages. It also removes dependence on `pagehide` / `beforeunload` ordering, which differs across Chromium and WebKit.
+
+A bare `OPTIONS` request may fail to predict every platform's `POST` behavior. If platform testing disproves equivalence, the same design can use an internal side-effect-free probe request that traverses the exact custom-protocol POST path and is intercepted before command dispatch.
+
+Android regular command IPC already uses `postMessage` because request bodies are unavailable through that custom-protocol path. Preserve its special channel-data behavior when testing this candidate.
+
+## IPC model probe
+
+Retained path: `probe/ipc_transport_model.mjs`  
+Receipt: `ipc-model-receipt-20260809.json`  
+Runtime: Node `v22.16.0`
+
+The model compares current retry-after-failure semantics with transport selection before dispatch.
+
+Observed:
+
+```text
+PASS normal: one custom-protocol dispatch
+PASS CSP block: probe selects postMessage before command dispatch
+PASS reload after dispatch: no cross-transport retry; Rust sees one command
+PASS late transport break: invoke rejects instead of risking duplicate side effect
+```
+
+This proves only the state-machine property. It does not prove that WebView2 or WKWebView will treat the proposed probe exactly like the command POST.
+
+## Rust event path
 
 ```text
 emit_filter
   -> handlers.try_lock()
-  -> lock held while callback runs
-       -> nested listen/unlisten/emit can't lock
+  -> lock held while filter and callback run
+       -> nested listen/unlisten/emit cannot lock
        -> nested action enters pending queue
   -> callback returns
   -> pending queue flushes
@@ -70,35 +110,33 @@ Relevant target files:
 - `crates/tauri/src/manager/mod.rs`
 - `crates/tauri/src/lib.rs`
 
-Current `Pending::Emit` stores only `EmitArgs`. If filtered emit is deferred, replay goes through plain `emit()`, dropping the filter. Existing issue context: `https://redirect.github.com/tauri-apps/tauri/issues/15759`.
+Current `Pending::Emit` stores only `EmitArgs`. If a filtered emit is deferred, replay goes through plain `emit()`, dropping the filter. Existing issue context: `https://redirect.github.com/tauri-apps/tauri/issues/15759`.
 
-The public `Emitter::emit_filter` closure has no `Send` or `'static` bound. A prior repair tried storing the filter in the pending queue by adding those bounds; it was closed. A nonbreaking answer therefore needs a different ownership boundary.
+The public `Emitter::emit_filter` closure has no `Send` or `'static` bound. A previous repair attempted to store the closure in the pending queue by widening those public bounds. That path is a poor fit for the existing API.
 
 ### Callback panic path
 
-The handler mutex is a `std::sync::Mutex`. `emit_filter` holds its guard across each user callback. If a callback unwinds:
+The handler map uses `std::sync::Mutex`. Both filter evaluation and user callbacks run under its guard.
 
 ```text
-callback panic
+callback/filter panic
   -> MutexGuard drops during unwind
   -> handler mutex becomes poisoned
   -> later handlers.try_lock() returns Poisoned
-  -> code matches Err(_) as if lock were busy
+  -> current code matches Err(_) as if lock were busy
   -> listen/unlisten/emit are appended to pending
-  -> no successful emit remains to flush them
+  -> no successful handler-lock path remains to make normal progress
 ```
 
-The handler map itself is not being mutated by the callback loop; reentrant map changes are redirected to the separate pending queue. That makes catching the callback panic inside the lock lifetime, dropping the lock normally, flushing pending actions, then resuming the same panic a plausible narrow repair.
+This appears absent from the current Tauri issue search.
 
-A sibling implementation in `crates/tauri/src/scope/fs.rs` uses `AtomicBool emitting` plus a pending queue to prevent reentrant deadlock. Its callback loop also runs under a mutex, and a user panic skips `emitting.store(false, ...)`, giving us a second candidate after the core event probe is settled.
+A closely related filesystem scope manager uses an `emitting` flag plus a pending queue. That code was introduced to repair reentrant scope-event deadlocks. Its callback loop still runs under `event_listeners`, and a user panic skips the `emitting = false` transition while poisoning the listener mutex. Existing predecessor issue: `https://redirect.github.com/tauri-apps/tauri/issues/15468`.
 
-## First probe
+## Listener panic probe
 
 Question: after one Rust event callback panics and the caller catches the unwind, can the same event manager still register and deliver a different event?
 
-Expected invariant: callback panic propagates to the caller, while unrelated future event operations remain usable.
-
-Baseline test:
+Prepared regression:
 
 1. register a callback that panics;
 2. call `emit` inside `catch_unwind` and verify the panic propagated;
@@ -106,34 +144,39 @@ Baseline test:
 4. emit the second event;
 5. require the second callback to run.
 
-Current source predicts step 5 fails because the poisoned handler mutex is treated as contention and both later actions are only queued.
+Prepared candidate:
 
-Candidate repair under test: catch callback unwind while the handler guard remains owned outside the catch boundary, let the guard drop normally, flush pending reentrant actions, then `resume_unwind` with the original panic payload.
+- catch an unwind from filter/callback execution while the handler mutex guard remains owned outside the catch boundary;
+- let the guard drop normally, avoiding mutex poisoning;
+- flush pending reentrant actions, including `once` self-removal;
+- resume the original panic with `resume_unwind`.
 
-## IPC hypotheses still open
+Retained artifacts:
 
-H1 — page lifecycle is sufficient. Weakened: maintainers report the ordering works on current WebView2 and fails on WKWebView.
+- `probe/listener_panic_test.rs`
+- `probe/candidate.patch`
 
-H2 — successful-custom-protocol memory is sufficient. Partial mitigation only: the very first invoke after a document load can still be duplicated.
-
-H3 — callback/error ids can identify a fallback retry at the Rust boundary. Plausible: both transports preserve them. Needs a document-generation or stronger request identity so a new page cannot collide with an old in-flight call.
-
-H4 — an explicit transport acknowledgment before command execution can remove the ambiguity. Clean semantics, larger protocol change. Needs comparison against backend deduplication and channel/streaming behavior.
+The exact target workflow was created and then removed from the current branch after dispatch. Run `31283181973` remains queued against the execution head. Treat this candidate as prepared until an exact receipt exists.
 
 ## Ranked branch candidates
 
-1. **Core event callback panic recovery** — correctness; small source boundary; target-native regression prepared. Promote if baseline fails and candidate passes.
-2. **Filtered nested emit without public bound widening** — correctness; likely requires changing callback/lock ownership or representing filters without storing arbitrary closures. Continue after panic probe.
-3. **IPC logical invoke identity across fallback and navigation** — high consequence; needs WebView2 + WKWebView execution and collision analysis before implementation.
-4. **Filesystem scope callback panic recovery** — same family as candidate 1, separate state machine; test only after core event result is established.
+1. **IPC transport negotiation before side-effecting dispatch** — highest leverage. It removes the ambiguous retry boundary instead of guessing why a command-level fetch rejected. Next evidence: one WebView2 and one WKWebView fixture covering normal local page, CSP-blocked custom protocol, reload during a long-running command, and a command after successful negotiation.
+2. **Core event callback panic recovery** — compact correctness candidate. Promote only after the prepared baseline fails for the intended assertion and the candidate passes while preserving the caller-visible panic.
+3. **Filtered nested emit without public bound widening** — confirmed source defect with an awkward API constraint. Revisit callback ownership / lock lifetime after the panic candidate; avoid storing arbitrary public filter closures in the pending queue.
+4. **Filesystem scope panic recovery** — likely sibling failure after the reentrant-deadlock repair. Give it its own regression after core event behavior is established.
+5. **Runtime-wry native window/webview listener reentrancy and panic audit** — issue #15468 identified the same callback-under-lock family there. Map current dispatch sites before opening another candidate.
 
-## Negative results / stops
+## Negative results and stops
 
-- Pagehide/beforeunload alone is not a cross-platform solution for the reload duplication case.
-- Adding `Send + 'static` to the public filter closure solely to persist it in `Pending::Emit` widens the public contract and has already met upstream resistance.
-- Existing open fixes for asset multi-range handling and immediate JS unlisten races are occupied work and are excluded from this scout.
-- No upstream state was changed.
+- `pagehide` / `beforeunload` alone cannot serve as the cross-platform reload fix; observed ordering differs between WebView2 and WKWebView.
+- Remembering that the custom protocol succeeded once leaves a later transport-failure ambiguity and can pin a document to a broken transport.
+- Command-level retry after an ambiguous rejection cannot promise at-most-once side effects.
+- Adding `Send + 'static` to `emit_filter` solely so the pending queue can own the closure widens an existing public contract.
+- Existing asset multi-range and immediate JS-unlisten fixes are occupied work and stay outside this scout.
+- No automated third-party upstream mutation was attempted or performed.
 
 ## Next transition
 
-Run the focused core-event baseline and candidate repair on the pinned Tauri source. If the baseline reproduces and the candidate passes, retain the exact workflow receipt and inspect panic behavior for `once` plus the filesystem-scope sibling before drafting any human-facing packet.
+The best next execution is the IPC transport-selection fixture on Windows/WebView2 and macOS/WKWebView. It should make the current implementation and candidate lose on exact, predeclared cases: CSP failure before dispatch, reload after dispatch, and a later transport failure.
+
+In parallel, consume run `31283181973` only when GitHub produces an exact receipt. If the listener baseline and candidate behave as predicted, add `once`-panic and filesystem-scope controls before preparing a human-facing patch packet.
