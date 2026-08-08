@@ -1,6 +1,14 @@
-# `fix(next-playwright): scope instant cookie cleanup to app URL`
+# Archived human-filed PR description
 
-Fixes #[issue]
+Filed manually by the human owner at:
+
+https://redirect.github.com/vercel/next.js/pull/96962
+
+The body below matches the filed PR description.
+
+---
+
+Fixes #96961
 
 ## What
 
