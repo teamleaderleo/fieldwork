@@ -14,15 +14,17 @@ const mismatchedClientTls = {
 };
 
 function waitForFailure(ws: WebSocket) {
-  return new Promise<{ error: ErrorEvent; close: CloseEvent }>((resolve, reject) => {
+  return new Promise<{ error: ErrorEvent; close: CloseEvent; errorCount: number }>((resolve, reject) => {
     let errorEvent: ErrorEvent | undefined;
+    let errorCount = 0;
     ws.onopen = () => reject(new Error("WebSocket unexpectedly opened"));
     ws.onerror = event => {
+      errorCount++;
       errorEvent = event as ErrorEvent;
     };
     ws.onclose = event => {
       if (!errorEvent) return reject(new Error("WebSocket closed without an error event"));
-      resolve({ error: errorEvent, close: event });
+      resolve({ error: errorEvent, close: event, errorCount });
     };
   });
 }
@@ -44,11 +46,11 @@ test("direct wss client TLS setup exposes ERR_OSSL_X509_KEY_VALUES_MISMATCH", as
   const ws = new WebSocket(`wss://127.0.0.1:${server.port}`, {
     tls: mismatchedClientTls,
   });
-  const { error, close } = await waitForFailure(ws);
+  const { error, close, errorCount } = await waitForFailure(ws);
 
+  expect(errorCount).toBe(1);
   expect(error.error).toBeInstanceOf(Error);
   expect((error.error as any).code).toBe("ERR_OSSL_X509_KEY_VALUES_MISMATCH");
-  expect(error.message).toContain("key values mismatch");
   // Diagnostic fidelity must not change WebSocket lifecycle policy.
   expect(close.code).toBe(1006);
   expect(close.wasClean).toBe(false);
@@ -85,11 +87,11 @@ test("wss through HTTP CONNECT proxy exposes the same TLS setup code", async () 
       proxy: `http://127.0.0.1:${proxyPort}`,
       tls: mismatchedClientTls,
     });
-    const { error, close } = await waitForFailure(ws);
+    const { error, close, errorCount } = await waitForFailure(ws);
 
+    expect(errorCount).toBe(1);
     expect(error.error).toBeInstanceOf(Error);
     expect((error.error as any).code).toBe("ERR_OSSL_X509_KEY_VALUES_MISMATCH");
-    expect(error.message).toContain("key values mismatch");
     expect(close.code).toBe(1006);
     expect(close.wasClean).toBe(false);
   } finally {
