@@ -14,20 +14,40 @@ PR 37112 made normal HostSingleton release props-aware and split marker cleanup 
 
 No separate server-contribution Fiber handle was introduced for that detach.
 
-## Hydration ordering
+## Current hydration ordering confirmed
 
-HostSingleton hydration binds the persistent singleton during complete work:
+Current public main `2042572329425f9ebf35ae6287ea5bab72b2c497` still binds the persistent singleton during render/complete work.
 
-`prepareToHydrateHostInstance(fiber, hostContext)` calls the renderer's `hydrateInstance(...)`.
+The HostSingleton complete-work path calls:
 
-React DOM `hydrateInstance()` immediately calls:
+`prepareToHydrateHostInstance(workInProgress, currentHostContext)`
+
+when `popHydrationState()` reports a hydrated singleton.
+
+Current `prepareToHydrateHostInstance()` directly calls the renderer's:
+
+`hydrateInstance(instance, type, props, hostContext, fiber)`
+
+and React DOM's current `hydrateInstance()` immediately executes:
 
 - `precacheFiberNode(internalInstanceHandle, instance)`;
 - `updateFiberProps(instance, props)`.
 
-Nested dehydrated-boundary cleanup occurs later during commit.
+Only after that does it run `hydrateProperties(...)`.
 
-Therefore the DOM -> Fiber/props association present when `clearSingletonPreambleContribution()` runs may be the **freshly hydrated current client owner**, not an old server contribution.
+So nested dehydrated-boundary cleanup during commit can indeed encounter a persistent body/head/html node already associated with the current render's HostSingleton Fiber and props.
+
+### `bindInstance()` does not invalidate this conclusion
+
+Current React DOM also contains a `bindInstance()` helper with a comment saying HostSingleton hydration association should eventually happen only on commit because render can fail/restart and only one Fiber can own the singleton.
+
+That helper is evidence that the current render-phase binding is itself recognized as a lifecycle concern. It is **not** the active replacement for `hydrateInstance()` yet: the current hydration path above still performs the eager association.
+
+If a future public change actually moves singleton binding to commit, reevaluate this entire lane before promotion. At current main, the eager-binding premise is real.
+
+## Consequence
+
+The DOM -> Fiber/props association present when `clearSingletonPreambleContribution()` runs may be the **freshly hydrated current client owner**, not an old server contribution.
 
 Calling `detachDeletedInstance(instance)` at that point can erase the current client's event/props/Fiber association.
 
@@ -71,18 +91,30 @@ If a client owner is bound, unconditional detach removes state that belongs to a
 
 Actual HostSingleton deletion/release still has its normal reconciler Fiber and should continue using normal release semantics.
 
+## Mirror-image risk: abandoned hydration work
+
+The eager binding itself means render failure/restart can transiently associate a persistent singleton with work that never commits. That is exactly the concern called out by the `bindInstance()` comment.
+
+Do not assume deleting marker-path detach is the final global answer to eager-binding cleanup.
+
+The narrow claim is only that a **server contribution marker has no old Fiber token proving authority to detach whatever mapping currently exists**.
+
+If abandoned hydration work needs cleanup, it should be handled by a lifecycle path that knows which Fiber association it is retiring, or by the planned commit-time binding move, rather than by an unrelated marker unconditionally deleting the singleton's current mapping.
+
 ## Remaining questions
 
-- Verify whether any recovery path intentionally relies on marker cleanup detaching a stale current association before another singleton acquisition. The current experiment's focused and broader hydration tests should catch the obvious case.
+- Verify whether any recovery path intentionally relies on marker cleanup detaching a stale association before another singleton acquisition.
+- If PR 43 passes, add a forced hydration restart/client-render control so preserving current mapping is tested against abandoned-work cleanup too.
 - Verify event mapping in development and production if the first experiment passes.
 - If property metadata is later added to markers, preserve this owner rule rather than reintroducing detach as a cleanup epilogue.
+- Revalidate immediately if public React moves HostSingleton hydration binding to the existing commit-time `bindInstance()` helper.
 
 ## Disposition
 
 **EXECUTE as a narrow child experiment.**
 
-A pass would justify treating current-client-owner preservation as an independent preamble repair. It would still leave marker property metadata and opaque child ownership unresolved.
+A pass would justify treating current-client-owner preservation as an independent preamble repair under the current eager-binding implementation. It would still leave marker property metadata, opaque child ownership, and the broader render-phase binding lifecycle unresolved.
 
 ## Evidence class
 
-Source/history read plus target-test-prepared React PR 43. No semantic execution receipt yet. Public upstream interaction: none.
+Current-main source/history read plus target-test-prepared React PR 43. No semantic execution receipt yet. Public upstream interaction: none.
