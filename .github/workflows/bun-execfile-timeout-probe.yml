@@ -1,0 +1,34 @@
+name: Bun execFile timeout probe
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/bun-execfile-timeout-probe.yml'
+      - 'programmes/open-source-ecosystems/scouts/bun-runtime-compatibility/**'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Run Node control
+        run: |
+          node --version
+          EXPECT_SIGNALS=1 node programmes/open-source-ecosystems/scouts/bun-runtime-compatibility/artifacts/execfile-timeout-signal-count.mjs
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 'f972c287f9b7a71754b0b0b1cd18722aa3c75280'
+      - name: Show Bun revision
+        run: |
+          bun --version
+          bun --revision
+      - name: Run Bun discriminator
+        run: |
+          EXPECT_SIGNALS=1 bun programmes/open-source-ecosystems/scouts/bun-runtime-compatibility/artifacts/execfile-timeout-signal-count.mjs
