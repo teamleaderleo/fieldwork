@@ -1,6 +1,6 @@
 # Candidate: preserve client TLS setup errors on WebSocket connections
 
-Fieldwork #709 follow-up. Prepared 2026-08-09.
+Fieldwork #709 follow-up. Deepened 2026-08-09.
 
 Automated upstream contact: **none**.
 
@@ -12,101 +12,132 @@ Automated upstream contact: **none**.
 
 https://redirect.github.com/oven-sh/bun/pull/36149
 
+Current source pin for this packet: parent head `96c737581f4d6faeded91ee254c59ed3d680b692`.
+
 That active PR fixes bad client cert/key/passphrase diagnostics for `fetch()` and explicitly names two sibling WebSocket SSL-context construction sites as deferred follow-up work:
 
 - `WebSocketProxyTunnel::start`
 - `WebSocketUpgradeClient::connect`
 
-The parent explains why it stopped there: WebSockets have an event-based error surface, while fetch rejects a promise with a `SystemError`; carrying `ERR_OSSL_*` through WebSockets therefore needs a separate `http_jsc` error mapping.
+RoboBun explicitly agreed in the parent discussion that this is a separate change because WebSocket routes through `bun_http_jsc` and uses an event-based error surface.
 
-Ownership searches found no separate open PR/issue for this WebSocket follow-up.
+Ownership searches found no separate open PR/issue for this exact follow-up.
 
-## Current-main source read
-
-Revalidated against Bun main `9d519e8ca9f63a19f94790c47019bd7b6752c27a`.
+## Root cause: two captures, one transport problem
 
 ### 1. CONNECT-tunnel TLS: `WebSocketProxyTunnel::start`
 
-`src/http_jsc/websocket_client/WebSocketProxyTunnel.rs` builds an `SslWrapper` from the request's TLS config:
+The tunnel builds an `SslWrapper` from the request TLS config and currently collapses failure to `InvalidOptions`:
 
 ```rust
-let wrapper = SslWrapperType::init_from_options(
-    &options.as_usockets(),
-    true,
-    handlers,
-)
-.map_err(|_| crate::Error::InvalidOptions)?;
+SslWrapperType::init_from_options(...)
+    .map_err(|_| crate::Error::InvalidOptions)?;
 ```
 
-So any SSL-context setup failure that reaches this point is immediately collapsed to `InvalidOptions`. The BoringSSL reason queue is not consumed and transported.
+For a mismatched cert/key, BoringSSL has already pushed `X509_R_KEY_VALUES_MISMATCH` onto the calling thread's error queue. The parent fetch PR proves that `bun_http::error::take_boringssl_error()` can consume and preserve that packed code at exactly this kind of failure site.
 
-This is especially direct because #36149 already added the sibling fetch-side pattern: immediately take the thread-local BoringSSL error after the failed SSL-context build, carry the packed code through an error enum, then format it at the JS boundary.
+This half can capture the error locally after the proxy has returned 200 and before TLS tunnel traffic starts.
 
-### 2. Direct/upgrade client TLS: `WebSocketUpgradeClient::connect`
+### 2. Direct `wss://`: `WebSocketUpgradeClient::connect`
 
-`src/http_jsc/websocket_client/WebSocketUpgradeClient.rs` owns the other TLS construction path. It obtains a per-config client `SSL_CTX` through the VM's `ssl_ctx_cache_get_or_create` hook and threads a low-level `create_bun_socket_error_t` alongside it.
+The direct path builds/retrieves the client `SSL_CTX` during `WebSocketUpgradeClient::connect`. If `ssl_ctx_cache_get_or_create` returns null, the Rust function returns `None` / a null pointer to C++.
 
-The function's external contract is currently `Option<*mut Self>`: returning `None` means the connection setup failed. That contract has no room for a BoringSSL reason, so a cert/key/passphrase parse failure can only collapse into the WebSocket client's generic failure handling.
+That loses more than a reason string: the **FFI result itself has no error payload**.
 
-This means the two sites probably want one shared WebSocket-specific error carrier instead of independent fixes.
+`WebSocket.cpp` receives the null `m_upgradeClient` and unconditionally posts:
 
-## Expected user-facing behavior
+```cpp
+auto eventInit = createErrorEventInit(protectedThis, "Failed to connect"_s, globalObject);
+protectedThis->dispatchEvent(ErrorEvent::create(...));
+protectedThis->dispatchEvent(CloseEvent::create(false, 1006, ...));
+```
 
-For client TLS material failures, WebSocket's `error` event should expose an Error whose diagnostics preserve the same BoringSSL reason as the equivalent fetch/node:tls operation, e.g.:
+`createErrorEventInit` creates a fresh generic JavaScript `Error` from that fixed message. There is currently nowhere for an `ERR_OSSL_*` code captured in Rust to survive this boundary.
 
-- cert/key mismatch → `ERR_OSSL_X509_KEY_VALUES_MISMATCH`
-- encrypted key with bad passphrase → `ERR_OSSL_*_BAD_DECRYPT` (library prefix follows Bun/BoringSSL mapping)
-- non-PEM cert/key → `ERR_OSSL_PEM_NO_START_LINE`
+## Consequence for implementation size
 
-The WebSocket close/error event ordering should stay unchanged; this candidate is about the diagnostic payload, not handshake lifecycle policy.
+A new numeric `WebSocketErrorCode` alone is insufficient. That enum transports only a fixed failure category, and C++ maps it back to hard-coded reason strings.
 
-## Suggested implementation seam
+The follow-up needs a richer setup-error carrier across Rust -> C++.
 
-Do this after #36149 settles so the BoringSSL formatting helper/error-code representation can be reused.
+Two viable designs:
 
-Likely split:
+### A. Result/out-parameter on the connect ABI — preferred for direct setup failure
 
-1. Add a WebSocket/http_jsc error variant carrying the packed BoringSSL code.
-2. At both SSL-context construction sites, consume the BoringSSL thread-local error immediately after failure.
-3. Thread that variant to the existing WebSocket termination/error-event boundary.
-4. Materialize a JS Error/SystemError there with `code` and the BoringSSL message.
-5. Preserve the old generic error only when there is no queued BoringSSL reason.
+Change the HTTPS WebSocket connect FFI so a null client can also return a small failure payload, for example:
 
-Avoid doing eager validation on the JS thread merely to produce an error if the HTTP-thread/site-local queue can be carried correctly; #36149's current approach is the better sibling pattern.
+- error kind: generic vs client-TLS-setup;
+- packed BoringSSL `u32` for `ClientTLSSetup`.
 
-## Regression matrix
+C++ can then keep the existing null-client lifecycle path while constructing an Error whose `.code` / message come from the same `err_code_and_message` helper used by #36149.
 
-Prepare two families because the two source sites are distinct:
+This directly fits the synchronous direct-`wss://` failure, where no live upgrade client exists to deliver a later callback.
 
-### Direct `wss://`
+### B. Dedicated richer failure callback
 
-- bad cert/key mismatch
-- bad passphrase
-- non-PEM cert or key
-- matching valid material control
+Introduce a C ABI callback such as a WebSocket client TLS-setup failure carrying the packed code. The proxy-tunnel path can use this naturally because a live WebSocket/upgrade-client object exists when tunnel TLS setup runs.
 
-### `wss://` through HTTP CONNECT proxy
+For the direct path, a callback during `Bun__WebSocketHTTPSClient__connect` would also require suppressing the generic `m_upgradeClient == nullptr` fallback to avoid double error/close dispatch. That makes the ABI-result approach cleaner there.
 
-Repeat at least cert/key mismatch and non-PEM input to pin `WebSocketProxyTunnel::start` separately.
+A practical implementation may use A for initial construction plus the same packed-error formatting helper at the shared C++ event-construction boundary, while the tunnel stores/forwards the same payload through its existing termination path.
 
-Assertions should check:
+## Event semantics to preserve
 
-- one WebSocket error event;
-- error `.code` is the expected `ERR_OSSL_*`, not a generic connection/invalid-options label;
-- process remains healthy and close behavior is unchanged.
+This candidate is diagnostic-only:
+
+- one `error` event;
+- `ErrorEvent.error` remains an `Error` object, now with the expected `.code`;
+- direct setup failure keeps abnormal close code `1006` / `wasClean === false`;
+- proxy setup failure keeps its existing error-before-close ordering;
+- successful/handshake certificate-verification behavior is unchanged (the existing `1015 "TLS handshake failed"` path is a different phase).
+
+The distinction is important: **client TLS material failing to build an SSL_CTX is setup-time**, while an untrusted/self-signed remote certificate is handshake-time. This follow-up should not merge those paths.
+
+## Prepared regression
+
+Fieldwork now carries:
+
+`../candidate-tests/websocket-client-tls-error-fidelity.test.ts`
+
+It has two focused cases using the same harness certificates as Bun's fetch TLS tests:
+
+1. direct `wss://` with `validTls.cert` + `expiredTls.key`;
+2. the same mismatched client material after an HTTP CONNECT proxy returns 200.
+
+Both require:
+
+- exactly one error event;
+- `event.error instanceof Error`;
+- `event.error.code === "ERR_OSSL_X509_KEY_VALUES_MISMATCH"`;
+- abnormal close `1006`, `wasClean === false`.
+
+The current direct path should fail the `.code` assertion because C++ creates a fresh generic `Error("... Failed to connect")`. The tunnel path should likewise fail until the packed BoringSSL reason is captured and transported.
+
+## Reuse from #36149
+
+Do this on top of the parent after it settles. Reuse:
+
+- `bun_http::error::take_boringssl_error()` for immediate queue capture;
+- `ClientTLSSetup(u32)` as the conceptual error variant;
+- the shared BoringSSL `err_code_and_message` formatting so fetch and WebSocket cannot drift in code naming.
+
+Do not duplicate OpenSSL/BoringSSL reason tables in `http_jsc`.
 
 ## Size/risk
 
-**Medium-small, not tiny.** The native failure capture is straightforward and already proven by #36149. The real design question is the WebSocket JS error-event carrier. That makes it a good prepared follow-up, but lower priority than the literal-IP connect errno fix.
+**Medium.** The native queue capture is trivial and already proven. The work is the cross-language error transport and ensuring the existing one-error/one-close lifecycle remains single-shot.
+
+That makes this a good follow-up, but it is no longer in the same tiny-patch tier as the JSX scan candidate.
 
 ## Evidence
 
-- #36149 breadcrumb and sibling mechanism: `source-read`
-- current WebSocketProxyTunnel collapse: `source-read`
-- current upgrade-client TLS construction ownership: `source-read`
-- regression matrix: `target-test-prepared` only after concrete fixture code exists
+- parent explicit deferral + RoboBun acknowledgement: `source-read`
+- both SSL-context failure sites: `source-read`
+- direct C++ null-client generic-error fallback: `source-read`
+- current fixed-string `WebSocketErrorCode` mapping: `source-read`
+- prepared two-path regression: `target-test-prepared`
 - exact Bun execution: unavailable in current scout environment
 
 ## Disposition
 
-**Retain.** Wait for #36149 to stabilize, then prepare code/tests on top of its error helper rather than duplicating the BoringSSL mapping.
+**Presentable design/test candidate; implementation not yet prepared.** The bug and both failure sites are pinned, and the transport constraint is now understood. Wait for #36149 to settle, then implement the richer error carrier on top of its shared BoringSSL helpers.
