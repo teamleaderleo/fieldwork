@@ -1,14 +1,14 @@
-# Upstream pull-request draft — `backgroundFetchSize` snapshot
+# Upstream pull-request record — `backgroundFetchSize` snapshot
 
-Draft status: `ready for owner copy/paste review — no upstream post performed`  
-Proposed title: `fix: snapshot backgroundFetchSize before invoking user code`  
-Proposed head: `teamleaderleo/node-lru-cache:repair/background-fetch-size-source` at `364a8c1c07c9f6281fbe19943eacd261bd410fc4`  
-Proposed base: `isaacs/node-lru-cache:main` at `16b3a916662ab449d496b7b4b4f04132565d1d28`  
-Compare / create-PR page: https://redirect.github.com/isaacs/node-lru-cache/compare/main...teamleaderleo:repair/background-fetch-size-source?expand=1
+Submission status: `submitted manually by owner`  
+Upstream pull request: [isaacs/node-lru-cache#410](https://redirect.github.com/isaacs/node-lru-cache/pull/410)  
+Title: `fix: snapshot backgroundFetchSize before invoking user code`  
+Submitted head: `teamleaderleo/node-lru-cache:repair/background-fetch-size-source` at `364a8c1c07c9f6281fbe19943eacd261bd410fc4`  
+Base at submission: `isaacs/node-lru-cache:main` at `16b3a916662ab449d496b7b4b4f04132565d1d28`
 
 ---
 
-## Copy/paste PR body
+## Submitted PR body
 
 ### Summary
 
@@ -33,15 +33,15 @@ Added coverage for:
 
 ---
 
-## Internal submission notes — do not paste upstream
+## Internal submission notes
 
 ### Regression scope
 
-The final test suite is intentionally limited to supported behavior and realistic regression boundaries.
+The submitted test suite is intentionally limited to supported behavior and realistic regression boundaries.
 
-A previous test imported the exported `BackgroundFetch` type, reached through `unsafeExposeInternals()`, changed the hidden `__size` receipt to `NaN`, and reinserted that internal Promise through `set()`. That test was removed. The repository's own documentation warns that mutating values returned by `unsafeExposeInternals()` may cause strange breakage, so malformed private state isn't part of the supported contract this PR needs to promise.
+A previous test imported the exported `BackgroundFetch` type, reached through `unsafeExposeInternals()`, changed the hidden `__size` receipt to `NaN`, and reinserted that internal Promise through `set()`. That test was removed. The repository's own documentation warns that mutating values returned by `unsafeExposeInternals()` may cause strange breakage, so malformed private state is not part of the supported contract this PR needs to promise.
 
-The accounting boundary still validates the stored receipt defensively. That guard is cheap protection against an impossible/malformed internal state, but it doesn't need a dedicated public-behavior regression test.
+The accounting boundary still validates the stored receipt defensively. That guard is cheap protection against an impossible or malformed internal state, but it does not need a dedicated public-behavior regression test.
 
 The remaining added tests each protect a distinct contract:
 
@@ -53,30 +53,15 @@ The remaining added tests each protect a distinct contract:
 - stale refreshes continuing to use the existing entry size;
 - zero-size background fetches remaining coalesced.
 
-### Test placement / style check
-
-Repository convention has two relevant patterns:
-
-- broad constructor-option validation appears in `test/basic.ts`;
-- feature-specific behavior lives in dedicated files, and upstream itself introduced `test/background-fetch-size.ts` with this option.
-
-Keeping the closely related constructor and runtime regressions together in the existing feature file avoids adding a third changed file and keeps review focused.
-
 ### Why this hole existed
 
 `backgroundFetchSize` was added in 11.5 by commit `4708153206daf822a3ad440ce47248b9cfbdb973`.
 
 Before that change, background-fetch placeholders were a special case in `#requireSize()` and simply returned provisional size `0`. Version 11.5 changed that special-case return to `this.backgroundFetchSize` without adding the normal size guard around the new option.
 
-### Why not use only `isPosInt()`
-
-The repository already has `isPosInt()` for ordinary positive size/count contracts. `backgroundFetchSize` is different because `0` is useful and supported.
-
-The new nonnegative wrapper first requires a primitive number, then accepts zero or delegates positive values to `isPosInt()`. That type-first check also avoids invoking caller conversion hooks merely to reject an invalid runtime value.
-
 ### Final source state
 
-- canonical head: `364a8c1c07c9f6281fbe19943eacd261bd410fc4`;
+- canonical/submitted head: `364a8c1c07c9f6281fbe19943eacd261bd410fc4`;
 - one commit over the exact public base;
 - exactly two files;
 - `src/index.ts`: +33 / -1;
@@ -86,24 +71,14 @@ The new nonnegative wrapper first requires a primitive number, then accepts zero
 - test blob: `a83968f5110bfe42cfe32aae55cb6018aba6aebd`;
 - no dependency, lockfile, workflow, snapshot, generated-output, or Fieldwork file.
 
-The repository's original `t.clock` setup remains unchanged.
-
-### Procedure
-
-- Direct PR is the idiomatic route; no issue-first step is needed for this bounded bug fix.
-- Current `CONTRIBUTING.md` states only the neveragain.tech pledge request.
-- No repository-specific CLA, DCO, `Signed-off-by`, cryptographic commit-signing, changeset/changelog, or AI-assistance trailer requirement was found.
-- Maintainer guidance on PR #392 explicitly welcomed a bug report submitted as a test plus fixing patch.
-
 ### Evidence boundary
 
-- production source is unchanged from the previously reviewed candidate;
-- prior focused production-tree gate, Ubuntu/macOS native CI, and benchmarks passed;
-- final exact-head CI `31231433021`: queued at this edit;
-- final exact-head Benchmarks `31231433009`: queued at this edit;
-- no exact-head success is claimed until those execute;
+- prior focused production-tree gate, Ubuntu/macOS native CI, and benchmarks passed for the unchanged production logic;
+- submitted-head fork CI `31231433021` remains queued at this record update;
+- submitted-head Benchmarks `31231433009` remains queued at this record update;
+- no exact submitted-head green claim is made until those runs execute;
 - Windows `@tapjs/clock` failure remains an unchanged-base repository harness limit, not repaired in this contribution.
 
-### Owner posting boundary
+### Public interaction boundary
 
-The repository owner will perform any public submission manually. Fieldwork/assistant work must not create the upstream PR, issue, comment, review, reaction, or other public interaction.
+The owner created upstream PR #410 manually. The assistant did not create it. No additional upstream issue, comment, review, reaction, merge, release, or other public interaction is authorized without explicit owner direction for that exact action.
