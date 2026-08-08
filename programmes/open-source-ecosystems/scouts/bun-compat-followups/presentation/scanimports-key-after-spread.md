@@ -1,6 +1,6 @@
 # Candidate: make `scanImports()` report the JSX key-after-spread fallback dependency
 
-Fieldwork #709 follow-up. Prepared 2026-08-09.
+Fieldwork #709 follow-up. Deepened 2026-08-09.
 
 Automated upstream contact: **none**.
 
@@ -11,6 +11,8 @@ Automated upstream contact: **none**.
 ## Parent breadcrumb
 
 https://redirect.github.com/oven-sh/bun/pull/35557
+
+Current source pin for this packet: parent head `2f2125e73a65cebef62c32c32acd3d114ac67e09`.
 
 The parent PR changes `Bun.Transpiler` so automatic JSX imports are emitted by default and aligns `.scan()` / `.scanImports()` with the normal automatic-runtime dependency.
 
@@ -32,120 +34,80 @@ and asserts that `transformSync()` emits:
 import { createElement as ... } from "react";
 ```
 
-But its scan-only implementation adds one dependency whenever `p.needs_jsx_import` is true:
-
-```rust
-let import_source = p.options.jsx.import_source();
-p.add_import_record(ImportKind::Stmt, ..., import_source);
-```
-
-For the same development config, that path is `react/jsx-dev-runtime`.
+But its scan-only implementation adds `p.options.jsx.import_source()` whenever its coarse `needs_jsx_import` bit is true. In development automatic mode that path is `react/jsx-dev-runtime`.
 
 So the mismatch is concrete:
 
 - transformed code depends on `react`;
 - `scanImports()` reports `react/jsx-dev-runtime`.
 
-## Why this may be smaller than the parent note suggests
+## Why this is smaller than the parent note suggests
 
-The parent description says the scan pass lacks per-symbol use counts. That is true for determining exactly which `jsx` / `jsxs` / `Fragment` symbols are needed, but dependency-path fidelity for this fallback does not appear to require symbol counts.
+The parent description says the scan pass lacks per-symbol use counts. That is true for choosing among individual automatic-runtime symbols, but dependency-path fidelity for this fallback does not require symbol counts.
 
-Current `src/js_parser/parse/parse_jsx.rs` already computes, during parsing:
+Current `src/js_parser/parse/parse_jsx.rs` already computes during parsing:
 
 ```rust
 let is_key_after_spread =
     key_prop_i > -1 && first_spread_prop_i > -1 && key_prop_i > first_spread_prop_i;
 ```
 
-and sets `JSXElement::IsKeyAfterSpread` before returning the element. The full visitor later checks that flag and, under automatic runtime, routes the element through `JSXImport::CreateElement`.
+and stores the corresponding `JSXElement::IsKeyAfterSpread` flag. The full visitor later checks that exact flag and, under automatic runtime, routes the element through `JSXImport::CreateElement`.
 
-The scan-only parser therefore already knows the exact condition that changes the dependency path. It only fails to retain that fact in scan-level bookkeeping.
+The scan-only parser therefore already knows the condition that changes the dependency path. It only loses that fact before scan finalization.
 
-## Suggested implementation seam
+## Prepared source patch
 
-Prepare on top of #35557 once it settles.
+Fieldwork now contains a proposed patch against the parent head:
 
-A narrow implementation should be possible with two scan-level facts:
+`../proposed-patches/scanimports-key-after-spread.patch`
 
-- some JSX needs the automatic runtime import;
-- some JSX needs the classic bare-package `createElement` import because of key-after-spread fallback.
+It is intentionally narrow:
 
-Possible implementation:
+1. Keep separate scan-only booleans for automatic-runtime JSX and classic-fallback JSX.
+2. Classify each JSX element after its attributes are parsed, when `is_key_after_spread` is known.
+3. Recursive child elements classify themselves, so a fallback parent containing ordinary JSX can request both dependencies.
+4. After `@jsxRuntime` / `@jsxImportSource` normalization, inject:
+   - `jsx.import_source()` when ordinary automatic JSX was seen;
+   - `jsx.classic_import_source` when key-after-spread fallback JSX was seen.
+5. Keep the existing `autoImportJSX` + automatic-runtime gate, so classic runtime and opt-out behavior stay unchanged.
 
-1. Add a scan-only parser boolean such as `needs_classic_jsx_import`.
-2. In `parse_jsx_element`, after `is_key_after_spread` is known, mark the classic boolean when runtime is automatic and this element will take the fallback.
-3. Ensure `needs_jsx_import` means at least one element/fragment actually uses the automatic transform, rather than unconditionally setting it for every JSX element before attributes are parsed.
-4. At scan finalization, when `autoImportJSX` is enabled under automatic runtime:
-   - add `p.options.jsx.import_source()` if automatic JSX was seen;
-   - add the bare/classic import source (`react`, `preact`, custom `jsxImportSource`, etc.) if fallback JSX was seen.
-5. If both forms occur in one file, report both dependencies.
+No visitor execution and no symbol-use reconstruction are introduced.
 
-The pragma/config normalization already added by #35557 should be reused so custom `@jsxImportSource` / tsconfig sources choose the same bare package that `transformSync()` uses.
+## Hardened regression matrix
 
-## Regression matrix
+The prepared Fieldwork test now covers:
 
-With development automatic runtime:
+- fallback-only -> bare `react`;
+- normal JSX -> `react/jsx-dev-runtime`;
+- fragment -> automatic runtime dependency;
+- separate normal + fallback elements -> both dependencies;
+- normal child nested inside a fallback parent -> both dependencies;
+- `jsxImportSource: "preact"` -> bare `preact` for fallback;
+- `@jsxImportSource preact` -> bare `preact` for fallback;
+- `@jsxRuntime automatic` overriding classic config -> fallback classification still works;
+- `@jsxRuntime classic` overriding automatic config -> no injected scan dependency;
+- `autoImportJSX: false` -> no injected scan dependency.
 
-### Fallback only
+The nested case is the important guard against replacing one coarse boolean with another: one JSX tree can legitimately need both the bare package and the runtime subpath.
 
-```tsx
-export default <div {...obj} key="after" />;
-```
+## Static review notes
 
-Expected `.scanImports()` / `.scan().imports`:
+- The added bookkeeping is used only by the scan-only path; the full parse/visitor result is unchanged.
+- Runtime pragma normalization happens after parsing in the current scan path. The proposed booleans therefore record syntax categories, then finalization applies the resolved runtime/import-source policy.
+- `classic_import_source` is already the source used for the classic/createElement package and is updated by the parent's `@jsxImportSource` normalization.
+- The parser repository note about bumping the runtime transpiler-cache version applies to changes that affect runtime transformed output. This candidate changes scan-only dependency reporting; it does not alter transform output or the runtime transpiler cache key.
 
-```js
-[{ kind: "import-statement", path: "react" }]
-```
+## Remaining validation
 
-### Normal automatic only
+Exact Bun execution is still required before treating the patch as target-proven. The current scout environment does not have the pinned Bun build, so this packet remains:
 
-```tsx
-export default <div />;
-```
+- implementation reasoning: `source-read`
+- proposed patch: `source-read`
+- regression file: `target-test-prepared`
 
-Expected:
-
-```js
-[{ kind: "import-statement", path: "react/jsx-dev-runtime" }]
-```
-
-### Mixed
-
-```tsx
-export const normal = <span />;
-export const fallback = <div {...obj} key="after" />;
-```
-
-Expected dependency set contains both:
-
-- `react/jsx-dev-runtime`
-- `react`
-
-### Custom source
-
-With `jsxImportSource: "preact"`, fallback-only should report `preact`, while normal automatic JSX reports `preact/jsx-runtime` or `preact/jsx-dev-runtime` according to mode.
-
-### Opt-out/control
-
-- `autoImportJSX: false` → no injected dependency records
-- classic runtime → preserve existing scan behavior
-- no JSX → none
-
-## Risk
-
-Low-to-medium. The main subtlety is mixed files and fragments: scan bookkeeping must not replace the automatic-runtime record merely because one separate element takes the classic fallback.
-
-This should stay parser-local plus tests. If implementation starts requiring visitor execution or symbol-usage reconstruction, demote it rather than broadening the change.
-
-## Evidence
-
-- parent transform/scan tests: `source-read`
-- current parse-time `is_key_after_spread` detection: `source-read`
-- current full-visitor fallback to `JSXImport::CreateElement`: `source-read`
-- prepared regression: `target-test-prepared` after candidate test file is added
-- exact Bun execution: unavailable in current scout environment
+If exact-target execution reveals that `classic_import_source` is normalized differently for one custom-source case, adjust the finalizer to use the same bare-package accessor as `JSXImport::CreateElement`; do not broaden the parser design.
 
 ## Disposition
 
-**Promote.** This is a good small follow-up candidate after #35557 stabilizes and is probably simpler than the parent PR's prose initially implied.
+**Presentable implementation candidate.** The source seam, proposed diff, and regression matrix are ready for exact-target validation after #35557 settles.
