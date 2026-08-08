@@ -21,7 +21,7 @@ jobs:
       - name: Run Node control
         run: |
           node --version
-          EXPECT_SIGNALS=1 node programmes/open-source-ecosystems/scouts/bun-runtime-compatibility/artifacts/execfile-timeout-signal-count.mjs
+          EXPECT_KILL_CALLS=1 EXPECT_SIGNALS=1 node programmes/open-source-ecosystems/scouts/bun-runtime-compatibility/artifacts/execfile-timeout-signal-count.mjs
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 'f972c287f9b7a71754b0b0b1cd18722aa3c75280'
@@ -31,4 +31,4 @@ jobs:
           bun --revision
       - name: Run Bun discriminator
         run: |
-          EXPECT_SIGNALS=1 bun programmes/open-source-ecosystems/scouts/bun-runtime-compatibility/artifacts/execfile-timeout-signal-count.mjs
+          EXPECT_KILL_CALLS=2 bun programmes/open-source-ecosystems/scouts/bun-runtime-compatibility/artifacts/execfile-timeout-signal-count.mjs
