@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 
-async function oldTransport(scenario) {
+function oldTransport(scenario) {
   let customProtocolFailed = false
   let rustDispatches = 0
   let postDispatches = 0
 
-  async function send(message) {
+  async function send() {
     if (!customProtocolFailed) {
       try {
         if (scenario === 'csp-block') throw new Error('CSP')
@@ -15,7 +15,7 @@ async function oldTransport(scenario) {
         return 'custom-ok'
       } catch (error) {
         customProtocolFailed = true
-        return send(message)
+        return send()
       }
     }
     postDispatches++
@@ -23,16 +23,16 @@ async function oldTransport(scenario) {
     return 'post-ok'
   }
 
-  const result = await send({ cmd: 'side-effect' })
-  return { result, rustDispatches, postDispatches }
+  return { send, stats: () => ({ rustDispatches, postDispatches }) }
 }
 
-async function negotiatedTransport(scenario) {
+function negotiatedTransport(scenario) {
   let rustDispatches = 0
   let postDispatches = 0
   let probeRequests = 0
   let state = 'unknown'
   let probePromise
+  let failureInjected = false
 
   async function probe() {
     if (state !== 'unknown') return state
@@ -41,18 +41,15 @@ async function negotiatedTransport(scenario) {
         probeRequests++
         // This models a side-effect-free HEAD request through the IPC custom
         // protocol. Tauri dispatches commands only for POST requests.
-        if (scenario === 'csp-block') {
-          state = 'post-message'
-        } else {
-          state = 'custom-protocol'
-        }
+        if (scenario === 'csp-block') state = 'post-message'
+        else state = 'custom-protocol'
         return state
       })()
     }
     return probePromise
   }
 
-  async function send(message) {
+  async function send() {
     const selected = await probe()
     if (selected === 'post-message') {
       postDispatches++
@@ -60,67 +57,76 @@ async function negotiatedTransport(scenario) {
       return 'post-ok'
     }
 
-    // Once a side-effecting request may have reached Rust, do not retry it
-    // over the other transport. Surface failure instead; a real candidate can
-    // move future requests to postMessage after that failure.
     rustDispatches++
-    if (scenario === 'reload-after-dispatch') throw new Error('navigation abort')
-    if (scenario === 'late-break') throw new Error('transport broke after dispatch')
+    if (!failureInjected && scenario === 'reload-after-dispatch') {
+      failureInjected = true
+      state = 'post-message'
+      throw new Error('navigation abort')
+    }
+    if (!failureInjected && scenario === 'late-break') {
+      failureInjected = true
+      state = 'post-message'
+      throw new Error('transport broke after dispatch')
+    }
     return 'custom-ok'
   }
 
-  try {
-    const result = await send({ cmd: 'side-effect' })
-    return { result, rustDispatches, postDispatches, probeRequests }
-  } catch (error) {
-    return { result: 'rejected', rustDispatches, postDispatches, probeRequests }
+  return {
+    send,
+    stats: () => ({ rustDispatches, postDispatches, probeRequests, state })
   }
 }
 
-const oldNormal = await oldTransport('normal')
-assert.equal(oldNormal.rustDispatches, 1)
+const oldNormal = oldTransport('normal')
+assert.equal(await oldNormal.send(), 'custom-ok')
+assert.deepEqual(oldNormal.stats(), { rustDispatches: 1, postDispatches: 0 })
 
-const oldCsp = await oldTransport('csp-block')
-assert.equal(oldCsp.rustDispatches, 1)
-assert.equal(oldCsp.postDispatches, 1)
+const oldCsp = oldTransport('csp-block')
+assert.equal(await oldCsp.send(), 'post-ok')
+assert.deepEqual(oldCsp.stats(), { rustDispatches: 1, postDispatches: 1 })
 
-const oldReload = await oldTransport('reload-after-dispatch')
-assert.equal(oldReload.rustDispatches, 2)
-assert.equal(oldReload.postDispatches, 1)
+const oldReload = oldTransport('reload-after-dispatch')
+assert.equal(await oldReload.send(), 'post-ok')
+assert.deepEqual(oldReload.stats(), { rustDispatches: 2, postDispatches: 1 })
 
-const proposedNormal = await negotiatedTransport('normal')
-assert.deepEqual(proposedNormal, {
-  result: 'custom-ok',
+const proposedNormal = negotiatedTransport('normal')
+assert.equal(await proposedNormal.send(), 'custom-ok')
+assert.deepEqual(proposedNormal.stats(), {
   rustDispatches: 1,
   postDispatches: 0,
-  probeRequests: 1
+  probeRequests: 1,
+  state: 'custom-protocol'
 })
 
-const proposedCsp = await negotiatedTransport('csp-block')
-assert.deepEqual(proposedCsp, {
-  result: 'post-ok',
+const proposedCsp = negotiatedTransport('csp-block')
+assert.equal(await proposedCsp.send(), 'post-ok')
+assert.deepEqual(proposedCsp.stats(), {
   rustDispatches: 1,
   postDispatches: 1,
-  probeRequests: 1
+  probeRequests: 1,
+  state: 'post-message'
 })
 
-const proposedReload = await negotiatedTransport('reload-after-dispatch')
-assert.deepEqual(proposedReload, {
-  result: 'rejected',
+const proposedReload = negotiatedTransport('reload-after-dispatch')
+await assert.rejects(proposedReload.send(), /navigation abort/)
+assert.deepEqual(proposedReload.stats(), {
   rustDispatches: 1,
   postDispatches: 0,
-  probeRequests: 1
+  probeRequests: 1,
+  state: 'post-message'
 })
 
-const proposedLateBreak = await negotiatedTransport('late-break')
-assert.deepEqual(proposedLateBreak, {
-  result: 'rejected',
-  rustDispatches: 1,
-  postDispatches: 0,
-  probeRequests: 1
+const proposedLateBreak = negotiatedTransport('late-break')
+await assert.rejects(proposedLateBreak.send(), /transport broke after dispatch/)
+assert.equal(await proposedLateBreak.send(), 'post-ok')
+assert.deepEqual(proposedLateBreak.stats(), {
+  rustDispatches: 2,
+  postDispatches: 1,
+  probeRequests: 1,
+  state: 'post-message'
 })
 
 console.log('PASS normal: one custom-protocol dispatch')
 console.log('PASS CSP block: HEAD probe selects postMessage before command dispatch')
-console.log('PASS reload after dispatch: no cross-transport retry; Rust sees one command')
-console.log('PASS late transport break: invoke rejects instead of risking duplicate side effect')
+console.log('PASS reload after dispatch: ambiguous invoke rejects after one Rust dispatch')
+console.log('PASS later transport break: failed invoke is not replayed; next invoke recovers via postMessage')
