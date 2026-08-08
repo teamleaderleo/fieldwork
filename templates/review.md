@@ -27,8 +27,9 @@ Only blocking findings prevent the requested transition. State the observed risk
 - Exact head SHA:
 - Base or current-main SHA:
 - Changed-file fence:
-- Author eligible to accept or merge: yes | no | not applicable
-- Upstream contact authorized: yes | no | not applicable
+- Author eligible to accept or merge owned work: yes | no | not applicable
+- Automated third-party upstream contact: prohibited
+- Human-performed upstream interaction already exists: no | yes, record exact existing interaction
 
 `updated_at` may be recorded as an explicitly accepted coarse snapshot marker. It is not a body-specific generation and can change after unrelated activity.
 
@@ -57,6 +58,7 @@ Allowed evidence classes: `source-read` | `model-executed` | `target-test-prepar
 - Harness, setup, fixture, installation, and product failures separated: yes | no | not applicable
 - Candidate or theory rewritten after contradictory execution: yes | no | not applicable
 - Live issue, report, pull-request description, receipt, and queue entry synchronized: yes | no | not applicable
+- No automated third-party upstream mutation attempted: yes | no
 
 ## Complete-diff review
 
@@ -83,6 +85,8 @@ Allowed evidence classes: `source-read` | `model-executed` | `target-test-prepar
 Disposition: ACCEPT | REPAIR | HOLD | EXECUTE | REJECT
 
 Accepted transition or clearing condition:
+
+No disposition in this template can authorize an automated third-party upstream write. If the next transition is human upstream submission, the reviewer may accept the packet as ready for a human to submit manually.
 
 ## Uncertainty
 
