@@ -6,7 +6,7 @@ on:
       - 'execute/118-tauri-fs-scope-panic'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   probe:
@@ -25,14 +25,17 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential curl libappindicator3-dev libgtk-3-dev librsvg2-dev \
             libssl-dev libwebkit2gtk-4.1-dev wget
-      - name: Pin Rust toolchain receipt
+      - name: Pin Rust toolchain
         run: |
           rustup toolchain install stable --profile minimal
           rustup default stable
-          rustc --version
-          cargo --version
-      - name: Inject filesystem-scope panic regression
+          rustc --version | tee /tmp/rustc-version
+          cargo --version | tee /tmp/cargo-version
+      - name: Execute filesystem-scope panic probe
+        id: probe
+        shell: bash
         run: |
+          set -u
           python3 - <<'PY'
           from pathlib import Path
           target = Path('target-tauri/crates/tauri/src/scope/fs.rs')
@@ -43,18 +46,94 @@ jobs:
               raise SystemExit('could not locate filesystem scope test-module close')
           target.write_text(text[:position] + '\n' + snippet + text[position:])
           PY
-      - name: Require baseline to fail for the intended stall
-        working-directory: target-tauri
-        shell: bash
-        run: |
+
+          cd target-tauri
           set +e
           cargo test -p tauri --lib --no-default-features scope_listener_panic_does_not_stall_future_events -- --nocapture 2>&1 | tee /tmp/scope-baseline.log
-          status=${PIPESTATUS[0]}
+          baseline_status=${PIPESTATUS[0]}
           set -e
-          test "$status" -ne 0
-          grep -F 'filesystem scope stopped dispatching after callback panic' /tmp/scope-baseline.log
-      - name: Apply filesystem-scope candidate
-        run: git -C target-tauri apply ../programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/fs_scope_candidate.patch
-      - name: Require candidate regression to pass
-        working-directory: target-tauri
-        run: cargo test -p tauri --lib --no-default-features scope_listener_panic_does_not_stall_future_events -- --nocapture
+          cd ..
+
+          if [ "$baseline_status" -ne 0 ] && grep -Fq 'filesystem scope stopped dispatching after callback panic' /tmp/scope-baseline.log; then
+            baseline_gate=expected-failure
+          elif [ "$baseline_status" -eq 0 ]; then
+            baseline_gate=unexpected-pass
+          else
+            baseline_gate=wrong-failure
+          fi
+
+          set +e
+          git -C target-tauri apply ../programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/fs_scope_candidate.patch 2>&1 | tee /tmp/scope-apply.log
+          apply_status=${PIPESTATUS[0]}
+          set -e
+
+          candidate_status=not-run
+          if [ "$apply_status" -eq 0 ]; then
+            cd target-tauri
+            set +e
+            cargo test -p tauri --lib --no-default-features scope_listener_panic_does_not_stall_future_events -- --nocapture 2>&1 | tee /tmp/scope-candidate.log
+            candidate_status=${PIPESTATUS[0]}
+            set -e
+            cd ..
+          else
+            : > /tmp/scope-candidate.log
+          fi
+
+          export BASELINE_STATUS="$baseline_status"
+          export BASELINE_GATE="$baseline_gate"
+          export APPLY_STATUS="$apply_status"
+          export CANDIDATE_STATUS="$candidate_status"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          baseline_status = int(os.environ['BASELINE_STATUS'])
+          baseline_gate = os.environ['BASELINE_GATE']
+          apply_status = int(os.environ['APPLY_STATUS'])
+          raw = os.environ['CANDIDATE_STATUS']
+          candidate_status = None if raw == 'not-run' else int(raw)
+          valid = baseline_gate == 'expected-failure' and apply_status == 0 and candidate_status == 0
+          receipt = {
+            'kind': 'target-executed' if valid else 'invalid-execution',
+            'date': '2026-08-09',
+            'fieldwork_run_id': os.environ['GITHUB_RUN_ID'],
+            'execution_head': os.environ['GITHUB_SHA'],
+            'runner_os': os.environ['RUNNER_OS'],
+            'runner_arch': os.environ['RUNNER_ARCH'],
+            'rustc': Path('/tmp/rustc-version').read_text().strip(),
+            'cargo': Path('/tmp/cargo-version').read_text().strip(),
+            'target_repository': 'tauri-apps/tauri',
+            'target_revision': '34ec18ba5e1acabebd66ae79d6fc746f63d8eb96',
+            'command': 'cargo test -p tauri --lib --no-default-features scope_listener_panic_does_not_stall_future_events -- --nocapture',
+            'baseline': {
+              'exit_status': baseline_status,
+              'gate': baseline_gate,
+              'expected_assertion': 'filesystem scope stopped dispatching after callback panic'
+            },
+            'candidate': {
+              'patch_apply_status': apply_status,
+              'test_exit_status': candidate_status
+            },
+            'result': 'baseline-scope-stall-and-candidate-pass' if valid else 'invalid',
+            'upstream_contact_authorized': False
+          }
+          out = Path('programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/fs-scope-execution-receipt-20260809.json')
+          out.write_text(json.dumps(receipt, indent=2) + '\n')
+          print(json.dumps(receipt, indent=2))
+          PY
+
+          if [ "$baseline_gate" = expected-failure ] && [ "$apply_status" -eq 0 ] && [ "${candidate_status:-1}" -eq 0 ]; then
+            echo 'probe_valid=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'probe_valid=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit durable receipt
+        run: |
+          git config user.name 'fieldwork-execution-bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/fs-scope-execution-receipt-20260809.json
+          git commit -m 'record Tauri filesystem scope execution receipt'
+          git push origin HEAD:execute/118-tauri-fs-scope-panic
+      - name: Enforce valid execution
+        if: steps.probe.outputs.probe_valid != 'true'
+        run: exit 1
