@@ -71,6 +71,36 @@ State competing explanations before committing to a patch. Rank them by plausibi
 
 Prefer tests that isolate one claim. Useful evidence includes failing regression tests, reduced fixtures, compatibility matrices, benchmarks with baselines and variance, traces, protocol transcripts, fault injection, deterministic replay, source-level instrumentation, adversarial inputs, lifecycle models, and generated candidates tested against explicit invariants.
 
+### Evidence and hardening loop
+
+A productive candidate often moves through this sequence:
+
+```text
+observed anomaly
+      ↓
+source-level ownership/state model
+      ↓
+target-native FAIL on the relevant baseline
+      ↓
+small repair
+      ↓
+target-native PASS
+      ↓
+adjacent boundary probes
+      ↓
+relevant CI and compatibility checks
+      ↓
+clean hold-ready candidate
+```
+
+Treat each step as an evidence gate rather than a ritual. A source suspicion is not a candidate until the disputed behaviour is reproduced or otherwise demonstrated. A nearby hypothesis suggested by one finding is useful, but it should be isolated and tested independently before being promoted.
+
+Record invalid probes as invalid instead of quietly replacing their history. If timing, setup, middleware mode, caching, or another experimental condition made a test answer the wrong question, preserve that explanation and rerun a corrected experiment.
+
+When broad CI fails, classify the failure before changing the candidate: distinguish the target regression, an unrelated product test, a platform-specific signal, and formatting or other hygiene. Rerun a failed job only when the evidence makes a transient or unrelated failure plausible, and retain the original and rerun receipts.
+
+Once the behaviour, repair, and compatibility story are stable, preserve the exploratory history separately and prepare one minimal reviewable branch or commit. Further research should not force a proven candidate to carry experiment history.
+
 Use fork-free playgrounds when no upstream modification is required. Do not retain secrets, personal data, production credentials, or proprietary upstream content.
 
 ## 8. Owned-repository integration trial
