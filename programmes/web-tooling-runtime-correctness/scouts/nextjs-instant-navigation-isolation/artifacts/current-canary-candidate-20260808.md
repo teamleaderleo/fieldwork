@@ -29,7 +29,7 @@ packages/next-playwright/src/index.ts
   +25 / -23
 
 test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts
-  +30 / -0
+  +42 / -0
 ```
 
 No temporary workflow is present in the canonical candidate diff.
@@ -67,6 +67,8 @@ The regression is folded into:
 
 It sits immediately after same-origin stale-cookie recovery and before the separate-BrowserContext concurrency test. It seeds a `next-instant-navigation-testing` cookie that only applies to `app-b.example`, enters and exits `instant()` for the fixture app, and checks that app B's cookie survives both points.
 
+The test removes only its synthetic app-B cookie in a `finally` block after the preservation assertions. This matters because the suite documents that its BrowserContext may be reused across tests, and later existing tests perform unfiltered cookie-jar assertions. Leaving the synthetic B cookie behind would contaminate those tests even when the product behavior is correct.
+
 This placement documents the intended distinction without changing the separate same-context concurrency question:
 
 ```text
@@ -74,6 +76,18 @@ stale instant cookie applicable to this app -> cleanup may remove it
 same-named instant cookie applicable only to another app -> preserve it
 one active instant() call per BrowserContext -> unchanged
 ```
+
+## URL-filter semantics control
+
+`artifacts/playwright-cookie-scope-parent-domain.json` retains an additional real Playwright 1.57.0 + Chromium 144 control.
+
+For scope URL `https://app-a.example.com/account`:
+
+- a same-named cookie for `app-b.example.com` was excluded from `context.cookies(scopeURL)` and survived scoped expiry;
+- a same-named `.example.com` parent-domain cookie that genuinely applies to app A was included and removed;
+- unrelated session cookies on A and B survived.
+
+This confirms the proposed primitive follows normal cookie applicability rather than exact hostname equality.
 
 ## Execution state
 
