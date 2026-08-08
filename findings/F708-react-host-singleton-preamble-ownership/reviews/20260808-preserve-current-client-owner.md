@@ -1,120 +1,77 @@
-# Preamble cleanup — preserve the current client HostSingleton owner
+# Preamble cleanup — current client owner detach hypothesis
 
-## Narrow question
+## Initial hypothesis
 
-Should clearing an old Fizz singleton preamble contribution call `detachDeletedInstance(instance)` on the persistent singleton DOM node after hydration may already have associated that node with the current client HostSingleton Fiber and props?
+`clearSingletonPreambleContribution(instance)` ends by calling `detachDeletedInstance(instance)` even though the Fizz contribution marker has no HostSingleton Fiber handle of its own.
 
-## Source/history result
-
-**The current detach has no boundary-specific owner token and was inherited from the old broad singleton release implementation.**
-
-Before public PR 37112, `releaseSingletonInstance(instance)` cleared every singleton attribute and then called `detachDeletedInstance(instance)`.
-
-PR 37112 made normal HostSingleton release props-aware and split marker cleanup into `clearSingletonPreambleContribution(instance)`. The new marker helper retained the same clear-all-attributes plus `detachDeletedInstance(instance)` behavior because the server marker has no HostSingleton Fiber/props payload.
-
-No separate server-contribution Fiber handle was introduced for that detach.
-
-## Current hydration ordering confirmed
-
-Current public main `2042572329425f9ebf35ae6287ea5bab72b2c497` still binds the persistent singleton during render/complete work.
-
-The HostSingleton complete-work path calls:
-
-`prepareToHydrateHostInstance(workInProgress, currentHostContext)`
-
-when `popHydrationState()` reports a hydrated singleton.
-
-Current `prepareToHydrateHostInstance()` directly calls the renderer's:
-
-`hydrateInstance(instance, type, props, hostContext, fiber)`
-
-and React DOM's current `hydrateInstance()` immediately executes:
+Current HostSingleton hydration still binds the persistent DOM node during complete work through `hydrateInstance()`, which immediately calls:
 
 - `precacheFiberNode(internalInstanceHandle, instance)`;
 - `updateFiberProps(instance, props)`.
 
-Only after that does it run `hydrateProperties(...)`.
+So it is mechanically possible for later boundary cleanup to delete a Fiber/props mapping that was installed during the current render.
 
-So nested dehydrated-boundary cleanup during commit can indeed encounter a persistent body/head/html node already associated with the current render's HostSingleton Fiber and props.
+This led to a synthetic public-API control where a `<!--body-->` marker was manually placed inside a body whose HostSingleton Fiber sits outside the nested Suspense boundary. Current marker cleanup can detach that body's mapping, and a later click from the replacement child can miss the body's React event props.
 
-### `bindInstance()` does not invalidate this conclusion
+## Critical lifecycle correction
 
-Current React DOM also contains a `bindInstance()` helper with a comment saying HostSingleton hydration association should eventually happen only on commit because render can fail/restart and only one Fiber can own the singleton.
+**That synthetic arrangement is not the normal Fizz ownership shape.**
 
-That helper is evidence that the current render-phase binding is itself recognized as a lifecycle concern. It is **not** the active replacement for `hydrateInstance()` yet: the current hydration path above still performs the eager association.
+Fizz emits a body preamble contribution marker because the `<body>` itself came from the boundary-local preamble.
 
-If a future public change actually moves singleton binding to commit, reevaluate this entire lane before promotion. At current main, the eager-binding premise is real.
+In a real errored/dehydrated boundary takeover:
 
-## Consequence
+1. the server fallback/body contribution owns the marker;
+2. mutation cleanup can detach the old singleton association;
+3. the client-rendered replacement body HostSingleton is part of that same boundary's new tree;
+4. singleton acquisition can subsequently bind the persistent body to the replacement Fiber/props before the commit completes.
 
-The DOM -> Fiber/props association present when `clearSingletonPreambleContribution()` runs may be the **freshly hydrated current client owner**, not an old server contribution.
+Therefore the synthetic event failure may demonstrate only that an arbitrary manually forged marker can detach an unrelated current body owner. It does **not** yet prove a real Fizz application loses final body event ownership.
 
-Calling `detachDeletedInstance(instance)` at that point can erase the current client's event/props/Fiber association.
+## Current `bindInstance()` note
 
-## Experiment
+Current React DOM contains a `bindInstance()` helper with a comment that hydrated HostSingleton association should eventually happen only on commit because render may fail/restart and only one Fiber can own the singleton.
 
-Owned React draft PR 43 is a child of the source-free preamble ownership contract.
+Current hydration still eagerly binds through `hydrateInstance()`, so the render-phase association concern remains real in source. But that concern is broader than marker cleanup and does not rescue the synthetic test as a valid product reproducer.
 
-Source experiment: remove only `detachDeletedInstance(instance)` from `clearSingletonPreambleContribution()`.
+## React PR 43 reclassified
 
-Normal `releaseSingletonInstance()` keeps its detach unchanged.
+Owned React PR 43 is now a **falsification lane**, not a source-repair candidate.
 
-### Required green
+The no-detach source patch remains on the branch only as historical experiment material. Its workflow no longer applies it.
 
-A public-API event control:
+Instead the workflow applies two tests to untouched source:
 
-1. model a body preamble contribution marker inside a dehydrated Suspense boundary;
-2. hydrate a current body HostSingleton with `onClick`;
-3. let the nested boundary client-render a replacement button;
-4. dispatch a bubbling click from that replacement;
-5. require the current body's React `onClick` to fire.
+### Real-Fizz control — required pass
 
-This exercises the current DOM -> Fiber/props association through React event dispatch rather than inspecting private expandos.
+A Suspense boundary server-renders a fallback `<body>`. On the client the errored boundary renders a primary `<body onClick={...}>` with a button.
 
-### Required remaining red
+After takeover, a bubbling click from the primary button must still reach the body's React `onClick`.
 
-The experiment deliberately must **not** solve:
+If current source passes, the normal lifecycle successfully restores current owner association and the no-detach repair is unnecessary for this symptom.
 
-- server-owned attribute versus later external attribute;
-- contributed `style.color` versus later imperative `backgroundColor`;
-- body DSIH bytes that escaped from the boundary into the root preamble.
+### Synthetic marker control — required fail
 
-Those remain separate property/child ownership lanes.
+The earlier manually constructed marker arrangement remains as a contrast. It is expected to expose the detach behavior because no replacement body acquisition occurs afterward.
 
-## Why unconditional detach looks conceptually wrong
-
-A server preamble marker tells the client that a boundary contributed state to a persistent singleton, but there is no corresponding HostSingleton Fiber object representing that old server contribution on the client.
-
-If no client owner is bound, omitting detach is effectively a no-op for ownership state.
-
-If a client owner is bound, unconditional detach removes state that belongs to a different lifecycle owner.
-
-Actual HostSingleton deletion/release still has its normal reconciler Fiber and should continue using normal release semantics.
-
-## Mirror-image risk: abandoned hydration work
-
-The eager binding itself means render failure/restart can transiently associate a persistent singleton with work that never commits. That is exactly the concern called out by the `bindInstance()` comment.
-
-Do not assume deleting marker-path detach is the final global answer to eager-binding cleanup.
-
-The narrow claim is only that a **server contribution marker has no old Fiber token proving authority to detach whatever mapping currently exists**.
-
-If abandoned hydration work needs cleanup, it should be handled by a lifecycle path that knows which Fiber association it is retiring, or by the planned commit-time binding move, rather than by an unrelated marker unconditionally deleting the singleton's current mapping.
-
-## Remaining questions
-
-- Verify whether any recovery path intentionally relies on marker cleanup detaching a stale association before another singleton acquisition.
-- If PR 43 passes, add a forced hydration restart/client-render control so preserving current mapping is tested against abandoned-work cleanup too.
-- Verify event mapping in development and production if the first experiment passes.
-- If property metadata is later added to markers, preserve this owner rule rather than reintroducing detach as a cleanup epilogue.
-- Revalidate immediately if public React moves HostSingleton hydration binding to the existing commit-time `bindInstance()` helper.
+That difference is the point of the verifier: distinguish raw helper behavior from a reachable Fizz lifecycle bug.
 
 ## Disposition
 
-**EXECUTE as a narrow child experiment.**
+**HOLD / EXPECT FALSIFICATION.**
 
-A pass would justify treating current-client-owner preservation as an independent preamble repair under the current eager-binding implementation. It would still leave marker property metadata, opaque child ownership, and the broader render-phase binding lifecycle unresolved.
+Do not use the synthetic event regression as load-bearing evidence for #708 unless the real-Fizz control also fails.
+
+If current source passes the real lifecycle, close/reject PR 43 and remove “current client event association” from the active preamble repair requirements.
+
+The following #708 problems remain independent regardless of PR 43:
+
+- broad contributed attribute cleanup;
+- per-style-property ownership;
+- body DSIH child provenance;
+- control-comment collisions for naive boundary-stream DSIH;
+- qualified inline-marker adoption-authority risk.
 
 ## Evidence class
 
-Current-main source/history read plus target-test-prepared React PR 43. No semantic execution receipt yet. Public upstream interaction: none.
+Current-main source/history read plus target-test-prepared real-Fizz falsification in PR 43. No semantic execution receipt yet. Public upstream interaction: none.
