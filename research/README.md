@@ -8,6 +8,10 @@ Research programmes connect findings across targets and campaigns. They ask ques
 - [`agent-generated-contributions/`](agent-generated-contributions/) — where AI assistance helps, fails, or exports cost.
 - [`maintainer-review-cost/`](maintainer-review-cost/) — practical measures of verification burden.
 
+## Process notes
+
+- [`vite-process-notes-2026-08-09.md`](vite-process-notes-2026-08-09.md) — lessons from the Vite runtime-correctness lane about ownership modeling, native FAIL→PASS promotion, adjacent-boundary probing, CI classification, and clean hold-ready candidate preparation.
+
 ## Research standard
 
 A programme should define:
