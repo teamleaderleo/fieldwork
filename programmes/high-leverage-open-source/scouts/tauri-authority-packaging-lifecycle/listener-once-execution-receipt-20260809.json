@@ -1,0 +1,24 @@
+{
+  "kind": "target-executed",
+  "date": "2026-08-09",
+  "fieldwork_run_id": "31284550759",
+  "execution_head": "a7adf4fad73882f70889f981528ba603d63e99ff",
+  "runner_os": "Linux",
+  "runner_arch": "X64",
+  "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+  "target_repository": "tauri-apps/tauri",
+  "target_revision": "34ec18ba5e1acabebd66ae79d6fc746f63d8eb96",
+  "command": "cargo test -p tauri --lib --no-default-features once_listener_panic_still_cleans_up_before_unwind_resumes -- --nocapture",
+  "baseline": {
+    "exit_status": 101,
+    "gate": "expected-failure",
+    "expected_assertion": "once-listener panic poisoned the handler mutex"
+  },
+  "candidate": {
+    "patch_apply_status": 0,
+    "test_exit_status": 0
+  },
+  "result": "baseline-once-cleanup-failure-and-candidate-pass",
+  "upstream_contact_authorized": false
+}
