@@ -15,60 +15,30 @@ diff --git a/src/js/node/child_process.ts b/src/js/node/child_process.ts
      signal: options.signal,
    });
 
-diff --git a/test/js/node/child_process/execfile-timeout-single-owner.test.js b/test/js/node/child_process/execfile-timeout-single-owner.test.js
-new file mode 100644
---- /dev/null
-+++ b/test/js/node/child_process/execfile-timeout-single-owner.test.js
+diff --git a/test/js/node/child_process/child_process.test.ts b/test/js/node/child_process/child_process.test.ts
+--- a/test/js/node/child_process/child_process.test.ts
++++ b/test/js/node/child_process/child_process.test.ts
 @@
-+import { expect, test } from "bun:test";
-+import { execFile } from "node:child_process";
++it.if(!isWindows)("execFile timeout invokes ChildProcess.kill once", async () => {
++  // SIGCONT is non-terminating for an already-running process, so the child
++  // stays alive long enough to expose duplicate timeout owners deterministically.
++  const child = execFile("sleep", ["10"], { timeout: 300, killSignal: "SIGCONT" }, () => {});
++  const closed = once(child, "close");
++  const originalKill = child.kill.bind(child);
++  const timeoutKillCalls: unknown[] = [];
 +
-+test.skipIf(process.platform === "win32")(
-+  "execFile timeout calls ChildProcess.kill once when the timeout signal is handled",
-+  async () => {
-+    const childSource = `
-+      process.on("SIGUSR1", () => {});
-+      process.stdout.write("ready\\n");
-+      setInterval(() => {}, 1000);
-+    `;
++  child.kill = signal => {
++    timeoutKillCalls.push(signal);
++    return originalKill(signal);
++  };
 +
-+    let callbackError;
-+    let resolveCallback;
-+    const callbackDone = new Promise(resolve => {
-+      resolveCallback = resolve;
-+    });
-+
-+    const child = execFile(
-+      process.execPath,
-+      ["-e", childSource],
-+      { timeout: 1000, killSignal: "SIGUSR1" },
-+      error => {
-+        callbackError = error;
-+        resolveCallback();
-+      },
-+    );
-+
-+    const originalKill = child.kill.bind(child);
-+    const timeoutKillCalls = [];
-+    child.kill = signal => {
-+      timeoutKillCalls.push(signal);
-+      return originalKill(signal);
-+    };
-+
-+    await new Promise((resolve, reject) => {
-+      child.stdout.once("data", resolve);
-+      child.once("error", reject);
-+    });
-+
-+    // The timeout starts before the child prints "ready". Waiting beyond the
-+    // full timeout from readiness guarantees every timeout owner has run.
-+    await Bun.sleep(1200);
++  try {
++    await Bun.sleep(600);
 +    expect(timeoutKillCalls).toHaveLength(1);
-+
-+    // Cleanup uses the original method so it stays outside the measured count.
++    expect(child.exitCode).toBeNull();
++  } finally {
++    // Cleanup deliberately bypasses the wrapper so it is not counted.
 +    originalKill("SIGKILL");
-+    await callbackDone;
-+    expect(callbackError?.signal).toBe("SIGKILL");
-+  },
-+  5000,
-+);
++    await closed;
++  }
++});
