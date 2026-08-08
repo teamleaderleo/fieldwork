@@ -94,7 +94,7 @@ programmes:
       - id: swc-runtime-semantics-and-recovery
         issue: 718
         target: swc
-        state: claimed
+        state: ready
 
   - id: data-durable-workflows
     issue: 16
