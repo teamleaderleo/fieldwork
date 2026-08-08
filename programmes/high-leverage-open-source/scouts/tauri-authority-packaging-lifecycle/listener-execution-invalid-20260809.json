@@ -1,0 +1,28 @@
+{
+  "kind": "invalid-execution",
+  "date": "2026-08-09",
+  "target_repository": "tauri-apps/tauri",
+  "target_revision": "34ec18ba5e1acabebd66ae79d6fc746f63d8eb96",
+  "fieldwork_run_id": 31283181973,
+  "execution_head": "3427e21a6400314f662539cc0c15851cb3f15c49",
+  "jobs": {
+    "baseline": {
+      "job_id": 93167645887,
+      "result": "invalid",
+      "failure_class": "harness-working-directory",
+      "observation": "The regression was injected into target-tauri, but cargo test was invoked from the Fieldwork repository root. Cargo exited because no Cargo.toml existed there, so target behavior was never exercised."
+    },
+    "candidate": {
+      "job_id": 93167645878,
+      "result": "invalid",
+      "failure_class": "malformed-retained-patch",
+      "observation": "The job stopped at git apply before cargo test. candidate.patch declared a 19-line old / 28-line new hunk but contained 24 old / 33 new lines, so git reported a corrupt patch at EOF."
+    }
+  },
+  "disposition": "Do not treat either job as target evidence. Correct the patch hunk header, run cargo from target-tauri, and require the baseline failure to contain the exact regression assertion before accepting a baseline/candidate comparison.",
+  "corrections": {
+    "candidate_patch_commit": "5b3f5bf4ef464f9169eded1d5343229b288c99f6",
+    "execution_workflow_commit": "f2b529fd5d05982b82a5b954c72817bea8865e80"
+  },
+  "upstream_contact_authorized": false
+}
