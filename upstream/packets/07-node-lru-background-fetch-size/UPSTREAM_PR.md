@@ -31,10 +31,6 @@ Added coverage for:
 - `backgroundFetchSize: 0`;
 - stale refreshes and caches without size tracking.
 
-The existing `test/background-fetch-size.ts` test file and TAP clock setup are preserved.
-
-Linux and macOS CI passed for the same production change. The Windows jobs stop before test discovery because the repository's TAP configuration references an unavailable `@tapjs/clock` plugin.
-
 ---
 
 ## Internal submission notes — do not paste upstream
