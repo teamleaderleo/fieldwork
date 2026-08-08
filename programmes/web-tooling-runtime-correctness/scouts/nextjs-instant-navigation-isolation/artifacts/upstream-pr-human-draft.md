@@ -28,4 +28,4 @@ Using Playwright’s URL-filtered cookie lookup keeps the existing cookie domain
 
 ## Tests
 
-Add coverage to the existing Instant Navigation testing suite verifying that another origin’s testing cookie survives both entering and leaving an `instant()` scope.
+Added coverage to the existing Instant Navigation testing suite verifying that another origin’s testing cookie survives both entering and leaving an `instant()` scope.
