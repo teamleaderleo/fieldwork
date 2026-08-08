@@ -1,27 +1,35 @@
 # Next.js upstream pull-request technical packet
 
-This is a fact packet for a **human-written** external pull-request description. It is intentionally not a submit-ready PR description.
+This packet records the technical basis for the human-written upstream pull request and its current submitted state.
 
-## Suggested PR title
+## Filed surfaces
 
-`fix(next-playwright): scope instant cookie cleanup to app URL`
+- human-filed issue: https://redirect.github.com/vercel/next.js/issues/96961
+- human-filed PR: https://redirect.github.com/vercel/next.js/pull/96962
+- owned-fork review PR: https://github.com/teamleaderleo/next.js/pull/9
 
-## Intended sequencing
-
-Open the human-written bug report first, then open the upstream pull request and reference it with `Fixes #<issue>`.
-
-If the real upstream PR is opened immediately after the issue, the issue body does not need to link the owned-fork review PR; GitHub will connect the upstream PR through `Fixes #<issue>`.
+The issue and PR were opened manually by the human owner, sequentially and back-to-back on 2026-08-08. The PR uses `Fixes #96961`.
 
 ## Exact candidate
 
-- Owned fork: `teamleaderleo/next.js`
-- Canonical owned-fork review PR: `#9`
-- Branch: `fieldwork/instant-navigation-origin-scoped-release-current`
-- Current head: `6780339f9b3eec5de43cb26a368ec4a8d3b405cb`
-- Exact public upstream base: `a677cf66af002fbdcf49a982ef435b03554817cc`
-- Changed files:
+- owned fork: `teamleaderleo/next.js`
+- branch: `fieldwork/instant-navigation-origin-scoped-release-current`
+- exact public upstream base: `a677cf66af002fbdcf49a982ef435b03554817cc`
+- squashed head: `a33d51d10d212ae656a0c94a28ffe51a6e43879b`
+- commit count over base: 1
+- changed files:
   - `packages/next-playwright/src/index.ts`
   - `test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts`
+
+Net stats:
+
+```text
+packages/next-playwright/src/index.ts
+  +32 / -42
+
+test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts
+  +42 / -0
+```
 
 ## What changed
 
@@ -46,7 +54,7 @@ await step('Release Instant Lock', () =>
 )
 ```
 
-The helper's local structural BrowserContext interface is expanded to match Playwright's existing optional URL filter:
+The helper's local structural BrowserContext interface matches Playwright's optional URL filter:
 
 ```ts
 cookies(urls?: string | string[]): Promise<...>
@@ -72,11 +80,18 @@ const instantCookies = (await context.cookies(scopeURL)).filter(
 
 Playwright already distinguishes between the complete BrowserContext cookie jar and cookies that affect a supplied URL. `instant(page, ...)` controls one resolved application URL, so ordinary scope release has a natural URL-scoped selection primitive.
 
+The useful symmetry is:
+
+```text
+acquire: app A
+release: cookies applicable to app A
+```
+
 This delegates domain/path/secure applicability to Playwright. A parent-domain cookie that genuinely applies to app A remains eligible; a B-only cookie does not.
 
-If Next.js ever needs a context-wide reset or garbage-collection operation, that can be represented separately rather than conflated with normal release of one `instant()` scope.
+If Next.js ever needs a context-wide reset or garbage-collection operation that deliberately purges every Instant Navigation testing cookie in a BrowserContext, that should be represented separately rather than conflated with normal release of one `instant()` scope.
 
-## Behavior intentionally left unchanged
+## Behavior left unchanged
 
 - one active `instant()` scope per Playwright `BrowserContext`;
 - `WeakSet<BrowserContext>` active-scope tracking;
@@ -89,22 +104,22 @@ If Next.js ever needs a context-wide reset or garbage-collection operation, that
 
 ## Source-comment review
 
-The source comments are intentionally narrow:
+The source comments now separate two concepts that the inherited text conflated:
 
-- active-call tracking is described as BrowserContext-wide without claiming that the cookie itself is BrowserContext-scoped;
-- stale cleanup is described in terms of the current application URL;
-- `releaseInstantCookie` documents that it deletes matching entries applicable to that URL;
-- historical cleanup details are retained only where they explain the individual-expiry and retry invariants.
+- active-call tracking is BrowserContext-wide;
+- cookie entries retain ordinary URL/domain/path applicability.
 
-No additional comment archaeology is needed in the product patch.
+The updated comments no longer claim that the Instant cookie itself is BrowserContext-scoped or that every same-named cookie present when no helper call is active is necessarily stale.
+
+The remaining comment detail is limited to behavior that constrains the implementation: stale-cookie resurrection, individual expiry, and bounded retry.
 
 ## Regression placement and coverage
 
-The regression is folded into the existing suite:
+The regression is in:
 
 `test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts`
 
-It is placed immediately after the same-origin stale-cookie recovery case and before the separate-BrowserContext concurrency case.
+It is placed immediately after same-origin stale-cookie recovery and before separate-BrowserContext concurrency coverage.
 
 The test:
 
@@ -115,24 +130,56 @@ The test:
 5. asserts B's cookie survives final release;
 6. removes only its synthetic B cookie in `finally` so later tests cannot be contaminated.
 
-Existing suite coverage separately verifies normal same-origin cookie release and stale-cookie recovery. The regression intentionally does not assert that simultaneous same-context scopes across different origins are supported.
+The regression intentionally does not assert that simultaneous same-context scopes across different origins are supported.
 
-## Evidence already available
+## Public reproduction execution
+
+Public reproduction:
+
+https://github.com/teamleaderleo/playground/tree/repro/next-playwright-origin-cookie/next-playwright-origin-cookie-repro
+
+Human-executed environment:
+
+```text
+Node.js: v22.23.1
+@next/playwright: 16.3.1-canary.8
+Playwright: 1.61.1
+```
+
+Observed failure:
+
+```text
+AssertionError: app B cookie was removed by instant() for app A
+actual:   undefined
+expected: '[1,"app-b",null]'
+```
+
+This is direct package-level reproduction against current canary and is recorded as `public-repro-executed`.
+
+## Evidence available
 
 - current upstream helper source mapped at exact commit;
-- real Playwright/Chromium confirms unfiltered lookup/deletion reaches B-only cookies;
-- real Playwright/Chromium confirms URL-filtered lookup preserves B-only cookies;
-- an additional browser applicability control confirms a parent-domain cookie that genuinely applies to app A remains selected while a B-only cookie is excluded;
-- deterministic model and source replay reproduce the current selection behavior;
-- no direct overlap found for this exact cross-origin cleanup case.
+- dependency-free selection model;
+- real Playwright/Chromium unfiltered lookup/deletion control;
+- real Playwright/Chromium URL-filtered preservation control;
+- parent-domain applicability control;
+- human-executed public current-canary reproduction;
+- one-commit/two-file candidate;
+- regression in the existing Instant Navigation suite.
 
-Evidence classes: `source-read`, `model-executed`, `integration-executed`, `target-test-prepared`.
+Evidence classes:
+
+- `source-read`
+- `model-executed`
+- `integration-executed`
+- `public-repro-executed`
+- `target-test-prepared`
 
 No `target-executed` claim is made yet.
 
 ## Target-native verification still pending
 
-When CI capacity is available, the remaining verification is the existing Next.js suite in repository-declared modes, especially:
+The remaining verification is the existing Next.js suite in repository-declared modes, especially:
 
 ```sh
 pnpm build-all
@@ -140,51 +187,34 @@ pnpm test-dev-turbo test/e2e/app-dir/instant-navigation-testing-api/instant-navi
 pnpm test-start-turbo test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts
 ```
 
-The absence of this receipt is a verification gap, not an unresolved research branch.
+At the first read-only check after the human filed PR #96962, GitHub created `build-and-test`, `build-and-deploy`, and stats runs, but they reached `action_required` before jobs were created. This is not a target-native test result and is not classified as a code failure.
 
-## PR checklist mapping
+## Filed PR structure
+
+The human-written PR body uses a minimal shape:
 
 ### What
 
-Narrow Instant Navigation testing-cookie cleanup to entries applicable to the resolved application URL.
+Change cleanup selection from `context.cookies()` to `context.cookies(scopeURL)` so release only expires Instant-cookie entries applicable to the application URL being controlled.
 
 ### Why
 
-Current cleanup owns a broader cookie set than acquisition: one app's `instant()` scope can expire a same-named testing cookie that applies only to another URL in the same BrowserContext.
-
-### How
-
-Thread the existing resolved application URL into `releaseInstantCookie` and use Playwright's URL-filtered `BrowserContext.cookies(scopeURL)` query before individually expiring matching entries.
-
-### Related issue
-
-`Fixes #<human-filed issue>`
+One app's `instant()` call can otherwise delete another origin's same-named testing cookie in the same BrowserContext.
 
 ### Tests
 
-A regression is present in the existing Instant Navigation suite for B-only cookie preservation. Existing cleanup/stale-cookie tests remain in place. Do not claim target-native pass results until they exist.
+A regression in the existing Instant Navigation suite verifies that the other origin's testing cookie survives both entering and leaving the scope.
 
-## Submission mechanics
+Related issue: `Fixes #96961`.
 
-The current Next.js pull-request template requires external contributor PR descriptions to be written by the human contributor. It also asks bug-fix PRs to link the related issue using `Fixes #number`, include tests, and use verified commit signatures.
+## Claims intentionally avoided
 
-Opening a PR triggers repository CI on the `opened` event, including draft PRs, and the repository has an automatic file-based PR labeler. No repository CODEOWNERS assignment is configured for this path, and no repository workflow was found that automatically assigns a human reviewer on open.
-
-A reasonable human sequence is therefore:
-
-1. file the human-written issue;
-2. open the upstream PR immediately afterward as a draft with `Fixes #<issue>`;
-3. let CI queue while the PR is visibly not yet marked ready for human review;
-4. after verification is satisfactory, the human may mark it ready for review.
-
-## Claims to avoid
-
-- Do not claim a security fix.
-- Do not broaden the PR into concurrent-scope ownership.
-- Do not rewrite the cookie protocol.
-- Do not replace the individual-expiry race repair.
-- Do not state target-native pass results until they exist.
+- no security-fix claim;
+- no claim that same-context concurrent `instant()` scopes are supported;
+- no cookie-protocol rewrite;
+- no replacement of the individual-expiry race repair;
+- no target-native pass claim before target execution exists.
 
 ## Upstream interaction boundary
 
-This packet and owned-fork PR are preparation/review surfaces only. Third-party upstream repositories are read-only to Fieldwork automation. Any upstream issue or PR must be created and managed manually by a human.
+Third-party upstream repositories are permanently read-only to Fieldwork automation. The upstream issue and PR were created manually by the human owner. This packet records their technical basis and state only.
