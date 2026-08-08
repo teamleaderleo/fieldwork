@@ -78,6 +78,13 @@ hubs:
     map: targets/supabase/map.md
     state: observed
 
+  - target: swc
+    label: target:swc
+    issue: 717
+    repository: swc-project/swc
+    map: targets/swc/map.md
+    state: observed
+
 notes:
   - A hub is an index and shared orientation issue, not a task backlog.
   - Child work is discovered primarily through the target label.
