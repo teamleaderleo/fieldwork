@@ -2,7 +2,7 @@ diff --git a/crates/tauri/src/event/listener.rs b/crates/tauri/src/event/listene
 index afcc3ca5b..000000000 100644
 --- a/crates/tauri/src/event/listener.rs
 +++ b/crates/tauri/src/event/listener.rs
-@@ -210,19 +210,28 @@ impl Listeners {
+@@ -210,24 +210,33 @@ impl Listeners {
      F: Fn(&EventTarget) -> bool,
    {
      let mut maybe_pending = false;
