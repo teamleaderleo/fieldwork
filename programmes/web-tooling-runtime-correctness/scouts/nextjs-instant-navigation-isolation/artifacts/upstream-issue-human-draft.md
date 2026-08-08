@@ -35,6 +35,6 @@ I reproduced this with Playwright/Chromium: `context.cookies()` returned the tes
 
 This is reproducible on current canary source.
 
-Reproduction: [link]
+Reproduction: https://github.com/teamleaderleo/playground/tree/repro/next-playwright-origin-cookie/next-playwright-origin-cookie-repro
 
 Candidate patch: https://redirect.github.com/teamleaderleo/next.js/pull/7
