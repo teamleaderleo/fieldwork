@@ -1,0 +1,11 @@
+Command:
+python3 playgrounds/EXP-20260809-godot-authority-rebuild/reference.py
+
+Expected canonical receipts:
+AUTH_RECEIPT tick=1 hash=9951d38a40ac3b6fa83c957187d45a071041d8a4d542e633deff8a31ffae06ab canonical=tick=1|alpha:2,1,0|beta:10,-2,1
+AUTH_RECEIPT tick=2 hash=8c94b59a1d901607e320eb86c781c0817021293375cc2bb8faab9064ce967943 canonical=tick=2|alpha:2,1,0|beta:10,-2,0
+AUTH_RECEIPT tick=3 hash=7114ca26cd8ee5c248efe3134ac86e340344b62ef48945ee5970bd3552441b05 canonical=tick=3|alpha:2,1,0|beta:7,2,0
+AUTH_RECEIPT tick=4 hash=96be96804eeda51642fc6645fd203bae1be38689fef2eebe57e2cf5e5ecb8eb8 canonical=tick=4|alpha:3,-4,0|beta:7,2,0
+
+Reference state: model-executed.
+Godot state: target-test-prepared; no Godot binary execution is claimed yet.
