@@ -4,7 +4,7 @@
 
 If the same browser context has a testing cookie for another origin, calling `instant()` for app A can delete app B’s cookie.
 
-For example:
+Suppose `pageA` is testing app A, while the same `BrowserContext` already contains app B’s testing cookie:
 
 ```ts
 await context.addCookies([
@@ -17,17 +17,19 @@ await context.addCookies([
 ])
 
 await instant(pageA, async () => {
-  // app-b.example's testing cookie has already been removed
+  // Current behavior: pre-acquire cleanup has deleted app B's cookie.
 })
 ```
 
-The cleanup currently does:
+That happens because cleanup starts from the full browser-context cookie jar:
 
 ```ts
 const instantCookies = (await context.cookies()).filter(
   (cookie) => cookie.name === INSTANT_COOKIE
 )
 ```
+
+It filters only by name, so app B’s cookie is selected even though this `instant()` call is controlling app A.
 
 I think cleanup should be limited to cookies applicable to the application URL being controlled, for example by using Playwright’s URL-filtered cookie lookup.
 
