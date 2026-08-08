@@ -46,7 +46,7 @@ Include exact revisions, retrieval dates, primary sources, and evidence labels.
 
 ## Upstream contact
 
-State whether external contact remains unauthorized. Include any approved interaction and its rationale.
+Automated upstream contact must remain prohibited. State whether a human independently performed any upstream interaction that should be recorded. Do not treat this section as authorization for an agent to create or modify upstream work.
 
 ## Completion comment
 
@@ -63,5 +63,6 @@ Finding: <one-paragraph result>
 Evidence labels used: <labels>
 Uncertainty: <remaining uncertainty>
 Decision needed: <none or exact decision>
-Upstream contact authorized: no | yes, with explicit authority
+Automated upstream contact: prohibited
+Human-performed upstream interaction recorded: none | <exact existing interaction>
 ```
