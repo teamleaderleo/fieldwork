@@ -39,7 +39,8 @@ async function negotiatedTransport(scenario) {
     if (!probePromise) {
       probePromise = (async () => {
         probeRequests++
-        // This models Tauri's existing side-effect-free OPTIONS branch.
+        // This models a side-effect-free HEAD request through the IPC custom
+        // protocol. Tauri dispatches commands only for POST requests.
         if (scenario === 'csp-block') {
           state = 'post-message'
         } else {
@@ -60,7 +61,8 @@ async function negotiatedTransport(scenario) {
     }
 
     // Once a side-effecting request may have reached Rust, do not retry it
-    // over the other transport. Surface failure instead.
+    // over the other transport. Surface failure instead; a real candidate can
+    // move future requests to postMessage after that failure.
     rustDispatches++
     if (scenario === 'reload-after-dispatch') throw new Error('navigation abort')
     if (scenario === 'late-break') throw new Error('transport broke after dispatch')
@@ -119,6 +121,6 @@ assert.deepEqual(proposedLateBreak, {
 })
 
 console.log('PASS normal: one custom-protocol dispatch')
-console.log('PASS CSP block: OPTIONS probe selects postMessage before command dispatch')
+console.log('PASS CSP block: HEAD probe selects postMessage before command dispatch')
 console.log('PASS reload after dispatch: no cross-transport retry; Rust sees one command')
 console.log('PASS late transport break: invoke rejects instead of risking duplicate side effect')
