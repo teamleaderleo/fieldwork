@@ -51,9 +51,9 @@ Parallel lanes are created only after a parent campaign identifies distinct deli
 
 ## Time boundaries
 
-Before maintainer direction, cap speculative implementation. Spend enough time to produce a credible reproduction and proposal, then pause when acceptance depends on upstream design choices.
+Before human maintainer direction exists, cap speculative implementation. Spend enough time to produce a credible reproduction and proposal, then pause when acceptance depends on upstream design choices.
 
-Do not maintain more active upstream submissions than can be answered promptly and responsibly.
+Fieldwork agents never create or manage upstream submissions. If a human has manually submitted work, do not keep more human-performed upstream interactions active than can be answered promptly and responsibly.
 
 ## States
 
@@ -81,15 +81,17 @@ Stop or pause when:
 - Name branches after the batch, campaign, lane, and bounded outcome where practical.
 - Record upstream base revision in the durable result.
 - Avoid long-lived forks that silently diverge.
-- Keep independent experiments in Fieldwork; keep upstream modifications in the fork.
+- Keep independent experiments in Fieldwork; keep candidate upstream modifications in an owned fork.
 - Delete or archive superseded branches only after recording the relevant revision.
+
+Third-party upstream repositories themselves remain read-only to agents and automated workers.
 
 ## Review cadence
 
 Review active batches and campaigns for:
 
 - new evidence;
-- unanswered upstream feedback;
+- feedback from human-performed upstream interactions, when any exist;
 - stale assumptions caused by target changes;
 - excessive scope or duplicate work;
 - assignments ready for synthesis;
@@ -102,12 +104,12 @@ Review active batches and campaigns for:
 Metrics describe the work; they do not become quotas. Useful measures include:
 
 - time from observation to reproduction;
-- time spent before upstream contact;
+- time spent before a human upstream submission, when one occurs;
 - review iterations;
 - maintainer questions answered by the initial packet;
-- accepted, declined, withdrawn, and negative outcomes;
+- accepted, declined, withdrawn, and negative outcomes of human-performed submissions;
 - reused fixtures, tests, or methods;
-- defects caught before submission;
+- defects caught before human submission;
 - dispatched assignments versus accepted results;
 - duplication caught before dispatch;
 - coordinator review load and synthesis backlog.
