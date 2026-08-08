@@ -1,8 +1,8 @@
 ## In simple words
 
-The current body direct-HTML repair has a sound core, but the same cleanup rule is too broad for `head`, and the small Activity guards do not isolate descendant mutations from a visible owner of the same persistent singleton.
+The current direct-HTML repair has the right body transition ordering, but its cleanup still assumes that because React once wrote opaque content it owns every child present later. That fails for style-related nodes inserted outside React. The same whole-container clearing is also too broad for `head`, and the small Activity guards do not isolate descendant mutations from a visible owner of the same persistent singleton.
 
-The recommended source split is: keep the direct-content repair body-only, keep `html` in contract research, and keep Activity ownership in research until both hidden descendant mutation and reappearance restoration have a coherent answer.
+The current recommendation is to hold the direct-content cleanup candidate while preserving its useful predicate/order findings, keep `html` in contract research, and keep Activity ownership in research until hidden descendant mutation and reappearance restoration have a coherent answer.
 
 ## Review boundary
 
@@ -10,7 +10,7 @@ The recommended source split is: keep the direct-content repair body-only, keep 
 - React source revision: `teamleaderleo/react@ec61f187fe39b0aa8ec6b508f2553b2047dc30cc`
 - Existing clean candidate reviewed: `repair/host-singleton-content-reset@ed2c1ade64d40761fade7998afe83be62d2d1239`
 - Existing verifier reviewed: `verify/host-singleton-content-reset-head@a321472ef9799f6b5d161bc73042b1dd8a707640`
-- Second-review verifier branch: `review/host-singleton-second-review`
+- Second-review verifier: `teamleaderleo/react` draft PR 22, branch `review/host-singleton-second-review`
 - Claim scope: mechanism
 - Public upstream contact authorized/performed: false / false
 
@@ -18,9 +18,9 @@ The recommended source split is: keep the direct-content repair body-only, keep 
 
 ### Body direct content
 
-`updateHostSingleton` always reconciles `pendingProps.children`, and the child reconciler creates HostText Fibers for non-empty string, number, and bigint children. DOM `setProp` has a body-specific guard that avoids the ordinary direct textContent write for those values. This makes body text/number/bigint Fiber-owned and supports excluding them from opaque-direct-content cleanup.
+`updateHostSingleton` always reconciles `pendingProps.children`, and the child reconciler creates HostText Fibers for non-empty string, number, and bigint children. DOM `setProp` has a body-specific guard that avoids the ordinary direct `textContent` write for those values. This makes body text/number/bigint Fiber-owned and supports excluding them from opaque-direct-content cleanup.
 
-For body, the useful predicate is:
+For body, the useful render-time predicate is:
 
 ```js
 props.children == null && shouldSetTextContent(type, props)
@@ -28,7 +28,27 @@ props.children == null && shouldSetTextContent(type, props)
 
 With current DOM semantics this identifies a non-null `dangerouslySetInnerHTML.__html` value while excluding Fiber-managed text children and unset `__html` wrappers.
 
-The pre-child reset ordering is also correct for body: stale opaque HTML must be cleared before replacement child Placement effects run.
+The pre-child ordering is also correct in isolation: stale opaque HTML must be dealt with before replacement child Placement effects run.
+
+### The predicate does not prove current DOM child ownership
+
+The predicate proves that the Fiber supplied an opaque direct-content value. It does not identify which child DOM nodes currently belong to that write.
+
+A HostSingleton exists specifically because its DOM node persists and can coexist with state inserted outside React. The original HostSingleton contract calls out preserving style-related nodes outside React, and current DOM container clearing has special logic that retains scripts, styles, and stylesheet links under persistent `html` / `head` / `body` containers.
+
+Counterexample for body update:
+
+1. React writes `<body dangerouslySetInnerHTML={{__html: '<div id="managed-old">old</div>'}} />`;
+2. an external system appends a `<style>` node to the persistent body;
+3. React transitions the body to managed children;
+4. the refined candidate runs the generic singleton reset, assigning `body.textContent = ''`;
+5. both the stale React HTML and the external style node are removed.
+
+The same over-clear exists on release after an external style node is appended.
+
+A sparse clearer is not automatically a complete repair: preserving all scripts/styles/stylesheet links would also preserve those same tag types when they came from React-owned dangerous HTML. A complete implementation needs an explicit ownership rule for opaque singleton content and later external insertions.
+
+Decision: the proposed predicate is useful for identifying the previous render mode, but it is insufficient as the release/update cleanup authority by itself.
 
 ### Head is a shared physical container
 
@@ -46,7 +66,7 @@ Counterexample:
 
 The same over-clear exists on releasing a dangerous-HTML head owner while separately owned head content remains live.
 
-Decision: the current head/body combined candidate is too broad. Split head out of the source candidate.
+Decision: generic head reset/release is too broad.
 
 ### Head and html text children are not purely Fiber-owned
 
@@ -77,14 +97,19 @@ Decision: keep the two guards as useful research, not as a complete source candi
 
 ## Exact regressions retained in the second-review verifier
 
-The second-review branch adds two disposable pressure tests:
+The second-review verifier adds three disposable pressure areas:
 
-1. `preserves a stable hoistable when head leaves direct HTML`
+1. `preserves an external style when body leaves direct HTML` and the corresponding release case
+   - apply the refined direct-content candidate;
+   - insert a style node outside React after the direct-HTML write;
+   - require stale React HTML to disappear while the external style node survives.
+
+2. `preserves a stable hoistable when head leaves direct HTML`
    - applies the refined direct-content candidate;
    - keeps one HostHoistable Fiber stable across the head transition;
    - requires the exact hoistable DOM node to remain in `document.head`.
 
-2. `does not place new managed children from an already hidden singleton owner`
+3. `does not place new managed children from an already hidden singleton owner`
    - applies the small Activity update/release guards plus the existing Activity ownership matrix;
    - keeps one visible direct-HTML body owner active;
    - adds a new child under the already-hidden owner;
@@ -92,19 +117,25 @@ The second-review branch adds two disposable pressure tests:
 
 The verifier branch contains no product-source edits of its own.
 
-## Recommended source disposition
+## Recommended disposition
 
 ### Direct-content repair
 
-Proceed only with a **body-only** candidate until a head-aware cleanup rule exists.
+**HOLD / REDESIGN CLEANUP AUTHORITY.** Retain these established pieces:
 
-Required body controls before promotion:
+- body text/number/bigint should remain outside the opaque-direct-content predicate;
+- unset/null `__html` wrappers do not establish direct-content ownership;
+- opaque direct content must be retired before replacement child Placement.
 
-- direct HTML -> empty;
-- direct HTML -> element;
-- direct HTML -> string, number, bigint;
+The missing piece is child-level ownership on a persistent shared DOM singleton. Whole-node `textContent = ''` cleanup can erase later external state.
+
+Required controls before a clean source candidate returns:
+
+- direct HTML -> empty/element/string/number/bigint;
 - hydrated direct HTML -> managed children;
 - ordinary text -> children with an imperative sibling preserved;
+- direct HTML -> children with an external style-related sibling preserved;
+- release after direct HTML with an external style-related sibling preserved;
 - unset/null `__html` release preserving external children;
 - keyed replacement;
 - explicit empty-HTML ownership contract.
@@ -136,4 +167,4 @@ HOLD / deeper ownership design. A complete answer must cover at least:
 
 ## Decision
 
-**REPAIR / SPLIT.** Narrow the direct-content candidate to body. Reject generic head reset/release. Keep html and Activity as separate research lines. No upstream interaction.
+**HOLD / SPLIT.** The current direct-content candidate has correct local predicate/order ideas but lacks sufficient DOM child ownership for persistent singletons. Reject generic head cleanup, keep html and Activity as separate research lines, and require the body external-style discriminator before reviving a clean source candidate. No upstream interaction.
