@@ -4,7 +4,9 @@
 
 Campaign #725 is investigating a shared SWC effect-analysis boundary. Source reading now shows that binary operator behavior can be lost twice: first when `may_have_side_effects` ignores the operator, and again when `extract_side_effects_to` replaces a non-short-circuit binary expression with effects extracted only from its operands.
 
-The owned fork has a utility-level contract test in draft PR `teamleaderleo/swc#2`. JavaScript callback/coercion and exception mechanisms have been executed with Node, while the Rust discriminator still needs target-native execution.
+The operator matrix now covers callbacks, coercion, and exceptions across the main non-short-circuit families. A concrete expression-simplifier consumer also uses the shared extractor while folding array element access, giving the campaign an end-to-end path where an operator-originated effect can disappear.
+
+The owned fork contract draft is `teamleaderleo/swc#2`. Its test packet now checks whole-expression classification, effect extraction, operator exceptions, and primitive controls. Rust execution remains pending.
 
 - Campaign issue: #725
 - Programme: #15
@@ -14,7 +16,7 @@ The owned fork has a utility-level contract test in draft PR `teamleaderleo/swc#
 - Worker: GPT-5.6 Sol
 - Public source pin: `swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077`
 - Owned contract draft: `teamleaderleo/swc#2`
-- Owned contract head: `9ad27ab47b7f9a6c77bdcc67fac173efff2f78c8`
+- Owned contract head: `b5c1ef85cc8e7064fbc747c114b515df37a31a44`
 - Evidence: `source-read`, `model-executed`, `target-test-prepared`
 - Upstream contact: prohibited for automated workers
 
@@ -45,27 +47,78 @@ Both classification and extraction must preserve that invariant.
 
 ### Minifier value-discarding path
 
-`swc_ecma_minifier::compress::pure::misc::ignore_return_value` has its own reducible operator allowlist. It includes arithmetic, exponentiation, bitwise/shift, loose/strict equality, and relational operators. This creates a second consequential consumer to inspect independently of the shared utility helper.
+`swc_ecma_minifier::compress::pure::misc::ignore_return_value` has its own reducible operator allowlist. It includes arithmetic, exponentiation, bitwise/shift, loose/strict equality, and relational operators. It recursively ignores the left and right values and can drop the whole expression when both children disappear.
 
-Strict equality is a useful negative control because it compares without object-to-primitive conversion. Primitive arithmetic is another useful control when operand types make the operation incapable of callback or type-mixing failure.
+This is a separate consequential consumer from the shared extractor and needs its own regression fence.
 
-## Executed mechanism evidence
+### Expression-simplifier consumer
 
-Node v22.16.0 executed user code through Proxy `has`, `Symbol.hasInstance`, and object `valueOf` during binary operator evaluation. It also produced `TypeError` for invalid `in`, invalid `instanceof`, Symbol arithmetic, and BigInt/Number arithmetic.
+`swc_ecma_transforms_optimization::simplify::expr` uses `ExprCtx::extract_side_effects_to` when replacing a statically selected array element. Effects from elements before and after the chosen element are extracted, then the selected value is substituted.
 
-The model evidence establishes JavaScript behavior. It does not by itself establish which exact SWC optimization path transforms every case.
+That produces a concrete candidate reproduction:
 
-## Next target test revision
+```js
+[
+  ({ [Symbol.toPrimitive]() { log(); return 1; } }) + 1,
+  42,
+][1]
+```
 
-Extend `teamleaderleo/swc#2` so the same fixture packet checks:
+The original must execute the conversion before yielding `42`. Extracting only the binary operands can erase the conversion step and leave `42` alone.
 
-1. whole-expression classification;
-2. `ExprCtx::extract_side_effects_to` preservation;
-3. primitive negative controls;
-4. operator-thrown exceptions with pure literal operands where feasible.
+## Executed operator matrix
 
-Then obtain a base failure and candidate pass on the exact target head before selecting implementation.
+A Node v22.16.0 probe used an object with `Symbol.toPrimitive` and recorded callback execution.
+
+| Family | Operators probed | Operator callback observed |
+| --- | --- | --- |
+| addition | `+` | yes, `default` hint |
+| numeric arithmetic | `- * / % **` | yes, `number` hint |
+| bitwise and shifts | `& | ^ << >> >>>` | yes, `number` hint |
+| relational | `< <= > >=` | yes, `number` hint |
+| loose equality | `== !=` | yes, `default` hint |
+| strict equality | `=== !==` | no |
+| property presence | `in` | yes, property-key conversion; Proxy `has` is an additional hook |
+| instance test | `instanceof` | yes with `Symbol.hasInstance` |
+
+Pure-literal exception controls also established:
+
+- mixed BigInt/Number arithmetic, exponentiation, bitwise, and signed-shift operations throw `TypeError`;
+- BigInt unsigned right shift throws `TypeError`;
+- BigInt division or remainder by zero throws `RangeError`;
+- BigInt negative exponentiation throws `RangeError`;
+- invalid right operands for `in` and `instanceof` throw `TypeError`.
+
+A second model compared whole evaluation with child-only evaluation. `obj + 1` ran `valueOf` while evaluating `obj` then `1` did not; `1n + 1` threw while evaluating `1n` then `1` did not; `'x' in proxy` ran the Proxy `has` trap while evaluating the two operands separately did not.
+
+Evidence class: `model-executed`.
+
+## Negative controls
+
+Strict equality is the strongest operator-level negative control because it compares without object-to-primitive conversion. Primitive arithmetic is also safe when the operand types and values rule out conversion hooks and numeric-domain exceptions.
+
+Short-circuit logical operators already have a distinct extractor branch that preserves the whole expression, so they should remain separate from the non-short-circuit repair.
+
+## Prepared target contract
+
+`teamleaderleo/swc#2` now asks the utility layer to preserve:
+
+- `in` and `instanceof` operator callbacks;
+- object coercion through arithmetic, relational comparison, and loose equality;
+- pure-literal operator exceptions such as `1 in 2`, `1 instanceof 2`, and `1n + 1`;
+- the complete binary expression when `extract_side_effects_to` is asked to retain those effects.
+
+Primitive `1 + 2` and `1 === 2` remain extraction controls.
+
+## Current repair decision
+
+A one-line `in` special case is insufficient. The repair needs a shared answer to two questions:
+
+1. can this particular operator evaluation itself be observable after child evaluation?
+2. if yes, must effect extraction retain the whole binary expression?
+
+A type-aware shared helper is currently the leading direction because both classification and extraction need the same answer. The implementation should begin conservatively and use established type/value proofs only where they rule out callbacks and exceptions.
 
 ## Current disposition
 
-**EXECUTE** the utility contract first. Implementation remains open because a global conservative classifier could reduce compression. The next decision depends on the operator matrix, consumer map, and target-native RED evidence.
+**EXECUTE** the expanded utility contract and add an expression-simplifier end-to-end regression before promoting implementation. Measure any compression loss if the shared operator guard becomes more conservative.
