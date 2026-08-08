@@ -37,4 +37,4 @@ This is reproducible on current canary source.
 
 Reproduction: https://github.com/teamleaderleo/playground/tree/repro/next-playwright-origin-cookie/next-playwright-origin-cookie-repro
 
-Candidate patch: https://redirect.github.com/teamleaderleo/next.js/pull/7
+Candidate patch: https://github.com/teamleaderleo/next.js/pull/9
