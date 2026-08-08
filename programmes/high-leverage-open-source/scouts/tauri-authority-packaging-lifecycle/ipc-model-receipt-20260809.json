@@ -1,0 +1,23 @@
+{
+  "kind": "model-executed",
+  "date": "2026-08-09",
+  "target_repository": "tauri-apps/tauri",
+  "target_revision": "34ec18ba5e1acabebd66ae79d6fc746f63d8eb96",
+  "model_path": "programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/ipc_transport_model.mjs",
+  "runtime": "node v22.16.0",
+  "command": "node ipc_transport_model.mjs",
+  "result": "pass",
+  "observations": [
+    "current fallback model dispatches twice when navigation aborts after the custom-protocol dispatch",
+    "negotiating transport before command dispatch preserves one Rust dispatch in the normal path",
+    "a CSP-blocked custom protocol can select postMessage before the modeled command dispatch",
+    "a navigation abort after dispatch rejects the modeled invoke without a second transport dispatch",
+    "a later transport failure rejects instead of risking duplicate side effects"
+  ],
+  "limits": [
+    "This is a dependency-free state-machine model, not WebView2 or WKWebView execution.",
+    "It assumes a side-effect-free custom-protocol probe predicts whether the side-effecting POST can use the same transport.",
+    "Browser CSP, CORS, preflight, custom-scheme, navigation, and channel behavior still require target-platform execution."
+  ],
+  "upstream_contact_authorized": false
+}
