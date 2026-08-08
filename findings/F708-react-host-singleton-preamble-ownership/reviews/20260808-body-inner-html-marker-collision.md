@@ -1,4 +1,4 @@
-# Boundary-stream body DSIH — preamble marker collision
+# Boundary-stream body DSIH — control-comment namespace collision
 
 ## Question
 
@@ -8,7 +8,7 @@ Can Fizz repair boundary-contributed body `dangerouslySetInnerHTML` by emitting 
 
 **Reject that implementation as currently defined.**
 
-The idea fixes one ownership problem but introduces a control-marker collision with arbitrary raw HTML.
+The idea fixes one ownership problem but introduces a collision between arbitrary raw HTML comments and React's internal boundary-control comment namespace.
 
 ## Why the split looked attractive
 
@@ -25,17 +25,37 @@ React PR 34 implemented exactly that small split as an experiment.
 
 React DOM's `clearHydrationBoundary()` walks the direct sibling nodes inside a Suspense/Activity boundary.
 
-For any direct sibling comment, it compares the comment's `.data` to the static singleton contribution tokens:
+For direct sibling comments, the walker interprets static comment data as control tokens. The namespace includes at least:
+
+### Boundary depth / termination
+
+- `$`
+- `$?`
+- `$~`
+- `$!`
+- `&`
+- `/$`
+- `/&`
+
+These increment/decrement boundary depth or terminate the cleanup when an end marker is observed at depth zero.
+
+### Singleton preamble contributions
 
 - `html`
 - `head`
 - `body`
 
-If one matches, React runs singleton preamble cleanup. For `head`, it additionally calls `clearHead(head)`.
+These trigger singleton preamble cleanup; `head` additionally triggers `clearHead(head)`.
 
-These marker comments are currently safe because normal React-managed boundary output does not expose arbitrary author comments in that sibling stream.
+These comments are safe in the current managed boundary stream because ordinary React rendering does not expose arbitrary author comments as direct sibling control nodes.
 
-`dangerouslySetInnerHTML`, however, is arbitrary HTML and may contain ordinary comments. If raw body DSIH is moved into the boundary stream, markup such as:
+`dangerouslySetInnerHTML`, however, is arbitrary HTML and may contain ordinary comments with any of these exact data strings.
+
+If body DSIH is moved directly into the boundary stream, author markup can therefore become indistinguishable from React control comments.
+
+## Singleton cleanup example
+
+Markup such as:
 
 ```html
 <!--head--><div>content</div>
@@ -45,7 +65,26 @@ produces a direct sibling comment whose data is exactly `head`.
 
 When the boundary is later cleared, React can misclassify that author comment as an internal preamble contribution marker and clear the real persistent document head even though this boundary never contributed a head.
 
-The same namespace collision exists for raw comments equal to `html` or `body`.
+## Boundary-parser examples
+
+The problem is broader than singleton cleanup.
+
+Raw comments such as:
+
+```html
+<!--$-->
+<!--&-->
+<!--/$-->
+<!--/&-->
+```
+
+can alter the cleanup walk's nested-boundary depth accounting or satisfy its end-marker condition.
+
+A forged-looking end marker at depth zero can make cleanup return before reaching the real boundary end, leaving later nodes behind and retrying as though the boundary had been fully removed.
+
+A forged-looking start marker can increase depth and make the real end marker look nested, changing how far the scanner walks.
+
+So there is no safe subset where static preamble words are merely renamed: arbitrary raw HTML cannot share this unescaped direct-sibling comment channel with React's boundary protocol.
 
 ## Focused falsifier
 
@@ -58,22 +97,26 @@ React PR 34 now carries a regression that:
 
 Current source keeps the DSIH bytes outside the boundary and should preserve the head.
 
-The PR 34 stream-split experiment moves the forged-looking comment into `clearHydrationBoundary()`'s marker namespace and is expected to fail this control.
+The PR 34 stream-split experiment moves that author comment into `clearHydrationBoundary()`'s control namespace and is expected to fail this control.
+
+One representative collision is enough to reject the implementation; additional `$`/`/$` controls can be added if a future design attempts to reuse the same raw sibling channel.
 
 ## Design consequence
 
-The useful principle survives: opaque fallback content should ideally live in a deletion/provenance range owned by the boundary.
+The useful principle survives: opaque fallback content should ideally have deletion/provenance ownership associated with the boundary.
 
-The specific implementation does not.
+The specific direct-stream implementation does not.
 
 A future protocol needs one of:
 
 - an internal marker representation that arbitrary author HTML cannot forge;
-- a per-boundary token/identity rather than static bare comment words;
-- a separate opaque-content provenance channel that does not share the raw comment namespace;
+- a per-boundary unforgeable/random identity with parsing rules that author comments cannot accidentally satisfy;
+- a separate opaque-content provenance channel that does not share raw author comment nodes with the boundary scanner;
 - another range representation with equivalent cleanup ownership.
 
-This also strengthens the marker-descriptor requirement that any new comment payload be provably collision-safe, not merely escaped enough for HTML syntax.
+Merely changing `<!--body-->` to a longer static string is insufficient: DSIH can contain that string too.
+
+This also strengthens the marker-descriptor requirement that any new comment payload be both HTML-comment-safe **and control-namespace-safe**.
 
 ## Disposition
 
