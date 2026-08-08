@@ -31,6 +31,8 @@ const instantCookies = (await context.cookies()).filter(
 
 I think cleanup should be limited to cookies applicable to the application URL being controlled, for example by using Playwright’s URL-filtered cookie lookup.
 
+Playwright already distinguishes between `context.cookies()`, which returns the context’s full cookie jar, and `context.cookies(url)`, which returns only cookies that affect that URL.
+
 I reproduced this with Playwright/Chromium: `context.cookies()` returned the testing cookies for both origins, while `context.cookies(appAUrl)` returned only the cookies that apply to app A.
 
 This is reproducible on current canary source.
