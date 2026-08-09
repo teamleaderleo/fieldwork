@@ -1,0 +1,45 @@
+name: SWC instanceof three-owner minifier
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  minifier:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+    steps:
+      - name: Check out deterministic Fieldwork candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: 4aaa6c9aa748555e7ebcaaa6848fb6161728e337
+          path: fieldwork-source
+          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout-cone-mode: false
+      - name: Check out exact minifier discriminator
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: 45b6f542950ce4552d823ed63a8d17a4c99d0341
+          path: swc
+          fetch-depth: 0
+      - name: Install toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+      - name: Apply three-owner candidate and validate minifier
+        working-directory: swc
+        run: |
+          python3 ../fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py .
+          git diff --check
+          cargo fmt --all -- --check
+          cargo test -p swc_ecma_minifier --test compress -- instanceof_member_extraction --nocapture
+          cargo clippy -p swc_ecma_minifier --all-targets -- -D warnings
+          git diff --check
