@@ -10,7 +10,7 @@ run/main_scene="res://main.tscn"
 
 [autoload]
 
-Moved="*uid://60nf3"
+Moved="*uid://b"
 
 [rendering]
 
