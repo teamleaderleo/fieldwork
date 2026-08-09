@@ -37,7 +37,7 @@ jobs:
 
       - name: Install SWC Rust toolchain
         run: |
-          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt clippy
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
           rustup override set nightly-2026-04-10
 
       - name: Apply one-line binding-context candidate
