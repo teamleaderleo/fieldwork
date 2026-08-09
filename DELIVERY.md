@@ -108,12 +108,17 @@ The final contribution commit is a human-attributed release artifact, not a repe
 - Research and execution branches may be mutable and noisy.
 - Create the upstream-intended submission commit deliberately **once** after the candidate is accepted.
 - After that point, CI validates the exact submission SHA; CI must not recreate equivalent signed-off commits on every research update.
-- Never infer the contributor name or email from a base commit, upstream author, repository owner, nearby commit, or stale workflow configuration.
-- Before an upstream compare link or PR is handed to the submitter, verify the exact source diff, GitHub-resolved author and committer, `Signed-off-by:` trailer when required, and any assistance/coauthor trailers.
+- Never infer the contributor name or email from a base commit, upstream author, repository owner, nearby commit, stale workflow configuration, or provider account association.
+- For DCO-bearing commits, raw Git author and committer identity are independent evidence from GitHub account resolution. Verify `%an <%ae>` and `%cn <%ce>` directly, plus every `Signed-off-by:` trailer.
+- GitHub-resolved author/committer account identity is useful secondary evidence only. It does not prove that the raw commit name/email matches the sign-off.
+- A squash, amend, rebase, cherry-pick, clean-base rebuild, or API commit recreation creates a new commit object and reopens the complete identity check even when the source tree is unchanged.
+- If the available commit-writing tool cannot explicitly set the required raw author/committer identity and independently expose or verify the resulting raw metadata, it must not create or rewrite the final DCO-bearing submission commit. Stop at preparation and leave the final Git commit/amend step to the human or an ordinary Git environment.
+- Before an upstream compare link or PR is handed to the submitter, verify the exact source diff, raw author and committer, GitHub-resolved author and committer, `Signed-off-by:` trailer when required, and any assistance/coauthor trailers.
+- Useful raw checks include `git show --no-patch --format=fuller HEAD` and `git log -1 --format='%an <%ae>%n%cn <%ce>%n%B'`.
 - Disposable or internal commits should not carry canonical `Fixes`/`Closes` metadata that would create external issue events.
 - Temporary write-capable materializers, force-push workflows, and execution carriers must be disabled or removed when the durable submission branch exists.
 
-See `research/postmortems/2026-08-07-cloud-hypervisor-submission-materializer.md` for the incident that established this rule.
+See `research/postmortems/2026-08-07-cloud-hypervisor-submission-materializer.md` and `research/postmortems/2026-08-10-cloud-hypervisor-dco-squash-followup.md` for the incidents that established this boundary.
 
 ## Worker handoff
 
