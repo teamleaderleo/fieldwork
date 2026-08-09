@@ -19,3 +19,124 @@ jobs:
         run: node scripts/test_interaction_references.js
       - name: Validate batch contracts
         run: python3 scripts/check_fieldwork_integrity.py
+
+  swc-mapped-arguments-inline-remap:
+    if: github.event_name == 'pull_request' && github.head_ref == 'fieldwork/execution/swc-mapped-arguments-inline-remap'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+    steps:
+      - name: Check out exact SWC discriminator head
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: 6749c50c79df51bdae0bd50e6e015c370fe8ef82
+          fetch-depth: 0
+
+      - name: Install SWC Rust toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10
+
+      - name: Base must stay GREEN and actually inline the function
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_name=mapped_arguments_inline_remap
+          dir=crates/swc_ecma_minifier/tests/fixture/fieldwork/mapped-arguments-inline-remap
+
+          UPDATE=1 cargo test -p swc_ecma_minifier --test compress -- "$test_name" --nocapture
+          cargo test -p swc_ecma_minifier --test compress -- "$test_name" --nocapture
+
+          echo '--- base output.js ---'
+          cat "$dir/output.js"
+          echo '--- base runtime ---'
+          base_runtime="$(node "$dir/output.js")"
+          printf '%s\n' "$base_runtime"
+          test "$base_runtime" = '2 2'
+
+          if grep -q 'function mapped' "$dir/output.js"; then
+            echo 'base output kept the original mapped declaration; inline-remap path was not proven' >&2
+            exit 20
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('crates/swc_ecma_minifier/tests/fixture/fieldwork/mapped-arguments-inline-remap/output.js')
+          s = p.read_text()
+          count = s.count('arguments[0]')
+          print(f'base arguments[0] occurrences: {count}')
+          if count < 2:
+              raise SystemExit('expected at least two cloned/inlined mapped function bodies')
+          PY
+
+      - name: Apply active one-line binding-context candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('crates/swc_ecma_minifier/src/compress/optimize/unused.rs')
+          s = p.read_text()
+          old = '!self.data.used_arguments(self.ctx.scope)'
+          new = '!self.data.used_arguments(i.id.ctxt)'
+          count = s.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one unused-pass arguments guard, found {count}')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          git diff -- crates/swc_ecma_minifier/src/compress/optimize/unused.rs
+          git diff --check
+
+      - name: Materialize candidate output without the runtime oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_name=mapped_arguments_inline_remap
+          dir=crates/swc_ecma_minifier/tests/fixture/fieldwork/mapped-arguments-inline-remap
+
+          mv "$dir/expected.stdout" /tmp/mapped-arguments-expected.stdout
+          trap 'mv /tmp/mapped-arguments-expected.stdout "$dir/expected.stdout" 2>/dev/null || true' EXIT
+          UPDATE=1 cargo test -p swc_ecma_minifier --test compress -- "$test_name" --nocapture
+          mv /tmp/mapped-arguments-expected.stdout "$dir/expected.stdout"
+          trap - EXIT
+
+          echo '--- candidate output.js ---'
+          cat "$dir/output.js"
+          echo '--- candidate runtime ---'
+          candidate_runtime="$(node "$dir/output.js")"
+          printf '%s\n' "$candidate_runtime"
+          printf '%s\n' "$candidate_runtime" > /tmp/candidate-runtime.txt
+
+      - name: Candidate must reproduce the inline-remap objection
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_name=mapped_arguments_inline_remap
+          candidate_runtime="$(cat /tmp/candidate-runtime.txt)"
+
+          if [ "$candidate_runtime" = '2 2' ]; then
+            echo 'candidate remained semantically correct after proven inline cloning; maintainer objection not reproduced' >&2
+            exit 30
+          fi
+
+          set +e
+          cargo test -p swc_ecma_minifier --test compress -- "$test_name" --nocapture 2>&1 | tee /tmp/candidate-test.log
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            echo 'runtime oracle unexpectedly passed despite candidate runtime mismatch' >&2
+            exit 31
+          fi
+
+          grep -q 'test result: FAILED' /tmp/candidate-test.log
+          grep -q '2 2' /tmp/candidate-test.log
+          echo "confirmed candidate runtime regression: $candidate_runtime (expected 2 2)"
+
+      - name: Candidate formatting and diff checks
+        run: |
+          cargo fmt --all -- --check
+          git diff --check
