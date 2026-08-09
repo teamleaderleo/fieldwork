@@ -19,3 +19,65 @@ jobs:
         run: node scripts/test_interaction_references.js
       - name: Validate batch contracts
         run: python3 scripts/check_fieldwork_integrity.py
+
+  swc-strict-arguments-probe:
+    if: github.event_name == 'pull_request' && github.head_ref == 'fieldwork/execution/swc-strict-arguments-probe'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+    steps:
+      - name: Check out pinned SWC
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: 5bf27fd72e4667bac6cc86888b8facb8b91f8077
+          fetch-depth: 0
+
+      - name: Install SWC Rust toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal
+          rustup override set nightly-2026-04-10
+
+      - name: Prepare function-local strict runtime fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir=crates/swc_ecma_minifier/tests/fixture/fieldwork/strict-arguments-probe
+          mkdir -p "$dir"
+          cat > "$dir/config.json" <<'JSON'
+          {
+              "defaults": false,
+              "directives": true
+          }
+          JSON
+          cat > "$dir/input.js" <<'JS'
+          function sloppy(o) {
+              o = 1;
+              return [o, arguments[0]];
+          }
+
+          function strict(o) {
+              "use strict";
+              o = 1;
+              return [o, arguments[0]];
+          }
+
+          console.log(sloppy(0).join(","));
+          console.log(strict(0).join(","));
+          JS
+          printf '1,1\n1,0\n' > "$dir/expected.stdout"
+
+      - name: Run isolated directives-pass runtime oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          UPDATE=1 cargo test -p swc_ecma_minifier --test compress -- strict_arguments_probe --nocapture 2>&1 | tee /tmp/strict-arguments.log
+          echo '--- generated output.js ---'
+          cat crates/swc_ecma_minifier/tests/fixture/fieldwork/strict-arguments-probe/output.js
+          echo '--- strict directive occurrences ---'
+          grep -n 'use strict' crates/swc_ecma_minifier/tests/fixture/fieldwork/strict-arguments-probe/output.js || true
+
+      - name: Confirm generated output remains runtime-correct without UPDATE
+        run: cargo test -p swc_ecma_minifier --test compress -- strict_arguments_probe --nocapture
