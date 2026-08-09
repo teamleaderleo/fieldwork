@@ -19,3 +19,134 @@ jobs:
         run: node scripts/test_interaction_references.js
       - name: Validate batch contracts
         run: python3 scripts/check_fieldwork_integrity.py
+
+  swc-mapped-arguments-candidate:
+    if: github.event_name == 'pull_request' && github.head_ref == 'fieldwork/execution/swc-mapped-arguments-candidate'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+    steps:
+      - name: Check out pinned SWC
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: 5bf27fd72e4667bac6cc86888b8facb8b91f8077
+          fetch-depth: 0
+
+      - name: Install SWC Rust toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt clippy
+          rustup override set nightly-2026-04-10
+
+      - name: Apply one-line binding-context candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('crates/swc_ecma_minifier/src/compress/optimize/unused.rs')
+          s = p.read_text()
+          old = '!self.data.used_arguments(self.ctx.scope)'
+          new = '!self.data.used_arguments(i.id.ctxt)'
+          count = s.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one unused-pass arguments guard, found {count}')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          git diff -- crates/swc_ecma_minifier/src/compress/optimize/unused.rs
+          git diff --check
+
+      - name: Prepare semantic matrix fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir=crates/swc_ecma_minifier/tests/fixture/fieldwork/mapped-arguments-candidate
+          mkdir -p "$dir"
+          cat > "$dir/config.json" <<'JSON'
+          {
+              "defaults": false,
+              "unused": true
+          }
+          JSON
+          cat > "$dir/input.js" <<'JS'
+          function run(f) {
+              f();
+          }
+
+          function direct(b) {
+              b = 2;
+              return arguments[0];
+          }
+
+          function nestedArrow(b) {
+              run(() => {
+                  b = 2;
+              });
+              return arguments[0];
+          }
+
+          function nestedFunction(b) {
+              run(function () {
+                  b = 2;
+              });
+              return arguments[0];
+          }
+
+          function strictNested(b) {
+              "use strict";
+              run(() => {
+                  b = 2;
+              });
+              return arguments[0];
+          }
+
+          function noArgumentsRead(b) {
+              run(() => {
+                  b = 2;
+              });
+              return 7;
+          }
+
+          function unrelatedLocal(b) {
+              let x = 1;
+              run(() => {
+                  x = 2;
+              });
+              return arguments[0];
+          }
+
+          function defaultParam(b = 1) {
+              run(() => {
+                  b = 2;
+              });
+              return arguments[0];
+          }
+
+          console.log(
+              direct(1),
+              nestedArrow(1),
+              nestedFunction(1),
+              strictNested(1),
+              noArgumentsRead(1),
+              unrelatedLocal(5),
+              defaultParam(1)
+          );
+          JS
+          printf '2 2 2 1 7 5 1\n' > "$dir/expected.stdout"
+
+      - name: Candidate semantic matrix must GREEN
+        shell: bash
+        run: |
+          set -euo pipefail
+          UPDATE=1 cargo test -p swc_ecma_minifier --test compress -- mapped_arguments_candidate --nocapture
+          echo '--- candidate output.js ---'
+          cat crates/swc_ecma_minifier/tests/fixture/fieldwork/mapped-arguments-candidate/output.js
+          cargo test -p swc_ecma_minifier --test compress -- mapped_arguments_candidate --nocapture
+
+      - name: Candidate package checks
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy -p swc_ecma_minifier --all-targets -- -D warnings
+          git diff --check
