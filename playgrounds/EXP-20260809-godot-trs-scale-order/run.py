@@ -24,25 +24,31 @@ def right_scale(matrix, scale):
     return [[matrix[i][j] * scale[j] for j in range(3)] for i in range(3)]
 
 
-axis = (1.0, 2.0, 3.0)
-angle = 0.7
-scale = (2.0, 1.0, 3.0)
-rotation = rotation_matrix(axis, angle)
-left = left_scale(rotation, scale)
-right = right_scale(rotation, scale)
-differences = [abs(left[i][j] - right[i][j]) for i in range(3) for j in range(3)]
+def compare_case(name, axis, angle, scale):
+    rotation = rotation_matrix(axis, angle)
+    left = left_scale(rotation, scale)
+    right = right_scale(rotation, scale)
+    differences = [abs(left[i][j] - right[i][j]) for i in range(3) for j in range(3)]
+    return {
+        "name": name,
+        "axis": axis,
+        "angle": angle,
+        "scale": scale,
+        "max_abs_element_diff": max(differences),
+        "frobenius_diff": math.sqrt(sum(value * value for value in differences)),
+        "left_scaled_S_times_R": left,
+        "right_scaled_R_times_S": right,
+    }
 
-print(
-    json.dumps(
-        {
-            "axis": axis,
-            "angle": angle,
-            "scale": scale,
-            "max_abs_element_diff": max(differences),
-            "frobenius_diff": math.sqrt(sum(value * value for value in differences)),
-            "left_scaled_S_times_R": left,
-            "right_scaled_R_times_S": right,
-        },
-        indent=2,
-    )
-)
+
+axis = (1.0, 2.0, 3.0)
+cases = [
+    ("nonuniform_positive", axis, 0.7, (2.0, 1.0, 3.0)),
+    ("uniform_positive", axis, 0.7, (2.0, 2.0, 2.0)),
+    ("identity_rotation", axis, 0.0, (2.0, 1.0, 3.0)),
+    ("nonuniform_negative_x", axis, 0.7, (-2.0, 1.0, 3.0)),
+    ("mixed_negative", axis, 0.7, (-2.0, -1.0, 3.0)),
+    ("uniform_negative", axis, 0.7, (-2.0, -2.0, -2.0)),
+]
+
+print(json.dumps({"cases": [compare_case(*case) for case in cases]}, indent=2))
