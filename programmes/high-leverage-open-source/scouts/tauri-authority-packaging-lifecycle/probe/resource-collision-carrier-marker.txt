@@ -1,0 +1,1 @@
+Run the resource target-collision carrier from the current canonical scout head.
