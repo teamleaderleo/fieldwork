@@ -10,57 +10,164 @@ Upstream contact authorized: `false`
 
 ## In simple words
 
-The deep pass found two reproduced lifecycle bugs, one high-consequence authority bug with a runnable test packet, a better candidate for the known duplicate-IPC problem, and several narrower follow-ups.
+The scout found two reproduced callback-panic failures, one high-consequence authority suspicion with a runnable target test, and a better direction for Tauri's known duplicate-IPC problem.
 
-1. **Authority deny rules are applied too broadly.** `RuntimeAuthority::resolve_access` rejects a command whenever the command has any deny entry, even if that deny belongs to a different origin. It also ignores the denied rule's window/webview selectors. The resolver explicitly keeps those selectors on denied commands, and the allow path uses them. Three focused controls and a minimal candidate are prepared, but there is no retained target execution receipt yet.
-2. **A panicking Rust event callback can permanently stall the event manager after the caller catches the panic.** This reproduces on the pinned Tauri source. A compact catch/flush/resume candidate preserves the original panic and restores later delivery in two corrected Linux executions. A separate `once()` panic control also passes, confirming queued one-shot cleanup happens before the panic is resumed.
-3. **A panicking filesystem `Scope` listener can permanently stall later scope events.** This also reproduces on the pinned source. A separate catch/clear/drain/resume candidate passes the focused Linux regression.
-4. **The current IPC fallback can execute one logical invoke twice.** A side-effecting custom-protocol `POST` may already have reached Rust when navigation makes `fetch()` reject; the frontend then resends the same message over `postMessage`. A revised candidate negotiates transport with one side-effect-free `HEAD` probe before dispatch and never replays an ambiguous command. Its state-machine model passes, including Android's destructive large-channel fetch and custom `HeadersInit` inputs. Real WebView2 and WKWebView execution is still required.
-5. **`InvokeOptions.headers` advertises `HeadersInit`, while the postMessage receiver expects a string map.** Record headers fit. A `Headers` object loses its entries when JSON serialized, and tuple-list input serializes as a sequence. This is especially relevant on Android, where regular invokes already use postMessage.
-6. **Two bundle resources can resolve to the same destination and silently overwrite.** The resource map is a `HashMap`, and `tauri-build` copies without a duplicate-target check. A focused regression and reject-before-copy candidate are prepared.
-7. **Plugin, menu, tray, and public JS-filter callbacks expose more callback-under-mutex seams.** They are source-supported leads with non-hanging probes where practical; they are not promoted to executed bugs here.
+- A Rust event callback panic can poison the event-manager mutex. If the caller catches the panic, later event work stops progressing. This reproduces on the pinned target, and a small catch/flush/resume repair passes two corrected runs plus a panicking `once()` cleanup control.
+- A filesystem `Scope` listener panic can leave its `emitting` flag set and poison its listener mutex. Later scope events stop progressing. This also reproduces, and a separate catch/clear/drain/resume repair passes the focused regression.
+- `RuntimeAuthority::resolve_access` appears to discard deny-rule scope: its current `map(...).is_some()` branch takes the deny path whenever the command has any deny entry, even when the origin predicate returned false, and it does not test the denied rule's window/webview selectors. Source and resolved-capability contracts support this reading. A three-control regression is ready, but no retained target run exists yet, so this remains a source-supported suspicion rather than a reproduced bug.
+- The current IPC fallback can resend one logical command over `postMessage` after a custom-protocol `POST` may already have reached Rust. A revised candidate negotiates transport before command dispatch and never replays an ambiguous command. Its state-machine model passes, including Android's destructive large-channel fetch. Real WebView2 and WKWebView execution is still required.
 
-The strongest ready-to-run human follow-up is the authority test packet. The strongest executed implementation packets are the core event callback panic and filesystem `Scope` panic repairs. The IPC proposal has the highest cross-platform leverage, but it still needs two real webview engines before a patch should be treated as ready.
+Several narrower leads remain: postMessage handling of the public `HeadersInit` contract, bundle-resource destination collisions, public JS-filter panic/reentrancy, and plugin/menu/tray callbacks invoked while shared mutexes are held.
 
 ## Evidence ledger
 
 | Finding | Evidence | Durable artifact |
 | --- | --- | --- |
-| Authority deny scope | `target-test-prepared` | `authority-deny-scope-prepared-20260809.json`, `probe/authority_deny_scope_test.rs` |
 | Core Rust event callback panic | `target-executed` | `listener-execution-receipt-20260809.json`, `probe/listener_panic_test.rs`, `probe/candidate.patch` |
 | `once()` panic cleanup control | `target-executed` | `listener-once-execution-receipt-20260809.json`, `probe/listener_once_panic_test.rs` |
 | Filesystem `Scope` callback panic | `target-executed` | `fs-scope-execution-receipt-20260809.json`, `probe/fs_scope_panic_test.rs`, `probe/fs_scope_candidate.patch` |
+| Authority deny scope | `target-test-prepared` | `authority-deny-scope-prepared-20260809.json`, `probe/authority_deny_scope_test.rs` |
 | IPC transport negotiation v2 | `model-executed`, target patch prepared | `ipc-candidate-model-receipt-20260809.json`, `probe/ipc_candidate_model.mjs`, `probe/ipc-protocol.candidate.js`, `probe/ipc-head-negotiation-v2.patch` |
-| `InvokeOptions.headers` fallback mismatch | `model-executed` for serialization property; real IPC unexecuted | `invoke-headers-prepared-20260809.json`, `probe/invoke_headers_model.mjs`; also covered by the v2 IPC model |
+| `InvokeOptions.headers` postMessage mismatch | `model-executed` for serialization property; real IPC unexecuted | `invoke-headers-prepared-20260809.json`, `probe/invoke_headers_model.mjs` |
 | Resource target collision | `target-test-prepared` | `resource-target-collision-prepared-20260809.json`, `probe/resource_target_collision_test.rs` |
-| Public JS filter panic | `target-test-prepared` | `js-filter-panic-prepared-20260809.json`, `probe/js_filter_panic_test.rs` |
+| Public JS-filter panic | `target-test-prepared` | `js-filter-panic-prepared-20260809.json`, `probe/js_filter_panic_test.rs` |
 | Plugin-store reentrancy | `target-test-prepared` | `plugin-store-reentrancy-prepared-20260809.json`, `probe/plugin_store_reentrancy_test.rs` |
 | Menu/tray/plugin callback lock audit | `source-read` | `callback-lock-audit-20260809.md` |
-| Nested filtered emit drops filter | `source-read`, existing upstream issue | source map below |
+| Nested filtered emit drops filter | `source-read`, existing upstream issue | section 9 |
 
-The first listener execution attempt, Fieldwork run `31283181973`, is **invalid harness evidence**. The baseline Cargo command ran from the Fieldwork root, and the candidate job stopped at a malformed patch hunk. It is retained in `listener-execution-invalid-20260809.json` and contributes no target claim.
+The first listener execution attempt, Fieldwork run `31283181973`, is invalid harness evidence. Its baseline ran Cargo from the Fieldwork root rather than the Tauri checkout, and its candidate stopped at a malformed patch hunk. It is retained in `listener-execution-invalid-20260809.json` and contributes no target claim.
+
+The first IPC candidate model is retained as historical evidence in `ipc-model-receipt-20260809.json`; that candidate is marked superseded. Only the v2 IPC candidate is current.
 
 No owned-application WebView2 or WKWebView integration run has been completed for this scout.
 
-## 1. Runtime authority: denied command scope is discarded
+## 1. Core Rust event callback panic stalls later event work
 
-Relevant target files:
+Target file: `crates/tauri/src/event/listener.rs`.
+
+Normal path:
+
+```text
+emit_filter
+  -> handlers.try_lock()
+  -> user callbacks run while MutexGuard is alive
+  -> nested event operations cannot take the lock and enter Pending
+  -> callback returns
+  -> guard drops normally
+  -> Pending flushes
+```
+
+Panic path at the pinned baseline:
+
+```text
+user callback panics
+  -> MutexGuard unwinds
+  -> handlers mutex becomes poisoned
+  -> caller catches the panic
+  -> later try_lock() returns Poisoned
+  -> current Err(_) branch treats poison like ordinary contention
+  -> later listen/unlisten/emit work is appended to Pending
+  -> no healthy handler-lock path remains to drain it
+```
+
+Focused regression:
+
+1. register a panicking listener;
+2. call `emit` inside `catch_unwind` and verify the panic reaches the caller;
+3. register a listener for another event;
+4. emit that event;
+5. require later delivery.
+
+Repair retained in `probe/candidate.patch`:
+
+- catch the callback unwind while the mutex guard is owned outside the catch boundary;
+- let the guard drop normally;
+- flush pending reentrant actions;
+- resume the original panic with `resume_unwind`.
+
+### Executed evidence
+
+Pinned target: `34ec18ba5e1acabebd66ae79d6fc746f63d8eb96`  
+Runner: Ubuntu 24.04.4 x86_64  
+Rust: `1.97.1`  
+Cargo: `1.97.1`
+
+Primary corrected run `31284095629`:
+
+- baseline exited `101` and matched `event manager stopped dispatching after callback panic`;
+- repair applied;
+- focused repair test exited `0`.
+
+Confirmation run `31284174704` repeated the same before/after result. The intentional callback panic still reached the test's `catch_unwind` before later delivery succeeded.
+
+### `once()` cleanup control
+
+`once()` queues `Pending::Unlisten(id)` before invoking its `FnOnce`. If recovery resumed the panic before flushing, the one-shot handler could remain registered after its closure had already been consumed.
+
+Run `31284550759` established:
+
+- baseline poisoned the handler mutex;
+- the same repair flushed self-removal before resuming the original panic;
+- later delivery through a newly registered listener succeeded.
+
+**Disposition:** reproduced and repair-validated on focused Linux tests. Run the nearby event test set and independent review before preparing a human-facing upstream packet.
+
+## 2. Filesystem `Scope` listener panic stalls later scope events
+
+Target file: `crates/tauri/src/scope/fs.rs`.
+
+`Scope::emit` uses:
+
+- `event_listeners: Mutex<...>`;
+- `emitting: AtomicBool`;
+- a pending action queue.
+
+It sets `emitting = true`, invokes user listeners while the listener mutex is held, clears `emitting`, then drains pending work.
+
+Panic path:
+
+```text
+listener panics
+  -> event-listener guard unwinds and poisons
+  -> emitting = false is skipped
+  -> caller catches panic
+  -> future scope event sees emitting == true
+  -> future work queues instead of being delivered
+```
+
+The focused regression catches one listener panic, removes that listener, registers a healthy listener, allows another path, and requires the second scope event to arrive.
+
+Run `31284564752` established:
+
+- baseline matched `filesystem scope stopped dispatching after callback panic`;
+- `probe/fs_scope_candidate.patch` applied;
+- repair test exited `0`.
+
+The repair catches the callback unwind, clears `emitting`, lets the guard drop normally, drains pending work, then resumes the original panic.
+
+This is adjacent to the reentrant filesystem-scope deadlock fixed for `https://github.com/tauri-apps/tauri/issues/15468`; panic cleanup is a separate invariant.
+
+**Disposition:** reproduced and repair-validated on a focused Linux test. Keep separate from the core event-manager patch because the state machine differs.
+
+## 3. Authority deny scope: high-consequence source suspicion
+
+Target files:
 
 - `crates/tauri/src/ipc/authority.rs`
 - `crates/tauri-utils/src/acl/resolved.rs`
 - `crates/tauri-utils/src/acl/capability.rs`
 
-Capabilities are resolved with:
+Resolved capabilities carry:
 
 - execution context (`Local` or remote URL pattern),
-- window patterns,
-- webview patterns,
+- window selectors,
+- webview selectors,
 - allowed commands,
 - denied commands.
 
 `Resolved::resolve` copies the same capability context/window/webview selectors into both allowed and denied `ResolvedCommand` entries.
 
-The allow branch of `RuntimeAuthority::resolve_access` correctly requires:
+The allow branch of `RuntimeAuthority::resolve_access` requires:
 
 ```text
 origin matches command context
@@ -68,7 +175,7 @@ AND
 (webview matches one selector OR window matches one selector)
 ```
 
-The deny branch currently does this instead:
+The deny branch currently does:
 
 ```rust
 if self
@@ -81,164 +188,33 @@ if self
 }
 ```
 
-Two independent problems follow.
+Source reading yields two suspicious properties.
 
-### 1a. Origin predicate result is discarded
+### Origin result is discarded
 
-`Option::map(...).is_some()` is true whenever the command has a deny vector, whether `any(origin.matches(...))` returns true or false.
+`Option::map(...).is_some()` is true whenever the command has a deny vector, even when `any(origin.matches(...))` returns false.
 
-So a remote-only deny entry can reject a local invoke of the same command.
+### Denied window/webview selectors are not tested
 
-### 1b. Denied window/webview selectors are ignored
+The deny branch does not inspect `cmd.windows` or `cmd.webviews`, even though those selectors are retained on denied `ResolvedCommand` values.
 
-Even if the origin check were changed to `is_some_and`, the current branch does not test `cmd.windows` or `cmd.webviews`. A deny scoped to an `admin` window can therefore reject the command from `main`.
+Prepared target controls:
 
-Prepared controls:
+1. allow `Local` + window `main`; deny remote `https://denied.example/*` + window `main`; local `main` should remain allowed;
+2. allow `Local` + window `main`; deny `Local` + window `admin`; local `main` should remain allowed;
+3. allow and deny `Local` + `main`; the matching deny should still win.
 
-1. allow `Local` + window `main`; deny remote `https://denied.example/*` + window `main`; local `main` must remain allowed;
-2. allow `Local` + window `main`; deny `Local` + window `admin`; local `main` must remain allowed;
-3. allow and deny `Local` + `main`; matching deny must still win.
+If those controls reproduce over-denial, the smallest repair is to require a denied command to match both the origin and the same window/webview selector rule used by the allow path.
 
-Prepared candidate:
-
-```rust
-if self.denied_commands.get(command).is_some_and(|resolved| {
-  resolved.iter().any(|cmd| {
-    origin.matches(&cmd.context)
-      && (cmd.webviews.iter().any(|w| w.matches(webview))
-        || cmd.windows.iter().any(|w| w.matches(window)))
-  })
-}) {
-  None
-}
-```
-
-This mirrors the allow selector semantics while preserving deny precedence when the deny actually applies.
-
-A separate debug diagnostic in `resolve_access_message` also treats any command-level deny as “explicitly denied”; review that message path for qualifier accuracy if the behavioral fix is taken.
+A separate debug diagnostic in `resolve_access_message` describes any command-level deny as explicit; its wording should be checked after the behavior is established.
 
 Search of current upstream issues and pull requests did not find a matching report.
 
-**Status:** high-priority, `target-test-prepared`. Do not call reproduced until the retained three-control test actually executes against the pinned target.
+**Disposition:** `target-test-prepared`. Do not describe this as reproduced until the retained three-control test executes against the pinned target.
 
-## 2. Core Rust event callback panic stalls later event work
+## 4. IPC fallback can duplicate one logical invoke
 
-Relevant target file: `crates/tauri/src/event/listener.rs`.
-
-Normal event path:
-
-```text
-emit_filter
-  -> handlers.try_lock()
-  -> iterate matching handlers while MutexGuard is alive
-  -> invoke user callback while guard is alive
-  -> if callback performs nested event work, that work is queued in Pending
-  -> callback returns
-  -> guard drops
-  -> pending queue flushes
-```
-
-Panic path in the pinned baseline:
-
-```text
-user callback panics
-  -> unwinding drops MutexGuard
-  -> std::sync::Mutex becomes poisoned
-  -> caller catches the panic
-  -> later listen/unlisten/emit calls handlers.try_lock()
-  -> try_lock returns Poisoned
-  -> current Err(_) branch treats poison as ordinary contention
-  -> work is appended to pending
-  -> no healthy handler-lock path remains to make progress
-```
-
-Focused regression:
-
-1. register a panicking listener;
-2. catch the unwind from `emit` and verify the panic reached the caller;
-3. register another event listener;
-4. emit the other event;
-5. require later delivery.
-
-Prepared candidate:
-
-- catch the callback unwind while the handler guard is owned outside the catch boundary;
-- let the guard drop normally, avoiding poison;
-- flush pending reentrant actions;
-- resume the original panic with `resume_unwind`.
-
-### Executed evidence
-
-Pinned target: `34ec18ba5e1acabebd66ae79d6fc746f63d8eb96`  
-Runner: Ubuntu 24.04.4 x86_64  
-Rust: `1.97.1`  
-Cargo: `1.97.1`
-
-Primary corrected Fieldwork run `31284095629`:
-
-- baseline exited `101` and matched the exact post-panic assertion `event manager stopped dispatching after callback panic`;
-- candidate patch applied;
-- candidate focused test exited `0`.
-
-Independent confirmation run `31284174704` repeated the same before/after result. The candidate still printed the intentional callback panic before the test passed, confirming the unwind remained visible to the test's `catch_unwind`.
-
-### `once()` control
-
-`once()` queues its own `Pending::Unlisten(id)` before calling the user's `FnOnce`. If the callback panics, resuming before flushing would leave the one-shot handler installed after its closure has already been consumed.
-
-Run `31284550759` established:
-
-- baseline poisoned the handler mutex on the panicking `once` callback;
-- the same catch/flush/resume candidate flushed self-removal before resuming the panic;
-- later delivery through a newly registered listener succeeded.
-
-**Status:** `target-executed`, focused Linux. Good compact patch candidate; still run the surrounding event test set before a human submission packet is called complete.
-
-## 3. Filesystem `Scope` listener panic stalls later scope events
-
-Relevant target file: `crates/tauri/src/scope/fs.rs`.
-
-The scope event system uses:
-
-- `event_listeners: Mutex<...>`;
-- `emitting: AtomicBool`;
-- a pending action queue.
-
-`Scope::emit` sets `emitting = true`, runs user listeners while `event_listeners` is locked, then clears `emitting` and drains pending work.
-
-If a listener panics:
-
-```text
-listener panic
-  -> event_listeners guard unwinds and poisons
-  -> emitting = false is skipped
-  -> caller catches panic
-  -> future scope event sees emitting == true
-  -> event is queued instead of delivered
-```
-
-This is adjacent to the reentrant filesystem-scope deadlock fixed by the merged work for `https://github.com/tauri-apps/tauri/issues/15468`, but the panic-cleanup invariant is distinct.
-
-Focused regression catches one listener panic, removes that listener, registers a healthy listener, allows another path, and requires the second scope event to arrive.
-
-Run `31284564752` established:
-
-- baseline hit `filesystem scope stopped dispatching after callback panic`;
-- candidate patch applied;
-- candidate test exited `0`.
-
-Candidate ordering:
-
-1. catch callback unwind;
-2. clear `emitting` while the guard still drops normally;
-3. drain queued operations;
-4. resume the original panic.
-
-**Status:** `target-executed`, focused Linux. Keep it as a separate patch from the core event manager because the state machine is different.
-
-## 4. IPC reload/fallback can duplicate one logical invoke
-
-Relevant target files:
+Target files:
 
 - `crates/tauri/scripts/ipc-protocol.js`
 - `crates/tauri/scripts/process-ipc-message-fn.js`
@@ -252,52 +228,48 @@ Current path:
 
 ```text
 frontend invoke
-  -> custom-protocol fetch POST
-  -> Rust may parse and dispatch command
-  -> navigation / transport loss rejects the frontend fetch
-  -> rejection handler marks custom protocol failed
+  -> custom-protocol POST
+  -> Rust may dispatch the command
+  -> navigation / transport loss rejects frontend fetch
+  -> frontend marks custom protocol failed
   -> same logical message is resent over postMessage
-  -> backend can dispatch the command again
+  -> backend can dispatch it again
 ```
 
-The frontend cannot tell whether a rejected fetch failed before Rust saw the request or after side effects started. Therefore retrying that same logical invoke over another transport cannot preserve at-most-once side effects.
+A rejected frontend fetch cannot say whether the request failed before Rust saw it or after side effects began. Cross-transport replay after that ambiguous failure cannot promise at-most-once command execution.
 
-Maintainer discussion in the existing issue already records WebView2 and macOS reproduction and differing page lifecycle timing. A `pagehide`/`beforeunload` guard is therefore not a cross-engine proof.
+### Revised candidate: select transport before dispatch
 
-### Revised candidate: negotiate before dispatch
-
-Tauri's custom-protocol Rust handler dispatches commands only for `POST`. A `HEAD` request follows the non-dispatch path and returns a normal HTTP response (currently 405) through the response/CORS wrapper. Use that as a document-local transport capability probe before any command POST.
-
-Candidate state machine:
+Tauri dispatches IPC commands only for custom-protocol `POST`. A `HEAD` request follows the non-dispatch path and returns a normal HTTP response through the protocol response wrapper. The v2 candidate uses one shared document-local `HEAD` probe before the first side-effecting command.
 
 ```text
 first desktop invoke(s)
-  -> share one pending HEAD probe carrying IPC headers/content-type class
+  -> share one HEAD probe carrying IPC headers/content-type class
   -> probe resolves => custom protocol selected
   -> probe rejects => postMessage selected
-  -> serialize and dispatch each command exactly once through selected transport
+  -> serialize and dispatch each command once
 
 later custom POST rejects ambiguously
-  -> fail that invoke to its error callback
+  -> reject that invoke
   -> mark custom protocol blocked for future invokes
-  -> do not replay the ambiguous command
+  -> never replay the ambiguous command
 
 future invokes
   -> postMessage
 ```
 
-Android needs a second state because regular command bodies already use postMessage, while the special large-channel fetch uses the custom protocol.
+Android has a separate state because regular commands already use postMessage while the large-channel fetch uses the custom protocol.
 
-The Android channel fetch is destructive on the Rust side: retrieving queued channel data removes it from `ChannelDataIpcQueue`. The revised candidate therefore probes the channel custom-protocol path before dispatch as well and never retries an ambiguous channel POST.
+The Android channel fetch removes queued payload data from `ChannelDataIpcQueue`. The v2 candidate therefore negotiates that path before the destructive fetch and never replays an ambiguous channel POST.
 
-### Two first-draft errors were caught and removed
+### First draft rejected during review
 
-The original draft is intentionally superseded.
+The first draft had two defects:
 
-1. It serialized the payload to derive probe headers and then serialized again for the real request. `process-ipc-message-fn.js` can call a user `__TAURI_TO_IPC_KEY__()` hook, so that could execute serialization hooks twice.
-2. It retained ambiguous retry for Android's destructive channel fetch.
+1. it serialized the payload to derive probe headers, then serialized again for the real request; `process-ipc-message-fn.js` can invoke a user `__TAURI_TO_IPC_KEY__()` hook, so that could execute serialization-side effects twice;
+2. it retained ambiguous retry for Android's destructive large-channel fetch.
 
-Version 2 infers the probe content-type class without serializing the payload and gives the channel path its own pre-dispatch negotiation.
+The v2 candidate infers the probe content-type class without serializing the payload and gives the Android channel path its own pre-dispatch negotiation.
 
 ### Executed model
 
@@ -313,94 +285,73 @@ PASS Android channel fetch negotiates before destructive dispatch and never repl
 
 The candidate JavaScript also passed `node --check` and `git diff --check`; `probe/ipc-head-negotiation-v2.patch` was generated by Git from the pinned target tree.
 
-**Status:** `model-executed`, target patch prepared. Required next gate: real Windows/WebView2 and macOS/WKWebView trials covering local page, externally loaded page, CSP-blocked custom protocol, custom invoke headers, reload during a long command, binary channel traffic, and a transport failure after successful negotiation.
+Maintainer discussion in the existing issue already records Windows and macOS reproduction plus different page-lifecycle timing, so a `pagehide` / `beforeunload` guard alone is not a cross-engine answer.
 
-## 5. `InvokeOptions.headers` and postMessage disagree on accepted input shape
+**Disposition:** `model-executed`, target patch prepared. Required gate: real WebView2 and WKWebView trials covering local pages, externally loaded pages, CSP-blocked custom protocol, custom invoke headers, reload during a long command, binary channel traffic, and a transport failure after successful negotiation.
 
-Public API file: `packages/api/src/core.ts`.
+## 5. `InvokeOptions.headers` postMessage mismatch
 
-`InvokeOptions.headers` is declared as `HeadersInit`, so callers may provide:
+Public `packages/api/src/core.ts` declares `InvokeOptions.headers` as `HeadersInit`, so callers may provide:
 
-- a plain record;
+- a record;
 - a `Headers` object;
-- an array/iterable of `[name, value]` pairs.
+- tuple-list / iterable pairs.
 
-The custom-protocol path normalizes with `new Headers(...)` and therefore supports all three forms.
+The custom-protocol path normalizes with `new Headers(...)`. The postMessage path serializes the original `options.headers`. Rust then deserializes that field as `HashMap<String, String>`.
 
-The postMessage path embeds `options.headers` into an object passed through the IPC serializer. Rust then deserializes `options.headers` as `HashMap<String, String>`.
+Serialization behavior:
 
-Serialization consequence:
-
-- record -> JSON object, compatible;
-- `Headers` object -> JSON `{}`, entries disappear;
-- tuple list -> JSON sequence, not the Rust map shape.
-
-Android regular commands use postMessage directly, so this is a normal Android contract mismatch as well as a custom-protocol fallback mismatch.
-
-Narrow candidate:
-
-```js
-const headers = Object.fromEntries(
-  new Headers((options && options.headers) || {}).entries()
-)
+```text
+record       -> JSON object -> compatible map shape
+Headers      -> JSON {}     -> entries lost
+tuple list   -> JSON array  -> not the Rust map shape
 ```
 
-and serialize that plain object in the postMessage options.
+Android regular commands already use postMessage, so this is relevant even without a custom-protocol fallback.
 
-The v2 IPC model exercises record, `Headers`, and tuple-list normalization successfully. The standalone retained model documents the raw JSON behavior too.
+The v2 IPC model verifies that normalizing through `new Headers(...)` and `Object.fromEntries(...entries())` produces a plain string map for all three public input forms.
 
-**Status:** serialization property `model-executed`; real Android/Rust IPC path unexecuted.
+**Disposition:** serialization property `model-executed`; real Android/Rust IPC path unexecuted.
 
-## 6. Bundle resource target collisions can overwrite silently
+## 6. Bundle resource destination collision
 
-Relevant target files:
+Target files:
 
 - `crates/tauri-utils/src/resources.rs`
 - `crates/tauri-build/src/lib.rs`
 
-A resource map can produce distinct sources with the same relative target. `tauri-build::copy_resources` currently:
+`ResourcePaths::from_map` can yield distinct sources with the same relative target. `tauri-build::copy_resources` joins each target under the output directory and copies immediately without a duplicate-target check. The copy helper truncates the destination.
 
-1. canonicalizes a source;
-2. joins `resource.target()` under the output directory;
-3. copies immediately;
-4. performs no duplicate-target check.
-
-The copy helper creates/truncates the destination, so the later source wins. The configured source-to-target mapping is stored in a `HashMap`, which means there is no stable user-authored source order that could make the winner intentional.
+Source reading therefore predicts a silent last-writer overwrite when two distinct sources resolve to the same target. The configured source-to-target mapping is a `HashMap`, so there is no stable user-authored source order that makes one winner intentional.
 
 Prepared regression maps two different files to `same.txt` and requires an error.
 
-Prepared candidate resolves all source/target pairs first, rejects a target owned by multiple distinct canonical sources, then copies only after validation.
+If reproduced, a narrow repair can resolve all source/target pairs first, reject a target owned by multiple distinct canonical sources, then copy only after validation succeeds.
 
-**Status:** `target-test-prepared`. Exact path collision only; case-insensitive aliases, Unicode normalization, and final installer output are not established.
+**Disposition:** `target-test-prepared`. Exact target collision only; case-insensitive aliases, Unicode-normalization aliases, and final installer output remain untested.
 
-## 7. Public JS event filter can poison the JS-listener registry
+## 7. Public JS-filter panic and reentrancy
 
-Relevant target file: `crates/tauri/src/event/listener.rs`.
+Target file: `crates/tauri/src/event/listener.rs`.
 
-Public `Emitter::emit_filter` traverses JS listeners before Rust listeners. `emit_js_filter` locks `js_event_listeners` and evaluates the caller's predicate while that guard is live.
+Public `Emitter::emit_filter` traverses JS listeners before Rust listeners. `emit_js_filter` locks `js_event_listeners` and evaluates the caller's predicate while the guard is live.
 
-A predicate panic can therefore poison the JS-listener mutex before the verified Rust callback-panic candidate is reached. Later JS-listener operations use `lock().unwrap()` and can panic on the poisoned registry.
+Source reading predicts two separate hazards:
 
-Prepared non-hanging regression:
+- a predicate panic can poison the JS-listener mutex;
+- a predicate that reenters a JS-listener operation can try to acquire the same mutex while it is already held.
 
-- create a MockRuntime webview;
-- register a JS listener;
-- call `emit_js_filter` with a predicate that intentionally panics under `catch_unwind`;
-- require `has_js_listener` to remain usable afterward.
+The retained non-hanging regression catches a predicate panic, then checks whether the JS-listener registry remains usable.
 
-A catch/drop/resume candidate can address poisoning, but **does not** address re-entrancy: a predicate that calls back into a JS-listener operation can still attempt to reacquire the same mutex while it is held.
+A catch/drop/resume repair sketch could address poisoning. It would not fix reentrancy; that needs a different ownership approach.
 
-**Status:** `target-test-prepared`. Keep separate from the verified Rust callback patch.
+**Disposition:** `target-test-prepared`. Keep separate from the verified Rust callback-panic repair.
 
-## 8. Dynamic plugin callbacks run under the global plugin-store mutex
+## 8. Plugin, menu, and tray callbacks under shared mutexes
 
-Relevant target files:
+Detailed audit: `callback-lock-audit-20260809.md`.
 
-- `crates/tauri/src/app.rs`
-- `crates/tauri/src/manager/mod.rs`
-- `crates/tauri/src/plugin.rs`
-
-Source paths:
+Dynamic plugin registration follows:
 
 ```text
 AppHandle::plugin_boxed
@@ -410,94 +361,56 @@ AppHandle::plugin_boxed
   -> user setup(AppHandle, PluginApi)
 ```
 
-The setup callback receives an `AppHandle`; `AppHandle::plugin` and `remove_plugin` acquire the same plugin-store mutex. A setup callback that composes/removes dynamic plugins can therefore attempt a same-thread re-lock of a non-reentrant mutex.
+The setup callback receives an `AppHandle`; `AppHandle::plugin` and `remove_plugin` acquire the same plugin-store mutex. A nested register/remove operation can therefore try to reacquire that non-reentrant mutex on the same thread.
 
-The same ownership pattern appears in:
+The same plugin-store lock stays held while selected plugin invoke handlers and lifecycle callbacks run.
 
-```text
-AppManager::run_plugin_invoke_handler
-  -> manager.plugins.lock()
-  -> selected plugin extend_api / invoke handler
-```
+Prepared safe setup probe: `probe/plugin_store_reentrancy_test.rs`. It checks `try_lock()` inside plugin setup instead of deliberately hanging on a nested `plugin()` call.
 
-and:
+Menu and tray event dispatch similarly invokes user callbacks while holding global or specific registration mutexes. Reentrant listener registration and callback-panic poisoning are source-level leads there.
 
-```text
-on_event_loop_event
-  -> manager.plugins.lock()
-  -> PluginStore::on_event
-  -> plugin lifecycle callbacks
-```
+**Disposition:** plugin setup `target-test-prepared`; plugin invoke/lifecycle and menu/tray variants `source-read`. No repair selected yet because plugin registration ordering and same-name replacement behavior must be preserved.
 
-Prepared safe control `probe/plugin_store_reentrancy_test.rs` uses `try_lock()` from inside setup rather than deliberately hanging on nested `plugin()`.
+## 9. Nested filtered emit drops its filter
 
-Repair is not selected: dropping the lock before initialization could allow concurrent same-name plugin initialization and change side-effect/replacement ordering; invoke handlers have an additional mutable-borrow ownership problem.
-
-**Status:** `target-test-prepared` for setup lock ownership; invoke/lifecycle variants `source-read`.
-
-## 9. Menu and tray callbacks are also invoked under registration mutexes
-
-`on_event_loop_event` directly iterates:
-
-```text
-menu.global_event_listeners.lock().unwrap()
-menu.event_listeners.lock().unwrap()
-tray.global_event_listeners.lock().unwrap()
-tray.event_listeners.lock().unwrap()
-```
-
-while invoking user callbacks from those collections.
-
-Registration APIs mutate those same registries. Registering another global/specific menu or tray listener from inside the corresponding callback is therefore a re-entrancy/deadlock lead; a callback panic is also a mutex-poison lead.
-
-**Status:** `source-read` only. The exact global vs per-item/per-window registry controls should be tested independently before promotion.
-
-## 10. Nested filtered emit still drops its filter
-
-Current `Pending::Emit` stores only `EmitArgs`. If `emit_filter` is called while the handler lock is already held, the deferred action is queued as a plain emit. `flush_pending` later replays it through `emit()`, broadcasting to targets that the original filter excluded.
+Current `Pending::Emit` stores only `EmitArgs`. If `emit_filter` is called while the handler mutex is held, the deferred action is queued as a plain emit. `flush_pending` later replays it through `emit()`, so targets excluded by the original filter can receive the event.
 
 Existing upstream issue: `https://github.com/tauri-apps/tauri/issues/15759`.
 
-A previous repair attempted to put the filter closure into the pending queue, which requires `Send + 'static` and widens the existing public `Emitter::emit_filter` closure contract. This scout does not recommend that as the default repair.
+A previous repair attempted to store the filter closure in the pending queue, which requires `Send + 'static` and widens the public `Emitter::emit_filter` closure contract. This scout does not duplicate that occupied contribution unit.
 
-**Status:** known source defect / occupied upstream work; no duplicate contribution unit opened here.
+## Ranked next branches
 
-## Ranked branches
+1. **Execute authority deny-scope controls.** Highest consequence, smallest missing evidence step. If baseline reproduces both cross-scope cases while matching deny still wins, promote to a narrow authority campaign/packet.
+2. **Harden core event callback-panic repair.** Run the surrounding event test set and independent review, then prepare a human-facing patch packet.
+3. **Harden filesystem `Scope` panic repair.** Run the surrounding scope tests and keep it separate from the core event manager.
+4. **Run IPC v2 in WebView2 and WKWebView.** This is the largest remaining cross-platform evidence gap.
+5. **Execute resource-collision and JS-filter poison controls.** Both are small target-native tests.
+6. **Execute plugin-store `try_lock` control.** If setup lock ownership is confirmed, test invoke/lifecycle paths separately before selecting a repair.
+7. **Retain menu/tray callback reentrancy as a finding** until a focused control or realistic caller raises its priority.
 
-1. **Authority deny scope** — highest consequence. Run the retained three-control unit test manually against the pinned revision. If it behaves as source reading predicts, promote immediately to a narrow authority campaign/packet.
-2. **Core event callback panic recovery** — already reproduced and candidate-validated twice, plus `once()` cleanup control. Run the nearby event test set and review panic/callback semantics; then prepare a human-facing patch packet.
-3. **Filesystem `Scope` panic recovery** — already reproduced and candidate-validated. Run the scope test set and keep separate from core event manager changes.
-4. **IPC pre-dispatch transport negotiation v2** — highest cross-platform leverage. Needs WebView2 and WKWebView execution before promotion.
-5. **`InvokeOptions.headers` postMessage normalization** — narrow contract fix; include it with IPC work only if the webview trial confirms no conflicting transport assumptions, otherwise keep it as its own tiny packet.
-6. **Resource destination collision validation** — low implementation risk and concrete data-integrity consequence; execute the retained unit test before promotion.
-7. **JS filter panic/reentrancy** — execute poison regression first, then design reentrancy separately.
-8. **Plugin-store setup/invoke/lifecycle reentrancy** — execute non-hanging lock-ownership controls before selecting a repair.
-9. **Menu/tray callback reentrancy** — retain as next scout material unless a real caller/repro makes it urgent.
+## Negative results and exclusions
 
-## Negative results, exclusions, and uncertainty
-
-- The first listener execution run was invalid harness evidence and is explicitly excluded.
-- The first IPC `HEAD` draft was rejected after code review found double payload serialization and ambiguous retry of Android's destructive channel fetch.
-- `pagehide` / `beforeunload` timing is not a sufficient cross-platform duplicate-invoke fix.
-- Remembering that custom-protocol IPC worked once does not solve an ambiguous later POST failure.
-- A side-effecting command cannot be safely replayed over another transport after an ambiguous fetch rejection without a stronger request identity/idempotency contract.
-- `OPTIONS` is less attractive as the explicit JS capability request because it is not a CORS-safelisted method; the `HEAD` idea still needs real webview confirmation of custom-header/CORS behavior.
-- The verified Rust event callback patch does not repair JS-filter panic/reentrancy.
-- The filesystem `Scope` patch and core event-manager patch should remain separate.
-- Resource collision evidence does not yet include case-insensitive path aliases or final platform installers.
-- The authority finding is source-strong but is intentionally not called reproduced until the retained three-control test executes.
-- Existing active upstream work for asset multi-range responses and immediate JS unlisten cleanup was treated as occupied and not duplicated.
+- Run `31283181973` is invalid harness evidence and is excluded from every target claim.
+- The first IPC candidate draft is superseded; its double-serialization and Android channel-retry defects were removed before v2 was retained.
+- `pagehide` / `beforeunload` timing is not a sufficient cross-platform duplicate-invoke repair.
+- Remembering that the custom protocol succeeded once does not remove ambiguity from a later failed command POST.
+- Replaying a side-effecting command after an ambiguous transport rejection needs a stronger request identity/idempotency contract; the v2 candidate avoids that replay instead.
+- The verified Rust callback-panic repair does not cover JS-filter panic or reentrancy.
+- The two executed panic repairs remain separate because their state machines differ.
+- Authority, resource collision, JS-filter panic, and plugin-store reentrancy remain below `target-executed`; prepared tests are not executions.
+- Existing active upstream work for asset multi-range responses, immediate JS unlisten cleanup, and nested filtered emit was treated as occupied rather than duplicated.
 - No automated third-party upstream mutation was attempted or performed.
 
-## Recommended next transition
+## Recommended transition
 
 If one manual target execution is available, spend it on the authority controls first.
 
-Then, in order:
+Then:
 
-1. run broader target tests around the two executed panic candidates;
-2. run the IPC v2 candidate on Windows/WebView2 and macOS/WKWebView with predeclared transport cases;
-3. execute the resource collision and JS-filter poison unit controls;
-4. execute the safe plugin-store `try_lock` control, then decide whether setup, invoke, and lifecycle callbacks deserve separate campaigns.
+1. run broader target tests around the two executed panic repairs;
+2. run the IPC v2 candidate on Windows/WebView2 and macOS/WKWebView;
+3. execute the resource collision and JS-filter poison regressions;
+4. execute the safe plugin-store lock-ownership probe and split setup/invoke/lifecycle work only if the controls warrant it.
 
-The scout is complete as reconnaissance: it has pinned source, code/test maps, executable evidence, ranked contribution units, negative results, and explicit evidence limits. Coordinator decision should be to promote the executed panic fixes and the authority test packet, retain the IPC work until platform execution, and leave the remaining callback-lock surfaces as findings until their focused controls run.
+This scout is complete as reconnaissance: source is pinned, code and test boundaries are mapped, executable evidence and invalid evidence are retained separately, narrower suspicions have runnable probes instead of promoted claims, and contribution units are ranked by consequence and missing evidence.
