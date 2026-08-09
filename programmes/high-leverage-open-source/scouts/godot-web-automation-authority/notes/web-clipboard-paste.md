@@ -10,7 +10,9 @@ The Web key bridge forwards keydown into Godot and then always calls `preventDef
 
 This source chain is a strong explanation for open upstream issue #119747, where the first Web paste succeeds but subsequent pastes reuse stale text. More importantly, historical Godot discussion explicitly identifies the same keydown-before-paste ordering problem, and the 2019 partial clipboard implementation documents that GUI paste can receive the previous clipboard value because the browser read is asynchronous.
 
-State: source-read + browser-spec-read + historical implementation lineage + exact event-order probe prepared.
+The browser platform has gained a `clipboardchange` event since that implementation. The event entered the W3C Clipboard draft in 2025 and shipped in Chromium 144, so it can be evaluated as a cache-prewarming enhancement. It does not itself carry clipboard text, however; reading the new text still uses the asynchronous Clipboard API. It therefore does not remove the need to make the actual paste operation consume authoritative text at the right time.
+
+State: source-read + browser-spec-read + historical implementation lineage + 2026 platform refresh + exact event-order probe prepared.
 
 ## Exact source
 
@@ -32,6 +34,11 @@ Historical lineage:
 
 - https://github.com/godotengine/godot/issues/12587
 - https://github.com/godotengine/godot/pull/29298
+
+Current browser-platform references:
+
+- https://www.w3.org/TR/clipboard-apis/
+- https://developer.chrome.com/release-notes/144
 
 ## Engine-side synchronous contract
 
@@ -114,6 +121,21 @@ Its PR description explicitly records the consequence: because the read is async
 
 This materially upgrades the candidate. The async/sync mismatch is not merely inferred from current source; it is a known design limitation in the lineage of the implementation. What still needs current browser execution is the exact 2026 event sequence and why the reporter sees the first paste succeed followed by repeated stale text rather than a simple one-paste lag.
 
+## 2026 browser-platform update: `clipboardchange` helps, but does not close the seam
+
+The November 2025 W3C Clipboard API working draft includes a `clipboardchange` event on `navigator.clipboard`. Chrome release notes record the event shipping in Chrome 144 after an earlier origin trial.
+
+That is useful new capability compared with PR #29298's 2019 environment. Godot could progressively listen for `clipboardchange` and request a cache refresh when the system clipboard changes, reducing the chance that a later synchronous `clipboard_get()` observes an old value on supporting browsers.
+
+It is not a complete correctness mechanism for text-control paste:
+
+- the event reports that the clipboard changed and exposes available types, not the actual text payload;
+- obtaining the text still requires asynchronous `navigator.clipboard.readText()`;
+- freshness before an immediately-following paste therefore still depends on Promise completion and permission/activation behavior;
+- the trusted browser `paste` event already carries the exact text for the paste operation synchronously in `event.clipboardData`.
+
+So `clipboardchange` belongs in the experiment as a progressive cache-coherence signal, but the strongest architecture candidate remains to route the trusted paste payload into the operation that inserts text, rather than asking a synchronous engine API to pull asynchronous browser state at keydown time.
+
 ## Upstream report fit
 
 Issue #119747 reports:
@@ -136,6 +158,8 @@ The exact reason the first paste succeeds still needs browser trace evidence and
 - clipboard value one and several deferred turns later;
 - resulting LineEdit/TextEdit contents.
 
+The probe should additionally log `clipboardchange` where available and whether a read launched from that event has completed before the next paste shortcut.
+
 Run at least Chromium and Firefox; Safari is useful if available because clipboard permission/event behavior differs across engines.
 
 ## Candidate directions after execution
@@ -146,7 +170,8 @@ Possible designs to evaluate after the trace:
 
 1. deliver browser paste text as an explicit Godot paste/input event and let text controls consume that payload;
 2. suppress the ordinary Godot `ui_paste` shortcut on Web and trigger paste insertion from the trusted DOM paste callback;
-3. document `clipboard_get()` as cached/asynchronous on Web and add a separate async API, while still fixing text-control paste ordering independently.
+3. use `clipboardchange` where available to pre-refresh the cache, but only as progressive enhancement/fallback assistance;
+4. document `clipboard_get()` as cached/asynchronous on Web and add a separate async API, while still fixing text-control paste ordering independently.
 
 Avoid selecting a patch until event traces show browser behavior.
 
@@ -158,8 +183,8 @@ Historical overlap is implementation lineage, not an active repair: #29298 inten
 
 ## Evidence boundary
 
-Supported: synchronous text-control call chain, Web cached getter, asynchronous browser read, trusted paste-event cache update, unconditional keydown `preventDefault()`, public clipboard API contract, issue #119747 symptoms, and historical maintainer/PR documentation of the same ordering limitation.
+Supported: synchronous text-control call chain, Web cached getter, asynchronous browser read, trusted paste-event cache update, unconditional keydown `preventDefault()`, public clipboard API contract, issue #119747 symptoms, historical maintainer/PR documentation of the same ordering limitation, and current W3C/Chromium `clipboardchange` capability.
 
-Unknown: exact DOM event sequence in each current browser, first-paste success mechanism, permission behavior, and best compatibility-preserving fix.
+Unknown: exact DOM event sequence in each current browser, first-paste success mechanism, permission behavior, cross-browser `clipboardchange` usefulness, and best compatibility-preserving fix.
 
 Automated upstream contact: prohibited.
