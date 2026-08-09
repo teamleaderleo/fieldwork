@@ -5,8 +5,8 @@ import struct
 
 ROOT = Path(__file__).resolve().parent / "godot"
 GODOT_DATA = ROOT / ".godot"
-UID = 42424242
-UID_TEXT = "uid://60nf3"
+UID = 1
+UID_TEXT = "uid://b"
 OLD_PATH = "res://old/autoload.gd"
 
 if GODOT_DATA.exists():
