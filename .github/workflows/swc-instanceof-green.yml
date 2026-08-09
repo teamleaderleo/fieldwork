@@ -45,6 +45,51 @@ jobs:
           cargo clippy -p swc_ecma_utils --all-targets -- -D warnings
           git diff --check
 
+  dce:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out deterministic Fieldwork patcher
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: 62e7d9cbc6aaeba41e3b7321dad9b7af134e227b
+          path: fieldwork-source
+          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout-cone-mode: false
+      - name: Check out exact DCE discriminator
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: ee4c7c3289d58cdf7a9f8a856c1c86622a95fee6
+          path: swc
+          fetch-depth: 0
+      - name: Install SWC Rust toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+      - name: Require base RED then candidate GREEN
+        run: |
+          cd swc
+          set +e
+          cargo test -p swc_ecma_transforms_optimization --test instanceof_dce -- --nocapture 2>&1 | tee /tmp/dce-red.log
+          red_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$red_status" -eq 0 ]; then
+            echo "::error::Expected base DCE discriminator to fail"
+            exit 41
+          fi
+          grep -q 'test result: FAILED' /tmp/dce-red.log
+          cd ..
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
+          cd swc
+          git diff --check
+          cargo fmt --all -- --check
+          cargo test -p swc_ecma_transforms_optimization --test instanceof_dce -- --nocapture
+          cargo clippy -p swc_ecma_transforms_optimization --all-targets -- -D warnings
+          git diff --check
+
   transforms:
     if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
     runs-on: ubuntu-latest
