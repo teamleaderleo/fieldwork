@@ -25,7 +25,7 @@ jobs:
             test_name: operator_effects
             expect_red: false
           - lane: dce
-            source_head: ee4c7c3289d58cdf7a9f8a856c1c86622a95fee6
+            source_head: 5ef8472b24a836ded4035c619393ac0d4ac2384f
             package: swc_ecma_transforms_optimization
             test_name: instanceof_dce
             expect_red: true
@@ -40,7 +40,7 @@ jobs:
             test_name: instanceof_folding
             expect_red: false
           - lane: dead-branch
-            source_head: 35e2010575cc5f4bd87335a6096302b106f518a2
+            source_head: 05df66c3e98a1124c6e58dd1a814467b0da7f8f5
             package: swc_ecma_transforms_optimization
             test_name: instanceof_dead_branch
             expect_red: true
