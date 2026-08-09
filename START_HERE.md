@@ -15,18 +15,19 @@ Read, in order:
 1. `AGENTS.md`
 2. `CHARTER.md`
 3. `CODE_FIRST.md`
-4. `PLAIN_LANGUAGE.md`
-5. `METHOD.md`
-6. `REFERENCE_POLICY.md`
-7. `PROGRAMMES.md`
-8. `TARGET_HUBS.md`
-9. `EXPERIMENTS.md` for a fork-free local test
-10. `TESTBEDS.md` for realistic use in an owned repository
-11. `INTEGRATION_CONTEXT.md` when making claims about wider use or consequence
-12. `COORDINATION.md` for shared or parallel work
-13. `BATCHES.md` when the assignment belongs to a batch
-14. `REVIEWING.md` before asking for acceptance, execution, promotion, merge, or upstream preparation
-15. the relevant programme hub, target hub, map, experiment, trial, context, manifest, campaign, lane, and issue
+4. `BUG_LENSES.md`
+5. `PLAIN_LANGUAGE.md`
+6. `METHOD.md`
+7. `REFERENCE_POLICY.md`
+8. `PROGRAMMES.md`
+9. `TARGET_HUBS.md`
+10. `EXPERIMENTS.md` for a fork-free local test
+11. `TESTBEDS.md` for realistic use in an owned repository
+12. `INTEGRATION_CONTEXT.md` when making claims about wider use or consequence
+13. `COORDINATION.md` for shared or parallel work
+14. `BATCHES.md` when the assignment belongs to a batch
+15. `REVIEWING.md` before asking for acceptance, execution, promotion, merge, or upstream preparation
+16. the relevant programme hub, target hub, map, experiment, trial, context, manifest, campaign, lane, and issue
 
 Tool-specific instruction files point back to `AGENTS.md`; they do not replace it.
 
@@ -126,7 +127,7 @@ The interaction detector runs after GitHub receives conversation text. It is a s
 
 ## 5. Read the code and form a change thesis
 
-Follow `CODE_FIRST.md`.
+Follow `CODE_FIRST.md` and `BUG_LENSES.md`.
 
 Before proposing implementation:
 
@@ -135,6 +136,37 @@ Before proposing implementation:
 3. state competing hypotheses;
 4. identify what evidence would distinguish them;
 5. state the change thesis: current behaviour, consequence, proposed improvement, evidence, and boundary.
+
+### Challenge the bug hypothesis before promoting it
+
+When behavior looks wrong, ask first: **what evidence would make this behavior correct, intentional, or required?** Actively search for that evidence before calling it a defect.
+
+Check the contexts most likely to change the interpretation:
+
+- relevant history, blame, reverted changes, old fixes, comments, and release notes;
+- nearby tests and repository conventions;
+- callers, callees, producers, consumers, setup, cleanup, and sibling paths;
+- alternate modes, backends, platforms, versions, privilege levels, and deployment contexts;
+- public contracts, specifications, protocols, standards, schemas, and compatibility promises;
+- downstream consumers and integrations that may depend on apparently strange behavior;
+- old workarounds or compatibility behavior whose reason is no longer obvious;
+- ownership and authority differences that make similar-looking operations intentionally behave differently.
+
+If one of those explains the behavior, sharpen the claim or retain a negative result. If the behavior still violates an invariant, ask the second question: **what adjacent context could overturn the current explanation of why it is wrong?** Give the most plausible adjacent contexts explicit discriminators and test them before widening a patch or claim.
+
+Use this compact search sequence when useful:
+
+1. state the invariant;
+2. state at least one competing explanation;
+3. choose a discriminator such as a differential test, reduction, bisection, fault injection, sequence perturbation, property test, or independent oracle;
+4. include a negative control;
+5. find the earliest meaningful divergence between good and bad behavior;
+6. reduce the failing case until the responsible owner is clear;
+7. perturb timing, state, environment, retries, interruption, or ordering where relevant;
+8. perform a clean rerun and inspect surviving state;
+9. ask which nearby assumption could produce the next bug in the same family.
+
+The purpose of the broader pass is to distinguish a real invariant violation from deliberate compatibility, specification behavior, a different owner contract, or a misleading local symptom.
 
 Prioritize consequential correctness, security, recovery, performance, compatibility, integration, ergonomics, and meaningful refactors. Do not hunt documentation, lint, wording, or style work by default.
 
