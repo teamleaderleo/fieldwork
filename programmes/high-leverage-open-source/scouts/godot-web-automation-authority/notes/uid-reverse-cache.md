@@ -4,15 +4,21 @@
 
 Godot maintains a forward UID→path map and, in running games, a reverse path→UID cache. Two current replacement paths can leave stale reverse aliases: changing an ID path while reverse caching is active adds the new alias without erasing the old one, and loading an additional resource pack merges that pack's UID cache into the live runtime cache without resetting reverse state. A replacement pack can therefore update a UID's forward path while an older path still resolves back to the same UID.
 
-This is a promising runtime identity candidate for patch/DLC/resource-pack workflows. The map behavior is model-executed; a built Godot pack-load fixture remains the promotion gate.
+The runtime semantics are worth characterizing, especially because packed-file replacement/removal and UID-cache merging are separate operations. Direct harmful call sites are currently sparse, so this is a lower-priority correctness/identity investigation behind Animation TRS and Web focus.
 
-State: source-read + model-executed + target-test-prepared.
+State: source-read + model-executed + target-test-prepared + exact runtime-pack fixture prepared.
 
 ## Exact source
 
 Development revision: `godotengine/godot@4173760fdf6c2c722e82e08cb58e55f34c9efd80`.
 Stable comparison: `godotengine/godot@a13da4feb8d8aefc283c3763d33a2f170a18d541` (4.7.1 stable).
 Retrieved: 2026-08-09.
+
+## API contract
+
+The ResourceUID class reference describes UIDs as the mechanism that keeps references intact when files are renamed or moved. `set_id()` is documented as updating the resource path of an existing UID. `path_to_uid(path)` returns the UID associated with a path, or the unchanged path when no UID is associated.
+
+That makes replacement semantics observable even before deciding whether an old-path alias is allowed intentionally.
 
 ## Current behavior
 
@@ -24,76 +30,81 @@ Retrieved: 2026-08-09.
 
 `Main::setup()` enables the reverse cache for every non-editor run before loading `uid_cache.bin`. `ResourceLoader::get_resource_uid()` uses `ResourceUID::get_path_id()` outside the editor, so the reverse map is an active runtime identity surface.
 
-## Runtime pack replacement path
+## Runtime pack replacement boundary
 
-`ProjectSettings::_load_resource_pack()` has a stronger live-runtime consequence. When a project is already loaded, mounting another pack calls:
+`ProjectSettings::_load_resource_pack()` mounts the new pack first, then—when the project is already loaded—calls:
 
 ```cpp
 ResourceUID::get_singleton()->load_from_cache(false);
 ```
 
-The `false` means the existing UID/reverse caches are retained while the newly mounted pack's UID cache is merged.
+The `false` retains existing UID and reverse-cache state while the newly visible pack's UID cache is merged.
 
-Export-side filtered caches are generated from the exported path set: `_get_filtered_cache()` gathers each exported file's `EditorFileSystem` UID/path pair and encodes those entries through `ResourceUID::encode_binary_cache()`.
+Packed-file replacement has an independent policy. `PackedData::add_path()` overlays files when `replace_files` is enabled, while `PACK_FILE_REMOVAL` calls `remove_path()` to erase a path from the mounted packed-file namespace. `PCKPacker.add_file_removal()` exposes this operation specifically for patch packages.
 
-This produces a bounded replacement scenario:
+Therefore file visibility and UID identity can be tested independently.
 
-```text
-base pack:  UID 123 -> res://old.tres
-running game enables reverse cache and loads base UID cache
-patch pack: UID 123 -> res://new.tres
-load_resource_pack(patch) mounts patch and load_from_cache(false)
-```
+## Active exact runtime experiment
 
-Current map logic predicts:
+`playgrounds/EXP-20260809-godot-uid-pack-overlay/` now creates its own PCK files at runtime using `PCKPacker`, avoiding editor/exporter assumptions.
+
+Base pack:
 
 ```text
-forward 123 -> res://new.tres
-reverse res://old.tres -> 123
-reverse res://new.tres -> 123
+res://uid_probe/old.txt
+res://.godot/uid_cache.bin: UID 42424242 -> res://uid_probe/old.txt
 ```
 
-This path avoids relying on an editor cache containing append-only duplicate history. It is therefore the preferred target reproduction.
+Patch pack:
+
+```text
+remove res://uid_probe/old.txt
+add res://uid_probe/new.txt
+res://.godot/uid_cache.bin: UID 42424242 -> res://uid_probe/new.txt
+```
+
+The project loads base then patch with `ProjectSettings.load_resource_pack(..., true)` and records three independent views after each stage:
+
+1. packed-file visibility (`FileAccess.file_exists`);
+2. forward identity (`ResourceUID.uid_to_path`);
+3. reverse identity (`ResourceUID.path_to_uid` for both paths).
+
+Source-predicted patch receipt:
+
+```text
+old_exists=false
+new_exists=true
+uid_to_path=res://uid_probe/new.txt
+path_to_uid(old)=uid://...
+path_to_uid(new)=uid://...
+```
+
+If reproduced, the narrow finding is: **a path removed from the active packed-file namespace remains associated with the UID in the runtime reverse cache.** Whether that is harmful or intentional compatibility behavior is a separate decision.
 
 ## Model
 
-A zero-dependency model mirroring the map updates was executed with one UID and two paths.
-
-Input history:
-
-```text
-123 -> res://old.tres
-123 -> res://new.tres
-```
-
-Observed modeled state after the path change and after replaying replacement history:
-
-```text
-forward: 123 -> res://new.tres
-reverse: res://old.tres -> 123
-reverse: res://new.tres -> 123
-```
+A zero-dependency model mirroring the map updates was executed with one UID and two paths. It leaves the newest path in the forward map while retaining both old and new reverse aliases.
 
 The model establishes the map consequence of the implementation. It does not establish a user-visible failure on a built Godot binary.
 
-## Consequence path
+## Runtime caller sweep
 
-Outside the editor, `ResourceLoader::get_resource_uid(path)` returns the reverse-cache result. `ResourceUID::path_to_uid()` delegates to `ResourceLoader::get_resource_uid()`. Runtime call sites include multiplayer spawning.
+`ResourceUID::path_to_uid()` has few runtime-side callers in current source. Most direct callers are editor/import helpers. `MultiplayerSpawner` is the meaningful runtime module caller, mainly when serializing/configuring its spawnable-scene list; its actual scene instantiation stores ensured paths and loads them directly.
 
-The pack-load scenario gives the best consequence probe: after loading a patch that relocates a UID, ask both old and new paths for their UID, then exercise one caller that converts a scene/resource path to UID. Distinguish stale identity from ordinary file-existence/remap behavior.
+This lowers the immediate consequence score. The pack experiment remains valuable for defining the identity contract, while promotion to an upstream bug should require one consequential caller or a clear project-visible invariant violation.
 
-## Competing hypotheses
+## Competing expectations
 
-1. **Stale reverse alias is observable:** after patch-pack load, both old and new paths resolve to one UID through runtime APIs.
-2. **Pack replacement keeps the old path valid by design:** the base pack remains mounted and a path alias is intentional even when the forward UID path changes.
-3. **Higher-level file/path semantics hide the alias:** callers only use paths that exist in the active overlay and stale reverse lookup cannot change behavior.
-4. **Export patch generation prevents same-UID/different-path replacement:** a real patch workflow cannot produce the replacement cache assumed above.
+1. **Removed-path alias is stale:** once the packed path is removed and the UID points elsewhere, `path_to_uid(old)` should return the unchanged old path.
+2. **UID aliases survive file relocation intentionally:** a removed path may remain a compatibility alias to the same UID.
+3. **Pack overlays define identity independently of file visibility:** forward UID lookup tracks current content while reverse aliases preserve historical references.
+4. **A later reconciliation path exists:** target execution may show behavior absent from the source paths already mapped.
 
-The integration fixture must distinguish all four rather than assuming a defect from the map alone.
+The experiment distinguishes the state. Policy comes afterward.
 
-## Target-native probe
+## Secondary fork probe
 
-Owned fork draft PR `teamleaderleo/godot#2` adds an API-level `tests/core/io/test_resource_uid.cpp` case for reverse-cache replacement semantics:
+Owned fork draft PR `teamleaderleo/godot#2` adds an API-level `tests/core/io/test_resource_uid.cpp` case for direct reverse-cache replacement semantics:
 
 ```text
 add_id(uid, old)
@@ -103,30 +114,24 @@ get_path_id(new) == uid
 get_path_id(old) == INVALID_ID
 ```
 
-This is useful as a narrow invariant but is not the decisive production reproduction because normal editor path changes occur with the runtime reverse cache disabled.
+This remains useful as an invariant probe, while the PCK experiment is the production-path test.
 
-The stronger next fixture is a tiny base-pack + replacement-pack runtime test around `load_resource_pack()` and `load_from_cache(false)`.
+## Candidate repair only if policy is clear
 
-## Candidate repair
+If target execution plus consequence analysis establish that historical aliases are wrong, replacement should reconcile the reverse map whenever a later UID record supersedes an existing one. If aliases are intentional, the behavior deserves explicit documentation and possibly an API distinction between current path and historical alias.
 
-If the pack fixture establishes stale aliases as wrong behavior, replacement should reconcile the reverse map whenever a later UID record supersedes an existing one:
-
-- remember the prior forward path for the UID;
-- erase that prior path from `reverse_cache` when reverse caching is enabled;
-- install the new forward and reverse mapping.
-
-The same rule can protect `set_id()` when reverse caching is active.
-
-Keep the repair narrow. Append-only editor cache updates can remain; the invariant is one current reverse path per UID unless an explicit alias feature says otherwise.
+Avoid implementation until that semantic decision is resolved.
 
 ## Overlap
 
-Open upstream search found no active PR for this reverse-cache replacement mechanism. A nearby debugger-crash issue once mentioned stale `uid_cache.bin`, but its reporter later withdrew confidence that UID state was causal. Treat it as adjacent context, not evidence for this candidate.
+Open upstream search found no active PR for this reverse-cache replacement mechanism. Nearby issues cover duplicate UIDs, moved imported resources, and a debugger crash that once suspected stale UID cache state; none currently establish this pack-overlay behavior.
 
 ## Evidence boundary
 
-Supported: mechanism and interface-level identity semantics from current source plus executed model; live runtime pack merge path exists in current source; export caches encode selected UID/path pairs.
+Supported: map mechanism, API documentation, runtime pack merge path, packed-file removal semantics, and executed model.
 
-Unknown: whether a supported patch workflow can replace one UID's path exactly as modeled; whether retaining both path aliases is intentional overlay semantics; observable effect in a built runtime; platform breadth.
+Prepared: exact base-PCK + removal/replacement-PCK runtime fixture.
+
+Unknown: target runtime result, intended alias policy, consequential runtime caller, and platform breadth.
 
 Automated upstream contact: prohibited.
