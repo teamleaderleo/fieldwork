@@ -1,0 +1,41 @@
+{
+  "id": "EXP-20260809-godot-uid-external-autoload",
+  "owner": "GPT-5.6 Sol / workstream F",
+  "created": "2026-08-09",
+  "question": "Can a direct runtime launch resolve a UID-backed autoload after the resource and its .uid sidecar were moved externally while .godot/uid_cache.bin still names the old path?",
+  "claim_scope": "integration",
+  "integration_context": "programmes/high-leverage-open-source/scouts/godot-web-automation-authority/notes/uid-external-move-startup.md",
+  "sources": [
+    {
+      "title": "Godot UID changes coming to 4.4",
+      "url": "https://godotengine.org/article/uid-changes-coming-to-godot-4-4/",
+      "retrieved": "2026-08-09",
+      "claim": "external file moves while the editor is closed are an explicit UID workflow goal; .uid sidecars should move with scripts/shaders",
+      "evidence_label": "Documented"
+    },
+    {
+      "title": "Godot startup UID/autoload sequence",
+      "url": "https://github.com/godotengine/godot/blob/4173760fdf6c2c722e82e08cb58e55f34c9efd80/main/main.cpp",
+      "revision": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "retrieved": "2026-08-09",
+      "claim": "startup loads uid_cache.bin, fixes autoload UID paths immediately, and game startup later loads the resolved autoload path",
+      "evidence_label": "Documented"
+    }
+  ],
+  "commands": [
+    "python3 playgrounds/EXP-20260809-godot-uid-external-autoload/prepare.py",
+    "godot --headless --path playgrounds/EXP-20260809-godot-uid-external-autoload/godot",
+    "godot --headless --path playgrounds/EXP-20260809-godot-uid-external-autoload/godot --import",
+    "godot --headless --path playgrounds/EXP-20260809-godot-uid-external-autoload/godot"
+  ],
+  "distinguishing_outcomes": [
+    "First runtime misses autoload at old path, editor/import scan repairs cache, second runtime loads moved autoload: retain stale-cache startup gap as a consequential external-move bug.",
+    "First runtime finds moved autoload immediately: another runtime UID discovery path handles stale existing cache entries; stop the hypothesis.",
+    "Editor/import scan also fails to repair cache: investigate scan lifecycle and fixture validity before widening the claim.",
+    "First runtime fails for reasons unrelated to autoload/UID resolution: repair fixture separately."
+  ],
+  "stop_condition": "Capture first direct runtime, editor/import repair pass, and second direct runtime using one prepared stale-cache fixture.",
+  "network_policy": "none",
+  "upstream_contact_authorization": false,
+  "state": "active"
+}
