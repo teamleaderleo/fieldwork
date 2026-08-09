@@ -6,14 +6,14 @@ Godot Web receives real canvas focus/blur events and forwards focus notification
 
 The contradiction is especially crisp inside Godot itself: `Window::_event_callback(WINDOW_EVENT_FOCUS_OUT)` stores `focused = false` and emits `focus_exited`; a `focus_exited` handler that immediately calls `Window.has_focus()` on Web can still receive `true` from the DisplayServer query.
 
-This is a compact interface-correctness candidate. Browser execution remains the promotion gate because Godot's hidden IME intentionally owns DOM focus during text entry and must continue counting as Godot-window focus.
+A source follow-up also shows that the obvious one-line repair, `canvas focused || IME focused`, is incomplete on mobile. Godot's Web display layer creates hidden `<input>`/`<textarea>` elements for the browser virtual keyboard and explicitly focuses them. Those are Godot-owned DOM focus too, but the native focus-notification suppression currently checks only the separate IME state. The right abstraction is therefore likely **Godot-owned DOM focus**, not canvas focus plus one special case.
 
-State: source-read + exact browser probe prepared.
+State: source-strong + exact browser probe prepared; mobile virtual-keyboard case added to the promotion gate.
 
 ## Exact source
 
 Development revision: `godotengine/godot@4173760fdf6c2c722e82e08cb58e55f34c9efd80`.
-Retrieved: 2026-08-09.
+Retrieved: 2026-08-09/10.
 
 Key paths:
 
@@ -32,7 +32,7 @@ The Web JavaScript bridge already exposes `godot_js_display_canvas_is_focused()`
 document.activeElement === GodotConfig.canvas
 ```
 
-The bridge also exposes `godot_js_is_ime_focused()`. Godot deliberately suppresses focus-in/focus-out window notifications caused by its hidden IME owning focus, so text entry is already treated as retained Godot focus even when the canvas is temporarily not the active DOM element.
+The bridge also exposes `godot_js_is_ime_focused()`. Godot deliberately suppresses focus-in/focus-out window notifications caused by its hidden IME owning focus, so desktop text entry is already treated as retained Godot focus even when the canvas is temporarily not the active DOM element.
 
 Canvas `focus` and `blur` events are otherwise forwarded into Godot's window callback.
 
@@ -65,6 +65,27 @@ Window.has_focus() == true
 
 Desktop display servers maintain actual focus state, making desktop a useful control.
 
+## Godot-owned DOM focus is broader than canvas + IME
+
+The Web display JavaScript also creates virtual-keyboard elements for touch devices:
+
+- a hidden HTML `input`;
+- a hidden HTML `textarea`;
+- `show()` makes one active and calls `elem.focus()`.
+
+This is distinct from the content-editable IME helper in `library_godot_input.js`.
+
+The native Web notification callback currently suppresses focus transitions only when `godot_js_is_ime_focused()` is true:
+
+```text
+if IME focused and notification is FOCUS_IN/FOCUS_OUT:
+    return
+```
+
+No equivalent virtual-keyboard ownership check surfaced in the source pass. Therefore a future focus query must not simply treat `document.activeElement === canvas` as the whole contract, and `canvas || IME` may still misclassify a Godot-owned mobile text-input element.
+
+This also creates a nearby browser-execution question: when the Web virtual keyboard takes DOM focus, does Godot emit a spurious `focus_exited`, or is that transition hidden through another browser/native path not yet mapped?
+
 ## Consequence
 
 A web application that gates input, pause overlays, keyboard capture, resume logic, or UI behavior with `Window.has_focus()` can observe a different state from the focus events it receives.
@@ -81,7 +102,7 @@ This is particularly relevant to an externally authoritative client: focus notif
 - provides a `LineEdit` to exercise hidden-IME focus;
 - emits machine-readable `FOCUS_PROBE` lines.
 
-Source-predicted Web trace:
+Source-predicted ordinary Web blur trace:
 
 ```text
 FOCUS_PROBE ... kind=WINDOW_FOCUS_OUT has_focus=true
@@ -93,20 +114,27 @@ Desktop control should report:
 FOCUS_PROBE ... kind=WINDOW_FOCUS_OUT has_focus=false
 ```
 
-The Web LineEdit path is a separate control. DOM focus moving from canvas to Godot's hidden IME should continue to count as Godot-window focus and should avoid a false application focus-out.
+The browser matrix should now distinguish at least:
+
+1. canvas active;
+2. ordinary HTML element outside Godot active;
+3. browser/tab/window blur;
+4. desktop Godot IME active;
+5. touch/mobile Godot virtual-keyboard input or textarea active;
+6. return to canvas.
 
 ## Competing expectations
 
-1. **Godot-owned DOM focus:** Web focus is true when either the canvas or Godot IME owns DOM focus. This currently best matches the existing event semantics.
-2. **Canvas focus only:** simplest implementation, but likely wrong during IME text entry.
-3. **Browser document focus:** broader than Godot interaction; clicking another HTML control in the same page may still leave the document focused while Godot should arguably be unfocused.
+1. **Godot-owned DOM focus:** focused while canvas, desktop IME, or Godot's virtual-keyboard element owns DOM focus. This best matches engine-level intent so far.
+2. **Canvas focus only:** simple but wrong for Godot-owned text-input helpers.
+3. **Browser document focus:** too broad; clicking another HTML control in the same page can leave the document focused while Godot interaction is not.
 4. **Constant true is intentional:** if so, the public query requires a Web-specific documented limitation because current behavior conflicts with emitted focus state.
 
 ## Candidate implementation direction
 
-If browser execution confirms the source prediction and the IME control behaves as expected, the narrow candidate is for Web `window_is_focused()` to reflect **Godot-owned DOM focus**, likely canvas focus OR Godot IME focus.
+If browser execution confirms the source prediction, prefer centralizing the policy in JavaScript as one query such as “is a Godot-owned focus target active?” rather than accumulating native checks for canvas, IME, virtual keyboard, and future helpers independently.
 
-Avoid patching before capturing canvas → outside-page-content → browser/tab → canvas → LineEdit/IME transitions, ideally in Chromium, Firefox, and Safari where available.
+A narrow `canvas || IME` patch is no longer considered sufficient without proving the mobile virtual-keyboard case.
 
 ## Overlap
 
@@ -114,10 +142,10 @@ Open issue/PR searches at this refresh found no active Web `window_is_focused()`
 
 ## Evidence boundary
 
-Supported: public API contract, constant-true Web implementation, live canvas-focus query, IME special-case, and same-callback focus signal/query contradiction in source.
+Supported: public API contract, constant-true Web implementation, live canvas-focus query, IME special-case, same-callback signal/query contradiction, and distinct Godot-owned virtual-keyboard DOM focus targets.
 
-Prepared: desktop/Web/IME logging fixture.
+Prepared: desktop/Web/IME logging fixture; mobile virtual-keyboard case identified for extension.
 
-Unknown: browser-observed trace, cross-browser details, and compatibility impact of changing the query.
+Unknown: browser-observed trace, cross-browser/mobile details, whether the virtual-keyboard DOM transition already has another suppression path, and compatibility impact of changing the query.
 
 Automated upstream contact: prohibited.
