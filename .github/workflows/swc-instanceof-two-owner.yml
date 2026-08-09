@@ -1,0 +1,119 @@
+name: SWC instanceof two-owner candidate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  utils:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+    steps:
+      - name: Check out deterministic Fieldwork candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: 94f90694f0d2046ae0bb1f9cb38b9774c7de7228
+          path: fieldwork-source
+          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout-cone-mode: false
+      - name: Check out exact utility discriminator
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: 520d841148305d135db78912e6e176a67617b6d3
+          path: swc
+          fetch-depth: 0
+      - name: Install toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+      - name: Apply two-owner candidate and validate utility
+        working-directory: swc
+        run: |
+          python3 ../fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py .
+          git diff --check
+          cargo fmt --all -- --check
+          cargo test -p swc_ecma_utils --test operator_effects -- --nocapture
+          cargo clippy -p swc_ecma_utils --all-targets -- -D warnings
+          git diff --check
+
+  transforms:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+    steps:
+      - name: Check out deterministic Fieldwork candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: 94f90694f0d2046ae0bb1f9cb38b9774c7de7228
+          path: fieldwork-source
+          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout-cone-mode: false
+      - name: Check out exact transform discriminator
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: 2afcd4202303c373593aa319b8533fb5bdd3204b
+          path: swc
+          fetch-depth: 0
+      - name: Install toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+      - name: Apply two-owner candidate and validate transform
+        working-directory: swc
+        run: |
+          python3 ../fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py .
+          git diff --check
+          cargo fmt --all -- --check
+          cargo test -p swc_ecma_transforms_optimization --test operator_effects -- --nocapture
+          cargo clippy -p swc_ecma_transforms_optimization --all-targets -- -D warnings
+          git diff --check
+
+  minifier:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+    steps:
+      - name: Check out deterministic Fieldwork candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: 94f90694f0d2046ae0bb1f9cb38b9774c7de7228
+          path: fieldwork-source
+          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout-cone-mode: false
+      - name: Check out exact minifier discriminator
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: 45b6f542950ce4552d823ed63a8d17a4c99d0341
+          path: swc
+          fetch-depth: 0
+      - name: Install toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+      - name: Apply two-owner candidate and validate minifier
+        working-directory: swc
+        run: |
+          python3 ../fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py .
+          git diff --check
+          cargo fmt --all -- --check
+          cargo test -p swc_ecma_minifier --test compress -- instanceof_member_extraction --nocapture
+          cargo clippy -p swc_ecma_minifier --all-targets -- -D warnings
+          git diff --check
