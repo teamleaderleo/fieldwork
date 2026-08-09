@@ -2,11 +2,13 @@
 """Apply the pinned SWC `instanceof` semantic research candidate.
 
 Pinned source contract: swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077.
-The candidate has two owners:
+The candidate has three owners:
 
 1. shared effect classification/extraction in swc_ecma_utils;
 2. the independent `instanceof` constant fold in the expression simplifier,
-   which is also reused by the minifier Pure pass.
+   which is also reused by the minifier Pure pass;
+3. minifier result-discarding through `ignore_return_value`, which otherwise
+   removes a direct discarded `instanceof` expression statement.
 
 Every edit requires a unique source marker so source drift fails closed.
 """
@@ -27,7 +29,6 @@ def replace_once(path: str, old: str, new: str) -> None:
 
 
 def remove_braced_match_arm(path: str, marker: str) -> None:
-    """Remove one block-form Rust match arm selected by a unique marker."""
     p = root / path
     text = p.read_text()
     count = text.count(marker)
@@ -51,7 +52,6 @@ def remove_braced_match_arm(path: str, marker: str) -> None:
     if end is None:
         raise SystemExit(f"{path}: unterminated match arm for {marker!r}")
 
-    # Consume an optional comma and the arm's trailing newline only.
     if end < len(text) and text[end] == ",":
         end += 1
     if end < len(text) and text[end] == "\n":
@@ -105,4 +105,19 @@ replace_once(
 remove_braced_match_arm(
     "crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs",
     '        op!("instanceof") => {',
+)
+
+replace_once(
+    "crates/swc_ecma_minifier/src/compress/pure/misc.rs",
+    "        self.optimize_expr_in_bool_ctx(e, true);\n",
+    '        if matches!(\n'
+    '            &**e,\n'
+    '            Expr::Bin(BinExpr {\n'
+    '                op: op!("instanceof"),\n'
+    '                ..\n'
+    '            })\n'
+    '        ) {\n'
+    '            return;\n'
+    '        }\n\n'
+    '        self.optimize_expr_in_bool_ctx(e, true);\n',
 )
