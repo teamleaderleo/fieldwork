@@ -1,0 +1,1 @@
+Trigger authority proof after the recognized integrity workflow update.
