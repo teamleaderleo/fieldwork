@@ -111,7 +111,7 @@ replace_once(
     "crates/swc_ecma_minifier/src/compress/pure/misc.rs",
     "        self.optimize_expr_in_bool_ctx(e, true);\n",
     '        if matches!(\n'
-    '            &**e,\n'
+    '            e,\n'
     '            Expr::Bin(BinExpr {\n'
     '                op: op!("instanceof"),\n'
     '                ..\n'
