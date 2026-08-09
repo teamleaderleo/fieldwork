@@ -2,11 +2,13 @@
 
 ## In simple words
 
-Campaign #725 is investigating a shared SWC effect-analysis boundary. Source reading now shows three places where binary operator behavior can disappear: `may_have_side_effects` ignores the operator, `extract_side_effects_to` reduces most binary expressions to operand effects, and the minifier's `ignore_return_value` independently decomposes a broad allowlist when an expression result is unused.
+Campaign #725 has narrowed substantially after reading SWC's target-local minifier instructions and public minification assumptions.
 
-The campaign now has three owned-fork discriminators: `teamleaderleo/swc#2` for the shared utility contract, `teamleaderleo/swc#4` for expression-simplifier array-member folding, and `teamleaderleo/swc#5` for ordinary minifier expression statements. PR #5 includes a runtime oracle that expects discarded `+` and loose `==` coercions to execute and mixed BigInt/Number `+` to throw, while strict equality remains a negative control.
+The broad arithmetic/coercion probe found real JavaScript behavior, but SWC explicitly permits the minifier to ignore primitive coercion-helper side effects and arithmetic exceptions such as mixed BigInt/Number operations. Those cases no longer justify a repair. Owned-fork PR #5 has been closed as a negative result.
 
-Rust execution remains pending because the connected GitHub interface reports no workflow runs for the current research heads.
+The strongest repair slice is now `instanceof`. SWC's shared effect classifier checks only the operands, and its shared extractor reduces ordinary binary expressions to operand effects. `instanceof` can still invoke `Symbol.hasInstance` or throw `TypeError` after both operands have been evaluated. Those behaviors are outside the documented assumption set. Owned-fork PR #2 pins the shared utility contract; PR #4 pins a concrete expression-simplifier consumer.
+
+`in` remains a separate policy branch on owned-fork PR #6 because upstream issue 11246 is still open and a prior maintainer-triggered experiment reportedly tied that operator to `pure_getters`.
 
 - Campaign issue: #725
 - Programme: #15
@@ -14,114 +16,90 @@ Rust execution remains pending because the connected GitHub interface reports no
 - Target hub: #717
 - State: `claimed`
 - Worker: GPT-5.6 Sol
-- Public source pin: `swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077`
-- Utility contract: `teamleaderleo/swc#2` at `b5c1ef85cc8e7064fbc747c114b515df37a31a44`
-- Expression-simplifier contract: `teamleaderleo/swc#4` at `f37dc8580458869eed38fc398b96d82976963745`
-- Minifier discarded-result contract: `teamleaderleo/swc#5` at `7af17fada62c66d66dc96d981f4c2ef1dba43765`
+- Public source pin/current upstream main: `swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077`
+- `instanceof` utility contract: `teamleaderleo/swc#2` at `7f02482bdcecafdbf2b7c8d5d3667e2f9db6211b`
+- `instanceof` expression-simplifier contract: `teamleaderleo/swc#4` at `1bfc544804d8c5f675a064f6670511973fc30f52`
+- `in` policy discriminator: `teamleaderleo/swc#6` at `1ff10db31595acd540ecc769f1fd4b672dab9746`
+- retired assumption-bound discriminator: `teamleaderleo/swc#5` at `c75fca0578457d1891833c9d7de30598fb1ed00d`
 - Evidence: `source-read`, `model-executed`, `target-test-prepared`
 - Upstream contact: prohibited for automated workers
 
-## Current invariant
+## Assumption correction
 
-```text
-operand evaluation
-      ↓
-binary operator step ── callback / coercion / throw
-      ↓
-result
+`crates/swc_ecma_minifier/AGENTS.md` states that the minifier may rely on the public assumptions, including side-effect-free primitive coercion helpers and side-effect-free arithmetic expressions including runtime exceptions from mixing BigInt and Number.
 
-If the result is discarded, the operator step still has to happen whenever
-JavaScript semantics make that step observable.
+The public SWC minification guide says `.toString()` and `.valueOf()` are assumed side-effect-free and explicitly says arithmetic expressions may be treated as side-effect-free, including BigInt/Number exceptions.
+
+That evidence invalidated the earlier plan to require preservation of discarded `valueOf` callbacks and `1n + 1` exceptions. PR #5 is retained only as a documented negative result.
+
+## Current source finding
+
+At the pinned revision, `swc_ecma_utils::may_have_side_effects` handles ordinary binary expressions by checking only `left` and `right`.
+
+`ExprCtx::extract_side_effects_to` retains short-circuit binary expressions whole, but recursively extracts only `left` and `right` for other binary expressions.
+
+For `instanceof`, this loses two operator-originated behaviors:
+
+1. `Constructor[Symbol.hasInstance](value)` may execute user code;
+2. an invalid right operand throws `TypeError`.
+
+The ordinary minifier `ignore_return_value` reducible allowlist excludes `instanceof`, so the first repair slice belongs in the shared utility layer rather than in minifier statement-discard code.
+
+Other minifier code already treats `in` and `instanceof` specially in negation and boolean-cost logic. That makes a narrow shared-helper special case consistent with existing source conventions.
+
+## Executed `instanceof` model
+
+Node v22.16.0 produced:
+
+```json
+{
+  "wholeCallback": ["hasInstance"],
+  "childrenOnlyCallback": [],
+  "wholeInvalid": "TypeError",
+  "childrenOnlyInvalid": "no-throw"
+}
 ```
 
-Classification, extraction, and value-discarding optimization all need to preserve that invariant.
-
-## Source findings
-
-### Shared classification
-
-`swc_ecma_utils::may_have_side_effects` handles every `Expr::Bin` by checking only `left` and `right`. The operator is absent from the decision.
-
-### Shared extraction
-
-`ExprCtx::extract_side_effects_to` retains short-circuit binary expressions whole, but every other binary expression is recursively reduced to effects from `left` and `right`. This can erase `in` / `instanceof` hooks, object-to-primitive conversion, and operator-thrown exceptions.
-
-### Minifier value-discarding path
-
-`swc_ecma_minifier::compress::pure::misc::ignore_return_value` has its own reducible operator allowlist covering arithmetic, exponentiation, bitwise/shift, loose and strict equality, and relational operators. It recursively ignores the left and right values and can drop the whole expression when both children disappear.
-
-`Pure::visit_mut_expr_stmt` sends ordinary expression statements through `ignore_return_value`, so the consequence reaches normal minification directly. A discarded expression such as an object-coercing `+`, loose `==`, or `1n + 1` can lose behavior even without the expression-simplifier array-folding path.
-
-### Expression-simplifier consumer
-
-`swc_ecma_transforms_optimization::simplify::expr` uses `ExprCtx::extract_side_effects_to` when replacing a statically selected array element. Effects from elements before and after the chosen element are extracted, then the selected value is substituted.
-
-That produces a concrete candidate reproduction:
-
-```js
-[
-  ({ [Symbol.toPrimitive]() { log(); return 1; } }) + 1,
-  42,
-][1]
-```
-
-The original executes the conversion before yielding `42`. Extracting only the binary operands can erase the conversion step and leave `42` alone.
-
-## Executed JavaScript evidence
-
-Node v22.16.0 probes established operator-originated behavior across the main non-short-circuit families. Object conversion occurs for arithmetic, exponentiation, bitwise/shift, relational comparison, and loose equality; `in` performs property-key conversion and can invoke Proxy `has`; `instanceof` can invoke `Symbol.hasInstance`; strict equality performs no object-to-primitive conversion.
-
-Pure-literal exception controls established mixed BigInt/Number `TypeError`s, BigInt division/remainder-by-zero and negative-exponent `RangeError`s, BigInt unsigned-shift `TypeError`, and invalid-right-operand `TypeError`s for `in` and `instanceof`.
-
-A direct discarded-result probe re-confirmed the minifier contract independently of SWC: discarded object `+` and loose `==` expressions still called `Symbol.toPrimitive`, and discarded `1n + 1` still threw `TypeError`.
+This directly models the shared extractor's current whole-expression-versus-operand-only choice.
 
 Evidence class: `model-executed`.
 
-## Negative controls
-
-Strict equality is the strongest operator-level negative control because it compares without object-to-primitive conversion. Primitive arithmetic is also safe when operand types and values rule out conversion hooks and numeric-domain exceptions.
-
-Short-circuit logical operators already have a distinct extractor branch that preserves the whole expression, so they remain separate from this non-short-circuit repair.
-
 ## Prepared target contracts
 
-### Utility layer — `teamleaderleo/swc#2`
+### PR #2 — shared utility contract
 
-Pins whole-expression side-effect classification and extraction for `in`, `instanceof`, object coercion, operator exceptions, and primitive negative controls.
+Requires `may_have_side_effects` to classify callback-capable and invalid-right-operand `instanceof` expressions as effectful and requires `extract_side_effects_to` to retain the complete binary expression. Primitive arithmetic and strict equality remain controls.
 
-### Expression simplifier — `teamleaderleo/swc#4`
+### PR #4 — expression-simplifier consumer
 
-Pins discarded array-sibling `+`, loose `==`, and mixed BigInt/Number exception behavior through `ExprCtx::extract_side_effects_to`, with strict equality as the drop control.
+Exercises the array-member folding path that extracts effects from discarded siblings. A discarded `value instanceof Constructor` and `1 instanceof 2` must remain in the transformed output; strict equality remains removable.
 
-### Minifier statement discard — `teamleaderleo/swc#5`
+### PR #6 — `in` policy branch
 
-Adds a `side_effects`-only minifier fixture. The input records `valueOf` callbacks for discarded `+` and loose `==`, catches the `1n + 1` exception into state, includes a strict-equality negative control, and prints the result. The runtime oracle expects:
+Keeps Proxy `has` and invalid-right-operand behavior isolated from the `instanceof` repair. Existing upstream discussion around `pure_getters` means this branch needs an explicit policy decision before production implementation.
 
-```text
-plus,eq true
-```
+### PR #5 — negative result
 
-The expected optimized output retains the two coercing expressions and the throwing BigInt expression while dropping the inert strict-equality expression.
+Closed. The fixture required preservation of behavior SWC's documented assumptions allow the minifier to discard.
 
-All three branches are `target-test-prepared`; no target-native RED receipt is claimed yet.
+## Candidate repair
 
-## Upstream context
+`campaigns/0725-swc-binary-operator-effects/candidate-instanceof.patch` prepares a two-branch change in `swc_ecma_utils/src/lib.rs`:
 
-Upstream issue `swc-project/swc#11246` remains open for `in` removal. A maintainer-triggered automation branch in January 2026 prepared a narrow `in` / `pure_getters` correction, but the campaign evidence shows the underlying effect contract spans more operators and multiple consumers.
+- classify `instanceof` as operator-effectful;
+- retain `instanceof` whole during effect extraction;
+- leave every other binary operator unchanged.
 
-## Current repair decision
+No minifier-specific `ignore_return_value` change is proposed for this slice.
 
-A one-line `in` special case is insufficient. The repair needs a shared answer to two questions:
+## Execution boundary
 
-1. can this particular operator evaluation itself be observable after child evaluation?
-2. if yes, must classification, extraction, or result-discarding keep the whole operation?
+The local runtime has Node v22.16.0 but no Rust toolchain and no outbound GitHub DNS. The owned SWC fork's inherited pull-request workflow still exposes no runs for the research heads, including after a synchronize event. Target-native RED/GREEN therefore remains unavailable in this session.
 
-A shared operator-aware predicate remains the leading direction. It should begin conservatively and use established type/value proofs only where they rule out callbacks and exceptions. The minifier's independent `ignore_return_value` path needs to consume the same semantic answer or be fenced equivalently.
-
-## Execution status
-
-The inherited SWC `CI.yml` listens to pull-request opened/reopened/synchronize events. The connected GitHub interface reports no workflow runs for PRs #2, #4, or #5, including the new PR #5 head. No `target-executed` or `full-gate` claim is made.
+No `target-executed` or `full-gate` claim is made.
 
 ## Current disposition
 
-**EXECUTE** the three prepared contracts on the pinned target revision. Require base RED evidence for the utility, expression-simplifier, and ordinary minifier paths before production implementation. Then apply a bounded operator-aware repair, obtain GREEN receipts, and measure compression loss from any conservative retention before promotion.
+**HOLD implementation promotion, PREPARE the minimal `instanceof` repair.**
+
+Next accepted transition requires target-native RED for PRs #2 and #4, application of the candidate patch, GREEN focused tests, formatting/clippy as required by SWC, and exact-head review. `in` stays separate until its `pure_getters` policy is resolved.
