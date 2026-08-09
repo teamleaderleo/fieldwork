@@ -1,0 +1,180 @@
+name: SWC mapped arguments explicit owner candidate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    if: github.head_ref == 'fieldwork/execution/swc-mapped-arguments-explicit-owner'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+    steps:
+      - name: Check out exact mapped-arguments discriminator head
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: e9306342b4217ac259a5ad6840a7f7c1290e474c
+          fetch-depth: 0
+
+      - name: Install SWC Rust toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10
+
+      - name: Apply explicit per-binding ownership candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              s = p.read_text()
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, found {count}')
+              p.write_text(s.replace(old, new, 1))
+
+          replace_once(
+              'crates/swc_ecma_minifier/src/program_data.rs',
+              '        const LAZY_INIT                 = 1 << 25;\n',
+              '        const LAZY_INIT                 = 1 << 25;\n'
+              '\n'
+              '        /// Parameter of an ordinary function whose lexical `arguments` is used.\n'
+              '        /// This flag follows cloned/remapped bindings with `VarUsageInfo`.\n'
+              '        const FN_PARAM_OF_ARGUMENTS_FN  = 1 << 26;\n',
+          )
+
+          replace_once(
+              'crates/swc_ecma_minifier/src/program_data.rs',
+              '                    *e_flags |= var_info_flags & VarUsageInfoFlags::USED_IN_NON_CHILD_FN;\n',
+              '                    *e_flags |= var_info_flags & VarUsageInfoFlags::USED_IN_NON_CHILD_FN;\n'
+              '                    *e_flags |=\n'
+              '                        var_info_flags & VarUsageInfoFlags::FN_PARAM_OF_ARGUMENTS_FN;\n',
+          )
+
+          replace_once(
+              'crates/swc_ecma_minifier/src/program_data.rs',
+              '    fn mark_declared_as_fn_param(&mut self) {\n'
+              '        self.flags.insert(VarUsageInfoFlags::DECLARED_AS_FN_PARAM);\n'
+              '    }\n',
+              '    fn mark_declared_as_fn_param(&mut self) {\n'
+              '        self.flags.insert(VarUsageInfoFlags::DECLARED_AS_FN_PARAM);\n'
+              '    }\n'
+              '\n'
+              '    fn mark_fn_param_of_arguments_fn(&mut self) {\n'
+              '        self.flags\n'
+              '            .insert(VarUsageInfoFlags::FN_PARAM_OF_ARGUMENTS_FN);\n'
+              '    }\n',
+          )
+
+          replace_once(
+              'crates/swc_ecma_minifier/src/usage_analyzer/analyzer/storage.rs',
+              '    fn mark_declared_as_fn_param(&mut self);\n\n'
+              '    fn mark_as_lazy_init(&mut self);\n',
+              '    fn mark_declared_as_fn_param(&mut self);\n\n'
+              '    fn mark_fn_param_of_arguments_fn(&mut self);\n\n'
+              '    fn mark_as_lazy_init(&mut self);\n',
+          )
+
+          replace_once(
+              'crates/swc_ecma_minifier/src/usage_analyzer/analyzer/mod.rs',
+              '                if let Some(body) = &n.body {\n'
+              '                    // We use visit_children_with instead of visit_with to bypass block scope\n'
+              '                    // handler.\n'
+              '                    body.visit_children_with(child);\n'
+              '                }\n'
+              '            })\n',
+              '                if let Some(body) = &n.body {\n'
+              '                    // We use visit_children_with instead of visit_with to bypass block scope\n'
+              '                    // handler.\n'
+              '                    body.visit_children_with(child);\n'
+              '                }\n'
+              '\n'
+              '                if child.scope.used_arguments() {\n'
+              '                    for param in &n.params {\n'
+              '                        for id in find_pat_ids::<_, Id>(&param.pat) {\n'
+              '                            child\n'
+              '                                .data\n'
+              '                                .var_or_default(id)\n'
+              '                                .mark_fn_param_of_arguments_fn();\n'
+              '                        }\n'
+              '                    }\n'
+              '                }\n'
+              '            })\n',
+          )
+
+          replace_once(
+              'crates/swc_ecma_minifier/src/compress/optimize/unused.rs',
+              '                    && (!var.flags.contains(VarUsageInfoFlags::DECLARED_AS_FN_PARAM)\n'
+              '                        || !self.data.used_arguments(self.ctx.scope)\n'
+              '                        || self.ctx.expr_ctx.in_strict)\n',
+              '                    && (!var.flags.contains(VarUsageInfoFlags::DECLARED_AS_FN_PARAM)\n'
+              '                        || !var\n'
+              '                            .flags\n'
+              '                            .contains(VarUsageInfoFlags::FN_PARAM_OF_ARGUMENTS_FN))\n',
+          )
+          PY
+
+          git diff --check
+          git diff -- crates/swc_ecma_minifier/src/program_data.rs \
+            crates/swc_ecma_minifier/src/usage_analyzer/analyzer/storage.rs \
+            crates/swc_ecma_minifier/src/usage_analyzer/analyzer/mod.rs \
+            crates/swc_ecma_minifier/src/compress/optimize/unused.rs
+
+      - name: Prepare ordinary-path semantic matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir=crates/swc_ecma_minifier/tests/fixture/fieldwork/mapped-arguments-explicit-owner-matrix
+          mkdir -p "$dir"
+          cat > "$dir/config.json" <<'JSON'
+          {
+              "defaults": false,
+              "unused": true
+          }
+          JSON
+          cat > "$dir/input.js" <<'JS'
+          function run(f) { f(); }
+          function direct(b) { b = 2; return arguments[0]; }
+          function nestedArrow(b) { run(() => { b = 2; }); return arguments[0]; }
+          function nestedFunction(b) { run(function () { b = 2; }); return arguments[0]; }
+          function strictNested(b) { "use strict"; run(() => { b = 2; }); return arguments[0]; }
+          function noArgumentsRead(b) { run(() => { b = 2; }); return 7; }
+          function unrelatedLocal(b) { let x = 1; run(() => { x = 2; }); return arguments[0]; }
+          function defaultParam(b = 1) { run(() => { b = 2; }); return arguments[0]; }
+          console.log(direct(1), nestedArrow(1), nestedFunction(1), strictNested(1), noArgumentsRead(1), unrelatedLocal(5), defaultParam(1));
+          JS
+          printf '2 2 2 1 7 5 1\n' > "$dir/expected.stdout"
+
+      - name: Explicit ownership candidate must GREEN all semantic contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          UPDATE=1 cargo test -p swc_ecma_minifier --test compress -- mapped_arguments_explicit_owner_matrix --nocapture
+          cargo test -p swc_ecma_minifier --test compress -- mapped_arguments_explicit_owner_matrix --nocapture
+
+          UPDATE=1 cargo test -p swc_ecma_minifier --test compress -- mapped_arguments_owner_strictness --nocapture
+          cargo test -p swc_ecma_minifier --test compress -- mapped_arguments_owner_strictness --nocapture
+
+          UPDATE=1 cargo test -p swc_ecma_minifier --test compress -- mapped_arguments_inline_remap --nocapture
+          cargo test -p swc_ecma_minifier --test compress -- mapped_arguments_inline_remap --nocapture
+
+          echo '--- inline candidate output.js ---'
+          cat crates/swc_ecma_minifier/tests/fixture/fieldwork/mapped-arguments-inline-remap/output.js
+          inline_runtime="$(node crates/swc_ecma_minifier/tests/fixture/fieldwork/mapped-arguments-inline-remap/output.js)"
+          echo "inline candidate runtime: $inline_runtime"
+          test "$inline_runtime" = '2 2'
+
+      - name: Candidate package checks
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy -p swc_ecma_minifier --all-targets -- -D warnings
+          git diff --check
