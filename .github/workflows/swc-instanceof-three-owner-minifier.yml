@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/fieldwork
-          ref: 7a82b084619b0dc382e62a4037239edad24e66b4
+          ref: 62e7d9cbc6aaeba41e3b7321dad9b7af134e227b
           path: fieldwork-source
           sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
           sparse-checkout-cone-mode: false
