@@ -6,11 +6,13 @@ The fixture uses a UID-backed autoload because autoload paths are resolved very 
 
 ## Fixture
 
+The UID pair is deliberately `1` / `uid://b`, which Godot's own ResourceUID unit test verifies as an encode/decode round trip.
+
 Actual resource:
 
 ```text
 res://moved/autoload.gd
-res://moved/autoload.gd.uid -> uid://60nf3
+res://moved/autoload.gd.uid -> uid://b
 ```
 
 The old path is absent:
@@ -23,13 +25,13 @@ res://old/autoload.gd
 
 ```ini
 [autoload]
-Moved="*uid://60nf3"
+Moved="*uid://b"
 ```
 
 `prepare.py` deliberately writes a stale `.godot/uid_cache.bin`:
 
 ```text
-UID 42424242 / uid://60nf3 -> res://old/autoload.gd
+UID 1 / uid://b -> res://old/autoload.gd
 ```
 
 ## Source sequence under test
@@ -73,14 +75,14 @@ Then launch the game directly again:
 godot --headless --path playgrounds/EXP-20260809-godot-uid-external-autoload/godot
 ```
 
-If `--import` alone does not reach the correcting scan path, repeat the repair control with a normal editor start/quit. That is a harness distinction, not evidence against the startup hypothesis.
+If `--import` alone does not reach the correcting scan path, repeat the repair control with a normal editor start/quit. That is a harness distinction, separate from the startup claim.
 
 ## Source-predicted first-run result
 
 The first game launch should still resolve:
 
 ```text
-uid://60nf3 -> res://old/autoload.gd
+uid://b -> res://old/autoload.gd
 ```
 
 while:
@@ -104,14 +106,14 @@ AUTOLOAD_STARTUP_RESULT has_moved=true resolved_uid_path=res://moved/autoload.gd
 
 Godot's UID documentation says resource references survive rename/move operations. The 4.4 UID rollout explicitly describes moves performed outside the editor—file manager, IDE, command line, or version control while the editor is closed—as a workflow the sidecar UID design is intended to support.
 
-A runtime startup dependency such as an autoload is a strong test because it needs UID resolution before any editor discovery can repair a stale centralized cache.
+A runtime startup dependency such as an autoload is a strong test because it needs UID resolution before editor discovery can repair a stale centralized cache.
 
 ## Competing outcomes
 
 1. **Startup gap reproduced:** direct runtime trusts the stale existing UID entry and misses the moved autoload; editor discovery repairs the cache; a later runtime succeeds.
 2. **Runtime self-repairs:** the first direct launch discovers the moved sidecar despite the existing stale cache entry. Stop the hypothesis and locate the discovery path.
-3. **Editor repair also requires restart:** scan updates the centralized cache while the current editor's already-resolved autoload list remains stale. Record this as a second lifecycle boundary rather than conflating it with direct runtime behavior.
-4. **Fixture invalid:** UID text, sidecar format, or autoload syntax differs from the assumed format. Repair the harness before drawing conclusions.
+3. **Editor repair also requires restart:** scan updates the centralized cache while the current editor's already-resolved autoload list remains stale. Record this as a second lifecycle boundary.
+4. **Fixture invalid:** sidecar or autoload syntax differs from the assumed format. Repair the harness before drawing conclusions.
 
 ## Evidence boundary
 
