@@ -2,11 +2,11 @@
 
 ## In simple words
 
-Campaign #725 now has a stronger owner map than the original shared-helper theory.
+Campaign #725 now has three confirmed `instanceof` correctness owners.
 
-`instanceof` operator evaluation can invoke `Symbol.hasInstance` or throw `TypeError` after both operands have been evaluated. Those behaviors are outside SWC's documented minifier assumptions. Target execution first proved that SWC's shared effect classifier/extractor loses the operator. A deterministic shared-helper candidate then made the direct utility contract GREEN.
+JavaScript evaluates `instanceof` after both operands: the operator can call `Symbol.hasInstance` or throw `TypeError` for an invalid RHS. SWC's documented minifier assumptions do not grant permission to erase those behaviors.
 
-That same run also proved the shared helper is only one owner. The expression simplifier has an independent `instanceof` constant-fold branch that still erases invalid-right-operand behavior, and the minifier still removes preserved `instanceof` operations after literal-member extraction. The next repair must therefore cover each independent semantic owner rather than treating extraction as the whole defect.
+Target-native execution has now proved two owners GREEN under the deterministic candidate: shared effect classification/extraction and expression-simplifier folding. A third owner was isolated in the minifier's main `Optimizer::ignore_return_value`: its generic binary fallback drops the operator and keeps only child effects. The three-owner candidate preserves all six direct/extracted minifier `instanceof` cases in target execution; the last run stopped on expected-fixture blank-line formatting before clippy. The owned fixture has been normalized and a clean rerun is active.
 
 - Campaign issue: #725
 - Programme: #15
@@ -14,129 +14,150 @@ That same run also proved the shared helper is only one owner. The expression si
 - Target hub: #717
 - State: `claimed`
 - Worker: GPT-5.6 Sol
-- Pinned/current SWC: `swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077`
-- utility contract: `teamleaderleo/swc#2`, current head `520d841148305d135db78912e6e176a67617b6d3`
-- expression-simplifier contract: `teamleaderleo/swc#4` at `1bfc544804d8c5f675a064f6670511973fc30f52`
-- minifier-member contract: `teamleaderleo/swc#7` at `ea9d75c2bf1effd3fb8a191c030380961a1eaa15`
+- Pinned target revision: `swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077`
+- current upstream main rechecked 2026-08-10: all three relevant behaviors still present
+- utility contract: `teamleaderleo/swc#2` at `520d841148305d135db78912e6e176a67617b6d3`
+- transform/extraction contract: `teamleaderleo/swc#4` at `2afcd4202303c373593aa319b8533fb5bdd3204b`
+- minifier contract: `teamleaderleo/swc#7` at `942c1871c1c186d7a3c03c84e86b0e10b374348d`
+- independent folding discriminator: `teamleaderleo/swc#9` at `8bdbf2119bc93d3e6e20d0c97d61b7c0d43f1530`
 - separate `in` policy discriminator: `teamleaderleo/swc#6`
-- retired assumption-bound discriminator: `teamleaderleo/swc#5`
-- initial RED carrier: `teamleaderleo/fieldwork#756`, retired
-- shared-candidate carrier: `teamleaderleo/fieldwork#771`
-- deterministic shared patcher: `apply-instanceof-candidate.py`
-- Evidence: `source-read`, `model-executed`, target RED, direct-utility candidate GREEN, downstream candidate RED
+- retired assumption-bound arithmetic/coercion discriminator: `teamleaderleo/swc#5`
+- active execution carrier: `teamleaderleo/fieldwork#771`, latest carrier head `521b4d4f9f70634508c4bea912956d20962d2db5`
+- deterministic candidate patcher: `apply-instanceof-candidate.py` at `62e7d9cbc6aaeba41e3b7321dad9b7af134e227b`
+- Evidence: `source-read`, `model-executed`, `target-executed`; clean integrated minifier receipt pending
 - Upstream contact: prohibited for automated workers
 
 ## Assumption boundary
 
-The earlier arithmetic/coercion branch remains retired. SWC explicitly permits primitive coercion helpers and arithmetic runtime exceptions to be treated as side-effect-free during minification.
+The earlier arithmetic/coercion branch remains a negative result. SWC explicitly permits primitive coercion helpers and arithmetic runtime exceptions to be treated as side-effect-free during minification.
 
-`instanceof` is different. Its post-operand operator step can:
+`instanceof` has no matching documented assumption. Its operator step can:
 
 1. call `Constructor[Symbol.hasInstance](value)`;
 2. throw when the RHS is not a valid `instanceof` target.
 
-Node modeling already distinguished whole execution from operand-only execution for both cases.
+SWC's ES2015 `instanceof` transform also explicitly preserves `Symbol.hasInstance` semantics, giving internal precedent for treating the operator step as observable.
 
 ## Owner 1 — shared effect classification and extraction
 
-At the pinned source revision, `swc_ecma_utils::may_have_side_effects` handles ordinary binaries by asking only about `left` and `right`. `ExprCtx::extract_side_effects_to` retains short-circuit binaries whole but otherwise extracts only child effects.
+At the pinned revision, `swc_ecma_utils::may_have_side_effects` asks only about `left` and `right` for ordinary binaries. `ExprCtx::extract_side_effects_to` retains short-circuit binaries whole but otherwise extracts only child effects.
 
-Initial carrier #756 produced direct target REDs for both behaviors.
-
-Carrier #771 then applied the deterministic two-branch shared candidate:
+Candidate:
 
 - classify `instanceof` as operator-effectful;
-- retain the whole `instanceof` expression during effect extraction.
+- retain the complete `instanceof` expression during effect extraction.
 
-The utility contract itself passed all three semantic tests:
+Exact-head target evidence:
 
-```text
-instanceof_operator_is_effectful ... ok
-extracting_effects_preserves_instanceof_operator ... ok
-primitive_controls_remain_pure ... ok
-```
+- unmodified target: `instanceof_operator_is_effectful` RED;
+- unmodified target: `extracting_effects_preserves_instanceof_operator` RED;
+- primitive negative control GREEN;
+- candidate: all 3 utility tests GREEN;
+- `cargo fmt --all -- --check` GREEN;
+- `cargo clippy -p swc_ecma_utils --all-targets -- -D warnings` GREEN after a narrow test-only `clippy::vec_box` allowance for the library-required return type.
 
-The utility job later failed only because the owned research helper returning the library-required `Vec<Box<Expr>>` triggered `clippy::vec-box` under `-D warnings`. PR #2 now carries a narrow test-only `#[allow(clippy::vec_box)]`; production candidate semantics were GREEN.
+Latest clean integrated receipt: Fieldwork run `31330277348`, job `93287319911`, exact source head `520d841148305d135db78912e6e176a67617b6d3`.
 
-Evidence: direct utility `target-executed` candidate GREEN.
+Evidence class: `target-executed`.
 
-## Owner 2 — expression simplifier constant folding
+## Owner 2 — expression simplifier `instanceof` folding
 
-The expression-simplifier candidate lane showed a second independent defect.
+`crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs::optimize_bin_expr` has an independent `instanceof` arm that:
 
-With the shared helper candidate applied:
+- treats a statically non-object LHS as proof of `false`;
+- treats a known object-like LHS against global `Object` as proof of `true`.
 
-- the callback-capable `value instanceof Constructor` array-sibling case passed;
-- the literal invalid-RHS case still failed: `[1 instanceof 2, 42][1]` became `42;` instead of retaining the throwing operation.
+Neither proof is sufficient under ordinary JavaScript semantics:
 
-Source reading identifies the owner in `crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs::optimize_bin_expr`.
+- `1 instanceof 2` throws instead of yielding `false`;
+- an unknown constructor can install `Symbol.hasInstance` and accept primitives;
+- `Object[Symbol.hasInstance]` can be replaced at runtime, so `({}) instanceof Object` is not intrinsically `true`.
 
-Its `instanceof` arm currently treats a primitive left operand as sufficient proof of `false`:
+SWC previously corrected an earlier `x instanceof Object` folding defect in PR #1630 / commit `b6ff4d6f717dfb4bd41c62c7085e15ace868f296`, but the surviving folds above remain unsafe.
 
-```rust
-if is_non_obj(left) {
-    *changed = true;
-    *expr = *make_bool_expr(expr_ctx, *span, false, iter::once(right.take()));
-    return;
-}
-```
+Candidate: remove the unconditional `instanceof` fold unless a future proof can establish ordinary RHS semantics.
 
-That is not a valid `instanceof` proof by itself. The RHS operator step still runs first: an invalid RHS throws, and a custom `Symbol.hasInstance` can execute user code even when the LHS is primitive.
+Exact-head target evidence on PR #9:
 
-The same arm also folds `objectLike instanceof Object` to `true`; that branch needs its own semantic proof before it is retained because `instanceof` consults RHS behavior.
+- base `1 instanceof 2` folded to `false`;
+- base `({}) instanceof Object` folded to `true`;
+- strict-equality optimization control passed;
+- candidate disabling the unconditional `instanceof` arm made all 3 tests GREEN.
 
-Evidence: target candidate RED plus source owner identified.
+The broader PR #4 transform contract then passed all 5 tests under the combined shared-helper + folding candidate, including array-sibling callback/exception preservation and the two independent fold cases. `cargo fmt`, package clippy with `-D warnings`, and `git diff --check` passed in run `31330277348`, job `93287319873`, exact head `2afcd4202303c373593aa319b8533fb5bdd3204b`.
 
-Leading bounded direction: remove or conservatively gate these `instanceof` folds unless SWC can prove the RHS uses ordinary built-in `instanceof` semantics.
+Evidence class: `target-executed`.
 
-## Owner 3 — minifier discarded-result lifecycle
+## Owner 3 — minifier Optimizer ignored-result reduction
 
-The minifier literal-member lane also remained RED after the shared helper candidate.
-
-Input contracts:
-
-```js
-[value instanceof Constructor][1];
-[value instanceof 2][1];
-```
-
-Expected extraction preserves each `instanceof` expression. Actual candidate output reduced both containing functions to empty bodies.
-
-This is independent of the known arithmetic/equality binary decomposition list. `ignore_return_value` decomposes arithmetic, bitwise/shift, equality, and relational binaries; `instanceof` is absent from that allowlist.
-
-The minifier does, however, run a broader multi-pass compressor/pure-optimizer lifecycle around the literal-member rewrite. The exact third deletion phase is still being isolated.
-
-Next discriminator: compare a direct discarded expression statement
+Target execution proved that direct discarded expressions disappear too:
 
 ```js
 value instanceof Constructor;
+value instanceof 2;
 ```
 
-against the same operation produced by out-of-bounds literal-member extraction. If the direct statement survives under `side_effects` while the extracted one disappears, the owner is in the member-rewrite lifecycle. If both disappear, trace the generic expression-statement/pure phase.
+so literal-member extraction is not the sole owner.
 
-Evidence: target candidate RED; exact phase still under investigation.
+The compressor runs `pure_optimizer` and then a separate main `optimizer` every iteration. A first candidate fenced the Pure pass's ignored-result helper; target execution showed that was insufficient. That negative result narrowed the owner correctly.
 
-## Classification blast radius
+The confirmed owner is `crates/swc_ecma_minifier/src/compress/optimize/mod.rs::Optimizer::ignore_return_value`.
 
-Making `instanceof` always effectful in `may_have_side_effects` is correctness-conservative but affects many destructive consumers beyond the two extractor call sites, including DCE and minifier decisions that consult whole-expression effects.
+That method first has an explicit allowlist described as operations that are side-effect-free; `in` and `instanceof` are absent. Later, a generic `Expr::Bin` fallback still recursively reduces every remaining binary expression to left/right effects and discards the operator step. This is the path that removes `instanceof`.
 
-That means a final repair needs both semantic GREEN and a small optimization/output comparison. The campaign should not promote a broad shared classification change solely because the three focused regressions pass.
+The maintainer-triggered January 2026 experiment for upstream issue #11246 independently targeted this same optimizer ignored-result seam for `in`, guarded by `pure_getters`. That is strong local precedent for preserving an operator here when its operator step remains observable.
+
+Candidate: insert a narrow `instanceof` arm before the generic binary fallback and return the whole expression unchanged. `in` remains outside this repair.
+
+Expanded PR #7 fixture covers:
+
+- two `instanceof` operations produced through literal-member extraction;
+- two direct discarded `instanceof` statements;
+- the same direct callback/invalid-RHS forms followed by `return` to distinguish tail placement;
+- strict equality as removable control.
+
+Target run `31330277284`, job `93287319517`, with the three-owner candidate produced exactly the desired semantic output: all six `instanceof` operations were retained and strict equality was removed. The job stopped only because the expected fixture contained blank lines between functions while the minifier emitted compact formatting, so clippy did not run.
+
+PR #7 expected output is now normalized at head `942c1871c1c186d7a3c03c84e86b0e10b374348d`. Clean minifier and integrated reruns are active on carrier head `521b4d4f9f70634508c4bea912956d20962d2db5`.
+
+Evidence class: `target-executed` semantic observation; clean GREEN receipt pending.
+
+## Existing regression-data inconsistency
+
+SWC already has a minifier fixture named `dont_change_in_or_instanceof_expressions` whose input contains invalid `1 instanceof 1` and `null instanceof null` expressions. Its pinned expected output preserves the invalid `in` expressions but deletes both invalid `instanceof` expressions.
+
+That expected output is inconsistent with the fixture name and with JavaScript's invalid-RHS `TypeError` behavior. A production candidate should update this existing regression expectation rather than treating its current snapshot as a reason to preserve the bug.
+
+Existing expression-simplifier unit tests likewise encode the old primitive-LHS / global-`Object` folds and will need intentional expectation updates in a full candidate.
+
+## Current upstream check
+
+The relevant current upstream `main` source was re-read on 2026-08-10. The unsafe expression-simplifier `instanceof` arm and the main Optimizer's generic binary ignored-result fallback are still present; no independent fix was found in recent `instanceof` commits.
+
+Duplicate search found no public SWC report specifically describing this `Symbol.hasInstance` / discarded-result `instanceof` family. This is a search result, not proof of absence.
+
+## Optimization consequence
+
+The current repair is deliberately conservative: without a proof that the RHS uses ordinary built-in `instanceof` semantics, `instanceof` remains observable.
+
+This will retain expressions that SWC currently removes or folds. That output growth is attached to cases where current optimization can change callback/exception semantics. A later optimization could recover safe cases only with a stronger proof about the RHS and `Symbol.hasInstance`; the current `ExprCtx` has no such proof.
 
 ## `in` remains separate
 
-Owned-fork PR #6 keeps the `in` operator on its own policy lane because existing upstream discussion ties `in` behavior to `pure_getters`. It should not broaden this `instanceof` repair.
+Owned-fork PR #6 keeps `in` on its own policy lane because existing maintainer discussion explicitly connects `in` preservation to `pure_getters`. The `instanceof` repair does not inherit that policy automatically.
 
 ## Current disposition
 
-**SHARED OWNER GREEN; DOWNSTREAM OWNERS STILL RED; BROADEN REPAIR MAP.**
+**THREE OWNERS CONFIRMED; TWO CLEAN GREEN; MINIFIER SEMANTIC GREEN / CLEAN RECEIPT RUNNING.**
 
 Next transitions:
 
-1. isolate the exact minifier phase that removes preserved `instanceof`;
-2. prepare a broadened candidate covering the shared helper plus the expression-simplifier fold and the confirmed minifier owner;
-3. rerun the utility, transform, and minifier contracts on exact owned-fork heads;
-4. require formatting/package clippy and exact-head diff review;
-5. measure the optimization consequence of always-effectful `instanceof` classification;
-6. keep `in` separate.
+1. accept the normalized PR #7 minifier receipt only if focused test, formatting, package clippy, and diff-check all pass on exact head `942c1871c1c186d7a3c03c84e86b0e10b374348d`;
+2. rerun the integrated four-lane candidate on current exact heads;
+3. prepare a canonical owned-fork candidate or retained patch with the three source owners plus intentional updates to old tests that encode the unsafe behavior;
+4. run broader `swc_ecma_transforms_optimization` and `swc_ecma_minifier` gates;
+5. measure output impact on representative safe/unsafe `instanceof` inputs;
+6. keep `in` separate;
+7. retire temporary execution workflows after receipts are transferred.
 
 No third-party upstream mutation occurred.
