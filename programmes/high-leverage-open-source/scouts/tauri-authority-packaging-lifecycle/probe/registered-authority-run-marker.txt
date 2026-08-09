@@ -1,1 +1,0 @@
-Trigger authority proof through the previously registered execution workflow path.
