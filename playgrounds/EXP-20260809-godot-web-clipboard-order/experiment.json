@@ -1,0 +1,40 @@
+{
+  "id": "EXP-20260809-godot-web-clipboard-order",
+  "owner": "GPT-5.6 Sol / workstream F",
+  "created": "2026-08-09",
+  "question": "What order do DOM keydown/paste, Godot ui_paste handling, synchronous clipboard_get(), and later clipboard cache updates occur on Web?",
+  "claim_scope": "integration",
+  "integration_context": "programmes/high-leverage-open-source/scouts/godot-web-automation-authority/notes/web-clipboard-paste.md",
+  "sources": [
+    {
+      "title": "Godot Web input and paste bridge",
+      "url": "https://github.com/godotengine/godot/blob/4173760fdf6c2c722e82e08cb58e55f34c9efd80/platform/web/js/libs/library_godot_input.js",
+      "revision": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "retrieved": "2026-08-09",
+      "claim": "keydown enters Godot synchronously then is prevented; paste event separately exposes event.clipboardData",
+      "evidence_label": "Documented"
+    },
+    {
+      "title": "Godot LineEdit/TextEdit paste paths",
+      "url": "https://github.com/godotengine/godot/blob/4173760fdf6c2c722e82e08cb58e55f34c9efd80/scene/gui/line_edit.cpp",
+      "revision": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "retrieved": "2026-08-09",
+      "claim": "ui_paste synchronously consumes DisplayServer.clipboard_get()",
+      "evidence_label": "Documented"
+    }
+  ],
+  "commands": [
+    "godot --path playgrounds/EXP-20260809-godot-web-clipboard-order/godot",
+    "Export the same project to Web, open browser devtools, copy A externally and paste, then copy B externally and paste again"
+  ],
+  "distinguishing_outcomes": [
+    "Godot ui_paste/clipboard_get precedes DOM paste carrying fresh text: retain ordering bug hypothesis.",
+    "DOM paste carrying fresh text precedes Godot ui_paste: stale value must come from a different cache/update path.",
+    "DOM paste never fires after Godot prevents keydown: async clipboard_get permission/timing is the only refresh path for shortcut paste.",
+    "Text control receives fresh B despite clipboard_get logging A: inspect a separate browser-native insertion path before any patch."
+  ],
+  "stop_condition": "Capture two external copy/paste cycles with DOM, Godot input, clipboard values, and resulting control text in Chromium and one second browser if available.",
+  "network_policy": "none",
+  "upstream_contact_authorization": false,
+  "state": "active"
+}
