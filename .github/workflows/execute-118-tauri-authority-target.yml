@@ -6,7 +6,7 @@ on:
       - 'execute/118-tauri-listener-panic'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   probe:
@@ -36,23 +36,32 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal
           rustup default stable
-          rustc --version
-          cargo --version
-      - name: Inject authority regressions
-        run: cat programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/authority_deny_scope_test.rs >> target-tauri/crates/tauri/src/ipc/authority.rs
-      - name: Require baseline cross-scope deny failures
-        working-directory: target-tauri
+          rustc --version | tee /tmp/rustc-version
+          cargo --version | tee /tmp/cargo-version
+      - name: Execute authority baseline and candidate
+        id: probe
         shell: bash
         run: |
+          set -u
+          cat programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/authority_deny_scope_test.rs >> target-tauri/crates/tauri/src/ipc/authority.rs
+
+          cd target-tauri
           set +e
           cargo test -p tauri --lib --no-default-features fieldwork_deny_scope_tests -- --nocapture 2>&1 | tee /tmp/authority-baseline.log
-          status=${PIPESTATUS[0]}
+          baseline_status=${PIPESTATUS[0]}
           set -e
-          test "$status" -ne 0
-          grep -F 'deny rule for another origin blocked local access' /tmp/authority-baseline.log
-          grep -F 'deny rule for another window blocked main-window access' /tmp/authority-baseline.log
-      - name: Apply scoped-deny candidate
-        run: |
+          cd ..
+
+          if [ "$baseline_status" -ne 0 ] \
+            && grep -Fq 'deny rule for another origin blocked local access' /tmp/authority-baseline.log \
+            && grep -Fq 'deny rule for another window blocked main-window access' /tmp/authority-baseline.log; then
+            baseline_gate=expected-failure
+          elif [ "$baseline_status" -eq 0 ]; then
+            baseline_gate=unexpected-pass
+          else
+            baseline_gate=wrong-failure
+          fi
+
           python3 - <<'PY'
           from pathlib import Path
           path = Path('target-tauri/crates/tauri/src/ipc/authority.rs')
@@ -77,6 +86,88 @@ jobs:
           path.write_text(text.replace(old, new, 1))
           PY
           git -C target-tauri diff --check
-      - name: Require candidate to pass all controls
-        working-directory: target-tauri
-        run: cargo test -p tauri --lib --no-default-features fieldwork_deny_scope_tests -- --nocapture
+          git -C target-tauri diff -- crates/tauri/src/ipc/authority.rs > /tmp/authority-candidate.patch
+
+          cd target-tauri
+          set +e
+          cargo test -p tauri --lib --no-default-features fieldwork_deny_scope_tests -- --nocapture 2>&1 | tee /tmp/authority-candidate.log
+          candidate_status=${PIPESTATUS[0]}
+          set -e
+          cd ..
+
+          echo "baseline_status=$baseline_status" >> "$GITHUB_OUTPUT"
+          echo "baseline_gate=$baseline_gate" >> "$GITHUB_OUTPUT"
+          echo "candidate_status=$candidate_status" >> "$GITHUB_OUTPUT"
+          if [ "$baseline_gate" = expected-failure ] && [ "$candidate_status" -eq 0 ]; then
+            echo 'probe_valid=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'probe_valid=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Checkout canonical ledger branch
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: execute/118-tauri-listener-panic
+          path: ledger
+      - name: Write durable receipt and candidate patch
+        env:
+          BASELINE_STATUS: ${{ steps.probe.outputs.baseline_status }}
+          BASELINE_GATE: ${{ steps.probe.outputs.baseline_gate }}
+          CANDIDATE_STATUS: ${{ steps.probe.outputs.candidate_status }}
+          PROBE_VALID: ${{ steps.probe.outputs.probe_valid }}
+        run: |
+          cp /tmp/authority-candidate.patch ledger/programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/authority-deny-scope-candidate.patch
+          export RUSTC_VERSION="$(cat /tmp/rustc-version)"
+          export CARGO_VERSION="$(cat /tmp/cargo-version)"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          valid = os.environ['PROBE_VALID'] == 'true'
+          receipt = {
+            'kind': 'target-executed' if valid else 'invalid-execution',
+            'date': '2026-08-09',
+            'fieldwork_run_id': os.environ['GITHUB_RUN_ID'],
+            'fieldwork_run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+            'execution_head': os.environ['GITHUB_SHA'],
+            'carrier_head': '${{ github.event.pull_request.head.sha }}',
+            'runner_os': os.environ['RUNNER_OS'],
+            'runner_arch': os.environ['RUNNER_ARCH'],
+            'rustc': os.environ['RUSTC_VERSION'],
+            'cargo': os.environ['CARGO_VERSION'],
+            'target_repository': 'tauri-apps/tauri',
+            'target_revision': '34ec18ba5e1acabebd66ae79d6fc746f63d8eb96',
+            'command': 'cargo test -p tauri --lib --no-default-features fieldwork_deny_scope_tests -- --nocapture',
+            'baseline': {
+              'exit_status': int(os.environ['BASELINE_STATUS']),
+              'gate': os.environ['BASELINE_GATE'],
+              'expected_assertions': [
+                'deny rule for another origin blocked local access',
+                'deny rule for another window blocked main-window access'
+              ]
+            },
+            'candidate': {
+              'patch': 'probe/authority-deny-scope-candidate.patch',
+              'test_exit_status': int(os.environ['CANDIDATE_STATUS'])
+            },
+            'claim': 'RuntimeAuthority::resolve_access currently treats any denied_commands entry for the command as a deny because map(...).is_some() discards the origin predicate result, and it also omits the denied rule window/webview selectors. The candidate requires a deny to match the origin and the same window/webview selector rule used by allows, while preserving a matching deny over a matching allow.',
+            'evidence_class': 'target-executed' if valid else 'none',
+            'limitations': [
+              'focused Linux unit regression only',
+              'debug resolve_access_message diagnostics use a separate broad denied_commands branch and are not changed by this candidate',
+              'dynamic capability mutation was not exercised end to end'
+            ],
+            'upstream_contact_authorized': False
+          }
+          out = Path('ledger/programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/authority-deny-scope-execution-receipt-20260809.json')
+          out.write_text(json.dumps(receipt, indent=2) + '\n')
+          PY
+          cd ledger
+          git config user.name 'fieldwork-execution-bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/authority-deny-scope-execution-receipt-20260809.json \
+            programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/authority-deny-scope-candidate.patch
+          git commit -m 'record Tauri authority deny-scope execution receipt'
+          git push origin HEAD:execute/118-tauri-listener-panic
+      - name: Enforce valid execution
+        if: steps.probe.outputs.probe_valid != 'true'
+        run: exit 1
