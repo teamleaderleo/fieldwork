@@ -1,0 +1,22 @@
+{
+  "kind": "target-test-prepared",
+  "date": "2026-08-09",
+  "target_repository": "tauri-apps/tauri",
+  "target_revision": "34ec18ba5e1acabebd66ae79d6fc746f63d8eb96",
+  "source_path": "crates/tauri/src/event/listener.rs",
+  "test": "probe/js_filter_panic_test.rs",
+  "current_behavior": [
+    "emit_js_filter acquires js_event_listeners with std::sync::Mutex::lock().unwrap().",
+    "It evaluates the user-supplied emit_filter predicate while that mutex guard is alive.",
+    "A predicate panic therefore unwinds through the guard and poisons js_event_listeners.",
+    "Later JS-listener operations unwrap that poisoned mutex and can panic instead of continuing."
+  ],
+  "candidate": "Catch the predicate unwind inside the mutex-guard lifetime, drop the guard normally, then resume the original panic. This is only a poison-recovery candidate.",
+  "evidence_class": "target-test-prepared",
+  "limitations": [
+    "No retained target execution receipt.",
+    "The candidate does not address a predicate reentering emit/listen paths while js_event_listeners is held; reentrancy requires a separate ownership change rather than catch_unwind alone.",
+    "Public emit_filter also evaluates the same predicate later against Rust handlers, so behavior across both domains must remain consistent."
+  ],
+  "upstream_contact_authorized": false
+}
