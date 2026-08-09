@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """Probe sparse memfd extent granularity for Cloud Hypervisor issue 8582.
 
-This is a no-network mechanism probe. It mirrors the relevant shape of
-vmm/src/sparse.rs unit-test fixtures: write selected extents, explicitly punch
-every gap, then enumerate the result with SEEK_DATA/SEEK_HOLE.
+This is a no-network mechanism probe. The live modes mirror the relevant
+shape of vmm/src/sparse.rs unit-test fixtures: write selected extents,
+explicitly punch every gap, then enumerate the result with
+SEEK_DATA/SEEK_HOLE.
 
-Run both modes:
+Run:
 
     python3 cloud-hypervisor-sparse-page-granularity.py fixed4k
     python3 cloud-hypervisor-sparse-page-granularity.py host
+    python3 cloud-hypervisor-sparse-page-granularity.py model16k
 
-`fixed4k` preserves the current upstream test assumption. `host` uses the
-runtime host page size as the fixture quantum. A 16 KiB-page runner is needed
-to distinguish the two modes experimentally.
+`fixed4k` preserves the current upstream fixture assumption. `host` uses the
+runtime host page size as the fixture quantum. `model16k` does not issue file
+system calls; it models what happens when the current 4 KiB-shaped writes and
+hole punches are observed at 16 KiB allocation/deallocation granularity. It
+exists to compare the issue's reported extent map with that hypothesis. Real
+16 KiB target execution is still required before promotion.
 """
 
 import ctypes
@@ -75,12 +80,56 @@ def collect_extents(fd: int, total: int) -> list[tuple[int, int]]:
     return extents
 
 
+def quantize_written_extents(
+    requested: list[tuple[int, int]], granularity: int
+) -> list[tuple[int, int]]:
+    """Model coarse allocation where partial-granule punches cannot deallocate.
+
+    Any granule touched by a data write remains allocated. This deliberately
+    models only the hypothesis relevant to the reported test shape; it is not
+    a general filesystem implementation.
+    """
+    touched: set[int] = set()
+    for offset, length in requested:
+        first = offset // granularity
+        last = (offset + length - 1) // granularity
+        touched.update(range(first, last + 1))
+
+    if not touched:
+        return []
+
+    extents: list[tuple[int, int]] = []
+    pages = sorted(touched)
+    start = end = pages[0]
+    for page in pages[1:]:
+        if page == end + 1:
+            end = page
+            continue
+        extents.append((start * granularity, (end - start + 1) * granularity))
+        start = end = page
+    extents.append((start * granularity, (end - start + 1) * granularity))
+    return extents
+
+
 def main() -> int:
     mode = sys.argv[1] if len(sys.argv) > 1 else "fixed4k"
-    if mode not in {"fixed4k", "host"}:
-        raise SystemExit("usage: probe.py [fixed4k|host]")
+    if mode not in {"fixed4k", "host", "model16k"}:
+        raise SystemExit("usage: probe.py [fixed4k|host|model16k]")
 
     host_page_size = os.sysconf("SC_PAGE_SIZE")
+
+    if mode == "model16k":
+        requested = [(4096 * 2, 4096), (4096 * 5, 4096 * 2)]
+        actual = quantize_written_extents(requested, 16384)
+        issue_reported = [(0, 32768)]
+        print(f"host_page_size={host_page_size}")
+        print("mode=model16k granularity=16384")
+        print(f"requested={requested}")
+        print(f"modelled={actual}")
+        print(f"issue_reported={issue_reported}")
+        print(f"matches_issue={actual == issue_reported}")
+        return 0
+
     quantum = 4096 if mode == "fixed4k" else host_page_size
     total = quantum * 16
     data = [
