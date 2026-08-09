@@ -1,0 +1,41 @@
+{
+  "id": "EXP-20260809-godot-web-focus-query",
+  "owner": "GPT-5.6 Sol / workstream F",
+  "created": "2026-08-09",
+  "question": "Does Window.has_focus() agree with focus_entered/focus_exited on Web, including the hidden-IME focus case?",
+  "claim_scope": "integration",
+  "integration_context": "programmes/high-leverage-open-source/scouts/godot-web-automation-authority/notes/web-focus-query.md",
+  "sources": [
+    {
+      "title": "Godot Web DisplayServer focus implementation",
+      "url": "https://github.com/godotengine/godot/blob/4173760fdf6c2c722e82e08cb58e55f34c9efd80/platform/web/display_server_web.cpp",
+      "revision": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "retrieved": "2026-08-09",
+      "claim": "Web window_is_focused() currently returns true unconditionally while focus events are forwarded from DOM canvas events",
+      "evidence_label": "Documented"
+    },
+    {
+      "title": "Godot Window focus event/query implementation",
+      "url": "https://github.com/godotengine/godot/blob/4173760fdf6c2c722e82e08cb58e55f34c9efd80/scene/main/window.cpp",
+      "revision": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "retrieved": "2026-08-09",
+      "claim": "FOCUS_OUT stores focused=false and emits focus_exited, while Window.has_focus() delegates to DisplayServer for native windows",
+      "evidence_label": "Documented"
+    }
+  ],
+  "commands": [
+    "godot --path playgrounds/EXP-20260809-godot-web-focus-query/godot",
+    "godot --headless --path playgrounds/EXP-20260809-godot-web-focus-query/godot --quit-after 2",
+    "Export the same project to Web and exercise canvas focus, browser focus loss, return, and LineEdit/IME focus"
+  ],
+  "distinguishing_outcomes": [
+    "Desktop focus_exited prints has_focus=false while Web focus_exited prints has_focus=true: retain the Web query mismatch.",
+    "Web focus_exited prints has_focus=false: source assumptions are incomplete; inspect browser/export glue before any candidate patch.",
+    "Focusing the Godot LineEdit causes a window focus exit: candidate semantics must account for hidden IME focus before implementation.",
+    "Focusing the Godot LineEdit preserves Godot window focus: canvas-or-IME is the leading query semantics."
+  ],
+  "stop_condition": "Capture one desktop control and one Web focus-out/return trace plus one Web LineEdit/IME trace.",
+  "network_policy": "none",
+  "upstream_contact_authorization": false,
+  "state": "active"
+}
