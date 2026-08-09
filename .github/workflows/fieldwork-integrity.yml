@@ -19,3 +19,102 @@ jobs:
         run: node scripts/test_interaction_references.js
       - name: Validate batch contracts
         run: python3 scripts/check_fieldwork_integrity.py
+
+  swc-mapped-arguments-bisect:
+    if: github.event_name == 'pull_request' && github.head_ref == 'fieldwork/execution/swc-mapped-arguments-bisect'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+    steps:
+      - name: Check out pinned SWC
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: 5bf27fd72e4667bac6cc86888b8facb8b91f8077
+          fetch-depth: 0
+
+      - name: Install SWC Rust toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal
+          rustup override set nightly-2026-04-10
+
+      - name: Prepare option matrix fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=crates/swc_ecma_minifier/tests/fixture/fieldwork
+          src=/tmp/mapped-input.js
+          cat > "$src" <<'JS'
+          function run(f) {
+              f();
+          }
+          function sloppy(b) {
+              run(() => {
+                  b = 2;
+              });
+              return arguments[0];
+          }
+          function strict(b) {
+              "use strict";
+              run(() => {
+                  b = 2;
+              });
+              return arguments[0];
+          }
+          console.log(sloppy(1), strict(1));
+          JS
+
+          mk() {
+            name=$1
+            json=$2
+            dir="$root/mapped-arguments-bisect-$name"
+            mkdir -p "$dir"
+            cp "$src" "$dir/input.js"
+            printf '%s\n' "$json" > "$dir/config.json"
+            printf '2 1\n' > "$dir/expected.stdout"
+          }
+
+          mk unused '{"defaults":false,"unused":true}'
+          mk reduce-vars '{"defaults":false,"reduce_vars":true}'
+          mk collapse-vars '{"defaults":false,"collapse_vars":true}'
+          mk side-effects '{"defaults":false,"side_effects":true}'
+          mk inline '{"defaults":false,"inline":true}'
+          mk unused-reduce-vars '{"defaults":false,"unused":true,"reduce_vars":true}'
+          mk unused-collapse-vars '{"defaults":false,"unused":true,"collapse_vars":true}'
+          mk reduce-collapse '{"defaults":false,"reduce_vars":true,"collapse_vars":true}'
+
+      - name: Run option matrix and capture optimized runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=crates/swc_ecma_minifier/tests/fixture/fieldwork
+          : > /tmp/matrix.tsv
+          for name in unused reduce-vars collapse-vars side-effects inline unused-reduce-vars unused-collapse-vars reduce-collapse; do
+            filter="mapped_arguments_bisect_${name//-/_}"
+            log="/tmp/$name.log"
+            set +e
+            UPDATE=1 cargo test -p swc_ecma_minifier --test compress -- "$filter" --nocapture >"$log" 2>&1
+            cargo_rc=$?
+            set -e
+            output="$root/mapped-arguments-bisect-$name/output.js"
+            if [ ! -f "$output" ]; then
+              echo -e "$name\tHARNESS_NO_OUTPUT\t$cargo_rc" | tee -a /tmp/matrix.tsv
+              tail -80 "$log"
+              continue
+            fi
+            runtime=$(node "$output" | tr '\n' ' ' | sed 's/ $//')
+            echo -e "$name\t$runtime\t$cargo_rc" | tee -a /tmp/matrix.tsv
+            echo "--- $name output.js ---"
+            cat "$output"
+          done
+          echo '=== MATRIX ==='
+          cat /tmp/matrix.tsv
+
+      - name: Assert matrix contains both good and bad discriminators
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q $'\t2 1\t' /tmp/matrix.tsv
+          grep -q $'\t1 1\t' /tmp/matrix.tsv
