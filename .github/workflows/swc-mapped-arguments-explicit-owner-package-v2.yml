@@ -1,0 +1,55 @@
+name: SWC mapped arguments explicit owner package v2
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    if: github.head_ref == 'fieldwork/execution/swc-mapped-arguments-explicit-owner'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+    steps:
+      - name: Check out durable Fieldwork patcher
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: fieldwork/swc/initial-scout
+          path: fieldwork-source
+          sparse-checkout: campaigns/0766-swc-mapped-arguments-aliasing/apply-explicit-ownership.py
+          sparse-checkout-cone-mode: false
+
+      - name: Check out exact SWC discriminator head
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: e9306342b4217ac259a5ad6840a7f7c1290e474c
+          path: swc
+          fetch-depth: 0
+
+      - name: Install SWC Rust toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+
+      - name: Apply exact durable candidate
+        run: |
+          python3 fieldwork-source/campaigns/0766-swc-mapped-arguments-aliasing/apply-explicit-ownership.py swc
+          cd swc
+          git diff --check
+          git diff -- crates/swc_ecma_minifier/src/program_data.rs \
+            crates/swc_ecma_minifier/src/usage_analyzer/analyzer/storage.rs \
+            crates/swc_ecma_minifier/src/usage_analyzer/analyzer/mod.rs \
+            crates/swc_ecma_minifier/src/compress/optimize/unused.rs
+
+      - name: Format and package clippy
+        working-directory: swc
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy -p swc_ecma_minifier --all-targets -- -D warnings
+          git diff --check
