@@ -1,0 +1,141 @@
+name: SWC instanceof broad diagnostic
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  optimization-full:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out deterministic candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: e8ec2506db64a2bdeca01ad221ce3a38d74a41c5
+          path: fieldwork-source
+          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout-cone-mode: false
+      - name: Check out current SWC head
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: 5bf27fd72e4667bac6cc86888b8facb8b91f8077
+          path: swc
+          fetch-depth: 0
+      - name: Install SWC toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+      - name: Apply candidate
+        run: |
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
+          cd swc
+          git diff --check
+          cargo fmt --all -- --check
+      - name: Diagnose full optimization package test
+        working-directory: swc
+        shell: bash
+        run: |
+          set +e
+          cargo test -p swc_ecma_transforms_optimization --no-fail-fast 2>&1 | tee /tmp/optimization-full.log
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "BROAD_DIAGNOSTIC_STATUS=$status"
+          echo "---- failed test names ----"
+          grep -E '^(test .* \.\.\. FAILED|failures:|    [A-Za-z0-9_:]+$)' /tmp/optimization-full.log | tail -n 120 || true
+          exit 0
+
+  minifier-exec:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out deterministic candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: e8ec2506db64a2bdeca01ad221ce3a38d74a41c5
+          path: fieldwork-source
+          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout-cone-mode: false
+      - name: Check out current SWC head
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: 5bf27fd72e4667bac6cc86888b8facb8b91f8077
+          path: swc
+          fetch-depth: 0
+      - name: Install SWC toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+      - name: Apply candidate
+        run: |
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
+          cd swc
+          git diff --check
+          cargo fmt --all -- --check
+      - name: Diagnose minifier execution tests
+        working-directory: swc/crates/swc_ecma_minifier
+        shell: bash
+        run: |
+          set +e
+          ./scripts/exec.sh 2>&1 | tee /tmp/minifier-exec.log
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "BROAD_DIAGNOSTIC_STATUS=$status"
+          echo "---- failed test names ----"
+          grep -E '^(test .* \.\.\. FAILED|failures:|    [A-Za-z0-9_:]+$)' /tmp/minifier-exec.log | tail -n 160 || true
+          exit 0
+
+  minifier-compress:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out deterministic candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: e8ec2506db64a2bdeca01ad221ce3a38d74a41c5
+          path: fieldwork-source
+          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout-cone-mode: false
+      - name: Check out current SWC head
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: 5bf27fd72e4667bac6cc86888b8facb8b91f8077
+          path: swc
+          fetch-depth: 0
+      - name: Install SWC toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+      - name: Apply candidate
+        run: |
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
+          cd swc
+          git diff --check
+          cargo fmt --all -- --check
+      - name: Diagnose complete compress fixture test
+        working-directory: swc
+        shell: bash
+        run: |
+          set +e
+          cargo test -p swc_ecma_minifier --no-fail-fast --test compress --features concurrent 2>&1 | tee /tmp/minifier-compress.log
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "BROAD_DIAGNOSTIC_STATUS=$status"
+          echo "---- failed test names ----"
+          grep -E '^(test .* \.\.\. FAILED|failures:|    [A-Za-z0-9_:]+$)' /tmp/minifier-compress.log | tail -n 200 || true
+          exit 0
