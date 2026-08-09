@@ -1,0 +1,113 @@
+name: SWC instanceof four-owner candidate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  focused:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: utils
+            source_head: 520d841148305d135db78912e6e176a67617b6d3
+            package: swc_ecma_utils
+            test_name: operator_effects
+            expect_red: false
+          - lane: dce
+            source_head: ee4c7c3289d58cdf7a9f8a856c1c86622a95fee6
+            package: swc_ecma_transforms_optimization
+            test_name: instanceof_dce
+            expect_red: true
+          - lane: transforms
+            source_head: 2afcd4202303c373593aa319b8533fb5bdd3204b
+            package: swc_ecma_transforms_optimization
+            test_name: operator_effects
+            expect_red: false
+          - lane: folding
+            source_head: 8bdbf2119bc93d3e6e20d0c97d61b7c0d43f1530
+            package: swc_ecma_transforms_optimization
+            test_name: instanceof_folding
+            expect_red: false
+          - lane: dead-branch
+            source_head: 35e2010575cc5f4bd87335a6096302b106f518a2
+            package: swc_ecma_transforms_optimization
+            test_name: instanceof_dead_branch
+            expect_red: true
+          - lane: minifier
+            source_head: 942c1871c1c186d7a3c03c84e86b0e10b374348d
+            package: swc_ecma_minifier
+            test_name: compress
+            expect_red: false
+
+    steps:
+      - name: Check out deterministic Fieldwork candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: e8ec2506db64a2bdeca01ad221ce3a38d74a41c5
+          path: fieldwork-source
+          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout-cone-mode: false
+
+      - name: Check out exact SWC discriminator
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: ${{ matrix.source_head }}
+          path: swc
+          fetch-depth: 0
+
+      - name: Install SWC Rust toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+
+      - name: Confirm exact source head
+        working-directory: swc
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ matrix.source_head }}"
+
+      - name: Run base RED discriminator
+        if: matrix.expect_red == true
+        working-directory: swc
+        shell: bash
+        run: |
+          set +e
+          cargo test -p "${{ matrix.package }}" --test "${{ matrix.test_name }}" -- --nocapture 2>&1 | tee /tmp/base-red.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "::error::Expected base discriminator to fail"
+            exit 41
+          fi
+          grep -q 'test result: FAILED' /tmp/base-red.log
+
+      - name: Apply four-owner candidate
+        run: |
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
+
+      - name: Validate focused candidate
+        working-directory: swc
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          cargo fmt --all -- --check
+          if [ "${{ matrix.lane }}" = "minifier" ]; then
+            cargo test -p swc_ecma_minifier --test compress -- instanceof_member_extraction --nocapture
+          else
+            cargo test -p "${{ matrix.package }}" --test "${{ matrix.test_name }}" -- --nocapture
+          fi
+          cargo clippy -p "${{ matrix.package }}" --all-targets -- -D warnings
+          git diff --check
