@@ -5,11 +5,11 @@
   "target_revision": "34ec18ba5e1acabebd66ae79d6fc746f63d8eb96",
   "source_path": "crates/tauri/src/ipc/authority.rs",
   "test": "probe/authority_deny_scope_test.rs",
-  "current_behavior": [
-    "resolve_access looks up denied_commands by command, maps the vector to any(origin.matches(context)), then calls is_some() on the Option. Therefore any deny entry for the command rejects access even when the origin predicate is false.",
-    "Denied ResolvedCommand values retain capability window and webview selectors, but resolve_access does not test those selectors before denying."
+  "source_observation": [
+    "resolve_access looks up denied_commands by command, maps the vector to any(origin.matches(context)), then calls is_some() on the Option. Therefore the code path returns the deny branch whenever any deny entry exists for the command, regardless of the boolean produced by the origin predicate.",
+    "Denied ResolvedCommand values retain capability window and webview selectors, but resolve_access does not test those selectors before taking the deny branch."
   ],
-  "intended_contract_evidence": [
+  "contract_evidence": [
     "Capability documentation describes capabilities as access boundaries for matching windows/webviews and optional remote URL contexts.",
     "Resolved::resolve copies capability context, window patterns, and webview patterns into both allowed_commands and denied_commands.",
     "The allow branch of resolve_access requires both origin and window/webview selector matches."
@@ -19,9 +19,9 @@
     "allow local/main plus deny local/admin: local/main should remain allowed",
     "allow local/main plus deny local/main: matching deny should still override the allow"
   ],
-  "candidate": "Replace the current map(...).is_some() deny check with is_some_and(...), requiring origin.matches(&cmd.context) and either a matching webview or window pattern, mirroring the allow selector semantics.",
+  "repair_sketch": "If the prepared controls reproduce the suspected over-denial, replace the current map(...).is_some() deny check with is_some_and(...), requiring origin.matches(&cmd.context) and either a matching webview or window pattern, mirroring the allow selector semantics.",
   "evidence_class": "target-test-prepared",
-  "execution_status": "GitHub Actions scheduling for the temporary carrier could not be made observable through the connected execution surface; do not treat the prepared test as executed.",
+  "execution_status": "No retained target execution receipt exists. Treat this as a source-supported suspicion with a runnable regression, not a reproduced bug or validated candidate.",
   "limitations": [
     "No target execution receipt yet.",
     "resolve_access_message has a separate debug diagnostic branch that also describes any command-level deny as explicit and would need review for message accuracy.",
