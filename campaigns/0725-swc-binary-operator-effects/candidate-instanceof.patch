@@ -1,91 +1,69 @@
-diff --git a/crates/swc_ecma_utils/src/lib.rs b/crates/swc_ecma_utils/src/lib.rs
---- a/crates/swc_ecma_utils/src/lib.rs
-+++ b/crates/swc_ecma_utils/src/lib.rs
-@@
-         Expr::Unary(UnaryExpr {
-             op: op!("delete"), ..
-         }) => true,
-         Expr::Unary(UnaryExpr { arg, .. }) => arg.may_have_side_effects(ctx),
-+        Expr::Bin(BinExpr {
-+            op: op!("instanceof"),
-+            ..
-+        }) => true,
-         Expr::Bin(BinExpr { left, right, .. }) => {
-             left.may_have_side_effects(ctx) || right.may_have_side_effects(ctx)
-         }
-@@
-             Expr::Bin(BinExpr { op, .. }) if op.may_short_circuit() => {
-                 to.push(Box::new(expr));
-             }
-+            Expr::Bin(BinExpr {
-+                op: op!("instanceof"),
-+                ..
-+            }) => {
-+                to.push(Box::new(expr));
-+            }
-             Expr::Bin(BinExpr { left, right, .. }) => {
-                 self.extract_side_effects_to(to, *left);
-                 self.extract_side_effects_to(to, *right);
-             }
+# REVIEW SKETCH — DO NOT APPLY THIS FILE
+#
+# The executable, source-drift-checked candidate is:
+#   campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+# at Fieldwork commit:
+#   e8ec2506db64a2bdeca01ad221ce3a38d74a41c5
+#
+# This file exists only as a compact human review map. It intentionally omits
+# large unchanged match-arm bodies. Do not use `git apply` on it and do not cite
+# it as the executed source candidate.
+#
+# Pinned/current upstream source:
+#   swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077
 
-diff --git a/crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs b/crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs
---- a/crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs
-+++ b/crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs
-@@
--        op!("instanceof") => {
--            // Remove the existing unconditional `instanceof` fold.
--            // A primitive LHS does not prove `false`: the RHS may throw or
--            // provide Symbol.hasInstance. Likewise, global Object can have
--            // its Symbol.hasInstance behavior replaced at runtime.
--            ...
--        }
-+        // `instanceof` is intentionally left unfurled here. Folding requires
-+        // a proof about the RHS's Symbol.hasInstance / callable behavior that
-+        // this simplifier does not currently carry.
+# Owner 1a — shared effect classification
+# crates/swc_ecma_utils/src/lib.rs
+#
+# Before the generic Expr::Bin { left, right, .. } arm, add:
+#
+#   Expr::Bin(BinExpr {
+#       op: op!("instanceof"),
+#       ..
+#   }) => true,
 
-diff --git a/crates/swc_ecma_transforms_optimization/src/simplify/branch/mod.rs b/crates/swc_ecma_transforms_optimization/src/simplify/branch/mod.rs
---- a/crates/swc_ecma_transforms_optimization/src/simplify/branch/mod.rs
-+++ b/crates/swc_ecma_transforms_optimization/src/simplify/branch/mod.rs
-@@
- fn ignore_result(e: Box<Expr>, drop_str_lit: bool, ctx: ExprCtx) -> Option<Box<Expr>> {
-     match *e {
-@@
-+        Expr::Bin(bin) if bin.op == op!("instanceof") => Some(bin.into()),
-+
-         Expr::Bin(BinExpr {
-             span,
-             left,
-             op,
-             right,
-         }) if !op.may_short_circuit() => {
-             let left = ignore_result(left, true, ctx);
-             let right = ignore_result(right, true, ctx);
+# Owner 1b — shared effect extraction
+# crates/swc_ecma_utils/src/lib.rs
+#
+# After short-circuit binary preservation and before generic child extraction,
+# preserve the whole expression:
+#
+#   Expr::Bin(BinExpr {
+#       op: op!("instanceof"),
+#       ..
+#   }) => {
+#       to.push(Box::new(expr));
+#   }
 
-diff --git a/crates/swc_ecma_minifier/src/compress/optimize/mod.rs b/crates/swc_ecma_minifier/src/compress/optimize/mod.rs
---- a/crates/swc_ecma_minifier/src/compress/optimize/mod.rs
-+++ b/crates/swc_ecma_minifier/src/compress/optimize/mod.rs
-@@
-             Expr::Cond(CondExpr {
-                 test, cons, alt, ..
-             }) => {
-                 ...
-             }
-+
-+            Expr::Bin(BinExpr {
-+                op: op!("instanceof"),
-+                ..
-+            }) => {
-+                return Some(e.take());
-+            }
- 
-             Expr::Bin(BinExpr {
-                 span,
-                 left,
-                 right,
-                 #[cfg(feature = "debug")]
-                 op,
-                 ..
-             }) => {
-                 // Existing generic binary ignored-result reduction.
-                 ...
-             }
+# Owner 2 — expression-simplifier value folding
+# crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs
+#
+# Remove the current unconditional `op!("instanceof")` match arm. Its
+# primitive-LHS -> false and object-like/global-Object -> true proofs do not
+# account for invalid RHS throws or custom Symbol.hasInstance behavior.
+
+# Owner 3 — minifier main Optimizer ignored-result reduction
+# crates/swc_ecma_minifier/src/compress/optimize/mod.rs
+#
+# Before the generic Expr::Bin ignored-result fallback, add:
+#
+#   Expr::Bin(BinExpr {
+#       op: op!("instanceof"),
+#       ..
+#   }) => {
+#       return Some(e.take());
+#   }
+
+# Owner 4 — dead-branch remover local ignored-result reduction
+# crates/swc_ecma_transforms_optimization/src/simplify/branch/mod.rs
+#
+# Before the generic non-short-circuit binary arm in ignore_result, add:
+#
+#   Expr::Bin(bin) if bin.op == op!("instanceof") => Some(bin.into()),
+
+# Evidence boundary
+#
+# Consolidated focused run 31331416981 applied the exact executable candidate
+# across six exact owned-fork discriminator heads. All six jobs passed; DCE and
+# dead-branch lanes required base RED before candidate GREEN. Candidate jobs
+# also required cargo fmt, package clippy -D warnings, and git diff --check.
