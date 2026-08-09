@@ -7,6 +7,7 @@ const ACTIONS = [
 	{"kind": "move", "id": "beta", "dx": -3, "dy": 4},
 	{"kind": "move", "id": "alpha", "dx": 1, "dy": -5},
 ]
+const ThreadProbe = preload("res://thread_probe.gd")
 
 var canonical_tick := 0
 var action_index := 0
@@ -16,9 +17,15 @@ var objects: Dictionary = {
 	"beta": {"x": 10, "y": -2, "state": 1},
 }
 var presentation_root: Node2D
+var thread_probe: Node
 
 
 func _ready() -> void:
+	thread_probe = ThreadProbe.new()
+	thread_probe.name = "ThreadProbe"
+	thread_probe.process_thread_group = Node.PROCESS_THREAD_GROUP_SUB_THREAD
+	add_child(thread_probe)
+
 	_build_presentation()
 	get_tree().physics_frame.connect(_on_physics_frame)
 
@@ -36,9 +43,10 @@ func _on_physics_frame() -> void:
 	else:
 		_sync_presentation()
 
-	# SceneTree flushes deferred calls after ordinary node physics processing.
-	# The receipt therefore observes the canonical state after the presentation
-	# nodes have had their physics callbacks for this tick.
+	# SceneTree joins sub-thread process groups before returning from its node
+	# processing pass, then flushes the global deferred-message queue. This
+	# receipt should therefore observe both ordinary and sub-thread physics
+	# completion for this canonical tick.
 	call_deferred("_emit_receipt", canonical_tick)
 
 
@@ -133,17 +141,25 @@ func _emit_receipt(receipt_tick: int) -> void:
 	var canonical := _canonical_text()
 	var digest := canonical.sha256_text()
 	var projection_ok := _projection_matches_canonical()
+	var thread_probe_count := int(thread_probe.physics_count)
+	var thread_probe_ok := thread_probe_count == canonical_tick
 
-	print("AUTH_RECEIPT tick=%d hash=%s canonical=%s projection_ok=%s generation=%d" % [
+	print("AUTH_RECEIPT tick=%d hash=%s canonical=%s projection_ok=%s generation=%d thread_probe_count=%d thread_probe_ok=%s" % [
 		canonical_tick,
 		digest,
 		canonical,
 		str(projection_ok),
 		rebuild_generation,
+		thread_probe_count,
+		str(thread_probe_ok),
 	])
 
 	if !projection_ok:
 		get_tree().quit(4)
+		return
+
+	if !thread_probe_ok:
+		get_tree().quit(5)
 		return
 
 	if canonical_tick == ACTIONS.size():
