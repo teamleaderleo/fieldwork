@@ -1,0 +1,73 @@
+name: execute-118-tauri-authority-proof
+
+on:
+  push:
+    branches:
+      - 'execute/118-tauri-listener-panic'
+
+permissions:
+  contents: read
+
+jobs:
+  authority-deny-scope:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: tauri-apps/tauri
+          ref: 34ec18ba5e1acabebd66ae79d6fc746f63d8eb96
+          path: target-tauri
+          persist-credentials: false
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential curl libappindicator3-dev libgtk-3-dev librsvg2-dev \
+            libssl-dev libwebkit2gtk-4.1-dev wget
+      - name: Pin Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --version
+          cargo --version
+      - name: Inject authority regressions
+        run: cat programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/authority_deny_scope_test.rs >> target-tauri/crates/tauri/src/ipc/authority.rs
+      - name: Require baseline cross-scope deny failures
+        working-directory: target-tauri
+        shell: bash
+        run: |
+          set +e
+          cargo test -p tauri --lib --no-default-features fieldwork_deny_scope_tests -- --nocapture 2>&1 | tee /tmp/base.log
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -F 'deny rule for another origin blocked local access' /tmp/base.log
+          grep -F 'deny rule for another window blocked main-window access' /tmp/base.log
+      - name: Apply candidate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('target-tauri/crates/tauri/src/ipc/authority.rs'); s=p.read_text()
+          old="""    if self
+      .denied_commands
+      .get(command)
+      .map(|resolved| resolved.iter().any(|cmd| origin.matches(&cmd.context)))
+      .is_some()
+    {
+"""
+          new="""    if self.denied_commands.get(command).is_some_and(|resolved| {
+      resolved.iter().any(|cmd| {
+        origin.matches(&cmd.context)
+          && (cmd.webviews.iter().any(|w| w.matches(webview))
+            || cmd.windows.iter().any(|w| w.matches(window)))
+      })
+    }) {
+"""
+          if old not in s: raise SystemExit('deny branch not found')
+          p.write_text(s.replace(old,new,1))
+          PY
+          git -C target-tauri diff --check
+      - name: Require candidate controls to pass
+        working-directory: target-tauri
+        run: cargo test -p tauri --lib --no-default-features fieldwork_deny_scope_tests -- --nocapture
