@@ -2,11 +2,11 @@
 
 ## In simple words
 
-Campaign #725 is investigating a shared SWC effect-analysis boundary. Source reading now shows that binary operator behavior can be lost twice: first when `may_have_side_effects` ignores the operator, and again when `extract_side_effects_to` replaces a non-short-circuit binary expression with effects extracted only from its operands.
+Campaign #725 is investigating a shared SWC effect-analysis boundary. Source reading now shows three places where binary operator behavior can disappear: `may_have_side_effects` ignores the operator, `extract_side_effects_to` reduces most binary expressions to operand effects, and the minifier's `ignore_return_value` independently decomposes a broad allowlist when an expression result is unused.
 
-The operator matrix now covers callbacks, coercion, and exceptions across the main non-short-circuit families. A concrete expression-simplifier consumer also uses the shared extractor while folding array element access, giving the campaign an end-to-end path where an operator-originated effect can disappear.
+The campaign now has three owned-fork discriminators: `teamleaderleo/swc#2` for the shared utility contract, `teamleaderleo/swc#4` for expression-simplifier array-member folding, and `teamleaderleo/swc#5` for ordinary minifier expression statements. PR #5 includes a runtime oracle that expects discarded `+` and loose `==` coercions to execute and mixed BigInt/Number `+` to throw, while strict equality remains a negative control.
 
-The owned fork contract draft is `teamleaderleo/swc#2`. Its test packet now checks whole-expression classification, effect extraction, operator exceptions, and primitive controls. Rust execution remains pending.
+Rust execution remains pending because the connected GitHub interface reports no workflow runs for the current research heads.
 
 - Campaign issue: #725
 - Programme: #15
@@ -15,8 +15,9 @@ The owned fork contract draft is `teamleaderleo/swc#2`. Its test packet now chec
 - State: `claimed`
 - Worker: GPT-5.6 Sol
 - Public source pin: `swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077`
-- Owned contract draft: `teamleaderleo/swc#2`
-- Owned contract head: `b5c1ef85cc8e7064fbc747c114b515df37a31a44`
+- Utility contract: `teamleaderleo/swc#2` at `b5c1ef85cc8e7064fbc747c114b515df37a31a44`
+- Expression-simplifier contract: `teamleaderleo/swc#4` at `f37dc8580458869eed38fc398b96d82976963745`
+- Minifier discarded-result contract: `teamleaderleo/swc#5` at `7af17fada62c66d66dc96d981f4c2ef1dba43765`
 - Evidence: `source-read`, `model-executed`, `target-test-prepared`
 - Upstream contact: prohibited for automated workers
 
@@ -33,7 +34,7 @@ If the result is discarded, the operator step still has to happen whenever
 JavaScript semantics make that step observable.
 ```
 
-Both classification and extraction must preserve that invariant.
+Classification, extraction, and value-discarding optimization all need to preserve that invariant.
 
 ## Source findings
 
@@ -47,9 +48,9 @@ Both classification and extraction must preserve that invariant.
 
 ### Minifier value-discarding path
 
-`swc_ecma_minifier::compress::pure::misc::ignore_return_value` has its own reducible operator allowlist. It includes arithmetic, exponentiation, bitwise/shift, loose/strict equality, and relational operators. It recursively ignores the left and right values and can drop the whole expression when both children disappear.
+`swc_ecma_minifier::compress::pure::misc::ignore_return_value` has its own reducible operator allowlist covering arithmetic, exponentiation, bitwise/shift, loose and strict equality, and relational operators. It recursively ignores the left and right values and can drop the whole expression when both children disappear.
 
-This is a separate consequential consumer from the shared extractor and needs its own regression fence.
+`Pure::visit_mut_expr_stmt` sends ordinary expression statements through `ignore_return_value`, so the consequence reaches normal minification directly. A discarded expression such as an object-coercing `+`, loose `==`, or `1n + 1` can lose behavior even without the expression-simplifier array-folding path.
 
 ### Expression-simplifier consumer
 
@@ -64,61 +65,63 @@ That produces a concrete candidate reproduction:
 ][1]
 ```
 
-The original must execute the conversion before yielding `42`. Extracting only the binary operands can erase the conversion step and leave `42` alone.
+The original executes the conversion before yielding `42`. Extracting only the binary operands can erase the conversion step and leave `42` alone.
 
-## Executed operator matrix
+## Executed JavaScript evidence
 
-A Node v22.16.0 probe used an object with `Symbol.toPrimitive` and recorded callback execution.
+Node v22.16.0 probes established operator-originated behavior across the main non-short-circuit families. Object conversion occurs for arithmetic, exponentiation, bitwise/shift, relational comparison, and loose equality; `in` performs property-key conversion and can invoke Proxy `has`; `instanceof` can invoke `Symbol.hasInstance`; strict equality performs no object-to-primitive conversion.
 
-| Family | Operators probed | Operator callback observed |
-| --- | --- | --- |
-| addition | `+` | yes, `default` hint |
-| numeric arithmetic | `- * / % **` | yes, `number` hint |
-| bitwise and shifts | `& | ^ << >> >>>` | yes, `number` hint |
-| relational | `< <= > >=` | yes, `number` hint |
-| loose equality | `== !=` | yes, `default` hint |
-| strict equality | `=== !==` | no |
-| property presence | `in` | yes, property-key conversion; Proxy `has` is an additional hook |
-| instance test | `instanceof` | yes with `Symbol.hasInstance` |
+Pure-literal exception controls established mixed BigInt/Number `TypeError`s, BigInt division/remainder-by-zero and negative-exponent `RangeError`s, BigInt unsigned-shift `TypeError`, and invalid-right-operand `TypeError`s for `in` and `instanceof`.
 
-Pure-literal exception controls also established:
-
-- mixed BigInt/Number arithmetic, exponentiation, bitwise, and signed-shift operations throw `TypeError`;
-- BigInt unsigned right shift throws `TypeError`;
-- BigInt division or remainder by zero throws `RangeError`;
-- BigInt negative exponentiation throws `RangeError`;
-- invalid right operands for `in` and `instanceof` throw `TypeError`.
-
-A second model compared whole evaluation with child-only evaluation. `obj + 1` ran `valueOf` while evaluating `obj` then `1` did not; `1n + 1` threw while evaluating `1n` then `1` did not; `'x' in proxy` ran the Proxy `has` trap while evaluating the two operands separately did not.
+A direct discarded-result probe re-confirmed the minifier contract independently of SWC: discarded object `+` and loose `==` expressions still called `Symbol.toPrimitive`, and discarded `1n + 1` still threw `TypeError`.
 
 Evidence class: `model-executed`.
 
 ## Negative controls
 
-Strict equality is the strongest operator-level negative control because it compares without object-to-primitive conversion. Primitive arithmetic is also safe when the operand types and values rule out conversion hooks and numeric-domain exceptions.
+Strict equality is the strongest operator-level negative control because it compares without object-to-primitive conversion. Primitive arithmetic is also safe when operand types and values rule out conversion hooks and numeric-domain exceptions.
 
-Short-circuit logical operators already have a distinct extractor branch that preserves the whole expression, so they should remain separate from the non-short-circuit repair.
+Short-circuit logical operators already have a distinct extractor branch that preserves the whole expression, so they remain separate from this non-short-circuit repair.
 
-## Prepared target contract
+## Prepared target contracts
 
-`teamleaderleo/swc#2` now asks the utility layer to preserve:
+### Utility layer — `teamleaderleo/swc#2`
 
-- `in` and `instanceof` operator callbacks;
-- object coercion through arithmetic, relational comparison, and loose equality;
-- pure-literal operator exceptions such as `1 in 2`, `1 instanceof 2`, and `1n + 1`;
-- the complete binary expression when `extract_side_effects_to` is asked to retain those effects.
+Pins whole-expression side-effect classification and extraction for `in`, `instanceof`, object coercion, operator exceptions, and primitive negative controls.
 
-Primitive `1 + 2` and `1 === 2` remain extraction controls.
+### Expression simplifier — `teamleaderleo/swc#4`
+
+Pins discarded array-sibling `+`, loose `==`, and mixed BigInt/Number exception behavior through `ExprCtx::extract_side_effects_to`, with strict equality as the drop control.
+
+### Minifier statement discard — `teamleaderleo/swc#5`
+
+Adds a `side_effects`-only minifier fixture. The input records `valueOf` callbacks for discarded `+` and loose `==`, catches the `1n + 1` exception into state, includes a strict-equality negative control, and prints the result. The runtime oracle expects:
+
+```text
+plus,eq true
+```
+
+The expected optimized output retains the two coercing expressions and the throwing BigInt expression while dropping the inert strict-equality expression.
+
+All three branches are `target-test-prepared`; no target-native RED receipt is claimed yet.
+
+## Upstream context
+
+Upstream issue `swc-project/swc#11246` remains open for `in` removal. A maintainer-triggered automation branch in January 2026 prepared a narrow `in` / `pure_getters` correction, but the campaign evidence shows the underlying effect contract spans more operators and multiple consumers.
 
 ## Current repair decision
 
 A one-line `in` special case is insufficient. The repair needs a shared answer to two questions:
 
 1. can this particular operator evaluation itself be observable after child evaluation?
-2. if yes, must effect extraction retain the whole binary expression?
+2. if yes, must classification, extraction, or result-discarding keep the whole operation?
 
-A type-aware shared helper is currently the leading direction because both classification and extraction need the same answer. The implementation should begin conservatively and use established type/value proofs only where they rule out callbacks and exceptions.
+A shared operator-aware predicate remains the leading direction. It should begin conservatively and use established type/value proofs only where they rule out callbacks and exceptions. The minifier's independent `ignore_return_value` path needs to consume the same semantic answer or be fenced equivalently.
+
+## Execution status
+
+The inherited SWC `CI.yml` listens to pull-request opened/reopened/synchronize events. The connected GitHub interface reports no workflow runs for PRs #2, #4, or #5, including the new PR #5 head. No `target-executed` or `full-gate` claim is made.
 
 ## Current disposition
 
-**EXECUTE** the expanded utility contract and add an expression-simplifier end-to-end regression before promoting implementation. Measure any compression loss if the shared operator guard becomes more conservative.
+**EXECUTE** the three prepared contracts on the pinned target revision. Require base RED evidence for the utility, expression-simplifier, and ordinary minifier paths before production implementation. Then apply a bounded operator-aware repair, obtain GREEN receipts, and measure compression loss from any conservative retention before promotion.
