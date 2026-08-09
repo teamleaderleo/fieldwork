@@ -27,3 +27,65 @@ diff --git a/crates/swc_ecma_utils/src/lib.rs b/crates/swc_ecma_utils/src/lib.rs
                  self.extract_side_effects_to(to, *left);
                  self.extract_side_effects_to(to, *right);
              }
+
+diff --git a/crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs b/crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs
+--- a/crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs
++++ b/crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs
+@@
+-        op!("instanceof") => {
+-            // Remove the existing unconditional `instanceof` fold.
+-            // A primitive LHS does not prove `false`: the RHS may throw or
+-            // provide Symbol.hasInstance. Likewise, global Object can have
+-            // its Symbol.hasInstance behavior replaced at runtime.
+-            ...
+-        }
++        // `instanceof` is intentionally left unfurled here. Folding requires
++        // a proof about the RHS's Symbol.hasInstance / callable behavior that
++        // this simplifier does not currently carry.
+
+diff --git a/crates/swc_ecma_transforms_optimization/src/simplify/branch/mod.rs b/crates/swc_ecma_transforms_optimization/src/simplify/branch/mod.rs
+--- a/crates/swc_ecma_transforms_optimization/src/simplify/branch/mod.rs
++++ b/crates/swc_ecma_transforms_optimization/src/simplify/branch/mod.rs
+@@
+ fn ignore_result(e: Box<Expr>, drop_str_lit: bool, ctx: ExprCtx) -> Option<Box<Expr>> {
+     match *e {
+@@
++        Expr::Bin(bin) if bin.op == op!("instanceof") => Some(bin.into()),
++
+         Expr::Bin(BinExpr {
+             span,
+             left,
+             op,
+             right,
+         }) if !op.may_short_circuit() => {
+             let left = ignore_result(left, true, ctx);
+             let right = ignore_result(right, true, ctx);
+
+diff --git a/crates/swc_ecma_minifier/src/compress/optimize/mod.rs b/crates/swc_ecma_minifier/src/compress/optimize/mod.rs
+--- a/crates/swc_ecma_minifier/src/compress/optimize/mod.rs
++++ b/crates/swc_ecma_minifier/src/compress/optimize/mod.rs
+@@
+             Expr::Cond(CondExpr {
+                 test, cons, alt, ..
+             }) => {
+                 ...
+             }
++
++            Expr::Bin(BinExpr {
++                op: op!("instanceof"),
++                ..
++            }) => {
++                return Some(e.take());
++            }
+ 
+             Expr::Bin(BinExpr {
+                 span,
+                 left,
+                 right,
+                 #[cfg(feature = "debug")]
+                 op,
+                 ..
+             }) => {
+                 // Existing generic binary ignored-result reduction.
+                 ...
+             }
