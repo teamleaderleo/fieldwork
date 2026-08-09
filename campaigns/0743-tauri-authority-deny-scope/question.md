@@ -1,6 +1,6 @@
 # Campaign 0743: Tauri authority deny scope
 
-State: `investigating — RED target-executed; exact-pin GREEN validated; current-dev replay active`
+State: `investigating — repair validated; packet audit active`
 
 Issue: #743  
 Parent scout: #118  
@@ -12,57 +12,82 @@ Upstream contact authorized: `false`
 
 ## In simple words
 
-Tauri retains origin, window, and webview scope on both allowed and denied commands, but the runtime deny branch discards that scope and denies whenever any deny entry exists for the command. The exact target reproduces that over-denial across Linux, Windows, and macOS. The narrow scope-symmetric repair now passes a focused RED→GREEN comparison on the exact source, including diagnostic consistency and matching-deny precedence.
+Tauri resolves allow and deny entries with origin, window, and webview scope, but the runtime deny path discards that scope and treats any deny entry for a command as authoritative. The defect reproduces across Linux, Windows, and macOS. A narrow repair that applies the already-shipped allow applicability rule symmetrically to denies is GREEN on both the exact reproduced source and current public `dev`.
 
-The same repair is being replayed against the exact current public `dev` head with rustfmt, resolver-level capability controls, nearby authority tests, and clippy.
+The remaining work is packet audit: retain the exact tested diff, a normal bugfix change entry, and independent review without broadening the ACL design.
 
 ## Question
 
 Do deny rules apply only when their execution context and window/webview selectors match the caller, while a genuinely matching deny still overrides a matching allow?
 
-## Current evidence
+## Evidence
 
-- `source-established`: allow and deny entries use the same resolver and carry the same execution-context, window, and webview metadata.
-- `target-executed RED`: owned-fork PR `teamleaderleo/tauri#1` runs deterministic controls against the unmodified exact target.
-- Tauri core matrix run `31328253164` reproduced the same result on all-features Linux, Windows, and macOS jobs: unrelated-origin and unrelated-window controls fail, while matching-deny precedence passes. Corresponding no-default desktop jobs and unrelated build jobs remain green.
-- Focused RED run `31328253162` independently reproduces the two over-denial controls.
-- `target-executed GREEN`: focused run `31328772079` applies the candidate on the exact source, passes all three unchanged behavior controls (`3 passed / 0 failed`), and passes the separate diagnostic-consistency regression.
-- `target-patch-prepared`: owned-fork PR `teamleaderleo/tauri#3` retains the candidate, deterministic rewrite script, and patch artifact.
-- The candidate factors one `resolved_command_matches` predicate equivalent to `origin matches AND (webview matches OR window matches)` and uses it for allow, deny, and debug deny selection.
-- The diagnostic path filters deny references through the same predicate, preserves the existing wording for a genuinely matching deny, and no longer labels an unrelated deny as explicit.
-- A rustfmt review found one source-layout difference only; the generator was corrected without semantic change.
-- Read-only refresh pins current public `dev` at `2f11853d2108d2790917c68f10de7a4d01a6d70f`; the authority code remains unchanged from the reproduced source.
-- Owned-fork PR `teamleaderleo/tauri#5` replays the candidate on an isolated copy of that exact current head. Candidate application and rustfmt already pass there.
-- The current-dev carrier adds resolver-level tests through `Capability` JSON semantics → permission `Manifest` → `Resolved::resolve` → `RuntimeAuthority::resolve_access`, covering unrelated remote-origin and unrelated-window denies.
-- Current upstream issue/PR searches found no active record owning this exact deny-scope defect or the misleading explicit-deny diagnostic.
+### RED
 
-## Candidate invariants
+- focused run `31328253162`: unrelated-origin and unrelated-window controls fail; matching-deny precedence passes;
+- core matrix run `31328253164`: same result on all-features Linux, Windows, and macOS while nearby existing tests pass.
 
-1. A deny scoped to another origin must not veto this caller.
-2. A deny scoped to another window or webview must not veto this caller.
-3. A deny matching this caller must still override a matching allow.
-4. Allow and deny selection must interpret `ResolvedCommand` scope identically.
-5. Debug authorization explanations must use the same deny applicability rule as runtime authorization.
-6. Explicit-deny diagnostics must cite only deny entries that actually match the caller.
-7. The repair must not broaden into ACL schema or scope redesign.
+### Exact-pin GREEN
 
-## Current-dev discriminator
+Run `31328772079` applies the candidate to `34ec18ba...` and passes:
 
-Require on the current-dev carrier:
+- all unchanged behavior controls;
+- matching-deny precedence;
+- diagnostic consistency.
 
-- rustfmt passes after deterministic candidate application;
-- direct behavior controls pass;
-- resolver-level capability controls pass;
-- diagnostic consistency passes;
-- nearby `ipc::authority::tests` pass;
-- focused clippy passes.
+### Current-dev GREEN
 
-After that, add explicit webview-scope and mixed-deny controls, retain a normal `tauri` `patch:bug` change entry for the human packet, and complete independent exact-diff review.
+Current public `dev` is `2f11853d...`; the authority implementation is unchanged from the reproduced source.
 
-## Stop conditions
+Run `31329554031` passes:
 
-- target-executed reproduction plus exact-pin and current-dev repair validation;
-- a current-dev or edge-control failure exposing a missed selector, diagnostic, or precedence invariant;
-- exact overlap with newer work that already owns the behavior.
+- deterministic candidate application;
+- rustfmt;
+- direct origin/window/webview controls;
+- mixed deny list with unrelated plus matching denies;
+- resolver-level capability controls through `Capability` → `Manifest` → `Resolved::resolve` → `RuntimeAuthority`;
+- diagnostic consistency;
+- diagnostic reference provenance;
+- nearby `ipc::authority::tests`;
+- focused clippy with warnings denied.
 
-Do not broaden into an ACL redesign and do not contact upstream.
+The edge suite establishes that unrelated origin/window/webview denies do not veto a caller, while a matching deny remains authoritative even when unrelated denies are present.
+
+## Candidate invariant
+
+One internal applicability predicate:
+
+```text
+origin matches command context
+AND
+(webview selector matches OR window selector matches)
+```
+
+Use it for:
+
+- deny selection;
+- allow selection;
+- debug deny selection.
+
+The diagnostic path cites only deny entries that actually matched and preserves existing wording for a genuine explicit deny.
+
+## Packet audit
+
+Owned-fork run `31329737969` adds:
+
+- `git diff --check` on the transformed source;
+- exact printed `authority.rs` diff;
+- the already validated formatting, behavior, diagnostic, authority-unit, and clippy gates.
+
+The human-facing packet should contain only:
+
+- shared matcher and three call-site uses;
+- regression tests;
+- `tauri` `patch:bug` change entry;
+- exact receipts and limitations.
+
+Research transformers, runner workflows, and execution markers are evidence carriers only and must not enter the human patch.
+
+## Stop condition
+
+Stop technical expansion after the exact-diff receipt and independent diff review unless either exposes a semantic contradiction. No automated upstream interaction is authorized or performed.
