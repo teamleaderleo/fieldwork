@@ -2,9 +2,11 @@
 
 ## In simple words
 
-Campaign #719 now has two distinct Wasmtime filesystem-cache recovery discriminators. PR `teamleaderleo/swc#1` covers an abandoned legacy temporary file that blocks final publication. PR `teamleaderleo/swc#3` covers a rejected final cache artifact that Wasmtime leaves behind even though the Wasmer sibling explicitly deletes rejected cache files.
+Campaign #719 has two distinct Wasmtime filesystem-cache recovery discriminators and a stronger sibling implementation precedent, but it still lacks target-native execution.
 
-The publication candidate remains draft and target-test-prepared. The rejected-cache branch is test-only so the second defect stays independently reviewable until target-native execution is available.
+Owned-fork PR `teamleaderleo/swc#1` covers an abandoned deterministic temporary file that can block final cache publication. PR `teamleaderleo/swc#3` covers a rejected final cache artifact that Wasmtime leaves behind. The current Wasmer backend handles the second lifecycle explicitly by deleting a cache file when module deserialization rejects it.
+
+A temporary Fieldwork execution carrier was prepared to obtain RED -> GREEN receipts for both cases. The carrier workflow was added on owned Fieldwork PR #761, but the control-plane transition needed to schedule the modified workflow was blocked by the connected tool safety layer. The carrier is closed and no cache test execution is claimed from it.
 
 - Campaign issue: #719
 - Programme: #15
@@ -12,43 +14,105 @@ The publication candidate remains draft and target-test-prepared. The rejected-c
 - Target hub: #717
 - State: `claimed`
 - Worker: GPT-5.6 Sol
-- Public source pin: `swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077`
+- Public source pin/current upstream main: `swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077`
 - Stale-temp candidate: `teamleaderleo/swc#1` at `bce1d2e03f654d6aaaac77d76e2a818b3b743706`
 - Rejected-cache discriminator: `teamleaderleo/swc#3` at `825e42ed44676001d6c6a52bc1d0807a91852137`
+- Prepared execution carrier: `teamleaderleo/fieldwork#761`, closed/unexecuted
 - Evidence: `source-read`, `model-executed`, `target-test-prepared`
 - Upstream contact: prohibited for automated workers
 
-## Recovery cases
+## Recovery case 1 — abandoned deterministic temporary file
 
-### 1. Abandoned deterministic temporary file
+Current Wasmtime publication serializes the compiled module, derives a deterministic sibling by appending `.tmp` to the cache extension, opens it with `create_new(true)`, and treats `AlreadyExists` as `Ok(())`.
 
-Current Wasmtime publication derives one `.tmp` sibling, opens it with `create_new`, and treats `AlreadyExists` as success. A prior interrupted writer can therefore leave a stale temp file that causes a later store to report success while the final path remains absent.
+A prior interrupted writer can therefore leave this state:
 
-PR #1 prepares a unique same-directory temporary path and final rename pattern modeled on the Wasmer sibling.
+```text
+final cache = absent
+fixed .tmp  = present
+```
 
-### 2. Rejected final cache artifact
+A later store sees the stale temp path, reports success, and returns without creating the final cache file. The dependency-free model reproduced that transition.
 
-Wasmtime reads the final file and returns `None` when `wasmtime::Module::deserialize` rejects it, but leaves the file in place.
+PR #1 prepares unique same-directory temporary paths, complete write before rename, cleanup on failure, and the existing concurrent-writer destination behavior.
 
-Wasmer handles the same lifecycle explicitly: if module deserialization fails, it removes the cache file because it no longer trusts the artifact.
+Evidence: `source-read`, `model-executed`, `target-test-prepared`.
 
-PR #3 pins the equivalent Wasmtime expectation as a test without bundling a production repair.
+## Recovery case 2 — rejected final cache artifact
+
+Current Wasmtime load logic is effectively:
+
+```rust
+let module = std::fs::read(path).ok()?;
+let engine = ENGINE.get_or_try_init(init_engine).ok()?;
+let cache = wasmtime::Module::deserialize(engine, module).ok()?;
+Some(runtime::ModuleCache(Box::new(WasmtimeCache(cache))))
+```
+
+A failed deserialization becomes a cache miss, but the rejected file remains at the final path.
+
+The current Wasmer sibling has an explicit recovery rule:
+
+```rust
+let module = wasmer::Module::deserialize_from_file(store.engine(), path);
+if module.is_err() {
+    let _ = std::fs::remove_file(path);
+}
+```
+
+That sibling behavior is strong source precedent for treating a rejected serialized artifact as untrusted persistent cache state rather than a permanent cache miss.
+
+PR #3 writes invalid cache bytes, invokes the real Wasmtime `load_cache`, and requires both a cache miss and removal of the rejected file. It remains test-only so the repair is independently reviewable.
+
+Evidence: `source-read`, `target-test-prepared`.
+
+## Candidate direction for rejected-cache recovery
+
+The bounded source-grounded candidate is:
+
+1. read the final cache file;
+2. attempt Wasmtime deserialization;
+3. on success, return the module cache;
+4. on deserialization rejection, best-effort remove that exact final artifact and return `None`.
+
+This mirrors the Wasmer sibling lifecycle without mixing it with stale-temp publication changes.
+
+The candidate still needs target execution and Windows review before promotion.
+
+## Execution carrier #761
+
+A temporary owned Fieldwork carrier was prepared with SWC nightly `2026-04-10` and two intended RED -> GREEN transitions:
+
+- stale-temp regression on pinned base, then exact PR #1 candidate plus focused/full package tests, formatting and clippy;
+- rejected-cache PR #3 RED, then a runner-only deletion candidate plus focused/full package tests, formatting and clippy.
+
+The carrier branch reached head `41e997c0817f3a26c2e618ff5b90f312ef5598f8`. Its PR was closed during workflow-trigger handling, and the connected tool subsequently blocked the reopen/control-plane mutation. No alternate bypass was attempted.
+
+Therefore:
+
+- carrier prepared: yes;
+- target tests executed: no;
+- RED receipt: none;
+- GREEN receipt: none;
+- evidence upgrade: none.
 
 ## Review finding on PR #1
 
-During continuation work an attempted full-file edit accidentally duplicated part of `WasmtimeRuntime::init`. The branch was force-restored immediately to its prior exact head `bce1d2e03f654d6aaaac77d76e2a818b3b743706`; PR #1 currently contains none of that bad intermediate edit.
+An earlier attempted full-file edit accidentally duplicated part of `WasmtimeRuntime::init`. The branch was force-restored immediately to exact head `bce1d2e03f654d6aaaac77d76e2a818b3b743706`; PR #1 contains none of that bad intermediate edit.
 
-This is recorded because exact-head review is part of the campaign evidence boundary.
-
-## Execution status
-
-The fork's inherited `CI.yml` listens to `pull_request` events, including synchronize, but the connected GitHub interface has returned no workflow runs for the current research heads. No target-executed or full-gate claim is made.
+This remains recorded because exact-head review is part of the evidence boundary.
 
 ## Current disposition
 
-**HOLD** promotion of PR #1 until:
+**HOLD / EXECUTE when a clean carrier is available.**
 
-1. stale-temp base failure and candidate pass are target-executed;
-2. rejected-cache behavior is target-executed;
-3. the relationship between invalid-cache deletion and Windows destination handling is incorporated into the final candidate;
-4. focused Wasmtime tests, formatting, clippy, and exact-head diff review pass.
+Promotion requires:
+
+1. stale-temp base assertion RED and exact PR #1 candidate GREEN;
+2. rejected-cache PR #3 assertion RED and bounded deletion candidate GREEN;
+3. focused Wasmtime tests plus full `swc_plugin_backend_wasmtime` tests;
+4. `cargo fmt` and package clippy;
+5. explicit Windows destination/replacement review;
+6. exact-head diff review and retained execution receipt.
+
+No third-party upstream mutation occurred.
