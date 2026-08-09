@@ -1,0 +1,1 @@
+Run the authority deny-scope carrier from the current canonical scout head.
