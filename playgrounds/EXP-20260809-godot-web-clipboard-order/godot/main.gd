@@ -70,22 +70,50 @@ func _install_dom_trace() -> void:
   if (window.__fieldworkClipboardProbeInstalled) return;
   window.__fieldworkClipboardProbeInstalled = true;
   const stamp = () => performance.now().toFixed(3);
+  const safeText = (value) => JSON.stringify(value);
+
+  window.addEventListener('focus', () => {
+    console.log(`DOM_CLIP t=${stamp()} kind=window_focus active=${document.activeElement && document.activeElement.tagName}`);
+  }, true);
+  window.addEventListener('blur', () => {
+    console.log(`DOM_CLIP t=${stamp()} kind=window_blur active=${document.activeElement && document.activeElement.tagName}`);
+  }, true);
+
   window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
       console.log(`DOM_CLIP t=${stamp()} kind=keydown defaultPrevented=${e.defaultPrevented}`);
       queueMicrotask(() => console.log(`DOM_CLIP t=${stamp()} kind=microtask_after_keydown defaultPrevented=${e.defaultPrevented}`));
     }
   }, true);
+
   window.addEventListener('paste', (e) => {
     const text = e.clipboardData ? e.clipboardData.getData('text') : '<no clipboardData>';
-    console.log(`DOM_CLIP t=${stamp()} kind=paste defaultPrevented=${e.defaultPrevented} text=${JSON.stringify(text)}`);
+    console.log(`DOM_CLIP t=${stamp()} kind=paste defaultPrevented=${e.defaultPrevented} text=${safeText(text)}`);
     queueMicrotask(() => console.log(`DOM_CLIP t=${stamp()} kind=microtask_after_paste defaultPrevented=${e.defaultPrevented}`));
   }, true);
+
   window.addEventListener('keyup', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
       console.log(`DOM_CLIP t=${stamp()} kind=keyup defaultPrevented=${e.defaultPrevented}`);
     }
   }, true);
+
+  if (navigator.clipboard && 'onclipboardchange' in navigator.clipboard) {
+    console.log(`DOM_CLIP t=${stamp()} kind=clipboardchange_support supported=true`);
+    navigator.clipboard.addEventListener('clipboardchange', async (e) => {
+      const types = e.types ? Array.from(e.types) : [];
+      console.log(`DOM_CLIP t=${stamp()} kind=clipboardchange types=${safeText(types)} changeId=${String(e.changeId ?? '')}`);
+      const readStart = stamp();
+      try {
+        const text = await navigator.clipboard.readText();
+        console.log(`DOM_CLIP t=${stamp()} kind=clipboardchange_read start=${readStart} text=${safeText(text)}`);
+      } catch (err) {
+        console.log(`DOM_CLIP t=${stamp()} kind=clipboardchange_read_error start=${readStart} error=${safeText(String(err))}`);
+      }
+    });
+  } else {
+    console.log(`DOM_CLIP t=${stamp()} kind=clipboardchange_support supported=false`);
+  }
 })();
 """
 	bridge.call("eval", code, true)
