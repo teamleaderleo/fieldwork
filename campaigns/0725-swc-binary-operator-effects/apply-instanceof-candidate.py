@@ -2,13 +2,15 @@
 """Apply the pinned SWC `instanceof` semantic research candidate.
 
 Pinned source contract: swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077.
-The candidate has three confirmed owners:
+The candidate has four confirmed owners:
 
 1. shared effect classification/extraction in swc_ecma_utils;
 2. the independent `instanceof` constant fold in the expression simplifier,
    which is also reused by the minifier Pure pass;
 3. the main minifier Optimizer's independent ignored-result binary reducer,
-   which otherwise replaces every discarded binary operation with child effects.
+   which otherwise replaces every discarded binary operation with child effects;
+4. the optimization dead-branch remover's local `ignore_result`, which also
+   decomposes every non-short-circuit binary expression to child effects.
 
 Every edit requires a unique source marker so source drift fails closed.
 """
@@ -131,4 +133,21 @@ replace_once(
     '                op,\n'
     '                ..\n'
     '            }) => {\n',
+)
+
+replace_once(
+    "crates/swc_ecma_transforms_optimization/src/simplify/branch/mod.rs",
+    '        Expr::Bin(BinExpr {\n'
+    '            span,\n'
+    '            left,\n'
+    '            op,\n'
+    '            right,\n'
+    '        }) if !op.may_short_circuit() => {\n',
+    '        Expr::Bin(bin) if bin.op == op!("instanceof") => Some(bin.into()),\n\n'
+    '        Expr::Bin(BinExpr {\n'
+    '            span,\n'
+    '            left,\n'
+    '            op,\n'
+    '            right,\n'
+    '        }) if !op.may_short_circuit() => {\n',
 )
