@@ -2,15 +2,15 @@
 
 ## In simple words
 
-Campaign #766 now has a target-executed defect, a minimal responsible compressor option, and an exact source deletion condition.
+Campaign #766 has now progressed from target reproduction through option bisection, exact source ownership, and a locally GREEN candidate matrix.
 
-In sloppy JavaScript with a simple parameter list, a parameter and its matching `arguments` entry are mapped. Current pinned SWC's `unused` pass deletes a write to an enclosing function parameter when that write occurs inside a child arrow, even though the enclosing function later reads `arguments[0]`.
+Current pinned SWC's `unused` pass deletes writes to an enclosing simple parameter when those writes occur in nested functions, even though a sloppy function later observes the mapped parameter through `arguments[0]`. The defect is target-executed. `unused` alone is sufficient among the tested compressor options, and the exact deletion owner is `compress/optimize/unused.rs::drop_unused_assignments`.
 
-Option bisection shows `unused` alone is sufficient. `reduce_vars`, `collapse_vars`, `side_effects`, `inline`, and `reduce_vars + collapse_vars` all preserve the correct runtime. Adding `unused` reproduces the failure.
+Fieldwork independently derived a one-line candidate that makes the existing mapped-arguments safeguard query the assigned identifier's context rather than the currently visited nested scope. That candidate passes a seven-case semantic matrix, formatting, package clippy, and diff checks on pinned SWC.
 
-Source reading then found the exact safeguard in `compress/optimize/unused.rs`. `drop_unused_assignments` already knows parameter assignments must be preserved when the relevant function uses `arguments` and is sloppy. The nested-closure failure occurs because that guard queries `self.data.used_arguments(self.ctx.scope)`: while optimizing the assignment inside the arrow, `self.ctx.scope` is the arrow scope, not the enclosing function scope that owns both the parameter and `arguments` object.
+However, active upstream PR `swc-project/swc#12037` already owns the same repair direction, and maintainer review identifies a deeper compatibility problem: SWC's inline pass can remap an identifier's syntax context to avoid collisions, so `i.id.ctxt` is not guaranteed to remain a durable key for the declaring function's scope metadata. The local candidate is therefore **GREEN for the ordinary nested-scope path but not accepted as a general repair**.
 
-The leading bounded repair is therefore to anchor the existing safeguard to the assigned parameter binding's owning context rather than the currently visited child scope. A candidate must still be executed against a semantic matrix before promotion.
+Fieldwork will observe and stress-test the active upstream implementation rather than create a competing SWC branch.
 
 - Campaign issue: #766
 - Programme: #15
@@ -19,12 +19,15 @@ The leading bounded repair is therefore to anchor the existing safeguard to the 
 - State: `claimed`
 - Worker: GPT-5.6 Sol
 - Pinned/current SWC: `5bf27fd72e4667bac6cc86888b8facb8b91f8077`
-- Initial execution carrier: `teamleaderleo/fieldwork#765`, retired
-- Option-bisection carrier: `teamleaderleo/fieldwork#767` at `69ecf2ef708e0f7050cdaad44524154c9d7fb35a`
-- Bisection workflow run: `31291818612`
-- Bisection job: `93190209600`
-- Evidence: `model-executed`, `target-executed` RED, `source-read`
-- Upstream context: open `swc-project/swc#12032`
+- Initial RED carrier: `teamleaderleo/fieldwork#765`, retired
+- Option bisection carrier: `teamleaderleo/fieldwork#767`, retired
+- Candidate carrier: `teamleaderleo/fieldwork#768` at `a5becad36b191a83b9a349092e89706c678bb34d`
+- Candidate workflow run: `31292179758`
+- Candidate job: `93191110056`
+- Active upstream implementation: `swc-project/swc#12037`, head observed `0a1971a63345e41de567d4fd97c9927283a13201`
+- Local candidate receipt: `candidate-local-green-2026-08-09.md`
+- Upstream review note: `upstream-pr-12037-review.md`
+- Evidence: `model-executed`, `target-executed` RED, option bisection, `source-read`, local `target-executed` GREEN
 - Upstream contact: prohibited for automated workers
 
 ## Language invariant
@@ -37,21 +40,13 @@ parameter b  <──────── mapped ────────>  argumen
      └── assignment to b must remain observable through arguments[0]
 ```
 
-For strict functions, and other cases where the arguments object is unmapped, that alias does not exist.
+Strict functions and non-simple parameter-list cases do not have the same mapped-arguments relation.
 
-The optimizer therefore cannot decide whether `b = value` is dead from lexical references to `b` alone.
+The optimizer therefore cannot determine whether a parameter write is dead from ordinary lexical reference counts alone.
 
 ## Initial target RED
 
-Under:
-
-```json
-{
-  "defaults": true
-}
-```
-
-this source:
+Under default compression, this source:
 
 ```js
 function run(f) {
@@ -82,32 +77,21 @@ has runtime oracle:
 2 1
 ```
 
-Current SWC emitted:
-
-```js
-function sloppy(b) {
-    return run(()=>{}), arguments[0];
-}
-function strict(b) {
-    return run(()=>{}), arguments[0];
-}
-```
-
-and produced:
+Pinned SWC emitted empty nested arrow bodies and produced:
 
 ```text
 1 1
 ```
 
-Evidence class: `target-executed` RED.
+The strict result is correct. The sloppy result is wrong.
 
-The strict result is correct; the sloppy result is wrong.
+Carrier #765: workflow `31291592350`, job `93189631053`.
+
+Evidence class: `target-executed` RED.
 
 ## Compressor-option bisection
 
-Carrier #767 started from `defaults: false` and tested the same runtime oracle under individual passes and small combinations.
-
-Observed results:
+Carrier #767, workflow `31291818612`, job `93190209600`, started from `defaults: false`.
 
 | configuration | runtime | disposition |
 | --- | --- | --- |
@@ -120,28 +104,17 @@ Observed results:
 | `unused + collapse_vars` | `1 1` | RED |
 | `reduce_vars + collapse_vars` | `2 1` | correct |
 
-The carrier's matrix recorder labelled failing `unused` fixtures `HARNESS_NO_OUTPUT` because the SWC fixture harness aborts at the expected stdout assertion before snapshot persistence. The logs nevertheless contain the generated optimized output and exact `1 1` vs `2 1` assertion failure. This is a recorder/harness-label defect, not ambiguity in the option result.
-
 Conclusion: **`unused` alone is sufficient and necessary among the tested options.**
+
+The recorder called failing fixtures `HARNESS_NO_OUTPUT` because the SWC fixture harness aborts on stdout mismatch before snapshot persistence. The logs still contain the optimized output and exact `1 1` versus `2 1` assertion, so this label does not weaken the discriminator.
 
 Evidence class: `target-executed` option discriminator.
 
 ## Exact source owner
 
-`crates/swc_ecma_minifier/src/compress/optimize/unused.rs::drop_unused_assignments` contains the deletion condition for simple identifier assignments.
+`crates/swc_ecma_minifier/src/compress/optimize/unused.rs::drop_unused_assignments` contains the deletion condition.
 
-The relevant logic requires:
-
-```text
-variable usage_count == 0
-AND variable is declared
-AND one of:
-    variable is not a function parameter
-    OR current scope does not use arguments
-    OR current expression context is strict
-```
-
-In source form, the parameter safeguard is:
+Its function-parameter fence is:
 
 ```rust
 (!var.flags.contains(VarUsageInfoFlags::DECLARED_AS_FN_PARAM)
@@ -149,69 +122,135 @@ In source form, the parameter safeguard is:
     || self.ctx.expr_ctx.in_strict)
 ```
 
-That guard is semantically appropriate when the assignment is visited in the parameter's owning function. It fails for nested closures because optimizer context changes at every function-like node. Arrow/function visitors set `scope` and `var_scope` to the child function's `ctxt`.
+When a write to outer parameter `b` is visited inside a nested arrow/function, `self.ctx.scope` is the child function's context. The child does not use its own `arguments`, so the safeguard allows deletion even though the enclosing function owns the parameter and observes its mapped arguments object.
 
-For the failing source:
+The campaign's source model is therefore:
 
 ```text
-sloppy function scope: uses arguments
-    parameter b: declared here
-    nested arrow scope: does not use arguments
-        assignment b = 2: visited here
+outer sloppy function scope: USED_ARGUMENTS
+    parameter b declared here
+    child function scope: no USED_ARGUMENTS
+        assignment b = 2 visited here
 ```
 
-So `used_arguments(self.ctx.scope)` asks the arrow scope, gets false, and permits deletion even though the assigned identifier is the outer function parameter whose mapped arguments object is observed.
+The existing safeguard asks the child-scope question at the wrong nesting level.
 
-## Program-data behavior
+## Locally GREEN candidate
 
-`ProgramData` stores `USED_ARGUMENTS` per syntax-context scope.
+Fieldwork tested this one-line runner-only candidate:
 
-Its scope merge behavior propagates `arguments` usage through arrows when the arrow itself uses outer `arguments`, but that does not help this case: the `arguments[0]` read is in the outer function while the parameter assignment is visited inside a child arrow.
-
-The assigned identifier retains its binding `SyntaxContext`, giving a plausible way to ask about the owning parameter scope directly. The exact relationship must be proven by candidate execution rather than assumed from naming alone.
-
-## Leading candidate
-
-The smallest candidate to test is to anchor the existing parameter safeguard to the assigned identifier's binding context instead of the current child optimization scope, conceptually:
-
-```rust
-self.data.used_arguments(i.id.ctxt)
+```diff
+- || !self.data.used_arguments(self.ctx.scope)
++ || !self.data.used_arguments(i.id.ctxt)
 ```
 
-instead of:
+Carrier #768, exact head `a5becad36b191a83b9a349092e89706c678bb34d`, workflow `31292179758`, job `93191110056`.
 
-```rust
-self.data.used_arguments(self.ctx.scope)
+Configuration:
+
+```json
+{
+  "defaults": false,
+  "unused": true
+}
 ```
 
-This is attractive because it does not invent a new alias-analysis system. It makes the existing mapped-arguments fence follow the parameter binding across nested closures.
+Semantic matrix runtime oracle:
 
-This is still a **candidate**, not an accepted repair.
+```text
+2 2 2 1 7 5 1
+```
 
-## Required candidate matrix
+The cases were:
 
-Before promotion, run the candidate against `unused: true` with at least:
+1. direct sloppy parameter write — retained, runtime `2`;
+2. nested arrow write to outer sloppy parameter — retained, runtime `2`;
+3. nested ordinary-function write to outer sloppy parameter — retained, runtime `2`;
+4. strict nested write — removed, runtime `1`;
+5. no `arguments` observation — removed, runtime `7`;
+6. unrelated local write while `arguments` is observed — removed, original argument `5` preserved;
+7. default-parameter control — runtime correct at `1`, with candidate conservatively retaining the write.
 
-1. direct write in the same sloppy function + `arguments[0]` read — must preserve;
-2. nested arrow write to outer simple parameter — must preserve;
-3. nested ordinary-function write to outer simple parameter — must preserve;
-4. strict function nested write — assignment may remain removable;
-5. sloppy function where `arguments` is never observed — assignment may remain removable;
-6. write to a non-parameter local while `arguments` is observed — removable behavior should stay unchanged;
-7. default/rest/destructured parameter controls — verify no semantic regression and record whether the existing conservative parameter fence already retains extra writes.
+Both fixture executions passed:
 
-Then run focused minifier fixtures, formatting, package clippy, and inspect output-size consequences.
+```text
+UPDATE=1 cargo test -p swc_ecma_minifier --test compress -- mapped_arguments_candidate --nocapture
+cargo test -p swc_ecma_minifier --test compress -- mapped_arguments_candidate --nocapture
+```
 
-## Related source risk
+Each reported:
 
-`compress/optimize/dead_code.rs` contains a similar function-parameter / `used_arguments(self.ctx.scope)` safeguard for assignments before function termination. The current campaign RED is isolated to `unused`, but a successful repair should review that sibling condition for the same nested-scope assumption rather than silently fixing only one copy.
+```text
+test result: ok. 1 passed; 0 failed; 2927 filtered out
+```
 
-Do not broaden the implementation until a discriminator proves the sibling path is affected.
+The carrier then successfully ran:
+
+```text
+cargo fmt --all -- --check
+cargo clippy -p swc_ecma_minifier --all-targets -- -D warnings
+git diff --check
+```
+
+Overall job conclusion: `success`.
+
+Evidence class: local `target-executed` GREEN plus focused package checks. This is not a full repository gate and the candidate exists only inside an execution carrier.
+
+Exact receipt: `candidate-local-green-2026-08-09.md`.
+
+## Why the candidate is still incomplete
+
+Upstream PR #12037 independently contains the same one-line change. SWC maintainer review states:
+
+```text
+This would not be enough. In inline pass swc would change ident ctxt(to avoid name collision) which would result in non exist scope data.
+```
+
+This is a substantive ownership problem, not a contradiction of the local GREEN result.
+
+`ProgramData` stores `USED_ARGUMENTS` per `SyntaxContext`. The one-line candidate assumes an identifier's current context can be used to find the original declaring-function scope. That assumption holds in the local semantic matrix.
+
+Inlining/remapping can clone or rename bindings with a fresh context. After such code motion:
+
+```text
+current identifier ctxt != original declaring-function scope key
+```
+
+and `used_arguments(i.id.ctxt)` can fail to recover the original mapped-arguments fact.
+
+The durable semantic requirement is therefore:
+
+> Parameter-to-declaring-function mapped-arguments ownership must survive transformations that rewrite identifier identity/context.
+
+How SWC should represent that ownership remains unresolved.
+
+## Active upstream ownership
+
+Upstream PR #12037 is the implementation surface for this defect. Fieldwork discovered it after independently reproducing the issue, isolating `unused`, mapping `drop_unused_assignments`, and deriving the same one-line candidate.
+
+At Fieldwork review time, #12037 was open and its head still contained the one-line context substitution. Its PR description reports focused and full minifier validation, formatting, clippy, Node runtime comparison, and no observed CodSpeed regression among compared benchmarks. Maintainer review nevertheless blocks treating the patch as complete because of the inline context-remapping case.
+
+Durable review note: `upstream-pr-12037-review.md`.
+
+Disposition: **observe/verify, do not compete.**
+
+## Sibling source condition
+
+`compress/optimize/dead_code.rs` contains a similar `used_arguments(self.ctx.scope)` condition, but it also requires `IS_FN_LOCAL`. Usage analysis clears function-local status across nested function boundaries, so the current nested-write defect does not by itself prove that sibling path is affected.
+
+Do not modify the sibling without a direct discriminator.
 
 ## Current disposition
 
-**OWNER MAPPED; CANDIDATE EXECUTION NEXT.**
+**LOCAL GREEN ACCEPTED; GENERAL REPAIR HOLD / ACTIVE UPSTREAM OWNERSHIP.**
 
-The semantic defect is proven, `unused` is isolated as the responsible option, and `drop_unused_assignments` is the exact current deletion owner. The next accepted transition is a semantic-matrix RED/GREEN run for the binding-context candidate, followed by review of the sibling dead-code guard.
+The campaign has proven the defect, isolated the responsible option and source owner, and validated the obvious one-line repair on the ordinary nested-scope path. That is not enough for promotion because identifier context can be rewritten by inlining.
+
+Highest-value next research transition:
+
+1. reproduce or rule out the maintainer's inline/remapped-context concern with a target-native discriminator;
+2. determine whether the one-line patch reintroduces the semantic bug after inlining, becomes conservatively safe, or hits missing scope metadata in another way;
+3. identify what durable ownership metadata must survive remapping;
+4. keep upstream PR #12037 as the implementation owner and make no automated upstream contact.
 
 No third-party upstream mutation occurred.
