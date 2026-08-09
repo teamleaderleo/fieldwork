@@ -4,26 +4,30 @@
 
 Godot's UID system explicitly aims to preserve references when files move outside the editor, including file-manager, IDE, command-line, and version-control moves while the editor is closed. Script/shader `.uid` sidecars are designed to travel with those files.
 
-Current startup ordering exposes a possible gap: Godot loads the centralized `.godot/uid_cache.bin`, then eagerly converts UID-backed autoloads to paths with `ProjectSettings::fix_autoload_paths()`. If the centralized cache already knows the UID but still points to the pre-move path, `ResourceUID::get_id_path()` returns that stale path. Its editor scan fallback only runs when the UID itself is missing from the cache.
+Current startup ordering exposes a concrete gap: Godot loads the centralized `.godot/uid_cache.bin`, then eagerly converts UID-backed autoloads to paths with `ProjectSettings::fix_autoload_paths()`. If the centralized cache already knows the UID but still points to the pre-move path, `ResourceUID::get_id_path()` returns that stale path. Its editor scan fallback only runs when the UID itself is missing from the cache.
 
-Later editor filesystem/import work can discover the moved sidecar and call `set_id(uid, current_path)`, but a direct game launch has no editor scan before autoload loading. A UID-backed autoload is therefore a strong test of whether external-move resilience extends to cold runtime startup with a stale existing cache entry.
+The editor path is now stronger than the original hypothesis too. The early UID scan deliberately skips UIDs that already exist in the cache, then the first editor scan creates autoloads before the later normal filesystem scan reaches the code that can `set_id(uid, current_path)`. A stale existing mapping can therefore break autoload creation during editor startup as well as direct runtime startup. Later scanning can repair the cache, but that repair happens after the autoload creation attempt.
 
-State: source-read + documented-workflow + exact integration fixture prepared.
+State: source-strong + documented-workflow + exact integration fixture + owned-fork target-native workflow running.
 
 ## Exact source
 
 Development revision: `godotengine/godot@4173760fdf6c2c722e82e08cb58e55f34c9efd80`.
-Retrieved: 2026-08-09.
+Retrieved: 2026-08-09/10.
 
 Key paths:
 
 - `core/io/resource_uid.cpp`
 - `core/config/project_settings.cpp`
 - `editor/file_system/editor_file_system.cpp`
+- `editor/settings/editor_autoload_settings.cpp`
+- `editor/settings/project_settings_editor.cpp`
 - `main/main.cpp`
 - `doc/classes/ResourceUID.xml`
 
 Official workflow context: Godot's UID 4.4 rollout and 4.4 documentation describing external filesystem/VCS moves as a supported UID use case.
+
+Owned-fork target-native carrier: https://github.com/teamleaderleo/godot/pull/3
 
 ## Intended move semantics
 
@@ -57,13 +61,54 @@ A UID-backed autoload is therefore converted into a concrete path before normal 
 
 If the UID already exists and maps to an old path, the lookup returns the old path immediately. The sidecar at the moved path is not consulted in this branch.
 
-This is the key hypothesis: **existing-but-stale and missing UID entries have different startup recovery behavior.**
+This is the key distinction: **existing-but-stale and missing UID entries have different startup recovery behavior.**
 
-## Later editor reconciliation
+## Early editor UID scan also preserves stale existing mappings
 
-The editor's first UID scan initially adds UIDs that are absent from the cache. Later filesystem/import scan paths are stronger: when they encounter a file whose UID is already known, they call `ResourceUID::set_id(uid, current_path)` and update the centralized cache.
+`EditorFileSystem::scan_for_uid()` recursively reads resources and sidecars, but `_scan_for_uid_directory()` only calls `add_id(uid, path)` when `has_id(uid)` is false.
 
-That provides a plausible repair path after editor discovery. It does not help a direct game/runtime process that needs an autoload before such discovery exists.
+In other words, the startup fallback scan can fill missing mappings, but it intentionally does not replace an already-known UID whose path is stale.
+
+That means the editor's early recovery mechanism does not repair the exact external-move case in this experiment.
+
+## Editor first-scan ordering creates autoloads before stronger reconciliation
+
+`EditorFileSystem::_first_scan_filesystem()` performs these relevant phases in order:
+
+1. load the directory tree;
+2. process scripts/global classes;
+3. initialize GDExtensions;
+4. call `ProjectSettingsEditor::init_autoloads()`;
+5. initialize plugins;
+6. only then begin the normal file scan.
+
+`EditorAutoloadSettings::init_autoloads()` creates each cached autoload by calling `_create_autoload(ResourceUID::ensure_path(info.path))`.
+
+For a stale existing UID, that `ensure_path()` still resolves to the absent old path. The autoload creation attempt therefore occurs before the later normal filesystem scan reaches its stronger UID reconciliation path.
+
+The normal scan does contain code that replaces existing mappings:
+
+```cpp
+if (ResourceUID::get_singleton()->has_id(uid)) {
+    ResourceUID::get_singleton()->set_id(uid, file);
+} else {
+    ResourceUID::get_singleton()->add_id(uid, file);
+}
+ResourceUID::get_singleton()->update_cache();
+```
+
+So the likely editor sequence is:
+
+```text
+load stale uid_cache
+  -> resolve autoload UID to old path
+  -> early UID scan sees UID already present and leaves it unchanged
+  -> init_autoloads tries old path and fails
+  -> later filesystem scan discovers moved sidecar/resource
+  -> set_id repairs UID -> new path and persists cache
+```
+
+A repo-wide call search did not surface a filesystem-scan callback that automatically invokes `EditorAutoloadSettings::update_autoload()` after that repair. The visible `update_autoload()` path is used by the Project Settings UI and autoload editing operations. Target execution should therefore check whether the current editor session remains without the autoload even after the cache has been corrected.
 
 ## Game autoload loading
 
@@ -101,35 +146,33 @@ Moved="*uid://b"
 UID 1 -> res://old/autoload.gd
 ```
 
-The execution sequence is:
+The owned-fork Actions version now tests three phases on the pinned engine:
 
-1. prepare and inspect stale cache;
-2. direct headless game launch;
-3. editor/import discovery pass;
-4. inspect cache again;
-5. fresh direct headless game launch.
+1. direct headless runtime must expose the stale UID mapping and miss the autoload;
+2. headless editor startup must show the failed autoload creation, then persist a repaired `uid_cache.bin` after filesystem discovery;
+3. a subsequent direct runtime must load the moved autoload successfully from the repaired cache.
 
-The moved autoload prints its actual script resource path on enter/ready. The main scene prints whether `/root/Moved` exists, the current UID→path result, and physical existence of old/new paths.
+This is carried only in `teamleaderleo/godot` PR #3. Inherited Godot CI is suppressed with the owner-side repository variable; the narrow probe is the only intended target-native job.
 
 ## Distinguishing outcomes
 
-### Startup gap reproduced
+### Runtime and editor cold-start gap reproduced
 
-First direct runtime resolves UID to old path and misses the autoload, while an editor discovery pass updates the cache to the moved path and a later runtime succeeds.
+First direct runtime resolves UID to old path and misses the autoload. Editor startup also attempts the stale old path before its later scan repairs the cache. A subsequent runtime succeeds.
 
-This would be a consequential external-move regression at a cold-start dependency boundary.
+This would be a consequential external-move regression at an early dependency boundary, with a repair that arrives one lifecycle phase too late.
+
+### Runtime gap only
+
+Direct runtime fails, but editor startup repairs the UID mapping before autoload creation through a source path not yet mapped. Stop the editor sub-hypothesis and identify that path.
 
 ### Runtime self-repairs
 
 First direct runtime discovers the new `.uid` sidecar despite the stale existing cache entry. Stop the hypothesis and map the missing discovery path.
 
-### Editor needs restart after repair
+### Editor repairs cache but current session still lacks autoload
 
-The filesystem scan updates `uid_cache.bin`, but the current editor process has already replaced the UID-backed autoload path with the old concrete path. A restart may be required before the corrected cache is used for autoload resolution. Record this separately if observed.
-
-### Import-only control is insufficient
-
-If `--import` does not reach the correcting filesystem path, use a normal editor startup/quit as the repair control. This is a harness distinction.
+This is the strongest editor-specific outcome: cache is corrected during the session, yet the initial autoload creation failure is not retried automatically. Record whether opening Project Settings or restarting the editor restores it.
 
 ## Candidate directions only after execution
 
@@ -137,10 +180,11 @@ Possible repair areas include:
 
 1. validate cached UID paths before eagerly replacing UID-backed startup settings;
 2. if a cached path is missing in tools builds, trigger UID discovery even when the UID key exists;
-3. preserve UID form for startup settings until actual resource load, allowing a missing cached path to invoke a broader lookup strategy;
-4. generate or consume a runtime-safe UID index whose path mappings are guaranteed current before game launch/export.
+3. let the early UID scan replace an existing mapping when its cached path no longer exists and a resource with the same UID is found;
+4. preserve UID form for startup settings until actual resource load, allowing a missing cached path to invoke a broader lookup strategy;
+5. generate or consume a runtime-safe UID index whose path mappings are guaranteed current before game launch/export.
 
-A runtime-wide recursive sidecar scan would have startup-cost implications, so avoid choosing a design before measuring the actual failure and existing editor/export guarantees.
+A runtime-wide recursive sidecar scan would have startup-cost implications, so avoid choosing a design before measuring the exact failure and existing editor/export guarantees.
 
 ## Overlap
 
@@ -148,10 +192,10 @@ Targeted current issue/PR searches for stale UID cache + external move + autoloa
 
 ## Evidence boundary
 
-Supported: documented external-move goal; eager startup autoload conversion; stale-existing-entry behavior in `get_id_path()`; later editor `set_id()` reconciliation; direct autoload loading from resolved paths.
+Supported: documented external-move goal; eager startup autoload conversion; stale-existing-entry behavior in `get_id_path()`; early editor UID scan refusing to replace existing IDs; autoload initialization before the stronger normal filesystem reconciliation path; later editor `set_id()` repair; direct autoload loading from resolved paths.
 
-Prepared: exact stale-cache + moved-script/sidecar autoload fixture, cache preparer, and cache inspector.
+Prepared/running: exact stale-cache + moved-script/sidecar autoload fixture and narrow owned-fork Actions probe in `teamleaderleo/godot#3`.
 
-Unknown: target runtime result; whether `--import` performs sufficient repair; whether a normal editor restart is required; platform breadth; intended cold-runtime handling of externally moved development resources.
+Unknown until the workflow completes: exact target-native runtime/editor outputs, whether current editor session retries autoload creation after cache repair, platform breadth, and intended cold-runtime handling of externally moved development resources.
 
 Automated upstream contact is prohibited.
