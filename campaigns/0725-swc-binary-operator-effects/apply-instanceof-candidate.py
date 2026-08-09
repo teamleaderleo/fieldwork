@@ -2,13 +2,13 @@
 """Apply the pinned SWC `instanceof` semantic research candidate.
 
 Pinned source contract: swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077.
-The candidate has three owners:
+The candidate has three confirmed owners:
 
 1. shared effect classification/extraction in swc_ecma_utils;
 2. the independent `instanceof` constant fold in the expression simplifier,
    which is also reused by the minifier Pure pass;
-3. minifier result-discarding through `ignore_return_value`, which otherwise
-   removes a direct discarded `instanceof` expression statement.
+3. the main minifier Optimizer's independent ignored-result binary reducer,
+   which otherwise replaces every discarded binary operation with child effects.
 
 Every edit requires a unique source marker so source drift fails closed.
 """
@@ -108,16 +108,27 @@ remove_braced_match_arm(
 )
 
 replace_once(
-    "crates/swc_ecma_minifier/src/compress/pure/misc.rs",
-    "        self.optimize_expr_in_bool_ctx(e, true);\n",
-    '        if matches!(\n'
-    '            e,\n'
+    "crates/swc_ecma_minifier/src/compress/optimize/mod.rs",
+    '            Expr::Bin(BinExpr {\n'
+    '                span,\n'
+    '                left,\n'
+    '                right,\n'
+    '                #[cfg(feature = "debug")]\n'
+    '                op,\n'
+    '                ..\n'
+    '            }) => {\n',
     '            Expr::Bin(BinExpr {\n'
     '                op: op!("instanceof"),\n'
     '                ..\n'
-    '            })\n'
-    '        ) {\n'
-    '            return;\n'
-    '        }\n\n'
-    '        self.optimize_expr_in_bool_ctx(e, true);\n',
+    '            }) => {\n'
+    '                return Some(e.take());\n'
+    '            }\n\n'
+    '            Expr::Bin(BinExpr {\n'
+    '                span,\n'
+    '                left,\n'
+    '                right,\n'
+    '                #[cfg(feature = "debug")]\n'
+    '                op,\n'
+    '                ..\n'
+    '            }) => {\n',
 )
