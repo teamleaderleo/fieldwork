@@ -2,11 +2,15 @@
 
 ## In simple words
 
-Campaign #766 tracks a target-executed SWC minifier defect in sloppy JavaScript parameter/`arguments` semantics.
+Campaign #766 now has a target-executed defect, a minimal responsible compressor option, and an exact source deletion condition.
 
-In a sloppy function with a simple parameter list, the parameter `b` and `arguments[0]` are mapped. A write to `b` is therefore observable through `arguments[0]`. Current pinned SWC default compression deletes such a write when it occurs inside a nested arrow, even though the enclosing function later reads `arguments[0]`.
+In sloppy JavaScript with a simple parameter list, a parameter and its matching `arguments` entry are mapped. Current pinned SWC's `unused` pass deletes a write to an enclosing function parameter when that write occurs inside a child arrow, even though the enclosing function later reads `arguments[0]`.
 
-A strict-mode control using otherwise identical code is allowed to delete the write because strict functions do not map simple parameters to `arguments`. Current SWC produces `1` for that control, which is correct. The defect is the sloppy function also becoming `1` instead of `2`.
+Option bisection shows `unused` alone is sufficient. `reduce_vars`, `collapse_vars`, `side_effects`, `inline`, and `reduce_vars + collapse_vars` all preserve the correct runtime. Adding `unused` reproduces the failure.
+
+Source reading then found the exact safeguard in `compress/optimize/unused.rs`. `drop_unused_assignments` already knows parameter assignments must be preserved when the relevant function uses `arguments` and is sloppy. The nested-closure failure occurs because that guard queries `self.data.used_arguments(self.ctx.scope)`: while optimizing the assignment inside the arrow, `self.ctx.scope` is the arrow scope, not the enclosing function scope that owns both the parameter and `arguments` object.
+
+The leading bounded repair is therefore to anchor the existing safeguard to the assigned parameter binding's owning context rather than the currently visited child scope. A candidate must still be executed against a semantic matrix before promotion.
 
 - Campaign issue: #766
 - Programme: #15
@@ -15,11 +19,11 @@ A strict-mode control using otherwise identical code is allowed to delete the wr
 - State: `claimed`
 - Worker: GPT-5.6 Sol
 - Pinned/current SWC: `5bf27fd72e4667bac6cc86888b8facb8b91f8077`
-- Execution carrier: `teamleaderleo/fieldwork#765`
-- Carrier head: `2581d9c1627ecea8af0cca1ff0d7ec14ef7446f4`
-- Workflow run: `31291592350`
-- Job: `93189631053`
-- Evidence: `model-executed`, `target-executed` RED
+- Initial execution carrier: `teamleaderleo/fieldwork#765`, retired
+- Option-bisection carrier: `teamleaderleo/fieldwork#767` at `69ecf2ef708e0f7050cdaad44524154c9d7fb35a`
+- Bisection workflow run: `31291818612`
+- Bisection job: `93190209600`
+- Evidence: `model-executed`, `target-executed` RED, `source-read`
 - Upstream context: open `swc-project/swc#12032`
 - Upstream contact: prohibited for automated workers
 
@@ -33,26 +37,13 @@ parameter b  <──────── mapped ────────>  argumen
      └── assignment to b must remain observable through arguments[0]
 ```
 
-For a strict function, or other cases where the arguments object is unmapped, that alias does not exist.
+For strict functions, and other cases where the arguments object is unmapped, that alias does not exist.
 
-The optimizer therefore cannot decide whether `b = value` is dead from ordinary lexical uses of `b` alone. It also needs the function's arguments-mapping mode and whether the corresponding arguments entry can be observed.
+The optimizer therefore cannot decide whether `b = value` is dead from lexical references to `b` alone.
 
-## Model evidence
+## Initial target RED
 
-A dependency-free Node probe established the mode distinction:
-
-```text
-sloppy script: b = 2, arguments[0] = 2
-module/strict: b = 2, arguments[0] = 1
-```
-
-Evidence class: `model-executed`.
-
-This also corrected the interpretation of upstream issue #12032: its published `isModule: true` configuration is strict, so its stated expected value `2` does not by itself isolate a bug. The Fieldwork target probe uses a sloppy function and strict control in the same script to remove that ambiguity.
-
-## Target-native RED
-
-Fixture config:
+Under:
 
 ```json
 {
@@ -60,7 +51,7 @@ Fixture config:
 }
 ```
 
-Input:
+this source:
 
 ```js
 function run(f) {
@@ -85,109 +76,142 @@ function strict(b) {
 console.log(sloppy(1), strict(1));
 ```
 
-Expected runtime:
+has runtime oracle:
 
 ```text
 2 1
 ```
 
-SWC output:
+Current SWC emitted:
 
 ```js
-function run(f) {
-    f();
-}
 function sloppy(b) {
     return run(()=>{}), arguments[0];
 }
 function strict(b) {
     return run(()=>{}), arguments[0];
 }
-console.log(sloppy(1), strict(1));
 ```
 
-Actual runtime:
+and produced:
 
 ```text
 1 1
 ```
 
-The fixture harness failed with:
-
-```text
-< 1 1
-> 2 1
-```
-
-and:
-
-```text
-test result: FAILED. 0 passed; 1 failed
-```
-
 Evidence class: `target-executed` RED.
 
-## Source map so far
+The strict result is correct; the sloppy result is wrong.
 
-The failure is present under default compression.
+## Compressor-option bisection
 
-`compress/optimize/arguments.rs` is a specialized rewrite behind the separate `arguments` option. It should not be assumed to own this default-compression failure.
+Carrier #767 started from `defaults: false` and tested the same runtime oracle under individual passes and small combinations.
 
-The general usage analyzer sees the nested assignment to the outer parameter. It also treats an identifier named `arguments` specially by marking the function scope as using arguments.
+Observed results:
 
-What is not yet visible in the mapped source is an explicit relation connecting an indexed `arguments` read to the corresponding simple parameters when the function is sloppy. That missing implicit alias is the leading dataflow hypothesis.
+| configuration | runtime | disposition |
+| --- | --- | --- |
+| `unused` | `1 1` | RED |
+| `reduce_vars` | `2 1` | correct |
+| `collapse_vars` | `2 1` | correct |
+| `side_effects` | `2 1` | correct |
+| `inline` | `2 1` | correct |
+| `unused + reduce_vars` | `1 1` | RED |
+| `unused + collapse_vars` | `1 1` | RED |
+| `reduce_vars + collapse_vars` | `2 1` | correct |
 
-The final deletion appears in ordinary default optimization: the arrow body becomes empty while both function parameters remain present. The exact option/pass that removes the assignment has not yet been isolated.
+The carrier's matrix recorder labelled failing `unused` fixtures `HARNESS_NO_OUTPUT` because the SWC fixture harness aborts at the expected stdout assertion before snapshot persistence. The logs nevertheless contain the generated optimized output and exact `1 1` vs `2 1` assertion failure. This is a recorder/harness-label defect, not ambiguity in the option result.
 
-## Competing repair locations
+Conclusion: **`unused` alone is sufficient and necessary among the tested options.**
 
-1. **Usage-analysis aliasing.** When a sloppy simple-parameter function uses `arguments`, mark the relevant parameters or mutations as observable through the mapped arguments object.
-2. **Assignment-removal fence.** At the consumer that removes writes to parameters, preserve them when the owning function can expose a mapped arguments object.
-3. **Function-level conservative mode.** Disable selected parameter-write reductions in any function that both has mapped arguments semantics and observes `arguments`.
+Evidence class: `target-executed` option discriminator.
 
-The first direction is semantically central but can have a wider optimization consequence. The second may be smaller but risks missing other consumers of the same implicit alias. The third is easiest to reason about but may unnecessarily reduce compression.
+## Exact source owner
 
-No repair should be chosen until the minimal responsible option/pass is identified.
+`crates/swc_ecma_minifier/src/compress/optimize/unused.rs::drop_unused_assignments` contains the deletion condition for simple identifier assignments.
 
-## Required next probes
+The relevant logic requires:
 
-### Compressor option bisection
+```text
+variable usage_count == 0
+AND variable is declared
+AND one of:
+    variable is not a function parameter
+    OR current scope does not use arguments
+    OR current expression context is strict
+```
 
-Starting from `defaults: false`, enable likely default passes individually or in small combinations until the runtime flips from `2 1` to `1 1`.
+In source form, the parameter safeguard is:
 
-Priority options:
+```rust
+(!var.flags.contains(VarUsageInfoFlags::DECLARED_AS_FN_PARAM)
+    || !self.data.used_arguments(self.ctx.scope)
+    || self.ctx.expr_ctx.in_strict)
+```
 
-- `unused`;
-- `reduce_vars`;
-- `collapse_vars`;
-- `side_effects`;
-- `inline`;
-- combinations required by the winning pass.
+That guard is semantically appropriate when the assignment is visited in the parameter's owning function. It fails for nested closures because optimizer context changes at every function-like node. Arrow/function visitors set `scope` and `var_scope` to the child function's `ctxt`.
 
-### Semantic matrix
+For the failing source:
 
-Add controls for:
+```text
+sloppy function scope: uses arguments
+    parameter b: declared here
+    nested arrow scope: does not use arguments
+        assignment b = 2: visited here
+```
 
-1. direct write in the same sloppy function;
-2. write inside a nested arrow capturing the outer parameter;
-3. write inside an ordinary nested function that has its own parameter/function scope;
-4. strict function;
-5. default/rest/destructured parameter lists where mapped-arguments rules differ;
-6. `arguments` used but a different parameter written;
-7. parameter written but `arguments` never observed.
+So `used_arguments(self.ctx.scope)` asks the arrow scope, gets false, and permits deletion even though the assigned identifier is the outer function parameter whose mapped arguments object is observed.
 
-### Owner map
+## Program-data behavior
 
-Once the minimal option set is known:
+`ProgramData` stores `USED_ARGUMENTS` per syntax-context scope.
 
-- identify the exact source decision that replaces `b = 2` with nothing;
-- inspect which function-scope `used_arguments` and strictness facts are available there;
-- determine whether the same alias information is needed by any other optimizer consumer.
+Its scope merge behavior propagates `arguments` usage through arrows when the arrow itself uses outer `arguments`, but that does not help this case: the `arguments[0]` read is in the outer function while the parameter assignment is visited inside a child arrow.
+
+The assigned identifier retains its binding `SyntaxContext`, giving a plausible way to ask about the owning parameter scope directly. The exact relationship must be proven by candidate execution rather than assumed from naming alone.
+
+## Leading candidate
+
+The smallest candidate to test is to anchor the existing parameter safeguard to the assigned identifier's binding context instead of the current child optimization scope, conceptually:
+
+```rust
+self.data.used_arguments(i.id.ctxt)
+```
+
+instead of:
+
+```rust
+self.data.used_arguments(self.ctx.scope)
+```
+
+This is attractive because it does not invent a new alias-analysis system. It makes the existing mapped-arguments fence follow the parameter binding across nested closures.
+
+This is still a **candidate**, not an accepted repair.
+
+## Required candidate matrix
+
+Before promotion, run the candidate against `unused: true` with at least:
+
+1. direct write in the same sloppy function + `arguments[0]` read — must preserve;
+2. nested arrow write to outer simple parameter — must preserve;
+3. nested ordinary-function write to outer simple parameter — must preserve;
+4. strict function nested write — assignment may remain removable;
+5. sloppy function where `arguments` is never observed — assignment may remain removable;
+6. write to a non-parameter local while `arguments` is observed — removable behavior should stay unchanged;
+7. default/rest/destructured parameter controls — verify no semantic regression and record whether the existing conservative parameter fence already retains extra writes.
+
+Then run focused minifier fixtures, formatting, package clippy, and inspect output-size consequences.
+
+## Related source risk
+
+`compress/optimize/dead_code.rs` contains a similar function-parameter / `used_arguments(self.ctx.scope)` safeguard for assignments before function termination. The current campaign RED is isolated to `unused`, but a successful repair should review that sibling condition for the same nested-scope assumption rather than silently fixing only one copy.
+
+Do not broaden the implementation until a discriminator proves the sibling path is affected.
 
 ## Current disposition
 
-**MAP OWNER.**
+**OWNER MAPPED; CANDIDATE EXECUTION NEXT.**
 
-The semantic defect is proven on the pinned target. The next accepted transition is a minimal-option target RED plus exact source owner. Only then prepare a bounded repair and GREEN receipt.
+The semantic defect is proven, `unused` is isolated as the responsible option, and `drop_unused_assignments` is the exact current deletion owner. The next accepted transition is a semantic-matrix RED/GREEN run for the binding-context candidate, followed by review of the sibling dead-code guard.
 
 No third-party upstream mutation occurred.
