@@ -1,0 +1,60 @@
+name: SWC instanceof minifier phase discriminator
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  minifier-phase:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+    steps:
+      - name: Check out deterministic Fieldwork patcher
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: 5841ca4946e28bd52421983f88bb72fb59e4b795
+          path: fieldwork-source
+          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout-cone-mode: false
+
+      - name: Check out exact minifier phase discriminator
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: 45b6f542950ce4552d823ed63a8d17a4c99d0341
+          path: swc
+          fetch-depth: 0
+
+      - name: Install SWC Rust toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt
+          rustup override set nightly-2026-04-10 --path swc
+
+      - name: Apply shared candidate and run direct-vs-extracted discriminator
+        working-directory: swc
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ../fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py .
+          git diff --check
+          cargo fmt --all -- --check
+
+          set +e
+          cargo test -p swc_ecma_minifier --test compress -- instanceof_member_extraction --nocapture 2>&1 | tee /tmp/minifier-phase.log
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            echo 'all direct and extracted instanceof forms were retained' >&2
+            exit 0
+          fi
+
+          grep -q 'test result: FAILED' /tmp/minifier-phase.log
+          exit "$status"
