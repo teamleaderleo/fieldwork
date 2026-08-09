@@ -8,14 +8,14 @@ Separately, the Web input bridge listens for the browser `paste` event and uses 
 
 The Web key bridge forwards keydown into Godot and then always calls `preventDefault()` on the DOM key event. Keyboard-triggered paste event ordering therefore becomes critical: Godot can consume the cached clipboard before the browser's fresh clipboard event or asynchronous read has updated it.
 
-This source chain is a strong explanation candidate for open upstream issue #119747, where the first Web paste succeeds but subsequent pastes reuse stale text. Browser execution is required before assigning the exact event-order variant.
+This source chain is a strong explanation for open upstream issue #119747, where the first Web paste succeeds but subsequent pastes reuse stale text. More importantly, historical Godot discussion explicitly identifies the same keydown-before-paste ordering problem, and the 2019 partial clipboard implementation documents that GUI paste can receive the previous clipboard value because the browser read is asynchronous.
 
-State: source-read + browser-spec-read + exact event-order probe prepared.
+State: source-read + browser-spec-read + historical implementation lineage + exact event-order probe prepared.
 
 ## Exact source
 
 Development revision: `godotengine/godot@4173760fdf6c2c722e82e08cb58e55f34c9efd80`.
-Retrieved: 2026-08-09.
+Retrieved: 2026-08-09/10.
 
 Key paths:
 
@@ -26,7 +26,12 @@ Key paths:
 - `scene/gui/text_edit.cpp`
 - `doc/classes/DisplayServer.xml`
 
-Adjacent upstream report: issue #119747, open at this refresh.
+Adjacent upstream report: https://github.com/godotengine/godot/issues/119747, open at this refresh.
+
+Historical lineage:
+
+- https://github.com/godotengine/godot/issues/12587
+- https://github.com/godotengine/godot/pull/29298
 
 ## Engine-side synchronous contract
 
@@ -96,6 +101,19 @@ Two source-compatible failure modes exist:
 
 Neither mode can make the synchronous `clipboard_get()` return the just-requested async result.
 
+## Historical implementation lineage confirms the core mechanism
+
+The old HTML5 clipboard issue #12587 contains an unusually direct explanation from the Web maintainer in 2017: Godot needs clipboard contents while handling `keydown`, but browser clipboard data arrives in the later `paste` event. The discussion says the local clipboard therefore has to be updated before `_gui_input`, while also observing that the actual paste event occurs too late for that synchronous path.
+
+PR #29298, merged in 2019 as **Partial Javascript clipboard support**, implemented both sides of the compromise still recognizable today:
+
+- listen for the browser `paste` event and copy its `clipboardData` into Godot's local clipboard;
+- call asynchronous `navigator.clipboard.readText()` from the clipboard getter and return the local cached value immediately.
+
+Its PR description explicitly records the consequence: because the read is asynchronous, the first GUI paste can return the previous value. That is the same stale-cache class now reported again in #119747.
+
+This materially upgrades the candidate. The async/sync mismatch is not merely inferred from current source; it is a known design limitation in the lineage of the implementation. What still needs current browser execution is the exact 2026 event sequence and why the reporter sees the first paste succeed followed by repeated stale text rather than a simple one-paste lag.
+
 ## Upstream report fit
 
 Issue #119747 reports:
@@ -136,10 +154,12 @@ Avoid selecting a patch until event traces show browser behavior.
 
 Current PR search found no active repair matching `clipboard_get`/Web paste async ordering. Issue #119747 is open and labeled `platform:web` / `needs testing`.
 
+Historical overlap is implementation lineage, not an active repair: #29298 intentionally accepted stale-first-read behavior as a browser/API limitation in 2019.
+
 ## Evidence boundary
 
-Supported: synchronous text-control call chain, Web cached getter, asynchronous browser read, trusted paste-event cache update, unconditional keydown `preventDefault()`, public clipboard API contract, and issue #119747 symptoms.
+Supported: synchronous text-control call chain, Web cached getter, asynchronous browser read, trusted paste-event cache update, unconditional keydown `preventDefault()`, public clipboard API contract, issue #119747 symptoms, and historical maintainer/PR documentation of the same ordering limitation.
 
-Unknown: exact DOM event sequence in each browser, first-paste success mechanism, permission behavior, and best compatibility-preserving fix.
+Unknown: exact DOM event sequence in each current browser, first-paste success mechanism, permission behavior, and best compatibility-preserving fix.
 
 Automated upstream contact: prohibited.
