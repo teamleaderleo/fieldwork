@@ -38,6 +38,16 @@ PR #1 prepares unique same-directory temporary paths, complete write before rena
 
 Evidence: `source-read`, `model-executed`, `target-test-prepared`.
 
+## Origin history for the deterministic temp file
+
+The current Wasmtime publication algorithm came from merged upstream PR `swc-project/swc#11077` in September 2025. That change intentionally replaced direct final-path writes with a deterministic `.tmp` sibling plus final rename to prevent readers from observing partially written cache artifacts.
+
+The merged patch itself documents the remaining interruption case: if writing fails or the process exits after creating the temp file, the temp file can remain and future cache creation can be blocked. The comment describes this as a low-probability event and says users can manually delete the cache.
+
+That history changes the framing of this campaign. The stale-temp branch is a recovery hardening follow-up to a known tradeoff in the original atomic-write repair, not a challenge to the atomic-publication design itself. The invariant remains: keep complete-write-before-rename, while making abandoned publication state automatically recoverable.
+
+Evidence: `source-read` from merged upstream history. No upstream interaction was performed by Fieldwork.
+
 ## Recovery case 2 — rejected final cache artifact
 
 Current Wasmtime load logic is effectively:
