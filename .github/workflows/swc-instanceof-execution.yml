@@ -105,55 +105,62 @@ jobs:
 
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path("crates/swc_ecma_utils/src/lib.rs")
           text = path.read_text()
 
-          classification_old = '''        Expr::Unary(UnaryExpr { arg, .. }) => arg.may_have_side_effects(ctx),
-          Expr::Bin(BinExpr { left, right, .. }) => {
-              left.may_have_side_effects(ctx) || right.may_have_side_effects(ctx)
-          }
-          '''
-          classification_new = '''        Expr::Unary(UnaryExpr { arg, .. }) => arg.may_have_side_effects(ctx),
-          Expr::Bin(BinExpr {
-              op: op!("instanceof"),
-              ..
-          }) => true,
-          Expr::Bin(BinExpr { left, right, .. }) => {
-              left.may_have_side_effects(ctx) || right.may_have_side_effects(ctx)
-          }
-          '''
+          classification = re.compile(
+              r'(?m)^(?P<i>[ \t]*)Expr::Bin\(BinExpr \{ left, right, \.\. \}\) => \{\n'
+              r'(?P=i)    left\.may_have_side_effects\(ctx\) \|\| right\.may_have_side_effects\(ctx\)\n'
+              r'(?P=i)\}'
+          )
 
-          extraction_old = '''            Expr::Bin(BinExpr { op, .. }) if op.may_short_circuit() => {
-              to.push(Box::new(expr));
-          }
-          Expr::Bin(BinExpr { left, right, .. }) => {
-              self.extract_side_effects_to(to, *left);
-              self.extract_side_effects_to(to, *right);
-          }
-          '''
-          extraction_new = '''            Expr::Bin(BinExpr { op, .. }) if op.may_short_circuit() => {
-              to.push(Box::new(expr));
-          }
-          Expr::Bin(BinExpr {
-              op: op!("instanceof"),
-              ..
-          }) => {
-              to.push(Box::new(expr));
-          }
-          Expr::Bin(BinExpr { left, right, .. }) => {
-              self.extract_side_effects_to(to, *left);
-              self.extract_side_effects_to(to, *right);
-          }
-          '''
+          def add_instanceof_classification(match):
+              i = match.group('i')
+              prefix = (
+                  f'{i}Expr::Bin(BinExpr {{\n'
+                  f'{i}    op: op!("instanceof"),\n'
+                  f'{i}    ..\n'
+                  f'{i}}}) => true,\n'
+              )
+              return prefix + match.group(0)
 
-          if text.count(classification_old) != 1:
-              raise SystemExit("classification patch context did not match exactly once")
-          if text.count(extraction_old) != 1:
-              raise SystemExit("extraction patch context did not match exactly once")
+          text, classification_count = classification.subn(
+              add_instanceof_classification, text, count=1
+          )
+          if classification_count != 1:
+              raise SystemExit(
+                  f"classification patch context matched {classification_count} times"
+              )
 
-          text = text.replace(classification_old, classification_new, 1)
-          text = text.replace(extraction_old, extraction_new, 1)
+          extraction = re.compile(
+              r'(?m)^(?P<i>[ \t]*)Expr::Bin\(BinExpr \{ left, right, \.\. \}\) => \{\n'
+              r'(?P=i)    self\.extract_side_effects_to\(to, \*left\);\n'
+              r'(?P=i)    self\.extract_side_effects_to\(to, \*right\);\n'
+              r'(?P=i)\}'
+          )
+
+          def add_instanceof_extraction(match):
+              i = match.group('i')
+              prefix = (
+                  f'{i}Expr::Bin(BinExpr {{\n'
+                  f'{i}    op: op!("instanceof"),\n'
+                  f'{i}    ..\n'
+                  f'{i}}}) => {{\n'
+                  f'{i}    to.push(Box::new(expr));\n'
+                  f'{i}}}\n'
+              )
+              return prefix + match.group(0)
+
+          text, extraction_count = extraction.subn(
+              add_instanceof_extraction, text, count=1
+          )
+          if extraction_count != 1:
+              raise SystemExit(
+                  f"extraction patch context matched {extraction_count} times"
+              )
+
           path.write_text(text)
           PY
 
