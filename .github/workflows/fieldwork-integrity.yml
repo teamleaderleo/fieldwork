@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/swc
-          ref: 6749c50c79df51bdae0bd50e6e015c370fe8ef82
+          ref: 7ed7ea2ecc59107aec7a20aeb5eb9c4b3554c8e4
           fetch-depth: 0
 
       - name: Install SWC Rust toolchain
