@@ -3,6 +3,8 @@
 Date: 2026-08-07  
 Status: closed; preventive changes applied
 
+> **2026-08-10 follow-up:** The correctly attributed submission commit recorded below was later replaced during maintainer-requested history cleanup. An API-created squash briefly reintroduced an identity/DCO mismatch even though GitHub resolved the commit to the correct account and the `Signed-off-by:` text looked correct. The human submitter repaired that rewrite locally. See `research/postmortems/2026-08-10-cloud-hypervisor-dco-squash-followup.md`. Commit references below describe the state at the close of this original incident, not the current PR head.
+
 ## Summary
 
 While preparing a small Cloud Hypervisor contribution, Fieldwork used a GitHub Actions workflow as a repeatable **submission-commit materializer**. The workflow checked out a clean upstream base, applied the candidate patch, created a new signed-off commit, and force-pushed that commit to a clean submission branch.
@@ -140,6 +142,8 @@ expected GitHub-resolved committer
 expected Signed-off-by trailer
 expected assistance/coauthor trailers
 ```
+
+The 2026-08-10 follow-up tightens this further: provider account resolution is only secondary evidence. For DCO-bearing commits, the raw Git author and committer name/email must also be inspected directly after every history rewrite.
 
 ### Ephemeral commits do not close or directly reference external issues
 
