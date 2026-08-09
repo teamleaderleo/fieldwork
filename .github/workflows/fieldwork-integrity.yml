@@ -21,7 +21,7 @@ jobs:
         run: python3 scripts/check_fieldwork_integrity.py
 
   execute-tauri-authority-deny-scope:
-    if: github.head_ref == 'execute/118-tauri-authority-prove2'
+    if: github.head_ref == 'execute/118-tauri-listener-panic'
     runs-on: ubuntu-24.04
     steps:
       - name: Check out carrier
