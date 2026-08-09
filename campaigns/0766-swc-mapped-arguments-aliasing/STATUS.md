@@ -2,15 +2,13 @@
 
 ## In simple words
 
-Campaign #766 has now moved past the initial defect and past the obvious one-line repair.
+Campaign #766 now has two target-reproduced ownership defects, a rejected one-line repair, and a stronger explicit per-binding candidate that is GREEN across the hard semantic cases plus SWC formatting/package clippy.
 
-Pinned SWC has a target-reproduced `unused`-pass bug: a nested write to an enclosing simple parameter can be deleted even though a sloppy function later observes that parameter through mapped `arguments[0]`.
+Pinned SWC's `unused` pass can delete writes to a parameter based on the scope currently visiting the assignment. That is wrong when the parameter belongs to another function. It fails for an ordinary nested writer, fails when a strict nested function writes a sloppy outer mapped parameter, and the obvious `i.id.ctxt` repair fails after SWC gives an inline clone a fresh binding context.
 
-Fieldwork isolated the failure to `unused`, mapped the deletion owner to `compress/optimize/unused.rs::drop_unused_assignments`, and initially validated the same one-line candidate as active upstream PR `swc-project/swc#12037` on a seven-case non-inline matrix.
+The successful candidate records on `VarUsageInfo` that a parameter belongs to an ordinary function whose lexical `arguments` binding is used. `VarUsageInfo` already follows remapped inline clones, so the ownership fact survives code motion instead of being reconstructed from the current writer scope or current binding context.
 
-SWC maintainer review warned that `i.id.ctxt` is unstable because inlining gives cloned bindings a fresh `SyntaxContext`. Fieldwork has now reproduced that exact concern with target-native execution: base SWC cloned the function twice and ran `2 2`; applying only the one-line `i.id.ctxt` candidate deleted both parameter writes and ran `1 1`.
-
-The one-line candidate is therefore rejected as a general repair. The next repair must preserve parameter-to-declaring-function mapped-arguments ownership across identifier remapping.
+The candidate is conservative: strict or non-simple declaring functions that use `arguments` may retain a dead parameter assignment. That is a compression-precision question remaining before promotion.
 
 - Campaign issue: #766
 - Programme: #15
@@ -21,40 +19,40 @@ The one-line candidate is therefore rejected as a general repair. The next repai
 - Pinned/current SWC: `5bf27fd72e4667bac6cc86888b8facb8b91f8077`
 - Initial RED carrier: `teamleaderleo/fieldwork#765`, retired
 - Option bisection carrier: `teamleaderleo/fieldwork#767`, retired
-- Ordinary-path candidate carrier: `teamleaderleo/fieldwork#768`, retired
-- Inline-remap discriminator: `teamleaderleo/swc#8` at `7ddbae67c1b70cca2319bd5820bdb92a78797366`
-- Inline-remap carrier: `teamleaderleo/fieldwork#769` at `79d7c2f685486da1f3820fe16e217a97111a7e6f`
+- Ordinary-path one-line carrier: `teamleaderleo/fieldwork#768`, retired
+- Inline-remap carrier: `teamleaderleo/fieldwork#769`, retired
+- Explicit-ownership carrier: `teamleaderleo/fieldwork#770`
+- SWC discriminator: `teamleaderleo/swc#8` at `e9306342b4217ac259a5ad6840a7f7c1290e474c`
 - Inline-remap run/job: `31293367121` / `93194367502`
+- Owner-strictness RED run/job: `31294069767` / `93196148731`
+- Explicit-owner semantic run/job: `31294224774` / `93196547013`
+- Explicit-owner package run/job: `31294497411` / `93197236450`
 - Active upstream implementation: `swc-project/swc#12037`
 - Ordinary-path receipt: `candidate-local-green-2026-08-09.md`
 - Inline-remap receipt: `inline-remap-2026-08-09.md`
+- Owner-strictness receipt: `owner-strictness-red-2026-08-09.md`
+- Explicit-owner receipt: `explicit-ownership-candidate-2026-08-09.md`
+- Deterministic candidate patcher: `apply-explicit-ownership.py`
 - Upstream review note: `upstream-pr-12037-review.md`
-- Evidence: `model-executed`, target RED, option bisection, ordinary-path local GREEN, inline-remap target GREEN/RED discriminator
 - Upstream contact: prohibited for automated workers
 
 ## Language invariant
 
-For an ordinary sloppy function with a simple parameter list:
+For a sloppy ordinary function with a simple parameter list:
 
 ```text
 parameter b  <──────── mapped ────────>  arguments[0]
 ```
 
-A write to `b` remains observable through `arguments[0]`, including a write performed by a nested closure that captures `b`.
+A write to `b` remains observable through that declaring function's `arguments[0]`, even when the write executes inside a nested function. The nested writer's own strictness does not alter the outer mapping.
 
-Strict functions and non-simple parameter lists do not use the same mapped-arguments relation.
+Strict declaring functions and non-simple parameter lists do not have the same mapping.
 
-## Initial target RED
+## Original target RED and option bisection
 
-The original discriminator used a sloppy and strict function pair. Pinned SWC under default compression produced `1 1` where JavaScript semantics require `2 1`.
+Carrier #765 reproduced expected `2 1` versus optimized `1 1` for a sloppy/strict pair. Evidence: `target-executed` RED.
 
-Carrier #765: run `31291592350`, job `93189631053`.
-
-Evidence class: `target-executed` RED.
-
-## Option bisection
-
-Carrier #767, run `31291818612`, job `93190209600`, started from `defaults: false`.
+Carrier #767 started from `defaults: false` and showed `unused` alone is sufficient among the tested compressor options:
 
 | configuration | runtime | result |
 | --- | --- | --- |
@@ -67,11 +65,9 @@ Carrier #767, run `31291818612`, job `93190209600`, started from `defaults: fals
 | `unused + collapse_vars` | `1 1` | RED |
 | `reduce_vars + collapse_vars` | `2 1` | correct |
 
-Conclusion: `unused` alone is sufficient among the tested compressor options.
-
 ## Exact source owner
 
-`drop_unused_assignments` currently guards dead writes to parameters with:
+`drop_unused_assignments` guards removal with:
 
 ```rust
 (!var.flags.contains(VarUsageInfoFlags::DECLARED_AS_FN_PARAM)
@@ -79,137 +75,134 @@ Conclusion: `unused` alone is sufficient among the tested compressor options.
     || self.ctx.expr_ctx.in_strict)
 ```
 
-When the assignment to an outer parameter is visited inside a nested function, `self.ctx.scope` belongs to the nested function. The mapped `arguments` object belongs to the enclosing function.
+For a captured parameter, both `self.ctx.scope` and `self.ctx.expr_ctx.in_strict` can describe the nested writer rather than the function that declared the parameter.
 
-That explains the original bug.
+## One-line candidate — ordinary GREEN, remap RED
 
-## Ordinary-path one-line candidate
-
-Fieldwork and upstream PR #12037 independently arrived at:
+Fieldwork and active upstream PR #12037 independently arrived at:
 
 ```diff
 - || !self.data.used_arguments(self.ctx.scope)
 + || !self.data.used_arguments(i.id.ctxt)
 ```
 
-Carrier #768 validated this under `{ "defaults": false, "unused": true }` on seven cases covering direct/nested sloppy writes, strict behavior, no-arguments observation, unrelated locals, and a default-parameter control.
-
-Runtime oracle:
+Carrier #768 passed a seven-case ordinary-path matrix with oracle:
 
 ```text
 2 2 2 1 7 5 1
 ```
 
-The fixture passed before and after snapshot materialization, plus package clippy, formatting, and `git diff --check`.
+But carrier #769 forced real SWC multi-use cloning. Base SWC cloned the function twice, retained both `b = 2` assignments, and ran `2 2`. Applying only the one-line candidate removed both assignments and ran `1 1`; the target fixture failed its `2 2` oracle.
 
-Evidence class: local `target-executed` GREEN on the ordinary non-remapped path.
+Evidence: `target-executed` base GREEN plus candidate RED.
 
-## Inline-remap discriminator — maintainer concern confirmed
+Reason: the inliner gives cloned bindings a fresh `SyntaxContext` and copies `VarUsageInfo` to the remapped `Id`, while `ScopeData::USED_ARGUMENTS` remains owned by the lexical function scope. The fresh binding context is not a function-scope key.
 
-Maintainer `Austaras` warned that the inline pass changes identifier context to avoid collisions, so `i.id.ctxt` may no longer have scope metadata.
+Disposition for the one-line repair: **REJECT**.
 
-Owned-fork PR #8 forces SWC's multi-use function-inlining path:
+## Second target RED — declaring-function strictness
 
-```js
-function mapped(b, c, d, e, f, g, h, i, j, k, l, m) {
-    return (b = 2, arguments[0]);
-}
-
-console.log(mapped(1), mapped(1));
-```
-
-with:
-
-```json
-{
-  "defaults": false,
-  "unused": true,
-  "inline": 3,
-  "toplevel": true
-}
-```
-
-Carrier #769 first required base SWC to prove cloning. Base output contained two function clones, two `arguments[0]` reads, and both `b = 2` assignments. Runtime:
-
-```text
-2 2
-```
-
-The runner then applied only the one-line `i.id.ctxt` candidate. Candidate output became:
+PR #8 adds:
 
 ```js
-console.log(function(b, c, d, e, f, g, h, i, j, k, l, m) {
+function sloppyOuterStrictChild(b) {
+    run(function () {
+        "use strict";
+        b = 2;
+    });
     return arguments[0];
-}(1), function(b, c, d, e, f, g, h, i, j, k, l, m) {
+}
+
+function strictOuterSloppyChild(b) {
+    "use strict";
+    run(function () {
+        b = 2;
+    });
     return arguments[0];
-}(1));
+}
 ```
 
-Runtime:
+Direct JavaScript result:
 
 ```text
-1 1
+2 1
 ```
 
-The target fixture then failed its `2 2` stdout assertion with an actual `test result: FAILED` receipt.
+Pinned SWC removed both nested assignments and produced `1 1`. The focused fixture failed with an actual semantic assertion.
 
-Evidence class: `target-executed` base GREEN plus candidate RED.
+Evidence: `target-executed` RED. Exact receipt: `owner-strictness-red-2026-08-09.md`.
 
-Exact receipt: `inline-remap-2026-08-09.md`.
+This proves writer-scope strictness is also the wrong owner for the mapped-arguments decision.
 
-## Why the one-line candidate fails
+## Explicit per-binding ownership candidate
 
-`ProgramData::used_arguments(ctxt)` returns false if there is no `ScopeData` entry for that context.
+The candidate introduces a `VarUsageInfo` flag:
 
-SWC's inliner gives cloned bindings a fresh `SyntaxContext` and copies `VarUsageInfo` to the remapped `Id`. The fresh binding context does not become the lexical function scope that owns `ScopeData::USED_ARGUMENTS`.
-
-So the one-line candidate confuses:
-
-```text
-current binding hygiene context
+```rust
+FN_PARAM_OF_ARGUMENTS_FN
 ```
 
-with:
+After an ordinary function's parameters and body are analyzed, parameters are marked when that function's lexical scope uses `arguments`. The unused pass then decides against dropping a parameter write based on this stable per-binding fact rather than current writer scope/context.
 
-```text
-declaring function scope that owns mapped arguments
-```
+This is a natural fit for SWC's data model because the inliner already clones full `VarUsageInfo` records onto fresh remapped IDs, and `ProgramData` is re-analyzed from the current AST at the start of compressor passes.
 
-That identity mismatch is now tied directly to the `2 2 -> 1 1` runtime regression.
+Deterministic implementation artifact: `apply-explicit-ownership.py`. Every source replacement must match exactly once and fails closed on target drift.
 
-## Current data-model finding
+## Explicit candidate semantic GREEN
 
-`VarUsageInfo` already carries `DECLARED_AS_FN_PARAM`, and the inliner already clones the full `VarUsageInfo` record when it remaps an identifier.
+Carrier #770 semantic run `31294224774`, job `93196547013`, applied the candidate to exact SWC test head `e9306342b4217ac259a5ad6840a7f7c1290e474c`.
 
-`ScopeData::USED_ARGUMENTS` remains function-scoped.
+All three suites passed:
 
-This makes per-binding metadata the strongest current repair direction. The unused pass needs one stable fact:
+1. seven-case ordinary-path matrix — `2 2 2 1 7 5 1`;
+2. declaring-owner strictness — `2 1`;
+3. real inline-remap cloning — `2 2`.
 
-> This binding is a simple sloppy parameter whose declaring function uses mapped `arguments`.
+The inline output retained both `b = 2` assignments after cloning.
 
-Two implementation designs remain credible:
+Evidence: focused `target-executed` GREEN.
 
-1. **mapped-parameter flag** — set an explicit `VarUsageInfo` flag after function analysis establishes simple-parameter + sloppy + `USED_ARGUMENTS`, then let that flag follow remapped clones;
-2. **declaring-function owner** — store a stable declaring-function context on parameter metadata and query that owner after code motion.
+## Formatting and package clippy GREEN
 
-Copying complete `ScopeData` onto fresh binding contexts is weaker because a hygiene identity should not impersonate a lexical function scope. Walking `SyntaxContext` ancestry to guess the owner is broader and needs its own proof before use.
+The first semantic runner had a mechanical rustfmt mismatch in the runner-generated source after all semantic tests had passed.
+
+Fieldwork replaced that ephemeral edit path with deterministic patcher `apply-explicit-ownership.py`. Package run `31294497411`, job `93197236450`, successfully:
+
+1. checked out exact SWC head `e9306342b4217ac259a5ad6840a7f7c1290e474c`;
+2. applied the deterministic candidate;
+3. passed `git diff --check`;
+4. passed `cargo fmt --all -- --check`;
+5. passed `cargo clippy -p swc_ecma_minifier --all-targets -- -D warnings`.
+
+Evidence: exact-candidate package validation.
+
+## Precision boundary
+
+The candidate currently records:
+
+> parameter of an ordinary function whose lexical scope uses `arguments`
+
+It does not yet encode whether that declaring function actually has mapped parameters under ECMAScript rules. Strict functions and non-simple parameter lists can therefore keep an assignment that could be removed safely.
+
+This is correctness-conservative. It is visible in optimized output for controls and should be measured before promotion.
+
+The usage analyzer currently has no strict-mode field, so exact strictness precision would widen analyzer state. SWC's dedicated `arguments` optimizer offers useful precedent for parameter precision by operating only on plain identifier parameters and rejecting duplicate/shadowing cases.
 
 ## Active upstream ownership
 
-Upstream PR #12037 remains the implementation surface. Fieldwork should preserve independent evidence, verify later revisions, and avoid a competing automated upstream implementation.
+Upstream PR #12037 remains open on the one-line `i.id.ctxt` implementation. Fieldwork now has target evidence that this current approach regresses real inline-remapped code plus a locally GREEN alternative ownership model.
 
-Durable review: `upstream-pr-12037-review.md`.
+Fieldwork should continue review/verification and avoid automated upstream interaction.
 
 ## Current disposition
 
-**ONE-LINE CANDIDATE REJECTED / EXPLICIT OWNERSHIP REPAIR REQUIRED / ACTIVE UPSTREAM OWNERSHIP.**
+**EXPLICIT-OWNERSHIP CANDIDATE GREEN / REVIEW HOLD FOR PRECISION AND ACTIVE-UPSTREAM COORDINATION.**
 
-Next research transition:
+Next research transitions:
 
-1. determine the smallest per-binding representation that can express mapped-arguments parameter ownership;
-2. prepare a runner-only or owned-fork candidate using that representation;
-3. require the existing seven-case matrix and the inline-remap fixture to pass together;
-4. retain strict and non-simple-parameter controls;
-5. review the exact active upstream PR head before promotion language changes.
+1. measure the compression consequence of conservative retention in strict/non-simple controls;
+2. decide whether declaring-function strict/simple-parameter precision belongs in the same repair or a bounded follow-up;
+3. review any new upstream #12037 revision against the inline-remap and owner-strictness discriminators;
+4. retire carrier #770 after this receipt is synchronized.
 
 No third-party upstream mutation occurred.
