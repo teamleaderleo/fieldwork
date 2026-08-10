@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-hexyl-empty-binary-geometry",
+  "question": "Does Hexyl's empty-input special row use a different panel geometry from the surrounding border in binary base mode?",
+  "owner": "GPT-5.6 Sol",
+  "created_at": "2026-08-11",
+  "state": "running",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "sharkdp/hexyl",
+      "url": "https://github.com/sharkdp/hexyl",
+      "revision": "6ecc29b9c8c84d08a7e860f7f69c22b113b480ea",
+      "retrieved_at": "2026-08-11",
+      "claim": "Binary base uses wider per-byte digit geometry and can auto-select one panel, while Printer::print_all handles empty input with fixed No content row separators rather than deriving all cells from self.panels.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "hexyl issue 288",
+      "url": "https://redirect.github.com/sharkdp/hexyl/issues/288",
+      "revision": "open issue retrieved 2026-08-11",
+      "retrieved_at": "2026-08-11",
+      "claim": "Binary-base output for an empty file is reported to render a broken table while other bases remain aligned.",
+      "evidence_label": "Observed"
+    }
+  ],
+  "command": "GitHub Actions: Fieldwork Hexyl empty binary geometry probe",
+  "environment": {
+    "runtime": "target-declared Rust/Cargo",
+    "platform": "GitHub-hosted Ubuntu 24.04",
+    "dependencies": [
+      "exact sharkdp/hexyl source fetched read-only at 6ecc29b9c8c84d08a7e860f7f69c22b113b480ea"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "Stripped binary empty output has the same display width on every table row, matching the hexadecimal control.",
+      "interpretation": "Current source no longer reproduces the reported geometry mismatch; retain a negative result."
+    },
+    {
+      "observation": "Hexadecimal empty output is row-width consistent while binary empty output contains a No content row whose width differs from its border rows.",
+      "interpretation": "The special empty-input owner has a target-executed panel-geometry mismatch specific to the binary one-panel layout."
+    }
+  ],
+  "stop_condition": "Stop after exact target CLI output classifies row widths for binary and hexadecimal empty input. Promote only if the binary mismatch reproduces with a consistent control.",
+  "network_policy": "public-read-only",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-hexyl-empty-binary-geometry/README.md"
+  ],
+  "promoted_to": null
+}
