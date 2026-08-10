@@ -1,4 +1,4 @@
-name: SWC instanceof broad diagnostic
+name: SWC instanceof broad hard gates
 
 on:
   pull_request:
@@ -9,6 +9,8 @@ permissions:
 env:
   CARGO_INCREMENTAL: "0"
   RUST_BACKTRACE: "1"
+  CANDIDATE_REF: e942ccffff2bff8484d51a91a9b718f77d124cfe
+  SWC_REF: 5bf27fd72e4667bac6cc86888b8facb8b91f8077
 
 jobs:
   optimization-full:
@@ -16,126 +18,102 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Check out deterministic candidate
+      - name: Check out canonical candidate
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/fieldwork
-          ref: e8ec2506db64a2bdeca01ad221ce3a38d74a41c5
+          ref: ${{ env.CANDIDATE_REF }}
           path: fieldwork-source
           sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
           sparse-checkout-cone-mode: false
-      - name: Check out current SWC head
+      - name: Check out pinned SWC
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/swc
-          ref: 5bf27fd72e4667bac6cc86888b8facb8b91f8077
+          ref: ${{ env.SWC_REF }}
           path: swc
           fetch-depth: 0
       - name: Install SWC toolchain
         run: |
           rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
           rustup override set nightly-2026-04-10 --path swc
-      - name: Apply candidate
+      - name: Apply candidate and verify diff
         run: |
           python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
           cd swc
+          test "$(git rev-parse HEAD)" = "$SWC_REF"
           git diff --check
           cargo fmt --all -- --check
-      - name: Diagnose full optimization package test
+      - name: Run full optimization package
         working-directory: swc
-        shell: bash
-        run: |
-          set +e
-          cargo test -p swc_ecma_transforms_optimization --no-fail-fast 2>&1 | tee /tmp/optimization-full.log
-          status=${PIPESTATUS[0]}
-          set -e
-          echo "BROAD_DIAGNOSTIC_STATUS=$status"
-          echo "---- failed test names ----"
-          grep -E '^(test .* \.\.\. FAILED|failures:|    [A-Za-z0-9_:]+$)' /tmp/optimization-full.log | tail -n 120 || true
-          exit 0
+        run: cargo test -p swc_ecma_transforms_optimization --no-fail-fast
 
   minifier-exec:
     if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Check out deterministic candidate
+      - name: Check out canonical candidate
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/fieldwork
-          ref: e8ec2506db64a2bdeca01ad221ce3a38d74a41c5
+          ref: ${{ env.CANDIDATE_REF }}
           path: fieldwork-source
           sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
           sparse-checkout-cone-mode: false
-      - name: Check out current SWC head
+      - name: Check out pinned SWC
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/swc
-          ref: 5bf27fd72e4667bac6cc86888b8facb8b91f8077
+          ref: ${{ env.SWC_REF }}
           path: swc
           fetch-depth: 0
       - name: Install SWC toolchain
         run: |
           rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
           rustup override set nightly-2026-04-10 --path swc
-      - name: Apply candidate
+      - name: Apply candidate and verify diff
         run: |
           python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
           cd swc
+          test "$(git rev-parse HEAD)" = "$SWC_REF"
           git diff --check
           cargo fmt --all -- --check
-      - name: Diagnose minifier execution tests
+      - name: Run minifier execution suite
         working-directory: swc/crates/swc_ecma_minifier
-        shell: bash
-        run: |
-          set +e
-          ./scripts/exec.sh 2>&1 | tee /tmp/minifier-exec.log
-          status=${PIPESTATUS[0]}
-          set -e
-          echo "BROAD_DIAGNOSTIC_STATUS=$status"
-          echo "---- failed test names ----"
-          grep -E '^(test .* \.\.\. FAILED|failures:|    [A-Za-z0-9_:]+$)' /tmp/minifier-exec.log | tail -n 160 || true
-          exit 0
+        run: ./scripts/exec.sh
 
   minifier-compress:
     if: github.head_ref == 'fieldwork/execution/swc-instanceof-green'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Check out deterministic candidate
+      - name: Check out canonical candidate
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/fieldwork
-          ref: e8ec2506db64a2bdeca01ad221ce3a38d74a41c5
+          ref: ${{ env.CANDIDATE_REF }}
           path: fieldwork-source
           sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
           sparse-checkout-cone-mode: false
-      - name: Check out current SWC head
+      - name: Check out pinned SWC
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/swc
-          ref: 5bf27fd72e4667bac6cc86888b8facb8b91f8077
+          ref: ${{ env.SWC_REF }}
           path: swc
           fetch-depth: 0
       - name: Install SWC toolchain
         run: |
           rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
           rustup override set nightly-2026-04-10 --path swc
-      - name: Apply candidate
+      - name: Apply candidate and verify diff
         run: |
           python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
           cd swc
+          test "$(git rev-parse HEAD)" = "$SWC_REF"
           git diff --check
           cargo fmt --all -- --check
-      - name: Diagnose complete compress fixture test
+      - name: Run complete minifier compress fixtures
         working-directory: swc
-        shell: bash
-        run: |
-          set +e
-          cargo test -p swc_ecma_minifier --no-fail-fast --test compress --features concurrent 2>&1 | tee /tmp/minifier-compress.log
-          status=${PIPESTATUS[0]}
-          set -e
-          echo "BROAD_DIAGNOSTIC_STATUS=$status"
-          echo "---- failed test names ----"
-          grep -E '^(test .* \.\.\. FAILED|failures:|    [A-Za-z0-9_:]+$)' /tmp/minifier-compress.log | tail -n 200 || true
-          exit 0
+        run: cargo test -p swc_ecma_minifier --no-fail-fast --test compress --features concurrent
