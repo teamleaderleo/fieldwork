@@ -1,5 +1,4 @@
 diff --git a/serde_derive/src/internals/case.rs b/serde_derive/src/internals/case.rs
-index 8c8c02e..0000000 100644
 --- a/serde_derive/src/internals/case.rs
 +++ b/serde_derive/src/internals/case.rs
 @@ -4,6 +4,33 @@
