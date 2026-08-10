@@ -4,7 +4,7 @@
   "question": "When a bridge-backed Vercel AI SDK harness is configured with deterministic mintBridgeToken(sandboxId), can callers persist the returned detach or suspend lifecycle state without persisting the live bridge authentication token?",
   "owner": "chatgpt:gpt-5.6-sol",
   "created_at": "2026-08-11",
-  "state": "complete",
+  "state": "promoted",
   "claim_scope": "interface",
   "integration_context": null,
   "sources": [
@@ -56,5 +56,5 @@
     "playgrounds/EXP-20260811-vercel-harness-bridge-token-state/README.md",
     "playgrounds/EXP-20260811-vercel-harness-bridge-token-state/result.json"
   ],
-  "promoted_to": null
+  "promoted_to": "teamleaderleo/fieldwork#788"
 }
