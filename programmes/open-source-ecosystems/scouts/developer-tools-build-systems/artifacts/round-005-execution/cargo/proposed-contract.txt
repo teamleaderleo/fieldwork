@@ -1,0 +1,42 @@
+   Compiling cargo v0.100.0 (/home/runner/work/fieldwork/fieldwork/cargo)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.32s
+     Running tests/testsuite/main.rs (target/debug/deps/testsuite-fcd24ba93e691cfa)
+
+running 1 test
+running `/home/runner/work/fieldwork/fieldwork/cargo/target/debug/cargo check`
+
+thread 'patch::config_path_patch_can_replace_unreachable_git_dependency_without_fetch' (67209) panicked at tests/testsuite/patch.rs:347:10:
+
+test failed running `/home/runner/work/fieldwork/fieldwork/cargo/target/debug/cargo check`
+error: process exited with code 101 (expected 0)
+--- stdout
+
+--- stderr
+warning: Cargo.toml: `package.edition` is unspecified, defaulting to `2015` while the latest is `2024`
+warning: `cargo-patch-test` (manifest) generated 1 warning
+    Updating git repository `ssh://127.0.0.1:9/foo-dep.git`
+error: failed to get `foo-dep` as a dependency of package `cargo-patch-test v0.0.1 (/home/runner/work/fieldwork/fieldwork/cargo/target/tmp/cit/testsuite/patch/config_path_patch_can_replace_unreachable_git_dependency_without_fetch/foo)`
+
+Caused by:
+  failed to load source for dependency `foo-dep`
+
+Caused by:
+  unable to update ssh://127.0.0.1:9/foo-dep.git
+
+Caused by:
+  failed to clone into: /home/runner/work/fieldwork/fieldwork/cargo/target/tmp/cit/testsuite/patch/config_path_patch_can_replace_unreachable_git_dependency_without_fetch/home/.cargo/git/db/foo-dep-f92c0927f12e3a83
+
+Caused by:
+  failed to connect to 127.0.0.1: Connection refused; class=Os (2)
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test patch::config_path_patch_can_replace_unreachable_git_dependency_without_fetch ... FAILED
+
+failures:
+
+failures:
+    patch::config_path_patch_can_replace_unreachable_git_dependency_without_fetch
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4389 filtered out; finished in 0.10s
+
+error: test failed, to rerun pass `--test testsuite`
