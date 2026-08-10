@@ -98,14 +98,23 @@ jobs:
           test "$status" -ne 0
           grep -F "byte index 1 is not a char boundary" "$RUNNER_TEMP/variant-red.log"
 
-      - name: Apply bounded candidate
+      - name: Materialize bounded candidate and verify reviewer patch
         shell: bash
         run: |
           set -euo pipefail
           patch="$GITHUB_WORKSPACE/programmes/open-source-ecosystems/scouts/foundational-systems/serde-unicode-camelcase-20260811/candidate.patch"
+          apply_script="$GITHUB_WORKSPACE/programmes/open-source-ecosystems/scouts/foundational-systems/serde-unicode-camelcase-20260811/apply-candidate.py"
+
           git -C target apply --check "$patch"
-          git -C target apply "$patch"
+          python "$apply_script" target/serde_derive/src/internals/case.rs
           git -C target diff --check
+
+          git -C target diff -- serde_derive/src/internals/case.rs \
+            | sed '/^index /d' > "$RUNNER_TEMP/generated-candidate.patch"
+          if ! cmp -s "$patch" "$RUNNER_TEMP/generated-candidate.patch"; then
+            diff -u "$patch" "$RUNNER_TEMP/generated-candidate.patch" || true
+            exit 1
+          fi
 
       - name: Candidate GREEN — user-facing derives
         shell: bash
