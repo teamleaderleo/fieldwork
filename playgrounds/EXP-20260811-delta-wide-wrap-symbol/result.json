@@ -1,0 +1,35 @@
+{
+  "experiment": "EXP-20260811-delta-wide-wrap-symbol",
+  "target_revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
+  "fieldwork_head_at_execution": "993a33c91b7fee4059aa6e4c3c3b59c799658206",
+  "workflow_run": 31425334965,
+  "job": 93575567871,
+  "evidence_class": "target-executed",
+  "observations": {
+    "validator_reachability": {
+      "marker": "界",
+      "grapheme_count": 1,
+      "display_width": 2,
+      "result": "accepted"
+    },
+    "negative_control": {
+      "marker": "+",
+      "line_width": 2,
+      "text": "abc",
+      "max_lines": "unlimited",
+      "result": ["a+", "bc"],
+      "terminated": true
+    },
+    "wide_marker": {
+      "marker": "界",
+      "line_width": 2,
+      "text": "abc",
+      "max_lines": "unlimited",
+      "watchdog_seconds": 8,
+      "result": "watchdog-expired",
+      "terminated": false
+    }
+  },
+  "conclusion": "Exact Delta source accepts a two-column one-grapheme wrap marker through the public configuration parser. In the focused wrapper owner, that marker leaves zero source-text room at line width 2; unlimited wrapping repeats without progress while the one-column control terminates.",
+  "remaining_gate": "Reproduce the same consequence through the built delta CLI with public options and a minimal diff before promoting a source candidate."
+}
