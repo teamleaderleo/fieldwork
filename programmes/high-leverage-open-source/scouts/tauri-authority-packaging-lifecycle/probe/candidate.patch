@@ -1,0 +1,44 @@
+diff --git a/crates/tauri/src/event/listener.rs b/crates/tauri/src/event/listener.rs
+index afcc3ca5b..000000000 100644
+--- a/crates/tauri/src/event/listener.rs
++++ b/crates/tauri/src/event/listener.rs
+@@ -210,24 +210,33 @@ impl Listeners {
+     F: Fn(&EventTarget) -> bool,
+   {
+     let mut maybe_pending = false;
++    let mut callback_panic = None;
+ 
+     match self.inner.handlers.try_lock() {
+       Err(_) => self.insert_pending(Pending::Emit(emit_args)),
+       Ok(lock) => {
+         if let Some(handlers) = lock.get(&emit_args.event) {
+-          let handlers = handlers.iter();
+-          let handlers = handlers.filter(|(_, h)| match_any_or_filter(&h.target, &filter));
+-          for (&id, Handler { callback, .. }) in handlers {
+-            maybe_pending = true;
+-            (callback)(Event::new(id, emit_args.payload.clone()))
++          let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
++            let handlers = handlers.iter();
++            let handlers = handlers.filter(|(_, h)| match_any_or_filter(&h.target, &filter));
++            for (&id, Handler { callback, .. }) in handlers {
++              maybe_pending = true;
++              (callback)(Event::new(id, emit_args.payload.clone()))
++            }
++          }));
++          if let Err(payload) = result {
++            callback_panic = Some(payload);
+           }
+         }
+       }
+     }
+ 
+-    if maybe_pending {
++    if maybe_pending || callback_panic.is_some() {
+       self.flush_pending()?;
+     }
++    if let Some(payload) = callback_panic {
++      std::panic::resume_unwind(payload);
++    }
+ 
+     Ok(())
+   }

@@ -1,0 +1,26 @@
+{
+  "kind": "target-test-prepared",
+  "date": "2026-08-09",
+  "target_repository": "tauri-apps/tauri",
+  "target_revision": "34ec18ba5e1acabebd66ae79d6fc746f63d8eb96",
+  "source_paths": [
+    "crates/tauri-utils/src/resources.rs",
+    "crates/tauri-build/src/lib.rs"
+  ],
+  "test": "probe/resource_target_collision_test.rs",
+  "source_observation": [
+    "ResourcePaths::from_map accepts a HashMap of source-to-target mappings and can yield more than one distinct source with the same target path.",
+    "tauri-build copy_resources joins each yielded target under the output directory and copies sequentially without checking for duplicate targets.",
+    "The file-copy helper creates/truncates the target, so source reading predicts that a later colliding source can overwrite an earlier one.",
+    "Because the configured mapping is stored in a HashMap, there is no stable user-defined source ordering that could make an overwrite winner intentional."
+  ],
+  "repair_sketch": "If the focused regression reproduces the collision, resolve all sources and target paths first, reject a target mapped from multiple distinct canonical sources, then perform copies only after the collision check succeeds.",
+  "evidence_class": "target-test-prepared",
+  "execution_status": "No retained target execution receipt exists. Treat this as a source-supported data-integrity suspicion with a runnable regression, not a reproduced bug or validated candidate.",
+  "limitations": [
+    "Focused exact-path regression has not been retained as target-executed.",
+    "Case-insensitive aliases, Unicode-normalization aliases, and final installer output remain untested.",
+    "A duplicate mapping that resolves to the same canonical source may be harmless and should not be rejected by a repair."
+  ],
+  "upstream_contact_authorized": false
+}
