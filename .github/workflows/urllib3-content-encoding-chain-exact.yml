@@ -109,7 +109,8 @@ jobs:
           cd target
           python -m pytest -q \
             test/test_response.py::test_fieldwork_unknown_content_encoding_chain_stays_opaque \
-            test/test_response.py::test_fieldwork_supported_content_encoding_chains_still_decode
+            test/test_response.py::test_fieldwork_supported_content_encoding_chains_still_decode \
+            test/test_response.py::test_fieldwork_content_encoding_chain_keeps_link_limit
 
       - name: Candidate GREEN — existing supported-chain controls
         shell: bash
