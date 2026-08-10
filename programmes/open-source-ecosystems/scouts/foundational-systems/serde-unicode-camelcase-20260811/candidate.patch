@@ -2,7 +2,7 @@ diff --git a/serde_derive/src/internals/case.rs b/serde_derive/src/internals/cas
 index 8c8c02e..0000000 100644
 --- a/serde_derive/src/internals/case.rs
 +++ b/serde_derive/src/internals/case.rs
-@@ -3,6 +3,14 @@
+@@ -3,6 +3,31 @@
  use self::RenameRule::*;
  use std::fmt::{self, Debug, Display};
  
@@ -15,10 +15,28 @@ index 8c8c02e..0000000 100644
 +    }
 +}
 +
++fn camel_case_field(field: &str) -> String {
++    let mut camel = String::new();
++    let mut capitalize = false;
++
++    for ch in field.chars() {
++        if ch == '_' {
++            capitalize = true;
++        } else if capitalize {
++            camel.extend(ch.to_uppercase());
++            capitalize = false;
++        } else {
++            camel.push(ch);
++        }
++    }
++
++    lowercase_first(&camel)
++}
++
  /// The different possible ways to change case of fields in a struct, or variants in an enum.
  #[derive(Copy, Clone, PartialEq)]
  pub enum RenameRule {
-@@ -66,7 +74,7 @@ impl RenameRule {
+@@ -66,7 +91,7 @@ impl RenameRule {
              None | PascalCase => variant.to_owned(),
              LowerCase => variant.to_ascii_lowercase(),
              UpperCase => variant.to_ascii_uppercase(),
@@ -27,13 +45,15 @@ index 8c8c02e..0000000 100644
              SnakeCase => {
                  let mut snake = String::new();
                  for (i, ch) in variant.char_indices() {
-@@ -104,8 +112,7 @@ impl RenameRule {
+@@ -103,10 +128,7 @@ impl RenameRule {
+                 }
                  pascal
              }
-             CamelCase => {
+-            CamelCase => {
 -                let pascal = PascalCase.apply_to_field(field);
 -                pascal[..1].to_ascii_lowercase() + &pascal[1..]
-+                lowercase_first(&PascalCase.apply_to_field(field))
-             }
+-            }
++            CamelCase => camel_case_field(field),
              ScreamingSnakeCase => field.to_ascii_uppercase(),
              KebabCase => field.replace('_', "-"),
+             ScreamingKebabCase => ScreamingSnakeCase.apply_to_field(field).replace('_', "-"),
