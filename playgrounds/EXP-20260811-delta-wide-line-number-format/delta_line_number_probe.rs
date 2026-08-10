@@ -5,7 +5,7 @@ mod fieldwork_wide_line_number_format_probe {
     use super::*;
     use crate::features::side_by_side::{available_line_width, ansifill::UseFullPanelWidth};
     use crate::minusplus::MinusPlus;
-    use crate::tests::integration_test_utils::make_config_from_args;
+    use crate::tests::integration_test_utils::{make_config_from_args, DeltaTest};
     use unicode_width::UnicodeWidthStr;
 
     fn data<'a>(formats: &'a MinusPlus<String>) -> LineNumbersData<'a> {
@@ -65,5 +65,51 @@ mod fieldwork_wide_line_number_format_probe {
         assert_eq!(planned_content_width, 8);
         assert_eq!(actual_content_width, 7);
         assert_eq!(planned_content_width, actual_content_width + 1);
+    }
+
+    const FIELDWORK_BOUNDARY_DIFF: &str = "\
+diff --git a/a.txt b/a.txt
+--- a/a.txt
++++ b/a.txt
+@@ -1 +1 @@
+-abcdefgh
++zzzzzzzz
+";
+
+    fn rendered_output(left_format: &'static str) -> String {
+        DeltaTest::with_args(&[
+            "--side-by-side",
+            "--width",
+            "20",
+            "--line-fill-method=spaces",
+            "--wrap-max-lines",
+            "2",
+            "--line-numbers-left-format",
+            left_format,
+            "--line-numbers-right-format",
+            "|{np}",
+        ])
+        .set_config(|cfg| cfg.truncation_symbol = ">".into())
+        .with_input(FIELDWORK_BOUNDARY_DIFF)
+        .output
+    }
+
+    #[test]
+    fn fieldwork_delta_wide_prefix_changes_rendered_boundary_output() {
+        let ascii = rendered_output("|{nm}");
+        let wide = rendered_output("界{nm}");
+
+        assert!(
+            ascii.contains("abcdefgh"),
+            "the one-column prefix control should preserve the eight-column boundary text: {ascii:?}"
+        );
+        assert!(
+            !wide.contains("abcdefgh"),
+            "the wide prefix should expose the one-column over-budget in final output: {wide:?}"
+        );
+        assert!(
+            wide.contains('界'),
+            "the configured wide prefix must reach rendered output: {wide:?}"
+        );
     }
 }
