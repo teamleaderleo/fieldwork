@@ -2,7 +2,7 @@
 
 Issue: #800
 
-State: `candidate-generation-2 — protocol-correct controls hardened; exact RED/GREEN pending`
+State: `candidate-generation-2 — exact baseline RED proven; deterministic candidate rerun queued`
 
 Target: `urllib3/urllib3@824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78`
 
@@ -22,10 +22,39 @@ Production fence: `src/urllib3/response.py` only.
 
 Prepared artifacts:
 
-- `candidate.patch`
-- `add-regressions.py`
+- `candidate.patch` — reviewer-facing production-only diff;
+- `apply-candidate.py` — deterministic exact-source transformer;
+- `add-regressions.py` — focused target regressions.
 
-## Why generation 1 was superseded
+## Exact baseline RED
+
+Carrier #804 run `31426131410` executed the baseline discriminator on exact source for Python 3.12 and 3.14.
+
+Both lanes reached the intended failing assertion: a mixed known/unknown chain decoded all the way to `fieldwork-unknown-chain` where the regression required the original wire bytes to remain opaque.
+
+Evidence class: `target-executed` RED.
+
+The same run then stopped before any candidate code executed because the hand-written reviewer patch had a malformed hunk header:
+
+```text
+error: corrupt patch ... candidate.patch:20
+```
+
+Classification: **carrier packaging only**. The candidate invariant and algorithm did not run in that generation.
+
+## Evidence packaging repair
+
+The reviewer patch hunk count is corrected and carrier generation 5 now requires:
+
+1. `git apply --check candidate.patch` on clean exact source;
+2. deterministic `apply-candidate.py` transformation;
+3. `git diff --check`;
+4. generated production-only `response.py` diff matches `candidate.patch` byte-for-byte after removing Git `index` metadata;
+5. only then reinstall and execute candidate controls.
+
+Current rerun: #804 run `31428442539`, queued at this checkpoint.
+
+## Why production generation 1 was superseded
 
 Generation 1 treated an empty list element as unsupported. RFC 9110 section 5.6.1.2 requires recipients to parse and ignore a reasonable number of empty list elements, and empty elements do not contribute to the list element count.
 
@@ -65,13 +94,7 @@ Generation 2 therefore tightens authorization before `MultiDecoder` construction
 
 A model-executed monkeypatch on installed urllib3 2.7.0 passed unknown-chain opacity, supported-chain decoding, and leading/trailing/interior empty-element controls. Exact pinned-source candidate execution remains the authority gate.
 
-## Required exact gate
-
-Baseline RED:
-
-- `test_fieldwork_unknown_content_encoding_chain_stays_opaque` fails on exact public source because known+unknown chains currently reinterpret the unknown token as deflate.
-
-Candidate GREEN:
+## Candidate GREEN gate
 
 - lone unknown remains raw;
 - unknown after known remains raw;
@@ -80,9 +103,8 @@ Candidate GREEN:
 - leading, trailing, and interior empty list elements are ignored for otherwise supported chains;
 - six real supported codings still hit the existing link-count limit;
 - existing multi-decoding controls pass;
-- installed candidate `response.py` byte-matches patched exact source;
+- installed candidate `response.py` byte-matches transformed exact source;
+- reviewer patch matches transformed production diff exactly;
 - `git diff --check` passes.
-
-Current exact carrier: #804, run `31426131410` queued at the latest checkpoint.
 
 Upstream contact authorized: `false`.
