@@ -1,19 +1,20 @@
 ## In simple words
 
-Bat's public `--wrap=character` path contains a scalar-by-scalar wrapping owner. That is a risky boundary for text such as ZWJ emoji, where several scalars form one extended grapheme cluster that should stay together as a display unit.
+Bat's public `--wrap=character` path can insert a line break inside one extended grapheme cluster because the active wrapping owner walks Unicode scalars one at a time.
 
-The focused discriminator uses the real Bat binary at exact source `af59a3218303837421ce06bb2dc3c545525bba0f`.
+This is target-executed through the real Bat binary at exact source `af59a3218303837421ce06bb2dc3c545525bba0f`.
 
-At terminal width 2:
+The corrected fixture matrix is decisive:
 
-- `界` is the two-column scalar control and should remain intact;
-- `👩‍💻` is the ZWJ grapheme under test.
+```text
+terminal width 2, 界       -> 界\n
+terminal width 2, 👩‍💻    -> 👩‍\n💻\n
+terminal width 4, 👩‍💻    -> 👩‍💻\n
+```
 
-At terminal width 4, `👩‍💻` is the width-relaxed control and should remain intact.
+The two-column scalar control remains intact. The same ZWJ grapheme remains intact when the terminal is wide enough. Only the narrow ZWJ case splits between component scalars.
 
-The first target generation produced a useful harness negative: all text stayed intact because `--decorations=never` in piped mode made Bat choose `SimplePrinter`, bypassing the wrapping owner entirely. Current source confirms `Controller` selects `SimplePrinter` when `loop_through` is true, and CLI config sets `loop_through=false` when decorations are explicitly forced on.
-
-The corrected generation therefore uses `--decorations=always` together with `--style=plain`. That forces `InteractivePrinter` while keeping the visible decoration set empty, so stdout remains clean and the real wrapping owner executes.
+This experiment is promoted to Fieldwork candidate #824.
 
 ## Assignment
 
@@ -21,19 +22,20 @@ The corrected generation therefore uses `--decorations=always` together with `--
 - Lane: #210 (`developer-tools-build-systems`)
 - Worker: `GPT-5.6 Sol`
 - Experiment: `EXP-20260811-bat-grapheme-character-wrap`
+- Candidate owner: #824
 - Target: `sharkdp/bat@af59a3218303837421ce06bb2dc3c545525bba0f`
 - Owned fork execution surface: `teamleaderleo/bat` PR #1
-- Claim scope: mechanism
-- Evidence class: `source-read`, pending corrected `target-executed`
-- First harness run: `31441666371`, job `93627473861`
-- Corrected target run: `31441904287` queued at latest receipt
+- Claim scope: mechanism + public CLI consequence
+- Evidence class: `target-executed`
+- Corrected run: `31442103819`, job `93628773416`
+- Retained harness-bypass run: `31441666371`, job `93627473861`
 - Upstream contact authorized/performed: `false` / `false`
 
 ## Source map
 
 ### Wrapping owner
 
-`src/printer.rs` imports Unicode segmentation and width helpers, while the active character-wrapping loop processes content with:
+`src/printer.rs` imports Unicode segmentation and width helpers, while the active character/word wrapping loop processes content with:
 
 ```rust
 for c in text.chars() {
@@ -47,7 +49,7 @@ for c in text.chars() {
 }
 ```
 
-This permits a line break after one scalar and before the next scalar even when both belong to one grapheme cluster.
+A line break can therefore occur after one scalar and before the next scalar even when both belong to one grapheme cluster.
 
 ### Printer selection
 
@@ -58,24 +60,15 @@ loop_through=true  -> SimplePrinter
 loop_through=false -> InteractivePrinter
 ```
 
-`src/bin/bat/app.rs` makes piped output `loop_through=true` unless an interactive-output condition is forced, including `--decorations=always`.
+Piped CLI configuration leaves loop-through enabled unless an interactive-output condition is forced. `--decorations=always` forces `InteractivePrinter`; `--style=plain` keeps the visible decoration set empty, so stdout stays clean.
 
-That distinction explains the first run and defines the corrected execution path.
+### Existing Unicode stack
 
-### Existing dependencies
+The exact target already uses `unicode-segmentation` and `unicode-width`, so a repair can be evaluated without adding a new Unicode dependency.
 
-The exact target already carries:
+## Target execution
 
-```text
-unicode-segmentation = 1.13.2
-unicode-width = 0.2.2
-```
-
-so a future repair can be evaluated against Bat's existing Unicode stack rather than introducing a new dependency.
-
-## Exact fixtures
-
-All corrected runs use:
+The final workflow fetched exact source read-only, fenced the checkout SHA, built `bat`, and ran the real binary with:
 
 ```text
 --style=plain
@@ -85,8 +78,6 @@ All corrected runs use:
 --wrap=character
 ```
 
-`--decorations=always` is present solely to enter `InteractivePrinter`; plain style keeps the visible decoration set empty.
-
 ### Control A — one scalar, two columns
 
 Input:
@@ -95,19 +86,17 @@ Input:
 界
 ```
 
-with:
+Terminal width: `2`.
+
+Observed:
 
 ```text
---terminal-width=2
+FIELDWORK_CONTROL scalar-width2= '界\n'
 ```
 
-Expected control output:
+Result: intact.
 
-```text
-界\n
-```
-
-### Discriminator — one ZWJ grapheme
+### Discriminator — one ZWJ extended grapheme
 
 Input:
 
@@ -115,48 +104,74 @@ Input:
 👩‍💻
 ```
 
-with terminal width 2.
+Terminal width: `2`.
 
-Source-level prediction through `InteractivePrinter`:
+Observed:
 
 ```text
-👩‍\n💻\n
+FIELDWORK_ZWJ_OUTPUT '👩\u200d\n💻\n'
+FIELDWORK_RESULT zwj-width2=split-inside-grapheme
 ```
 
-because the woman scalar consumes two columns, the ZWJ consumes zero, and the laptop scalar triggers the next scalar-width overflow.
+Result: Bat emits the woman scalar and ZWJ, then a newline, then the laptop scalar.
 
 ### Control B — relaxed width
 
-Same ZWJ input with:
+Same ZWJ input, terminal width `4`.
+
+Observed:
 
 ```text
---terminal-width=4
+FIELDWORK_CONTROL zwj-width4= '👩\u200d💻\n'
 ```
 
-Expected control output:
+Result: intact.
 
-```text
-👩‍💻\n
-```
+Machine-readable receipt: `result.json`.
+
+## Why the fixture discriminates the owner
+
+At width 2 under the current scalar loop:
+
+- `👩` contributes two columns;
+- ZWJ contributes zero;
+- `💻` contributes two and pushes `current_width` over the line budget;
+- Bat flushes the existing buffer `👩‍` before appending `💻`.
+
+The `界` control shows that a normal two-column scalar itself is handled correctly. The width-4 control shows the EGC is preserved when the scalar sum does not cross the boundary.
 
 ## Retained first-generation receipt
 
-Run `31441666371`, job `93627473861` used `--decorations=never` and observed:
+Run `31441666371`, job `93627473861` used `--decorations=never` and observed intact output in all cases.
 
-```text
-width 2, 界      -> 界\n
-width 2, 👩‍💻   -> 👩‍💻\n
-width 4, 👩‍💻   -> 👩‍💻\n
-```
+Source remapping showed that this combination selected `SimplePrinter`, which writes input through rather than invoking the wrapping owner.
 
-Classification: `harness bypass / SimplePrinter`, rather than a negative result about the scalar wrapping owner.
+Classification: `harness bypass / wrong printer path`, rather than a negative result.
 
-No target assertion failed; the execution path was wrong for the bounded question.
+## Candidate direction
+
+Candidate owner: Fieldwork #824.
+
+The narrow repair seam is the wrapping loop. Evaluate consuming extended grapheme clusters instead of individual Unicode scalars while retaining:
+
+- Bat's special width treatment for control characters;
+- word-wrap whitespace detection at grapheme boundaries;
+- correct byte indices for carried remainders;
+- existing one-scalar behavior.
+
+Regression matrix should include:
+
+- `界` at width 2;
+- `👩‍💻` at widths 2 and 4;
+- combining `e\u{301}`;
+- one multi-scalar Indic grapheme;
+- whitespace/word-wrap carry behavior;
+- control-character display behavior.
 
 ## Overlap
 
-Focused current searches found no matching open Bat issue or PR for grapheme/ZWJ character wrapping at experiment start. A broader closed-issue scan surfaced historical Unicode/wrapping topics but no existing owner for this exact EGC-boundary question.
+Focused current searches found no matching open Bat issue or PR for grapheme/ZWJ character wrapping at experiment start. A broader historical search surfaced unrelated Unicode/wrapping reports but no active owner for this exact EGC-boundary path.
 
 ## Stop condition
 
-Classify the corrected real CLI output on exact target source through `InteractivePrinter`. If the narrow ZWJ case splits while both controls hold, promote into a candidate owner and use the owned Bat fork for repair exploration. If it remains intact, inspect the executed wrapping state before closing the hypothesis. Keep external upstream read-only and keep any upstream contact human-authorized.
+Experiment complete and promoted. Continue source work only in the owned Bat fork or candidate #824. Refresh Bat head and overlap before any external proposal. External issue, pull-request, comment, review, or other upstream interaction remains manual human work.
