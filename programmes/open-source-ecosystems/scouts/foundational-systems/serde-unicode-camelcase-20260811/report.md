@@ -1,8 +1,17 @@
+# Serde Unicode camelCase scout — 2026-08-11
+
 ## In simple words
 
-Current Serde `camelCase` rename logic still slices the first **byte** of a Rust identifier. That panics when the first Unicode scalar uses more than one UTF-8 byte. Open Serde issue [#2953](https://redirect.github.com/serde-rs/serde/issues/2953) reports the field case with CJK identifiers; the same current source expression exists independently in the enum-variant path.
+Current Serde `camelCase` rename logic still slices the first **byte** of a Rust identifier. That panics when the first Unicode scalar occupies more than one UTF-8 byte. Open Serde issue [#2953](https://redirect.github.com/serde-rs/serde/issues/2953) reports the field case with CJK identifiers; the same current source expression independently exists in the enum-variant path.
 
-A Serde maintainer has already stated the intended direction on #2953: non-ASCII case changes should be supported using Unicode-aware case conversion. The bounded candidate in this scout therefore does one thing: replace the two first-byte camelCase operations with a helper that lowercases the first Unicode scalar and preserves the remainder. Broader conversion of every Serde rename rule from ASCII-only to Unicode case mapping stays outside this candidate.
+The first exact carrier already reproduced both baseline failures on the pinned source. Candidate generation 1 then exposed a candidate-only Rust name-resolution bug and was rejected. Further review found that merely replacing the final byte slice would still leave Unicode word starts after underscores ASCII-only inside field camelCase. Candidate generation 3 therefore keeps the change **camelCase-specific** while implementing Unicode case conversion across the camelCase operation itself:
+
+- safely Unicode-lowercase the first scalar;
+- remove field underscores;
+- Unicode-uppercase each later word start;
+- preserve standalone PascalCase behavior in this candidate.
+
+That matches the upstream maintainer direction to support non-ASCII case changes while avoiding a broad rewrite of every Serde rename mode.
 
 ## Scout identity
 
@@ -12,24 +21,27 @@ A Serde maintainer has already stated the intended direction on #2953: non-ASCII
 - Exact public source: `747814f7d5fbab872df3b02f070c165b91bde062`
 - Source subject: `Release serde_derive_internals 0.30.0`
 - Primary owner: `serde_derive/src/internals/case.rs`
-- Public overlap owner: Serde issue [#2953](https://redirect.github.com/serde-rs/serde/issues/2953)
+- Public issue owner: [serde-rs/serde#2953](https://redirect.github.com/serde-rs/serde/issues/2953)
 - Matching public repair found in focused PR search: none
 - Owned Fieldwork path: `programmes/open-source-ecosystems/scouts/foundational-systems/serde-unicode-camelcase-20260811/`
+- Research PR: Fieldwork #796
+- Exact execution carrier: Fieldwork #798
 - Upstream contact authorized: `false`
-- Upstream target remains read-only
+- Third-party target remains read-only
 
 ## Evidence state
 
-Current at first materialization:
+Current evidence:
 
-- `source-read`: exact current Serde source and tests inspected.
-- `documented`: maintainer direction on #2953 supports Unicode-aware case changes.
-- `target-test-prepared`: deterministic regression materializer and candidate patch are retained here.
-- `target-executed`: pending exact-head execution carrier.
+- `source-read`: exact current Serde rename implementation and tests inspected.
+- `documented`: maintainer direction on #2953 says non-ASCII case changes should be supported using Unicode-aware string/character case conversion.
+- `target-executed`: generation-1 carrier run `31423850341` reproduced the baseline field and enum-variant derive panics independently on exact source.
+- `target-test-prepared`: candidate generation 3 and its expanded Unicode/compatibility matrix are retained here.
+- generation-3 terminal GREEN: pending the current exact carrier run.
 
-No local Rust toolchain is available in the chat execution container, so local compilation is not evidence. Exact target execution is delegated to an owned Fieldwork Actions carrier.
+No local Rust toolchain is available in the chat execution container, so local compilation is outside the evidence set. Target execution uses the owned Fieldwork Actions carrier.
 
-## Source map
+## Exact source map
 
 Pinned file:
 
@@ -50,30 +62,9 @@ CamelCase => {
 }
 ```
 
-Both expressions assume byte index `1` is a character boundary.
+Both final expressions assume byte index `1` is a character boundary.
 
-Rust identifiers are UTF-8 strings. CJK, Greek, accented Latin, and many other valid identifier starts occupy more than one byte. Slicing `[..1]` or `[1..]` on such strings panics before the rename can complete.
-
-## Existing test map
-
-The same file already contains direct unit tests:
-
-- `internals::case::rename_variants`
-- `internals::case::rename_fields`
-
-Those cover ordinary ASCII cases including `Outcome`, `VeryTasty`, `very_tasty`, `A`, and `Z42`. They do not cover a non-ASCII leading scalar.
-
-The workspace contains:
-
-```text
-serde
-serde_core
-serde_derive
-serde_derive_internals
-test_suite
-```
-
-The execution carrier can therefore test both the internal rename owner and a user-facing derive compile probe without changing public upstream state.
+The field path's `PascalCase.apply_to_field()` itself is UTF-8-safe in traversal because it iterates `field.chars()`. However, it uses `to_ascii_uppercase()` at word starts. Therefore replacing only the final byte slice would fix the panic while still leaving Unicode word-start casing incomplete for inputs such as `foo_éclair`.
 
 ## Public issue and maintainer direction
 
@@ -87,42 +78,50 @@ struct Payload {
 }
 ```
 
-The reported panic is the expected Rust UTF-8 boundary failure at byte index 1.
+The reported failure is a UTF-8 boundary panic at byte index 1.
 
-A maintainer response says Serde should support non-ASCII case changes and points toward Unicode `to_uppercase` / character-level case conversion. This removes ambiguity about whether non-ASCII identifiers are intentionally unsupported.
+A maintainer response says Serde wants to support non-ASCII case changes and suggests allocating and using Unicode `to_uppercase` or the character equivalent. This selects Unicode case conversion over a byte-length-only panic avoidance patch.
 
 ## Additional source finding — enum variants share the defect
 
-`RenameRule::apply_to_variant` uses the same `[..1]` / `[1..]` expression for `CamelCase`.
-
-That means a Unicode-leading enum variant such as:
+`RenameRule::apply_to_variant` has the same first-byte camelCase expression. A Unicode-leading enum variant therefore reaches the same panic independently:
 
 ```rust
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 enum Event {
     项目名称,
 }
 ```
 
-is independently exposed to the same panic when the enum container uses `#[serde(rename_all = "camelCase")]`.
+The original public issue only demonstrates fields. Fieldwork's exact baseline carrier reproduced both field and variant failures separately.
 
-This variant path is absent from the original issue report but has the same owner and the same repair. It belongs in the same bounded regression matrix.
+## Exact baseline RED receipt
 
-## Candidate invariant
+Run: `31423850341`
+Job: `93570777431`
+Target: `serde-rs/serde@747814f7d5fbab872df3b02f070c165b91bde062`
+Rust stable observed in carrier: `1.97.1`
 
-For Serde camelCase rename handling:
+Field derive baseline:
 
-1. the first Unicode scalar is read on a character boundary;
-2. camelCase lowercases that scalar using Unicode case mapping;
-3. the remainder of the identifier is preserved exactly as produced by the existing path;
-4. ordinary ASCII rename outputs remain unchanged;
-5. case mappings that expand to more than one scalar are preserved rather than truncated;
-6. unrelated rename rules retain their current behavior in this candidate.
+```text
+byte index 1 is not a char boundary; it is inside '项' (bytes 0..3 of string)
+```
 
-## Candidate
+Variant derive baseline:
 
-Retained patch: `candidate.patch`.
+```text
+byte index 1 is not a char boundary; it is inside '项' (bytes 0..3 of string)
+```
 
-Conceptually:
+Evidence class: `target-executed` RED for both public derive paths.
+
+## Candidate evolution
+
+### Generation 1 — rejected candidate compile bug
+
+Generation 1 added:
 
 ```rust
 fn lowercase_first(value: &str) -> String {
@@ -134,29 +133,106 @@ fn lowercase_first(value: &str) -> String {
 }
 ```
 
-The helper replaces only the two camelCase byte-slice expressions.
+Exact run `31423850341` applied that candidate after both baseline RED controls, then Rust compilation failed because this file imports `use self::RenameRule::*;`. Bare `None` resolved to `RenameRule::None` instead of `Option::None` in the `match` arm.
 
-### Why this cut
+Disposition: **candidate-only failure**, invariant retained.
 
-A broader patch could replace every `to_ascii_lowercase` / `to_ascii_uppercase` in Serde rename rules with Unicode conversion. That would alter existing serialized names under `lowercase`, `UPPERCASE`, `snake_case`, `SCREAMING_SNAKE_CASE`, and PascalCase-related paths for non-ASCII identifiers.
+### Generation 2 — compile collision repaired, then superseded by semantic review
 
-The current candidate avoids that wider compatibility decision. It repairs the panic, follows maintainer direction for camelCase's actual case change, and leaves broader Unicode rename semantics independently reviewable.
+Generation 2 replaced the `match` with `if let Some(first) = chars.next()` and kept field camelCase as:
+
+```rust
+lowercase_first(&PascalCase.apply_to_field(field))
+```
+
+That fixes the name collision and the first-byte panic. Review then found a precision gap: `PascalCase.apply_to_field()` still ASCII-uppercases word starts. Under the maintainer's Unicode direction:
+
+```text
+foo_éclair
+```
+
+should exercise Unicode uppercase on the post-underscore word start. Generation 2 would leave that interior `é` lowercase.
+
+Disposition: **superseded before terminal execution**.
+
+### Generation 3 — current candidate
+
+Generation 3 retains a first-scalar helper for enum variants and adds a camelCase-specific field transform:
+
+```rust
+fn lowercase_first(value: &str) -> String {
+    let mut chars = value.chars();
+    if let Some(first) = chars.next() {
+        first.to_lowercase().chain(chars).collect()
+    } else {
+        String::new()
+    }
+}
+
+fn camel_case_field(field: &str) -> String {
+    let mut camel = String::new();
+    let mut capitalize = false;
+
+    for ch in field.chars() {
+        if ch == '_' {
+            capitalize = true;
+        } else if capitalize {
+            camel.extend(ch.to_uppercase());
+            capitalize = false;
+        } else {
+            camel.push(ch);
+        }
+    }
+
+    lowercase_first(&camel)
+}
+```
+
+Call sites become:
+
+```rust
+CamelCase => lowercase_first(variant)
+CamelCase => camel_case_field(field)
+```
+
+Production fence remains one file: `serde_derive/src/internals/case.rs`.
+
+## Candidate invariant
+
+For Serde `camelCase` only:
+
+1. all string traversal occurs on Unicode scalar boundaries;
+2. the first scalar is lowercased using Unicode case mapping;
+3. underscores are removed from fields as today;
+4. each field word start after an underscore is uppercased using Unicode case mapping;
+5. case mappings that expand to multiple scalars are retained;
+6. ordinary ASCII camelCase outputs remain unchanged;
+7. standalone PascalCase and every other rename rule retain their current behavior in this candidate.
 
 ## Prepared regression matrix
 
-`add-regression.py` materializes two exact unit tests into the target checkout after confirming both vulnerable baseline expressions are present.
+`add-regression.py` first verifies both vulnerable baseline expressions are still present, then adds three direct owner tests.
 
-### Field controls
+### Unicode field controls
 
 ```text
-项目名称 -> 项目名称
-Éclair   -> éclair
-İ_value  -> i\u{307}Value
+项目名称    -> 项目名称
+Éclair      -> éclair
+İ_value     -> i\u{307}Value
+foo_éclair  -> fooÉclair
+foo_σigma   -> fooΣigma
+foo_ßeta    -> fooSSeta
 ```
 
-The Turkish capital dotted I is deliberate: Unicode lowercase expands it to `i` plus combining dot. The test proves the implementation does not assume one input scalar maps to one output scalar.
+Why these are useful:
 
-### Variant controls
+- CJK proves UTF-8 safety when there is no case mapping.
+- `Éclair` proves first-scalar lowercase.
+- Turkish `İ` proves lowercase can expand to multiple scalars.
+- `foo_éclair` and `foo_σigma` prove Unicode uppercase after underscore word boundaries.
+- German `ß` proves an interior uppercase mapping can expand to multiple scalars.
+
+### Unicode variant controls
 
 ```text
 项目名称 -> 项目名称
@@ -164,15 +240,27 @@ The Turkish capital dotted I is deliberate: Unicode lowercase expands it to `i` 
 Σigma    -> σigma
 ```
 
+### PascalCase compatibility fence
+
+Generation 3 explicitly proves standalone PascalCase stays unchanged in this candidate:
+
+```text
+foo_éclair -> Fooéclair
+foo_σigma  -> Fooσigma
+```
+
+This fence prevents the camelCase repair from silently widening into a broader serialized-name change.
+
 ### Existing ASCII controls
 
-The existing `rename_fields` and `rename_variants` tests remain required GREEN controls.
+The repository's existing exact tests remain required:
 
-## User-facing compile probes
+- `internals::case::rename_fields`
+- `internals::case::rename_variants`
 
-The exact execution carrier creates a temporary crate outside the target workspace and points its dependency at the pinned local `serde` path with the `derive` feature enabled.
+## User-facing derive probes
 
-Two bins are compiled separately.
+The carrier creates a temporary crate outside the Serde checkout with a path dependency on exact local `serde` plus `derive`.
 
 Field probe:
 
@@ -198,82 +286,77 @@ enum Event {
 }
 ```
 
-Baseline acceptance for RED:
+Generation-3 GREEN requires both bins to compile after the exact baseline REDs are preserved.
 
-- exact Serde commit checked out;
-- each bin fails separately;
-- stderr contains the byte-boundary panic signature.
+## Current exact acceptance gate
 
-Candidate acceptance for GREEN:
+1. exact pinned target identity;
+2. field baseline fails with the byte-boundary panic;
+3. variant baseline independently fails with the same panic;
+4. generation-3 patch applies cleanly;
+5. both user-facing derive bins compile;
+6. `unicode_camel_case_field` passes;
+7. `unicode_camel_case_variant` passes;
+8. `unicode_camel_case_does_not_widen_pascal_case` passes;
+9. existing `rename_fields` passes;
+10. existing `rename_variants` passes;
+11. `cargo fmt --all -- --check` passes;
+12. `git diff --check` passes.
 
-- apply only `candidate.patch`;
-- both bins compile;
-- prepared Unicode unit tests pass;
-- existing ASCII rename tests pass;
-- `cargo fmt --all -- --check` passes;
-- `git diff --check` passes.
+## Challenged alternatives
 
-## Negative controls and challenged alternatives
+### A — first-character byte-length fix only
 
-### Alternative A — use the first scalar's UTF-8 byte length but retain ASCII lowercase
+Find the first scalar's UTF-8 byte length and retain ASCII case conversion.
 
-This would avoid the panic:
+This would stop the panic but leave `Éclair` unchanged, conflicting with the maintainer's selected Unicode direction.
 
-```text
-find first char -> use len_utf8 for slicing -> to_ascii_lowercase
-```
+Disposition: **reject**.
 
-It is weaker than the maintainer-stated direction because `Éclair` would remain `Éclair` instead of becoming `éclair`.
+### B — generation-2 first-scalar Unicode fix only
 
-Disposition: rejected for this candidate.
+This repairs the CJK panic and Unicode-lowercases the first scalar, but field word starts after underscores remain ASCII-only through the existing PascalCase helper.
 
-### Alternative B — Unicode-convert every rename rule now
+Disposition: **superseded**.
 
-This is semantically coherent but widens wire-name changes across unrelated rename modes.
+### C — Unicode-convert every rename rule now
 
-Disposition: split. Revisit only with a dedicated compatibility matrix and maintainer demand.
+Changing all `to_ascii_lowercase` / `to_ascii_uppercase` paths would alter non-ASCII serialized names under lowercase, UPPERCASE, snake_case, SCREAMING_SNAKE_CASE, PascalCase, and related modes.
 
-### Alternative C — special-case CJK / multibyte inputs as unchanged
+Disposition: **split**. A broader Unicode rename policy deserves its own compatibility matrix and review.
 
-This fixes the reported sample while leaving accented/Greek first-character case behavior inconsistent.
+### D — special-case CJK/multibyte strings as unchanged
 
-Disposition: rejected.
+This would repair the reported sample without honoring Unicode case conversions for accented or Greek identifiers.
+
+Disposition: **reject**.
 
 ## Consequence
 
-The current defect is a procedural-macro panic during compilation. A valid Rust identifier plus a documented Serde rename mode can therefore turn ordinary derive use into an abrupt macro failure.
+A valid Rust identifier plus documented `rename_all = "camelCase"` can currently make Serde's derive macro panic during compilation. The same owner affects fields and enum variants.
 
-The likely repair is tiny and local to the rename helper, and the enum-variant sibling increases the value of fixing the owner once instead of patching one observer.
+The current candidate keeps the production change in one file and limits new Unicode wire-name semantics to the camelCase mode named by the public issue.
 
 ## Overlap
 
-- Existing public issue owner: [serde-rs/serde#2953](https://redirect.github.com/serde-rs/serde/issues/2953).
-- Focused public PR search for issue number / CJK / non-ASCII camelCase returned no matching repair at scout time.
-- Fieldwork search found no existing dedicated Serde camelCase investigation beyond parent #211's target list.
+- Existing public issue: [serde-rs/serde#2953](https://redirect.github.com/serde-rs/serde/issues/2953).
+- Focused public PR searches for #2953 / CJK / non-ASCII camelCase found no matching repair at scout time.
+- Fieldwork had no dedicated Serde camelCase investigation before this scout.
 
-Any future public submission remains a human decision and should attach to the existing upstream issue rather than opening a duplicate report.
+Any future public contribution should attach to the existing upstream issue and remains a separate human decision.
 
-## Current ranking
+## Current disposition
 
-**High** pending exact target execution.
+**HIGH / EXACT RED PROVEN / GENERATION-3 GREEN PENDING.**
 
-Reasons:
-
-- current source directly retains the vulnerable expressions;
-- upstream issue is open;
-- maintainer semantic direction is present;
-- field and variant paths share one tiny owner;
-- deterministic RED/GREEN controls are cheap;
-- patch surface is one production file;
-- no matching repair PR found.
+The baseline defect and enum sibling are target-executed. Candidate generations 1 and 2 have explicit losing reasons. Generation 3 is the current bounded implementation under exact execution.
 
 ## Stop condition
 
 Stop with one of:
 
-1. exact-head field + variant RED, bounded candidate GREEN, and existing rename controls GREEN;
-2. target source has moved and already repaired the expressions;
-3. a current public PR appears owning the same repair;
-4. execution exposes a Unicode mapping compatibility problem that requires a wider policy decision.
+1. generation-3 exact GREEN on user-facing derives, Unicode owner tests, ASCII controls, PascalCase compatibility fence, format, and diff hygiene;
+2. current upstream source or a public PR absorbs the repair;
+3. execution exposes a Unicode case mapping incompatibility that cannot remain camelCase-specific.
 
-No automated upstream interaction is authorized or performed.
+No automated upstream interaction or mutation occurred.
