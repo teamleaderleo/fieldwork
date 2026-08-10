@@ -31,7 +31,7 @@ jobs:
         run: |
           set -euxo pipefail
           cat playgrounds/EXP-20260811-delta-wide-line-number-format/delta_line_number_probe.rs >> /tmp/delta/src/features/line_numbers.rs
-          tail -n 120 /tmp/delta/src/features/line_numbers.rs
+          tail -n 160 /tmp/delta/src/features/line_numbers.rs
 
       - name: Execute focused Delta width controls
         working-directory: /tmp/delta
@@ -39,7 +39,7 @@ jobs:
           set -euxo pipefail
           cargo test --locked fieldwork_delta_wide_line_number -- --nocapture
           cargo test --locked fieldwork_delta_ascii_line_number -- --nocapture
-          cargo test --locked fieldwork_delta_wide_prefix_gives_content -- --nocapture
+          cargo test --locked fieldwork_delta_wide_prefix -- --nocapture
 
       - name: Preserve exact receipt
         if: always()
