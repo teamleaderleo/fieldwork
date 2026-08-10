@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-vercel-claude-bridge-env-authority",
+  "question": "Does the Vercel AI SDK Claude Code harness place bridge-control credentials in the environment inherited by the Claude Agent SDK runtime, and does possession of those credentials authorize a second bridge socket to replace the host connection and submit control frames?",
+  "owner": "chatgpt:gpt-5.6-sol",
+  "created_at": "2026-08-11",
+  "state": "complete",
+  "claim_scope": "interface",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "Vercel AI SDK Claude Code harness",
+      "url": "https://github.com/vercel/ai/blob/fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c/packages/harness-claude-code/src/claude-code-harness.ts",
+      "revision": "fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c",
+      "retrieved_at": "2026-08-11",
+      "claim": "The sandbox bridge process receives BRIDGE_CHANNEL_TOKEN and BRIDGE_WS_PORT in its environment.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Vercel AI SDK Claude Code bridge",
+      "url": "https://github.com/vercel/ai/blob/fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c/packages/harness-claude-code/src/bridge/index.ts",
+      "revision": "fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c",
+      "retrieved_at": "2026-08-11",
+      "claim": "The bridge gives the Claude Agent SDK its inherited process environment, explicitly merging process.env when caller env overrides are configured.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Vercel AI SDK shared harness bridge runtime",
+      "url": "https://github.com/vercel/ai/blob/fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c/packages/harness/src/bridge/index.ts",
+      "revision": "fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c",
+      "retrieved_at": "2026-08-11",
+      "claim": "The bridge authenticates sockets by the token, replaces the active socket with each newly authorized connection, supports replay, and accepts approval/result/abort/stop/destroy control frames from the active authorized socket.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Claude Platform Bash tool",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/bash-tool",
+      "revision": "retrieved 2026-08-11",
+      "retrieved_at": "2026-08-11",
+      "claim": "Anthropic documents Bash as a persistent shell capability with access to environment variables and the working directory.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "Claude Agent SDK TypeScript release v0.3.149",
+      "url": "https://github.com/anthropics/claude-agent-sdk-typescript/releases/tag/v0.3.149",
+      "revision": "v0.3.149",
+      "retrieved_at": "2026-08-11",
+      "claim": "Anthropic clarified that Options.env replaces the subprocess environment rather than merging with process.env; Vercel explicitly merges process.env before supplying custom env.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "python3 run.py",
+  "environment": {
+    "runtime": "Python 3.13.5",
+    "platform": "Linux 6.18.35 x86_64",
+    "dependencies": []
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "The source-derived child environment contains BRIDGE_CHANNEL_TOKEN and BRIDGE_WS_PORT.",
+      "interpretation": "The bridge credential and locator cross from bridge transport configuration into the model runtime environment in the modeled path."
+    },
+    {
+      "observation": "An unauthorized replacement socket is rejected while an authorized replacement socket becomes active and can resolve a pending approval after replay.",
+      "interpretation": "Possession of the bridge credential confers the same bridge-control authority used by the host connection in the modeled shared runtime."
+    }
+  ],
+  "stop_condition": "Stop once source, official runtime/tool contracts, one negative-control model, and a target-native test plan establish the narrow authority question without claiming an unexecuted exploit path.",
+  "network_policy": "disabled",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-vercel-claude-bridge-env-authority/README.md",
+    "playgrounds/EXP-20260811-vercel-claude-bridge-env-authority/result.json"
+  ],
+  "promoted_to": null
+}
