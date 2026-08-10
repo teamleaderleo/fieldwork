@@ -4,7 +4,7 @@
   "question": "Can a caller-owned Claude MCP server named harness-tools retain its identity and stream events after per-harness mcpServers became public?",
   "owner": "chatgpt:gpt-5.6-sol",
   "created_at": "2026-08-11",
-  "state": "complete",
+  "state": "promoted",
   "claim_scope": "interface",
   "integration_context": null,
   "sources": [
@@ -60,5 +60,5 @@
     "playgrounds/EXP-20260811-vercel-claude-mcp-server-identity/README.md",
     "playgrounds/EXP-20260811-vercel-claude-mcp-server-identity/result.json"
   ],
-  "promoted_to": null
+  "promoted_to": "teamleaderleo/fieldwork#819"
 }
