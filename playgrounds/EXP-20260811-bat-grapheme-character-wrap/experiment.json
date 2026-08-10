@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-bat-grapheme-character-wrap",
+  "question": "Can Bat's public character-wrapping mode insert a line break inside one extended grapheme cluster because the wrapping owner iterates Unicode scalars rather than graphemes?",
+  "owner": "GPT-5.6 Sol",
+  "created_at": "2026-08-11",
+  "state": "running",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "sharkdp/bat",
+      "url": "https://github.com/sharkdp/bat",
+      "revision": "af59a3218303837421ce06bb2dc3c545525bba0f",
+      "retrieved_at": "2026-08-11",
+      "claim": "Character wrapping in src/printer.rs iterates text.chars(), applies scalar width, and can flush the line buffer between scalars; the public CLI exposes --wrap=character and --terminal-width.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "GitHub Actions: Fieldwork Bat grapheme character wrap probe",
+  "environment": {
+    "runtime": "target-declared Rust/Cargo",
+    "platform": "GitHub-hosted Ubuntu 24.04",
+    "dependencies": [
+      "exact sharkdp/bat source fetched read-only at af59a3218303837421ce06bb2dc3c545525bba0f"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "At terminal width 2, the two-column scalar control 界 remains intact and the ZWJ grapheme 👩‍💻 also remains intact.",
+      "interpretation": "A downstream or preprocessing path preserves grapheme boundaries despite the scalar loop; retain a negative result."
+    },
+    {
+      "observation": "At terminal width 2, 界 remains intact while 👩‍💻 is emitted with a newline between its component scalars; at width 4 the ZWJ sequence remains intact.",
+      "interpretation": "The public character-wrap path has a target-executed grapheme-boundary split controlled by the narrow terminal width."
+    },
+    {
+      "observation": "The narrow ZWJ case differs in another reproducible way from both controls.",
+      "interpretation": "Preserve exact bytes and remap the actual wrapping path before promotion."
+    }
+  ],
+  "stop_condition": "Stop after the exact target CLI classifies the narrow ZWJ fixture against both controls. Promote only if the real binary splits the grapheme boundary or shows an equally specific user-visible defect.",
+  "network_policy": "public-read-only",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-bat-grapheme-character-wrap/README.md"
+  ],
+  "promoted_to": null
+}
