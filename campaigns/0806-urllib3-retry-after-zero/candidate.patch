@@ -1,7 +1,7 @@
 diff --git a/src/urllib3/util/retry.py b/src/urllib3/util/retry.py
 --- a/src/urllib3/util/retry.py
 +++ b/src/urllib3/util/retry.py
-@@ -375,8 +375,10 @@ class Retry:
+@@ -383,6 +383,8 @@ class Retry:
          if self.respect_retry_after_header and response:
              slept = self.sleep_for_retry(response)
              if slept:
