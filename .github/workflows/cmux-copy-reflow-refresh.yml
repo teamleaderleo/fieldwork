@@ -1,0 +1,29 @@
+name: cmux copy reflow refresh
+
+on:
+  pull_request:
+    paths:
+      - "programmes/high-leverage-open-source/scouts/cmux-copy-reflow-refresh/**"
+      - ".github/workflows/cmux-copy-reflow-refresh.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  merge-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          show-progress: false
+      - name: Audit current-main merge surface
+        run: |
+          bash programmes/high-leverage-open-source/scouts/cmux-copy-reflow-refresh/probe.sh | tee cmux-copy-reflow-refresh.txt
+      - name: Upload receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmux-copy-reflow-refresh
+          path: cmux-copy-reflow-refresh.txt
+          retention-days: 7
