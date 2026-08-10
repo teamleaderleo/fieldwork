@@ -1,0 +1,24 @@
+{
+  "experiment_id": "EXP-20260811-vercel-harness-bridge-token-state",
+  "state": "complete",
+  "evidence_class": "model-executed",
+  "target_revision": "fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c",
+  "command": "python3 run.py",
+  "environment": {
+    "runtime": "Python 3.13.5",
+    "platform": "Linux 6.18.35 x86_64",
+    "dependencies": []
+  },
+  "observed": {
+    "attach_reused_serialized_token": true,
+    "mint_calls_after_spawn_and_attach": 1,
+    "scrubbed_resume_state_validation": "rejected: missing required bridge coordinate field(s): token",
+    "token_present_in_serialized_resume_state": true
+  },
+  "interpretation": "The source-derived model matches the current Claude Code adapter and its merged regression test: custom minting occurs on spawn, detach serializes the bridge token, successful attach reuses the serialized token without invoking the mint function again, and the current bridge-coordinate contract requires token when bridge coordinates are present.",
+  "limits": [
+    "This is a dependency-free source-derived model, not target-native execution.",
+    "No real sandbox, WebSocket bridge, Workflow runtime, or provider credential was used.",
+    "The result establishes the lifecycle/interface discrepancy at the pinned revision; it does not claim exploitation or ecosystem-wide exposure."
+  ]
+}
