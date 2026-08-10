@@ -4,7 +4,7 @@
   "question": "Can a later fd --exec-batch command execute before an earlier declared command when its independent command builder reaches the argv-size ceiling first?",
   "owner": "GPT-5.6 Sol",
   "created_at": "2026-08-11",
-  "state": "running",
+  "state": "promoted",
   "claim_scope": "mechanism",
   "integration_context": null,
   "sources": [
@@ -22,7 +22,7 @@
       "revision": "open issue retrieved 2026-08-11",
       "retrieved_at": "2026-08-11",
       "claim": "The public repeated --exec-batch contract is reported to violate declaration order when one command reaches the OS command-line limit earlier than another.",
-      "evidence_label": "Reported"
+      "evidence_label": "Observed"
     }
   ],
   "command": "GitHub Actions: Fieldwork fd exec-batch order probe",
@@ -41,14 +41,27 @@
     {
       "observation": "Equal-capacity builders execute 1 then 2, while the asymmetric-capacity case executes command 2 before command 1 once builder 2 independently flushes.",
       "interpretation": "The current batch owner has a target-executed declaration-order violation caused by independent builder flush thresholds."
+    },
+    {
+      "observation": "The built public fd command reproduces 1,2 with equal command size and 2,1,2 when only the later repeated -X command has enough fixed argv to hit its child-command ceiling first.",
+      "interpretation": "Promote from owner mechanism to a user-reachable candidate."
     }
   ],
-  "stop_condition": "Stop after the owner-level target test classifies independent argv-capacity flushing. If positive, design a public CLI reproduction separately before source promotion.",
+  "target_execution": {
+    "workflow_run": 31443852287,
+    "job": 93633857964,
+    "evidence_class": "target-executed",
+    "target_revision": "ee20f426ddf338ac7ead5c5f00ea49258005caaf",
+    "result": "Equal-capacity owner and CLI controls execute 1 then 2. Under asymmetric argv pressure only on command 2, the owner executes 2 while command 1 remains buffered and finalizes as 2,1,2. The real repeated -X CLI reproduces the same 2,1,2 order over 10,208 files on the runner.",
+    "receipt": "playgrounds/EXP-20260811-fd-exec-batch-order/result.json"
+  },
+  "stop_condition": "Promoted after exact target owner and public CLI reproduction. Continue source work only in an owned fd fork or Fieldwork candidate record; refresh overlap before any external proposal.",
   "network_policy": "public-read-only",
   "upstream_contact_authorized": false,
   "result_paths": [
     "playgrounds/EXP-20260811-fd-exec-batch-order/README.md",
-    "playgrounds/EXP-20260811-fd-exec-batch-order/fd_batch_order_probe.rs"
+    "playgrounds/EXP-20260811-fd-exec-batch-order/fd_batch_order_probe.rs",
+    "playgrounds/EXP-20260811-fd-exec-batch-order/result.json"
   ],
-  "promoted_to": null
+  "promoted_to": "https://github.com/teamleaderleo/fieldwork/issues/832"
 }
