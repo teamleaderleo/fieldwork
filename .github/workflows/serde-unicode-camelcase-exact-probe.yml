@@ -30,12 +30,14 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Verify exact source and materialize probes
+      - name: Verify exact source and prepare public derive probes
         shell: bash
         run: |
           set -euo pipefail
           test "$(git -C target rev-parse HEAD)" = "747814f7d5fbab872df3b02f070c165b91bde062"
-          python programmes/open-source-ecosystems/scouts/foundational-systems/serde-unicode-camelcase-20260811/add-regression.py \
+          grep -F 'CamelCase => variant[..1].to_ascii_lowercase() + &variant[1..],' \
+            target/serde_derive/src/internals/case.rs
+          grep -F 'pascal[..1].to_ascii_lowercase() + &pascal[1..]' \
             target/serde_derive/src/internals/case.rs
 
           probe="$RUNNER_TEMP/serde-unicode-camelcase-probe"
@@ -115,6 +117,14 @@ jobs:
             diff -u "$patch" "$RUNNER_TEMP/generated-candidate.patch" || true
             exit 1
           fi
+
+      - name: Materialize focused owner regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python programmes/open-source-ecosystems/scouts/foundational-systems/serde-unicode-camelcase-20260811/add-regression.py \
+            target/serde_derive/src/internals/case.rs
+          git -C target diff --check
 
       - name: Candidate GREEN — user-facing derives
         shell: bash
