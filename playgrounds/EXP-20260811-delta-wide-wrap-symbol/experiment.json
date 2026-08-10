@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-delta-wide-wrap-symbol",
+  "question": "Can Delta accept a single grapheme whose display width is 2 as a documented width-1 wrap marker, then fail to make progress when unlimited wrapping is asked to fit text into a 2-column line?",
+  "owner": "GPT-5.6 Sol",
+  "created_at": "2026-08-11",
+  "state": "running",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "dandavison/delta",
+      "url": "https://github.com/dandavison/delta",
+      "revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
+      "retrieved_at": "2026-08-11",
+      "claim": "Wrap marker validation counts grapheme clusters while its error and downstream wrapping contract require display width 1; wrapping subtracts the actual marker width and unlimited mode has no line-count stop.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "unicode-rs/unicode-width",
+      "url": "https://github.com/unicode-rs/unicode-width/tree/v0.1.14",
+      "revision": "v0.1.14",
+      "retrieved_at": "2026-08-11",
+      "claim": "Delta's declared unicode-width range includes the width semantics used by the exact target lock; ordinary fullwidth CJK graphemes occupy two columns.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "GitHub Actions: Fieldwork Delta wide wrap symbol probe",
+  "environment": {
+    "runtime": "target-declared Rust/Cargo",
+    "platform": "GitHub-hosted Ubuntu",
+    "dependencies": ["exact dandavison/delta source fetched read-only at 95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4"]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "A two-column one-grapheme marker is rejected during config creation.",
+      "interpretation": "The source-level count mismatch is unreachable through normal configuration; stop the hang hypothesis."
+    },
+    {
+      "observation": "The marker is accepted, a one-column unlimited-wrap control terminates, and the two-column unlimited-wrap test exceeds the watchdog without completing.",
+      "interpretation": "Delta has a target-executed no-progress loop reachable from an accepted marker under the tested narrow line width."
+    },
+    {
+      "observation": "Both one- and two-column unlimited-wrap cases terminate.",
+      "interpretation": "Another progress mechanism defeats the source-level loop hypothesis; retain a negative result."
+    }
+  ],
+  "stop_condition": "Stop after target execution classifies validator reachability, the one-column negative control, and the two-column unlimited-wrap watchdog; do not propose source until an ordinary CLI path reproduces or the direct internal contract is accepted as sufficient.",
+  "network_policy": "Read-only fetch of the exact public Delta revision during the owned Fieldwork CI run; no third-party repository mutation.",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-delta-wide-wrap-symbol/README.md",
+    "playgrounds/EXP-20260811-delta-wide-wrap-symbol/delta_probe_tests.rs"
+  ],
+  "promoted_to": null
+}
