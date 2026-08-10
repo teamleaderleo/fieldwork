@@ -4,7 +4,7 @@
   "question": "Does the Vercel AI SDK Claude Code harness place bridge-control credentials in the environment inherited by the Claude Agent SDK runtime, and does possession of those credentials authorize a second bridge socket to replace the host connection and submit control frames?",
   "owner": "chatgpt:gpt-5.6-sol",
   "created_at": "2026-08-11",
-  "state": "complete",
+  "state": "promoted",
   "claim_scope": "interface",
   "integration_context": null,
   "sources": [
@@ -72,5 +72,5 @@
     "playgrounds/EXP-20260811-vercel-claude-bridge-env-authority/README.md",
     "playgrounds/EXP-20260811-vercel-claude-bridge-env-authority/result.json"
   ],
-  "promoted_to": null
+  "promoted_to": "teamleaderleo/fieldwork#802"
 }
