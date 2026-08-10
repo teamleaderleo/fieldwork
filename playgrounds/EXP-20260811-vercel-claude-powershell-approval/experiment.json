@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-vercel-claude-powershell-approval",
+  "question": "Does Claude Code native PowerShell still require host approval under permissionMode allow-edits after Vercel AI SDK current main added it to the public built-in tool catalog?",
+  "owner": "chatgpt:gpt-5.6-sol",
+  "created_at": "2026-08-11",
+  "state": "complete",
+  "claim_scope": "interface",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "Vercel AI SDK Claude Code harness catalog",
+      "url": "https://github.com/vercel/ai/blob/cfc587bdfd8fd1996dd902edd14143be6e034baf/packages/harness-claude-code/src/claude-code-harness.ts",
+      "revision": "cfc587bdfd8fd1996dd902edd14143be6e034baf",
+      "retrieved_at": "2026-08-11",
+      "claim": "The public harness catalog includes native PowerShell and classifies it as toolUseKind bash.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Vercel AI SDK Claude Code bridge permission logic",
+      "url": "https://github.com/vercel/ai/blob/cfc587bdfd8fd1996dd902edd14143be6e034baf/packages/harness-claude-code/src/bridge/index.ts",
+      "revision": "cfc587bdfd8fd1996dd902edd14143be6e034baf",
+      "retrieved_at": "2026-08-11",
+      "claim": "The bridge permission-kind table omits PowerShell; unknown native tools fall back to edit; allow-edits requires approval only for bash-kind tools.",
+      "evidence_label": "Observed"
+    }
+  ],
+  "command": "python3 run.py",
+  "environment": {
+    "runtime": "Python 3.13.5",
+    "platform": "Linux 6.18.35 x86_64",
+    "dependencies": []
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "Bash is bash in both catalogs and requires approval in allow-edits.",
+      "interpretation": "The model recognizes the intended negative-control path."
+    },
+    {
+      "observation": "PowerShell is bash in the public catalog but falls back to edit in the bridge and therefore does not require approval in allow-edits.",
+      "interpretation": "Current-main catalog and permission enforcement disagree at the PowerShell boundary."
+    }
+  ],
+  "stop_condition": "Stop once the exact current-main source, Bash negative control, executable model, and one target-native approval test agree on the classification question.",
+  "network_policy": "disabled",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-vercel-claude-powershell-approval/README.md",
+    "playgrounds/EXP-20260811-vercel-claude-powershell-approval/result.json"
+  ],
+  "promoted_to": null
+}
