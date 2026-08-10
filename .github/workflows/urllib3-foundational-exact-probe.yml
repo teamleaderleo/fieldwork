@@ -37,24 +37,41 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Verify exact target identity
+      - name: Build exact checkout
         shell: bash
         run: |
           set -euo pipefail
           test "$(git -C target rev-parse HEAD)" = "824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78"
-          PYTHONPATH="$GITHUB_WORKSPACE/target/src" python - <<'PY'
+          python -m pip install --disable-pip-version-check ./target
+
+      - name: Verify installed code identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib
           import pathlib
           import urllib3
-          expected = pathlib.Path('target/src/urllib3').resolve()
-          actual = pathlib.Path(urllib3.__file__).resolve()
+          import urllib3.response
+          import urllib3.util.retry
+
+          root = pathlib.Path('target/src/urllib3').resolve()
+          pairs = [
+              (root / 'response.py', pathlib.Path(urllib3.response.__file__).resolve()),
+              (root / 'util' / 'retry.py', pathlib.Path(urllib3.util.retry.__file__).resolve()),
+          ]
           print(f"urllib3_version={urllib3.__version__}")
-          print(f"urllib3_file={actual}")
-          assert expected in actual.parents
+          print(f"urllib3_file={pathlib.Path(urllib3.__file__).resolve()}")
+          for source, installed in pairs:
+              source_digest = hashlib.sha256(source.read_bytes()).hexdigest()
+              installed_digest = hashlib.sha256(installed.read_bytes()).hexdigest()
+              print(f"identity {source.name}: {source_digest} {installed_digest}")
+              assert source_digest == installed_digest
           PY
 
       - name: Run preserved discriminator
         shell: bash
         run: |
           set -euo pipefail
-          PYTHONPATH="$GITHUB_WORKSPACE/target/src" \
-            python programmes/open-source-ecosystems/scouts/foundational-systems/urllib3-20260811/probe.py
+          python programmes/open-source-ecosystems/scouts/foundational-systems/urllib3-20260811/probe.py
