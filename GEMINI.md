@@ -1,7 +1,7 @@
 # Gemini Entry Point
 
-Read and follow `AGENTS.md` and `START_HERE.md` before taking action.
+`AGENTS.md` is the binding operating contract. Start with `START_HERE.md`, then load only the task-specific material the current assignment needs.
 
-Small bounded tests may use `playgrounds/` without an upstream fork or Fieldwork issue. Read `INTEGRATION_CONTEXT.md` before claiming real integration, operational consequence, or ecosystem importance. Distinguish documented, observed, inferred, illustrative, and unknown use.
+Small bounded tests may use `playgrounds/` without an upstream fork or Fieldwork issue. Read `INTEGRATION_CONTEXT.md` before claiming real integration, operational consequence, or ecosystem importance. Follow `REFERENCE_POLICY.md` for third-party GitHub references in interaction text.
 
-Direct links and `teamleaderleo/repository#number` shorthand are allowed for repositories under `teamleaderleo/*`. Third-party GitHub issue, pull-request, discussion, and commit references in issues, pull requests, comments, reviews, and discussions must use `redirect.github.com` unless the exact upstream interaction was authorized. Repository notes, reports, maps, and other tracked files may link directly and do not need an automated reference check. Do not contact third-party upstream projects without a specific user authorization.
+Upstream-contact authority is defined in `AGENTS.md`; this entry point adds no separate authorization rule.
