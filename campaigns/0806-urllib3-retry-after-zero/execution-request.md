@@ -20,7 +20,7 @@ Required controls:
 
 Production candidate generations 1 and 2 are superseded. Generation 1 changed the helper's direct zero return; generation 2 bypassed the helper delegation. Generation 3 keeps the existing hook and adds only an exact-zero stop after a false hook result.
 
-Carrier generation 5 installs the target repository's declared test dependencies plus `trustme` before collection and uses stable baseline failure markers.
+Carrier generation 6 additionally requires `git apply --check` on the reviewer patch, deterministic `apply-candidate.py`, and byte-for-byte production-diff equivalence before candidate tests run. This preempts the patch-hunk packaging failure already observed in the sibling urllib3 and Serde carriers.
 
 Public urllib3 PR 5010 remains live overlap. This carrier proves the candidate only; it grants no public packaging authority.
 
