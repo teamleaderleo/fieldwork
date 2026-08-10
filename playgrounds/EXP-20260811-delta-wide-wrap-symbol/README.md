@@ -1,10 +1,10 @@
 ## In simple words
 
-Delta accepts a two-column grapheme as a wrap marker even though the option contract says the marker must have display width 1. On exact current source, that mismatch can make unlimited wrapping stop making progress.
+Delta accepts a two-column grapheme as a wrap marker even though the option contract says the marker must have display width 1. On exact target source, that mismatch can make unlimited wrapping stop making progress, and the same failure now reproduces through the built public `delta` command.
 
-This is target-executed now. With line width 2, marker `+` and text `abc`, the wrapper terminates as `a+` / `bc`. With the accepted marker `界` (one grapheme, two columns), the same unlimited-wrap owner never consumes source text and reaches the external 8-second watchdog.
+With marker `+`, the focused wrapper owner terminates at content width 2 and the real CLI completes under the same narrow side-by-side budget. With the accepted marker `界` (one grapheme, two columns), the owner reaches an 8-second watchdog and the public CLI reaches the same watchdog.
 
-The next bounded step is the built command itself: feed a minimal diff to `delta --side-by-side --width 16 --wrap-max-lines unlimited` with the same markers. Width 16 gives an 8-column panel; the default six-column line-number field leaves a two-column content budget, reaching the exact owner condition through public CLI options.
+This experiment is promoted to Fieldwork candidate #820.
 
 ## Assignment
 
@@ -12,12 +12,13 @@ The next bounded step is the built command itself: feed a minimal diff to `delta
 - Lane: #210 (`developer-tools-build-systems`)
 - Worker: `GPT-5.6 Sol`
 - Experiment: `EXP-20260811-delta-wide-wrap-symbol`
+- Candidate owner: #820
 - Target repository: `dandavison/delta`
 - Exact target: `95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4`
-- Claim scope: mechanism
+- Claim scope: mechanism + CLI reachability
 - Evidence class: `target-executed`
-- Workflow run: `31425334965`
-- Job: `93575567871`
+- Final workflow run: `31440774199`
+- Final job: `93624827655`
 - Upstream contact authorized: `false`
 - Upstream contact performed: `false`
 
@@ -47,7 +48,7 @@ So one two-column grapheme passes the documented check.
 
 `wrap_line()` segments source text into graphemes and records each grapheme's real `UnicodeWidthStr::width()`.
 
-When a line must split, it computes available source-text width using the wrap marker's real display width. The same function tries to prevent a no-progress wrap when only the marker fits:
+When a line must split, it subtracts the wrap marker's real display width from the available content width. The same function tries to prevent a no-progress wrap when only the marker fits:
 
 ```rust
 let max_lines = if line_width <= INLINE_SYMBOL_WIDTH_1 {
@@ -57,107 +58,59 @@ let max_lines = if line_width <= INLINE_SYMBOL_WIDTH_1 {
 };
 ```
 
-That guard uses the constant 1, rather than the accepted marker's real width.
+That guard uses the constant 1 rather than the accepted marker's real width.
 
 ### Unlimited mode
 
-Public `--wrap-max-lines unlimited` maps to internal `0`; `line_limit_reached` treats `0` as no limit.
+Public `--wrap-max-lines unlimited` maps to internal no-limit mode.
 
-With:
+At content width 2 with marker `界` (width 2), zero columns remain for source text. Each iteration emits the marker while re-queueing the complete source text.
 
-```text
-line width = 2
-left marker = 界 (one grapheme, width 2)
-text = abc
-max lines = unlimited
-```
+## Target execution: owner
 
-the owner has zero width available for source text, emits the marker, pushes `abc` back, and repeats.
+The workflow fetched and fenced exact target source, injected test-only controls locally, and compiled before applying watchdogs.
 
-## Exact target execution
-
-The workflow fetched exact target source read-only, verified the SHA, injected test-only controls locally, compiled the target, and ran three discriminators.
-
-### 1. Public configuration reaches the bad state
-
-Input marker:
+### Validator reachability
 
 ```text
-界
+marker:          界
+grapheme count:  1
+display width:   2
+configuration:   accepted
 ```
 
-Observed:
+### One-column control
 
 ```text
-grapheme count = 1
-display width = 2
-configuration = accepted
+marker:          +
+content width:   2
+text:            abc
+max lines:       unlimited
+result:          a+ / bc
 ```
 
-Result: `PASS`.
+Result: terminates.
 
-### 2. One-column negative control terminates
-
-Configuration:
+### Two-column discriminator
 
 ```text
-marker = +
-line width = 2
-text = abc
-max lines = unlimited
+marker:          界
+content width:   2
+text:            abc
+max lines:       unlimited
 ```
 
-Observed:
+Receipt:
 
 ```text
-a+
-bc
+FIELDWORK_RESULT owner-two-column-marker=watchdog-expired
 ```
 
-Result: `PASS`.
+Result: target owner does not make progress before the 8-second watchdog.
 
-### 3. Two-column marker stops making progress
+## Target execution: public CLI
 
-Configuration:
-
-```text
-marker = 界
-line width = 2
-text = abc
-max lines = unlimited
-```
-
-The compiled target test was run under an external watchdog after all compilation completed.
-
-Observed receipt:
-
-```text
-FIELDWORK_RESULT two-column-marker=watchdog-expired
-```
-
-The watchdog expired after 8 seconds while the one-column control completed immediately.
-
-Result: `TARGET-EXECUTED NONTERMINATION`.
-
-Full machine-readable receipt: `result.json`.
-
-## Why this is a strong bug candidate
-
-The executed chain now contains:
-
-1. a public option;
-2. a validator whose error text promises display width 1;
-3. an accepted value that violates that promise;
-4. downstream code that relies on the promised one-column property;
-5. public unlimited wrapping;
-6. a target-executed no-progress loop;
-7. a one-column negative control that terminates.
-
-The remaining gate is user-facing command reachability, rather than the mechanism itself.
-
-## Next discriminator: real CLI
-
-Build exact target source, then feed this minimal diff through the normal binary:
+The same exact checkout built `target/debug/delta` and received this minimal diff through stdin:
 
 ```text
 diff --git a/a.txt b/a.txt
@@ -168,15 +121,67 @@ diff --git a/a.txt b/a.txt
 +def
 ```
 
-Use side-by-side fixed width 16 and space fill so each panel is width 8. Default side-by-side line-number formatting consumes six columns, leaving the two-column content width used by the target test.
+Both runs used:
 
-Run the same binary twice under watchdogs:
+```text
+--side-by-side
+--width 16
+--line-fill-method=spaces
+--wrap-max-lines unlimited
+```
 
-- `--wrap-left-symbol +` must complete;
-- `--wrap-left-symbol 界` is classified as completion versus watchdog expiry.
+Width 16 creates 8-column panels. Default side-by-side line-number formatting consumes six columns, leaving the two-column content budget used by the owner test.
 
-If the wide-marker CLI run reaches the watchdog while the control completes, promote this into a durable Delta scout/owned-fork regression candidate. If the CLI path introduces a guard that prevents the condition, retain the internal target result and stop promotion.
+### CLI control
+
+```text
+--wrap-left-symbol +
+```
+
+Receipt:
+
+```text
+FIELDWORK_RESULT cli-one-column-marker=terminated
+```
+
+The command emitted its wrapped diff immediately.
+
+### CLI discriminator
+
+```text
+--wrap-left-symbol 界
+```
+
+Receipt:
+
+```text
+FIELDWORK_RESULT cli-two-column-marker=watchdog-expired
+```
+
+The command did not terminate before the 8-second watchdog.
+
+Machine-readable receipt: `result.json`.
+
+## Promotion
+
+This is now a user-reachable candidate rather than an internal-only mechanism finding.
+
+Candidate owner: Fieldwork #820.
+
+The next source work belongs in an owned Delta fork and should compare two repair layers:
+
+1. **Contract repair:** validate actual terminal display width 1 for all wrap marker options.
+2. **Progress hardening:** make `wrap_line()` guarantee that every loop consumes input or terminates, even if an invalid custom configuration reaches the owner.
+
+The second layer is important because internal callers can bypass public option validation.
+
+Regression controls should preserve:
+
+- one-column `+` unlimited wrapping;
+- wide marker handling without nontermination;
+- narrow lines where only a marker fits;
+- existing wrapping snapshots.
 
 ## Stop condition
 
-Stop after the ordinary CLI discriminator classifies the public path. Any source candidate remains in an owned fork for local review. External issue, pull-request, comment, review, or other upstream interaction remains manual human work.
+Experiment complete and promoted. Continue implementation only in an owned fork or the Fieldwork candidate record. Refresh Delta upstream overlap before any external proposal. External issue, pull-request, comment, review, or other upstream interaction remains manual human work.
