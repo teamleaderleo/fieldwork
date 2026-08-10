@@ -42,6 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git -C target rev-parse HEAD)" = "824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78"
+          grep -F 'if e.strip() in self.CONTENT_DECODERS' target/src/urllib3/response.py
           python -m pip install --disable-pip-version-check \
             'anyio[trio]>=4.8.0' \
             'h2>=4.1.0' \
@@ -74,14 +75,24 @@ jobs:
           grep -F "1 failed" "$RUNNER_TEMP/baseline-red.log"
           grep -F "test_fieldwork_unknown_content_encoding_chain_stays_opaque" "$RUNNER_TEMP/baseline-red.log"
 
-      - name: Apply bounded candidate and reinstall
+      - name: Materialize bounded candidate and verify reviewer patch
         shell: bash
         run: |
           set -euo pipefail
           patch="$GITHUB_WORKSPACE/campaigns/0800-urllib3-content-encoding-chain/candidate.patch"
+          apply_script="$GITHUB_WORKSPACE/campaigns/0800-urllib3-content-encoding-chain/apply-candidate.py"
+
           git -C target apply --check "$patch"
-          git -C target apply "$patch"
+          python "$apply_script" target/src/urllib3/response.py
           git -C target diff --check
+
+          git -C target diff -- src/urllib3/response.py \
+            | sed '/^index /d' > "$RUNNER_TEMP/generated-candidate.patch"
+          if ! cmp -s "$patch" "$RUNNER_TEMP/generated-candidate.patch"; then
+            diff -u "$patch" "$RUNNER_TEMP/generated-candidate.patch" || true
+            exit 1
+          fi
+
           python -m pip install --disable-pip-version-check --force-reinstall ./target
 
       - name: Verify installed candidate identity
