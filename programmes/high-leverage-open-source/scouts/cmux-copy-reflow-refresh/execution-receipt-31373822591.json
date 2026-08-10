@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "date": "2026-08-10",
+  "fieldwork_head": "fe0d804a2ab69271f5a70478e551ab81079e4f56",
+  "workflow_run": 31373822591,
+  "target": "manaflow-ai/cmux",
+  "main_sha": "e49e7cdf300ad6eff38aef21145cd1183636e76c",
+  "candidate_head_sha": "1516fc0c2e64bc21772b88738377f360c53cea03",
+  "main_tree": "b5fdf62dead3ba8113b10cf19da222fcb609b883",
+  "candidate_tree": "9148bb7e7a0e7db3bd1ea8fb9d5ce53e823727e5",
+  "merge_tree_exit": 1,
+  "mergeable": false,
+  "conflict_files": [
+    "cmux.xcodeproj/project.pbxproj"
+  ],
+  "auto_merged_touched_surfaces": [
+    ".github/workflows/ci.yml",
+    "Packages/Shared/CmuxIrohTransport/Tests/CmuxIrohTransportTests/CmxIrohEndpointServerTests+Capacity.swift",
+    "Packages/macOS/CmuxSettingsUI/Sources/CmuxSettingsUI/Navigation/CuratedSettingEntry+Default.swift",
+    "Packages/macOS/CmuxSettingsUI/Tests/CmuxSettingsUITests/SettingsRowAnchorResolutionTests.swift",
+    "Packages/macOS/CmuxSettingsUI/Tests/CmuxSettingsUITests/SettingsSearchIndexTests.swift",
+    "Resources/Localizable.xcstrings",
+    "Sources/AppDelegate.swift",
+    "Sources/CmuxSettingsJSONPathSupport.swift",
+    "Sources/GhosttyTerminalView.swift",
+    "Sources/KeyboardShortcutSettings.swift",
+    "Sources/KeyboardShortcutSettingsFileStore+Template.swift",
+    "cmux.xcworkspace/contents.xcworkspacedata",
+    "web/data/cmux.schema.json",
+    "web/messages/*.json"
+  ],
+  "evidence_class": "target-executed",
+  "upstream_contact_authorized": false
+}
