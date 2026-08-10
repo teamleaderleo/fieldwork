@@ -1,0 +1,16 @@
+{
+  "retrieval_date": "2026-08-08",
+  "candidate_branch": "teamleaderleo/next.js:fieldwork/instant-navigation-origin-scoped-release",
+  "candidate_source_commit": "0fa83fa5e12777a352b7cc855b30d61376285575",
+  "base_upstream_commit": "5e8f31f7bdf7f564ec98a42e205f7e5b665398da",
+  "candidate_change": "Pass the resolved application URL into releaseInstantCookie and query BrowserContext.cookies(scopeURL), preserving the existing BrowserContext-wide active-scope rule.",
+  "model_observations": {
+    "same_origin_stale_cookie_replaced_by_pending_cookie": true,
+    "other_origin_instant_cookie_preserved_during_scope": true,
+    "other_origin_instant_cookie_preserved_after_release": true,
+    "current_origin_instant_cookie_removed_after_release": true,
+    "unrelated_session_cookies_preserved": true
+  },
+  "evidence_class": "model-executed",
+  "limits": "The candidate has not yet run in Playwright or the Next.js target harness. BrowserContext.cookies(url) filtering, CookieStore change delivery, MPA resurrection handling, and existing stale-cookie regressions remain target-execution gates."
+}
