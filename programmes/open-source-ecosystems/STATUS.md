@@ -7,7 +7,7 @@ Find consequential work across package collections, runtimes, tools, libraries, 
 - Programme hub: #207
 - State: `investigating`
 - Coordinator: `teamleaderleo`
-- Upstream contact: unauthorized by default
+- Upstream contact: unauthorized by default; exact submitted interactions are recorded per lane
 
 ## Current direction
 
@@ -26,7 +26,7 @@ Run a wide discovery portfolio while keeping implementation and review bounded.
 Current first independent probes from that round:
 
 1. DuckDB #24308 — distinguish SQL NULL from the literal Hive default-partition marker;
-2. Nixpkgs #516481 — restore `gomarkdoc` package tests through Linux Fieldwork;
+2. Nixpkgs gomarkdoc — submitted command-check restoration; monitor [the upstream pull request](https://redirect.github.com/NixOS/nixpkgs/pull/549377) and Fieldwork #241;
 3. DuckDB #24307 — reduce the large FOLLOWING-frame boundary and add a SQL regression;
 4. systemd #43174 — VM trace of oomd registration loss;
 5. CPython #154916 — free-threaded/TSAN design for a safe `GenericAlias` iterator snapshot.
@@ -80,4 +80,4 @@ Rust diagnostics #159745, #159686, #159492, #157184, and #157260 are retained as
 
 ## Current decision
 
-Begin executable probes for DuckDB #24308, Nixpkgs #516481, and DuckDB #24307. Keep Ruff #27026 in coordination-only state while the contributor request remains unresolved. Keep systemd #43174 and CPython #154916 as environment-gated deep lanes. Retain libarchive #3337 as an active-fix reference rather than creating a competing branch. Continue broad reconnaissance, requiring pull-request, linked-work, assignee, contributor-intent, and claim-comment checks immediately before code changes.
+Monitor the submitted Nixpkgs gomarkdoc pull request through current-head CI and maintainer review; do not reopen the rejected Go 1.25/fixture/`GOFLAGS` design. Continue executable probes for DuckDB #24308 and DuckDB #24307. Keep Ruff #27026 in coordination-only state while the contributor request remains unresolved. Keep systemd #43174 and CPython #154916 as environment-gated deep lanes. Retain libarchive #3337 as an active-fix reference rather than creating a competing branch. Continue broad reconnaissance, requiring pull-request, linked-work, assignee, contributor-intent, and claim-comment checks immediately before code changes.
