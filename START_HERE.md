@@ -111,6 +111,18 @@ For an integration trial, record:
 
 One worker may edit only the owned scout, experiment, trial branch, or assignment path. Coordinators own registries, manifests, status, synthesis, decision, and closeout files.
 
+### Activity refresh loop
+
+Repeat this loop at the start of a work pass, after every material action, and before handoff:
+
+1. refresh the live issue, pull-request, branch, review, workflow, queue, and relevant already-authorized upstream state for the active lanes;
+2. reconcile head changes, completed runs, new reviews, duplicates, supersession, and stale descriptions;
+3. perform the next unblocked review or repair immediately;
+4. when the primary lane is queued, continue with independent review, bounded adjacent investigation, harness repair, evidence transfer, or another already-owned lane;
+5. return to the user only with a completed result, a real blocker, a safety or authority boundary, or a decision that genuinely needs human judgment.
+
+Do not use `queued`, `needs review`, or `needs repair` as a handoff when the authorized work can still be performed. This continuation rule does not authorize public upstream contact.
+
 ## 4. Protect external projects before posting interaction text
 
 Third-party upstream repositories are read-only to agents. This section governs references inside Fieldwork and owned-fork interaction text; it does not create an upstream-write exception.

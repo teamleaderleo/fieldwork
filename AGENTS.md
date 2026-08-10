@@ -23,6 +23,16 @@ This rule takes precedence over any older Fieldwork text that could be read as p
 - Treat GitHub issues as live coordination and repository files as durable evidence.
 - Work only from an explicit assignment, claimed scout or lane, requested synthesis, user-directed triage task, bounded review task, or bounded fork-free experiment.
 
+## Activity refresh and autonomous continuation
+
+- At the beginning of each work pass, refresh the live state of the relevant owned issues, pull requests, branches, reviews, workflows, queues, and any already-authorized upstream surface before choosing the next action.
+- Refresh again after every material transition, including a push, head movement, CI completion, review arrival, superseding patch, duplicate discovery, or evidence transfer.
+- Reconcile new activity immediately: inspect completed runs, classify failures, repair owned work, retire duplicates, update stale descriptions, and move evidence to the canonical branch or record.
+- Queued CI or awaited review is not a stopping condition. Use that time for complete-diff review, adjacent bounded investigation, harness repair, evidence preservation, or another already-owned lane.
+- Do not stop merely to report that work is queued, needs review, or needs repair when the authorized review or repair can be performed. Perform the work and report only a completed result, a genuine blocker, a safety or authority boundary, or a decision that actually requires the user.
+- Before every handoff, perform one final activity refresh and make the durable record match the current exact head and live result.
+- This loop never expands upstream-contact authority. New public interaction still requires the exact authorization described below.
+
 ## Programme, target, and testbed indexing
 
 - Every long-lived cross-target direction carries `programme:<slug>` and links to the programme hub recorded in `programmes/registry.yml`.
