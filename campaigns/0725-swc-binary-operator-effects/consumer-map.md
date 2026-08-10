@@ -2,167 +2,186 @@
 
 ## In simple words
 
-Target execution has identified **four independent source owners** where SWC can erase observable `instanceof` operator behavior:
+Campaign #725 has **four independent source owners** where SWC can erase observable `instanceof` operator behavior:
 
 1. shared effect classification/extraction in `swc_ecma_utils`;
 2. unconditional `instanceof` folding in the expression simplifier;
 3. the minifier main Optimizer's ignored-result binary fallback;
 4. the optimization dead-branch remover's local ignored-result binary fallback.
 
-A fifth research surface, DCE, is an end-to-end consequence of owner 1: it removes unused initializers according to `may_have_side_effects` and therefore needs no additional source correction once owner 1 is fixed.
+DCE is an end-to-end consequence of owner 1, not a fifth source owner.
 
-Pinned source/current upstream head: `swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077`.
+Pinned target/current upstream head: `swc-project/swc@5bf27fd72e4667bac6cc86888b8facb8b91f8077`.
+
+## Why the operator itself must survive
+
+`instanceof` is not just evaluation of a left child and a right child. The operator can:
+
+- reject a non-object/non-callable RHS with `TypeError`;
+- retrieve and call RHS `Symbol.hasInstance`;
+- pass the evaluated LHS value to that hook.
+
+Therefore an optimizer cannot replace an unused `left instanceof right` with only the child effects unless it has separately proved the operator step unobservable.
+
+SWC's documented arithmetic/coercion assumptions do not include such an `instanceof` assumption, and SWC's own ES2015 transform explicitly preserves `Symbol.hasInstance` semantics.
 
 ## Owner 1 — shared classification and extraction
 
 File: `crates/swc_ecma_utils/src/lib.rs`.
 
-Current classification asks only about child effects for ordinary binary expressions. Current extraction preserves short-circuit binaries whole and decomposes the rest into child effects.
+Current classification asks only about child effects for ordinary binary expressions. Current extraction preserves short-circuit binaries whole and decomposes other binaries into child effects.
 
-Candidate:
+Repair:
 
-- classify `instanceof` as effectful;
+- classify `instanceof` as operator-effectful;
 - preserve the complete `instanceof` expression during effect extraction.
 
 Owned utility regression: `teamleaderleo/swc#2` at `520d841148305d135db78912e6e176a67617b6d3`.
 
-Status: exact-head RED -> GREEN, formatting GREEN, package clippy `-D warnings` GREEN, diff-check GREEN.
+Target result: base RED -> candidate GREEN, formatting GREEN, package clippy `-D warnings` GREEN, diff-check GREEN.
 
 ### External extractor consumers
 
-Repository search found two external `extract_side_effects_to` consumers at the pinned revision:
+Repository search at the pinned revision found two external `extract_side_effects_to` consumers:
 
-1. `crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs` — statically selected array member folding. Covered by PR #4.
-2. `crates/swc_ecma_minifier/src/compress/pure/member_expr.rs` — literal member simplification. Covered as one path in PR #7.
+1. `crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs` — statically selected array-member folding, covered by PR #4;
+2. `crates/swc_ecma_minifier/src/compress/pure/member_expr.rs` — literal-member simplification, covered as one path in PR #7.
 
 ### DCE consequence
 
-`crates/swc_ecma_transforms_optimization/src/simplify/dce/mod.rs` uses `may_have_side_effects` to decide whether unused variable initializers and assignment RHS values can be dropped.
+`crates/swc_ecma_transforms_optimization/src/simplify/dce/mod.rs` uses `may_have_side_effects` to decide whether unused initializers can be dropped.
 
 Owned DCE regression: `teamleaderleo/swc#10` at `5ef8472b24a836ded4035c619393ac0d4ac2384f`.
 
 Consolidated run `31331416981`, job `93290155622`:
 
-- base: callback and invalid-RHS unused initializers erased; strict-equality control passed; 1 passed, 2 failed;
-- candidate: 3/3 GREEN;
-- formatting, package clippy with `-D warnings`, and diff-check GREEN.
-
-DCE therefore demonstrates a destructive owner-1 consequence without adding a new source owner.
+- base erased callback-capable and invalid-RHS unused `instanceof` initializers;
+- candidate passed 3/3 focused tests;
+- formatting, package clippy `-D warnings`, and diff-check passed.
 
 ## Owner 2 — expression-simplifier constant folding
 
 File: `crates/swc_ecma_transforms_optimization/src/simplify/expr/mod.rs`.
 
-The current `instanceof` arm folds:
+The old fold used two type-shaped rules:
 
 - statically non-object LHS -> `false`;
 - known object-like LHS against global `Object` -> `true`.
 
-Those are not sufficient proofs under JavaScript semantics because the RHS can throw or implement `Symbol.hasInstance`, and `Object[Symbol.hasInstance]` can be replaced.
+Those are insufficient proofs. The RHS can implement custom `Symbol.hasInstance`, can throw, and global constructor objects such as `Object` are mutable values.
 
-Candidate: remove the unconditional fold until a stronger RHS proof exists.
+Repair: remove the unconditional `instanceof` fold.
 
 Owned regressions:
 
 - PR #9 at `8bdbf2119bc93d3e6e20d0c97d61b7c0d43f1530` isolates folding;
 - PR #4 at `2afcd4202303c373593aa319b8533fb5bdd3204b` combines folding with extraction consumers.
 
-Status: target-executed RED -> GREEN. PR #4 passed all 5 focused tests plus formatting, package clippy `-D warnings`, and diff-check.
-
 Historical precedent: upstream PR #1630 / commit `b6ff4d6f717dfb4bd41c62c7085e15ace868f296` previously narrowed another unsafe `x instanceof Object` fold.
+
+### Precision decision
+
+A small safe subset exists in principle. For example, a primitive LHS against a syntactically fresh ordinary function/arrow RHS with the standard inherited `@@hasInstance` path can be proven `false` without consulting a constructor prototype.
+
+Do **not** recover that optimization in this correctness repair. SWC currently lacks the identity/provenance proof at this fold site, and broad regression testing shows the conservative repair has tightly bounded output drift. Any fresh-RHS optimization should be a separate patch with exact tests for the proof it claims.
 
 ## Owner 3 — minifier main Optimizer ignored-result fallback
 
 File: `crates/swc_ecma_minifier/src/compress/optimize/mod.rs`.
 
-The method's explicit side-effect-free binary allowlist excludes `in` and `instanceof`, but a later generic binary fallback still keeps only left/right effects for all remaining binaries.
+The method has an explicit side-effect-free binary allowlist that excludes `in` and `instanceof`, but a later generic binary fallback still reduces remaining binaries to left/right effects.
 
-Candidate:
-
-```rust
-Expr::Bin(BinExpr {
-    op: op!("instanceof"),
-    ..
-}) => {
-    return Some(e.take());
-}
-```
+Repair: preserve `instanceof` whole before that fallback.
 
 Owned regression: PR #7 at `942c1871c1c186d7a3c03c84e86b0e10b374348d`.
 
-Clean receipt: run `31330595440`, job `93288105179` — all six direct/extracted callback/invalid-RHS cases retained, strict-equality control removed, focused fixture + fmt + package clippy + diff-check GREEN.
+Clean focused receipt: run `31330595440`, job `93288105179` — all six direct/extracted callback/invalid-RHS cases retained, strict-equality control removed, focused fixture + fmt + package clippy + diff-check GREEN.
 
-Strong local precedent: the maintainer-triggered January 2026 experiment for issue #11246 changed this same Optimizer seam for `in`, guarded by `pure_getters`.
+Maintainer precedent: a January 2026 experiment for issue #11246 changed this same seam for `in`, guarded by `pure_getters`. That policy remains separate.
 
 ## Owner 4 — dead-branch remover local `ignore_result`
 
 File: `crates/swc_ecma_transforms_optimization/src/simplify/branch/mod.rs`.
 
-The local `ignore_result` helper independently decomposes every non-short-circuit binary into child effects. It is reused by empty `if` cleanup, loops, sequence pruning, empty switches, selected switch cases, and related result-discarding branch transforms.
+Its local `ignore_result` independently decomposes every non-short-circuit binary into child effects. It is reused by empty `if` cleanup, loops, sequence pruning, empty switches, and related branch transforms.
 
-Candidate:
-
-```rust
-Expr::Bin(bin) if bin.op == op!("instanceof") => Some(bin.into()),
-```
-
-before the generic non-short-circuit binary arm.
+Repair: preserve `instanceof` whole before the generic binary arm.
 
 Owned regression: PR #11 at `05df66c3e98a1124c6e58dd1a814467b0da7f8f5`.
 
-Consolidated run `31331416981`, job `93290155640`:
+Consolidated run `31331416981`, job `93290155640`: base RED -> candidate 3/3 GREEN, with formatting, package clippy `-D warnings`, and diff-check GREEN.
 
-- base RED confirmed;
-- candidate 3/3 focused tests GREEN;
-- callback and invalid-RHS `instanceof` retained;
-- strict-equality control reduced to normal child effects;
-- formatting, package clippy with `-D warnings`, and diff-check GREEN.
+## Broad expectation drift
 
-Status: `target-executed`.
+Diagnostic run `31331894271` exposed exactly three old expectations and no unrelated semantic failures:
 
-## Existing tests that encode old behavior
+1. transform `test_fold_instance_of` encoded the unsafe constant folds;
+2. Terser-named `comparing/dont_change_in_or_instanceof_expressions` deleted invalid `instanceof` operations;
+3. Terser-named `pure_funcs/relational` reduced `foo() instanceof bar()` to `bar()` when `foo` was declared pure.
 
-A canonical implementation will intentionally update old expectations.
+Declaring `foo()` pure only says evaluating that call is side-effect-free; its return value is still an operand supplied to `instanceof` and can be observed by RHS `Symbol.hasInstance`.
 
-### Minifier fixture
+The minifier runtime diagnostic passed 2,612 executed cases with zero failures. After intentional expectation updates, the first broad hard-GREEN candidate passed the full optimization package, complete minifier compress fixtures, and execution suite. The complete compress run reported 2,900 passed, 0 failed, 27 ignored.
 
-`crates/swc_ecma_minifier/tests/terser/compress/comparing/dont_change_in_or_instanceof_expressions/`
+## SWC-owned regression strategy
 
-Its input contains invalid `1 instanceof 1` and `null instanceof null`, but current expected output drops both while preserving invalid `in` operations. That conflicts with the fixture name and invalid-RHS `TypeError` semantics.
+SWC's minifier-local instructions say new regressions belong in SWC-owned fixture roots rather than `tests/terser`.
 
-### Expression-simplifier tests
+Fieldwork candidate commit `89eaad96d0c206d28eec302ef214f40967fd1300` therefore adds `add-instanceof-owned-regressions.py`, creating:
 
-`test_fold_instance_of` currently encodes primitive-LHS -> `false` and object-like/global-`Object` -> `true` folds. These expectations must change with owner 2.
+`crates/swc_ecma_minifier/tests/fixture/operator-effects/instanceof-pure-func-value/`
 
-## Consolidated candidate fence
+This pins the `pure_funcs` value-preservation case independently of imported Terser snapshots:
 
-Deterministic patcher: `apply-instanceof-candidate.py` at `e8ec2506db64a2bdeca01ad221ce3a38d74a41c5`.
+- callback-capable `foo() instanceof bar()` survives;
+- invalid-RHS `foo() instanceof 2` survives;
+- strict-equality control can still reduce to the remaining RHS effect.
 
-It changes only the four confirmed source owners:
+## Shared-helper decision
 
-- shared classification/extraction;
-- expression-simplifier folding;
-- minifier main Optimizer ignored-result fallback;
-- dead-branch local ignored-result fallback.
+The executed repair intentionally keeps narrow `instanceof` guards at the four owners.
 
-It does not modify arithmetic/coercion assumptions, `pure_getters`, or `in`.
+Do **not** introduce a new shared public operator-policy helper in this patch:
 
-## Focused execution result
+- `ExprCtx` does not carry minifier `pure_getters` policy;
+- owner 2 asks a value-proof question, while owners 1/3/4 ask effect/result-discard questions;
+- one unconditional operator rule does not justify new cross-crate policy API surface;
+- forcing future `in` policy into general expression context would widen this correctness repair unnecessarily.
 
-Fieldwork run `31331416981` applied that exact candidate across six owned-fork discriminator heads. All six jobs completed successfully. DCE and dead-branch required base RED before candidate application. Every candidate job required focused GREEN, `cargo fmt --all -- --check`, package clippy `--all-targets -- -D warnings`, and `git diff --check`.
+Revisit centralization only if a second operator needs the same unconditional preservation rule. Keep `in`/`pure_getters` explicit and separate.
 
-## Design direction
+## Canonical repair boundary
 
-The executed candidate uses narrow `instanceof` guards at each owner. A canonical implementation should evaluate whether a context-aware operator-observability predicate near `ExprCtx` can provide the shared semantic answer to classification, extraction, dead-branch result-discarding, and minifier ignored-result handling. Owner 2's value-fold proof remains separate.
+Deterministic source/expectation patcher: `apply-instanceof-candidate.py`.
 
-A context-aware helper is preferable to encoding policy directly on AST `BinaryOp`, because future `in` behavior may depend on `pure_getters`.
+Current exact candidate bundle: Fieldwork `89eaad96d0c206d28eec302ef214f40967fd1300`, containing that patcher plus the SWC-owned `pure_funcs` regression generator.
 
-## Next gates
+Include:
 
-- full `cargo test -p swc_ecma_transforms_optimization` under the candidate;
-- minifier execution tests required by target-local instructions;
-- broader minifier fixture tests;
-- enumerate and intentionally update stale expectations;
-- rerun broad gates;
-- compare baseline/candidate output on representative `instanceof` inputs;
-- keep `in` separate.
+1. owner 1 classification/extraction preservation;
+2. owner 2 removal of unsafe unconditional folding;
+3. owner 3 main Optimizer ignored-result preservation;
+4. owner 4 dead-branch ignored-result preservation;
+5. intentional updates to the three stale broad expectations;
+6. SWC-owned focused regressions.
+
+Exclude:
+
+- `in` / `pure_getters` policy;
+- arithmetic/coercion assumptions;
+- speculative fresh-function folding;
+- a new shared operator-policy API.
+
+## Execution state
+
+Focused six-lane matrix: run `31331416981`, all six lanes GREEN.
+
+Broad diagnostic: run `31331894271`, only three stale expectations surfaced.
+
+First broad hard-GREEN run: `31344353719`, all three hard gates GREEN.
+
+Final bundle hard gate with the new SWC-owned `pure_funcs` fixture: run `31345496191`. The full `swc_ecma_transforms_optimization` package is already GREEN on exact candidate `89eaad96d0c206d28eec302ef214f40967fd1300`; minifier compress and execution gates are completing on the same bundle.
+
+Temporary carrier #771 is retired. Clean one-workflow fallback carrier #775 exists only if another receipt is needed.
+
+No third-party upstream mutation occurred.
