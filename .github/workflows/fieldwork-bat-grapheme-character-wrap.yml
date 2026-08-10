@@ -40,7 +40,7 @@ jobs:
           printf '界\n' | ./target/debug/bat \
             --style=plain \
             --color=never \
-            --decorations=never \
+            --decorations=always \
             --paging=never \
             --wrap=character \
             --terminal-width=2 \
@@ -59,7 +59,7 @@ jobs:
           printf '👩‍💻\n' | ./target/debug/bat \
             --style=plain \
             --color=never \
-            --decorations=never \
+            --decorations=always \
             --paging=never \
             --wrap=character \
             --terminal-width=2 \
@@ -83,7 +83,7 @@ jobs:
           printf '👩‍💻\n' | ./target/debug/bat \
             --style=plain \
             --color=never \
-            --decorations=never \
+            --decorations=always \
             --paging=never \
             --wrap=character \
             --terminal-width=4 \
