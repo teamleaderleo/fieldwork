@@ -20,8 +20,10 @@
   "command": "GitHub Actions: Fieldwork Delta wide line-number format probe",
   "environment": {
     "runtime": "target-declared Rust/Cargo",
-    "platform": "GitHub-hosted Ubuntu",
-    "dependencies": ["exact dandavison/delta source fetched read-only"]
+    "platform": "GitHub-hosted Ubuntu 24.04",
+    "dependencies": [
+      "exact dandavison/delta source fetched read-only at 95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4"
+    ]
   },
   "distinguishing_outcomes": [
     {
@@ -33,12 +35,21 @@
       "interpretation": "The line-number width owner has a target-executed column-accounting mismatch."
     }
   ],
-  "stop_condition": "Stop after exact target tests classify wide-prefix metadata and the derived side-by-side budget; require a rendered-output discriminator before source promotion.",
-  "network_policy": "Read-only fetch of the exact public Delta revision during owned Fieldwork CI; no third-party mutation.",
+  "target_execution": {
+    "workflow_run": 31425645220,
+    "job": 93576574346,
+    "evidence_class": "target-executed",
+    "target_revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
+    "result": "For 界{nm}, Delta reports line-number metadata width 2 while the rendered field 界1 has display width 3. In a fixed width-20 side-by-side config, the planner gives left content 8 columns while the actual prefix leaves 7. The ASCII |{nm} control agrees at width 2.",
+    "receipt": "playgrounds/EXP-20260811-delta-wide-line-number-format/result.json"
+  },
+  "stop_condition": "Stop after a rendered-output target fixture decides whether the one-column planner over-budget changes visible wrapping or truncation; retain the accounting result even if a downstream guard masks the visible consequence.",
+  "network_policy": "public-read-only",
   "upstream_contact_authorized": false,
   "result_paths": [
     "playgrounds/EXP-20260811-delta-wide-line-number-format/README.md",
-    "playgrounds/EXP-20260811-delta-wide-line-number-format/delta_line_number_probe.rs"
+    "playgrounds/EXP-20260811-delta-wide-line-number-format/delta_line_number_probe.rs",
+    "playgrounds/EXP-20260811-delta-wide-line-number-format/result.json"
   ],
   "promoted_to": null
 }
