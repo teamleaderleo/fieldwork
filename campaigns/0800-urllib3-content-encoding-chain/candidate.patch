@@ -1,18 +1,19 @@
 diff --git a/src/urllib3/response.py b/src/urllib3/response.py
 --- a/src/urllib3/response.py
 +++ b/src/urllib3/response.py
-@@ -312,12 +312,10 @@ class BaseHTTPResponse(io.IOBase):
+@@ -312,12 +312,13 @@ class BaseHTTPResponse(io.IOBase):
              if content_encoding in self.CONTENT_DECODERS:
                  self._decoder = _get_decoder(content_encoding)
              elif "," in content_encoding:
--                encodings = [
--                    e.strip()
--                    for e in content_encoding.split(",")
+                 encodings = [
+                     e.strip()
+                     for e in content_encoding.split(",")
 -                    if e.strip() in self.CONTENT_DECODERS
--                ]
++                    if e.strip()
+                 ]
 -                if encodings:
-+                encodings = [e.strip() for e in content_encoding.split(",")]
+-                    self._decoder = _get_decoder(content_encoding)
 +                if encodings and all(
 +                    encoding in self.CONTENT_DECODERS for encoding in encodings
 +                ):
-                     self._decoder = _get_decoder(content_encoding)
++                    self._decoder = _get_decoder(",".join(encodings))
