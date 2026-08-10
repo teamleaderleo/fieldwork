@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - carrier/vercel-current-candidates
+  pull_request:
+    branches:
+      - research/vercel-ai-current-main-20260811
 
 permissions:
   contents: read
