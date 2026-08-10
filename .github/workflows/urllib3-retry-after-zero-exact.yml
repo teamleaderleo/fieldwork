@@ -111,6 +111,7 @@ jobs:
           python -m pytest -q \
             test/test_retry.py::test_fieldwork_retry_after_zero_consumes_header \
             test/test_retry.py::test_fieldwork_sleep_for_retry_zero_return_is_unchanged \
+            test/test_retry.py::test_fieldwork_retry_sleep_keeps_sleep_for_retry_hook \
             test/test_retry.py::test_fieldwork_retry_after_absent_uses_backoff \
             test/test_retry.py::test_fieldwork_retry_after_positive_owns_delay \
             test/test_retry.py::test_fieldwork_retry_after_past_date_consumes_header \
