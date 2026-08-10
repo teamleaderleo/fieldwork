@@ -1,0 +1,38 @@
+diff --git a/serde_derive/src/internals/case.rs b/serde_derive/src/internals/case.rs
+index 8c8c02e..0000000 100644
+--- a/serde_derive/src/internals/case.rs
++++ b/serde_derive/src/internals/case.rs
+@@ -3,6 +3,14 @@
+ use self::RenameRule::*;
+ use std::fmt::{self, Debug, Display};
+ 
++fn lowercase_first(value: &str) -> String {
++    let mut chars = value.chars();
++    match chars.next() {
++        Some(first) => first.to_lowercase().chain(chars).collect(),
++        None => String::new(),
++    }
++}
++
+ /// The different possible ways to change case of fields in a struct, or variants in an enum.
+ #[derive(Copy, Clone, PartialEq)]
+ pub enum RenameRule {
+@@ -66,7 +74,7 @@ impl RenameRule {
+             None | PascalCase => variant.to_owned(),
+             LowerCase => variant.to_ascii_lowercase(),
+             UpperCase => variant.to_ascii_uppercase(),
+-            CamelCase => variant[..1].to_ascii_lowercase() + &variant[1..],
++            CamelCase => lowercase_first(variant),
+             SnakeCase => {
+                 let mut snake = String::new();
+                 for (i, ch) in variant.char_indices() {
+@@ -104,8 +112,7 @@ impl RenameRule {
+                 pascal
+             }
+             CamelCase => {
+-                let pascal = PascalCase.apply_to_field(field);
+-                pascal[..1].to_ascii_lowercase() + &pascal[1..]
++                lowercase_first(&PascalCase.apply_to_field(field))
+             }
+             ScreamingSnakeCase => field.to_ascii_uppercase(),
+             KebabCase => field.replace('_', "-"),
