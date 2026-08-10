@@ -8,9 +8,10 @@ index 8c8c02e..0000000 100644
  
 +fn lowercase_first(value: &str) -> String {
 +    let mut chars = value.chars();
-+    match chars.next() {
-+        Some(first) => first.to_lowercase().chain(chars).collect(),
-+        None => String::new(),
++    if let Some(first) = chars.next() {
++        first.to_lowercase().chain(chars).collect()
++    } else {
++        String::new()
 +    }
 +}
 +
