@@ -28,6 +28,14 @@ def test_fieldwork_retry_after_zero_consumes_header() -> None:
     sleep_mock.assert_not_called()
 
 
+def test_fieldwork_sleep_for_retry_zero_return_is_unchanged() -> None:
+    retry = Retry()
+    response = HTTPResponse(status=503, headers={"Retry-After": "0"})
+    with mock.patch("time.sleep") as sleep_mock:
+        assert retry.sleep_for_retry(response) is False
+    sleep_mock.assert_not_called()
+
+
 def test_fieldwork_retry_after_absent_uses_backoff() -> None:
     retry = _fieldwork_retry_with_backoff()
     response = HTTPResponse(status=503)
