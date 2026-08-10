@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-fd-exec-batch-order",
+  "question": "Can a later fd --exec-batch command execute before an earlier declared command when its independent command builder reaches the argv-size ceiling first?",
+  "owner": "GPT-5.6 Sol",
+  "created_at": "2026-08-11",
+  "state": "running",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "sharkdp/fd",
+      "url": "https://github.com/sharkdp/fd",
+      "revision": "ee20f426ddf338ac7ead5c5f00ea49258005caaf",
+      "retrieved_at": "2026-08-11",
+      "claim": "CommandSet::execute_batch owns one CommandBuilder per declared command. Each builder independently executes finish() when its own args_would_fit check fails, so a later builder can flush while an earlier builder remains buffered.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "fd issue 2033",
+      "url": "https://redirect.github.com/sharkdp/fd/issues/2033",
+      "revision": "open issue retrieved 2026-08-11",
+      "retrieved_at": "2026-08-11",
+      "claim": "The public repeated --exec-batch contract is reported to violate declaration order when one command reaches the OS command-line limit earlier than another.",
+      "evidence_label": "Reported"
+    }
+  ],
+  "command": "GitHub Actions: Fieldwork fd exec-batch order probe",
+  "environment": {
+    "runtime": "target-declared Rust/Cargo",
+    "platform": "GitHub-hosted Ubuntu 24.04",
+    "dependencies": [
+      "exact sharkdp/fd source fetched read-only at ee20f426ddf338ac7ead5c5f00ea49258005caaf"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "Two equal-capacity builders finish in declaration order, and making only builder 2 approach its argv ceiling still leaves command 1 as the first execution.",
+      "interpretation": "Another ordering barrier defeats the source-level hypothesis; retain a negative result."
+    },
+    {
+      "observation": "Equal-capacity builders execute 1 then 2, while the asymmetric-capacity case executes command 2 before command 1 once builder 2 independently flushes.",
+      "interpretation": "The current batch owner has a target-executed declaration-order violation caused by independent builder flush thresholds."
+    }
+  ],
+  "stop_condition": "Stop after the owner-level target test classifies independent argv-capacity flushing. If positive, design a public CLI reproduction separately before source promotion.",
+  "network_policy": "public-read-only",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-fd-exec-batch-order/README.md",
+    "playgrounds/EXP-20260811-fd-exec-batch-order/fd_batch_order_probe.rs"
+  ],
+  "promoted_to": null
+}
