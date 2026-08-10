@@ -2,7 +2,7 @@ diff --git a/serde_derive/src/internals/case.rs b/serde_derive/src/internals/cas
 index 8c8c02e..0000000 100644
 --- a/serde_derive/src/internals/case.rs
 +++ b/serde_derive/src/internals/case.rs
-@@ -3,6 +3,31 @@
+@@ -4,6 +4,33 @@
  use self::RenameRule::*;
  use std::fmt::{self, Debug, Display};
  
@@ -36,7 +36,7 @@ index 8c8c02e..0000000 100644
  /// The different possible ways to change case of fields in a struct, or variants in an enum.
  #[derive(Copy, Clone, PartialEq)]
  pub enum RenameRule {
-@@ -66,7 +91,7 @@ impl RenameRule {
+@@ -59,7 +86,7 @@ impl RenameRule {
              None | PascalCase => variant.to_owned(),
              LowerCase => variant.to_ascii_lowercase(),
              UpperCase => variant.to_ascii_uppercase(),
@@ -45,7 +45,7 @@ index 8c8c02e..0000000 100644
              SnakeCase => {
                  let mut snake = String::new();
                  for (i, ch) in variant.char_indices() {
-@@ -103,10 +128,7 @@ impl RenameRule {
+@@ -98,10 +125,7 @@ impl RenameRule {
                  }
                  pascal
              }
