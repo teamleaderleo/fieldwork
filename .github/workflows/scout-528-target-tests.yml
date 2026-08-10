@@ -1,0 +1,32 @@
+name: Scout 528 reduced authority models
+
+on:
+  push:
+    branches:
+      - scout/528-agent-runtime-run-authority
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Execute reduced lifecycle models
+        working-directory: programmes/open-source-ecosystems/scouts/agent-runtime-run-authority
+        run: |
+          node artifacts/opencode-stale-idle-model.mjs
+          node artifacts/tanstack-transform-order-model.mjs
+          node artifacts/vercel-resume-adoption-model.mjs
+          node artifacts/vercel-poll-deadline-model.mjs
+          node artifacts/authority-token-propagation-model.mjs
+
+# Historical exact-pin target jobs were retired after current-head dedicated
+# workflows and owned-fork carriers became authoritative. This workflow now
+# retains only dependency-free architecture models.

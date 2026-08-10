@@ -1,0 +1,118 @@
+name: Scout 528 TanStack final-result repair
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+jobs:
+  generation-final-result-repair:
+    if: github.event.pull_request.head.ref == 'scout/528-agent-runtime-run-authority'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: fieldwork
+
+      - uses: actions/checkout@v4
+        with:
+          repository: TanStack/ai
+          ref: ed44467c5e701f0a4fcc1c9f5639d036de35d26a
+          path: target
+          fetch-depth: 1
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: target/pnpm-lock.yaml
+
+      - name: Verify exact target identity
+        working-directory: target
+        run: test "$(git rev-parse HEAD)" = "ed44467c5e701f0a4fcc1c9f5639d036de35d26a"
+
+      - name: Install target workspace
+        working-directory: target
+        run: pnpm install --frozen-lockfile
+
+      - name: Materialize reviewed repair
+        working-directory: target
+        run: |
+          python ../fieldwork/programmes/open-source-ecosystems/scouts/agent-runtime-run-authority/artifacts/materialize-tanstack-final-result-observer.py
+          cp ../fieldwork/programmes/open-source-ecosystems/scouts/agent-runtime-run-authority/target-tests/tanstack-generation-final-result.test.ts \
+            packages/ai-persistence/tests/generation-final-result-authority.test.ts
+          cp ../fieldwork/programmes/open-source-ecosystems/scouts/agent-runtime-run-authority/target-tests/tanstack-generation-result-observer.test.ts \
+            packages/ai/tests/middlewares/generation-result-observer.test.ts
+          pnpm exec oxfmt \
+            packages/ai/src/activities/middleware/run.ts \
+            packages/ai/src/adapter-internals.ts \
+            packages/ai/tests/middlewares/generation-result-observer.test.ts \
+            packages/ai-persistence/src/middleware.ts \
+            packages/ai-persistence/tests/generation-final-result-authority.test.ts \
+            .changeset/quiet-maps-rest.md
+          git diff --check
+
+      - name: Build persistence package and dependencies
+        working-directory: target
+        run: pnpm --filter @tanstack/ai-persistence... build
+
+      - name: Run core observer controls
+        working-directory: target/packages/ai
+        run: pnpm exec vitest run tests/middlewares/generation-result-observer.test.ts
+
+      - name: Run persistence authority regression
+        working-directory: target/packages/ai-persistence
+        run: pnpm exec vitest run tests/generation-final-result-authority.test.ts
+
+      - name: Run package type checks
+        working-directory: target
+        run: |
+          pnpm --filter @tanstack/ai test:types
+          pnpm --filter @tanstack/ai-persistence test:types
+
+      - name: Run package lint
+        working-directory: target
+        run: |
+          pnpm --filter @tanstack/ai test:oxlint
+          pnpm --filter @tanstack/ai-persistence test:oxlint
+
+      - name: Verify generated repair fence
+        working-directory: target
+        run: |
+          mapfile -t changed < <(git status --short | awk '{print $2}' | sort)
+          expected=(
+            .changeset/quiet-maps-rest.md
+            packages/ai-persistence/src/middleware.ts
+            packages/ai-persistence/tests/generation-final-result-authority.test.ts
+            packages/ai/src/activities/middleware/run.ts
+            packages/ai/src/adapter-internals.ts
+            packages/ai/tests/middlewares/generation-result-observer.test.ts
+          )
+          test "${changed[*]}" = "${expected[*]}"
+
+      - name: Retain generated repair candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: tanstack-final-result-observer-ed44467
+          path: |
+            target/.changeset/quiet-maps-rest.md
+            target/packages/ai/src/activities/middleware/run.ts
+            target/packages/ai/src/adapter-internals.ts
+            target/packages/ai/tests/middlewares/generation-result-observer.test.ts
+            target/packages/ai-persistence/src/middleware.ts
+            target/packages/ai-persistence/tests/generation-final-result-authority.test.ts
+          if-no-files-found: error
+
+# Exact-head owned Fieldwork repair execution. No upstream write.
