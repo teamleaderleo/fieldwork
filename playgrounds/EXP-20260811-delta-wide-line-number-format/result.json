@@ -1,0 +1,34 @@
+{
+  "experiment": "EXP-20260811-delta-wide-line-number-format",
+  "target_revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
+  "fieldwork_head_at_execution": "a6fadaef84e7e71e763f2a7f10d5ad162fb7d500",
+  "workflow_run": 31425645220,
+  "job": 93576574346,
+  "evidence_class": "target-executed",
+  "observations": {
+    "wide_prefix": {
+      "format": "界{nm}",
+      "metadata_width": 2,
+      "rendered_example": "界1",
+      "actual_display_width": 3,
+      "difference": 1
+    },
+    "ascii_control": {
+      "format": "|{nm}",
+      "metadata_width": 2,
+      "rendered_example": "|1",
+      "actual_display_width": 2,
+      "difference": 0
+    },
+    "side_by_side_budget": {
+      "overall_width": 20,
+      "left_panel_width": 10,
+      "metadata_line_number_width": 2,
+      "actual_line_number_width": 3,
+      "planned_content_width": 8,
+      "actual_content_width": 7
+    }
+  },
+  "conclusion": "Exact Delta source undercounts a two-column literal line-number prefix by one terminal column and passes that undercount directly into side-by-side content budgeting. The ASCII control stays aligned.",
+  "remaining_gate": "Execute a rendered-output boundary fixture to classify the visible consequence of the one-column over-budget."
+}
