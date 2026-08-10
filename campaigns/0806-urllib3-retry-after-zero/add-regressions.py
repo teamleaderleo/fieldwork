@@ -36,6 +36,18 @@ def test_fieldwork_sleep_for_retry_zero_return_is_unchanged() -> None:
     sleep_mock.assert_not_called()
 
 
+def test_fieldwork_retry_sleep_keeps_sleep_for_retry_hook() -> None:
+    retry = _fieldwork_retry_with_backoff()
+    response = HTTPResponse(status=503, headers={"Retry-After": "0"})
+    with (
+        mock.patch.object(retry, "sleep_for_retry", wraps=retry.sleep_for_retry) as hook,
+        mock.patch("time.sleep") as sleep_mock,
+    ):
+        retry.sleep(response)
+    hook.assert_called_once_with(response)
+    sleep_mock.assert_not_called()
+
+
 def test_fieldwork_retry_after_absent_uses_backoff() -> None:
     retry = _fieldwork_retry_with_backoff()
     response = HTTPResponse(status=503)
