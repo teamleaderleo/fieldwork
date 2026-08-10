@@ -1,0 +1,128 @@
+name: SWC instanceof final hard gates
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  CANDIDATE_REF: 1c22210673c52bfe1fd23566b1a6bed74eeee459
+  SWC_REF: 5bf27fd72e4667bac6cc86888b8facb8b91f8077
+
+jobs:
+  optimization-full:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-final-hard-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out canonical candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: ${{ env.CANDIDATE_REF }}
+          path: fieldwork-source
+          sparse-checkout: |
+            campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+            campaigns/0725-swc-binary-operator-effects/add-instanceof-owned-regressions.py
+          sparse-checkout-cone-mode: false
+      - name: Check out pinned SWC
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: ${{ env.SWC_REF }}
+          path: swc
+          fetch-depth: 0
+      - name: Install SWC toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+      - name: Apply candidate and verify diff
+        run: |
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/add-instanceof-owned-regressions.py swc
+          cd swc
+          test "$(git rev-parse HEAD)" = "$SWC_REF"
+          git diff --check
+          cargo fmt --all -- --check
+      - name: Run full optimization package
+        working-directory: swc
+        run: cargo test -p swc_ecma_transforms_optimization --no-fail-fast
+
+  minifier-compress:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-final-hard-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out canonical candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: ${{ env.CANDIDATE_REF }}
+          path: fieldwork-source
+          sparse-checkout: |
+            campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+            campaigns/0725-swc-binary-operator-effects/add-instanceof-owned-regressions.py
+          sparse-checkout-cone-mode: false
+      - name: Check out pinned SWC
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: ${{ env.SWC_REF }}
+          path: swc
+          fetch-depth: 0
+      - name: Install SWC toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+      - name: Apply candidate and verify diff
+        run: |
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/add-instanceof-owned-regressions.py swc
+          cd swc
+          test "$(git rev-parse HEAD)" = "$SWC_REF"
+          git diff --check
+          cargo fmt --all -- --check
+      - name: Run complete minifier compress fixtures
+        working-directory: swc
+        run: cargo test -p swc_ecma_minifier --no-fail-fast --test compress --features concurrent
+
+  minifier-exec:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-final-hard-green'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out canonical candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/fieldwork
+          ref: ${{ env.CANDIDATE_REF }}
+          path: fieldwork-source
+          sparse-checkout: |
+            campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+            campaigns/0725-swc-binary-operator-effects/add-instanceof-owned-regressions.py
+          sparse-checkout-cone-mode: false
+      - name: Check out pinned SWC
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: ${{ env.SWC_REF }}
+          path: swc
+          fetch-depth: 0
+      - name: Install SWC toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+      - name: Apply candidate and verify diff
+        run: |
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/add-instanceof-owned-regressions.py swc
+          cd swc
+          test "$(git rev-parse HEAD)" = "$SWC_REF"
+          git diff --check
+          cargo fmt --all -- --check
+      - name: Run minifier execution suite
+        working-directory: swc/crates/swc_ecma_minifier
+        run: ./scripts/exec.sh
