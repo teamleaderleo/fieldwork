@@ -33,11 +33,12 @@ jobs:
           cat playgrounds/EXP-20260811-delta-wide-wrap-symbol/delta_probe_tests.rs >> /tmp/delta/src/wrapping.rs
           tail -n 100 /tmp/delta/src/wrapping.rs
 
-      - name: Compile target tests
+      - name: Compile target tests and binary
         working-directory: /tmp/delta
         run: |
           set -euxo pipefail
           cargo test --locked --no-run
+          cargo build --locked --bin delta
 
       - name: Prove validator reachability
         working-directory: /tmp/delta
@@ -60,13 +61,71 @@ jobs:
           set -e
           case "$status" in
             0)
-              echo 'FIELDWORK_RESULT two-column-marker=terminated'
+              echo 'FIELDWORK_RESULT owner-two-column-marker=terminated'
               ;;
             124|137)
-              echo 'FIELDWORK_RESULT two-column-marker=watchdog-expired'
+              echo 'FIELDWORK_RESULT owner-two-column-marker=watchdog-expired'
               ;;
             *)
               echo "Unexpected test status: $status" >&2
+              exit "$status"
+              ;;
+          esac
+
+      - name: Prepare minimal public CLI fixture
+        working-directory: /tmp/delta
+        run: |
+          cat > /tmp/delta-fieldwork.diff <<'EOF'
+          diff --git a/a.txt b/a.txt
+          --- a/a.txt
+          +++ b/a.txt
+          @@ -1 +1 @@
+          -abc
+          +def
+          EOF
+          cat /tmp/delta-fieldwork.diff
+
+      - name: Prove one-column public CLI control terminates
+        working-directory: /tmp/delta
+        run: |
+          set -euxo pipefail
+          timeout -k 2s 15s ./target/debug/delta \
+            --side-by-side \
+            --width 16 \
+            --line-fill-method=spaces \
+            --wrap-max-lines unlimited \
+            --wrap-left-symbol '+' \
+            < /tmp/delta-fieldwork.diff \
+            > /tmp/delta-control.out
+          test -s /tmp/delta-control.out
+          echo 'FIELDWORK_RESULT cli-one-column-marker=terminated'
+          cat /tmp/delta-control.out
+
+      - name: Classify two-column public CLI progress
+        working-directory: /tmp/delta
+        run: |
+          set +e
+          timeout -k 2s 8s ./target/debug/delta \
+            --side-by-side \
+            --width 16 \
+            --line-fill-method=spaces \
+            --wrap-max-lines unlimited \
+            --wrap-left-symbol '界' \
+            < /tmp/delta-fieldwork.diff \
+            > /tmp/delta-wide.out
+          status=$?
+          set -e
+          case "$status" in
+            0)
+              echo 'FIELDWORK_RESULT cli-two-column-marker=terminated'
+              cat /tmp/delta-wide.out
+              ;;
+            124|137)
+              echo 'FIELDWORK_RESULT cli-two-column-marker=watchdog-expired'
+              ;;
+            *)
+              echo "Unexpected CLI status: $status" >&2
+              cat /tmp/delta-wide.out || true
               exit "$status"
               ;;
           esac
