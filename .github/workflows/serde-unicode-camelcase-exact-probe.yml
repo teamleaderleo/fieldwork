@@ -1,0 +1,141 @@
+name: Serde Unicode camelCase exact probe
+
+on:
+  pull_request:
+    branches:
+      - research/serde-unicode-camelcase-20260811
+    paths:
+      - 'programmes/open-source-ecosystems/scouts/foundational-systems/serde-unicode-camelcase-20260811/**'
+      - '.github/workflows/serde-unicode-camelcase-exact-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  exact-red-green:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Fieldwork carrier
+        uses: actions/checkout@v4
+
+      - name: Checkout exact Serde target
+        uses: actions/checkout@v4
+        with:
+          repository: serde-rs/serde
+          ref: 747814f7d5fbab872df3b02f070c165b91bde062
+          path: target
+          fetch-depth: 1
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Verify exact source and materialize probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C target rev-parse HEAD)" = "747814f7d5fbab872df3b02f070c165b91bde062"
+          python programmes/open-source-ecosystems/scouts/foundational-systems/serde-unicode-camelcase-20260811/add-regression.py \
+            target/serde_derive/src/internals/case.rs
+
+          probe="$RUNNER_TEMP/serde-unicode-camelcase-probe"
+          mkdir -p "$probe/src/bin"
+          cat > "$probe/Cargo.toml" <<EOF
+          [package]
+          name = "serde-fieldwork-unicode-camelcase"
+          version = "0.0.0"
+          edition = "2021"
+
+          [dependencies]
+          serde = { path = "$GITHUB_WORKSPACE/target/serde", features = ["derive"] }
+          EOF
+
+          cat > "$probe/src/bin/field.rs" <<'RS'
+          use serde::Deserialize;
+
+          #[derive(Deserialize)]
+          #[serde(rename_all = "camelCase")]
+          struct Payload {
+              项目名称: String,
+          }
+
+          fn main() {}
+          RS
+
+          cat > "$probe/src/bin/variant.rs" <<'RS'
+          use serde::Deserialize;
+
+          #[derive(Deserialize)]
+          #[serde(rename_all = "camelCase")]
+          enum Event {
+              项目名称,
+          }
+
+          fn main() {}
+          RS
+
+      - name: Baseline RED — field derive panic
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe="$RUNNER_TEMP/serde-unicode-camelcase-probe"
+          set +e
+          cargo check --manifest-path "$probe/Cargo.toml" --bin field 2> "$RUNNER_TEMP/field-red.log"
+          status=$?
+          set -e
+          test "$status" -ne 0
+          grep -F "byte index 1 is not a char boundary" "$RUNNER_TEMP/field-red.log"
+
+      - name: Baseline RED — variant derive panic
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe="$RUNNER_TEMP/serde-unicode-camelcase-probe"
+          set +e
+          cargo check --manifest-path "$probe/Cargo.toml" --bin variant 2> "$RUNNER_TEMP/variant-red.log"
+          status=$?
+          set -e
+          test "$status" -ne 0
+          grep -F "byte index 1 is not a char boundary" "$RUNNER_TEMP/variant-red.log"
+
+      - name: Apply bounded candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch="$GITHUB_WORKSPACE/programmes/open-source-ecosystems/scouts/foundational-systems/serde-unicode-camelcase-20260811/candidate.patch"
+          git -C target apply --check "$patch"
+          git -C target apply "$patch"
+          git -C target diff --check
+
+      - name: Candidate GREEN — user-facing derives
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe="$RUNNER_TEMP/serde-unicode-camelcase-probe"
+          cargo check --manifest-path "$probe/Cargo.toml" --bin field
+          cargo check --manifest-path "$probe/Cargo.toml" --bin variant
+
+      - name: Candidate GREEN — Unicode owner tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --manifest-path target/Cargo.toml -p serde_derive --lib \
+            internals::case::unicode_camel_case_field -- --exact --nocapture
+          cargo test --manifest-path target/Cargo.toml -p serde_derive --lib \
+            internals::case::unicode_camel_case_variant -- --exact --nocapture
+
+      - name: Existing ASCII rename controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --manifest-path target/Cargo.toml -p serde_derive --lib \
+            internals::case::rename_fields -- --exact --nocapture
+          cargo test --manifest-path target/Cargo.toml -p serde_derive --lib \
+            internals::case::rename_variants -- --exact --nocapture
+
+      - name: Format and diff hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path target/Cargo.toml --all -- --check
+          git -C target diff --check
