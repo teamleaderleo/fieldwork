@@ -123,6 +123,8 @@ jobs:
             internals::case::unicode_camel_case_field -- --exact --nocapture
           cargo test --manifest-path target/Cargo.toml -p serde_derive --lib \
             internals::case::unicode_camel_case_variant -- --exact --nocapture
+          cargo test --manifest-path target/Cargo.toml -p serde_derive --lib \
+            internals::case::unicode_camel_case_does_not_widen_pascal_case -- --exact --nocapture
 
       - name: Existing ASCII rename controls
         shell: bash
