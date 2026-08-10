@@ -1,0 +1,60 @@
+name: urllib3 foundational exact probe
+
+on:
+  pull_request:
+    branches:
+      - research/urllib3-foundational-20260811
+    paths:
+      - 'programmes/open-source-ecosystems/scouts/foundational-systems/urllib3-20260811/**'
+      - '.github/workflows/urllib3-foundational-exact-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  exact-probe:
+    name: exact-probe-python-${{ matrix.python }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.14']
+    steps:
+      - name: Checkout Fieldwork carrier
+        uses: actions/checkout@v4
+
+      - name: Checkout exact urllib3 target
+        uses: actions/checkout@v4
+        with:
+          repository: urllib3/urllib3
+          ref: 824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78
+          path: target
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Verify exact target identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C target rev-parse HEAD)" = "824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78"
+          PYTHONPATH="$GITHUB_WORKSPACE/target/src" python - <<'PY'
+          import pathlib
+          import urllib3
+          expected = pathlib.Path('target/src/urllib3').resolve()
+          actual = pathlib.Path(urllib3.__file__).resolve()
+          print(f"urllib3_version={urllib3.__version__}")
+          print(f"urllib3_file={actual}")
+          assert expected in actual.parents
+          PY
+
+      - name: Run preserved discriminator
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/target/src" \
+            python programmes/open-source-ecosystems/scouts/foundational-systems/urllib3-20260811/probe.py
