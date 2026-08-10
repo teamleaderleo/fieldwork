@@ -1,9 +1,9 @@
 {
   "experiment": "EXP-20260811-delta-wide-wrap-symbol",
   "target_revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
-  "fieldwork_head_at_execution": "993a33c91b7fee4059aa6e4c3c3b59c799658206",
-  "workflow_run": 31425334965,
-  "job": 93575567871,
+  "fieldwork_head_at_execution": "6fb3dda3802e34c2d9cfc82de0bec804c04bb9df",
+  "workflow_run": 31440774199,
+  "job": 93624827655,
   "evidence_class": "target-executed",
   "observations": {
     "validator_reachability": {
@@ -12,7 +12,7 @@
       "display_width": 2,
       "result": "accepted"
     },
-    "negative_control": {
+    "owner_negative_control": {
       "marker": "+",
       "line_width": 2,
       "text": "abc",
@@ -20,7 +20,7 @@
       "result": ["a+", "bc"],
       "terminated": true
     },
-    "wide_marker": {
+    "owner_wide_marker": {
       "marker": "界",
       "line_width": 2,
       "text": "abc",
@@ -28,8 +28,24 @@
       "watchdog_seconds": 8,
       "result": "watchdog-expired",
       "terminated": false
+    },
+    "cli_negative_control": {
+      "command_context": "delta --side-by-side --width 16 --line-fill-method=spaces --wrap-max-lines unlimited",
+      "marker": "+",
+      "fixture": "minimal one-line replacement diff",
+      "result": "terminated",
+      "terminated": true
+    },
+    "cli_wide_marker": {
+      "command_context": "delta --side-by-side --width 16 --line-fill-method=spaces --wrap-max-lines unlimited",
+      "marker": "界",
+      "fixture": "minimal one-line replacement diff",
+      "watchdog_seconds": 8,
+      "result": "watchdog-expired",
+      "terminated": false
     }
   },
-  "conclusion": "Exact Delta source accepts a two-column one-grapheme wrap marker through the public configuration parser. In the focused wrapper owner, that marker leaves zero source-text room at line width 2; unlimited wrapping repeats without progress while the one-column control terminates.",
-  "remaining_gate": "Reproduce the same consequence through the built delta CLI with public options and a minimal diff before promoting a source candidate."
+  "conclusion": "Exact Delta source accepts a two-column one-grapheme wrap marker through the public configuration parser. The focused wrap owner then makes zero text progress at content width 2, and the built public CLI reproduces the hang under side-by-side width 16 with unlimited wrapping. The identical one-column marker control terminates in both paths.",
+  "promotion": "https://github.com/teamleaderleo/fieldwork/issues/820",
+  "remaining_gate": "Evaluate the smallest repair in an owned Delta fork, preserving a progress invariant even when configuration validation is bypassed internally."
 }
