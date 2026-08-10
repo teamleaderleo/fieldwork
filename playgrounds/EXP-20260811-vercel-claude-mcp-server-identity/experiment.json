@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-vercel-claude-mcp-server-identity",
+  "question": "Can a caller-owned Claude MCP server named harness-tools retain its identity and stream events after per-harness mcpServers became public?",
+  "owner": "chatgpt:gpt-5.6-sol",
+  "created_at": "2026-08-11",
+  "state": "complete",
+  "claim_scope": "interface",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "Vercel AI SDK Claude Code bridge MCP merge",
+      "url": "https://github.com/vercel/ai/blob/cbdbeee90d9aa4fee399b5628073f9fc30165ca6/packages/harness-claude-code/src/bridge/index.ts",
+      "revision": "cbdbeee90d9aa4fee399b5628073f9fc30165ca6",
+      "retrieved_at": "2026-08-11",
+      "claim": "External mcpServers are copied by caller key; when host AI SDK tools exist the bridge assigns its internal MCP server to mcpServers['harness-tools'], replacing any caller server under that key.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Vercel AI SDK Claude stream translator",
+      "url": "https://github.com/vercel/ai/blob/cbdbeee90d9aa4fee399b5628073f9fc30165ca6/packages/harness-claude-code/src/bridge/create-emit-stream-event.ts",
+      "revision": "cbdbeee90d9aa4fee399b5628073f9fc30165ca6",
+      "retrieved_at": "2026-08-11",
+      "claim": "Every mcp__harness-tools__ tool-use id is classified as internal host-tool transport and its native tool-call/result events are suppressed; other mcp__ tools are emitted as dynamic external MCP tools.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Vercel AI SDK harness MCP server API",
+      "url": "https://github.com/vercel/ai/blob/cbdbeee90d9aa4fee399b5628073f9fc30165ca6/content/providers/02-ai-sdk-harnesses/01-claude-code.mdx",
+      "revision": "cbdbeee90d9aa4fee399b5628073f9fc30165ca6",
+      "retrieved_at": "2026-08-11",
+      "claim": "The public mcpServers setting accepts MCP server definitions keyed by server name and does not document harness-tools as a reserved caller name.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "python3 run.py",
+  "environment": {
+    "runtime": "Python 3.13.5",
+    "platform": "Linux 6.18.35 x86_64",
+    "dependencies": []
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "An ordinary external server name such as context7 remains dynamic and visible.",
+      "interpretation": "The model recognizes the normal new MCP path as a negative control."
+    },
+    {
+      "observation": "An external harness-tools server remains configured without host tools but its events are classified as internal and suppressed.",
+      "interpretation": "Name-prefix identity alone causes the external server's stream to disappear."
+    },
+    {
+      "observation": "When host tools are present, the internal harness-tools server overwrites the caller server under the same key.",
+      "interpretation": "The same undocumented name collision changes from stream misclassification to configuration replacement."
+    }
+  ],
+  "stop_condition": "Stop after current-main source, one ordinary-name negative control, one executable collision model, and a target-native stream discriminator establish the server-name identity issue.",
+  "network_policy": "disabled",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-vercel-claude-mcp-server-identity/README.md",
+    "playgrounds/EXP-20260811-vercel-claude-mcp-server-identity/result.json"
+  ],
+  "promoted_to": null
+}
