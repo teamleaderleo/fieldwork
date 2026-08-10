@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-delta-wide-line-number-format",
+  "question": "Do Delta line-number format prefixes and suffixes undercount terminal columns when one grapheme occupies more than one display column, causing side-by-side content width to be over-budgeted?",
+  "owner": "GPT-5.6 Sol",
+  "created_at": "2026-08-11",
+  "state": "running",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "dandavison/delta",
+      "url": "https://github.com/dandavison/delta",
+      "revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
+      "retrieved_at": "2026-08-11",
+      "claim": "Line-number format metadata stores prefix_len and suffix_len as grapheme counts; formatted_width feeds side-by-side available_line_width.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "GitHub Actions: Fieldwork Delta wide line-number format probe",
+  "environment": {
+    "runtime": "target-declared Rust/Cargo",
+    "platform": "GitHub-hosted Ubuntu",
+    "dependencies": ["exact dandavison/delta source fetched read-only"]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "A wide literal prefix is budgeted by its real terminal width.",
+      "interpretation": "The suspected undercount is absent; retain a negative result."
+    },
+    {
+      "observation": "A one-grapheme/two-column prefix contributes one metadata column, and available_line_width receives one extra content column compared with actual rendered width.",
+      "interpretation": "The line-number width owner has a target-executed column-accounting mismatch."
+    }
+  ],
+  "stop_condition": "Stop after exact target tests classify wide-prefix metadata and the derived side-by-side budget; require a rendered-output discriminator before source promotion.",
+  "network_policy": "Read-only fetch of the exact public Delta revision during owned Fieldwork CI; no third-party mutation.",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-delta-wide-line-number-format/README.md",
+    "playgrounds/EXP-20260811-delta-wide-line-number-format/delta_line_number_probe.rs"
+  ],
+  "promoted_to": null
+}
