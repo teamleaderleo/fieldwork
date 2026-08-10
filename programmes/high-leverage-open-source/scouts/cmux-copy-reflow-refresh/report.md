@@ -6,9 +6,9 @@ Upstream contact authorized: `false`
 
 ## In simple words
 
-cmux still has an open copy bug where visually wrapped terminal text can paste with real newlines. There is already a serious upstream fix candidate, PR #6923, rather than an empty patch lane. Its author and reviewers worked through the copy semantics and regression matrix, and the current PR reports 94 focused reflow tests. The remaining visible blocker is that the branch drifted into conflicts with current `main` after the last maintainer pass.
+cmux still has an open copy bug where visually wrapped terminal text can paste with real newlines. There is already a serious upstream fix candidate, PR #6923, rather than an empty patch lane. Its author and reviewers worked through the copy semantics and regression matrix, and the current PR reports 94 focused reflow tests.
 
-This scout therefore does not invent a second reflow engine. It pins current cmux `main` and the existing PR head and runs a read-only Git merge audit to identify the exact refresh surface. A human or an owned fork can then refresh the existing candidate with less guesswork.
+The Fieldwork probe executed against current cmux `main` and the existing candidate head. Git can auto-merge every touched source, settings, localization, workspace, and workflow surface. The **only merge conflict is `cmux.xcodeproj/project.pbxproj`**. The existing candidate is therefore still a viable refresh target; it is not presently blocked by a broad source-code conflict.
 
 ## Question
 
@@ -54,34 +54,41 @@ The upstream review history is unusually useful rather than ceremonial. The cand
 
 The latest visible threads for these findings are resolved. No unresolved review thread currently demonstrates a remaining functional rejection of the reflow idea.
 
-## Executable probe
+## Executed merge probe
 
-Path: `programmes/high-leverage-open-source/scouts/cmux-copy-reflow-refresh/probe.sh`
+Path: `programmes/high-leverage-open-source/scouts/cmux-copy-reflow-refresh/probe.sh`  
+Retained receipt: `execution-receipt-31373822591.json`
 
-The probe performs only read-only upstream operations:
+Exact execution:
 
-1. initializes a temporary Git repository;
-2. fetches the exact pinned current-main and candidate-head revisions from `manaflow-ai/cmux` with blob filtering;
-3. invokes `git merge-tree --write-tree` on those exact revisions;
-4. records whether Git can synthesize a merge and, on conflict, prints the exact conflict output and conflict paths.
+- Fieldwork head executed: `fe0d804a2ab69271f5a70478e551ab81079e4f56`;
+- workflow run: `31373822591`;
+- target current-main: `e49e7cdf300ad6eff38aef21145cd1183636e76c`;
+- candidate head: `1516fc0c2e64bc21772b88738377f360c53cea03`;
+- `git merge-tree --write-tree` exit: `1`;
+- result: not directly mergeable;
+- exact conflict file: `cmux.xcodeproj/project.pbxproj`.
 
-The associated GitHub Actions workflow is `.github/workflows/cmux-copy-reflow-refresh.yml`.
+Git auto-merged the other touched surfaces reported by the merge, including `Sources/GhosttyTerminalView.swift`, settings and shortcut files, the workspace file, schema/localization files, and the copy candidate's related workflow/test surfaces.
+
+The merge-tree receipt therefore narrows the current refresh problem to Xcode project-file integration. It does not prove the refreshed application builds or that the GUI clipboard path passes #3096 after rebasing; those remain the next execution gates.
 
 ## Claim-scoped evidence
 
 - Upstream source, issue, PR, review threads: `source-read`.
-- Current-main merge audit: `target-test-prepared` until the Fieldwork workflow executes this exact scout head.
-- cmux GUI clipboard reproduction on the operator machine: observed in the surrounding operator session, but not yet retained as a Fieldwork execution receipt.
+- Exact current-main merge surface: `target-executed` through workflow run `31373822591`.
+- cmux GUI clipboard reproduction on the operator machine: observed in the surrounding operator session, but not retained as a Fieldwork execution receipt.
+- Refreshed candidate build/test on current main: absent.
 - Upstream submission or modification: absent and prohibited for Fieldwork agents.
 
 ## Current conclusion
 
 The highest-value contribution lane is a **refresh and verification of the existing PR**, not a competing implementation.
 
-If the merge audit shows a narrow conflict surface, the next useful artifact is a current-main refresh patch in an operator-owned fork or a human-performed rebase of the existing upstream branch, followed by the existing focused tests plus the original #3096 clipboard-byte reproduction.
+The current-main conflict is narrow: only `cmux.xcodeproj/project.pbxproj`. A human or operator-owned fork can rebase/refresh the existing candidate, resolve that project-file conflict deliberately, then run the existing focused reflow suite and the original #3096 clipboard-byte reproduction. The pure Swift reflow code and its reviewed source integration did not conflict in the merge audit.
 
-If the conflict surface is broad or crosses rewritten clipboard architecture, re-evaluate the candidate against current source before carrying old integration glue forward. Keep the pure reflow regression corpus as reusable evidence even if the app glue changes.
+This is enough to stop the scout. A new lane should be opened only for an owned-fork refresh, current-main build/test execution, or retained end-to-end GUI clipboard proof.
 
 ## Stop condition
 
-Stop this scout after the exact merge surface is executed and recorded. Do not post, comment, push, rerun, or otherwise mutate `manaflow-ai/cmux` from Fieldwork automation.
+Satisfied. The exact merge surface was executed and recorded. Do not post, comment, push, rerun, or otherwise mutate `manaflow-ai/cmux` from Fieldwork automation.
