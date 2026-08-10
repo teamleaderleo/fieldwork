@@ -4,7 +4,7 @@
   "question": "Can Delta accept a single grapheme whose display width is 2 as a documented width-1 wrap marker, then fail to make progress when unlimited wrapping is asked to fit text into a 2-column line?",
   "owner": "GPT-5.6 Sol",
   "created_at": "2026-08-11",
-  "state": "running",
+  "state": "promoted",
   "claim_scope": "mechanism",
   "integration_context": null,
   "sources": [
@@ -43,19 +43,19 @@
       "interpretation": "Delta has a target-executed no-progress loop reachable from an accepted marker under the tested narrow line width."
     },
     {
-      "observation": "Both one- and two-column unlimited-wrap cases terminate.",
-      "interpretation": "Another progress mechanism defeats the source-level loop hypothesis; retain a negative result."
+      "observation": "The same distinction reproduces through the built delta command with public side-by-side and wrapping options.",
+      "interpretation": "Promote from internal mechanism to a user-reachable candidate owner."
     }
   ],
   "target_execution": {
-    "workflow_run": 31425334965,
-    "job": 93575567871,
+    "workflow_run": 31440774199,
+    "job": 93624827655,
     "evidence_class": "target-executed",
     "target_revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
-    "result": "Configuration accepted the two-column marker 界 as one grapheme; the one-column + control terminated; the two-column unlimited-wrap target test made no progress and reached the 8-second watchdog.",
+    "result": "Configuration accepted the two-column marker 界; the one-column + owner control terminated; the two-column owner test reached the watchdog. The built public CLI reproduced the same distinction: + terminated under side-by-side width 16 with unlimited wrapping, while 界 reached the 8-second watchdog.",
     "receipt": "playgrounds/EXP-20260811-delta-wide-wrap-symbol/result.json"
   },
-  "stop_condition": "Stop after target execution and an ordinary CLI watchdog classify the same public-option path; do not propose upstream source until the CLI consequence is preserved and any owned-fork candidate is reviewed locally.",
+  "stop_condition": "Promoted after exact target owner and public CLI reproduction. Continue only in an owned Delta fork or Fieldwork candidate record; keep third-party upstream read-only and require overlap refresh before any external proposal.",
   "network_policy": "public-read-only",
   "upstream_contact_authorized": false,
   "result_paths": [
@@ -63,5 +63,5 @@
     "playgrounds/EXP-20260811-delta-wide-wrap-symbol/delta_probe_tests.rs",
     "playgrounds/EXP-20260811-delta-wide-wrap-symbol/result.json"
   ],
-  "promoted_to": null
+  "promoted_to": "https://github.com/teamleaderleo/fieldwork/issues/820"
 }
