@@ -1,35 +1,63 @@
+# urllib3 foundational-systems scout — 2026-08-11
+
 ## In simple words
 
-I found two concrete urllib3 boundaries worth promoting and one retry idea worth parking.
+Two current urllib3 boundaries reproduced on the exact pinned source, and one retry-policy question remains parked.
 
-1. **Mixed `Content-Encoding` lists can silently treat an unknown coding as `deflate`.** A lone unknown coding is passed through as raw bytes, while `gzip, x-fieldwork` constructs a multi-decoder and maps `x-fieldwork` to the default deflate decoder. A synthetic discriminator on urllib3 2.7.0 turns deliberately double-compressed bytes all the way back into plaintext under the made-up `x-fieldwork` label.
-2. **`Retry-After: 0` loses its explicit-zero meaning when exponential backoff exists.** urllib3 parses the header to integer zero, then a truthiness check treats zero like an absent value and falls through to backoff. With two retry-history entries and `backoff_factor=1`, both an absent header and `Retry-After: 0` sleep for 2 seconds; `Retry-After: 1` sleeps for 1 second.
-3. **`Retry(total=None, status=...)` plus implicit Retry-After status handling is an interesting ambiguity, but the project contract needs more evidence.** The model shows the implicit 429 path returns false while a status-forcelist path returns true. I would keep this parked until docs/history establish the intended relationship between `total=None` and implicit Retry-After retries.
+1. **Mixed `Content-Encoding` lists can silently reinterpret an unknown coding as `deflate`.** A lone unknown coding is passed through raw. Put the same unknown token beside a supported coding and urllib3 can instantiate it as the default deflate decoder.
+2. **`Retry-After: 0` loses its explicit-zero meaning when exponential backoff exists.** The header parses successfully to numeric zero, then a truthiness check falls through to backoff.
+3. **`Retry(total=None, status=...)` disables the implicit Retry-After status path in the reproduced mechanism.** A status-forcelist path still retries. The intended API contract needs more evidence, so this branch stays parked.
 
-The first item has the cleanest promotion path. The second is also strong, with an open upstream PR touching adjacent Retry-After code, so any future implementation should coordinate around that live work.
+The first finding is the cleanest implementation candidate. The second is also bounded, with adjacent live upstream work in [urllib3 PR 5010](https://redirect.github.com/urllib3/urllib3/pull/5010), so refresh overlap immediately before implementation or public packaging.
 
 ## Scout identity
 
 - Programme: `open-source-ecosystems`
-- Parent lane: Fieldwork #211, OE-05 foundational systems
+- Parent lane: Fieldwork #211 / OE-05 foundational libraries
 - Target: `urllib3/urllib3`
-- Upstream branch read: `main`
-- Upstream revision: `824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78`
-- Upstream revision subject: `Declare support for Python 3.15 (#5145)`
-- Upstream write access: absent; upstream stayed read-only
-- Upstream-contact authorization: `false`
-- Fieldwork claim comment: parent #211
+- Exact public source: `824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78`
+- Source subject: `Declare support for Python 3.15 (#5145)`
 - Owned Fieldwork path: `programmes/open-source-ecosystems/scouts/foundational-systems/urllib3-20260811/`
+- Research PR: Fieldwork #787
+- Exact execution carrier: Fieldwork #792
+- Authoritative exact run: `31423421919`
+- Upstream contact authorized: `false`
+- Third-party target remained read-only
 
-## Evidence level
+## Evidence state
 
-- **source-read**: exact upstream revision `824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78` was read through the GitHub connector.
-- **model-executed**: `probe.py` was executed against installed urllib3 `2.7.0`; the relevant source mechanisms match the pinned revision read.
-- **target-executed**: pending. I did not execute an exact checkout of the pinned upstream revision, so this report deliberately stops below that evidence level.
+- `source-read`: exact public source and adjacent tests inspected.
+- `model-executed`: preserved probe first reproduced all three mechanisms on installed urllib3 2.7.0.
+- `target-executed`: authoritative run `31423421919` executed the same probe against an installed build produced from the exact pinned source on Python 3.12 and 3.14.
+
+Exact jobs:
+
+```text
+Python 3.12: 93569358489 — success
+Python 3.14: 93569358404 — success
+```
+
+Both jobs:
+
+1. checked out exact `824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78`;
+2. built and installed that checkout;
+3. byte-compared installed `response.py` and `retry.py` with the checked-out source;
+4. executed the preserved discriminator.
+
+Python 3.12 recorded matching SHA-256 pairs:
+
+```text
+response.py  9a8aed6d04aced6c43ab5d239373d3c8ea77c94fcca6a612f6ad4eb8226c9a9d
+retry.py     af28113e0350b332df9b7d83501a9ac4438056c812dc1f910f7b11e3131ab613
+```
+
+Full receipt: `exact-execution-20260811.md`.
+
+The predecessor run `31423216020` is harness-only failure evidence. Exact checkout succeeded, then direct source-tree import stopped because generated `urllib3._version` was absent. No discriminator ran in that predecessor.
 
 ## Contribution and test map
 
-At the pinned revision, `docs/contributing.rst` gives the normal development path:
+The pinned contribution guide gives these ordinary development gates:
 
 ```text
 nox -rs format
@@ -38,16 +66,16 @@ nox --reuse-existing-virtualenvs --sessions test-3.12 test-pypy3.11
 nox --reuse-existing-virtualenvs --sessions test-3.13 -- <pytest args>
 ```
 
-For these candidates the focused upstream test owners are:
+Focused test owners for promoted candidates:
 
-- `test/test_response.py` for decoder behavior.
-- `test/test_retry.py` for Retry-After/backoff behavior.
+- `test/test_response.py` — decoder behavior;
+- `test/test_retry.py` — Retry-After/backoff behavior.
 
-## Compact code map
+## Finding A — mixed known/unknown Content-Encoding alias
 
-### Response decoding
+### Source owner
 
-Pinned file: `src/urllib3/response.py`
+Pinned file: `src/urllib3/response.py`.
 
 Relevant path:
 
@@ -55,29 +83,78 @@ Relevant path:
 HTTPResponse.read()
   -> BaseHTTPResponse._init_decoder()
   -> _get_decoder(content_encoding)
-  -> MultiDecoder(mode) for comma-separated values
-  -> _get_decoder(token) for each token
+  -> MultiDecoder(mode)
+  -> _get_decoder(token) for each coding token
 ```
 
-The key asymmetry is split across two helpers:
+Current behavior is split across two helpers:
 
-- `_init_decoder()` scans comma-separated values and asks whether **at least one** token appears in `CONTENT_DECODERS`.
-- When that condition is true, it passes the **whole original header value** to `_get_decoder()`.
-- `_get_decoder()` sends comma-separated values to `MultiDecoder`.
-- `MultiDecoder` runs `_get_decoder()` on every token.
-- `_get_decoder()` falls through to `DeflateDecoder()` for any token that misses gzip, Brotli, and zstd branches.
+- `_init_decoder()` scans comma-separated values and enters the multi-decoder path when **at least one** token is supported;
+- it then passes the **whole original header** into `_get_decoder()`;
+- `MultiDecoder` asks `_get_decoder()` to instantiate every token;
+- `_get_decoder()` falls through to `DeflateDecoder()` for a token that misses gzip, Brotli, and zstd branches.
 
-A lone unknown encoding never enters this multi-decoder path, so the response remains raw. A mixed known/unknown list can therefore reinterpret the unknown token as deflate.
+A lone unknown coding does not enter this path. A mixed list containing one known token does.
 
-### Connection-pool context
+### Exact discriminator
 
-Pinned file: `src/urllib3/connectionpool.py`
+Payload:
 
-`HTTPConnectionPool.urlopen()` tracks socket ownership with a local `release_this_conn` flag. Redirect and status-retry paths drain the response before recursion. I reviewed this path because response decoding and draining can affect connection reuse. The ownership logic and existing drain handling looked deliberate; I did not isolate a separate pool-release defect during this scout.
+```text
+fieldwork-urllib3-mixed-encoding
+```
 
-### Retry timing
+Wire bytes:
 
-Pinned file: `src/urllib3/util/retry.py`
+```python
+wire = zlib.compress(gzip.compress(payload))
+```
+
+Header matrix:
+
+```text
+x-fieldwork
+gzip, x-fieldwork
+gzip, deflate
+```
+
+Exact target result on Python 3.12 and 3.14:
+
+```text
+unknown-only preserved raw bytes: True
+known+unknown decoded to payload: True
+known control decoded to payload: True
+```
+
+The same made-up token changes meaning solely because another token in the header is supported.
+
+### Candidate invariant
+
+Unknown content codings should never silently acquire deflate semantics through list composition.
+
+The smallest compatibility-preserving candidate is to create a `MultiDecoder` only when every non-empty coding token is supported. A separate design could raise a decode error for unsupported mixed chains, but that is a wider interface decision.
+
+### Focused target test
+
+Add one `test/test_response.py` matrix covering:
+
+```text
+unknown alone -> current raw-preservation behavior
+known + unknown -> must not interpret unknown as deflate
+known + known -> existing decoding unchanged
+```
+
+### Disposition
+
+**PROMOTE.**
+
+Evidence: exact-source `target-executed`, crisp negative control, narrow owner, no matching repair found in the scout overlap search.
+
+## Finding B — Retry-After zero falls through to backoff
+
+### Source owner
+
+Pinned file: `src/urllib3/util/retry.py`.
 
 Relevant path:
 
@@ -86,78 +163,14 @@ Retry.sleep(response)
   -> Retry.sleep_for_retry(response)
   -> Retry.get_retry_after(response)
   -> Retry.parse_retry_after(value)
-  -> fallback Retry._sleep_backoff()
+  -> Retry._sleep_backoff()
 ```
 
-`parse_retry_after("0")` returns numeric `0`. `sleep_for_retry()` uses a truthiness check on that result. Zero therefore returns the same false branch as an absent header, and `sleep()` proceeds to exponential backoff.
+`parse_retry_after("0")` returns numeric `0`. `sleep_for_retry()` checks the parsed value by truthiness, so zero returns the same branch as header absence. `Retry.sleep()` then invokes exponential backoff.
 
-## Experiment A — mixed unknown Content-Encoding
+### Exact discriminator
 
-### Question
-
-Can an unrecognized content-coding token be treated as a supported decoder when it appears beside a recognized token?
-
-### Model
-
-Use payload:
-
-```text
-fieldwork-urllib3-mixed-encoding
-```
-
-Build bytes as:
-
-```python
-wire = zlib.compress(gzip.compress(payload))
-```
-
-This is valid synthetic data for the known control `Content-Encoding: gzip, deflate` because decoders run in reverse application order.
-
-Read the same wire under three headers:
-
-```text
-x-fieldwork
-gzip, x-fieldwork
-gzip, deflate
-```
-
-### Observed on urllib3 2.7.0
-
-```text
-x-fieldwork          -> raw bytes preserved
-gzip, x-fieldwork    -> plaintext payload
-gzip, deflate        -> plaintext payload
-```
-
-### Discriminator
-
-The negative control is the lone unknown coding. It preserves raw bytes. Adding a recognized coding flips the unknown token into a working deflate decoder and fully transforms the same wire bytes.
-
-### Why it is worth promotion
-
-The unknown token's meaning depends on whether another token in the same header is recognized. That creates silent decoding under a made-up label and diverges from urllib3's own lone-unknown behavior.
-
-### Narrow fix direction
-
-Keep multi-decoder creation behind an all-tokens-supported check, or make unknown-token handling explicit inside `MultiDecoder`. The lowest-change candidate is to instantiate `MultiDecoder` only when every non-empty coding token is supported; this preserves the current lone-unknown pass-through behavior.
-
-### Focused regression test
-
-Add a `test/test_response.py` case with one supported and one made-up coding. Assert the chosen project behavior explicitly. The existing lone-unknown pass-through behavior makes raw preservation the smallest compatibility move; an explicit decode error is a separate interface decision.
-
-### Confidence
-
-**High mechanism confidence.** Exact pinned source read plus deterministic model discriminator and negative control.
-
-## Experiment B — Retry-After zero versus backoff
-
-### Question
-
-Does an explicit `Retry-After: 0` override an already-computed exponential backoff delay?
-
-### Model
-
-Create:
+Build retry history with:
 
 ```python
 retry = Retry(total=5, backoff_factor=1)
@@ -165,31 +178,21 @@ retry = retry.increment(method="GET")
 retry = retry.increment(method="GET")
 ```
 
-The resulting backoff time is `2.0` seconds.
+Computed backoff: `2.0` seconds.
 
-Call `retry.sleep(response)` with three cases while mocking `time.sleep`:
-
-```text
-no Retry-After header
-Retry-After: 0
-Retry-After: 1
-```
-
-### Observed on urllib3 2.7.0
+Exact target result on both Python versions:
 
 ```text
-absent -> time.sleep(2.0)
-zero   -> time.sleep(2.0)
-one    -> time.sleep(1)
+absent: [call(2.0)]
+zero:   [call(2.0)]
+one:    [call(1)]
 ```
 
-### Discriminator
+The positive `Retry-After: 1` control overrides backoff. Explicit zero collapses onto the absent-header case.
 
-The positive control `Retry-After: 1` takes precedence over backoff. The absent control uses backoff. Explicit zero collapses onto the absent case.
+### Candidate direction
 
-### Narrow fix direction
-
-Teach `sleep_for_retry()` to distinguish `None` from numeric zero:
+Distinguish `None` from numeric zero:
 
 ```python
 retry_after = self.get_retry_after(response)
@@ -200,31 +203,21 @@ if retry_after > 0:
 return True
 ```
 
-That lets explicit zero consume the Retry-After path without sleeping and prevents the later backoff fallback.
+This consumes an explicit zero Retry-After value without sleeping and prevents the later backoff fallback.
 
-### Focused regression test
+### Overlap
 
-In `test/test_retry.py`, build retry history with a positive backoff and assert:
+Open [urllib3 PR 5010](https://redirect.github.com/urllib3/urllib3/pull/5010) touches the same Retry-After implementation/test neighborhood for maximum-wait handling. Its current diff explicitly tests `parse_retry_after("0") == 0` while leaving the sleep truthiness path unchanged.
 
-```text
-absent header -> backoff sleep
-Retry-After: 0 -> no sleep
-Retry-After: 1 -> one-second sleep
-```
+### Disposition
 
-### Upstream overlap
+**PROMOTE WITH LIVE OVERLAP REFRESH.**
 
-An open upstream PR, `urllib3/urllib3` PR 5010, adds `retry_after_max_strict` and touches `src/urllib3/util/retry.py` plus `test/test_retry.py`. Its diff includes a test that `parse_retry_after("0") == 0`, while leaving the `sleep_for_retry()` truthiness behavior unchanged. This is adjacent ownership, so a future upstream patch should check that PR's live state before editing the same area.
+Mechanism is exact-target reproduced. Implementation should proceed only after checking the live state of PR 5010 and any newer retry work.
 
-Direct reference in this repository file: https://github.com/urllib3/urllib3/pull/5010
+## Parked branch — total=None and implicit Retry-After statuses
 
-### Confidence
-
-**High mechanism confidence; medium promotion confidence while adjacent upstream work is live.**
-
-## Parked branch — `total=None` and implicit Retry-After statuses
-
-Model:
+Exact target mechanism:
 
 ```python
 Retry(total=None, status=2, respect_retry_after_header=True).is_retry(
@@ -241,50 +234,58 @@ Retry(
 # True
 ```
 
-The source uses `bool(self.total and ...)` for the implicit Retry-After status path. Since `total=None` is falsy, that path is disabled even though the class documentation describes `total=None` as removing the total cap and falling back on category counts.
+The implicit Retry-After path uses `bool(self.total and ...)`; `total=None` disables that branch. The class documentation describes `total=None` as removing the total cap and falling back on category counts, while status-counter documentation is closely tied to explicit status-forcelist use.
 
-I am parking this branch because the `status` counter documentation is tied closely to `status_forcelist`, while implicit Retry-After status handling may intentionally depend on `total`. A promotion would need history or maintainer-facing contract evidence beyond the current model.
+### Disposition
+
+**PARK.**
+
+The mechanism is target-executed. Promotion still requires contract/history evidence showing that implicit Retry-After statuses are expected to consume `status` when `total=None`.
 
 ## Negative results and challenged theories
 
-- **Connection release/drain:** source-read the response drain and `HTTPConnectionPool.urlopen()` ownership path. I found explicit ownership tracking, error cleanup, response draining before recursive redirect/status retries, and existing lifecycle tests. No isolated promotion candidate survived this pass.
-- **Mixed-decoder false lead check:** supported multiple-coding tests already exist for combinations such as deflate/deflate and gzip/deflate. The missing boundary is the known-plus-unknown list, which exercises a different branch in `_init_decoder()`.
-- **Retry-After zero overlap:** focused issue/PR searches found no dedicated zero-versus-backoff report. Upstream PR 5010 is adjacent and currently open.
-- **Fieldwork duplication:** focused Fieldwork searches found no open PR, closed issue, or dedicated active scout for urllib3 beyond the parent OE-05 target matrix.
+### Connection release/drain
 
-## Runnable reproduction
+I source-read response draining and `HTTPConnectionPool.urlopen()` socket ownership. The path explicitly tracks `release_this_conn`, cleans error connections, and drains responses before recursive redirect/status retries. Existing lifecycle tests cover the initial theories well enough to stop this branch.
 
-From a Python environment with urllib3 installed:
+Disposition: **STOP for this scout.**
+
+### Multi-decoder ordinary controls
+
+Existing tests already cover supported chains such as deflate/deflate and gzip/deflate. The missing boundary is specifically known-plus-unknown composition.
+
+### Fieldwork duplication
+
+Focused Fieldwork search found no dedicated urllib3 investigation before this scout. #211 was the target-list owner.
+
+## Preserved probe
+
+`probe.py` contains all three discriminators.
+
+Exact-target output from run `31423421919`:
 
 ```text
-python programmes/open-source-ecosystems/scouts/foundational-systems/urllib3-20260811/probe.py
-```
-
-Expected output on urllib3 2.7.0 includes:
-
-```text
-urllib3=2.7.0
 [mixed-content-encoding]
 unknown-only preserved raw bytes: True
 known+unknown decoded to payload: True
 known control decoded to payload: True
+
 [retry-after-zero]
 configured exponential backoff: 2.0
 absent: [call(2.0)]
 zero: [call(2.0)]
 one: [call(1)]
+
 [retry-total-none]
 implicit Retry-After 429 retried: False
 status-forcelist 429 retried: True
 ```
 
-## Ranked follow-up branches
+## Ranked next actions
 
-1. **Promote: mixed known/unknown Content-Encoding decoder alias.** Small source surface, clear local inconsistency, deterministic model, clean negative control, no matching open upstream PR found.
-2. **Promote with overlap check: `Retry-After: 0` falls through to backoff.** Small patch/test surface and crisp discriminator; coordinate with live urllib3 PR 5010 before any upstream implementation.
-3. **Park: `total=None` disables implicit Retry-After status retries.** Mechanism confirmed, contract evidence incomplete.
-4. **Stop: generic connection-pool release/drain hunt from this pass.** Existing code and tests cover the initial ownership theories well enough to move research time elsewhere.
+1. Create a dedicated mixed-content-encoding experiment with one narrow candidate and exact target RED/GREEN test.
+2. Refresh live urllib3 retry overlap, then create a separate `Retry-After: 0` experiment if the lane remains free.
+3. Keep `total=None` parked until contract/history evidence selects an intended behavior.
+4. Retire execution carrier #792 after this receipt transfer and keep the parent research PR free of temporary workflows.
 
-## Recommendation
-
-Split the first two findings into dedicated Fieldwork carriers if the programme wants patch preparation. Keep upstream read-only until a separate authorization explicitly permits contact or contribution. For immediate follow-up, the decoder candidate gives the cleanest next experiment: reproduce against an exact checkout at `824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78`, add one targeted regression test, and verify the smallest all-codings-supported guard.
+No automated upstream issue, pull request, comment, review, reaction, branch, or message was created or changed.
