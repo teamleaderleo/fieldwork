@@ -48,6 +48,16 @@ def test_fieldwork_supported_content_encoding_chains_still_decode() -> None:
             preload_content=False,
         )
         assert response.read() == msg
+
+
+def test_fieldwork_content_encoding_chain_keeps_link_limit() -> None:
+    response = HTTPResponse(
+        BytesIO(b""),
+        headers={"content-encoding": ",".join(["gzip"] * 6)},
+        preload_content=False,
+    )
+    with pytest.raises(DecodeError, match="Too many content encodings in the chain"):
+        response.read()
 '''
 
 path.write_text(source)
