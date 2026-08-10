@@ -6,14 +6,6 @@ import sys
 path = pathlib.Path(sys.argv[1])
 source = path.read_text()
 
-required = [
-    'CamelCase => variant[..1].to_ascii_lowercase() + &variant[1..],',
-    'pascal[..1].to_ascii_lowercase() + &pascal[1..]',
-]
-for needle in required:
-    if needle not in source:
-        raise SystemExit(f"expected exact baseline source missing: {needle}")
-
 if "fn unicode_camel_case_field" in source:
     raise SystemExit("regression tests already present")
 
