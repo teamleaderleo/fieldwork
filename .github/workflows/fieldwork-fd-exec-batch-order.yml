@@ -1,0 +1,50 @@
+name: Fieldwork fd exec-batch order probe
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fd-batch-order:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      FD_SHA: ee20f426ddf338ac7ead5c5f00ea49258005caaf
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact fd source read-only
+        run: |
+          set -euxo pipefail
+          git init /tmp/fd
+          git -C /tmp/fd remote add origin https://github.com/sharkdp/fd.git
+          git -C /tmp/fd fetch --depth=1 origin "$FD_SHA"
+          git -C /tmp/fd checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/fd rev-parse HEAD)" = "$FD_SHA"
+
+      - name: Inject execution-only batch-order controls
+        run: |
+          set -euxo pipefail
+          cat playgrounds/EXP-20260811-fd-exec-batch-order/fd_batch_order_probe.rs >> /tmp/fd/src/exec/mod.rs
+          tail -n 150 /tmp/fd/src/exec/mod.rs
+
+      - name: Execute focused fd batch-order controls
+        working-directory: /tmp/fd
+        run: |
+          set -euxo pipefail
+          cargo test --locked fieldwork_fd_equal_capacity_batch_builders_finish_in_declaration_order -- --nocapture
+          cargo test --locked fieldwork_fd_later_builder_can_flush_before_earlier_builder_on_argv_pressure -- --nocapture
+
+      - name: Preserve exact receipt
+        if: always()
+        run: |
+          set +e
+          printf 'fd=%s\n' "$(git -C /tmp/fd rev-parse HEAD 2>/dev/null)"
+          printf 'fieldwork_head=%s\n' '${{ github.event.pull_request.head.sha }}'
+          printf 'experiment=%s\n' 'EXP-20260811-fd-exec-batch-order'
+          git -C /tmp/fd diff -- src/exec/mod.rs 2>/dev/null || true
