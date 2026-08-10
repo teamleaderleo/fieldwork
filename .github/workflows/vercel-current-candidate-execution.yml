@@ -1,0 +1,93 @@
+name: Execute current Vercel AI candidates
+
+on:
+  push:
+    branches:
+      - carrier/vercel-current-candidates
+
+permissions:
+  contents: read
+
+jobs:
+  usage-envelope:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact owned-fork usage candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/ai
+          ref: 9835c28c19687fff69fbae846190a954c70a2338
+          path: target
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: target/pnpm-lock.yaml
+      - name: Install exact target
+        working-directory: target
+        run: pnpm install --frozen-lockfile
+      - name: OpenAI-compatible type check
+        working-directory: target
+        run: pnpm -C packages/openai-compatible type-check
+      - name: Renew expected Node usage snapshots in workspace only
+        working-directory: target
+        run: pnpm -C packages/openai-compatible exec vitest --config vitest.node.config.js --run -u
+      - name: Fence semantic-output renewal
+        working-directory: target
+        run: |
+          git diff --name-only
+          unexpected="$(git diff --name-only | grep -Ev '^packages/openai-compatible/src/chat/(openai-compatible-chat-language-model\.test\.ts|__snapshots__/openai-compatible-chat-language-model\.test\.ts\.snap)$' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected refreshed files:"
+            echo "$unexpected"
+            exit 1
+          fi
+          git diff --check
+          git diff -- packages/openai-compatible/src/chat/openai-compatible-chat-language-model.test.ts packages/openai-compatible/src/chat/__snapshots__/openai-compatible-chat-language-model.test.ts.snap
+      - name: OpenAI-compatible Edge tests
+        working-directory: target
+        run: pnpm -C packages/openai-compatible test:edge
+      - name: Core aggregate/detail contract
+        working-directory: target
+        run: pnpm -C packages/ai test:node -- usage-detail-contract.fieldwork.test.ts
+      - name: Baseten type check
+        working-directory: target
+        run: pnpm -C packages/baseten type-check
+      - name: Baseten Node tests
+        working-directory: target
+        run: pnpm -C packages/baseten test:node
+      - name: Baseten Edge tests
+        working-directory: target
+        run: pnpm -C packages/baseten test:edge
+
+  claude-permission-kind-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact owned-fork Claude candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/ai
+          ref: 133937a1e09618a5de2e2b14207560477092120e
+          path: target
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: target/pnpm-lock.yaml
+      - name: Install exact target
+        working-directory: target
+        run: pnpm install --frozen-lockfile
+      - name: Source fence
+        working-directory: target
+        run: git diff --check
+      - name: Package type check
+        working-directory: target
+        run: pnpm -C packages/harness-claude-code type-check
+      - name: Build host and sandbox bridge entries
+        working-directory: target
+        run: pnpm -C packages/harness-claude-code build
+      - name: Full Node package tests
+        working-directory: target
+        run: pnpm -C packages/harness-claude-code test:node
