@@ -1,6 +1,6 @@
 ## In simple words
 
-Vercel AI kept moving while this scout was executing. Two new harness commits landed after the original pin. One OpenCode authorization concern reduces to a negative result because its relay authorizer already consumes grants exactly once and handles duplicate requests as a counted queue. A Pi inline-extension failure boundary remains under target-native characterization.
+Vercel AI kept moving while this scout was executing. Two new harness commits landed after the original pin. The OpenCode authorization concern reduces to a negative result because its relay authorizer already consumes grants exactly once and handles duplicate requests as a counted queue. The Pi inline-extension failure question also reduces to a negative result after reading the exact dependency release: each reload creates a fresh extension runtime, and inline factory failures are captured into that fresh result instead of preserving the disposed session's old runtime.
 
 Current public head sampled here: `ecd916953720da85a278ff7abb80db46d5545c7b`.
 
@@ -36,12 +36,13 @@ The target's own `tool-relay-auth.test.ts` explicitly covers exact-once consumpt
 
 The raw-input repair does not expose an obvious replay or concurrent-identical-call authorization hole under the inspected mechanism. A new campaign would need evidence that the emitter can produce fewer authorization events than relay requests for one logical call family, or that canonicalized raw inputs collapse calls whose side-effect authority must remain distinct.
 
-## Pi inline extension runtime — active characterization
+## Pi inline extension runtime — negative result
 
-Introducing commit: `c20a3153ad58ecc42a1c97442a6dafba60821e73`  
-Current source read at: `ecd916953720da85a278ff7abb80db46d5545c7b`  
-Canonical target probe: `teamleaderleo/ai#65`  
-Execution carrier: `teamleaderleo/ai#66`
+Introducing Vercel commit: `c20a3153ad58ecc42a1c97442a6dafba60821e73`  
+Vercel source read at: `ecd916953720da85a278ff7abb80db46d5545c7b`  
+Exact Pi dependency release inspected: `earendil-works/pi@v0.80.10`, release commit `8dc7883`  
+Prepared owned probe: `teamleaderleo/ai#65`  
+Prepared execution carrier: `teamleaderleo/ai#66`
 
 The new Pi adapter support intentionally:
 
@@ -50,7 +51,7 @@ The new Pi adapter support intentionally:
 - disposes an old Pi session before creating a fresh extension runtime during a genuine tool-set rebuild;
 - reloads the shared resource loader after disposal so the replacement Pi session receives a fresh runtime.
 
-The source leaves one failure question worth testing. On a rebuild with an existing Pi session:
+The source initially suggested one failure window:
 
 ```text
 dispose old Pi session
@@ -58,20 +59,37 @@ dispose old Pi session
   -> create replacement AgentSession
 ```
 
-If the reload fails after disposal, `piSession` is already cleared. A later retry enters the rebuild path without an existing session and therefore does not take the same explicit fresh-extension reload branch before `createAgentSession()`.
+If `reload()` could reject after disposal while leaving its previous cached extension runtime visible, a later Vercel retry could skip the explicit fresh-runtime reload branch and reuse stale extension state.
 
-Whether that can reuse invalidated extension state depends on the exact `DefaultResourceLoader` failure semantics supplied by the Pi package currently resolved by Vercel's lockfile.
+The exact Pi `v0.80.10` implementation reverses that premise.
 
-`teamleaderleo/ai#65` uses the real installed dependency. It performs one successful inline-factory reload, makes the next factory invocation fail, and records:
+### Exact dependency behavior
 
-- exact resolved Pi package version;
-- whether `reload()` resolves or rejects;
-- whether the post-failure `getExtensions()` runtime is the same object as before;
-- extension error counts and extension counts.
+`DefaultResourceLoader.reload()` clears the extension cache after the first load, then calls the extension loading path. `loadExtensionsCached()` reaches `loadExtensionsInternal()` without an existing runtime argument, so every reload constructs a new `ExtensionRuntime` via `createExtensionRuntime()`.
 
-### Promotion gate
+Inline factories are then loaded against that new runtime. `DefaultResourceLoader.loadExtensionFactories()` catches each factory exception and appends a diagnostic entry to the result's `errors` array instead of rethrowing the factory failure.
 
-Promote only if the real pinned loader can leave the previous extension runtime visible after a failed replacement reload and a Vercel retry can feed that runtime into a new Pi session. If Pi replaces or invalidates the cached result safely, retain a negative result.
+After the extension pass, `reload()` assigns the newly produced `extensionsResult` to `this.extensionsResult`.
+
+Therefore the disputed sequence is:
+
+```text
+dispose old Vercel Pi session
+  -> Pi reload creates new extension runtime
+  -> inline factory failure becomes new-result diagnostic
+  -> Pi reload continues
+  -> Vercel replacement session receives the new runtime/result
+```
+
+The old disposed session runtime is not the loader's retained result after this factory-failure class.
+
+### Disposition
+
+`NEGATIVE RESULT / STOP`
+
+The stale-extension-runtime retry hypothesis is disproven for inline factory failures under the exact Pi dependency release. The prepared owned test and execution carrier are no longer needed as promotion evidence and should be retired.
+
+Reopen only if a different Pi reload failure occurs *before* a new extension result is published and Vercel retries with a loader state whose runtime ownership remains ambiguous. Package resolution/settings failures before extension loading are a distinct boundary and were not established here.
 
 ## Boundary
 
