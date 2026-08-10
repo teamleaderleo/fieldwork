@@ -1,9 +1,9 @@
 {
   "experiment": "EXP-20260811-delta-wide-line-number-format",
   "target_revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
-  "fieldwork_head_at_execution": "a6fadaef84e7e71e763f2a7f10d5ad162fb7d500",
-  "workflow_run": 31425645220,
-  "job": 93576574346,
+  "fieldwork_head_at_execution": "ca89d895f9e393989c2be484af1993f0ed4ee46e",
+  "workflow_run": 31441079950,
+  "job": 93625722481,
   "evidence_class": "target-executed",
   "observations": {
     "wide_prefix": {
@@ -27,8 +27,17 @@
       "actual_line_number_width": 3,
       "planned_content_width": 8,
       "actual_content_width": 7
+    },
+    "rendered_boundary": {
+      "fixture_minus": "abcdefgh",
+      "ascii_left_format": "|{nm}",
+      "ascii_complete_fixture_present": true,
+      "wide_left_format": "界{nm}",
+      "wide_prefix_present": true,
+      "wide_complete_fixture_present": false
     }
   },
-  "conclusion": "Exact Delta source undercounts a two-column literal line-number prefix by one terminal column and passes that undercount directly into side-by-side content budgeting. The ASCII control stays aligned.",
-  "remaining_gate": "Execute a rendered-output boundary fixture to classify the visible consequence of the one-column over-budget."
+  "conclusion": "Exact Delta source undercounts a two-column literal line-number prefix by one terminal column, passes that undercount into side-by-side content budgeting, and changes final rendered output at the exact boundary. The ASCII one-column control remains aligned.",
+  "promotion": "https://github.com/teamleaderleo/fieldwork/issues/821",
+  "remaining_gate": "Evaluate the smallest width-owner repair in an owned Delta fork when available, preserving placeholder-number behavior and existing one-column format snapshots."
 }
