@@ -1,0 +1,48 @@
+name: SWC instanceof exact final gates
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  SWC_REF: 3724575f1b20df8b79a742e118f2424f8ca932a6
+
+jobs:
+  final-exact-green:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-final-exact'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out exact SWC candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/swc
+          ref: ${{ env.SWC_REF }}
+          path: swc
+          fetch-depth: 0
+      - name: Install SWC toolchain
+        run: |
+          rustup toolchain install nightly-2026-04-10 --profile minimal --component rustfmt --component clippy
+          rustup override set nightly-2026-04-10 --path swc
+      - name: Verify exact candidate
+        working-directory: swc
+        run: |
+          test "$(git rev-parse HEAD)" = "$SWC_REF"
+          git diff --check
+          cargo fmt --all -- --check
+      - name: Run full optimization package
+        working-directory: swc
+        run: cargo test -p swc_ecma_transforms_optimization --no-fail-fast
+      - name: Run complete minifier compress fixtures
+        working-directory: swc
+        run: cargo test -p swc_ecma_minifier --no-fail-fast --test compress --features concurrent
+      - name: Run minifier execution suite
+        working-directory: swc/crates/swc_ecma_minifier
+        run: ./scripts/exec.sh
+      - name: Final diff check
+        working-directory: swc
+        run: git diff --check
