@@ -1,0 +1,170 @@
+name: Fieldwork Bat grapheme wrap candidate
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bat-grapheme-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BAT_SHA: af59a3218303837421ce06bb2dc3c545525bba0f
+      CANDIDATE_SHA: dd11e13120f693505dddd45eb0f489dca0e80465
+      CANDIDATE_BRANCH: candidate/grapheme-aware-wrap-20260811
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact Bat source and owned candidate patch
+        run: |
+          set -euxo pipefail
+          git init /tmp/bat
+          git -C /tmp/bat remote add upstream https://github.com/sharkdp/bat.git
+          git -C /tmp/bat fetch --depth=1 upstream "$BAT_SHA"
+          git -C /tmp/bat checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/bat rev-parse HEAD)" = "$BAT_SHA"
+
+          git -C /tmp/bat remote add candidate https://github.com/teamleaderleo/bat.git
+          git -C /tmp/bat fetch --depth=1 candidate "$CANDIDATE_BRANCH"
+          test "$(git -C /tmp/bat rev-parse FETCH_HEAD)" = "$CANDIDATE_SHA"
+          git -C /tmp/bat show FETCH_HEAD:fieldwork/bat-grapheme-aware-wrap.patch > /tmp/bat-grapheme-aware-wrap.patch
+          sed -n '1,220p' /tmp/bat-grapheme-aware-wrap.patch
+
+      - name: Build exact baseline
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          cargo build --locked --bin bat
+          cp target/debug/bat /tmp/bat-baseline
+
+      - name: Preserve baseline bug and compatibility controls
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          printf '👩‍💻\n' | /tmp/bat-baseline \
+            --style=plain --color=never --decorations=always --paging=never \
+            --wrap=character --terminal-width=2 > /tmp/baseline-zwj.out
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('/tmp/baseline-zwj.out').read_text(encoding='utf-8')
+          print('FIELDWORK_BASELINE_ZWJ', repr(text))
+          assert text == '👩‍\n💻\n', text
+          PY
+
+          printf 'ab cd ef\n' | /tmp/bat-baseline \
+            --style=plain --color=never --decorations=always --paging=never \
+            --wrap=word --terminal-width=4 > /tmp/baseline-word.out
+
+          printf '\001\n' | /tmp/bat-baseline \
+            --style=plain --color=never --decorations=always --paging=never \
+            --show-all --wrap=character --terminal-width=4 > /tmp/baseline-control.out
+
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('baseline-word.out', 'baseline-control.out'):
+              text = Path('/tmp/' + name).read_text(encoding='utf-8')
+              print('FIELDWORK_BASELINE', name, repr(text))
+          PY
+
+      - name: Apply owned candidate patch
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          git apply --check /tmp/bat-grapheme-aware-wrap.patch
+          git apply /tmp/bat-grapheme-aware-wrap.patch
+          git diff --check
+          git diff -- src/printer.rs
+
+      - name: Check formatting and compile candidate
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          cargo fmt --check
+          cargo build --locked --bin bat
+          cp target/debug/bat /tmp/bat-candidate
+
+      - name: Candidate preserves grapheme boundaries
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          printf '界\n' | /tmp/bat-candidate \
+            --style=plain --color=never --decorations=always --paging=never \
+            --wrap=character --terminal-width=2 > /tmp/candidate-scalar.out
+
+          printf '👩‍💻\n' | /tmp/bat-candidate \
+            --style=plain --color=never --decorations=always --paging=never \
+            --wrap=character --terminal-width=2 > /tmp/candidate-zwj2.out
+
+          printf '👩‍💻\n' | /tmp/bat-candidate \
+            --style=plain --color=never --decorations=always --paging=never \
+            --wrap=character --terminal-width=4 > /tmp/candidate-zwj4.out
+
+          printf 'é\n' | /tmp/bat-candidate \
+            --style=plain --color=never --decorations=always --paging=never \
+            --wrap=character --terminal-width=1 > /tmp/candidate-combining.out
+
+          printf 'వ్రా\n' | /tmp/bat-candidate \
+            --style=plain --color=never --decorations=always --paging=never \
+            --wrap=character --terminal-width=2 > /tmp/candidate-indic.out
+
+          python3 - <<'PY'
+          from pathlib import Path
+          expected = {
+              'candidate-scalar.out': '界\n',
+              'candidate-zwj2.out': '👩‍💻\n',
+              'candidate-zwj4.out': '👩‍💻\n',
+              'candidate-combining.out': 'é\n',
+              'candidate-indic.out': 'వ్రా\n',
+          }
+          for name, want in expected.items():
+              got = Path('/tmp/' + name).read_text(encoding='utf-8')
+              print('FIELDWORK_CANDIDATE', name, repr(got))
+              assert got == want, (name, got, want)
+          print('FIELDWORK_RESULT candidate-grapheme-boundaries=preserved')
+          PY
+
+      - name: Compare word-wrap and control-character compatibility
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          printf 'ab cd ef\n' | /tmp/bat-candidate \
+            --style=plain --color=never --decorations=always --paging=never \
+            --wrap=word --terminal-width=4 > /tmp/candidate-word.out
+
+          printf '\001\n' | /tmp/bat-candidate \
+            --style=plain --color=never --decorations=always --paging=never \
+            --show-all --wrap=character --terminal-width=4 > /tmp/candidate-control.out
+
+          cmp /tmp/baseline-word.out /tmp/candidate-word.out
+          cmp /tmp/baseline-control.out /tmp/candidate-control.out
+          echo 'FIELDWORK_RESULT compatibility-controls=byte-identical'
+
+      - name: Run Bat library tests
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          cargo test --locked --lib
+
+      - name: Preserve exact candidate receipt
+        if: always()
+        run: |
+          set +e
+          printf 'bat_base=%s\n' "$BAT_SHA"
+          printf 'candidate_patch=%s\n' "$CANDIDATE_SHA"
+          printf 'fieldwork_head=%s\n' '${{ github.event.pull_request.head.sha }}'
+          git -C /tmp/bat diff -- src/printer.rs 2>/dev/null || true
+          for f in /tmp/baseline-zwj.out /tmp/candidate-zwj2.out /tmp/candidate-combining.out /tmp/candidate-indic.out /tmp/baseline-word.out /tmp/candidate-word.out /tmp/baseline-control.out /tmp/candidate-control.out; do
+            if test -f "$f"; then
+              python3 - "$f" <<'PY'
+          from pathlib import Path
+          import sys
+          p = Path(sys.argv[1])
+          print(p.name, repr(p.read_text(encoding='utf-8')))
+          PY
+            fi
+          done
