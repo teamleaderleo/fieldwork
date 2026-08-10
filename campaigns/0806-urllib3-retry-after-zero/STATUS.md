@@ -2,7 +2,7 @@
 
 Issue: #806
 
-State: `candidate-generation-2 — protocol-backed; public-helper compatibility preserved; live-overlap hold; exact RED/GREEN pending`
+State: `candidate-generation-3 — protocol-backed; helper return + delegation preserved; live-overlap hold; exact RED/GREEN pending`
 
 Target: `urllib3/urllib3@824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78`
 
@@ -10,92 +10,88 @@ Parent exact reproduction: run `31423421919`, Python 3.12 and 3.14 success.
 
 ## Selected candidate
 
-Repair the delay-selection owner inside `Retry.sleep()` while leaving public `sleep_for_retry()` behavior unchanged.
+Keep urllib3's existing `sleep_for_retry()` hook and boolean behavior, then distinguish a valid parsed zero from header absence only after the hook returns `False`:
 
-Current `Retry.sleep()` asks `sleep_for_retry()` for a boolean and falls through to exponential backoff when the helper returns `False`. A valid parsed zero returns `False`, making explicit zero indistinguishable from header absence.
+```python
+if self.respect_retry_after_header and response:
+    slept = self.sleep_for_retry(response)
+    if slept:
+        return
+    if self.get_retry_after(response) == 0:
+        return
 
-Candidate behavior:
-
-```text
-respect Retry-After + response
-        ↓
-get_retry_after(response)
-        ↓
-None             -> local backoff may apply
-0                -> return immediately
-positive seconds -> sleep exactly that delay, then return
+self._sleep_backoff()
 ```
-
-Direct `sleep_for_retry(response)` remains byte-for-byte unchanged, including its existing `False` return for a zero-second delay.
 
 Production fence: `src/urllib3/util/retry.py` only.
 
-## Why generation 1 was superseded
+This changes one high-level case: a present valid Retry-After value that resolves to zero no longer falls through to exponential backoff.
 
-Generation 1 changed `sleep_for_retry()` so a valid zero returned `True` without sleeping. Internal redirect callers ignore the return value, but `sleep_for_retry()` is a public method and an external caller could reasonably observe its boolean as “a positive sleep occurred.”
+## Candidate evolution
 
-Generation 2 moves the distinction into `Retry.sleep()` and adds a direct compatibility control requiring:
+### Generation 1 — superseded
 
-```python
-Retry().sleep_for_retry(response_with_zero) is False
-```
+Changed `sleep_for_retry()` so zero returned `True` without sleeping. This repaired the high-level branch but changed an observable public helper return.
 
-with no `time.sleep` call.
+### Generation 2 — superseded
+
+Moved Retry-After parsing directly into `Retry.sleep()`. This preserved the helper's direct return but bypassed `self.sleep_for_retry()`, weakening subclass/override compatibility.
+
+### Generation 3 — current
+
+Retains the original helper call exactly. Positive delays and custom hooks keep their existing first chance to own behavior. Only after a false hook result does the candidate check whether urllib3's parser resolved the header to exactly zero; if so, it returns instead of running local backoff.
 
 ## Protocol authority
 
-RFC 9110 section 10.2.3 defines Retry-After `delay-seconds` as a non-negative decimal integer. Zero is therefore a valid explicit delay value rather than header absence.
+RFC 9110 section 10.2.3 defines Retry-After `delay-seconds` as a non-negative decimal integer. Zero is a valid explicit delay value.
 
-The same ownership rule applies when urllib3's existing parser produces zero from:
+The same ownership rule applies when urllib3's parser produces zero from:
 
-- a valid past HTTP-date;
+- literal `Retry-After: 0`;
+- a valid HTTP-date in the past;
 - a positive delay capped to zero by `retry_after_max=0`.
 
-## Call-site boundary
+## Call-site and public-surface boundary
 
-Current source has two relevant internal paths:
+- redirect handling calls `sleep_for_retry()` and ignores the return value;
+- status retry handling calls `Retry.sleep()`, which owns the reproduced backoff fallthrough;
+- current urllib3 API documentation emphasizes `Retry.sleep()`, while older published reference docs also exposed `sleep_for_retry()`;
+- generation 3 preserves both the direct helper's zero return (`False`) and the delegation from `Retry.sleep()` to `self.sleep_for_retry()`.
 
-- redirect handling invokes `sleep_for_retry()` and ignores its boolean result; generation 2 leaves this helper untouched;
-- status retry handling invokes `Retry.sleep()`, which owns the reproduced fallthrough to `_sleep_backoff()`.
-
-Status retry detection already treats literal header value `"0"` as present, so the candidate changes delay selection only.
-
-## Prepared artifacts
-
-- `candidate.patch`
-- `add-regressions.py`
+Status retry detection already treats literal header string `"0"` as present, so the candidate changes delay selection only.
 
 ## Required exact gate
 
 Baseline RED:
 
-- `test_fieldwork_retry_after_zero_consumes_header` must fail on exact public source because a 2-second backoff occurs.
+- `test_fieldwork_retry_after_zero_consumes_header` fails because exact source performs the 2-second backoff.
 
 Candidate GREEN:
 
 - explicit zero causes no sleep through `Retry.sleep()`;
 - direct `sleep_for_retry()` zero return remains `False` with no sleep;
+- `Retry.sleep()` still invokes the `sleep_for_retry()` hook exactly once;
 - header absence still uses the 2-second backoff;
 - positive `Retry-After: 1` sleeps exactly one second;
-- a valid past HTTP-date consumes the Retry-After path with no sleep;
-- a positive delay capped to zero with `retry_after_max=0` consumes the Retry-After path with no sleep;
-- `respect_retry_after_header=False` retains backoff behavior;
+- a valid past HTTP-date causes no backoff;
+- a positive delay capped to zero with `retry_after_max=0` causes no backoff;
+- `respect_retry_after_header=False` retains local backoff;
 - full `test/test_retry.py` remains green;
 - installed `retry.py` byte-matches patched exact source;
 - `git diff --check` passes.
 
 ## Live overlap hold
 
-Public urllib3 PR 5010 remains open and edits `src/urllib3/util/retry.py` and `test/test_retry.py` for maximum Retry-After handling. Direct inspection of its current head `7cbea353b2dd10dce020467547442994036aab30` shows that it leaves both `sleep_for_retry()` and the surrounding `Retry.sleep()` branch mechanically easy to reconcile.
+Public urllib3 PR 5010 remains open and edits `retry.py` / `test_retry.py` for maximum Retry-After handling. Direct inspection of head `7cbea353b2dd10dce020467547442994036aab30` shows that it leaves this timing branch available for a trivial mechanical reconciliation.
 
-This Fieldwork candidate stays preparation-only while that public branch is live.
+The semantic questions are independent; this Fieldwork candidate stays preparation-only while that public branch is live.
 
 ## Historical note
 
-Public PR 955 introduced Retry-After support with the truthiness-driven helper path. Its tests covered positive waits and past dates without a positive exponential backoff, leaving explicit/past zero indistinguishable from absence under backoff.
+Public PR 955 introduced Retry-After support with the same truthiness-driven helper path. Its tests covered positive waits and past dates with no positive exponential backoff, leaving zero indistinguishable from absence under backoff.
 
 ## Candidate sanity
 
-Generation 1 passed a model-executed timing matrix on installed urllib3 2.7.0. Generation 2 preserves the same high-level timing invariant while narrowing public API impact; exact pinned-source execution remains the promotion gate.
+Earlier candidate generations passed model timing controls on installed urllib3 2.7.0. Generation 3 retains the same target timing invariant while preserving both direct helper return and hook delegation. Exact pinned-source execution remains the acceptance gate.
 
 Upstream contact authorized: `false`.
