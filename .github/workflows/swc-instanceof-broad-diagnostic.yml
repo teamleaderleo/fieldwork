@@ -9,7 +9,7 @@ permissions:
 env:
   CARGO_INCREMENTAL: "0"
   RUST_BACKTRACE: "1"
-  CANDIDATE_REF: e942ccffff2bff8484d51a91a9b718f77d124cfe
+  CANDIDATE_REF: 89eaad96d0c206d28eec302ef214f40967fd1300
   SWC_REF: 5bf27fd72e4667bac6cc86888b8facb8b91f8077
 
 jobs:
@@ -24,7 +24,9 @@ jobs:
           repository: teamleaderleo/fieldwork
           ref: ${{ env.CANDIDATE_REF }}
           path: fieldwork-source
-          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout: |
+            campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+            campaigns/0725-swc-binary-operator-effects/add-instanceof-owned-regressions.py
           sparse-checkout-cone-mode: false
       - name: Check out pinned SWC
         uses: actions/checkout@v4
@@ -40,6 +42,7 @@ jobs:
       - name: Apply candidate and verify diff
         run: |
           python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/add-instanceof-owned-regressions.py swc
           cd swc
           test "$(git rev-parse HEAD)" = "$SWC_REF"
           git diff --check
@@ -59,7 +62,9 @@ jobs:
           repository: teamleaderleo/fieldwork
           ref: ${{ env.CANDIDATE_REF }}
           path: fieldwork-source
-          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout: |
+            campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+            campaigns/0725-swc-binary-operator-effects/add-instanceof-owned-regressions.py
           sparse-checkout-cone-mode: false
       - name: Check out pinned SWC
         uses: actions/checkout@v4
@@ -75,6 +80,7 @@ jobs:
       - name: Apply candidate and verify diff
         run: |
           python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/add-instanceof-owned-regressions.py swc
           cd swc
           test "$(git rev-parse HEAD)" = "$SWC_REF"
           git diff --check
@@ -94,7 +100,9 @@ jobs:
           repository: teamleaderleo/fieldwork
           ref: ${{ env.CANDIDATE_REF }}
           path: fieldwork-source
-          sparse-checkout: campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+          sparse-checkout: |
+            campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py
+            campaigns/0725-swc-binary-operator-effects/add-instanceof-owned-regressions.py
           sparse-checkout-cone-mode: false
       - name: Check out pinned SWC
         uses: actions/checkout@v4
@@ -110,6 +118,7 @@ jobs:
       - name: Apply candidate and verify diff
         run: |
           python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/apply-instanceof-candidate.py swc
+          python3 fieldwork-source/campaigns/0725-swc-binary-operator-effects/add-instanceof-owned-regressions.py swc
           cd swc
           test "$(git rev-parse HEAD)" = "$SWC_REF"
           git diff --check
