@@ -113,6 +113,7 @@ jobs:
             test/test_retry.py::test_fieldwork_retry_after_absent_uses_backoff \
             test/test_retry.py::test_fieldwork_retry_after_positive_owns_delay \
             test/test_retry.py::test_fieldwork_retry_after_past_date_consumes_header \
+            test/test_retry.py::test_fieldwork_retry_after_capped_to_zero_consumes_header \
             test/test_retry.py::test_fieldwork_retry_after_disabled_uses_backoff
 
       - name: Candidate GREEN — ordinary Retry suite
