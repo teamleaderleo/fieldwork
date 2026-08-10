@@ -15,12 +15,12 @@ jobs:
     timeout-minutes: 45
     env:
       BAT_SHA: af59a3218303837421ce06bb2dc3c545525bba0f
-      CANDIDATE_SHA: d190c1cba7193bc271cf2d499bc4478b638e3ead
+      CANDIDATE_SHA: 82a88258292bba8b17807fb8024924dbe1a9860c
       CANDIDATE_BRANCH: candidate/grapheme-aware-wrap-20260811
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch exact Bat source and owned candidate patch
+      - name: Fetch exact Bat source and owned candidate transformer
         run: |
           set -euxo pipefail
           git init /tmp/bat
@@ -32,8 +32,8 @@ jobs:
           git -C /tmp/bat remote add candidate https://github.com/teamleaderleo/bat.git
           git -C /tmp/bat fetch --depth=1 candidate "$CANDIDATE_BRANCH"
           test "$(git -C /tmp/bat rev-parse FETCH_HEAD)" = "$CANDIDATE_SHA"
-          git -C /tmp/bat show FETCH_HEAD:fieldwork/bat-grapheme-aware-wrap.patch > /tmp/bat-grapheme-aware-wrap.patch
-          sed -n '1,220p' /tmp/bat-grapheme-aware-wrap.patch
+          git -C /tmp/bat show FETCH_HEAD:fieldwork/apply_grapheme_wrap_candidate.py > /tmp/apply_grapheme_wrap_candidate.py
+          sed -n '1,240p' /tmp/apply_grapheme_wrap_candidate.py
 
       - name: Build exact baseline
         working-directory: /tmp/bat
@@ -71,14 +71,14 @@ jobs:
               print('FIELDWORK_BASELINE', name, repr(text))
           PY
 
-      - name: Apply owned candidate patch
+      - name: Apply exact-source candidate transform
         working-directory: /tmp/bat
         run: |
           set -euxo pipefail
-          git apply --check /tmp/bat-grapheme-aware-wrap.patch
-          git apply /tmp/bat-grapheme-aware-wrap.patch
+          python3 /tmp/apply_grapheme_wrap_candidate.py
           git diff --check
-          git diff -- src/printer.rs
+          git diff -- src/printer.rs | tee /tmp/bat-grapheme-aware-wrap.generated.patch
+          test -s /tmp/bat-grapheme-aware-wrap.generated.patch
 
       - name: Check formatting and compile candidate
         working-directory: /tmp/bat
@@ -155,9 +155,12 @@ jobs:
         run: |
           set +e
           printf 'bat_base=%s\n' "$BAT_SHA"
-          printf 'candidate_patch=%s\n' "$CANDIDATE_SHA"
+          printf 'candidate_carrier=%s\n' "$CANDIDATE_SHA"
           printf 'fieldwork_head=%s\n' '${{ github.event.pull_request.head.sha }}'
-          git -C /tmp/bat diff -- src/printer.rs 2>/dev/null || true
+          if test -f /tmp/bat-grapheme-aware-wrap.generated.patch; then
+            echo '--- generated candidate diff ---'
+            cat /tmp/bat-grapheme-aware-wrap.generated.patch
+          fi
           for f in /tmp/baseline-zwj.out /tmp/candidate-zwj2.out /tmp/candidate-combining.out /tmp/candidate-indic.out /tmp/baseline-word.out /tmp/candidate-word.out /tmp/baseline-control.out /tmp/candidate-control.out; do
             if test -f "$f"; then
               python3 - "$f" <<'PY'
