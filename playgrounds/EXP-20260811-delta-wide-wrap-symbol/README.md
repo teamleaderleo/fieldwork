@@ -1,10 +1,10 @@
 ## In simple words
 
-Delta says each side-by-side wrap marker has display width 1, but its validator checks that the option contains one grapheme cluster. Those are different properties: `界` is one grapheme and two terminal columns.
+Delta accepts a two-column grapheme as a wrap marker even though the option contract says the marker must have display width 1. On exact current source, that mismatch can make unlimited wrapping stop making progress.
 
-That becomes consequential in the wrapping loop. The loop subtracts the marker's real display width from the space available for source text. It has a special guard intended to stop wrapping when only the marker fits, but that guard compares the line width against the constant `1` because validated markers are assumed to be one column. With a two-column marker in a two-column line, no source grapheme fits before the marker. In unlimited mode there is no line-count stop, so source reading predicts the same input will be pushed back forever.
+This is target-executed now. With line width 2, marker `+` and text `abc`, the wrapper terminates as `a+` / `bc`. With the accepted marker `界` (one grapheme, two columns), the same unlimited-wrap owner never consumes source text and reaches the external 8-second watchdog.
 
-This experiment tests that exact sequence against current Delta source. A one-column marker is the negative control.
+The next bounded step is the built command itself: feed a minimal diff to `delta --side-by-side --width 16 --wrap-max-lines unlimited` with the same markers. Width 16 gives an 8-column panel; the default six-column line-number field leaves a two-column content budget, reaching the exact owner condition through public CLI options.
 
 ## Assignment
 
@@ -15,6 +15,9 @@ This experiment tests that exact sequence against current Delta source. A one-co
 - Target repository: `dandavison/delta`
 - Exact target: `95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4`
 - Claim scope: mechanism
+- Evidence class: `target-executed`
+- Workflow run: `31425334965`
+- Job: `93575567871`
 - Upstream contact authorized: `false`
 - Upstream contact performed: `false`
 
@@ -44,14 +47,7 @@ So one two-column grapheme passes the documented check.
 
 `wrap_line()` segments source text into graphemes and records each grapheme's real `UnicodeWidthStr::width()`.
 
-When a line must split, it computes available source-text width as:
-
-```text
-current fit before overflow
-- wrap_left_symbol.width()
-```
-
-The same function tries to prevent a no-progress wrap when only the marker fits:
+When a line must split, it computes available source-text width using the wrap marker's real display width. The same function tries to prevent a no-progress wrap when only the marker fits:
 
 ```rust
 let max_lines = if line_width <= INLINE_SYMBOL_WIDTH_1 {
@@ -61,11 +57,11 @@ let max_lines = if line_width <= INLINE_SYMBOL_WIDTH_1 {
 };
 ```
 
-That guard uses the constant 1, not the accepted marker's real width.
+That guard uses the constant 1, rather than the accepted marker's real width.
 
 ### Unlimited mode
 
-Public `--wrap-max-lines` accepts `unlimited`. `adapt_wrap_max_lines_argument()` maps `unlimited` to internal `0`; `line_limit_reached` treats `0` as no limit.
+Public `--wrap-max-lines unlimited` maps to internal `0`; `line_limit_reached` treats `0` as no limit.
 
 With:
 
@@ -76,52 +72,111 @@ text = abc
 max lines = unlimited
 ```
 
-source reading predicts:
+the owner has zero width available for source text, emits the marker, pushes `abc` back, and repeats.
+
+## Exact target execution
+
+The workflow fetched exact target source read-only, verified the SHA, injected test-only controls locally, compiled the target, and ran three discriminators.
+
+### 1. Public configuration reaches the bad state
+
+Input marker:
 
 ```text
-abc -> no source grapheme fits before 界 -> emit 界 -> push abc back
-    -> no source grapheme fits before 界 -> emit 界 -> push abc back
-    -> ...
+界
 ```
 
-The one-column marker `+` is the negative control; it leaves one column for source text and therefore makes progress.
+Observed:
 
-## Why this is worth executing
+```text
+grapheme count = 1
+display width = 2
+configuration = accepted
+```
 
-This is stronger than the nearby `truncate_str()` debug assertion for graphemes wider than two columns. It combines:
+Result: `PASS`.
 
-- a public option;
-- a validator that promises the wrong property;
-- a downstream algorithm that relies on the promised property;
-- an explicit unlimited mode;
-- a deterministic negative control.
+### 2. One-column negative control terminates
 
-The remaining reachability question is whether the exact target configuration accepts the wide marker and the wrapper behaves as the source model predicts. The retained CI probe answers only that narrow mechanism first.
+Configuration:
 
-## Exact controls
+```text
+marker = +
+line width = 2
+text = abc
+max lines = unlimited
+```
 
-The execution-only test material is `delta_probe_tests.rs`.
+Observed:
 
-1. **Validator reachability** — construct configuration with `--wrap-left-symbol 界`; require one grapheme and actual display width 2.
-2. **Negative control** — with marker `+`, width 2 and unlimited wrapping, `abc` must terminate as `a+` / `bc`.
-3. **Watchdog discriminator** — with marker `界`, width 2 and unlimited wrapping, run the target-native test under an external timeout after compilation. Record termination versus watchdog expiry as an experiment result rather than treating timeout itself as CI failure.
+```text
+a+
+bc
+```
 
-## Competing explanations
+Result: `PASS`.
 
-### A. Configuration rejects the wide marker earlier
+### 3. Two-column marker stops making progress
 
-If true, stop. The source helper would be misleading but the no-progress loop would be unreachable through the tested public option path.
+Configuration:
 
-### B. Another wrapping branch makes progress
+```text
+marker = 界
+line width = 2
+text = abc
+max lines = unlimited
+```
 
-If both the one- and two-column cases terminate, retain a negative result and inspect the actual transition before proposing anything.
+The compiled target test was run under an external watchdog after all compilation completed.
 
-### C. Wide marker acceptance plus no-progress loop
+Observed receipt:
 
-If configuration accepts `界`, the `+` control terminates, and only the wide-marker test reaches the watchdog, the mechanism is target-executed.
+```text
+FIELDWORK_RESULT two-column-marker=watchdog-expired
+```
 
-A later promotion would still need an ordinary CLI reproduction showing a realistic narrow panel/configuration reaches the same owner.
+The watchdog expired after 8 seconds while the one-column control completed immediately.
+
+Result: `TARGET-EXECUTED NONTERMINATION`.
+
+Full machine-readable receipt: `result.json`.
+
+## Why this is a strong bug candidate
+
+The executed chain now contains:
+
+1. a public option;
+2. a validator whose error text promises display width 1;
+3. an accepted value that violates that promise;
+4. downstream code that relies on the promised one-column property;
+5. public unlimited wrapping;
+6. a target-executed no-progress loop;
+7. a one-column negative control that terminates.
+
+The remaining gate is user-facing command reachability, rather than the mechanism itself.
+
+## Next discriminator: real CLI
+
+Build exact target source, then feed this minimal diff through the normal binary:
+
+```text
+diff --git a/a.txt b/a.txt
+--- a/a.txt
++++ b/a.txt
+@@ -1 +1 @@
+-abc
++def
+```
+
+Use side-by-side fixed width 16 and space fill so each panel is width 8. Default side-by-side line-number formatting consumes six columns, leaving the two-column content width used by the target test.
+
+Run the same binary twice under watchdogs:
+
+- `--wrap-left-symbol +` must complete;
+- `--wrap-left-symbol 界` is classified as completion versus watchdog expiry.
+
+If the wide-marker CLI run reaches the watchdog while the control completes, promote this into a durable Delta scout/owned-fork regression candidate. If the CLI path introduces a guard that prevents the condition, retain the internal target result and stop promotion.
 
 ## Stop condition
 
-Stop this experiment after the three controls classify the mechanism. Do not create a Delta source candidate from source reading alone. Any external issue, pull request, comment, review, or other interaction remains manual human work.
+Stop after the ordinary CLI discriminator classifies the public path. Any source candidate remains in an owned fork for local review. External issue, pull-request, comment, review, or other upstream interaction remains manual human work.
