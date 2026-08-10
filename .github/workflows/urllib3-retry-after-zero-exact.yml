@@ -1,0 +1,116 @@
+name: urllib3 Retry-After zero exact
+
+on:
+  pull_request:
+    branches:
+      - research/0806-urllib3-retry-after-zero
+    paths:
+      - 'campaigns/0806-urllib3-retry-after-zero/**'
+      - '.github/workflows/urllib3-retry-after-zero-exact.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  red-green:
+    name: red-green-python-${{ matrix.python }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.14']
+    steps:
+      - name: Checkout Fieldwork carrier
+        uses: actions/checkout@v4
+
+      - name: Checkout exact urllib3 target
+        uses: actions/checkout@v4
+        with:
+          repository: urllib3/urllib3
+          ref: 824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78
+          path: target
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install baseline and materialize regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C target rev-parse HEAD)" = "824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78"
+          python -m pip install --disable-pip-version-check pytest ./target
+          python campaigns/0806-urllib3-retry-after-zero/add-regressions.py target/test/test_retry.py
+
+      - name: Baseline RED — explicit zero falls into backoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          set +e
+          python -m pytest -q \
+            test/test_retry.py::test_fieldwork_retry_after_zero_consumes_header \
+            > "$RUNNER_TEMP/baseline-red.log" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/baseline-red.log"
+          test "$status" -ne 0
+          grep -F "1 failed" "$RUNNER_TEMP/baseline-red.log"
+          grep -F "Expected 'sleep' to not have been called" "$RUNNER_TEMP/baseline-red.log"
+          grep -F "call(2.0)" "$RUNNER_TEMP/baseline-red.log"
+
+      - name: Apply bounded candidate and reinstall
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch="$GITHUB_WORKSPACE/campaigns/0806-urllib3-retry-after-zero/candidate.patch"
+          git -C target apply --check "$patch"
+          git -C target apply "$patch"
+          git -C target diff --check
+          python -m pip install --disable-pip-version-check --force-reinstall ./target
+
+      - name: Verify installed candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import pathlib
+          import urllib3.util.retry
+
+          source = pathlib.Path('target/src/urllib3/util/retry.py').resolve()
+          installed = pathlib.Path(urllib3.util.retry.__file__).resolve()
+          source_digest = hashlib.sha256(source.read_bytes()).hexdigest()
+          installed_digest = hashlib.sha256(installed.read_bytes()).hexdigest()
+          print(f"source_retry_sha256={source_digest}")
+          print(f"installed_retry_sha256={installed_digest}")
+          assert source_digest == installed_digest
+          PY
+
+      - name: Candidate GREEN — focused Fieldwork controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          python -m pytest -q \
+            test/test_retry.py::test_fieldwork_retry_after_zero_consumes_header \
+            test/test_retry.py::test_fieldwork_retry_after_absent_uses_backoff \
+            test/test_retry.py::test_fieldwork_retry_after_positive_owns_delay \
+            test/test_retry.py::test_fieldwork_retry_after_past_date_consumes_header \
+            test/test_retry.py::test_fieldwork_retry_after_disabled_uses_backoff
+
+      - name: Candidate GREEN — ordinary Retry suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          python -m pytest -q test/test_retry.py
+
+      - name: Diff hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C target diff --check
