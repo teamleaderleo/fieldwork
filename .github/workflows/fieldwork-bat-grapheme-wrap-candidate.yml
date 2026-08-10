@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 45
     env:
       BAT_SHA: af59a3218303837421ce06bb2dc3c545525bba0f
-      CANDIDATE_SHA: dd11e13120f693505dddd45eb0f489dca0e80465
+      CANDIDATE_SHA: d190c1cba7193bc271cf2d499bc4478b638e3ead
       CANDIDATE_BRANCH: candidate/grapheme-aware-wrap-20260811
     steps:
       - uses: actions/checkout@v4
