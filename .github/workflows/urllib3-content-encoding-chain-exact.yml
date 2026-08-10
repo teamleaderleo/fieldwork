@@ -37,12 +37,25 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Install baseline and materialize regressions
+      - name: Install target and declared test dependencies
         shell: bash
         run: |
           set -euo pipefail
           test "$(git -C target rev-parse HEAD)" = "824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78"
-          python -m pip install --disable-pip-version-check pytest ./target
+          python -m pip install --disable-pip-version-check \
+            'anyio[trio]>=4.8.0' \
+            'h2>=4.1.0' \
+            'httpx>=0.28.1' \
+            'hypercorn>=0.15.0' \
+            'pysocks>=1.7.1' \
+            'pytest>=8.3.4' \
+            'pytest-socket>=0.7.0' \
+            'pytest-timeout>=2.3.1' \
+            'quart>=0.20.0' \
+            'quart-trio>=0.12.0' \
+            'trio>=0.27.0' \
+            'trustme>=1.2.1' \
+            ./target
           python campaigns/0800-urllib3-content-encoding-chain/add-regressions.py target/test/test_response.py
 
       - name: Baseline RED
