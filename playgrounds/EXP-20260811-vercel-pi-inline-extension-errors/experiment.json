@@ -4,7 +4,7 @@
   "question": "When a caller-supplied trusted inline Pi extension factory fails to initialize, does the Vercel AI SDK Pi harness surface that failure instead of quietly starting without the extension?",
   "owner": "chatgpt:gpt-5.6-sol",
   "created_at": "2026-08-11",
-  "state": "complete",
+  "state": "promoted",
   "claim_scope": "interface",
   "integration_context": null,
   "sources": [
@@ -56,5 +56,5 @@
     "playgrounds/EXP-20260811-vercel-pi-inline-extension-errors/README.md",
     "playgrounds/EXP-20260811-vercel-pi-inline-extension-errors/result.json"
   ],
-  "promoted_to": null
+  "promoted_to": "teamleaderleo/fieldwork#816"
 }
