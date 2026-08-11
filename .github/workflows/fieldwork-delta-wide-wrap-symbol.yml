@@ -31,7 +31,7 @@ jobs:
         run: |
           set -euxo pipefail
           cat playgrounds/EXP-20260811-delta-wide-wrap-symbol/delta_probe_tests.rs >> /tmp/delta/src/wrapping.rs
-          tail -n 120 /tmp/delta/src/wrapping.rs
+          tail -n 140 /tmp/delta/src/wrapping.rs
 
       - name: Compile target tests and binary
         working-directory: /tmp/delta
@@ -51,6 +51,13 @@ jobs:
         run: |
           set -euxo pipefail
           timeout -k 2s 15s cargo test --locked fieldwork_delta_one_column_marker_unlimited_wrap_terminates -- --nocapture
+
+      - name: Prove finite wide-grapheme owner control terminates
+        working-directory: /tmp/delta
+        run: |
+          set -euxo pipefail
+          timeout -k 2s 15s cargo test --locked fieldwork_delta_valid_marker_wide_first_grapheme_finite_wrap_terminates -- --nocapture
+          echo 'FIELDWORK_RESULT owner-valid-marker-wide-grapheme-finite=terminated'
 
       - name: Classify two-column marker owner progress
         working-directory: /tmp/delta
@@ -115,6 +122,22 @@ jobs:
           test -s /tmp/delta-control.out
           echo 'FIELDWORK_RESULT cli-one-column-marker-ascii=terminated'
           cat /tmp/delta-control.out
+
+      - name: Prove finite valid-marker wide-grapheme public CLI terminates
+        working-directory: /tmp/delta
+        run: |
+          set -euxo pipefail
+          timeout -k 2s 15s ./target/debug/delta \
+            --side-by-side \
+            --width 16 \
+            --line-fill-method=spaces \
+            --wrap-max-lines 2 \
+            --wrap-left-symbol '+' \
+            < /tmp/delta-fieldwork-cjk.diff \
+            > /tmp/delta-cjk-finite.out
+          test -s /tmp/delta-cjk-finite.out
+          echo 'FIELDWORK_RESULT cli-valid-marker-wide-grapheme-finite=terminated'
+          cat /tmp/delta-cjk-finite.out
 
       - name: Classify two-column marker public CLI progress
         working-directory: /tmp/delta
