@@ -50,4 +50,14 @@ mod fieldwork_wide_wrap_symbol_probe {
         // has no line-count stop. The CI watchdog classifies non-termination.
         let _ = wrap_line(&cfg, vec![(style, "abc")], 2, &style, &None);
     }
+
+    #[test]
+    fn fieldwork_delta_valid_marker_wide_first_grapheme_unlimited_wrap_must_make_progress() {
+        let cfg = config("+");
+        let style = Style::default();
+        // This keeps the documented one-column marker. With line width 2, only one
+        // source column remains before the marker. The first source grapheme is width 2,
+        // so the split loop can consume zero bytes and requeue the same text forever.
+        let _ = wrap_line(&cfg, vec![(style, "界a")], 2, &style, &None);
+    }
 }
