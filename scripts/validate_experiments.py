@@ -50,8 +50,9 @@ def validate_experiment(directory: Path) -> None:
 
     if not isinstance(data, dict):
         raise ValidationError(f"{metadata_path}: metadata must be a JSON object")
-    if data.get("schema_version") != 1:
-        raise ValidationError(f"{metadata_path}: schema_version must be 1")
+    schema_version = data.get("schema_version")
+    if type(schema_version) is not int or schema_version != 1:
+        raise ValidationError(f"{metadata_path}: schema_version must be integer 1")
 
     experiment_id = require_string(data, "id", str(metadata_path))
     if not ID_PATTERN.fullmatch(experiment_id):
