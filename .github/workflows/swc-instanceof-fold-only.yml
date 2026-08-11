@@ -27,6 +27,7 @@ jobs:
         with:
           repository: teamleaderleo/swc
           ref: ${{ env.SWC_HEAD }}
+          fetch-depth: 2
           persist-credentials: false
           submodules: true
 
