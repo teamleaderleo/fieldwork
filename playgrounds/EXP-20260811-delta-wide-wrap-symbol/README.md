@@ -1,10 +1,12 @@
 ## In simple words
 
-Delta accepts a two-column grapheme as a wrap marker even though the option contract says the marker must have display width 1. On exact target source, that mismatch can make unlimited wrapping stop making progress, and the same failure now reproduces through the built public `delta` command.
+Delta's unlimited wrapper can stop making progress when the next source grapheme does not fit in the columns left before the wrap marker. This now reproduces with a completely valid one-column `+` marker: at content width 2, input beginning with the two-column grapheme `界` is re-queued unchanged on every wrap iteration.
 
-With marker `+`, the focused wrapper owner terminates at content width 2 and the real CLI completes under the same narrow side-by-side budget. With the accepted marker `界` (one grapheme, two columns), the owner reaches an 8-second watchdog and the public CLI reaches the same watchdog.
+The exact target owner and the built public `delta` command both reach an 8-second watchdog for that valid configuration. The ASCII control terminates immediately.
 
-This experiment is promoted to Fieldwork candidate #820.
+There is a second bug in the same area: wrap-marker validation says display width must be 1 but actually checks grapheme count, so a two-column grapheme such as `界` is accepted as a marker and provides another route into the same no-progress family.
+
+This experiment is promoted to Fieldwork candidate #820. The wrap-loop progress invariant is now the primary owner; marker validation is a secondary defense layer.
 
 ## Assignment
 
@@ -14,72 +16,41 @@ This experiment is promoted to Fieldwork candidate #820.
 - Experiment: `EXP-20260811-delta-wide-wrap-symbol`
 - Candidate owner: #820
 - Target repository: `dandavison/delta`
-- Exact target: `95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4`
+- Exact target/current head: `95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4`
 - Claim scope: mechanism + CLI reachability
 - Evidence class: `target-executed`
-- Final workflow run: `31440774199`
-- Final job: `93624827655`
+- Latest workflow run: `31489009549`
+- Latest job: `93770852535`
 - Upstream contact authorized: `false`
 - Upstream contact performed: `false`
 
 ## Source map
 
-### Option intake
+### Primary owner: `wrap_line()` can requeue unchanged text
 
-`src/wrapping.rs` builds `WrapConfig` from the public options:
+`src/wrapping.rs` segments a source segment into graphemes and records each grapheme's real terminal width. When a line must split, it computes how much source width can fit before the left wrap marker.
+
+If the first grapheme is wider than that remaining width, the byte split position stays zero. The code then sets the next line to the entire original `text`, pushes that unchanged segment back on the stack, emits the marker, resets the current line, and repeats.
+
+With finite wrapping, the line-count limit eventually stops the loop. Public `--wrap-max-lines unlimited` maps to internal `max_lines == 0`, so there is no line-count stop.
+
+The existing guard only special-cases `line_width <= INLINE_SYMBOL_WIDTH_1`, where the constant is 1. It does not cover a two-column line with a valid one-column marker when the next source grapheme itself occupies two columns.
+
+### Secondary owner: marker validation counts graphemes
+
+All three public wrap-marker options pass through `ensure_display_width_1()`:
 
 - `--wrap-left-symbol`;
 - `--wrap-right-symbol`;
 - `--wrap-right-prefix-symbol`.
 
-All three call `ensure_display_width_1()`.
+The helper's error says the symbol's display width must be 1, but the implementation checks one grapheme cluster with `grapheme_indices(true).count()`. A one-grapheme/two-column marker therefore passes.
 
-The error produced by that helper says the symbol's **display width** must be 1. The implementation checks:
+## Target execution: exact owner
 
-```rust
-arg.grapheme_indices(true).count()
-```
+The workflow fetched and fenced the exact current Delta source, injected test-only controls locally, and compiled before applying watchdogs.
 
-against `INLINE_SYMBOL_WIDTH_1 == 1`.
-
-So one two-column grapheme passes the documented check.
-
-### Wrapping owner
-
-`wrap_line()` segments source text into graphemes and records each grapheme's real `UnicodeWidthStr::width()`.
-
-When a line must split, it subtracts the wrap marker's real display width from the available content width. The same function tries to prevent a no-progress wrap when only the marker fits:
-
-```rust
-let max_lines = if line_width <= INLINE_SYMBOL_WIDTH_1 {
-    1
-} else {
-    wrap_config.max_lines
-};
-```
-
-That guard uses the constant 1 rather than the accepted marker's real width.
-
-### Unlimited mode
-
-Public `--wrap-max-lines unlimited` maps to internal no-limit mode.
-
-At content width 2 with marker `界` (width 2), zero columns remain for source text. Each iteration emits the marker while re-queueing the complete source text.
-
-## Target execution: owner
-
-The workflow fetched and fenced exact target source, injected test-only controls locally, and compiled before applying watchdogs.
-
-### Validator reachability
-
-```text
-marker:          界
-grapheme count:  1
-display width:   2
-configuration:   accepted
-```
-
-### One-column control
+### ASCII negative control
 
 ```text
 marker:          +
@@ -91,7 +62,24 @@ result:          a+ / bc
 
 Result: terminates.
 
-### Two-column discriminator
+### Valid marker + wide source grapheme
+
+```text
+marker:          +
+content width:   2
+text:            界a
+max lines:       unlimited
+```
+
+Receipt:
+
+```text
+FIELDWORK_RESULT owner-valid-marker-wide-grapheme=watchdog-expired
+```
+
+Result: exact target owner makes zero source progress before the 8-second watchdog.
+
+### Accepted two-column marker
 
 ```text
 marker:          界
@@ -106,22 +94,11 @@ Receipt:
 FIELDWORK_RESULT owner-two-column-marker=watchdog-expired
 ```
 
-Result: target owner does not make progress before the 8-second watchdog.
+This remains useful as a separate configuration-contract bug, but it is no longer required to trigger nontermination.
 
 ## Target execution: public CLI
 
-The same exact checkout built `target/debug/delta` and received this minimal diff through stdin:
-
-```text
-diff --git a/a.txt b/a.txt
---- a/a.txt
-+++ b/a.txt
-@@ -1 +1 @@
--abc
-+def
-```
-
-Both runs used:
+The same exact checkout built `target/debug/delta`. Runs used:
 
 ```text
 --side-by-side
@@ -130,58 +107,61 @@ Both runs used:
 --wrap-max-lines unlimited
 ```
 
-Width 16 creates 8-column panels. Default side-by-side line-number formatting consumes six columns, leaving the two-column content budget used by the owner test.
+Width 16 gives 8-column panels; default side-by-side line-number formatting leaves the two-column content budget exercised by the owner tests.
 
-### CLI control
+### ASCII control
+
+A minimal replacement diff with ASCII content and valid marker `+` terminates:
 
 ```text
---wrap-left-symbol +
+FIELDWORK_RESULT cli-one-column-marker-ascii=terminated
+```
+
+### Valid marker + wide source fixture
+
+The replacement line begins with `界` while the marker stays `+`:
+
+```text
++界a
 ```
 
 Receipt:
 
 ```text
-FIELDWORK_RESULT cli-one-column-marker=terminated
+FIELDWORK_RESULT cli-valid-marker-wide-grapheme=watchdog-expired
 ```
 
-The command emitted its wrapped diff immediately.
+This proves the broader failure is reachable through valid public configuration.
 
-### CLI discriminator
+### Wide marker route
 
-```text
---wrap-left-symbol 界
-```
-
-Receipt:
+With ASCII replacement text and `--wrap-left-symbol 界`:
 
 ```text
 FIELDWORK_RESULT cli-two-column-marker=watchdog-expired
 ```
 
-The command did not terminate before the 8-second watchdog.
-
 Machine-readable receipt: `result.json`.
 
 ## Promotion
 
-This is now a user-reachable candidate rather than an internal-only mechanism finding.
-
 Candidate owner: Fieldwork #820.
 
-The next source work belongs in an owned Delta fork and should compare two repair layers:
+Source work should now prioritize two layers in this order:
 
-1. **Contract repair:** validate actual terminal display width 1 for all wrap marker options.
-2. **Progress hardening:** make `wrap_line()` guarantee that every loop consumes input or terminates, even if an invalid custom configuration reaches the owner.
+1. **Progress invariant:** every `wrap_line()` split must consume at least one source grapheme or terminate safely. Re-queuing an unchanged source segment must never continue an unlimited loop.
+2. **Contract repair:** validate actual terminal display width 1 for wrap marker options rather than grapheme count.
 
-The second layer is important because internal callers can bypass public option validation.
+A useful repair should preserve existing output when a split can make progress and choose an explicit safe outcome when the next grapheme cannot fit before the marker. That outcome needs testing rather than assumption because it affects truncation and side-by-side alignment.
 
-Regression controls should preserve:
+Regression controls should retain:
 
-- one-column `+` unlimited wrapping;
-- wide marker handling without nontermination;
-- narrow lines where only a marker fits;
-- existing wrapping snapshots.
+- valid `+` + ASCII unlimited wrapping terminates with existing output;
+- valid `+` + leading two-column grapheme terminates;
+- accepted/rejected wide-marker behavior cannot hang;
+- finite wrapping remains bounded;
+- existing wrapping snapshots remain unchanged away from the no-progress boundary.
 
 ## Stop condition
 
-Experiment complete and promoted. Continue implementation only in an owned fork or the Fieldwork candidate record. Refresh Delta upstream overlap before any external proposal. External issue, pull-request, comment, review, or other upstream interaction remains manual human work.
+Experiment complete and promoted. Continue implementation only in an owned fork or the Fieldwork candidate record. Refresh Delta overlap before any external proposal. External issue, pull-request, comment, review, or other upstream interaction remains manual human work.
