@@ -42,6 +42,21 @@ mod fieldwork_wide_wrap_symbol_probe {
     }
 
     #[test]
+    fn fieldwork_delta_valid_marker_wide_first_grapheme_finite_wrap_terminates() {
+        let mut cfg = config("+");
+        // Internal max_lines is the bounded-loop owner. A finite value should cut off
+        // the zero-progress retry even though the first wide grapheme still cannot fit.
+        cfg.wrap_config.max_lines = 2;
+        let style = Style::default();
+        let lines = wrap_line(&cfg, vec![(style, "界a")], 2, &style, &None);
+        let plain: Vec<String> = lines
+            .iter()
+            .map(|sections| sections.iter().map(|(_, text)| *text).collect::<String>())
+            .collect();
+        assert_eq!(plain, vec!["+".to_string(), "界a".to_string()]);
+    }
+
+    #[test]
     fn fieldwork_delta_two_column_marker_unlimited_wrap_must_make_progress() {
         let cfg = config("界");
         let style = Style::default();
