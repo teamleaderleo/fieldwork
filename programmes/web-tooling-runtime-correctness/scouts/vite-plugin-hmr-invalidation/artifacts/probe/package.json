@@ -1,0 +1,11 @@
+{
+  "name": "fieldwork-vite-plugin-hmr-invalidation-probe",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "probe": "node probe.mjs"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  }
+}
