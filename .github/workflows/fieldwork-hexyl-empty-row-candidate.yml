@@ -1,0 +1,147 @@
+name: Fieldwork Hexyl empty row candidate
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hexyl-empty-row-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HEXYL_SHA: 6ecc29b9c8c84d08a7e860f7f69c22b113b480ea
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact Hexyl source read-only
+        run: |
+          set -euxo pipefail
+          git init /tmp/hexyl
+          git -C /tmp/hexyl remote add origin https://github.com/sharkdp/hexyl.git
+          git -C /tmp/hexyl fetch --depth=1 origin "$HEXYL_SHA"
+          git -C /tmp/hexyl checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/hexyl rev-parse HEAD)" = "$HEXYL_SHA"
+
+      - name: Build exact baseline and preserve receipts
+        working-directory: /tmp/hexyl
+        run: |
+          set -euxo pipefail
+          cargo build --locked --bin hexyl
+          cp target/debug/hexyl /tmp/hexyl-baseline
+          : > /tmp/fieldwork-empty.bin
+
+          /tmp/hexyl-baseline --color=never --terminal-width=80 --base=hexadecimal /tmp/fieldwork-empty.bin > /tmp/baseline-hex.out
+          /tmp/hexyl-baseline --color=never --terminal-width=80 --base=binary /tmp/fieldwork-empty.bin > /tmp/baseline-bin.out
+
+          python3 - <<'PY'
+          from pathlib import Path
+          for name, expected in [('baseline-hex.out', [80, 80, 80]), ('baseline-bin.out', [45, 80, 45])]:
+              text = Path('/tmp/' + name).read_text(encoding='utf-8')
+              widths = [len(line) for line in text.splitlines() if line]
+              print('FIELDWORK_BASELINE', name, widths, repr(text))
+              assert widths == expected, (name, widths, expected)
+          PY
+
+      - name: Apply exact-source candidate transform
+        working-directory: /tmp/hexyl
+        run: |
+          set -euxo pipefail
+          python3 "$GITHUB_WORKSPACE/programmes/open-source-ecosystems/candidates/developer-tools-build-systems/apply_hexyl_empty_row_candidate.py"
+          git diff --check
+          git diff -- src/lib.rs | tee /tmp/hexyl-empty-row.generated.patch
+          test -s /tmp/hexyl-empty-row.generated.patch
+
+      - name: Check formatting, build, and tests
+        working-directory: /tmp/hexyl
+        run: |
+          set -euxo pipefail
+          cargo fmt --check
+          cargo build --locked --bin hexyl
+          cargo test --locked
+          cp target/debug/hexyl /tmp/hexyl-candidate
+
+      - name: Candidate fixes binary geometry and preserves hexadecimal
+        working-directory: /tmp/hexyl
+        run: |
+          set -euxo pipefail
+          /tmp/hexyl-candidate --color=never --terminal-width=80 --base=hexadecimal /tmp/fieldwork-empty.bin > /tmp/candidate-hex.out
+          /tmp/hexyl-candidate --color=never --terminal-width=80 --base=binary /tmp/fieldwork-empty.bin > /tmp/candidate-bin.out
+
+          cmp /tmp/baseline-hex.out /tmp/candidate-hex.out
+
+          python3 - <<'PY'
+          from pathlib import Path
+          hex_text = Path('/tmp/candidate-hex.out').read_text(encoding='utf-8')
+          bin_text = Path('/tmp/candidate-bin.out').read_text(encoding='utf-8')
+          hex_widths = [len(line) for line in hex_text.splitlines() if line]
+          bin_widths = [len(line) for line in bin_text.splitlines() if line]
+          print('FIELDWORK_CANDIDATE hexadecimal', hex_widths, repr(hex_text))
+          print('FIELDWORK_CANDIDATE binary', bin_widths, repr(bin_text))
+          assert hex_widths == [80, 80, 80], hex_widths
+          assert bin_widths == [45, 45, 45], bin_widths
+          print('FIELDWORK_RESULT hexyl-empty-binary-geometry=fixed')
+          print('FIELDWORK_RESULT hexadecimal-control=byte-identical')
+          PY
+
+      - name: Candidate respects explicit panel counts
+        working-directory: /tmp/hexyl
+        run: |
+          set -euxo pipefail
+          for panels in 1 2 3; do
+            /tmp/hexyl-candidate --color=never --base=binary --panels="$panels" /tmp/fieldwork-empty.bin > "/tmp/candidate-panels-$panels.out"
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          for panels in (1, 2, 3):
+              path = Path(f'/tmp/candidate-panels-{panels}.out')
+              text = path.read_text(encoding='utf-8')
+              widths = [len(line) for line in text.splitlines() if line]
+              print('FIELDWORK_PANELS', panels, widths, repr(text))
+              assert len(widths) == 3
+              assert len(set(widths)) == 1, (panels, widths)
+          print('FIELDWORK_RESULT explicit-panel-controls=consistent')
+          PY
+
+      - name: Candidate respects position and character toggles
+        working-directory: /tmp/hexyl
+        run: |
+          set -euxo pipefail
+          /tmp/hexyl-candidate --color=never --terminal-width=80 --base=binary --no-characters /tmp/fieldwork-empty.bin > /tmp/candidate-no-chars.out
+          /tmp/hexyl-candidate --color=never --terminal-width=80 --base=binary --no-position /tmp/fieldwork-empty.bin > /tmp/candidate-no-position.out
+          /tmp/hexyl-candidate --color=never --terminal-width=80 --base=binary --no-characters --no-position /tmp/fieldwork-empty.bin > /tmp/candidate-data-only.out
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('candidate-no-chars.out', 'candidate-no-position.out', 'candidate-data-only.out'):
+              text = Path('/tmp/' + name).read_text(encoding='utf-8')
+              widths = [len(line) for line in text.splitlines() if line]
+              print('FIELDWORK_TOGGLE', name, widths, repr(text))
+              assert len(widths) == 3
+              assert len(set(widths)) == 1, (name, widths)
+          print('FIELDWORK_RESULT panel-toggle-controls=consistent')
+          PY
+
+      - name: Preserve exact candidate receipt
+        if: always()
+        run: |
+          set +e
+          printf 'hexyl_base=%s\n' "$HEXYL_SHA"
+          printf 'fieldwork_head=%s\n' '${{ github.event.pull_request.head.sha }}'
+          if test -f /tmp/hexyl-empty-row.generated.patch; then
+            echo '--- generated candidate diff ---'
+            cat /tmp/hexyl-empty-row.generated.patch
+          fi
+          for f in /tmp/baseline-bin.out /tmp/candidate-bin.out /tmp/baseline-hex.out /tmp/candidate-hex.out; do
+            if test -f "$f"; then
+              python3 - "$f" <<'PY'
+          from pathlib import Path
+          import sys
+          p = Path(sys.argv[1])
+          print(p.name, repr(p.read_text(encoding='utf-8')))
+          PY
+            fi
+          done
