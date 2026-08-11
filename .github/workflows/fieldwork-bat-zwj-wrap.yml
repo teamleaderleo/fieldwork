@@ -1,0 +1,91 @@
+name: Fieldwork Bat ZWJ wrap probe
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bat-zwj-wrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BAT_SHA: af59a3218303837421ce06bb2dc3c545525bba0f
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact Bat source read-only
+        run: |
+          set -euxo pipefail
+          git init /tmp/bat
+          git -C /tmp/bat remote add origin https://github.com/sharkdp/bat.git
+          git -C /tmp/bat fetch --depth=1 origin "$BAT_SHA"
+          git -C /tmp/bat checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/bat rev-parse HEAD)" = "$BAT_SHA"
+
+      - name: Build exact Bat binary
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          cargo build --locked --bin bat
+
+      - name: Prepare exact UTF-8 fixtures
+        run: |
+          set -euxo pipefail
+          printf '👩‍💻a\n' > /tmp/bat-critical.txt
+          printf '界a\n' > /tmp/bat-control.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('critical', 'control'):
+              p = Path(f'/tmp/bat-{name}.txt')
+              print(name, repr(p.read_text()), p.read_bytes().hex())
+          PY
+
+      - name: Execute character-wrap discriminator
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          ./target/debug/bat --no-config --plain --paging=never --color=never --wrap=character --terminal-width 2 /tmp/bat-critical.txt > /tmp/bat-critical.out
+          ./target/debug/bat --no-config --plain --paging=never --color=never --wrap=character --terminal-width 2 /tmp/bat-control.txt > /tmp/bat-control.out
+
+      - name: Classify grapheme integrity
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          critical = Path('/tmp/bat-critical.out').read_text()
+          control = Path('/tmp/bat-control.out').read_text()
+          print('critical=', repr(critical), Path('/tmp/bat-critical.out').read_bytes().hex())
+          print('control=', repr(control), Path('/tmp/bat-control.out').read_bytes().hex())
+
+          expected_control = '界\na\n'
+          intact = '👩‍💻\na\n'
+          split = '👩‍\n💻\na\n'
+
+          if control != expected_control:
+              raise SystemExit(f'unexpected control output: {control!r}')
+          if critical == intact:
+              print('FIELDWORK_RESULT bat-character-zwj=intact')
+          elif critical == split:
+              print('FIELDWORK_RESULT bat-character-zwj=split-inside-grapheme')
+          else:
+              raise SystemExit(f'unexpected critical output: {critical!r}')
+          PY
+
+      - name: Preserve exact receipt
+        if: always()
+        run: |
+          set +e
+          printf 'bat=%s\n' "$(git -C /tmp/bat rev-parse HEAD 2>/dev/null)"
+          printf 'fieldwork_head=%s\n' '${{ github.event.pull_request.head.sha }}'
+          printf 'experiment=%s\n' 'EXP-20260811-bat-zwj-wrap'
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('critical', 'control'):
+              p = Path(f'/tmp/bat-{name}.out')
+              if p.exists():
+                  print(name, repr(p.read_text()), p.read_bytes().hex())
+          PY
