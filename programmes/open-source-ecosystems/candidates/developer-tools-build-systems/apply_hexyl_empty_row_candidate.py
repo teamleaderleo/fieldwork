@@ -29,7 +29,6 @@ after = '''        if is_empty {
             self.print_header()?;
 
             let outer_sep = self.border_style.outer_sep();
-            let inner_sep = self.border_style.inner_sep();
             write!(self.writer, "{outer_sep}")?;
 
             if self.show_position_panel {
@@ -40,25 +39,14 @@ after = '''        if is_empty {
                 let content = if panel == 0 { "No content" } else { "" };
                 write!(
                     self.writer,
-                    " {content:<width$}",
+                    " {content:<width$}{outer_sep}",
                     width = self.panel_sz() - 1,
                 )?;
-                let separator = if panel + 1 == self.panels {
-                    outer_sep
-                } else {
-                    inner_sep
-                };
-                write!(self.writer, "{separator}")?;
             }
 
             if self.show_char_panel {
-                for panel in 0..self.panels {
-                    let separator = if panel + 1 == self.panels {
-                        outer_sep
-                    } else {
-                        inner_sep
-                    };
-                    write!(self.writer, "{:8}{separator}", "")?;
+                for _ in 0..self.panels {
+                    write!(self.writer, "{:8}{outer_sep}", "")?;
                 }
             }
             writeln!(self.writer)?;
