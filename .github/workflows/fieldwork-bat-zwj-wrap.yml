@@ -49,8 +49,8 @@ jobs:
         working-directory: /tmp/bat
         run: |
           set -euxo pipefail
-          ./target/debug/bat --no-config --plain --paging=never --color=never --wrap=character --terminal-width 2 /tmp/bat-critical.txt > /tmp/bat-critical.out
-          ./target/debug/bat --no-config --plain --paging=never --color=never --wrap=character --terminal-width 2 /tmp/bat-control.txt > /tmp/bat-control.out
+          ./target/debug/bat --no-config --decorations=always --plain --paging=never --color=never --wrap=character --terminal-width 2 /tmp/bat-critical.txt > /tmp/bat-critical.out
+          ./target/debug/bat --no-config --decorations=always --plain --paging=never --color=never --wrap=character --terminal-width 2 /tmp/bat-control.txt > /tmp/bat-control.out
 
       - name: Classify grapheme integrity
         run: |
