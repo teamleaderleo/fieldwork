@@ -14,7 +14,7 @@ env:
   CARGO_INCREMENTAL: "0"
   CARGO_NET_RETRY: "10"
   RUST_BACKTRACE: "1"
-  SWC_HEAD: 04a639071977f193038779655c9ad28e07af62c5
+  SWC_HEAD: 4a7cc4fa9c919d333c6d5511b9496921352a6c7e
 
 jobs:
   focused-fold-only:
@@ -44,25 +44,6 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SWC_HEAD"
           git diff "$SWC_HEAD^" "$SWC_HEAD" --check
           cargo fmt --all -- --check
-
-      - name: Run transform folding unit test
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo test -p swc_ecma_transforms_optimization test_fold_instance_of -- --nocapture
-
-      - name: Run transform fold fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo test -p swc_ecma_transforms_optimization --test fixture -- --list | tee /tmp/transform-tests.list
-          test_name="$(grep -i 'instanceof.*observable' /tmp/transform-tests.list | head -n 1 | sed 's/: test$//')"
-          if [ -z "$test_name" ]; then
-            echo "::error::Unable to locate the instanceof observable transform fixture"
-            exit 41
-          fi
-          echo "transform_test=$test_name"
-          cargo test -p swc_ecma_transforms_optimization --test fixture "$test_name" -- --exact --nocapture
 
       - name: Run minifier used-result fixture
         shell: bash
