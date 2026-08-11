@@ -4,7 +4,7 @@ Bat's current wrapping loop walks text one Unicode scalar at a time and decides 
 
 The focused example is `👩‍💻`: WOMAN + ZWJ + PERSONAL COMPUTER is one extended grapheme cluster. At a two-column row budget, source reading predicts Bat will buffer `👩‍`, see `💻` push the scalar-width total past the row, and flush a newline inside the cluster.
 
-The public CLI makes this directly testable with `--wrap=character --terminal-width 2 --plain --paging=never --color=never`. The control is `界a`, where the first grapheme is an ordinary two-column scalar and the row break should occur after it.
+The public CLI makes this directly testable with `--wrap=character --terminal-width 2`. Because redirected plain output normally selects Bat's simple cat printer, the execution harness also sets `--decorations=always --plain`: `--decorations=always` forces `InteractivePrinter`, while `--plain` keeps decoration components empty. The control is `界a`, where the first grapheme is an ordinary two-column scalar and the row break should occur after it.
 
 ## Assignment
 
@@ -32,6 +32,12 @@ The file imports `UnicodeSegmentation`, but this wrapping loop itself is scalar-
 
 Bat currently depends on `unicode-width = 0.2.2` and `unicode-segmentation = 1.13.2`.
 
+## Printer-selection map
+
+`Controller` uses `SimplePrinter` when `config.loop_through` is true and `InteractivePrinter` otherwise.
+
+For redirected stdout, `loop_through` stays true unless output behavior is explicitly forced. `--decorations=always` is one public forcing input. The style parser separately honors `--plain`, so the probe can reach `InteractivePrinter` without adding visible gutters or headers.
+
 ## Public contract map
 
 Bat's generated long help documents:
@@ -58,14 +64,14 @@ Control input:
 Both run through:
 
 ```text
-bat --plain --paging=never --color=never --wrap=character --terminal-width 2
+bat --no-config --decorations=always --plain --paging=never --color=never --wrap=character --terminal-width 2
 ```
 
 Classification is by exact UTF-8 output lines. A newline inside the `👩‍💻` cluster promotes the finding; a complete cluster on one row rejects the source-level hypothesis.
 
 ## Overlap
 
-Focused open-issue search for emoji/grapheme/ZWJ wrapping returned no matching owner during intake. Refresh before promotion or any external proposal.
+Focused open issue and PR searches for emoji/grapheme/ZWJ wrapping returned no matching owner during intake. Refresh before promotion or any external proposal.
 
 ## Stop condition
 
