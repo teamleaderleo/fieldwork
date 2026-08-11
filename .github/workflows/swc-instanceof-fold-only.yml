@@ -1,0 +1,90 @@
+name: SWC instanceof fold-only carrier
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - ".github/workflows/swc-instanceof-fold-only.yml"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_HTTP_MULTIPLEXING: "false"
+  CARGO_INCREMENTAL: "0"
+  CARGO_NET_RETRY: "10"
+  RUST_BACKTRACE: "1"
+  SWC_HEAD: 04853860565827cdca173d2213fca3fec149efc6
+
+jobs:
+  focused-fold-only:
+    if: github.head_ref == 'fieldwork/execution/swc-instanceof-fold-only'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact owned-fork candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: teamleaderleo/swc
+          ref: ${{ env.SWC_HEAD }}
+          persist-credentials: false
+          submodules: true
+
+      - name: Install SWC Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: nightly-2026-04-10
+          components: rustfmt,clippy
+
+      - name: Confirm exact candidate and diff hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SWC_HEAD"
+          git diff "$SWC_HEAD^" "$SWC_HEAD" --check
+          cargo fmt --all -- --check
+
+      - name: Run transform folding unit test
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test -p swc_ecma_transforms_optimization test_fold_instance_of -- --nocapture
+
+      - name: Run transform fold fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test -p swc_ecma_transforms_optimization --test fixture -- --list | tee /tmp/transform-tests.list
+          test_name="$(grep -i 'instanceof.*observable' /tmp/transform-tests.list | head -n 1 | sed 's/: test$//')"
+          if [ -z "$test_name" ]; then
+            echo "::error::Unable to locate the instanceof observable transform fixture"
+            exit 41
+          fi
+          echo "transform_test=$test_name"
+          cargo test -p swc_ecma_transforms_optimization --test fixture "$test_name" -- --exact --nocapture
+
+      - name: Run minifier used-result fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test -p swc_ecma_minifier --features concurrent --features par-core/chili --test compress -- --list | tee /tmp/minifier-tests.list
+          test_name="$(grep -i 'instanceof.*used.*value' /tmp/minifier-tests.list | head -n 1 | sed 's/: test$//')"
+          if [ -z "$test_name" ]; then
+            echo "::error::Unable to locate the instanceof used-value minifier fixture"
+            exit 42
+          fi
+          echo "minifier_test=$test_name"
+          cargo test -p swc_ecma_minifier --features concurrent --features par-core/chili --test compress "$test_name" -- --exact --nocapture
+
+      - name: Run package clippy
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo clippy -p swc_ecma_transforms_optimization --all-targets -- -D warnings
+          cargo clippy -p swc_ecma_minifier --all-targets -- -D warnings
+
+      - name: Final diff hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff "$SWC_HEAD^" "$SWC_HEAD" --check
