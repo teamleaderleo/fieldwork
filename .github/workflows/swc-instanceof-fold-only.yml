@@ -75,7 +75,20 @@ jobs:
             exit 42
           fi
           echo "minifier_test=$test_name"
-          cargo test -p swc_ecma_minifier --features concurrent --features par-core/chili --test compress "$test_name" -- --exact --nocapture
+          set +e
+          cargo test -p swc_ecma_minifier --features concurrent --features par-core/chili --test compress "$test_name" -- --exact --nocapture 2>&1 | tee /tmp/minifier-fixture.log
+          status=${PIPESTATUS[0]}
+          set -e
+          exit "$status"
+
+      - name: Upload focused minifier failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swc-instanceof-minifier-failure
+          path: /tmp/minifier-fixture.log
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Run package clippy
         shell: bash
