@@ -14,7 +14,7 @@ env:
   CARGO_INCREMENTAL: "0"
   CARGO_NET_RETRY: "10"
   RUST_BACKTRACE: "1"
-  SWC_HEAD: 4a7cc4fa9c919d333c6d5511b9496921352a6c7e
+  SWC_HEAD: 2676e3ee0e6f2bc478169bdd3a9a56bcd7b222aa
 
 jobs:
   focused-fold-only:
