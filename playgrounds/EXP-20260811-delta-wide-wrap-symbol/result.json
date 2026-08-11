@@ -1,9 +1,9 @@
 {
   "experiment": "EXP-20260811-delta-wide-wrap-symbol",
   "target_revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
-  "fieldwork_head_at_execution": "6fb3dda3802e34c2d9cfc82de0bec804c04bb9df",
-  "workflow_run": 31440774199,
-  "job": 93624827655,
+  "fieldwork_head_at_execution": "21908fe6a69812659e40a9367b755aab9c148737",
+  "workflow_run": 31489009549,
+  "job": 93770852535,
   "evidence_class": "target-executed",
   "observations": {
     "validator_reachability": {
@@ -12,7 +12,7 @@
       "display_width": 2,
       "result": "accepted"
     },
-    "owner_negative_control": {
+    "owner_ascii_negative_control": {
       "marker": "+",
       "line_width": 2,
       "text": "abc",
@@ -29,23 +29,37 @@
       "result": "watchdog-expired",
       "terminated": false
     },
-    "cli_negative_control": {
-      "command_context": "delta --side-by-side --width 16 --line-fill-method=spaces --wrap-max-lines unlimited",
+    "owner_valid_marker_wide_grapheme": {
       "marker": "+",
-      "fixture": "minimal one-line replacement diff",
+      "line_width": 2,
+      "text": "界a",
+      "max_lines": "unlimited",
+      "watchdog_seconds": 8,
+      "result": "watchdog-expired",
+      "terminated": false
+    },
+    "cli_ascii_negative_control": {
+      "command_context": "delta --side-by-side --width 16 --line-fill-method=spaces --wrap-max-lines unlimited --wrap-left-symbol +",
+      "fixture": "minimal one-line replacement diff with ASCII replacement",
       "result": "terminated",
       "terminated": true
     },
     "cli_wide_marker": {
-      "command_context": "delta --side-by-side --width 16 --line-fill-method=spaces --wrap-max-lines unlimited",
-      "marker": "界",
-      "fixture": "minimal one-line replacement diff",
+      "command_context": "delta --side-by-side --width 16 --line-fill-method=spaces --wrap-max-lines unlimited --wrap-left-symbol 界",
+      "fixture": "minimal one-line replacement diff with ASCII replacement",
+      "watchdog_seconds": 8,
+      "result": "watchdog-expired",
+      "terminated": false
+    },
+    "cli_valid_marker_wide_grapheme": {
+      "command_context": "delta --side-by-side --width 16 --line-fill-method=spaces --wrap-max-lines unlimited --wrap-left-symbol +",
+      "fixture": "minimal one-line replacement diff whose replacement begins with 界",
       "watchdog_seconds": 8,
       "result": "watchdog-expired",
       "terminated": false
     }
   },
-  "conclusion": "Exact Delta source accepts a two-column one-grapheme wrap marker through the public configuration parser. The focused wrap owner then makes zero text progress at content width 2, and the built public CLI reproduces the hang under side-by-side width 16 with unlimited wrapping. The identical one-column marker control terminates in both paths.",
+  "conclusion": "The nontermination is broader than the wrap-marker validation bug. Exact current Delta can make zero progress with a valid one-column '+' marker when the next source grapheme is two columns and only one content column remains before the marker. The exact wrap owner and the built public CLI both reproduce this valid-configuration hang under unlimited wrapping. A two-column custom marker is an additional trigger because its validator counts graphemes instead of display columns.",
   "promotion": "https://github.com/teamleaderleo/fieldwork/issues/820",
-  "remaining_gate": "Evaluate the smallest repair in an owned Delta fork, preserving a progress invariant even when configuration validation is bypassed internally."
+  "remaining_gate": "Treat the wrap loop progress invariant as the primary source owner. In owned source work, prove that every split consumes at least one source grapheme or exits safely; separately repair actual display-width validation for wrap marker options."
 }
