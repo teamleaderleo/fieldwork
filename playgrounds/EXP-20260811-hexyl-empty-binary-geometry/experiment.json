@@ -4,7 +4,7 @@
   "question": "Does Hexyl's empty-input special row use a different panel geometry from the surrounding border in binary base mode?",
   "owner": "GPT-5.6 Sol",
   "created_at": "2026-08-11",
-  "state": "running",
+  "state": "promoted",
   "claim_scope": "mechanism",
   "integration_context": null,
   "sources": [
@@ -43,11 +43,20 @@
       "interpretation": "The special empty-input owner has a target-executed panel-geometry mismatch specific to the binary one-panel layout."
     }
   ],
-  "stop_condition": "Stop after exact target CLI output classifies row widths for binary and hexadecimal empty input. Promote only if the binary mismatch reproduces with a consistent control.",
+  "target_execution": {
+    "workflow_run": 31444376782,
+    "job": 93635352237,
+    "evidence_class": "target-executed",
+    "target_revision": "6ecc29b9c8c84d08a7e860f7f69c22b113b480ea",
+    "result": "With fixed terminal width 80 and an empty file, hexadecimal output rows are 80,80,80. Binary output rows are 45,80,45: the one-panel border is 45 columns while the No content row retains the fixed two-panel geometry.",
+    "receipt": "playgrounds/EXP-20260811-hexyl-empty-binary-geometry/result.json"
+  },
+  "stop_condition": "Promoted after exact target CLI reproduction. Continue source work only in a Fieldwork candidate carrier or owned Hexyl fork; refresh overlap before any external proposal.",
   "network_policy": "public-read-only",
   "upstream_contact_authorized": false,
   "result_paths": [
-    "playgrounds/EXP-20260811-hexyl-empty-binary-geometry/README.md"
+    "playgrounds/EXP-20260811-hexyl-empty-binary-geometry/README.md",
+    "playgrounds/EXP-20260811-hexyl-empty-binary-geometry/result.json"
   ],
-  "promoted_to": null
+  "promoted_to": "https://github.com/teamleaderleo/fieldwork/issues/834"
 }
