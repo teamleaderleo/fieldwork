@@ -20,7 +20,9 @@ Required controls:
 
 Production candidate generations 1 and 2 are superseded. Generation 3 keeps the existing helper hook and adds only an exact-zero stop after a false hook result.
 
-Carrier generation 7 repairs reviewer-patch representation only. Run `31428627770` already proved exact baseline RED on both Python lanes and then showed that the deterministic transformer produced the intended production edit; the remaining failure was byte-equivalence against a hand-shaped reviewer hunk. The regenerated patch now uses the ordinary Git diff window (`@@ -384,6 +384,8 @@`) and retains trailing context.
+Carrier generation 8 refreshes this execution head against the current research base after the evidence artifacts advanced. The required research generation is `research/0806-urllib3-retry-after-zero@6d520c56c26f1672ad8fba6df2fdba04d70dadce`.
+
+The current reviewer patch uses the ordinary Git exact-source window (`@@ -384,6 +384,8 @@`) with trailing context. The deterministic transformer and production algorithm are unchanged.
 
 Public urllib3 PR 5010 remains live mechanical overlap. This carrier proves the candidate only and grants no public packaging authority.
 
