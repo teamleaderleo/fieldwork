@@ -13,8 +13,9 @@ Owned-fork carriers, all based on the same upstream commit:
 - A: `teamleaderleo/uv#90` — command-local hint via `uv tool dir`
 - B: `teamleaderleo/uv#91` — shared exact-path lower-level hint
 - C: `teamleaderleo/uv#92` — command-local hint with the resolved tool-root path
+- D: patch-only — shared exact-path top-level hint without a new `uv-tool` dependency
 
-The upstream-owned regression snapshot is intentionally unchanged in the first carrier commit for each contender. A focused test failure is useful evidence here because it exposes the exact diagnostic output produced by the candidate.
+The upstream-owned regression snapshot is intentionally unchanged in the first carrier commit for A/B/C. A focused test failure is useful evidence here because it exposes the exact diagnostic output produced by the candidate.
 
 ## Shared behavior
 
@@ -28,6 +29,19 @@ Required controls:
 - unrelated top-level I/O failures do not receive an invalid-name recovery hint;
 - preserve the current propagated-error exit classification unless a separate decision changes it.
 
+## Recovery wording boundary
+
+Generic rename advice is rejected for now.
+
+The directory name is parsed separately and used as the enumerated tool identity. The receipt retains the original requested requirements, and receipt parsing does not validate those requirements against the directory name. Renaming an invalid directory to an arbitrary valid package name could therefore replace an obvious invalid-directory state with a directory/receipt/environment identity mismatch.
+
+Preferred recovery family:
+
+- move the unexpected directory outside the uv tool directory; or
+- remove it if it is unwanted.
+
+The first A/B/C carrier strings still contain `rename`; those strings are superseded R&D output and should be changed before any candidate is treated as selected.
+
 ## A — command-local diagnostic
 
 Sketch: `A-command-local.patch`
@@ -36,10 +50,10 @@ Carrier: `teamleaderleo/uv#90`
 
 `tool upgrade` catches `InstalledTools::tools()` errors, adds `Failed to enumerate installed tools` context, supplies a recovery hint only for `uv_tool::Error::ToolName`, renders the diagnostic, and returns `ExitStatus::Error`.
 
-Invalid-name hint family:
+Preferred invalid-name hint family after wording refinement:
 
 ```text
-hint: Run `uv tool dir` to locate the tool directory, then move, rename, or remove the invalid directory
+hint: Run `uv tool dir` to locate the tool directory, then move the invalid directory outside it or remove it
 ```
 
 Advantages:
@@ -63,14 +77,14 @@ Carrier: `teamleaderleo/uv#91`
 
 `InstalledTools::tools()` creates a dedicated `InvalidToolDirectory` error carrying the exact directory path and original `InvalidNameError`. `uv_tool::Error` implements `uv_errors::Hint`; the central diagnostic collector learns `uv_tool::Error`; `tool upgrade` adds operation context and propagates normally.
 
-Expected output family:
+Preferred output family:
 
 ```text
 error: Failed to enumerate installed tools
   Caused by: Invalid tool directory at `.../tool backup`
   Caused by: Not a valid package or extra name: "tool backup" ...
 
-hint: Move, rename, or remove the invalid tool directory at `.../tool backup`
+hint: Move the invalid tool directory at `.../tool backup` outside the uv tool directory, or remove it
 ```
 
 Advantages:
@@ -81,23 +95,27 @@ Advantages:
 
 Costs:
 
-- four source files before any `Cargo.lock` refresh;
-- adds `uv-tool -> uv-errors`;
+- four source files plus one `Cargo.lock` dependency-list edit: five files total;
+- adds explicit `uv-tool -> uv-errors` dependency metadata;
 - changes `uv-tool` error API;
 - broadens user-visible behavior across sibling commands and therefore needs sibling controls.
 
-The first carrier intentionally leaves `Cargo.lock` untouched so CI can tell us whether the dependency itself adds lockfile churn.
+`uv-errors` is already present transitively in this part of the dependency graph, so B does not add a new third-party package. The lockfile cost is an extra `"uv-errors"` entry under the existing `uv-tool` package.
+
+Current source has exactly one `PackageName::from_str` call in `uv-tool`, at the tool-directory enumeration site, and no explicit `uv_tool::Error::ToolName` consumer. That makes the path-aware invalid-name case narrower than initially feared.
 
 ## C — command-local root-path hint
+
+Sketch: `C-path-aware-local-hint.patch`
 
 Carrier: `teamleaderleo/uv#92`
 
 C asks whether most of B's recovery value can be obtained without touching `uv-tool` at all. It keeps A's command-local boundary but inserts the already-known `InstalledTools::root()` path directly into the hint.
 
-Invalid-name hint family:
+Preferred invalid-name hint family:
 
 ```text
-hint: Inspect the uv tool directory at `/actual/tool/root`; move, rename, or remove the invalid directory
+hint: Inspect the uv tool directory at `/actual/tool/root`; move the invalid directory outside it or remove it
 ```
 
 Advantages:
@@ -114,22 +132,43 @@ Weaknesses:
 - sibling commands remain unchanged;
 - command code still owns rendering.
 
+## D — exact path with shared top-level hint
+
+Sketch: `D-shared-path-top-level-hint.patch`
+
+D keeps B's `InvalidToolDirectory { path, source }` data in `uv-tool`, but does not implement `uv_errors::Hint` there. The top-level diagnostic walker recognizes that concrete error variant and pushes the recovery hint itself.
+
+Advantages:
+
+- exact offending child path;
+- shared recovery across sibling tool commands;
+- no `uv-tool -> uv-errors` or `Cargo.lock` edit;
+- three source files instead of B's five-file footprint.
+
+Weaknesses:
+
+- the top-level diagnostic layer knows a concrete `uv_tool::Error` variant;
+- recovery policy lives away from the lower-level error definition;
+- still broadens sibling command output and needs sibling controls.
+
+D is currently patch-only because A/B/C already provide enough queued carriers to compare the main behavior/UX axes. Materialize D if B's exact-path behavior proves valuable and its dependency placement is the main objection.
+
 ## Scorecard
 
-| Question | A | B | C |
-| --- | --- | --- | --- |
-| Production files in first carrier | 1 | 4 | 1 |
-| Exact offending child path | no | yes | no |
-| Tool-root path shown directly | no | yes | yes |
-| Shared recovery across tool commands | no | yes | no |
-| New crate dependency | no | `uv-tool -> uv-errors` | no |
-| Explicitly preserves exit 2 | yes | normal propagation | yes |
-| Central hint collection | no | yes | no |
-| User must run `uv tool dir` | yes | no | no |
+| Question | A | B | C | D |
+| --- | --- | --- | --- | --- |
+| Expected files | 1 | 5 | 1 | 3 |
+| Exact offending child path | no | yes | no | yes |
+| Tool-root path shown directly | no | yes | yes | yes |
+| Shared recovery across tool commands | no | yes | no | yes |
+| New direct crate dependency | no | yes | no | no |
+| Explicitly preserves exit 2 in command | yes | normal propagation | yes | normal propagation |
+| Central shared hint handling | no | yes via `Hint` | no | yes via concrete match |
+| User must run `uv tool dir` | yes | no | no | no |
 
 ## Execution matrix
 
-For each contender, exercise the same cases:
+For each selected contender, exercise the same cases:
 
 ```sh
 # invalid package-directory name
