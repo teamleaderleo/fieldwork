@@ -17,7 +17,9 @@ Required matrix:
 
 Run `31426131410` established baseline RED on both Python lanes, then stopped before candidate execution because the reviewer patch artifact had a bad hunk header. Run `31428442539` again reached baseline RED, then stopped at patch applicability.
 
-Carrier generation 7 keeps the candidate algorithm unchanged and regenerates `candidate.patch` in the ordinary Git diff window for the exact source edit:
+Carrier generation 8 refreshes this execution head against the current research base after the evidence artifacts advanced. The required research generation is `research/0800-urllib3-content-encoding-chain@0f675ab1fe4789061b50869adf2ddb555231437c`.
+
+The selected production algorithm remains generation 2. The current reviewer patch uses the ordinary Git diff window for the exact source edit:
 
 - hunk starts at line 614 with three lines of leading context;
 - trailing `_decode()` context is retained;
