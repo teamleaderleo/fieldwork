@@ -1,0 +1,95 @@
+# EXPERIMENT E2 — command-owned typed error with central hint rendering
+#
+# Base: astral-sh/uv@95637ecf70cbf3c8a8d11f424b9a654e8fefdf51
+# Public issue: https://redirect.github.com/astral-sh/uv/issues/21058
+# Upstream reproduction: https://redirect.github.com/astral-sh/uv/pull/21059
+#
+# Internal design sketch only.
+#
+# Same behavior/scope as E, but the command-specific error type lives beside
+# `tool upgrade` instead of in the generic diagnostics module.
+
+---
+ crates/uv/src/commands/diagnostics.rs  |  1 +
+ crates/uv/src/commands/tool/upgrade.rs | 34 +++++++++++++++++++++++++++++++---
+ 2 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/crates/uv/src/commands/diagnostics.rs b/crates/uv/src/commands/diagnostics.rs
+--- a/crates/uv/src/commands/diagnostics.rs
++++ b/crates/uv/src/commands/diagnostics.rs
+@@
+ pub(crate) fn hints_for_error(err: &anyhow::Error) -> Hints<'static> {
+     let mut hints = Hints::none();
+     for cause in err.chain() {
++        collect_hint::<crate::commands::tool::upgrade::ToolInventoryError>(cause, &mut hints);
+         collect_hint::<Box<uv_resolver::NoSolutionError>>(cause, &mut hints);
+
+diff --git a/crates/uv/src/commands/tool/upgrade.rs b/crates/uv/src/commands/tool/upgrade.rs
+--- a/crates/uv/src/commands/tool/upgrade.rs
++++ b/crates/uv/src/commands/tool/upgrade.rs
+@@
+-use uv_errors::{ErrorOptions, Hints, write_error_chain_with_options};
+-use uv_fs::CWD;
++use uv_errors::{ErrorOptions, Hint, Hints, write_error_chain_with_options};
++use uv_fs::{CWD, Simplified};
+@@
+ use crate::settings::ResolverInstallerSettings;
++
++/// Add command context and recovery guidance to failures while inspecting installed tools.
++#[derive(Debug, thiserror::Error)]
++#[error("Failed to inspect installed tools")]
++pub(crate) struct ToolInventoryError {
++    invalid_name_root: Option<std::path::PathBuf>,
++    #[source]
++    source: uv_tool::Error,
++}
++
++impl ToolInventoryError {
++    fn new(root: &std::path::Path, source: uv_tool::Error) -> Self {
++        let invalid_name_root =
++            matches!(&source, uv_tool::Error::ToolName(_)).then(|| root.to_path_buf());
++        Self {
++            invalid_name_root,
++            source,
++        }
++    }
++}
++
++impl Hint for ToolInventoryError {
++    fn hints(&self) -> Hints<'_> {
++        let Some(root) = self.invalid_name_root.as_ref() else {
++            return Hints::none();
++        };
++        Hints::from(format!(
++            "Inspect the uv tool directory at `{}`; move the invalid directory outside it, or remove it",
++            root.user_display()
++        ))
++    }
++}
+@@
+         if names.is_empty() {
+             installed_tools
+                 .tools()
+-                .unwrap_or_default()
++                .map_err(|err| ToolInventoryError::new(installed_tools.root(), err))?
+                 .into_iter()
+                 .map(|(name, _)| (name, Vec::new()))
+                 .collect()
+
+# Expected behavior is identical to E:
+#
+# invalid-name:
+# error: Failed to inspect installed tools
+#   Caused by: Not a valid package or extra name: "tool backup" ...
+# hint: root-path recovery
+# exit 2
+#
+# unrelated top-level I/O:
+# error: Failed to inspect installed tools
+#   Caused by: <I/O>
+# no hint
+# exit 2
+#
+# Sibling commands unchanged.
+#
+# Complete upstream-quality footprint remains 3 files including the existing regression.
