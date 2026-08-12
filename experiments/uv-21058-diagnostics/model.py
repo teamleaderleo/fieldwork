@@ -178,6 +178,29 @@ class ToolRoot:
                 path.write_text(json.dumps(payload, sort_keys=True) + "\n")
         return findings
 
+    def reconcile_retired_launchers(
+        self, tool: str, generation: int, *, dry_run: bool = True
+    ) -> list[str]:
+        manifest = self.generation_manifest(tool, generation)
+        desired = set(manifest["entrypoints"])
+        actions: list[str] = []
+        for path in (self.internal / "public").iterdir():
+            if not path.is_file():
+                continue
+            try:
+                launcher = json.loads(path.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            if launcher.get("root_id") != "R1" or launcher.get("tool") != tool:
+                continue
+            entrypoint = launcher.get("entrypoint")
+            if entrypoint in desired:
+                continue
+            actions.append(f"remove retired launcher {path}")
+            if not dry_run:
+                path.unlink()
+        return actions
+
     def install(
         self,
         tool: str,
@@ -334,21 +357,48 @@ def run_scenarios() -> dict:
         assert not bad.exists()
         assert (root.internal / "quarantine" / "tool backup").exists()
 
+        # A later generation may retire an entrypoint without making cleanup the commit point.
+        root.install("black", 4, "25.2", ["black"])
+        assert root.active_generation("black") == 4
+        assert "25.2" in root.resolve("black").read_text()
+        try:
+            root.resolve("blackd")
+        except RuntimeError as err:
+            assert "retired" in str(err)
+        else:
+            raise AssertionError("retired entrypoint unexpectedly resolved old code")
+        cleanup_plan = root.reconcile_retired_launchers("black", 4, dry_run=True)
+        assert cleanup_plan and root.public_path("blackd").exists()
+        root.reconcile_retired_launchers("black", 4, dry_run=False)
+        assert not root.public_path("blackd").exists()
+
         # A foreign public file is preserved and blocks publication.
         foreign = root.public_path("black-beta")
         foreign.write_text("FOREIGN\n")
-        stage = root.prepare_generation("black", 4, "26.0", ["black", "black-beta"])
-        root.publish_generation("black", 4, stage)
-        findings = root.ensure_public_launchers("black", 4)
+        stage = root.prepare_generation("black", 5, "26.0", ["black", "black-beta"])
+        root.publish_generation("black", 5, stage)
+        findings = root.ensure_public_launchers("black", 5)
         assert any(f.code == "F3101" for f in findings)
         assert foreign.read_text() == "FOREIGN\n"
-        assert root.active_generation("black") == 3
+        assert root.active_generation("black") == 4
+
+        # An unclaimed custom root gets diagnosis only: no quarantine action is offered.
+        unclaimed_dir = Path(td) / "wrong-root"
+        unclaimed_dir.mkdir()
+        (unclaimed_dir / "tool backup").mkdir()
+        unclaimed = ToolRoot(unclaimed_dir)
+        unclaimed_findings = unclaimed.doctor()
+        assert [f.code for f in unclaimed_findings] == ["F0001"]
+        assert unclaimed.repair(dry_run=True) == []
+        assert (unclaimed_dir / "tool backup").exists()
 
         return {
             "active_generation": root.active_generation("black"),
             "black_target": str(root.resolve("black")),
             "quarantine_exists": (root.internal / "quarantine" / "tool backup").exists(),
             "foreign_preserved": foreign.read_text() == "FOREIGN\n",
+            "retired_launcher_removed": not root.public_path("blackd").exists(),
+            "unclaimed_root_preserved": (unclaimed_dir / "tool backup").exists(),
             "findings": [f.code for f in findings],
         }
 
