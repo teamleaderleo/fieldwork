@@ -2,11 +2,17 @@
 
 Issue: #800
 
-State: `candidate-generation-2 — exact baseline RED proven; deterministic candidate rerun queued`
+State: `candidate-generation-2 — exact baseline RED proven; generation-7 exact GREEN carrier queued`
 
 Target: `urllib3/urllib3@824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78`
 
 Parent exact reproduction: run `31423421919`, Python 3.12 and 3.14 success on the preserved scout discriminator.
+
+## In simple words
+
+Current urllib3 can turn an unsupported coding inside a mixed `Content-Encoding` chain into an implicit deflate decoder. The selected candidate keeps the whole chain opaque whenever any real coding token is unsupported, while preserving all-supported multi-decoding and HTTP empty-list handling.
+
+The exact pinned source has already produced the intended baseline failure on Python 3.12 and 3.14. Two later carrier attempts stopped on reviewer-patch packaging before candidate execution. Generation 7 regenerates that reviewer artifact in Git's ordinary exact-source diff window; the candidate algorithm is unchanged.
 
 ## Selected candidate
 
@@ -34,25 +40,27 @@ Both lanes reached the intended failing assertion: a mixed known/unknown chain d
 
 Evidence class: `target-executed` RED.
 
-The same run then stopped before any candidate code executed because the hand-written reviewer patch had a malformed hunk header:
+That run then stopped before candidate code executed because the hand-written reviewer patch had a malformed hunk header:
 
 ```text
 error: corrupt patch ... candidate.patch:20
 ```
 
-Classification: **carrier packaging only**. The candidate invariant and algorithm did not run in that generation.
+Run `31428442539` again reached baseline RED on both lanes, then stopped at `git apply --check` because the hand-shaped reviewer hunk did not apply. Direct source inspection showed its visible edit matched the pinned target; the failure remained evidence-carrier packaging.
 
 ## Evidence packaging repair
 
-The reviewer patch hunk count is corrected and carrier generation 5 now requires:
+Generation 7 uses the ordinary Git diff window for the exact production edit (`@@ -614,10 +614,12 @@`) with trailing context. The carrier now requires:
 
-1. `git apply --check candidate.patch` on clean exact source;
-2. deterministic `apply-candidate.py` transformation;
-3. `git diff --check`;
-4. generated production-only `response.py` diff matches `candidate.patch` byte-for-byte after removing Git `index` metadata;
-5. only then reinstall and execute candidate controls.
+1. target working-tree status and any pre-existing `response.py` diff are printed before candidate materialization;
+2. `response.py` must remain unchanged from the exact checkout;
+3. `git apply --verbose --check candidate.patch` succeeds;
+4. deterministic `apply-candidate.py` transforms the exact source;
+5. `git diff --check` succeeds;
+6. the generated production-only diff matches `candidate.patch` byte-for-byte after Git `index` metadata is removed;
+7. only then reinstall and execute candidate controls.
 
-Current rerun: #804 run `31428442539`, queued at this checkpoint.
+Current exact carrier: #804 run `31557906841`, queued for Python 3.12 and 3.14 at this checkpoint.
 
 ## Why production generation 1 was superseded
 
@@ -82,13 +90,15 @@ x-fieldwork, gzip
 
 A six-real-coding control requires the existing `MultiDecoder.max_decode_links = 5` protection to keep raising `DecodeError`. Empty list elements are excluded from this count in line with HTTP list parsing.
 
-RFC 9110 also reserves `identity` for its special role in Accept-Encoding and says it should not be included in Content-Encoding, so this candidate does not need a new identity/no-op decoder.
+RFC 9110 also reserves `identity` for its special role in Accept-Encoding and says it should not be included in Content-Encoding, so this candidate does not add an identity/no-op decoder.
 
-## Owner boundary
+## Owner boundary and history
 
-Focused current-source search finds `_get_decoder()` only inside `src/urllib3/response.py`. The deflate fallback cannot simply be removed because ordinary `deflate` reaches `DeflateDecoder` through that fallback today.
+Focused current-source search finds `_get_decoder()` only inside `src/urllib3/response.py`. The deflate fallback cannot be removed because ordinary `deflate` reaches `DeflateDecoder` through that fallback today.
 
-Generation 2 therefore tightens authorization before `MultiDecoder` construction and leaves `_get_decoder()` untouched. It does not invent a new DecodeError policy for unsupported chains.
+Generation 2 therefore tightens authorization before `MultiDecoder` construction and leaves `_get_decoder()` untouched. It does not invent a new `DecodeError` policy for unsupported chains.
+
+The asymmetry traces back to the original multi-decoder implementation in public urllib3 PR [1442](https://redirect.github.com/urllib3/urllib3/pull/1442), merged in 2018. That patch used recognized tokens only to decide whether multi-decoding should activate, then passed the complete original header into `MultiDecoder`. Its added regressions covered `deflate, deflate`, `deflate, gzip`, and `gzip, gzip`, with no mixed supported/unsupported control. This supports a latent boundary-defect classification rather than a recent regression.
 
 ## Candidate sanity
 
