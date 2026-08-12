@@ -72,16 +72,11 @@ This rule takes precedence over any older Fieldwork text that could be read as p
 
 Follow `REFERENCE_POLICY.md`.
 
-Before creating or editing a Fieldwork or owned-fork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work:
+Automated workers always use the literal `redirect.github.com` URL for every third-party GitHub issue, pull-request, or discussion reference they create. There are no automated exceptions: this applies in Fieldwork, owned repositories and forks, GitHub interaction text, tracked repository files, drafts, experiment records, and commit messages. Never emit third-party `OWNER/REPOSITORY#NUMBER` shorthand or direct third-party issue/PR/discussion URLs. If a direct reference is desired, a human must create it manually.
 
-- use the equivalent `redirect.github.com` URL unless recording an already-existing human-performed upstream interaction;
-- remove external owner/repository item and commit shorthand where the policy requires it;
-- use the intentional-upstream marker only to record an already-existing human-performed interaction;
-- remember that the marker never authorizes an automated upstream write.
+Direct repository-root, source-file, documentation, release, and commit links are unaffected.
 
-Repository notes, reports, maps, JSON records, and other tracked files may use ordinary direct links. They do not need the interaction preflight or an automated external-reference scan.
-
-The interaction workflow is a last-resort detector. It cannot reliably stop GitHub from processing a direct reference at the instant an issue or comment is created. Prevention by automated writers is mandatory for interaction text.
+Before a GitHub interaction write containing third-party work, run the exact final text through the preflight in `REFERENCE_POLICY.md`. A post-write workflow is only a detector; prevention by the automated writer is mandatory.
 
 ## Fork-free experiments
 
