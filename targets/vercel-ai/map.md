@@ -29,9 +29,11 @@ Vercel AI has enough providers, adapters, harnesses, and optional capabilities t
 
 Prefer investigations where the concrete case exposes clearly erroneous SDK behaviour, a meaningful user consequence, or an engineering question that transfers beyond one provider. Strong examples include state ownership, persistence and replay, parent/child isolation, cancellation, retries, resource identity, error settlement, concurrency, and public API semantics.
 
+Minor findings are welcome when they expose a reusable idea, failure mode, or SDK-wide lesson. Highly provider-specific findings are also welcome when the consequence is correspondingly significant. The low-priority zone is work that is both minor and highly specific: useful as a case study or note, but usually not worth opening or multiplying delivery candidates unless new evidence raises its significance.
+
 Provider-specific work can still qualify on its own when the consequence is substantial: data is lost, requests are sent somewhere materially different from the configured destination, durable history becomes unusable, a documented capability is represented incorrectly, or a provider event can corrupt SDK state. A named integration does not make a problem uninteresting; it simply should not be the only reason the problem was selected.
 
-Deprioritize narrow completeness work whose main result is that one provider option, obscure combination, or small capability is not forwarded exactly as the provider permits. Do not recursively inspect neighboring options just because one parity gap was found.
+Deprioritize narrow completeness work whose main result is that one provider option, obscure combination, or small capability is not forwarded exactly as the provider permits. Do not recursively inspect neighboring options just because one parity gap was found. Discovery notes and retained case studies are cheaper than another open pull request; not every confirmed discrepancy needs to become a delivery candidate.
 
 A useful selection test is to remove the vendor names from the problem statement. If the remaining technical question is still interesting, the investigation is usually a strong fit. If it is not, require a concrete user consequence before promoting the work. When stronger evidence reduces a candidate to minor provider parity, record the result and stop rather than manufacturing a campaign around it.
 
