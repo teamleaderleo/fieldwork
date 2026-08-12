@@ -111,19 +111,19 @@ For an integration trial, record:
 
 One worker may edit only the owned scout, experiment, trial branch, or assignment path. Coordinators own registries, manifests, status, synthesis, decision, and closeout files.
 
-## 4. Protect external projects before posting interaction text
+## 4. Protect external projects before creating references
 
-Third-party upstream repositories are read-only to agents. This section governs references inside Fieldwork and owned-fork interaction text; it does not create an upstream-write exception.
+Third-party upstream repositories are read-only to agents. This section governs references the worker creates in Fieldwork and owned repositories or forks; it does not create an upstream-write exception.
 
-Before creating or editing any Fieldwork or owned-fork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work:
+Automated workers always use the literal `redirect.github.com` URL for every third-party GitHub issue, pull-request, or discussion reference they create. There are no automated exceptions. The same rule applies to GitHub interaction text, tracked repository files, drafts, experiment records, human-facing packets, and commit messages.
 
-- convert third-party GitHub issue, pull-request, discussion, and commit links to `redirect.github.com` where `REFERENCE_POLICY.md` requires it;
-- remove third-party shorthand cross-references;
-- use the intentional marker only to record an already-existing interaction that a human performed manually.
+Never emit third-party `OWNER/REPOSITORY#NUMBER` shorthand or direct third-party issue, pull-request, or discussion URLs. If a direct reference is desired, a human must create it manually.
 
-Repository reports, experiment notes, context dossiers, data records, and other tracked files may use ordinary direct links. They do not need the interaction preflight or an automated external-reference check.
+Direct repository-root, source-file, documentation, release, and commit links are unaffected.
 
-The interaction detector runs after GitHub receives conversation text. It is a safety net, not permission to post a direct reference first.
+Before creating or editing any Fieldwork or owned-fork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work, run the exact final text through the preflight in `REFERENCE_POLICY.md`.
+
+The interaction detector runs after GitHub receives conversation text. It is a safety net, not permission to post an unsafe reference first.
 
 ## 5. Read the code and form a change thesis
 
