@@ -21,7 +21,9 @@ Add scope exclusions only when they prevent a likely misunderstanding. Prefer on
 
 Do **not** mechanically export Fieldwork process language into the public draft. Exact SHAs, evidence classes, carrier history, queue state, internal review receipts, discarded variants, and coordination mechanics belong here unless the target repository explicitly asks for them.
 
-Match the target's house style. A repository that wants a three-paragraph bug-fix explanation should get three paragraphs; a repository with a structured checklist should get its checklist. The technical invariant should survive the compression even when the headings do not.
+Match the target's house style. A repository that wants a three-paragraph bug-fix explanation should get three paragraphs; a repository with a structured checklist should get its checklist. Use the target's title convention too: name the repaired behaviour or mechanism, not the Fieldwork campaign or internal taxonomy. The technical invariant should survive the compression even when the headings do not.
+
+Compression never overrides target-required checklists, changelog entries, contribution metadata, or AI-use disclosure. Include those exactly where the target policy requires them.
 
 ## Proposal
 
