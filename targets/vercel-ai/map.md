@@ -23,6 +23,24 @@ The SDK sits directly in the path of model providers, streaming, tool calls, str
 - durable reconnect, polling, and deadline authority;
 - tests that compare provider-specific behaviour.
 
+## Research selection guidance
+
+Scout this target broadly and continuously. A crowded Vercel AI portfolio is a reason to raise the promotion bar, while exploration can keep sampling new code, recent changes, provider boundaries, feature interactions, and composition paths.
+
+Prefer questions that reveal an interesting engineering contract, especially when several individually reasonable features compose into an unclear owner for identity, authority, state, retries, persistence, cancellation, or terminal outcome. Recent fixes are useful starting points because they expose assumptions that may still survive in neighboring modes or continuation paths.
+
+Treat a technically real defect as a research result before treating it as a delivery candidate. Promote when the finding has a compelling engineering story that a human reviewer can defend: a surprising interaction, a meaningful invariant, a concrete consequence, a clear owning boundary, and evidence that distinguishes the proposed interpretation from plausible alternatives.
+
+Strong candidates often answer questions such as:
+
+- Which identity survives UI state, model history, provider storage, reconnect, and replay?
+- Which component owns cancellation or retry authority after work fans out, suspends, resumes, or crosses a provider boundary?
+- Does a generic SDK option retain its meaning when translated through a provider-specific capability or server-side tool?
+- When two persistence modes coexist, which artifacts are replayed, referenced, reconstructed, or deliberately omitted?
+- Does an adapter preserve the caller's intent when defaults, approvals, runtime capabilities, or provider-side state interact?
+
+Let low-consequence correctness findings, obvious local omissions, and mechanically valid cleanup remain findings or negative results unless the deeper interaction earns further work. Merge velocity, repository popularity, and easy patch size are useful context rather than promotion criteria.
+
 ## Evidence we can produce
 
 - provider-independent reproductions;
