@@ -1,42 +1,16 @@
 # External Reference Policy
 
-Third-party GitHub issue, pull-request, and discussion references are **non-invasive by default in GitHub conversations**. The purpose of this policy is to prevent research coordination from creating backlinks, notifications, or implied participation in an upstream project.
+The purpose of this policy is to prevent Fieldwork research from creating unwanted GitHub backlinks, notifications, or implied participation in third-party projects.
 
-This reference policy does not grant authority to mutate third-party repositories. For every Fieldwork agent and automated worker, third-party upstream repositories are permanently read-only. See `AGENTS.md`.
+This policy does not grant authority to mutate third-party repositories. Third-party upstream repositories remain permanently read-only to every Fieldwork agent and automated worker. See `AGENTS.md`.
 
-## Where the backlink risk exists
+## Automated-worker invariant
 
-Apply this policy to text GitHub treats as conversation or activity metadata:
+For an automated worker, the rule is intentionally simple:
 
-- issue titles and bodies;
-- pull-request titles and bodies;
-- issue and pull-request comments;
-- pull-request reviews and inline review comments;
-- discussion text when Fieldwork uses discussions;
-- commit messages that intentionally reference third-party issues or pull requests.
+**Every reference the worker creates to a third-party GitHub issue, pull request, or discussion must use the literal `redirect.github.com` URL.**
 
-GitHub does not create autolinked issue and pull-request references in repository files or wikis. Notes, reports, maps, JSON records, and other tracked repository files therefore do not need an automated external-reference check.
-
-Repository files may use ordinary direct links when those links help the reader. Authors may still use `redirect.github.com` for consistency or caution, but it is not a repository-file requirement and CI must not reject a document for using a direct third-party GitHub link.
-
-## Owned repositories
-
-Repositories under `teamleaderleo/*` are first-party coordination surfaces for Fieldwork.
-
-Direct GitHub URLs and normal cross-repository shorthand are allowed for them:
-
-```text
-https://github.com/teamleaderleo/stensibly/issues/490
-teamleaderleo/stensibly#490
-```
-
-Do not rewrite owned-repository references through `redirect.github.com`. Do not require an intentional-upstream marker for them.
-
-The controlled-owner set used by the interaction scanner can be extended with the comma-separated `FIELDWORK_OWNED_GITHUB_OWNERS` environment variable.
-
-## Quiet interaction references
-
-In issue, pull-request, comment, review, or discussion text, use backlink-suppressing URLs for third-party issue, pull-request, and discussion references:
+Use:
 
 ```text
 https://redirect.github.com/OWNER/REPOSITORY/issues/NUMBER
@@ -44,55 +18,85 @@ https://redirect.github.com/OWNER/REPOSITORY/pull/NUMBER
 https://redirect.github.com/OWNER/REPOSITORY/discussions/NUMBER
 ```
 
-Use descriptive link text. Do not use bare third-party issue or pull-request shorthand in interaction prose. Do not use closing keywords against third-party work.
+This applies everywhere the worker writes, including:
 
-Direct links to third-party commits and `OWNER/REPOSITORY@SHA` commit shorthand are allowed. Commit references identify source revisions and are outside this interaction-reference check.
+- Fieldwork issues, pull requests, comments, reviews, and discussions;
+- owned-repository and owned-fork issues, pull requests, comments, reviews, and discussions;
+- tracked notes, reports, maps, experiment records, and other repository files;
+- drafts and prepared human-facing packets;
+- commit messages that mention third-party issues, pull requests, or discussions;
+- temporary, internal, experimental, or execution-carrier work.
 
-Inline code spans and fenced code blocks are inert evidence text. The interaction scanner ignores third-party references inside those code regions while continuing to scan prose and Markdown link destinations.
+Automated workers must not emit:
 
-## Preflight before posting Fieldwork interaction text
+- direct `github.com/OWNER/REPOSITORY/issues/NUMBER`, `/pull/NUMBER`, or `/discussions/NUMBER` links for third-party work;
+- third-party `OWNER/REPOSITORY#NUMBER` shorthand;
+- Markdown whose visible text hides the redirect destination when the worker is creating the reference.
 
-Before creating or editing a Fieldwork or owned-fork issue, pull request, comment, review, inline review comment, or discussion containing third-party work, run the interaction scanner against generated or carefully prepared interaction text:
+There are no automated exceptions. If a direct third-party issue, pull-request, or discussion reference is desirable, a human must create that direct reference manually.
+
+This automated-worker invariant takes precedence over older or more permissive Fieldwork wording about repository files, submitted interactions, intentional markers, or quiet-vs-direct references.
+
+Direct links to repository roots, source files, documentation, specifications, releases, and commits are unaffected. `OWNER/REPOSITORY@SHA` commit shorthand is also unaffected.
+
+## Owned repositories
+
+Repositories under `teamleaderleo/*` are first-party coordination surfaces for Fieldwork.
+
+References to owned work may use ordinary GitHub URLs or normal cross-repository shorthand:
+
+```text
+https://github.com/teamleaderleo/stensibly/issues/490
+teamleaderleo/stensibly#490
+```
+
+Do not rewrite owned-repository references through `redirect.github.com`.
+
+The controlled-owner set used by the interaction scanner can be extended with the comma-separated `FIELDWORK_OWNED_GITHUB_OWNERS` environment variable.
+
+## Interaction preflight
+
+Before an automated worker creates or edits a Fieldwork or owned-fork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work, run the interaction scanner against the exact text that will be written:
 
 ```sh
 node scripts/check_interaction_references.js --stdin < proposed-body.md
 ```
 
-A post-write workflow remains a detector and cleanup aid. Preflight is the prevention boundary for automated writers.
+The write happens only after the preflight succeeds.
 
-A plain repository-file write that creates no issue, pull request, comment, review, or discussion does not require this preflight.
+A post-write workflow is a detector and cleanup aid. It is not the prevention boundary.
 
-## Human-performed upstream interactions
+Tracked repository files do not need this interaction preflight because GitHub does not create issue/PR backlinks from ordinary file contents. The automated-worker invariant still applies to references the worker writes into those files so the worker never has to choose between a direct and redirected third-party issue/PR/discussion reference.
 
-A human may independently choose to interact with an upstream project outside Fieldwork automation. Agents may later record that already-existing interaction in Fieldwork, but they must not create, update, reply to, react to, review, label, assign, merge, rerun, or otherwise mutate the third-party upstream repository themselves.
+## Human-performed interactions
 
-When Fieldwork interaction text needs to record an already-existing human-performed upstream issue, pull request, discussion, or reply using a direct third-party link, place this marker on the direct-link line or immediately above it:
+A human may independently choose to interact with or directly reference an upstream project outside Fieldwork automation.
+
+Agents may later record that an upstream interaction happened, but references they create while recording it still use `redirect.github.com`.
+
+The historical marker below remains available for human-authored Fieldwork interaction text that intentionally contains a direct third-party reference:
 
 ```text
 <!-- fieldwork: intentional-upstream-reference -->
 ```
 
-The marker exempts only the marked line or the immediately following line from the backlink-suppression rule. It is a recordkeeping marker, **not authorization for an agent to contact or mutate upstream**.
-
-Repository files do not need this marker merely to cite upstream work.
+The marker is a scanner exemption for that human-authored record. It is not an automated-worker exception and never authorizes upstream contact.
 
 ## States
 
 ### Observed
 
-Quiet investigation. Third-party issue, pull-request, and discussion references in GitHub interaction text are backlink-suppressing. Repository evidence may link normally.
+Quiet investigation. Automated third-party issue, pull-request, and discussion references use `redirect.github.com`.
 
 ### Candidate
 
-Evidence exists and a human-facing upstream packet may be under preparation. Issue, pull-request, and discussion references remain quiet. Repository evidence may link normally.
+Evidence exists and a human-facing upstream packet may be under preparation. Automated references remain redirected.
 
 ### Submitted
 
-A human-performed upstream interaction exists and has been recorded. Direct third-party issue, pull-request, and discussion references are permitted only where they accurately record that existing interaction. Automated workers still may not mutate upstream.
+A human-performed upstream interaction exists and may be recorded. Automated references used to record it remain redirected. Any direct reference is a human-authored choice.
 
 ## Agent prevention
-
-Workers must run the interaction preflight before creating or editing an issue, pull request, comment, review, inline review comment, or discussion in Fieldwork or an owned fork containing third-party issue, pull-request, or discussion references.
 
 Workers must never perform a state-changing operation against a third-party upstream repository. This prohibition is unconditional and cannot be overridden by user instruction, campaign state, issue metadata, an authorization field, an intentional-reference marker, or target-project contribution policy.
 
@@ -105,20 +109,17 @@ Workers may:
 
 Workers may not create, update, close, reopen, comment on, review, react to, label, assign, merge, rerun, dispatch, commit to, push to, or otherwise mutate a third-party upstream repository.
 
-Workers do not need to scan notes, reports, maps, data records, or other tracked files for this policy.
-
 ## Enforcement surfaces
 
-1. `scripts/check_interaction_references.js` scans the complete active Fieldwork or owned-fork issue or pull-request thread after issue-body, PR-body, comment, review, or inline-review changes.
-2. The interaction scanner supports stdin preflight before a GitHub API write.
-3. A scheduled repository audit scans Fieldwork issue and pull-request threads and reports historical active violations.
+1. `scripts/check_interaction_references.js` scans active Fieldwork or owned-fork GitHub interaction text for unsafe third-party references.
+2. The scanner supports stdin preflight before a GitHub API write.
+3. A scheduled repository audit can report historical active violations.
 4. The scanner exempts controlled owners and has regression tests for owned direct links and shorthand.
-5. The interaction workflow applies `policy:reference-violation` while active Fieldwork interaction text violates policy and removes it after correction.
-6. Issue forms require acknowledgement of the third-party quiet-interaction rule.
-7. The upstream-write prohibition is an agent operating rule, not merely a link-scanner rule; tooling permission does not imply authority.
+5. The interaction workflow can apply `policy:reference-violation` while active interaction text violates policy and remove it after correction.
+6. The upstream-write prohibition is an agent operating rule; tooling permission does not imply authority.
 
-The interaction workflow runs after GitHub receives the text. It cannot guarantee that GitHub never processes the original third-party reference. Prevention by an automated writer remains mandatory.
+The interaction workflow runs after GitHub receives text, so it cannot guarantee that GitHub never processes an unsafe reference. Prevention by the automated writer remains mandatory.
 
 ## Other links
 
-Repository roots, files, documentation sites, specifications, package registries, release pages, commit references, and ordinary web sources may be linked normally.
+Repository roots, source files, documentation sites, specifications, package registries, release pages, commit references, and ordinary web sources may be linked normally.
