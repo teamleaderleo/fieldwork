@@ -1,0 +1,93 @@
+# EXPERIMENT D — exact path, shared top-level hint, no new crate dependency
+#
+# Base: astral-sh/uv@95637ecf70cbf3c8a8d11f424b9a654e8fefdf51
+# Public issue: https://redirect.github.com/astral-sh/uv/issues/21058
+# Upstream reproduction: https://redirect.github.com/astral-sh/uv/pull/21059
+#
+# Internal design sketch only.
+#
+# Goal: keep B's exact offending-directory path and cross-command recovery,
+# while avoiding `uv-tool -> uv-errors` and the Cargo.lock edit.
+
+---
+ crates/uv-tool/src/lib.rs              | 11 ++++++++++-
+ crates/uv/src/commands/diagnostics.rs  |  8 ++++++++
+ crates/uv/src/commands/tool/upgrade.rs |  5 +++--
+ 3 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/crates/uv-tool/src/lib.rs b/crates/uv-tool/src/lib.rs
+--- a/crates/uv-tool/src/lib.rs
++++ b/crates/uv-tool/src/lib.rs
+@@ -78,6 +78,12 @@ pub enum Error {
+     NoExecutableDirectory,
+     #[error(transparent)]
+     ToolName(#[from] InvalidNameError),
++    #[error("Invalid tool directory at `{}`", path.user_display())]
++    InvalidToolDirectory {
++        path: PathBuf,
++        #[source]
++        source: InvalidNameError,
++    },
+     #[error(transparent)]
+     EnvironmentError(#[from] uv_python::Error),
+@@ -102,6 +108,7 @@ impl Error {
+             | Self::EntrypointRead(_)
+             | Self::NoExecutableDirectory
+             | Self::ToolName(_)
++            | Self::InvalidToolDirectory { .. }
+             | Self::EnvironmentError(_)
+             | Self::MissingToolReceipt(_, _)
+@@ -162,7 +169,10 @@ impl InstalledTools {
+             else {
+                 continue;
+             };
+-            let name = PackageName::from_str(name)?;
++            let name = PackageName::from_str(name).map_err(|source| Error::InvalidToolDirectory {
++                path: directory.clone(),
++                source,
++            })?;
+             let path = directory.join("uv-receipt.toml");
+             let contents = match fs_err::read_to_string(&path) {
+                 Ok(contents) => contents,
+diff --git a/crates/uv/src/commands/diagnostics.rs b/crates/uv/src/commands/diagnostics.rs
+--- a/crates/uv/src/commands/diagnostics.rs
++++ b/crates/uv/src/commands/diagnostics.rs
+@@ -256,6 +256,14 @@ pub(crate) fn hints_for_error(err: &anyhow::Error) -> Hints<'static> {
+         collect_hint::<uv_workspace::pyproject::SourceError>(cause, &mut hints);
+         collect_hint::<uv_distribution::LoweringError>(cause, &mut hints);
+         collect_hint::<uv_virtualenv::Error>(cause, &mut hints);
++
++        if let Some(uv_tool::Error::InvalidToolDirectory { path, .. }) =
++            cause.downcast_ref::<uv_tool::Error>()
++        {
++            hints.push(format!(
++                "Move the invalid tool directory at `{}` outside the uv tool directory, or remove it",
++                path.display()
++            ));
++        }
++
+         collect_hint::<uv_client::Error>(cause, &mut hints);
+         #[cfg(not(feature = "self-update"))]
+         collect_hint::<crate::ExternallyInstalledError>(cause, &mut hints);
+diff --git a/crates/uv/src/commands/tool/upgrade.rs b/crates/uv/src/commands/tool/upgrade.rs
+--- a/crates/uv/src/commands/tool/upgrade.rs
++++ b/crates/uv/src/commands/tool/upgrade.rs
+@@ -1,4 +1,4 @@
+-use anyhow::Result;
++use anyhow::{Context, Result};
+@@ -67,7 +67,8 @@ pub(crate) async fn upgrade(
+         if names.is_empty() {
+             installed_tools
+                 .tools()
+-                .unwrap_or_default()
++                .context("Failed to enumerate installed tools")?
+                 .into_iter()
+                 .map(|(name, _)| (name, Vec::new()))
+                 .collect()
+
+# Notes:
+# - `ToolName` can likely be removed or repurposed if this direction is selected;
+#   current source has only one `PackageName::from_str` in uv-tool, at this enumeration site.
+# - Recovery wording intentionally excludes generic rename advice.
+# - If selected, add sibling command snapshots for list/uninstall/audit plus the upstream-owned
+#   tool_upgrade regression and empty-inventory control.
