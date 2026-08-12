@@ -1,66 +1,25 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-Subject: [EXPERIMENT C] Retain tool path but render recovery locally
+# EXPERIMENT C — command-local root-path hint
+#
+# Base: astral-sh/uv@95637ecf70cbf3c8a8d11f424b9a654e8fefdf51
+# Carrier: teamleaderleo/uv#92
+# Public issue: https://redirect.github.com/astral-sh/uv/issues/21058
+#
+# This is an internal design experiment, not an upstream submission.
+# It keeps A's one-file command-local error boundary but puts the already-known
+# tool-root path directly in the invalid-name recovery hint.
 
-Base: astral-sh/uv@95637ecf70cbf3c8a8d11f424b9a654e8fefdf51
-
-This is an internal design sketch, not an upstream submission.
-
-The lower-level error retains the offending directory path, while `tool upgrade`
-owns hint selection and rendering. This avoids a new `uv-tool -> uv-errors`
-dependency but still permits a path-specific recovery message.
+From f7730d8266d145bdd1cfae6633a2ce39f4679689 Mon Sep 17 00:00:00 2001
+Subject: [PATCH] Prototype tool-root path inventory diagnostic
 
 ---
- crates/uv-tool/src/lib.rs                    | 11 ++++++++++-
- crates/uv/src/commands/tool/upgrade.rs       | 34 ++++++++++++++++++++++++-----
- crates/uv/tests/tool/tool_upgrade.rs         | 14 +++++++++-----
- 3 files changed, 47 insertions(+), 12 deletions(-)
+ crates/uv/src/commands/tool/upgrade.rs | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)
 
-diff --git a/crates/uv-tool/src/lib.rs b/crates/uv-tool/src/lib.rs
---- a/crates/uv-tool/src/lib.rs
-+++ b/crates/uv-tool/src/lib.rs
-@@ -70,6 +70,11 @@ pub enum Error {
-     NoExecutableDirectory,
-     #[error(transparent)]
-     ToolName(#[from] InvalidNameError),
-+    #[error("Invalid tool directory at `{}`", path.user_display())]
-+    InvalidToolDirectory {
-+        path: PathBuf,
-+        #[source]
-+        source: InvalidNameError,
-+    },
-     #[error(transparent)]
-     EnvironmentError(#[from] uv_python::Error),
-@@ -90,6 +95,7 @@ impl Error {
-             | Self::EntrypointRead(_)
-             | Self::NoExecutableDirectory
-             | Self::ToolName(_)
-+            | Self::InvalidToolDirectory { .. }
-             | Self::EnvironmentError(_)
-             | Self::MissingToolReceipt(_, _)
-@@ -145,7 +151,10 @@ impl InstalledTools {
-             else {
-                 continue;
-             };
--            let name = PackageName::from_str(name)?;
-+            let name = PackageName::from_str(name).map_err(|source| Error::InvalidToolDirectory {
-+                path: directory.clone(),
-+                source,
-+            })?;
-             let path = directory.join("uv-receipt.toml");
-             let contents = match fs_err::read_to_string(&path) {
-                 Ok(contents) => contents,
 diff --git a/crates/uv/src/commands/tool/upgrade.rs b/crates/uv/src/commands/tool/upgrade.rs
+index 5f954b2ce8c..b4a3b8f1d5e 100644
 --- a/crates/uv/src/commands/tool/upgrade.rs
 +++ b/crates/uv/src/commands/tool/upgrade.rs
-@@ -11,7 +11,7 @@ use uv_configuration::{Concurrency, Constraints, DryRun, HashCheckingMode, TargetTriple};
- use uv_distribution::LoweredExtraBuildDependencies;
- use uv_distribution_types::{ExtraBuildRequires, Name, Requirement, RequirementSource};
- use uv_errors::{ErrorOptions, Hints, write_error_chain_with_options};
--use uv_fs::CWD;
-+use uv_fs::{CWD, Simplified};
- use uv_installer::{InstallationStrategy, Planner, SitePackages};
- use uv_normalize::PackageName;
-@@ -21,7 +21,7 @@ use uv_python::{
+@@ -23,7 +23,7 @@ use uv_python::{
  };
  use uv_requirements::RequirementsSpecification;
  use uv_settings::{Combine, PythonInstallMirrors, ResolverInstallerOptions, ToolOptions};
@@ -68,26 +27,26 @@ diff --git a/crates/uv/src/commands/tool/upgrade.rs b/crates/uv/src/commands/too
 +use uv_tool::{Error as ToolError, InstalledTools, Tool};
  use uv_types::{HashStrategy, SourceTreeEditablePolicy};
  use uv_workspace::WorkspaceCache;
-@@ -63,11 +63,31 @@ pub(crate) async fn upgrade(
+ 
+@@ -65,9 +65,27 @@ pub(crate) async fn upgrade(
      // Collect the tools to upgrade, along with any constraints.
      let names: BTreeMap<PackageName, Vec<Requirement>> = {
          if names.is_empty() {
 -            installed_tools
 -                .tools()
 -                .unwrap_or_default()
--                .into_iter()
 +            let tools = match installed_tools.tools() {
 +                Ok(tools) => tools,
 +                Err(err) => {
-+                    let hints = match &err {
-+                        ToolError::InvalidToolDirectory { path, .. } => Hints::from(format!(
-+                            "Move, rename, or remove the invalid tool directory at `{}`",
-+                            path.user_display()
-+                        )),
-+                        _ => Hints::none(),
++                    let hints = if matches!(&err, ToolError::ToolName(_)) {
++                        Hints::from(format!(
++                            "Inspect the uv tool directory at `{}`; move, rename, or remove the invalid directory",
++                            installed_tools.root().display()
++                        ))
++                    } else {
++                        Hints::none()
 +                    };
-+                    let err =
-+                        anyhow::Error::new(err).context("Failed to enumerate installed tools");
++                    let err = anyhow::Error::new(err).context("Failed to enumerate installed tools");
 +                    write_error_chain_with_options(
 +                        err.as_ref(),
 +                        hints,
@@ -96,45 +55,7 @@ diff --git a/crates/uv/src/commands/tool/upgrade.rs b/crates/uv/src/commands/too
 +                    return Ok(ExitStatus::Error);
 +                }
 +            };
-+            tools.into_iter()
++            tools
+                 .into_iter()
                  .map(|(name, _)| (name, Vec::new()))
                  .collect()
-         } else {
-             let mut map = BTreeMap::new();
-diff --git a/crates/uv/tests/tool/tool_upgrade.rs b/crates/uv/tests/tool/tool_upgrade.rs
---- a/crates/uv/tests/tool/tool_upgrade.rs
-+++ b/crates/uv/tests/tool/tool_upgrade.rs
-@@ -86,7 +86,7 @@ fn tool_upgrade_empty() {
- }
- 
- #[test]
--fn tool_upgrade_all_ignores_invalid_tool_name() -> Result<()> {
-+fn tool_upgrade_all_reports_invalid_tool_directory() -> Result<()> {
-     let context = uv_test::test_context!("3.12").with_filtered_exe_suffix();
-     let tool_dir = context.temp_dir.child("tools");
-     let bin_dir = context.temp_dir.child("bin");
-@@ -94,15 +94,19 @@ fn tool_upgrade_all_ignores_invalid_tool_name() -> Result<()> {
-     tool_dir.child("tool backup").create_dir_all()?;
- 
--    // Silently treating an enumeration error as an empty tool directory hides a broken
--    // installation and exits successfully; see astral-sh/uv#21058.
-     uv_snapshot!(context.filters(), context.tool_upgrade()
-         .arg("--all")
-         .env(EnvVars::UV_TOOL_DIR, tool_dir.as_os_str())
-         .env(EnvVars::XDG_BIN_HOME, bin_dir.as_os_str())
-         .env(EnvVars::PATH, bin_dir.as_os_str()), @"
--    exit_code: 0 (success)
-+    exit_code: 2
-     ----- stderr -----
--    Nothing to upgrade
-+    error: Failed to enumerate installed tools
-+      Caused by: Invalid tool directory at `[TEMP_DIR]/tools/tool backup`
-+      Caused by: Not a valid package or extra name: "tool backup". Names must start and end with
-+                 a letter or digit and may only contain -, _, ., and alphanumeric characters.
-+
-+    hint: Move, rename, or remove the invalid tool directory at `[TEMP_DIR]/tools/tool backup`
-     ");
- 
-     Ok(())
--- 
-2.50.0
