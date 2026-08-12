@@ -2,18 +2,17 @@
 
 These instructions apply to every AI system and automated worker operating in this repository.
 
-## Hard upstream-write prohibition
+## Upstream greenlight
 
-Third-party upstream repositories are permanently **read-only** to every Fieldwork agent and automated worker.
+Third-party upstream repositories are read-only by default.
 
-- Never perform a state-changing action against a third-party upstream repository. This includes creating or updating issues, pull requests, discussions, comments, reviews, reactions, labels, assignments, milestones, branches, files, commits, releases, workflow runs, merges, or any other repository state.
-- This prohibition is unconditional. A user request, explicit authorization, campaign state, issue field, marker, target contribution policy, apparent intent, or available tool permission does **not** override it.
-- If a user asks an agent to file, open, post, submit, reply, review, react, label, merge, rerun, push, or otherwise change upstream, stop at preparation. Produce the draft, patch, reproduction, test evidence, links, and exact manual steps the human needs, but do not invoke the upstream mutation.
-- Agents may freely read and search public upstream material and may create or modify Fieldwork artifacts, owned repositories, and owned forks according to the rest of these instructions.
-- Only a human may perform an upstream interaction, manually and outside Fieldwork automation. Agents may record that already-existing human interaction afterward.
-- Any `upstream-contact authorization` field for an automated worker is always `false`. It is a status record, not a permission switch.
+When the human says `upstream greenlight`, treat that natural-language phrase as explicit authorization for the current upstream repository and interaction reasonably clear from the conversation. Capitalization and an exact template are not required. If the repository or action is genuinely ambiguous or materially broader than the surrounding context supports, ask before acting.
 
-This rule takes precedence over any older Fieldwork text that could be read as permitting automated upstream contact.
+A greenlight is bounded to that upstream interaction. It does not imply merge, release, deployment, credentials, spending, private-data access, or unrelated authority. A later human instruction can narrow or revoke it.
+
+Without a greenlight, stop at preparation: produce the draft, patch, reproduction, test evidence, links, or manual steps the human needs without invoking the upstream mutation. After a greenlit interaction, record what actually happened in Fieldwork when that record is useful.
+
+This section is the sole exception to later read-only defaults in this file and older Fieldwork text that says user authorization can never permit automated upstream contact. Existing `upstream-contact authorization` fields remain default status records; they do not cancel a live human greenlight.
 
 ## Entry protocol
 
@@ -31,7 +30,7 @@ This rule takes precedence over any older Fieldwork text that could be read as p
 - Create a target hub only when recurring work justifies one; do not turn every registry entry into an issue.
 - When an owned repository is used to exercise another target, apply `testbed:<slug>` only after the real trial begins and follow `TESTBEDS.md`.
 - If the owned repository itself is under investigation, use it as the target rather than the testbed.
-- Programme, target, and testbed registries are discovery surfaces, not automatic permission to work. They never authorize third-party upstream writes.
+- Programme, target, and testbed registries are discovery surfaces, not automatic permission to work or contact upstream.
 
 ## Scout lanes
 
@@ -77,7 +76,7 @@ Before creating or editing a Fieldwork or owned-fork issue, pull request, commen
 - use the equivalent `redirect.github.com` URL unless recording an already-existing human-performed upstream interaction;
 - remove external owner/repository item and commit shorthand where the policy requires it;
 - use the intentional-upstream marker only to record an already-existing human-performed interaction;
-- remember that the marker never authorizes an automated upstream write.
+- remember that the marker is a reference-policy mechanism, not an upstream authorization mechanism.
 
 Repository notes, reports, maps, JSON records, and other tracked files may use ordinary direct links. They do not need the interaction preflight or an automated external-reference scan.
 
@@ -87,14 +86,14 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 
 - Small one-worker experiments may be created under `playgrounds/` without an upstream fork or Fieldwork issue.
 - Use a stable `EXP-YYYYMMDD-short-name` directory and `templates/experiment.json`.
-- State one bounded question, exact command, environment, source revisions, claim scope, stop condition, and upstream-contact authorization `false`.
+- State one bounded question, exact command, environment, source revisions, claim scope, stop condition, and upstream-contact authorization `false` by default.
 - Reuse `playgrounds/cases/` only when those inputs can distinguish hypotheses already grounded in the assignment.
 - Do not select research topics merely because a case pack or example exists.
 - Default to synthetic inputs and no network access.
 - One experiment has one owner; parallel variants use separate directories.
 - Retain a human-readable result when another worker, report, or decision may rely on it.
 - Promote the experiment to a finding, batch probe, campaign lane, regression fixture, integration trial, or integration-context dossier when it stops being disposable.
-- A playground never authorizes upstream contact.
+- A playground does not itself authorize upstream contact; a live human greenlight is separate.
 
 ## Owned-repository integration trials
 
@@ -137,7 +136,7 @@ The interaction workflow is a last-resort detector. It cannot reliably stop GitH
 ## Default behaviour
 
 - Treat external observation as quiet research.
-- Never open, update, close, comment on, review, react to, label, assign, merge, rerun, push to, or otherwise mutate third-party upstream work. Explicit user instruction does not override this rule.
+- Do not mutate third-party upstream work unless a live human upstream greenlight covers the interaction.
 - Never manufacture contribution volume, low-value cleanup, or speculative patches.
 - Do not claim a reproduction, test result, benchmark, policy, maintainer position, use case, or integration consequence without evidence.
 - Preserve exact source revisions, retrieval dates, environments, and commands.
@@ -171,16 +170,18 @@ Never have multiple workers push shared files directly to `main`.
 ## AI-assisted implementation
 
 - Generated code is a candidate until tested and reviewed.
-- A human remains responsible for every upstream claim and submitted line, and must perform any upstream submission manually outside Fieldwork automation.
-- Follow each target project's current contribution and AI-disclosure policy when preparing material for human submission.
+- A human remains responsible for every upstream claim and submitted line. An agent may perform a bounded upstream interaction only under a live human upstream greenlight and remains responsible for staying inside that scope.
+- Follow each target project's current contribution and AI-disclosure policy when preparing or submitting material.
 - Keep changes bounded to the assigned question.
 - Do not rewrite unrelated files for style or convenience.
 
 ## External interactions
 
-Third-party upstream repositories are read-only to agents and automated workers. No Fieldwork record, programme, target hub, target map, batch, campaign, lane, playground, testbed trial, context dossier, repository note, user instruction, authorization field, marker, or target-project policy can authorize an automated upstream mutation.
+Third-party upstream repositories are read-only by default. A live human `upstream greenlight` is the explicit exception for the current repository and interaction reasonably established by the conversation.
 
-Agents may prepare human-facing upstream packets, issue drafts, pull-request drafts, patches, reproductions, review notes, and manual submission steps in Fieldwork or owned repositories. If a human later performs an upstream interaction manually, agents may record that already-existing interaction in Fieldwork.
+Fieldwork records, programme state, target hubs, maps, batches, campaigns, lanes, playgrounds, testbeds, context dossiers, repository notes, markers, and target-project policy do not create that authority on their own.
+
+Without a greenlight, agents may prepare human-facing upstream packets, issue drafts, pull-request drafts, patches, reproductions, review notes, and manual submission steps in Fieldwork or owned repositories. After a human-performed or greenlit interaction exists, agents may record it in Fieldwork.
 
 ## Safety
 

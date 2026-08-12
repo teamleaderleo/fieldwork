@@ -1,7 +1,5 @@
-Follow `AGENTS.md` and `START_HERE.md` for every change.
+`AGENTS.md` is the binding operating contract. Start with `START_HERE.md`; this file adds no separate workflow or authority rules.
 
-Fieldwork issues are live coordination; repository files are durable evidence. Use the exact assigned output path and do not edit another worker's lane, batch manifest, status, synthesis, context, or closeout.
+Fieldwork issues are live coordination; repository files are durable evidence. Use the assigned output path and avoid editing another worker's owned mutable surface unless the coordination record transfers it.
 
-Bounded local experiments may use `playgrounds/` without a fork or issue. Read `INTEGRATION_CONTEXT.md` before asserting broader use or impact. Label wider claims as Normative, Documented, Observed, Inferred, Illustrative, or Unknown and cite primary sources.
-
-Third-party GitHub issue, pull-request, discussion, and commit references in issues, pull requests, comments, reviews, and discussions must use `redirect.github.com`; third-party shorthand is prohibited there. Repository notes, reports, maps, and other tracked files may link directly and do not need an automated reference check. No Fieldwork record authorizes upstream contact.
+Bounded local experiments may use `playgrounds/` without a fork or issue. Read `INTEGRATION_CONTEXT.md` before asserting broader use or impact. Follow `REFERENCE_POLICY.md` for third-party GitHub references in interaction text.
