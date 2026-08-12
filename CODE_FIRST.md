@@ -88,6 +88,16 @@ For SDKs, libraries, runtimes, build tools, observability systems, and developer
 
 Choose among continue research, keep a local improvement, publish a finding, prepare a human-facing upstream proposal, or stop.
 
+## Local ownership gate before remote CI
+
+For compiler, parser, formatter, bundler, generator, minifier, and other output-sensitive changes, use a complete local checkout before the first candidate push whenever the target can be built locally.
+
+Run the smallest discriminating test while iterating, then run the complete owning test target. When emitted text, AST output, snapshots, generated references, benchmark expectations, or size baselines can change, identify and run those downstream consumers locally as well. Review every changed golden file as an intentional consequence of the candidate.
+
+An IDE helps map types, AST variants, references, and call sites. Repository instructions and executable harnesses establish fixture placement, generation rules, test ownership, and the complete set of expected-output changes.
+
+Use remote CI for platform, feature, and integration breadth after the local owner and output-consumer gates pass. If local execution is blocked by environment or cost, record the exact blocker and expected CI owner before pushing.
+
 ## Meaningful refactors
 
 A refactor is useful when it does at least one of the following:
