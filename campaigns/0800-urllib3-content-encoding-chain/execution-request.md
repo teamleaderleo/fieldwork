@@ -15,17 +15,17 @@ Required matrix:
 - installed candidate `response.py` byte-matches patched exact source;
 - existing supported-chain tests and diff hygiene pass.
 
-Run `31426131410` established baseline RED on both Python lanes, then stopped before candidate execution because the reviewer patch artifact had a bad hunk header (`corrupt patch ... candidate.patch:20`). Classification: carrier packaging only.
+Run `31426131410` established baseline RED on both Python lanes, then stopped before candidate execution because the reviewer patch artifact had a bad hunk header. Run `31428442539` again reached baseline RED, then stopped at patch applicability.
 
-Run `31428442539` again reached baseline RED on both lanes, then stopped at `git apply --check` with `patch does not apply` even though the reviewer patch context matches the pinned source when inspected directly.
+Carrier generation 7 keeps the candidate algorithm unchanged and regenerates `candidate.patch` in the ordinary Git diff window for the exact source edit:
 
-Carrier generation 6 adds one diagnostic gate before patch application:
+- hunk starts at line 614 with three lines of leading context;
+- trailing `_decode()` context is retained;
+- `git apply --verbose --check` must accept the reviewer patch on a byte-clean exact checkout;
+- deterministic `apply-candidate.py` must produce a production diff matching the reviewer patch byte-for-byte after Git `index` metadata is removed.
 
-- print target working-tree status;
-- print any pre-existing `response.py` diff;
-- require `response.py` to remain byte-clean relative to the exact checkout before the reviewer patch gate;
-- run `git apply --verbose --check` so any remaining applicability failure is attributable to the patch artifact rather than a mutated target source.
+The workflow also records target status and any `response.py` diff before patch materialization, so source mutation and patch-format failure stay distinguishable.
 
-The urllib3 candidate logic is unchanged. Generation 1 remains superseded for protocol semantics. Generation 6 is evidence-carrier diagnosis only.
+The urllib3 candidate logic is unchanged. Generation 1 remains superseded for protocol semantics.
 
 Transfer terminal receipts to #800 / `STATUS.md`, then retire this marker and temporary workflow.
