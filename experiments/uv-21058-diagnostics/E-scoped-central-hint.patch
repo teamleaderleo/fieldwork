@@ -1,0 +1,113 @@
+# EXPERIMENT E — command-scoped typed error with central hint rendering
+#
+# Base: astral-sh/uv@95637ecf70cbf3c8a8d11f424b9a654e8fefdf51
+# Public issue: https://redirect.github.com/astral-sh/uv/issues/21058
+# Upstream reproduction: https://redirect.github.com/astral-sh/uv/pull/21059
+#
+# Internal design sketch only.
+#
+# Goal: preserve C's command-only blast radius, but propagate a typed error to uv's
+# normal top-level renderer instead of manually rendering inside tool/upgrade.rs.
+# The wrapper gives all top-level inventory failures operation context and carries
+# the tool root only when the source is the invalid-name variant.
+
+---
+ crates/uv/src/commands/diagnostics.rs  | 34 ++++++++++++++++++++++++++++++++
+ crates/uv/src/commands/tool/upgrade.rs |  7 ++++---
+ 2 files changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/crates/uv/src/commands/diagnostics.rs b/crates/uv/src/commands/diagnostics.rs
+--- a/crates/uv/src/commands/diagnostics.rs
++++ b/crates/uv/src/commands/diagnostics.rs
+@@
+ use std::str::FromStr;
+ use std::sync::{Arc, LazyLock};
++use std::path::{Path, PathBuf};
+ 
+ use owo_colors::OwoColorize;
+ use rustc_hash::FxHashMap;
+ use version_ranges::Ranges;
++use uv_fs::Simplified;
+@@
+ pub(crate) struct OperationDiagnostic {
+@@
+ }
++
++/// Add command context and, for an invalid tool-directory name, a recovery hint
++/// to failures while inspecting the installed-tool inventory.
++#[derive(Debug, thiserror::Error)]
++#[error("Failed to inspect installed tools")]
++pub(crate) struct ToolInventoryError {
++    invalid_name_root: Option<PathBuf>,
++    #[source]
++    source: uv_tool::Error,
++}
++
++impl ToolInventoryError {
++    pub(crate) fn new(root: &Path, source: uv_tool::Error) -> Self {
++        let invalid_name_root =
++            matches!(&source, uv_tool::Error::ToolName(_)).then(|| root.to_path_buf());
++        Self {
++            invalid_name_root,
++            source,
++        }
++    }
++}
++
++impl Hint for ToolInventoryError {
++    fn hints(&self) -> Hints<'_> {
++        let Some(root) = self.invalid_name_root.as_ref() else {
++            return Hints::none();
++        };
++        Hints::from(format!(
++            "Inspect the uv tool directory at `{}`; move the invalid directory outside it, or remove it",
++            root.user_display()
++        ))
++    }
++}
+@@
+ pub(crate) fn hints_for_error(err: &anyhow::Error) -> Hints<'static> {
+     let mut hints = Hints::none();
+     for cause in err.chain() {
++        collect_hint::<ToolInventoryError>(cause, &mut hints);
+         collect_hint::<Box<uv_resolver::NoSolutionError>>(cause, &mut hints);
+         collect_hint::<uv_resolver::NoSolutionError>(cause, &mut hints);
+
+diff --git a/crates/uv/src/commands/tool/upgrade.rs b/crates/uv/src/commands/tool/upgrade.rs
+--- a/crates/uv/src/commands/tool/upgrade.rs
++++ b/crates/uv/src/commands/tool/upgrade.rs
+@@
+ use crate::commands::pip::loggers::{
+     DefaultInstallLogger, SummaryResolveLogger, UpgradeInstallLogger,
+ };
++use crate::commands::diagnostics::ToolInventoryError;
+@@
+         if names.is_empty() {
+             installed_tools
+                 .tools()
+-                .unwrap_or_default()
++                .map_err(|err| ToolInventoryError::new(installed_tools.root(), err))?
+                 .into_iter()
+                 .map(|(name, _)| (name, Vec::new()))
+                 .collect()
+
+# Expected invalid-name family:
+#
+# error: Failed to inspect installed tools
+#   Caused by: Not a valid package or extra name: "tool backup" ...
+#
+# hint: Inspect the uv tool directory at `<root>`; move the invalid directory outside it, or remove it
+#
+# Expected receipt-read I/O family:
+#
+# error: Failed to inspect installed tools
+#   Caused by: failed to read from file `<root>/ruff/uv-receipt.toml`: Is a directory (...)
+#
+# No hint.
+#
+# Tradeoff:
+# - 2 files;
+# - command-scoped behavior like A/C;
+# - normal propagation and central Hint rendering;
+# - no exact offending child path;
+# - diagnostics.rs owns a command-specific wrapper type.
