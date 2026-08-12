@@ -18,10 +18,10 @@ Required controls:
 - `respect_retry_after_header=False` retains local backoff;
 - complete `test/test_retry.py`, installed-source identity, and diff hygiene pass.
 
-Production candidate generations 1 and 2 are superseded. Generation 1 changed the helper's direct zero return; generation 2 bypassed the helper delegation. Generation 3 keeps the existing hook and adds only an exact-zero stop after a false hook result.
+Production candidate generations 1 and 2 are superseded. Generation 3 keeps the existing helper hook and adds only an exact-zero stop after a false hook result.
 
-Carrier generation 6 additionally requires `git apply --check` on the reviewer patch, deterministic `apply-candidate.py`, and byte-for-byte production-diff equivalence before candidate tests run. This preempts the patch-hunk packaging failure already observed in the sibling urllib3 and Serde carriers.
+Carrier generation 7 repairs reviewer-patch representation only. Run `31428627770` already proved exact baseline RED on both Python lanes and then showed that the deterministic transformer produced the intended production edit; the remaining failure was byte-equivalence against a hand-shaped reviewer hunk. The regenerated patch now uses the ordinary Git diff window (`@@ -384,6 +384,8 @@`) and retains trailing context.
 
-Public urllib3 PR 5010 remains live overlap. This carrier proves the candidate only; it grants no public packaging authority.
+Public urllib3 PR 5010 remains live mechanical overlap. This carrier proves the candidate only and grants no public packaging authority.
 
 Transfer terminal receipts to #806 / `STATUS.md`, then retire this marker and temporary workflow.
