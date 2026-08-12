@@ -1,0 +1,149 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+Subject: [EXPERIMENT B] Add a shared path-aware tool-directory diagnostic
+
+Base: astral-sh/uv@95637ecf70cbf3c8a8d11f424b9a654e8fefdf51
+
+This is an internal design sketch, not an upstream submission.
+
+The lower-level tool error retains the offending directory path and implements
+uv's standard `Hint` trait. The central diagnostic walker learns `uv_tool::Error`.
+`tool upgrade --all` adds operation context and propagates the error normally.
+
+---
+ crates/uv-tool/Cargo.toml                    |  1 +
+ crates/uv-tool/src/lib.rs                    | 25 +++++++++++++++++++++++--
+ crates/uv/src/commands/diagnostics.rs        |  1 +
+ crates/uv/src/commands/tool/upgrade.rs       |  7 +++----
+ crates/uv/tests/tool/tool_upgrade.rs         | 14 +++++++++-----
+ 5 files changed, 37 insertions(+), 11 deletions(-)
+
+diff --git a/crates/uv-tool/Cargo.toml b/crates/uv-tool/Cargo.toml
+--- a/crates/uv-tool/Cargo.toml
++++ b/crates/uv-tool/Cargo.toml
+@@ -16,6 +16,7 @@ uv-configuration = { workspace = true }
+ uv-dirs = { workspace = true }
+ uv-distribution-types = { workspace = true }
++uv-errors = { workspace = true }
+ uv-fs = { workspace = true }
+ uv-install-wheel = { workspace = true }
+ uv-installer = { workspace = true }
+diff --git a/crates/uv-tool/src/lib.rs b/crates/uv-tool/src/lib.rs
+--- a/crates/uv-tool/src/lib.rs
++++ b/crates/uv-tool/src/lib.rs
+@@ -70,6 +70,11 @@ pub enum Error {
+     NoExecutableDirectory,
+     #[error(transparent)]
+     ToolName(#[from] InvalidNameError),
++    #[error("Invalid tool directory at `{}`", path.user_display())]
++    InvalidToolDirectory {
++        path: PathBuf,
++        #[source]
++        source: InvalidNameError,
++    },
+     #[error(transparent)]
+     EnvironmentError(#[from] uv_python::Error),
+@@ -90,6 +95,7 @@ impl Error {
+             | Self::EntrypointRead(_)
+             | Self::NoExecutableDirectory
+             | Self::ToolName(_)
++            | Self::InvalidToolDirectory { .. }
+             | Self::EnvironmentError(_)
+             | Self::MissingToolReceipt(_, _)
+@@ -101,6 +107,18 @@ impl Error {
+     }
+ }
+ 
++impl uv_errors::Hint for Error {
++    fn hints(&self) -> uv_errors::Hints<'_> {
++        match self {
++            Self::InvalidToolDirectory { path, .. } => uv_errors::Hints::from(format!(
++                "Move, rename, or remove the invalid tool directory at `{}`",
++                path.user_display()
++            )),
++            _ => uv_errors::Hints::none(),
++        }
++    }
++}
++
+ /// A collection of uv-managed tools installed on the current system.
+ #[derive(Debug, Clone)]
+ pub struct InstalledTools {
+@@ -145,7 +163,10 @@ impl InstalledTools {
+             else {
+                 continue;
+             };
+-            let name = PackageName::from_str(name)?;
++            let name = PackageName::from_str(name).map_err(|source| Error::InvalidToolDirectory {
++                path: directory.clone(),
++                source,
++            })?;
+             let path = directory.join("uv-receipt.toml");
+             let contents = match fs_err::read_to_string(&path) {
+                 Ok(contents) => contents,
+diff --git a/crates/uv/src/commands/diagnostics.rs b/crates/uv/src/commands/diagnostics.rs
+--- a/crates/uv/src/commands/diagnostics.rs
++++ b/crates/uv/src/commands/diagnostics.rs
+@@ -237,6 +237,7 @@ pub(crate) fn hints_for_error(err: &anyhow::Error) -> Hints<'static> {
+         collect_hint::<uv_workspace::pyproject::SourceError>(cause, &mut hints);
+         collect_hint::<uv_distribution::LoweringError>(cause, &mut hints);
+         collect_hint::<uv_virtualenv::Error>(cause, &mut hints);
++        collect_hint::<uv_tool::Error>(cause, &mut hints);
+         collect_hint::<uv_client::Error>(cause, &mut hints);
+         #[cfg(not(feature = "self-update"))]
+         collect_hint::<crate::ExternallyInstalledError>(cause, &mut hints);
+diff --git a/crates/uv/src/commands/tool/upgrade.rs b/crates/uv/src/commands/tool/upgrade.rs
+--- a/crates/uv/src/commands/tool/upgrade.rs
++++ b/crates/uv/src/commands/tool/upgrade.rs
+@@ -1,4 +1,4 @@
+-use anyhow::Result;
++use anyhow::{Context, Result};
+ use itertools::Itertools;
+ use owo_colors::OwoColorize;
+ use std::collections::BTreeMap;
+@@ -64,9 +64,8 @@ pub(crate) async fn upgrade(
+     let names: BTreeMap<PackageName, Vec<Requirement>> = {
+         if names.is_empty() {
+             installed_tools
+-                .tools()
+-                .unwrap_or_default()
++                .tools().context("Failed to enumerate installed tools")?
+                 .into_iter()
+                 .map(|(name, _)| (name, Vec::new()))
+                 .collect()
+diff --git a/crates/uv/tests/tool/tool_upgrade.rs b/crates/uv/tests/tool/tool_upgrade.rs
+--- a/crates/uv/tests/tool/tool_upgrade.rs
++++ b/crates/uv/tests/tool/tool_upgrade.rs
+@@ -86,7 +86,7 @@ fn tool_upgrade_empty() {
+ }
+ 
+ #[test]
+-fn tool_upgrade_all_ignores_invalid_tool_name() -> Result<()> {
++fn tool_upgrade_all_reports_invalid_tool_directory() -> Result<()> {
+     let context = uv_test::test_context!("3.12").with_filtered_exe_suffix();
+     let tool_dir = context.temp_dir.child("tools");
+     let bin_dir = context.temp_dir.child("bin");
+@@ -94,15 +94,19 @@ fn tool_upgrade_all_ignores_invalid_tool_name() -> Result<()> {
+     tool_dir.child("tool backup").create_dir_all()?;
+ 
+-    // Silently treating an enumeration error as an empty tool directory hides a broken
+-    // installation and exits successfully; see astral-sh/uv#21058.
+     uv_snapshot!(context.filters(), context.tool_upgrade()
+         .arg("--all")
+         .env(EnvVars::UV_TOOL_DIR, tool_dir.as_os_str())
+         .env(EnvVars::XDG_BIN_HOME, bin_dir.as_os_str())
+         .env(EnvVars::PATH, bin_dir.as_os_str()), @"
+-    exit_code: 0 (success)
++    exit_code: 2
+     ----- stderr -----
+-    Nothing to upgrade
++    error: Failed to enumerate installed tools
++      Caused by: Invalid tool directory at `[TEMP_DIR]/tools/tool backup`
++      Caused by: Not a valid package or extra name: "tool backup". Names must start and end with
++                 a letter or digit and may only contain -, _, ., and alphanumeric characters.
++
++    hint: Move, rename, or remove the invalid tool directory at `[TEMP_DIR]/tools/tool backup`
+     ");
+ 
+     Ok(())
+-- 
+2.50.0
