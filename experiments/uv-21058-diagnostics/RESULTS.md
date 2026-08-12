@@ -8,7 +8,7 @@ Upstream reproduction: https://redirect.github.com/astral-sh/uv/pull/21059
 
 Focused owned-fork run: `31569454399` — success, all four contender jobs passed.
 
-Second sibling-command run: `31570073281` — active at time of this note.
+Sibling-command run: `31570073281` — success, all four contender jobs passed.
 
 ## Shared controls
 
@@ -19,6 +19,8 @@ All four contenders passed:
 - `ruff/uv-receipt.toml` created as a directory -> exit 2, no invalid-name recovery hint.
 
 The receipt-path-as-directory fixture is a deterministic non-name top-level `InstalledTools::tools()` failure.
+
+All sibling jobs also confirmed `uv tool dir` remains usable when the tool root contains `tool backup`; it prints the configured root and exits 0.
 
 ## A — command-local + `uv tool dir`
 
@@ -40,11 +42,22 @@ error: Failed to enumerate installed tools
 exit: 2
 ```
 
+Sibling commands under the same invalid directory remain unchanged:
+
+```text
+uv tool list
+uv tool uninstall --all
+uv --preview tool audit --all
+```
+
+each report only the generic invalid package-name error and exit 2.
+
 Notes:
 
 - one production file;
 - explicit exit 2 after local rendering;
 - variant-specific hint boundary works;
+- `uv tool dir` recovery lookup is proven usable in the broken state;
 - `rename` is superseded wording;
 - `enumerate` is a wording placeholder; compare `inspect`.
 
@@ -61,6 +74,8 @@ exit: 2
 ```
 
 Receipt-read I/O has the same operation context as A and no hint.
+
+Sibling commands remain unchanged, as in A.
 
 Notes:
 
@@ -91,11 +106,21 @@ error: Failed to enumerate installed tools
 exit: 2
 ```
 
+Sibling commands gain the shared exact-path diagnostic. `uv tool list`, `uv tool uninstall --all`, and `uv --preview tool audit --all` each report:
+
+```text
+error: Invalid tool directory at `/tmp/.../tool backup`
+  Caused by: Not a valid package or extra name: "tool backup". Names must start and end with a letter or digit and may only contain -, _, ., and alphanumeric characters.
+
+hint: Move, rename, or remove the invalid tool directory at `/tmp/.../tool backup`
+exit: 2
+```
+
 Notes:
 
 - exact offending child path;
-- shared `Hint` implementation compiles;
-- unrelated I/O receives operation context but no hint;
+- shared `Hint` implementation compiles and improves all three sibling inventory commands consistently;
+- unrelated I/O receives operation context but no hint in `upgrade --all`;
 - complete footprint is five files after `Cargo.lock` records `uv-tool -> uv-errors`;
 - prefer `Invalid tool directory name` over the first-pass `Invalid tool directory`;
 - `rename` is superseded.
@@ -119,6 +144,8 @@ error: failed to read from file `/tmp/.../ruff/uv-receipt.toml`: Is a directory 
 exit: 2
 ```
 
+Sibling command output is the same shared exact-path diagnostic as B2 because that behavior comes from `uv_tool::Error` + central `Hint`, not the upgrade command's outer context.
+
 Notes:
 
 - shortest exact-path invalid-name diagnostic;
@@ -141,7 +168,7 @@ Move the invalid directory outside the uv tool directory, or remove it if it is 
 
 ## Context tradeoff
 
-A/C/B2 add context to every top-level `InstalledTools::tools()` error.
+A/C/B2 add context to every top-level `InstalledTools::tools()` error in `upgrade --all`.
 
 B1 makes the invalid-name error self-explanatory through a path-aware domain error, but leaves other top-level inventory I/O bare.
 
@@ -153,6 +180,10 @@ Failed to inspect installed tools
 
 `inspect` is closer to existing uv user-facing diagnostic vocabulary than `enumerate`.
 
-## Shared-behavior question
+## Shared-behavior result
 
-B1/B2 only earn their larger footprint if the exact-path `Hint` is useful across sibling inventory consumers (`tool list`, `tool uninstall --all`, `tool audit --all`). Run `31570073281` probes those commands against the same invalid directory and also verifies that `uv tool dir` remains usable under the broken state.
+The sibling run establishes a real payoff for the shared B design: one lower-level path-aware error + `Hint` gives the same actionable recovery to `tool list`, `tool uninstall --all`, and `tool audit --all` without command-specific handling in each consumer.
+
+That payoff is meaningful because all three commands currently fail on the same invalid child, and `uv tool uninstall --all` cannot itself be used as a recovery path for that child.
+
+The tradeoff is scope: B turns #21058 into a shared tool-inventory diagnostic improvement and costs five files in a complete implementation. A/C remain valid one-file fixes if upstream wants the reported command kept narrow.
