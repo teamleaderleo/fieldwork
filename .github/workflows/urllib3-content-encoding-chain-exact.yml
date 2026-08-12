@@ -82,7 +82,16 @@ jobs:
           patch="$GITHUB_WORKSPACE/campaigns/0800-urllib3-content-encoding-chain/candidate.patch"
           apply_script="$GITHUB_WORKSPACE/campaigns/0800-urllib3-content-encoding-chain/apply-candidate.py"
 
-          git -C target apply --check "$patch"
+          echo "target status before candidate materialization:"
+          git -C target status --short
+          echo "response.py diff before candidate materialization:"
+          git -C target diff -- src/urllib3/response.py
+          if ! git -C target diff --quiet -- src/urllib3/response.py; then
+            echo "response.py changed before candidate materialization" >&2
+            exit 1
+          fi
+
+          git -C target apply --verbose --check "$patch"
           python "$apply_script" target/src/urllib3/response.py
           git -C target diff --check
 
