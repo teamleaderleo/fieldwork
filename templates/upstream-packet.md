@@ -39,6 +39,32 @@ When commit metadata names the contributor as an author or co-author, record tha
 
 Preserve the exact contribution trail internally: submitted PR, reproduced behavior, tests, important review discussion, target-requested narrowing, successor landing, and any author/co-author metadata. This is historical accuracy, not credit inflation.
 
+## Target contract check
+
+Before presenting a behavior as an implementation bug, identify the contract the target project actually intends to preserve.
+
+Record separately when relevant:
+
+```text
+language / protocol / external specification:
+target documentation and tests:
+compatibility or inherited implementation assumption:
+maintainer-stated policy:
+remaining disagreement:
+```
+
+Then classify the proposal:
+
+- **implementation repair** — current behavior violates the target's own intended contract;
+- **contract clarification** — the target's intended behavior is ambiguous or inconsistent across docs, tests, and code;
+- **contract change** — the proposal asks the project to revise an intentional compatibility, performance, or semantic assumption.
+
+Do not use a specification-level argument to smuggle a contract-change request in as an obvious implementation bug. Conversely, do not let an inherited assumption silently override a demonstrated target contract without examining the conflict.
+
+If maintainer feedback changes the governing premise, update the proposal, scope, tests, and maintainer-facing draft. Do not leave the old thesis at the top and hide the new understanding in a later comment.
+
+When the feedback identifies a narrower valid repair, prefer the narrower repair. When a real disagreement remains, state the exact disputed proposition instead of repeating the full investigation.
+
 ## Proposal
 
 Begin with the smallest defensible statement:
