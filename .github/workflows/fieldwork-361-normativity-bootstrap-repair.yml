@@ -1,0 +1,47 @@
+name: Fieldwork PR 361 normativity bootstrap repair
+
+on:
+  pull_request:
+    branches:
+      - repair/347-unaccepted-state-dependency
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: repair/347-unaccepted-state-dependency
+          fetch-depth: 0
+      - name: Apply bounded AGENTS wording repair
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('AGENTS.md')
+          text = path.read_text()
+          old = "This transitional protocol does not define dispatch, typed lease or authority state, lifecycle status, effective currentness, or controller-observed currentness. Those semantics remain outside S0 until an exact structured-state generation is independently accepted; a later clean kernel successor must reference the architecture under review in #306 or its accepted successor rather than copy those fields into another prose payload."
+          new = "This transitional protocol does not define dispatch, typed lease or authority state, lifecycle status, effective currentness, or controller-observed currentness. Those semantics remain outside S0 until an exact structured-state generation is independently accepted. Until then, a later clean-kernel experiment may cite #306 only as non-normative architecture under review; any normative successor must reference the independently accepted exact generation rather than copy those fields into another prose payload."
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one repair target, found {text.count(old)}')
+          path.write_text(text.replace(old, new))
+      - name: Verify one-file one-line repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git diff --name-only)" = "AGENTS.md"
+          git diff --numstat -- AGENTS.md | grep -Fx $'1\t1\tAGENTS.md'
+          grep -Fq 'Until then, a later clean-kernel experiment may cite #306 only as non-normative architecture under review' AGENTS.md
+      - name: Publish repaired PR branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Fieldwork Repair'
+          git config user.email 'fieldwork-repair@users.noreply.github.com'
+          git add AGENTS.md
+          git commit -m 'Prevent unaccepted structured-state authority bootstrap'
+          git push origin HEAD:repair/347-unaccepted-state-dependency
