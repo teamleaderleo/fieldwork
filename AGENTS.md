@@ -9,7 +9,7 @@ These instructions apply to every AI system and automated worker operating in th
 - Search programme hubs, target hubs, open Fieldwork issues, active pull requests, canonical findings, investigation workspaces, active batches, existing experiments, contexts, testbeds, campaign folders, and owned-fork branches before creating work.
 - Treat GitHub issues as live coordination, canonical findings as the current technical answer, workspaces as orientation, and repository files as durable evidence.
 - Work only from an explicit assignment, claimed scout or lane, requested synthesis, user-directed triage task, bounded review task, or bounded fork-free experiment.
-- This transitional protocol does not define dispatch, typed lease or authority state, lifecycle status, effective currentness, or controller-observed currentness. Those semantics remain outside S0 until an exact structured-state generation is independently accepted; a later clean kernel successor must reference the architecture under review in #306 or its accepted successor rather than copy those fields into another prose payload.
+- This transitional protocol does not define dispatch, typed lease or authority state, lifecycle status, effective currentness, or controller-observed currentness. Those semantics remain outside S0 until an exact structured-state generation is independently accepted. Until then, a later clean-kernel experiment may cite #306 only as non-normative architecture under review; any normative successor must reference the independently accepted exact generation rather than copy those fields into another prose payload.
 
 ## Programme, target, and testbed indexing
 
