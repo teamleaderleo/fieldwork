@@ -7,10 +7,10 @@ Before working:
 1. read `START_HERE.md`;
 2. read `AGENTS.md`;
 3. read the assigned batch, campaign, lane, experiment, context, or issue;
-4. obey `REFERENCE_POLICY.md` before posting third-party GitHub references in issues, pull requests, comments, reviews, or discussions;
+4. obey `REFERENCE_POLICY.md` before creating third-party GitHub references;
 5. obey `INTEGRATION_CONTEXT.md` before claiming broader use, operational consequence, or ecosystem impact.
 
-Direct links and `teamleaderleo/repository#number` shorthand are allowed for repositories under `teamleaderleo/*`. Use `redirect.github.com` for third-party issue, pull-request, discussion, and commit references in GitHub interaction text unless the text is recording an upstream interaction that a human already performed. Repository notes, reports, maps, and other tracked files may link directly and do not need an automated reference check.
+Direct links and `teamleaderleo/repository#number` shorthand are allowed for repositories under `teamleaderleo/*`. Automated workers always use the literal `redirect.github.com` URL for every third-party GitHub issue, pull-request, or discussion reference they create, including in tracked repository files, drafts, commit messages, and owned-fork interaction text. There are no automated exceptions. Direct repository-root, source-file, documentation, release, and commit links are unaffected.
 
 A bounded one-worker playground experiment needs no upstream fork or Fieldwork issue. Wider claims require evidence labels, primary sources, explicit limitations, and an integration-context dossier.
 
