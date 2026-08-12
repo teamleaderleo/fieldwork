@@ -6,6 +6,23 @@ State: `candidate`
 
 > This packet is preparation-only. Fieldwork agents and automated workers must never submit, post, comment, review, react, or otherwise mutate a third-party upstream repository. A human must perform any upstream interaction manually outside Fieldwork automation.
 
+## Internal dossier and maintainer-facing draft
+
+This packet is the internal evidence dossier. The eventual maintainer-facing issue or pull-request body should usually be much shorter and should follow the target repository's own template and vocabulary.
+
+A strong maintainer-facing draft normally does four things and then stops:
+
+1. name the concrete bad behaviour and consequence;
+2. explain the causal ownership, ordering, identity, or state mistake just far enough to make the repair understandable;
+3. state the smallest change that restores the intended property;
+4. name the regression or validation that distinguishes the fix from the old behaviour.
+
+Add scope exclusions only when they prevent a likely misunderstanding. Prefer one specific non-goal over a general disclaimer.
+
+Do **not** mechanically export Fieldwork process language into the public draft. Exact SHAs, evidence classes, carrier history, queue state, internal review receipts, discarded variants, and coordination mechanics belong here unless the target repository explicitly asks for them.
+
+Match the target's house style. A repository that wants a three-paragraph bug-fix explanation should get three paragraphs; a repository with a structured checklist should get its checklist. The technical invariant should survive the compression even when the headings do not.
+
 ## Proposal
 
 Begin with the smallest defensible statement:
@@ -91,6 +108,8 @@ A compact pseudocode sketch is encouraged when it'll let a reviewer understand t
 ## Verification
 
 Show the evidence in the form closest to the claim: failing/passing regression, truth table, matrix, trace, benchmark, fault injection, or adversarial schedule. Don't turn a short receipt into a large bullet inventory.
+
+For the maintainer-facing draft, compress this to the tests that explain the change. Keep exhaustive matrices and receipt bookkeeping in the internal dossier unless the target asks for them.
 
 ## Tradeoffs and alternatives
 
