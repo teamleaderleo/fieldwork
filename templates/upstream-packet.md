@@ -25,6 +25,20 @@ Match the target's house style. A repository that wants a three-paragraph bug-fi
 
 Compression never overrides target-required checklists, changelog entries, contribution metadata, or AI-use disclosure. Include those exactly where the target policy requires them.
 
+## Contribution lineage
+
+Track substantive authorship and contribution separately from pull-request mechanics. A target repository may close one contribution PR and land the same work through a maintainer branch, factory PR, squash, cherry-pick, regenerated patch, or other repository-native flow. That administrative change does not by itself mean someone else independently did the work.
+
+Classify the outcome from the evidence:
+
+- **landed directly** — the submitted contribution itself was merged;
+- **landed via target-managed successor, contribution lineage retained** — the landing materially incorporates the submitted implementation, reproduction, tests, analysis, or repair boundary, even if maintainers changed placement, wording, scope, or small implementation details;
+- **independently displaced** — use this only when the successor was substantively independent and the record does not support material derivation from the submitted contribution.
+
+When commit metadata names the contributor as an author or co-author, record that plainly. When the diff and history show material incorporation but formal metadata is different, describe the contribution accurately without inventing a percentage or claiming sole authorship. Do not use words like `superseded` or `replaced` in a way that implies the contribution was irrelevant when the target merely chose a different landing vehicle.
+
+Preserve the exact contribution trail internally: submitted PR, reproduced behavior, tests, important review discussion, target-requested narrowing, successor landing, and any author/co-author metadata. This is historical accuracy, not credit inflation.
+
 ## Proposal
 
 Begin with the smallest defensible statement:
