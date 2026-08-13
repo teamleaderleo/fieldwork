@@ -25,6 +25,7 @@ The names here are starting points, not prestige targets and not automatic upstr
 - `ValveSoftware/gamescope` — SteamOS compositor; Vulkan, Wayland, DRM/KMS, HDR, frame pacing, display ownership.
 - `ValveSoftware/Proton` — compatibility integration across Wine, DXVK, vkd3d-proton and game-specific runtime behavior.
 - `wine-mirror/wine` — Windows API compatibility; loaders, processes, graphics, input, synchronization, filesystem and application compatibility.
+- `FEX-Emu/FEX` — x86/x86-64 execution on ARM64 Linux; dynamic binary translation, JIT/code-cache lifetime, x86 memory ordering, signals, syscall/ABI translation, OpenGL/Vulkan forwarding, and Wine/Proton compatibility.
 - `libsdl-org/SDL` — cross-platform input, windowing, controller, audio, GPU and platform backends.
 - `swaywm/wlroots` — Wayland compositor primitives, DRM/KMS, input, rendering, output lifecycle.
 - `GNOME/mutter` — compositor/window manager internals, Wayland/X11, input, frame scheduling and display behavior.
