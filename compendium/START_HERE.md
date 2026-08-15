@@ -28,7 +28,7 @@ The source investigations remain authoritative. The compendium is derived memory
 
 ```text
 node scripts/compendium-index.mjs stats
-node scripts/compendium-index.mjs curate
+node scripts/compendium-curate.mjs
 ```
 
 4. Pick one entry that looks interesting.
@@ -172,16 +172,18 @@ Anyone may propose lowering maturity when a new counterexample exposes a hidden 
 
 ## Use the curation queue
 
-`curate` is a deterministic, read-only hint generator:
+The curation helper is deterministic and read-only:
 
 ```text
-node scripts/compendium-index.mjs curate
-node scripts/compendium-index.mjs curate --json
+node scripts/compendium-curate.mjs
+node scripts/compendium-curate.mjs --json
 ```
 
 It highlights places worth inspecting, such as orphaned entries, thin candidates, mature entries that deserve a counterexample/limits check, and executable-graduation records with weak graph connections.
 
 These are **review prompts**, not automatic defects. A reported item may be correct as-is.
+
+See [`CURATION.md`](CURATION.md) for the split/merge/bound/graduation workflow.
 
 ## What not to do
 
