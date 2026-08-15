@@ -109,8 +109,8 @@ def validate_experiment(directory: Path) -> None:
 
     if data.get("upstream_contact_authorized") is not False:
         raise ValidationError(
-            f"{metadata_path}: upstream_contact_authorized must be false; "
-            "automated upstream contact is prohibited"
+            f"{metadata_path}: upstream_contact_authorized must remain false as a status field; "
+            "live bounded upstream authority is separate under AGENTS.md"
         )
 
     environment = data.get("environment")

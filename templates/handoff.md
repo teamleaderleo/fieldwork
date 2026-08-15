@@ -46,7 +46,7 @@ Include exact revisions, retrieval dates, primary sources, and evidence labels.
 
 ## Upstream contact
 
-Automated upstream contact must remain prohibited. State whether a human independently performed any upstream interaction that should be recorded. Do not treat this section as authorization for an agent to create or modify upstream work.
+Record automated upstream interaction as `none` or `greenlit: <exact interaction>`, plus any independently human-performed interaction that should be retained. This section records authority and outcome; it never creates authority. Any automated third-party mutation requires a live human `upstream greenlight` for the current repository and specific interaction under `AGENTS.md`.
 
 ## Completion comment
 
@@ -63,6 +63,6 @@ Finding: <one-paragraph result>
 Evidence labels used: <labels>
 Uncertainty: <remaining uncertainty>
 Decision needed: <none or exact decision>
-Automated upstream contact: prohibited
+Automated upstream contact: none | greenlit: <exact interaction>
 Human-performed upstream interaction recorded: none | <exact existing interaction>
 ```

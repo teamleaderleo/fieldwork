@@ -89,8 +89,8 @@ def validate_manifest(path: Path) -> list[str]:
         errors.append(f"{path}: constraints must be an object")
     elif constraints.get("upstream_contact_authorized") is not False:
         errors.append(
-            f"{path}: batch upstream_contact_authorized must be false; "
-            "automated upstream contact is prohibited"
+            f"{path}: batch upstream_contact_authorized must remain false as a status field; "
+            "live bounded upstream authority is separate under AGENTS.md"
         )
 
     assignments = data["assignments"]
@@ -137,8 +137,8 @@ def validate_manifest(path: Path) -> list[str]:
 
         if assignment["upstream_contact_authorized"] is not False:
             errors.append(
-                f"{path}: {location} upstream_contact_authorized must be false; "
-                "automated upstream contact is prohibited"
+                f"{path}: {location} upstream_contact_authorized must remain false as a status field; "
+                "live bounded upstream authority is separate under AGENTS.md"
             )
 
     return errors

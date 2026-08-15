@@ -6,7 +6,7 @@ Fieldwork is not operating under a research freeze. The active objective is to d
 
 The existing upstream backlog remains important, but it is a preparation and delivery queue rather than a ceiling on discovery. Finish strong candidates while continuing to open well-grounded new lanes.
 
-Third-party upstream repositories are permanently read-only to Fieldwork agents and automated workers. Agents prepare; humans submit manually.
+Third-party upstream repositories are read-only by default. `AGENTS.md` owns the bounded `upstream greenlight` exception for deliberate human-authorized contact.
 
 ## Mission
 
@@ -36,7 +36,7 @@ High throughput does not weaken the evidence contract.
 - Keep execution carriers separate from canonical source candidates and retire them after evidence transfer.
 - Do not treat green CI as proof of untested authority, lifecycle, recovery, security, compatibility, or integration properties.
 - Do not manufacture low-value volume merely to increase counts.
-- Never mutate a third-party upstream repository from an agent or automated-worker path.
+- Keep third-party upstream read-only unless a live human upstream greenlight covers the interaction.
 
 ## New work and the existing queue
 
@@ -56,18 +56,18 @@ An adjacent question may become its own lane when it is technically independent.
 
 Owned-fork branches, characterization pull requests, candidates, execution carriers, findings, and review surfaces may be created as needed for the mission.
 
-Public upstream filing, comments, reviews, reactions, messages, releases, deployments, labels, assignments, workflow actions, branch/file/commit writes, and every other third-party upstream mutation are prohibited for Fieldwork agents and automated workers. This is true even when the owner explicitly asks for the interaction or a tool exposes the capability.
+Public upstream filing, comments, reviews, reactions, messages, releases, deployments, labels, assignments, workflow actions, branch/file/commit writes, and other third-party upstream mutations require a live human `upstream greenlight` covering the repository and interaction. Without one, stop at preparation.
 
 ## Direct maintainer communication
 
-Public upstream communication is a human-owned action, not a research artifact and not an agent capability.
+Public upstream communication is a human-authorized action, not an automatic consequence of research.
 
 - Read the target project's contribution and AI policies while preparing material.
-- Research assistance may explore options and prepare drafts, notes, patches, reproductions, and manual steps, but the owner performs the actual maintainer-facing interaction manually outside Fieldwork automation and must be able to explain every claim.
-- When maintainer guidance leaves an architectural constraint unclear, prepare the smallest decision question for the human to ask before expanding the implementation.
+- Research assistance may explore options and prepare drafts, notes, patches, reproductions, and manual steps. Under a live upstream greenlight, an agent may perform the bounded interaction; the human remains responsible for the claims and scope being authorized.
+- When maintainer guidance leaves an architectural constraint unclear, prepare the smallest decision question before expanding the implementation.
 - Lead with the relevant finding, requested decision, and evidence. Keep rejected alternatives available, but do not paste the full exploration unless it helps the maintainer decide.
 - A technically coherent patch may still be retired when its runtime, compatibility, maintenance, or project-policy cost does not fit the target.
-- After a human-performed interaction exists, agents may record it and analyze the response, but must not reply or otherwise continue the upstream conversation themselves.
+- After an upstream interaction exists, agents may record it and analyze the response. Further maintainer-facing actions still need to remain inside the active greenlight scope.
 
 ## Review assistance
 
@@ -95,7 +95,7 @@ Every serious lane should make it possible for the owner to understand:
 5. the exact evidence that ran;
 6. the known limits and unresolved questions;
 7. the current disposition;
-8. the exact human decision or manual public action that comes next.
+8. the exact human decision or public action that comes next.
 
 Raw branches, CI logs, and internal shorthand are supporting evidence. They are not a sufficient owner-facing presentation by themselves.
 
@@ -105,4 +105,4 @@ Priority zero means maximum credible discovery-and-delivery throughput.
 
 Cleanup, exact execution, independent review, presentation, and upstream packaging remain high-priority work. They operate alongside continued consequential research rather than replacing it.
 
-This directive supersedes the restrictive interpretation that priority zero requires stopping broad new research. All existing coordination, evidence, safety, and no-automated-upstream-write rules remain in force.
+This directive supersedes the restrictive interpretation that priority zero requires stopping broad new research. All existing coordination, evidence, safety, and external-action authority rules remain in force.

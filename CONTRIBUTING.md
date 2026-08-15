@@ -37,8 +37,10 @@ A Fieldwork pull request should state:
 - dependencies, superseded branches, and execution carriers;
 - whether the author is eligible to accept or merge the work;
 - external interactions created, if any;
-- upstream-contact authorization;
+- upstream interaction status and any applicable bounded `upstream greenlight` scope;
 - AI assistance used and how the output was verified.
+
+Third-party upstream write authority comes only from the live human phrase and bounded scope in `AGENTS.md`; repository records never create it.
 
 Keep the pull-request description current. Remove stale claims about running checks, pending dependencies, current-main relation, or canonical branches after the head changes.
 

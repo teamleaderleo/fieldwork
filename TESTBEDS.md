@@ -106,10 +106,10 @@ Choose one:
 - keep the change as an owned-project feature;
 - promote the result to a Fieldwork finding;
 - open a campaign for deeper investigation;
-- prepare a human-facing upstream packet for manual human submission;
+- prepare a human-facing upstream packet;
 - record a negative result.
 
-Preparing a packet never authorizes an automated upstream mutation.
+Preparing a packet does not authorize an automated upstream mutation. A separate live human `upstream greenlight` under `AGENTS.md` is required for any automated third-party write.
 
 ## Labels
 
@@ -130,4 +130,4 @@ If the owned repository itself is the subject of investigation rather than a pla
 - Record destructive operations and cleanup.
 - Do not merge experimental degradation into the default branch.
 - Preserve attribution when generated code or external source material is involved.
-- Third-party upstream repositories are permanently read-only to agents and automated workers. A human must perform any upstream interaction manually.
+- Third-party upstream repositories are read-only by default. Any automated state-changing upstream interaction requires the bounded human `upstream greenlight` defined in `AGENTS.md`.

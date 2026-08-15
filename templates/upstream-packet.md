@@ -4,7 +4,7 @@ Campaign:
 Target:  
 State: `candidate`
 
-> This packet is preparation-only. Fieldwork agents and automated workers must never submit, post, comment, review, react, or otherwise mutate a third-party upstream repository. A human must perform any upstream interaction manually outside Fieldwork automation.
+> This packet is preparation-only by default. Fieldwork agents and automated workers may prepare it freely. A state-changing third-party upstream interaction requires a live human `upstream greenlight` for the current repository and specific interaction under `AGENTS.md`; a human may also perform the interaction manually.
 
 ## Proposal
 
@@ -102,7 +102,7 @@ State how the change could be reverted, disabled, or contained when recovery is 
 
 ## Upstream context
 
-Keep links quiet while preparing the packet. If a human later submits upstream manually, Fieldwork may record that already-existing interaction according to `REFERENCE_POLICY.md`. The packet itself never authorizes an automated upstream write.
+Keep links quiet while preparing the packet under `REFERENCE_POLICY.md`. If an upstream interaction later exists, whether human-performed or automated under an applicable bounded `upstream greenlight`, Fieldwork may record it. The packet itself never grants write authority.
 
 ## AI assistance
 
@@ -111,12 +111,13 @@ Describe how AI systems contributed to research or implementation, how outputs w
 ## Human accountability
 
 ```text
-reproduced problem:           yes / no
-reviewed every change:        yes / no
-can defend implementation:    yes / no
-ran stated verification:      yes / no
-checked current policy:       yes / no
-automated upstream write:     no
+reproduced problem:                 yes / no
+reviewed every change:              yes / no
+can defend implementation:          yes / no
+ran stated verification:            yes / no
+checked current policy:             yes / no
+automated upstream interaction:     none | greenlit: <exact interaction>
+greenlight verified if applicable:  yes / not applicable
 ```
 
 ## Maintainer decision requested

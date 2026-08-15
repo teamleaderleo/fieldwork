@@ -107,13 +107,13 @@ Choose one:
 - keep as an owned-project feature;
 - promote to a finding;
 - open or extend a campaign;
-- prepare a human-facing upstream packet for manual submission;
+- prepare a human-facing upstream packet;
 - negative result.
 
 ## Upstream boundary
 
-Automated third-party upstream contact: `prohibited`
+Automated third-party upstream interaction: `none | greenlit: <exact interaction>`
 
-Human-performed upstream interaction recorded: `none`
+Human-performed upstream interaction recorded: `none | <exact existing interaction>`
 
-An agent must never perform the upstream write, even when explicitly asked. If a human later submits or comments manually, record that already-existing interaction here.
+Third-party upstream repositories are read-only to agents by default. An automated state-changing interaction requires a live human `upstream greenlight` for the current repository and specific interaction under `AGENTS.md`. Record the completed interaction here; this trial record never grants the authority itself.

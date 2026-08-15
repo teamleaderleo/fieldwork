@@ -53,7 +53,7 @@ Parallel lanes are created only after a parent campaign identifies distinct deli
 
 Before human maintainer direction exists, cap speculative implementation. Spend enough time to produce a credible reproduction and proposal, then pause when acceptance depends on upstream design choices.
 
-Fieldwork agents never create or manage upstream submissions. If a human has manually submitted work, do not keep more human-performed upstream interactions active than can be answered promptly and responsibly.
+Third-party upstream repositories are read-only to Fieldwork agents by default. An automated interaction requires a live human `upstream greenlight` for the current repository and specific interaction under `AGENTS.md`. Keep existing human-performed or greenlit maintainer interactions few enough to answer promptly and responsibly.
 
 ## States
 
@@ -84,14 +84,14 @@ Stop or pause when:
 - Keep independent experiments in Fieldwork; keep candidate upstream modifications in an owned fork.
 - Delete or archive superseded branches only after recording the relevant revision.
 
-Third-party upstream repositories themselves remain read-only to agents and automated workers.
+Third-party upstream repositories themselves remain read-only to agents and automated workers by default. A bounded greenlit interaction is the sole automated-write exception under `AGENTS.md`.
 
 ## Review cadence
 
 Review active batches and campaigns for:
 
 - new evidence;
-- feedback from human-performed upstream interactions, when any exist;
+- feedback from existing human-performed or greenlit upstream interactions, when any exist;
 - stale assumptions caused by target changes;
 - excessive scope or duplicate work;
 - assignments ready for synthesis;
@@ -104,12 +104,12 @@ Review active batches and campaigns for:
 Metrics describe the work; they do not become quotas. Useful measures include:
 
 - time from observation to reproduction;
-- time spent before a human upstream submission, when one occurs;
+- time spent before an upstream submission, when one occurs;
 - review iterations;
 - maintainer questions answered by the initial packet;
-- accepted, declined, withdrawn, and negative outcomes of human-performed submissions;
+- accepted, declined, withdrawn, and negative outcomes of human-performed or greenlit submissions;
 - reused fixtures, tests, or methods;
-- defects caught before human submission;
+- defects caught before submission;
 - dispatched assignments versus accepted results;
 - duplication caught before dispatch;
 - coordinator review load and synthesis backlog.

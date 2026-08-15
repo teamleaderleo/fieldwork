@@ -74,7 +74,7 @@ Every assignment includes:
 - stop condition;
 - upstream-contact authorization: `false`.
 
-For agents and automated workers, upstream-contact authorization is always `false` and cannot be changed by a user request, campaign decision, or coordinator. If a human independently performs an upstream interaction, record that completed action separately.
+For agents and automated workers, the upstream-contact field remains `false` as a status record. A live human `upstream greenlight` may separately authorize one bounded third-party interaction under `AGENTS.md` without changing the manifest field. Record a completed greenlit interaction separately.
 
 For citation or context assignments, also include:
 
@@ -110,7 +110,7 @@ Before fan-out, the coordinator:
 6. assigns unique output paths;
 7. identifies dependencies and shared assumptions;
 8. chooses a maximum useful concurrency;
-9. confirms that automated third-party upstream contact is prohibited;
+9. confirms that third-party upstream writes are read-only by default and that any automated exception requires a bounded human `upstream greenlight` under `AGENTS.md`;
 10. dispatches immutable assignment packets.
 
 Workers do not expand their assignment into additional repositories, claims, or questions without reporting the proposed expansion.
@@ -152,8 +152,8 @@ A synthesis may conclude that an isolated bug is real while its supposed wider i
 - Avoid one PR per trivial observation.
 - Never allow several workers to update one shared status or context file concurrently.
 - Never use an external upstream repository as the coordination surface.
-- Never mutate a third-party upstream repository from a worker or coordinator automation path.
+- Treat third-party upstream repositories as read-only by default; any automated mutation requires a live bounded `upstream greenlight` under `AGENTS.md`.
 
 ## Future automation
 
-Ostensibly or another coordinator may later generate assignments, claims, reminders, citation queues, and synthesis queues. It may not automate any mutation of a third-party upstream repository. The durable interface is intentionally simple: JSON manifests, stable IDs, issue numbers, exact state tokens, claim scopes, evidence labels, owned paths, and explicit handoff blocks.
+Ostensibly or another coordinator may later generate assignments, claims, reminders, citation queues, and synthesis queues. It may prepare upstream-facing work, but it must never infer or synthesize upstream authority. Any automated third-party mutation requires a live human `upstream greenlight` for the current repository and specific interaction under `AGENTS.md`. The durable interface is intentionally simple: JSON manifests, stable IDs, issue numbers, exact state tokens, claim scopes, evidence labels, owned paths, and explicit handoff blocks.

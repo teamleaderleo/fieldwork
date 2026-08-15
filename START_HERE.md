@@ -6,7 +6,7 @@ Use this runbook whenever a person or agent is told to investigate something thr
 
 Find the programme and target hub, claim one bounded scout or lane, read the code, explain the system simply, reproduce or model the important behaviour, and use an owned application as a controlled testbed when realistic use adds evidence. Report what was established, what remains unknown, and which branches are actually worth opening.
 
-Third-party upstream repositories are read-only to Fieldwork agents. Agents may prepare everything a human needs for an upstream interaction, but they must never perform the upstream write themselves, even when explicitly asked.
+Third-party upstream repositories are read-only to Fieldwork agents by default. Agents may prepare everything needed for an upstream interaction. An automated state-changing interaction requires the human to actually say `upstream greenlight` for the current repository and specific interaction under `AGENTS.md`.
 
 ## 1. Read the rules
 
@@ -81,7 +81,7 @@ For a scout or lane, record:
 - stop condition;
 - upstream-contact authorization: `false`.
 
-For automated workers, that field is always `false`. It does not become `true` when a user asks for an upstream interaction. If a human later performs an upstream action manually, record that completed human interaction separately.
+For automated workers, that field remains `false` as a status record and never grants write authority. A live human `upstream greenlight` may separately authorize one bounded upstream interaction under `AGENTS.md` without changing the field. Record any completed upstream interaction separately.
 
 A scout must return code and test maps, at least one runnable probe or explicit reason none is feasible, ranked branch candidates, and a recommendation to stop, retain a finding, open a campaign, or run another scout.
 
@@ -113,13 +113,11 @@ One worker may edit only the owned scout, experiment, trial branch, or assignmen
 
 ## 4. Protect external projects before creating references
 
-Third-party upstream repositories are read-only to agents. This section governs references the worker creates in Fieldwork and owned repositories or forks; it does not create an upstream-write exception.
+Third-party upstream repositories are read-only by default. This section governs references the worker creates in Fieldwork, owned repositories and forks, and any greenlit upstream interaction; `AGENTS.md` owns write authority.
 
-Automated workers always use the literal `redirect.github.com` URL for every third-party GitHub issue, pull-request, or discussion reference they create. There are no automated exceptions. The same rule applies to GitHub interaction text, tracked repository files, drafts, experiment records, human-facing packets, and commit messages.
+Automated workers always use the literal `redirect.github.com` host for every third-party GitHub URL they create. There are no automated exceptions to the URL-rewrite rule. The same rule applies to GitHub interaction text, tracked repository files, drafts, experiment records, human-facing packets, commit messages, and greenlit upstream text.
 
-Never emit third-party `OWNER/REPOSITORY#NUMBER` shorthand or direct third-party issue, pull-request, or discussion URLs. If a direct reference is desired, a human must create it manually.
-
-Direct repository-root, source-file, documentation, release, and commit links are unaffected.
+For third-party issues, pull requests, and discussions, never emit `OWNER/REPOSITORY#NUMBER` shorthand. Never emit a direct `github.com` URL to third-party GitHub content. Owned `teamleaderleo/*` repositories remain first-party and may use ordinary GitHub URLs or shorthand.
 
 Before creating or editing any Fieldwork or owned-fork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work, run the exact final text through the preflight in `REFERENCE_POLICY.md`.
 
@@ -180,9 +178,9 @@ A testbed trial may become a useful owned-project feature. It does not by itself
 
 ## 7. Work quietly and preserve evidence
 
-Fieldwork itself and explicitly selected owned testbeds or owned forks may be updated as part of the assignment. Third-party upstream repositories remain read-only to agents under all circumstances.
+Fieldwork itself and explicitly selected owned testbeds or owned forks may be updated as part of the assignment. Third-party upstream repositories remain read-only by default.
 
-If a user asks the agent to file, submit, post, comment, review, react, merge, rerun, push, or otherwise mutate upstream, prepare the material and stop before the mutation. A human must perform the actual upstream interaction manually outside Fieldwork automation.
+If a user asks the agent to file, submit, post, comment, review, react, merge, rerun, push, or otherwise mutate upstream, check the `AGENTS.md` gate. Only an applicable human instruction containing the words `upstream greenlight` authorizes the specific interaction. Ordinary approval or an explicit request without that phrase stops at preparation.
 
 Preserve:
 
@@ -242,7 +240,7 @@ At minimum:
 5. synchronize the issue, report, pull-request description, receipts, and queue or Delivery Desk entry;
 6. mark non-applicable fields instead of inventing evidence;
 7. prove temporary workflows or execution carriers are absent from the final canonical head before calling them retired;
-8. confirm that no automated third-party upstream mutation was attempted or performed.
+8. record upstream interaction status accurately: none, human-performed, or automated under an applicable bounded `upstream greenlight`.
 
 Self-review prepares the handoff. It does not replace eligible independent acceptance.
 
@@ -271,7 +269,7 @@ Evidence labels used: <labels>
 Uncertainty: <remaining uncertainty>
 Dependencies discovered: <none or exact records>
 Decision needed: <none or exact decision>
-Automated upstream contact: prohibited
+Automated upstream contact: none | greenlit: <exact interaction>
 Human-performed upstream interaction recorded: none | <exact existing interaction>
 ```
 

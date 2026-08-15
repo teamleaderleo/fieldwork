@@ -4,14 +4,14 @@
 
 A passing test or a convincing pull-request description is not the same thing as an accepted result. Review must identify what kind of work is being examined, which exact revision was tested, what evidence actually ran, what remains uncertain, who is eligible to accept it, and which branch is the real delivery surface. Temporary execution machinery, stale descriptions, and green checks must not be mistaken for a merge decision.
 
-Third-party upstream repositories are permanently read-only to Fieldwork agents. Review may prepare material for human submission, but it can never authorize an automated upstream mutation.
+Third-party upstream repositories are read-only to Fieldwork agents by default. Review can establish readiness and prepare exact interaction text, but review itself never grants automated upstream write authority. Only an applicable live human `upstream greenlight` under `AGENTS.md` can authorize one bounded interaction.
 
 ## Classify the work before reviewing it
 
 Every review item should identify one primary class:
 
 1. **Owned product delivery** — a candidate change intended to merge into an owned repository. It needs current-main relation, exact-head product validation, authority and safety review, and an independent final disposition.
-2. **Upstream-fork research** — a reproduction, source map, compatibility investigation, issue draft, or candidate patch in an owned fork. It remains research until precedent, duplicate search, target-native evidence, compatibility, and contribution policy are understood. Any eventual upstream interaction must be performed manually by a human.
+2. **Upstream-fork research** — a reproduction, source map, compatibility investigation, issue draft, or candidate patch in an owned fork. It remains research until precedent, duplicate search, target-native evidence, compatibility, and contribution policy are understood. Any eventual automated upstream interaction requires a separate applicable human `upstream greenlight`; a human may also perform the interaction manually.
 3. **Execution carrier** — a temporary branch, pull request, or workflow used only to run code or produce a receipt. It is never the canonical merge candidate and should be closed or removed after its evidence is transferred.
 4. **Evidence or documentation** — a benchmark, provider finding, policy packet, synthesis, or decision record. It must distinguish documented facts, executed observations, interpretation, and unresolved questions.
 5. **Blocked or security-sensitive work** — a candidate whose required safety, authority, identity, or recovery primitive is absent. Green CI does not clear the block.
@@ -65,7 +65,7 @@ Before asking another reviewer to inspect a result:
 7. State missing platform coverage, unmeasured frequency, inferred consequence, and every material uncertainty.
 8. Synchronize the live issue, durable report, pull-request front page, execution receipt, and queue or Delivery Desk entry.
 9. Run Fieldwork integrity and external-reference checks on the final Fieldwork head.
-10. Confirm that automated third-party upstream contact remained prohibited and that no upstream mutation was attempted. Record any already-existing human-performed upstream interaction separately.
+10. Record upstream interaction status accurately. If an automated third-party write occurred, confirm that the human actually supplied `upstream greenlight`, name the repository and specific interaction it covered, and confirm the action stayed inside that scope. Otherwise record `none` or the already-existing human-performed interaction.
 11. Complete `templates/review.md` as a self-review receipt or explicitly record why a field is not applicable.
 
 ## Execution workflow
@@ -100,7 +100,7 @@ A promotion review should record:
 - dependencies, replacements, and superseded branches;
 - reviewed coordination inputs when they affect the decision, including the issue number and a body digest or explicit body revision marker;
 - live labels, state, assignees, or other metadata generations separately when they affect the disposition;
-- confirmation that automated upstream contact remained prohibited;
+- upstream interaction status, including the applicable `upstream greenlight` scope for any automated third-party write;
 - any already-existing human-performed upstream interaction recorded for context;
 - reviewer disposition and clearing condition.
 
@@ -118,7 +118,7 @@ Use one of these dispositions:
 - **EXECUTE** — the implementation or test is prepared, but target-native execution is still required.
 - **REJECT** — the premise or proposed direction is unsound and should not continue in its current form.
 
-A disposition must name the exact next transition. Accepting a research reproduction does not automatically accept its candidate fix, upstream wording, or human submission. No disposition can authorize an automated third-party upstream write.
+A disposition must name the exact next transition. Accepting a research reproduction does not automatically accept its candidate fix, upstream wording, or submission. No review disposition grants third-party write authority; `AGENTS.md` owns the `upstream greenlight` gate.
 
 ## Independent acceptance
 
@@ -130,7 +130,7 @@ Independent review should examine the complete current diff, not only the latest
 
 An explicit user assignment or instruction to continue authorizes bounded work in the same lane. Continue through source reading, local probes, review repairs, and ordinary writes in Fieldwork, owned repositories, and owned forks without repeatedly asking for permission.
 
-It never authorizes a mutation of a third-party upstream repository. If the next action would be an upstream issue, pull request, discussion, comment, review, reaction, label, assignment, merge, workflow action, branch/file/commit write, or other mutation, stop at a prepared artifact for a human to perform manually.
+That continuation authority does not substitute for the upstream gate. A third-party upstream issue, pull request, discussion, comment, review, reaction, label, assignment, merge, workflow action, branch/file/commit write, or other mutation requires an applicable human instruction containing `upstream greenlight` for that specific interaction. Without it, stop at a prepared artifact.
 
 Seek new authorization for other boundaries when the work would widen scope, change authority, use private or production data, incur material cost, or cross another explicit boundary.
 
@@ -209,10 +209,11 @@ Before moving a pull request out of draft or advancing a Fieldwork issue:
 - [ ] retired carriers are absent from the reviewed exact head;
 - [ ] issue state text and labels agree;
 - [ ] uncertainty and clearing conditions are visible;
-- [ ] automated third-party upstream contact remained prohibited;
+- [ ] upstream interaction status is accurate;
+- [ ] any automated third-party write records an applicable bounded human `upstream greenlight`;
 - [ ] any human-performed upstream interaction is recorded only after it exists;
 - [ ] no direct third-party reference violates `REFERENCE_POLICY.md`.
 
 ## Relationship to coordination automation
 
-The rules in this file are the manual contract for generated coordination work. A future evaluator may detect stale heads, changed dependencies, mismatched evidence classes, conflicting ownership, incomplete receipts, and invalid promotion states. Automation may derive and validate a queue, but it must not silently upgrade evidence, issue acceptance, merge work, authorize upstream contact, or mutate a third-party upstream repository.
+The rules in this file are the manual contract for generated coordination work. A future evaluator may detect stale heads, changed dependencies, mismatched evidence classes, conflicting ownership, incomplete receipts, and invalid promotion states. Automation may derive and validate a queue, but it must not silently upgrade evidence, issue acceptance, merge work, synthesize an `upstream greenlight`, or broaden the scope of a human-supplied greenlight. Third-party upstream mutation remains subject to the explicit human phrase and bounded scope in `AGENTS.md`.

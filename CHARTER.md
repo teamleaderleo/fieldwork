@@ -24,15 +24,15 @@ Reviewers should block concrete defects, unsupported claims, missing evidence, o
 
 ### Keep humans accountable
 
-AI systems may search, explain, generate candidates, run experiments, challenge reasoning, prepare patches, and prepare upstream-facing drafts. A named human owns the claims, verifies the evidence, reviews every submitted change, remains able to defend it, and performs any third-party upstream interaction manually outside Fieldwork automation.
+AI systems may search, explain, generate candidates, run experiments, challenge reasoning, prepare patches, and prepare upstream-facing drafts. A named human owns the claims, verifies the evidence, reviews every submitted change, and remains able to defend it. A third-party upstream write by an automated worker additionally requires the bounded `upstream greenlight` defined in `AGENTS.md`.
 
 ### Minimise unsolicited review cost
 
 Do not open speculative implementations against unfamiliar projects. Establish the problem, inspect prior discussion, understand project policy, and seek direction when the design is consequential.
 
-### Keep third-party upstream read-only to automation
+### Gate third-party upstream writes
 
-Third-party upstream repositories are permanently read-only to Fieldwork agents and automated workers. No user instruction, authorization marker, issue state, tool permission, or target-project policy can authorize an automated upstream mutation. Agents may prepare everything needed for a human submission, but only a human may create or modify upstream issues, pull requests, discussions, comments, reviews, reactions, labels, branches, files, commits, workflows, or other upstream state.
+Third-party upstream repositories are read-only to Fieldwork agents and automated workers by default. The only automated-write exception is a live human `upstream greenlight` covering the current repository and specific interaction as defined in `AGENTS.md`. Fieldwork records, issue state, markers, target-project policy, ordinary approval language, and tool permission do not create that authority. Without an applicable greenlight, agents may prepare everything needed for an upstream interaction and stop before the mutation.
 
 ### Prefer bounded, reversible work
 

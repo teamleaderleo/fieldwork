@@ -120,7 +120,7 @@ Before substantial coordinated work, the worker records:
 - stop condition;
 - upstream-contact authorization: `false`.
 
-For agents and automated workers, the upstream-contact field is not a permission switch. It is always `false`. Third-party upstream repositories are read-only regardless of user instruction or apparent intent. If a human later performs an upstream interaction manually, record that completed human action separately; do not change the worker authorization field to `true`.
+For agents and automated workers, the upstream-contact field is a status record and remains `false`; it is not a permission switch. A live human `upstream greenlight` may separately authorize one bounded third-party interaction under `AGENTS.md` without changing the field. Record any completed greenlit interaction, or an independently human-performed interaction, separately.
 
 A claim is a coordination lease, not ownership of the broader programme, campaign, or batch. If the worker disappears or the premise changes, the coordinator may release or replace it.
 
@@ -144,7 +144,7 @@ A handoff must state:
 6. unresolved uncertainty;
 7. blockers or dependencies;
 8. exact branch candidates or next decision;
-9. that automated upstream contact remained prohibited, plus any already-completed human upstream interaction that should be recorded.
+9. automated upstream interaction status (`none` or the exact greenlit interaction), plus any already-completed human upstream interaction that should be recorded.
 
 Use `templates/handoff.md` and the `FIELDWORK HANDOFF` block from `START_HERE.md`.
 
@@ -197,4 +197,4 @@ Avoid one PR per trivial observation and avoid one giant PR containing unrelated
 
 ## Future automation boundary
 
-A future coordinator may automate dispatch, claims, state transitions, reminders, and synthesis queues. It may not automate mutations of third-party upstream repositories. The durable contract is deliberately simple: stable identifiers, exact state tokens, JSON registries and manifests, owned paths, issue numbers, and explicit handoff blocks.
+A future coordinator may automate dispatch, claims, state transitions, reminders, synthesis queues, and preparation of upstream-facing material. It must never infer or synthesize upstream authority. Any automated third-party mutation requires a live human `upstream greenlight` for the current repository and specific interaction under `AGENTS.md`; every such interaction stays within that bounded scope. The durable coordination contract remains deliberately simple: stable identifiers, exact state tokens, JSON registries and manifests, owned paths, issue numbers, and explicit handoff blocks.
