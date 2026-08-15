@@ -85,8 +85,9 @@ full-text search
 → normalized metadata
 → generated index
 → facet + relationship queries
+→ bounded context packets
 → semantic retrieval
-→ bounded context packets for Fieldwork skills
+→ hybrid packets for Fieldwork skills
 ```
 
 The repository should earn each added layer. Markdown remains readable without the indexer.
@@ -132,17 +133,30 @@ The compendium should add case-backed memory and traversal without turning ordin
 
 ## Local query helper
 
-`node scripts/compendium-index.mjs validate` validates the current entry metadata and local relationships.
+`node scripts/compendium-index.mjs validate` validates entry metadata, normalized relation types, local relation targets, aliases, and case references.
 
-Other useful commands:
+Useful discovery commands:
 
 ```text
 node scripts/compendium-index.mjs list
 node scripts/compendium-index.mjs list --kind bug-species
-node scripts/compendium-index.mjs list --facet concerns=durability
+node scripts/compendium-index.mjs list --facet concerns=durability --facet domains=storage
 node scripts/compendium-index.mjs show ambiguous-external-outcome
 node scripts/compendium-index.mjs related ambiguous-external-outcome
 node scripts/compendium-index.mjs search "cleanup terminal outcome"
 ```
 
-This helper is intentionally small. It is a retrieval experiment, not a new service or canonical truth store.
+Structured retrieval commands:
+
+```text
+node scripts/compendium-index.mjs packet ambiguous-external-outcome
+node scripts/compendium-index.mjs packet ambiguous-external-outcome --depth 2
+node scripts/compendium-index.mjs export
+node scripts/compendium-index.mjs stats
+```
+
+`packet` emits a bounded JSON context bundle containing the selected entry, nearby typed relations, concise `In simple words` summaries, and deduplicated concrete case references. Depth is capped at 2 and packet expansion is capped so a future skill cannot accidentally turn one lookup into an unbounded corpus dump.
+
+`export` emits a deterministic machine-readable index suitable for a later generated cross-repository index. `stats` exposes corpus composition so taxonomy growth can be inspected rather than guessed.
+
+The helper remains intentionally transparent and local. It is a retrieval experiment, not a new service or canonical truth store.
