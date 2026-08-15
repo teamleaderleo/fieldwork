@@ -6,7 +6,7 @@ This is a reader-facing view over the first Fieldwork compendium seed. It is not
 
 The useful question is rarely “what category does this bug belong to?” It is closer to:
 
-> **What relationship between ownership, visibility, completion, cleanup, and uncertainty has become false?**
+> **What relationship between ownership, visibility, completion, cleanup, identity, generation, and uncertainty has become false?**
 
 ## 1. Publication before ownership
 
@@ -79,7 +79,7 @@ mutation dispatched
 unknown → failed → retry
 ```
 
-See `ambiguous-external-outcome` and `unknown-outcome-requires-reconciliation-before-retry`.
+See `ambiguous-external-outcome`, `remote-effect-certainty`, `retryability`, and `reconciliation`.
 
 ## 4. Cleanup owner not transferred
 
@@ -100,7 +100,7 @@ creator allocates resource
 - Where does cleanup ownership move?
 - What happens if transfer fails?
 
-See `cleanup-owner-not-transferred` and `resource-has-one-cleanup-owner`.
+See `cleanup-owner-not-transferred`, `resource-has-one-cleanup-owner`, and `ownership`.
 
 ## 5. Cleanup replaces the selected outcome
 
@@ -138,7 +138,7 @@ transition requested
 - Can the proxy happen early?
 - What is reused immediately afterward?
 
-See `proxy-signal-for-authoritative-state` and `authoritative-state-gates-next-transition`.
+See `proxy-signal-for-authoritative-state`, `authoritative-state-gates-next-transition`, and `authoritative-state`.
 
 ## 7. Terminal authority leak
 
@@ -158,6 +158,89 @@ operation becomes terminal
 - Which producers can be cancelled, returned, or retired?
 
 See `terminal-authority-leak` and `terminal-state-revokes-producer-authority`.
+
+## 8. Stale generation publishes after replacement
+
+**Shape**
+
+```text
+generation A starts
+→ generation B supersedes A
+→ B becomes current
+→ A finishes last
+→ A republishes stale authority
+```
+
+**Ask**
+
+- What identity distinguishes generations?
+- Which event makes one accepted current?
+- Can older callbacks still reach the shared publisher?
+- Do old in-flight operations need captured authority without global publication authority?
+
+**Typical repairs**
+
+```text
+quiesce predecessor → start successor
+```
+
+or:
+
+```text
+monotonic generation ticket
+→ publish only if still current
+```
+
+See `stale-generation-publication`, `only-current-generation-may-publish`, `generation`, and `fence-publication-by-generation`.
+
+## 9. Shared terminal operation becomes its own dependency
+
+**Shape**
+
+```text
+owner terminal promise P waits for child
+→ child crosses async boundary
+→ child calls same owner terminal operation
+→ child receives P
+→ child waits for P
+→ P waits for child
+```
+
+**Ask**
+
+- Which callbacks are awaited by the shared terminal operation?
+- Can they asynchronously reenter the same owner?
+- How do we distinguish callback ancestry from legitimate concurrent joiners?
+- If a timeout breaks the cycle, who owns unfinished cleanup afterward?
+
+See `shared-terminal-operation-self-dependency` and `operation-owner`.
+
+## 10. Fanout iterates live membership
+
+**Shape**
+
+```text
+opening set = [A, B, C]
+→ invoke A
+→ A removes B
+→ live iteration skips B
+```
+
+**Ask**
+
+- Is the contract opening membership or continuously live membership?
+- Can callbacks mutate the child set synchronously?
+- Are removals meant to affect this operation or only future ones?
+
+**Typical repair**
+
+```text
+snapshot opening membership
+→ invoke snapshot
+→ mutations affect future operations
+```
+
+See `fanout-iterates-live-membership` and `snapshot-opening-membership`.
 
 ## A reusable hunting move
 
@@ -184,9 +267,17 @@ publication before ownership
     ≠
 only recoverable predecessor discarded before a fallible handoff
 
-same surface leak
+validated identity becomes stale after a valid check
     ≠
-same lifecycle owner
+normalization destroys identity before the check
+
+stale generation publishes globally
+    ≠
+old in-flight operation legitimately finishes under captured old authority
+
+shared terminal promise
+    ≠
+self-dependency merely because multiple callers share it
 ```
 
 Those separations are part of the product. A knowledge base that makes every bug look like one familiar pattern is less useful than the original case studies.
