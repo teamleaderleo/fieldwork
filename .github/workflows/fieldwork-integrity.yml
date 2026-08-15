@@ -21,3 +21,8 @@ jobs:
         run: python3 scripts/check_fieldwork_integrity.py
       - name: Validate compendium entries
         run: node scripts/compendium-index.mjs validate
+      - name: Smoke-test compendium retrieval
+        run: |
+          node scripts/compendium-index.mjs search "external effect retry" | grep -F 'ambiguous-external-outcome'
+          node scripts/compendium-index.mjs search "selected work success" | grep -F 'false-success-after-incomplete-work'
+          node scripts/compendium-index.mjs related publication-before-ownership | grep -F 'ownership-before-publication'
