@@ -25,4 +25,6 @@ jobs:
         run: |
           node scripts/compendium-index.mjs search "external effect retry" | grep -F 'ambiguous-external-outcome'
           node scripts/compendium-index.mjs search "selected work success" | grep -F 'false-success-after-incomplete-work'
+          node scripts/compendium-index.mjs search "validation identity change" | grep -F 'validated-identity-goes-stale-before-use'
+          node scripts/compendium-index.mjs search "normalization cache identity" | grep -F 'normalization-erases-semantic-distinction'
           node scripts/compendium-index.mjs related publication-before-ownership | grep -F 'ownership-before-publication'
