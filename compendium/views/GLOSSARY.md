@@ -18,6 +18,14 @@ The component whose state machine owns one operation's pending/terminal/retry/cl
 
 Entry: `operation-owner`.
 
+## Ownership
+
+The rule that decides which actor is currently responsible for a resource or state and which actions that responsibility authorizes: publish, mutate, reuse, clean up, retry, or transfer.
+
+Allocator ownership, cleanup ownership, controller ownership, lease ownership, and Rust value ownership share useful structure but are not interchangeable mechanisms.
+
+Entry: `ownership`.
+
 ## Publication
 
 The transition that makes prepared state visible enough for another component to rely on, reference, discover, or treat it as authoritative.
@@ -26,11 +34,35 @@ Publication does not automatically imply durability, integrity, or ownership.
 
 Entry: `publication`.
 
+## Generation
+
+An identity for one version of replaceable live state or work. Generations make logical supersession explicit when completion order can differ from replacement order.
+
+Old-generation work may sometimes finish safely without retaining authority to publish state for future work.
+
+Entry: `generation`.
+
+## Commit point
+
+The boundary after which the new state/effect is authoritative enough that ordinary rollback to the prior state would lie, duplicate ownership, or create conflicting topology.
+
+Post-commit repair and compensation may remain possible, but they are not the same as pretending commit never happened.
+
+Entry: `commit-point`.
+
 ## Reconciliation
 
 Recovery by comparing durable intent/identity with current authoritative observations and selecting the next safe transition. Reconciliation preserves uncertainty instead of requiring fictional rollback history.
 
 Entry: `reconciliation`.
+
+## Retryability
+
+The property that another attempt can be made without duplicating a completed effect, destroying surviving state, or violating the operation's ownership/identity contract.
+
+An error result alone does not establish retryability.
+
+Entry: `retryability`.
 
 ## Remote-effect certainty
 
@@ -52,7 +84,7 @@ Entry: `semantic-identity`.
 
 ## Why the glossary is composable
 
-A future storage view can explain `publication` through pointer visibility and allocator ownership. An auth view can explain `semantic identity` through account authority. A controller view can explain `operation owner` through attempts and generations.
+A storage view can explain `publication` through pointer visibility and allocator ownership. An auth view can explain `semantic identity` through account authority. A controller view can explain `generation` through accepted-current tickets. A Rust view can explain language ownership without silently equating it with allocator or distributed ownership.
 
 The concept keeps one shared core while domain views supply the local mechanism.
 
