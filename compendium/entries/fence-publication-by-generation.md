@@ -17,7 +17,7 @@
   "aliases": ["accepted-current-ticket", "generation-fence"],
   "relations": [
     {"type": "related-to", "target": "stale-generation-publication"},
-    {"type": "protected-by", "target": "only-current-generation-may-publish"}
+    {"type": "related-to", "target": "only-current-generation-may-publish"}
   ],
   "cases": [
     "teamleaderleo/fieldwork#180",
