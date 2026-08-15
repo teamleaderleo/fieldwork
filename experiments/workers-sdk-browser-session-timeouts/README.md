@@ -16,10 +16,10 @@ The Browser Rendering test `it creates a browser session` failed on Windows four
 
 The investigation found two distinct ownership gaps:
 
-- Candidate A: the test owns a bounded acquisition deadline and a larger outer watchdog so the acquisition phase can fail before Vitest's generic watchdog.
+- Candidate A: the test owns a bounded acquisition deadline and a larger outer watchdog so the acquisition phase can fail before Vitest's generic watchdog, and the test harness preserves Browser binding non-2xx status/body instead of collapsing useful errors into a boolean assertion.
 - Candidate B: BrowserSession owns a bounded persistent DevTools connection attempt; acquisition checks registration failure and releases launched-browser registry ownership when registration fails.
 
-These should remain separate review units.
+These remain separate review units.
 
 ## Historical controls and design lineage
 
@@ -31,23 +31,66 @@ These should remain separate review units.
 
 Current Chrome readiness policy gives a useful scale reference: after the DevTools URL appears, Miniflare allows a 5s readiness window and caps each `/json/version` readiness request at 500ms. Candidate B's 2s persistent-WebSocket attempt deadline is four times that per-request readiness budget on the same DevTools listener.
 
-## Candidate A — test-owned acquisition deadline
+## Candidate A — test-owned acquisition deadline and preserved binding errors
 
-Clean owned-fork branch: `fieldwork/browser-session-timeout-current`
+Canonical owned-fork branch: `fieldwork/browser-session-timeout-current`
 
-Commit: `d93625eed59148442a96ca0925d1e62269753ac7`
+Final refined commit: `a97c23fb20206d4ff21a0d4e366b7ff899d8a539`
 
-Shape:
+Parent: exact current upstream `49f73de207124171b3f8e9ffb182facb48727388`.
 
-- suite-level 20s timeout unchanged;
+Proposal shape: one commit, one test file, 43 additions / 5 deletions:
+
+- `packages/miniflare/test/plugins/browser/index.spec.ts`
+
+Behavior:
+
+- suite-level 20s timeout remains unchanged;
 - only `it creates a browser session` gets a 60s acquisition deadline and 75s outer timeout;
 - acquisition uses `AbortSignal.timeout()` around `mf.dispatchFetch()`;
-- named error: `Browser session acquisition timed out after 60000ms`;
-- target retry condition uses named Chrome readiness/acquisition failures rather than generic `Test timed out`.
+- named acquisition deadline error is `Browser session acquisition timed out after 60000ms`;
+- target retry condition uses named Chrome readiness/acquisition failures rather than generic `Test timed out`;
+- the test worker now forwards the Browser binding response body with its status/statusText/headers instead of rebuilding it as default 200;
+- `acquireBrowserSession()` throws on non-2xx with `Browser session acquisition failed with <status> <statusText>` followed by the binding response body;
+- the success assertion is `expect(text).toContain("sessionId")` rather than reducing the result to `expected false to be true`.
 
-Exact-diff Windows validation: run `31891360605`, job `95027999575`. The normal path passed, and a deterministic 65s browser-launch stall produced the named 60s acquisition timeout before the 75s outer watchdog.
+### Candidate A history
 
-Earlier warm focused samples were about 1.6-1.9s of test-body acquisition and 7.67-7.92s command wall time. Browser installation/setup is a separate slower phase.
+Pre-refinement clean commit: `d93625eed59148442a96ca0925d1e62269753ac7`.
+
+That version already established the core 60s acquisition / 75s outer timeout hierarchy and named retry policy. Exact-diff Windows validation run `31891360605`, job `95027999575`, passed the normal path and showed a deterministic 65s browser-launch stall producing the named 60s acquisition timeout before the 75s outer watchdog.
+
+The later Candidate B fault work exposed a remaining test-side presentation problem: the worker reconstructed binding responses as default 200 and the target asserted only `text.includes("sessionId")`, so useful B errors could still become `expected false to be true`. The final refined A incorporates the narrow status/body preservation fix rather than leaving that as a follow-up.
+
+### Refined Candidate A materialization and proof
+
+Fork-only materialization run `31896595157`, job `95040740063`, completed successfully on Windows Server 2025.
+
+The workflow started from exact upstream `49f73de...`, applied/formatted the refined one-file A, typechecked Miniflare, and published the canonical branch only after a synthetic inner-503 proof passed. Exact candidate test-file blob: `1cd60c8a7bf00745fa7be2b274963e0ca00f7b5c`.
+
+Synthetic 503 result:
+
+- target failure preserved `Browser session acquisition failed with 503 Injected Failure`;
+- body preserved `FIELDWORK inner browser failure`;
+- no `expected false to be true` masking;
+- no generic `Test timed out` masking.
+
+Exact refined Windows validation: run `31896798835`, job `95041239273`.
+
+Candidate-validation steps all passed:
+
+- exact one-file source identity and `oxfmt --check`;
+- Miniflare typecheck;
+- full Browser Rendering spec;
+- two healthy focused acquisitions;
+- synthetic inner-503 status/body visibility proof;
+- deterministic 65s browser-launch stall proof.
+
+The deterministic stall step ran from `16:59:05Z` to `17:03:16Z` because the named acquisition timeout intentionally matches the target's retry policy, so the injected persistent stall exercised the initial attempt plus three retries. Each attempt was bounded by the 60s acquisition deadline; the workflow rejected `Test timed out in 75000ms` and passed.
+
+At the time this note revision was written, the substantive validation steps were complete and green while GitHub Actions was still performing post-job dependency-cache cleanup. That post-job state is not candidate-source evidence; the validation-step receipts above are the applicable proof.
+
+Earlier warm focused samples for pre-refinement A were about 1.6-1.9s of test-body acquisition and 7.67-7.92s command wall time. Browser installation/setup is a separate slower phase.
 
 ## Candidate B discovery history
 
@@ -63,9 +106,7 @@ Owned-fork branch: `fieldwork/browser-connect-timeout-proof-v2`.
 
 Normal typecheck/build/full Browser Rendering spec passed. Under deterministic connect stall, the target test failed after retry-scale elapsed time, but Vitest showed only `expected false to be true`.
 
-The Browser Rendering test worker reads the binding response body and creates a new default-200 `Response`, then the test checks only whether the text contains `sessionId`. This is a separate test-harness observability boundary: a useful product-side error body can still be reduced to a boolean assertion in the suite.
-
-This finding remains relevant after Candidate B. It belongs with Candidate A / test-side observability rather than expanding the product-side B patch again.
+The Browser Rendering test worker read the binding response body and created a new default-200 `Response`, then the test checked only whether the text contained `sessionId`. This was a separate test-harness observability boundary. Final Candidate A now fixes that boundary; Candidate B itself remains product-only.
 
 ### v3 narrowing — avoid side-effect replay and own failed registration cleanup
 
@@ -177,22 +218,46 @@ Final two-file proposal validation: run `31896065634`, job `95039456653`, succes
 
 An earlier changeset-status attempt, run `31895974542`, failed because the command defaulted to the fork's stale `main` and also printed unrelated workspace catalog-version diagnostics. The pinned-base rerun above is the applicable receipt.
 
+## Candidate A + Candidate B diagnostic integration proof
+
+Validation-only branch: `fieldwork/browser-session-timeout-b-integration-validation`.
+
+Run `31896863410`, job `95041398516`, completed successfully on Windows Server 2025. This did **not** create a combined proposal: it checked out exact refined A test code and overlaid exact final B production blob `37f20768...` only for validation.
+
+Normal combined source:
+
+- exact A and B identities verified;
+- Miniflare typecheck passed;
+- Miniflare build passed;
+- full Browser Rendering spec passed: 20 passed, 1 skipped;
+- healthy `it creates a browser session` took 8555ms in the full spec.
+
+Deterministic persistent-connect stall:
+
+- exactly five `FIELDWORK_CONNECT_ATTEMPT` lines;
+- target failed in 14208ms, with Vitest command duration 19.16s;
+- outer test error preserved `Browser session acquisition failed with 500 Internal Server Error`;
+- nested product attribution preserved `Failed to establish Chrome DevTools connection for browser session ...`;
+- final named B error preserved `Chrome DevTools connection attempt timed out after 2000ms (attempt 5/5)`;
+- no `expected false to be true` masking;
+- no `Test timed out in 75000ms` masking.
+
+This closes the residual test-harness presentation gap found during B v2. It also shows the intended ownership split: B exhausts its own five persistent-connect attempts; the resulting unrelated 500 is surfaced directly by A rather than matching A's test-level Chrome-readiness/acquisition-timeout retry regex.
+
 ## Budget and interpretation
 
-Five 2s connect attempts plus current backoff are roughly 10.4s before cleanup. `closeBrowserProcess()` itself allows up to 5s graceful close and then up to 5s after force-kill. A pathological failed-registration path can therefore approach or exceed the existing 20s test watchdog.
+Five 2s connect attempts plus current backoff are roughly 10.4s before cleanup. `closeBrowserProcess()` itself allows up to 5s graceful close and then up to 5s after force-kill. A pathological failed-registration path can therefore approach or exceed the existing 20s suite watchdog.
 
-This is another reason Candidate B does not replace Candidate A. If A lands first, its 60s acquisition budget leaves ample room for B's bounded connect failure and cleanup to report before the 75s outer watchdog. B alone improves product ownership and normally fails well inside 20s, but pathological cleanup can still let the old outer test watchdog become relevant.
+This is another reason Candidate B does not replace Candidate A. A's 60s acquisition budget leaves ample room for B's bounded connect failure and cleanup to report before the 75s outer watchdog. B alone improves product ownership and normally fails well inside 20s, but pathological cleanup can still let the old outer test watchdog become relevant.
 
-The current Browser Rendering test harness has one additional presentation issue: it can turn a useful non-2xx binding body into `expected false to be true`. That should be addressed in the test-side proposal rather than folded into B.
+The refined A+B integration receipt demonstrates that the two independent proposals compose diagnostically without requiring them to be bundled.
 
 ## Recommendation
 
-Candidate B is now ready as a separate product-hardening proposal on the owned fork. Keep the upstream submission decision separate from Candidate A and do not bundle caller-signal compatibility work.
-
 Recommended order remains:
 
-1. Candidate A first: smallest change, directly repairs CI test timeout ownership and retry attribution.
-2. Candidate B second: bounds the persistent BrowserSession DevTools connection, preserves registration failure, and releases registry ownership on failed registration.
-3. Before upstreamizing the test-side work, consider a tiny harness refinement so non-2xx Browser binding response bodies are preserved in assertion output instead of collapsing to the `sessionId` boolean check.
+1. Candidate A first: one test file, directly repairs the original CI timeout ownership/retry attribution and now also preserves Browser binding non-2xx diagnostics through the test harness.
+2. Candidate B second: separate product hardening that bounds the persistent BrowserSession DevTools connection, preserves registration failure, and releases registry ownership on failed registration.
+3. Keep caller-signal compatibility and OS-process-termination observability out of both proposals unless separate evidence justifies those changes.
 
 Do not claim registry status 410 proves Chrome process termination. No upstream issue, PR, comment, reaction, review, rerun, or message has been created by this investigation.
