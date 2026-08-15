@@ -16,9 +16,9 @@
   },
   "aliases": ["opentelemetry-fanout-l5"],
   "relations": [
-    {"type": "related-to", "target": "fanout-iterates-live-membership"},
-    {"type": "related-to", "target": "snapshot-opening-membership"},
-    {"type": "graduated-to", "target": "success-implies-complete-selected-work"}
+    {"type": "illustrates", "target": "fanout-iterates-live-membership"},
+    {"type": "illustrates", "target": "snapshot-opening-membership"},
+    {"type": "illustrates", "target": "success-implies-complete-selected-work"}
   ],
   "cases": [
     "teamleaderleo/fieldwork#194",
