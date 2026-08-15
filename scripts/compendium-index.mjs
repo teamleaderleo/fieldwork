@@ -25,6 +25,19 @@ const allowedFacetFamilies = new Set([
   "triggers",
   "techniques",
 ]);
+const allowedRelationTypes = new Set([
+  "violates",
+  "illustrates",
+  "related-to",
+  "detected-by",
+  "repaired-by",
+  "protected-by",
+  "clarifies",
+  "counterexample-to",
+  "specializes",
+  "generalizes",
+  "graduated-to",
+]);
 
 function die(message) {
   console.error(message);
@@ -100,14 +113,26 @@ function validate(entries) {
     }
 
     if (!Array.isArray(metadata.aliases)) errors.push(`${entry.name}: aliases must be an array`);
+    else {
+      for (const alias of metadata.aliases) {
+        if (typeof alias !== "string" || alias.trim() === "") errors.push(`${entry.name}: aliases must contain non-empty strings`);
+      }
+    }
+
     if (!Array.isArray(metadata.relations)) errors.push(`${entry.name}: relations must be an array`);
     if (!Array.isArray(metadata.cases)) errors.push(`${entry.name}: cases must be an array`);
+    else {
+      for (const caseRef of metadata.cases) {
+        if (typeof caseRef !== "string" || caseRef.trim() === "") errors.push(`${entry.name}: cases must contain non-empty strings`);
+      }
+      if (new Set(metadata.cases).size !== metadata.cases.length) errors.push(`${entry.name}: cases must not contain duplicates`);
+    }
   }
 
   for (const entry of entries) {
     if (!entry.metadata || !Array.isArray(entry.metadata.relations)) continue;
     for (const relation of entry.metadata.relations) {
-      if (relation == null || typeof relation !== "object") {
+      if (relation == null || typeof relation !== "object" || Array.isArray(relation)) {
         errors.push(`${entry.name}: relation must be an object`);
         continue;
       }
@@ -115,7 +140,14 @@ function validate(entries) {
         errors.push(`${entry.name}: relation requires string type and target`);
         continue;
       }
-      if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(relation.target) && !byId.has(relation.target)) {
+      if (!allowedRelationTypes.has(relation.type)) {
+        errors.push(`${entry.name}: unknown relation type ${JSON.stringify(relation.type)}`);
+      }
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(relation.target)) {
+        errors.push(`${entry.name}: relation target must be a local kebab-case entry id: ${JSON.stringify(relation.target)}`);
+        continue;
+      }
+      if (!byId.has(relation.target)) {
         errors.push(`${entry.name}: local relation target does not exist: ${relation.target}`);
       }
     }
@@ -130,8 +162,41 @@ function validate(entries) {
   return true;
 }
 
+function extractSummary(text) {
+  const match = text.match(/## In simple words\s*\n+([\s\S]*?)(?=\n## |\s*$)/);
+  if (!match) return "";
+  const summary = match[1].trim().replace(/\n{3,}/g, "\n\n");
+  return summary.length <= 1600 ? summary : `${summary.slice(0, 1597)}...`;
+}
+
 function normalizedEntries(entries) {
-  return entries.filter((entry) => entry.metadata).map((entry) => ({ ...entry.metadata, text: entry.text }));
+  return entries
+    .filter((entry) => entry.metadata)
+    .map((entry) => ({
+      ...entry.metadata,
+      source: path.relative(root, entry.file),
+      summary: extractSummary(entry.text),
+      text: entry.text,
+    }));
+}
+
+function metadataView(entry) {
+  const { text: _text, ...metadata } = entry;
+  return metadata;
+}
+
+function buildById(entries) {
+  return new Map(normalizedEntries(entries).map((entry) => [entry.id, entry]));
+}
+
+function allEdges(entries) {
+  const edges = [];
+  for (const entry of normalizedEntries(entries)) {
+    for (const relation of entry.relations ?? []) {
+      edges.push({ source: entry.id, type: relation.type, target: relation.target });
+    }
+  }
+  return edges;
 }
 
 function list(entries, args) {
@@ -139,8 +204,8 @@ function list(entries, args) {
   const kindIndex = args.indexOf("--kind");
   if (kindIndex >= 0) selected = selected.filter((entry) => entry.kind === args[kindIndex + 1]);
 
-  const facetIndex = args.indexOf("--facet");
-  if (facetIndex >= 0) {
+  const facetIndices = args.flatMap((arg, index) => (arg === "--facet" ? [index] : []));
+  for (const facetIndex of facetIndices) {
     const raw = args[facetIndex + 1] ?? "";
     const split = raw.indexOf("=");
     if (split < 1) throw new Error("--facet expects family=value");
@@ -153,51 +218,139 @@ function list(entries, args) {
 }
 
 function show(entries, id) {
-  const entry = normalizedEntries(entries).find((candidate) => candidate.id === id);
+  const entry = buildById(entries).get(id);
   if (!entry) throw new Error(`unknown entry: ${id}`);
-  const { text: _text, ...metadata } = entry;
-  console.log(JSON.stringify(metadata, null, 2));
+  console.log(JSON.stringify(metadataView(entry), null, 2));
 }
 
 function related(entries, id) {
-  const all = normalizedEntries(entries);
-  const entry = all.find((candidate) => candidate.id === id);
-  if (!entry) throw new Error(`unknown entry: ${id}`);
+  const byId = buildById(entries);
+  if (!byId.has(id)) throw new Error(`unknown entry: ${id}`);
 
-  for (const relation of entry.relations ?? []) {
-    console.log(`${id}\t${relation.type}\t${relation.target}`);
-  }
-  for (const candidate of all) {
-    for (const relation of candidate.relations ?? []) {
-      if (relation.target === id) console.log(`${candidate.id}\t${relation.type}\t${id}`);
+  for (const edge of allEdges(entries)) {
+    if (edge.source === id || edge.target === id) {
+      console.log(`${edge.source}\t${edge.type}\t${edge.target}`);
     }
   }
 }
 
-function search(entries, queryParts) {
+function scoreSearch(entries, queryParts) {
   const query = queryParts.join(" ").trim().toLowerCase();
   if (!query) throw new Error("search requires a query");
   const terms = query.split(/\s+/).filter(Boolean);
 
-  const scored = normalizedEntries(entries)
+  return normalizedEntries(entries)
     .map((entry) => {
-      const haystack = [
-        entry.id,
-        entry.kind,
-        entry.maturity,
-        ...(entry.aliases ?? []),
-        ...Object.values(entry.facets ?? {}).flat(),
-        entry.text,
-      ]
+      const strongHaystack = [entry.id, ...(entry.aliases ?? []), ...Object.values(entry.facets ?? {}).flat()]
         .join("\n")
         .toLowerCase();
-      const score = terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0);
+      const bodyHaystack = entry.text.toLowerCase();
+      const score = terms.reduce((total, term) => {
+        if (strongHaystack.includes(term)) return total + 3;
+        if (bodyHaystack.includes(term)) return total + 1;
+        return total;
+      }, 0);
       return { entry, score };
     })
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score || a.entry.id.localeCompare(b.entry.id));
+}
 
-  for (const { entry, score } of scored) console.log(`${score}\t${entry.id}\t${entry.kind}`);
+function search(entries, queryParts) {
+  for (const { entry, score } of scoreSearch(entries, queryParts)) {
+    console.log(`${score}\t${entry.id}\t${entry.kind}`);
+  }
+}
+
+function packet(entries, id, args) {
+  const byId = buildById(entries);
+  if (!byId.has(id)) throw new Error(`unknown entry: ${id}`);
+
+  const depthIndex = args.indexOf("--depth");
+  const depth = depthIndex >= 0 ? Number.parseInt(args[depthIndex + 1], 10) : 1;
+  if (!Number.isInteger(depth) || depth < 0 || depth > 2) throw new Error("--depth must be 0, 1, or 2");
+
+  const edges = allEdges(entries);
+  const selected = new Set([id]);
+  let frontier = new Set([id]);
+
+  for (let level = 0; level < depth; level += 1) {
+    const next = new Set();
+    for (const edge of edges) {
+      if (frontier.has(edge.source) && !selected.has(edge.target)) next.add(edge.target);
+      if (frontier.has(edge.target) && !selected.has(edge.source)) next.add(edge.source);
+    }
+    for (const candidate of next) selected.add(candidate);
+    frontier = next;
+  }
+
+  if (selected.size > 50) throw new Error(`packet expanded to ${selected.size} entries; reduce --depth`);
+
+  const packetEntries = [...selected]
+    .sort()
+    .map((entryId) => metadataView(byId.get(entryId)));
+  const packetEdges = edges.filter((edge) => selected.has(edge.source) && selected.has(edge.target));
+  const cases = [...new Set(packetEntries.flatMap((entry) => entry.cases ?? []))].sort();
+
+  console.log(
+    JSON.stringify(
+      {
+        schema: 1,
+        root: id,
+        depth,
+        entries: packetEntries,
+        relations: packetEdges,
+        cases,
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+function exportIndex(entries) {
+  console.log(
+    JSON.stringify(
+      {
+        schema: 1,
+        generated_from: "compendium/entries",
+        entries: normalizedEntries(entries).map(metadataView),
+        relations: allEdges(entries),
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+function stats(entries) {
+  const all = normalizedEntries(entries);
+  const countBy = (values) =>
+    Object.fromEntries(
+      [...new Set(values)]
+        .sort()
+        .map((value) => [value, values.filter((candidate) => candidate === value).length]),
+    );
+
+  const facets = {};
+  for (const family of allowedFacetFamilies) {
+    facets[family] = countBy(all.flatMap((entry) => entry.facets?.[family] ?? []));
+  }
+
+  console.log(
+    JSON.stringify(
+      {
+        entries: all.length,
+        relations: allEdges(entries).length,
+        cases: new Set(all.flatMap((entry) => entry.cases ?? [])).size,
+        kinds: countBy(all.map((entry) => entry.kind)),
+        maturity: countBy(all.map((entry) => entry.maturity)),
+        facets,
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 function main() {
@@ -215,6 +368,9 @@ function main() {
   else if (command === "show") show(entries, args[0]);
   else if (command === "related") related(entries, args[0]);
   else if (command === "search") search(entries, args);
+  else if (command === "packet") packet(entries, args[0], args.slice(1));
+  else if (command === "export") exportIndex(entries);
+  else if (command === "stats") stats(entries);
   else throw new Error(`unknown command: ${command}`);
 }
 
