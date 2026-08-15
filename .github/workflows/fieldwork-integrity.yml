@@ -43,3 +43,7 @@ jobs:
           node -e "const i=require('/tmp/compendium.json'); if (i.schema !== 1 || i.entries.length < 30 || !i.entries.some(e => e.kind === 'anti-pattern') || !i.entries.some(e => e.kind === 'executable-graduation')) process.exit(1)"
           node scripts/compendium-index.mjs stats > /tmp/stats.json
           node -e "const s=require('/tmp/stats.json'); if (s.entries < 30 || s.relations < 10 || s.cases < 10) process.exit(1)"
+      - name: Smoke-test compendium curation hints
+        run: |
+          node scripts/compendium-curate.mjs --json > /tmp/curation.json
+          node -e "const c=require('/tmp/curation.json'); const ids=new Set(c.queues.map(q => q.id)); if (c.schema !== 1 || c.entries < 30 || !ids.has('graph-orphans') || !ids.has('thin-candidates') || !ids.has('mature-boundary-review')) process.exit(1)"
