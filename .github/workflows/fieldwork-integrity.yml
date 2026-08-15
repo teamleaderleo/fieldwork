@@ -27,4 +27,7 @@ jobs:
           node scripts/compendium-index.mjs search "selected work success" | grep -F 'false-success-after-incomplete-work'
           node scripts/compendium-index.mjs search "validation identity change" | grep -F 'validated-identity-goes-stale-before-use'
           node scripts/compendium-index.mjs search "normalization cache identity" | grep -F 'normalization-erases-semantic-distinction'
+          node scripts/compendium-index.mjs search "older generation publication" | grep -F 'stale-generation-publication'
+          node scripts/compendium-index.mjs search "shared promise child" | grep -F 'shared-terminal-operation-self-dependency'
+          node scripts/compendium-index.mjs search "opening membership mutation" | grep -F 'fanout-iterates-live-membership'
           node scripts/compendium-index.mjs related publication-before-ownership | grep -F 'ownership-before-publication'
