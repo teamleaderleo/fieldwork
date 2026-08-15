@@ -203,13 +203,13 @@ If the right entry exists but cannot be found, improve aliases, facets, summarie
 Run:
 
 ```text
-node scripts/compendium-index.mjs curate
+node scripts/compendium-curate.mjs
 ```
 
 or machine-readable:
 
 ```text
-node scripts/compendium-index.mjs curate --json
+node scripts/compendium-curate.mjs --json
 ```
 
 The queues are intentionally heuristic. They highlight review opportunities such as:
