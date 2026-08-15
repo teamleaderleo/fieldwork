@@ -8,6 +8,8 @@ The compendium is derived memory. Existing findings, investigations, issues, exp
 
 Working reader-facing title: **Fantastic Bugs and How to Find Them**.
 
+If you are arriving fresh and want to start poking at the corpus, begin with [`START_HERE.md`](START_HERE.md). For split/merge/maturity and organization decisions, see [`CURATION.md`](CURATION.md).
+
 The first design is deliberately inspectable without special tooling:
 
 ```text
@@ -159,4 +161,13 @@ node scripts/compendium-index.mjs stats
 
 `export` emits a deterministic machine-readable index suitable for a later generated cross-repository index. `stats` exposes corpus composition so taxonomy growth can be inspected rather than guessed.
 
-The helper remains intentionally transparent and local. It is a retrieval experiment, not a new service or canonical truth store.
+For a read-only list of places that may deserve human/agent organization work, run:
+
+```text
+node scripts/compendium-curate.mjs
+node scripts/compendium-curate.mjs --json
+```
+
+The curation output is deliberately heuristic. It suggests places to inspect; it does not turn sparse entries or provisional abstractions into CI failures.
+
+The helpers remain intentionally transparent and local. They are retrieval/curation experiments, not a new service or canonical truth store.
