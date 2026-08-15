@@ -17,7 +17,8 @@
   "aliases": ["attempt-all-over-mutable-collection", "live-membership-fanout"],
   "relations": [
     {"type": "violates", "target": "success-implies-complete-selected-work"},
-    {"type": "repaired-by", "target": "snapshot-opening-membership"}
+    {"type": "repaired-by", "target": "snapshot-opening-membership"},
+    {"type": "graduated-to", "target": "opening-membership-fanout-regression"}
   ],
   "cases": [
     "teamleaderleo/fieldwork#194",
