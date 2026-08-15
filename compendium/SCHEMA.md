@@ -8,7 +8,7 @@ This is an experimental schema. Prefer repairing it after real extraction pressu
 
 ## Required shape
 
-```markdown
+````markdown
 # Human title
 
 ## Metadata
@@ -37,7 +37,7 @@ This is an experimental schema. Prefer repairing it after real extraction pressu
 
 ## In simple words
 ...
-```
+````
 
 The filename must be `<id>.md`.
 
