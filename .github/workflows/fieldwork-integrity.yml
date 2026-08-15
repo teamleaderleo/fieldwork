@@ -28,6 +28,18 @@ jobs:
           node scripts/compendium-index.mjs search "validation identity change" | grep -F 'validated-identity-goes-stale-before-use'
           node scripts/compendium-index.mjs search "normalization cache identity" | grep -F 'normalization-erases-semantic-distinction'
           node scripts/compendium-index.mjs search "older generation publication" | grep -F 'stale-generation-publication'
+          node scripts/compendium-index.mjs search "generation aba" | grep -F 'recycled-generation-aba'
           node scripts/compendium-index.mjs search "shared promise child" | grep -F 'shared-terminal-operation-self-dependency'
           node scripts/compendium-index.mjs search "opening membership mutation" | grep -F 'fanout-iterates-live-membership'
+          node scripts/compendium-index.mjs search "whole message mutation" | grep -F 'element-loop-becomes-accidental-transaction-boundary'
+          node scripts/compendium-index.mjs search "skipped proof green" | grep -F 'suite-green-while-discriminator-skipped'
+          node scripts/compendium-index.mjs search "checksum representation" | grep -F 'fingerprint-consumes-authoritative-representation'
           node scripts/compendium-index.mjs related publication-before-ownership | grep -F 'ownership-before-publication'
+      - name: Smoke-test compendium structured packets
+        run: |
+          node scripts/compendium-index.mjs packet ambiguous-external-outcome > /tmp/packet.json
+          node -e "const p=require('/tmp/packet.json'); if (p.root !== 'ambiguous-external-outcome' || !p.entries.some(e => e.id === 'remote-effect-certainty') || p.entries.length > 50) process.exit(1)"
+          node scripts/compendium-index.mjs export > /tmp/compendium.json
+          node -e "const i=require('/tmp/compendium.json'); if (i.schema !== 1 || i.entries.length < 30 || !i.entries.some(e => e.kind === 'anti-pattern') || !i.entries.some(e => e.kind === 'executable-graduation')) process.exit(1)"
+          node scripts/compendium-index.mjs stats > /tmp/stats.json
+          node -e "const s=require('/tmp/stats.json'); if (s.entries < 30 || s.relations < 10 || s.cases < 10) process.exit(1)"
