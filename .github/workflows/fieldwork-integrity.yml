@@ -19,3 +19,5 @@ jobs:
         run: node scripts/test_interaction_references.js
       - name: Validate batch contracts
         run: python3 scripts/check_fieldwork_integrity.py
+      - name: Validate compendium entries
+        run: node scripts/compendium-index.mjs validate
