@@ -69,7 +69,7 @@ function loadEntries() {
     });
 }
 
-function validate(entries) {
+function validate(entries, { quiet = false } = {}) {
   const errors = [];
   const byId = new Map();
 
@@ -158,7 +158,7 @@ function validate(entries) {
     return false;
   }
 
-  console.log(`Validated ${entries.length} compendium entries.`);
+  if (!quiet) console.log(`Validated ${entries.length} compendium entries.`);
   return true;
 }
 
@@ -362,7 +362,7 @@ function main() {
     return;
   }
 
-  if (!validate(entries)) return;
+  if (!validate(entries, { quiet: true })) return;
 
   if (command === "list") list(entries, args);
   else if (command === "show") show(entries, args[0]);
