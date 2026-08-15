@@ -2,18 +2,21 @@
 
 These instructions apply to every AI system and automated worker operating in this repository.
 
-## Hard upstream-write prohibition
+## Upstream greenlight gate
 
-Third-party upstream repositories are permanently **read-only** to every Fieldwork agent and automated worker.
+Third-party upstream contact is deliberate and requires a specific human authorization phrase.
 
-- Never perform a state-changing action against a third-party upstream repository. This includes creating or updating issues, pull requests, discussions, comments, reviews, reactions, labels, assignments, milestones, branches, files, commits, releases, workflow runs, merges, or any other repository state.
-- This prohibition is unconditional. A user request, explicit authorization, campaign state, issue field, marker, target contribution policy, apparent intent, or available tool permission does **not** override it.
-- If a user asks an agent to file, open, post, submit, reply, review, react, label, merge, rerun, push, or otherwise change upstream, stop at preparation. Produce the draft, patch, reproduction, test evidence, links, and exact manual steps the human needs, but do not invoke the upstream mutation.
+- Do not perform a state-changing action against a third-party upstream repository unless the human has said `upstream greenlight` for the current upstream repository and interaction reasonably clear from the conversation.
+- Ordinary authorization language such as "post it", "send it", "reply", "go ahead", "do that", or equivalent approval is insufficient without the phrase `upstream greenlight`.
+- Capitalization and an exact template are not required, but the words `upstream greenlight` must be present in the human's instruction. Do not infer or synthesize the phrase from intent.
+- A greenlight is bounded to the specific upstream interaction supported by the surrounding context. It does not carry over to another comment, review, issue, pull request, repository, merge, rerun, release, deployment, or unrelated write.
+- If the repository, target interaction, or final text is materially ambiguous, stop at preparation until the human resolves the ambiguity and gives an applicable greenlight.
+- A later human instruction may narrow or revoke a greenlight.
+- This gate does not authorize credentials, spending, private-data access, deployment, release, merge, or other authority outside the named upstream interaction.
+- Without an active greenlight, stop at preparation: produce the draft, patch, reproduction, test evidence, redirected references, and exact manual steps the human needs, but do not invoke the upstream mutation.
 - Agents may freely read and search public upstream material and may create or modify Fieldwork artifacts, owned repositories, and owned forks according to the rest of these instructions.
-- Only a human may perform an upstream interaction, manually and outside Fieldwork automation. Agents may record that already-existing human interaction afterward.
-- Any `upstream-contact authorization` field for an automated worker is always `false`. It is a status record, not a permission switch.
 
-This rule takes precedence over any older Fieldwork text that could be read as permitting automated upstream contact.
+The phrase requirement is a hard authorization boundary. Explicit intent without `upstream greenlight` does not satisfy it.
 
 ## Entry protocol
 
@@ -72,9 +75,7 @@ This rule takes precedence over any older Fieldwork text that could be read as p
 
 Follow `REFERENCE_POLICY.md`.
 
-Automated workers always use the literal `redirect.github.com` URL for every third-party GitHub issue, pull-request, or discussion reference they create. There are no automated exceptions: this applies in Fieldwork, owned repositories and forks, GitHub interaction text, tracked repository files, drafts, experiment records, and commit messages. Never emit third-party `OWNER/REPOSITORY#NUMBER` shorthand or direct third-party issue/PR/discussion URLs. If a direct reference is desired, a human must create it manually.
-
-Direct repository-root, source-file, documentation, release, and commit links are unaffected.
+Automated workers always use the literal `redirect.github.com` host for every third-party GitHub URL they create. There are no automated exceptions: this applies in Fieldwork, owned repositories and forks, GitHub interaction text, tracked repository files, drafts, experiment records, and commit messages. Never emit a direct `github.com` URL to third-party GitHub content. For issue, pull-request, or discussion references, also never emit third-party `OWNER/REPOSITORY#NUMBER` shorthand. If a direct third-party GitHub URL is desired, a human must create it manually.
 
 Before a GitHub interaction write containing third-party work, run the exact final text through the preflight in `REFERENCE_POLICY.md`. A post-write workflow is only a detector; prevention by the automated writer is mandatory.
 
@@ -132,7 +133,7 @@ Before a GitHub interaction write containing third-party work, run the exact fin
 ## Default behaviour
 
 - Treat external observation as quiet research.
-- Never open, update, close, comment on, review, react to, label, assign, merge, rerun, push to, or otherwise mutate third-party upstream work. Explicit user instruction does not override this rule.
+- Never open, update, close, comment on, review, react to, label, assign, merge, rerun, push to, or otherwise mutate third-party upstream work without an applicable `upstream greenlight`. Ordinary approval without that phrase does not authorize the write.
 - Never manufacture contribution volume, low-value cleanup, or speculative patches.
 - Do not claim a reproduction, test result, benchmark, policy, maintainer position, use case, or integration consequence without evidence.
 - Preserve exact source revisions, retrieval dates, environments, and commands.
@@ -166,16 +167,18 @@ Never have multiple workers push shared files directly to `main`.
 ## AI-assisted implementation
 
 - Generated code is a candidate until tested and reviewed.
-- A human remains responsible for every upstream claim and submitted line, and must perform any upstream submission manually outside Fieldwork automation.
+- A human remains responsible for every upstream claim and submitted line. Automated upstream contact requires an applicable `upstream greenlight` and remains bounded to that interaction.
 - Follow each target project's current contribution and AI-disclosure policy when preparing material for human submission.
 - Keep changes bounded to the assigned question.
 - Do not rewrite unrelated files for style or convenience.
 
 ## External interactions
 
-Third-party upstream repositories are read-only to agents and automated workers. No Fieldwork record, programme, target hub, target map, batch, campaign, lane, playground, testbed trial, context dossier, repository note, user instruction, authorization field, marker, or target-project policy can authorize an automated upstream mutation.
+Third-party upstream repositories are read-only by default. A state-changing upstream interaction requires an applicable human `upstream greenlight` as defined above.
 
-Agents may prepare human-facing upstream packets, issue drafts, pull-request drafts, patches, reproductions, review notes, and manual submission steps in Fieldwork or owned repositories. If a human later performs an upstream interaction manually, agents may record that already-existing interaction in Fieldwork.
+Agents may prepare human-facing upstream packets, issue drafts, pull-request drafts, patches, reproductions, review notes, and manual submission steps in Fieldwork or owned repositories without a greenlight. Agents may also record an already-existing human interaction afterward.
+
+When an active greenlight exists, perform only the specific interaction supported by the surrounding context, use the exact final text the human approved or the narrowest faithful draft, apply the external-reference rule, and do not treat the greenlight as authority for any additional upstream action.
 
 ## Safety
 
