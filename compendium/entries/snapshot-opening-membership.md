@@ -16,7 +16,7 @@
   },
   "aliases": ["stable-opening-fanout-set"],
   "relations": [
-    {"type": "repaired-by", "target": "fanout-iterates-live-membership"}
+    {"type": "related-to", "target": "fanout-iterates-live-membership"}
   ],
   "cases": [
     "teamleaderleo/fieldwork#194"
