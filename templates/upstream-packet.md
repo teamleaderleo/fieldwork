@@ -6,6 +6,65 @@ State: `candidate`
 
 > This packet is preparation-only. Fieldwork agents and automated workers must never submit, post, comment, review, react, or otherwise mutate a third-party upstream repository. A human must perform any upstream interaction manually outside Fieldwork automation.
 
+## Internal dossier and maintainer-facing draft
+
+This packet is the internal evidence dossier. The eventual maintainer-facing issue or pull-request body should usually be much shorter and should follow the target repository's own template and vocabulary.
+
+A strong maintainer-facing draft normally does four things and then stops:
+
+1. name the concrete bad behaviour and consequence;
+2. explain the causal ownership, ordering, identity, or state mistake just far enough to make the repair understandable;
+3. state the smallest change that restores the intended property;
+4. name the regression or validation that distinguishes the fix from the old behaviour.
+
+Add scope exclusions only when they prevent a likely misunderstanding. Prefer one specific non-goal over a general disclaimer.
+
+Do **not** mechanically export Fieldwork process language into the public draft. Exact SHAs, evidence classes, carrier history, queue state, internal review receipts, discarded variants, and coordination mechanics belong here unless the target repository explicitly asks for them.
+
+Match the target's house style. A repository that wants a three-paragraph bug-fix explanation should get three paragraphs; a repository with a structured checklist should get its checklist. Use the target's title convention too: name the repaired behaviour or mechanism, not the Fieldwork campaign or internal taxonomy. The technical invariant should survive the compression even when the headings do not.
+
+Compression never overrides target-required checklists, changelog entries, contribution metadata, or AI-use disclosure. Include those exactly where the target policy requires them.
+
+## Contribution lineage
+
+Track substantive authorship and contribution separately from pull-request mechanics. A target repository may close one contribution PR and land the same work through a maintainer branch, factory PR, squash, cherry-pick, regenerated patch, or other repository-native flow. That administrative change does not by itself mean someone else independently did the work.
+
+Classify the outcome from the evidence:
+
+- **landed directly** — the submitted contribution itself was merged;
+- **landed via target-managed successor, contribution lineage retained** — the landing materially incorporates the submitted implementation, reproduction, tests, analysis, or repair boundary, even if maintainers changed placement, wording, scope, or small implementation details;
+- **independently displaced** — use this only when the successor was substantively independent and the record does not support material derivation from the submitted contribution.
+
+When commit metadata names the contributor as an author or co-author, record that plainly. When the diff and history show material incorporation but formal metadata is different, describe the contribution accurately without inventing a percentage or claiming sole authorship. Do not use words like `superseded` or `replaced` in a way that implies the contribution was irrelevant when the target merely chose a different landing vehicle.
+
+Preserve the exact contribution trail internally: submitted PR, reproduced behavior, tests, important review discussion, target-requested narrowing, successor landing, and any author/co-author metadata. This is historical accuracy, not credit inflation.
+
+## Target contract check
+
+Before presenting a behavior as an implementation bug, identify the contract the target project actually intends to preserve.
+
+Record separately when relevant:
+
+```text
+language / protocol / external specification:
+target documentation and tests:
+compatibility or inherited implementation assumption:
+maintainer-stated policy:
+remaining disagreement:
+```
+
+Then classify the proposal:
+
+- **implementation repair** — current behavior violates the target's own intended contract;
+- **contract clarification** — the target's intended behavior is ambiguous or inconsistent across docs, tests, and code;
+- **contract change** — the proposal asks the project to revise an intentional compatibility, performance, or semantic assumption.
+
+Do not use a specification-level argument to smuggle a contract-change request in as an obvious implementation bug. Conversely, do not let an inherited assumption silently override a demonstrated target contract without examining the conflict.
+
+If maintainer feedback changes the governing premise, update the proposal, scope, tests, and maintainer-facing draft. Do not leave the old thesis at the top and hide the new understanding in a later comment.
+
+When the feedback identifies a narrower valid repair, prefer the narrower repair. When a real disagreement remains, state the exact disputed proposition instead of repeating the full investigation.
+
 ## Proposal
 
 Begin with the smallest defensible statement:
@@ -91,6 +150,8 @@ A compact pseudocode sketch is encouraged when it'll let a reviewer understand t
 ## Verification
 
 Show the evidence in the form closest to the claim: failing/passing regression, truth table, matrix, trace, benchmark, fault injection, or adversarial schedule. Don't turn a short receipt into a large bullet inventory.
+
+For the maintainer-facing draft, compress this to the tests that explain the change. Keep exhaustive matrices and receipt bookkeeping in the internal dossier unless the target asks for them.
 
 ## Tradeoffs and alternatives
 
