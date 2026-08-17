@@ -10,7 +10,7 @@ Target hub: #717
 
 SWC parses, transforms, optimizes, minifies, and emits JavaScript and TypeScript, with Rust and JavaScript-facing APIs plus WebAssembly plugin runtimes. A small semantic mistake can change executable code; a lifecycle or cache mistake can turn build work into repeated cost or corrupted state.
 
-The scout has promoted active campaigns for binary-operator semantics (#725), Wasmtime filesystem-cache recovery (#719), and mapped parameter/`arguments` ownership (#766). Unary operator effects remain a source-backed lead. The historical long binary-expression crash/slowdown lead has now been measured on current source and stopped as a negative result at the old few-thousand-term scale.
+The scout has promoted active campaigns for `instanceof` constant-fold correctness (#725), Wasmtime filesystem-cache recovery (#719), and mapped parameter/`arguments` ownership (#766). Unary operator effects remain a source-backed lead. The historical long binary-expression crash/slowdown lead has now been measured on current source and stopped as a negative result at the old few-thousand-term scale.
 
 ## Important code surfaces
 
@@ -38,22 +38,35 @@ The scout has promoted active campaigns for binary-operator semantics (#725), Wa
 - JavaScript package typings and native-binding release coordination.
 - parser/minifier/codegen performance and resource scaling on realistic source.
 
-## Active campaign: binary operator effects (#725)
+## Active campaign: `instanceof` constant folding (#725)
 
-At the pinned reconnaissance revision:
+The original binary-operator investigation proved that several SWC paths can erase or simplify `instanceof` evaluation. Review then established a project-policy split that is now resolved for the current contribution.
 
-- `may_have_side_effects` classifies every binary expression from its operands only;
-- `ExprCtx::extract_side_effects_to` preserves short-circuit binaries whole but decomposes other binary operators into child effects;
-- minifier `ignore_return_value` independently treats arithmetic, exponentiation, bitwise/shift, loose/strict equality, and relational expressions as reducible when their values are discarded;
-- the expression simplifier uses `extract_side_effects_to` while folding statically selected array elements.
+The final contribution boundary is:
 
-Node probes established operator-originated object coercion across arithmetic, bitwise/shift, relational, and loose-equality families; property-key and Proxy hooks for `in`; `Symbol.hasInstance` for `instanceof`; and pure-literal numeric-domain exceptions. Strict equality is the clean operator-level control.
+```text
+unused instanceof
+→ existing SWC/Terser compressor contract
+→ unchanged
 
-The `instanceof` subproblem is target-proven across four destructive owners. Current review has since exposed an important project-policy split: discarded-result behavior must be evaluated against SWC/Terser compatibility assumptions separately from incorrect value folding. Keep those questions distinct when refining #725.
+used instanceof
+→ result must be correct
+→ remove invalid operand-shape folds
+```
 
-Owned discriminators include utility, transform, minifier, fold-only, DCE, and dead-branch cases in `teamleaderleo/swc`.
+The broad candidate originally changed shared effect classification, effect extraction, DCE/dead-branch cleanup, minifier ignored-result handling, and value folding. Maintainer feedback established that the discarded-result path is intentional Terser-compatible compressor behavior here, so those changes were removed.
 
-Durable status: `campaigns/0725-swc-binary-operator-effects/STATUS.md`.
+A later review detour temporarily introduced an exception for operands whose values came from pure-marked expressions. The maintainer then clarified that the relevant `foo` was configured as pure and should be removed under the existing Terser behavior, and that the general rule is not to change tests under `tests/terser` for this contribution. That exception has been retired.
+
+Current owned-fork head: `teamleaderleo/swc@9f838a578a2bf440d6cc92d3b0e4891da0a580de`. GitHub reports zero file differences from the earlier fold-only revision `a39678bd0226a394847605b6874b1eab7ad7f32c`.
+
+Exact-head Fieldwork run `31988964177`, job `95268872348`, passed formatting/diff hygiene, the focused minifier used-result fixture, affected-package Clippy, and final diff hygiene. Fieldwork integrity run `31988964175`, job `95268872278`, also passed.
+
+The active diff is nine files and changes no `tests/terser` expectation. The changeset remains `fix(es): Avoid incorrect instanceof constant folding`.
+
+Durable review note: `programmes/web-tooling-runtime-correctness/scouts/swc-runtime-semantics-and-recovery/instanceof-review-reconciliation-2026-08-17.md`.
+
+The pure-value detour remains useful research: strict JavaScript semantics do distinguish a pure producer from the semantic use of its returned value, but that fact does not override SWC's accepted compressor contract for an unused enclosing operation. Treat language semantics and optimizer-policy guarantees as separate questions.
 
 ## Active campaign: mapped parameter / `arguments` ownership (#766)
 
@@ -80,7 +93,7 @@ A separate Node probe showed `Symbol.toPrimitive` callbacks for unary `+`, unary
 
 Current source still routes shared expression-effect reasoning through `swc_ecma_utils`, with multiple minifier and optimization consumers. Do not promote a global purity change from the language-level observation alone. The next useful step is to identify one concrete destructive consumer, compare its behavior against SWC/Terser policy, and execute a target-native discriminator.
 
-This lead stays separate from #725 so the binary campaign remains bounded.
+This lead stays separate from #725 so the current `instanceof` contribution remains bounded.
 
 ## Closed probe: long binary-expression resource scaling
 
