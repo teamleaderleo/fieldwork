@@ -1,0 +1,16 @@
+{
+  "runtime": "node v22.16.0",
+  "targetRevision": "fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c",
+  "auth": {
+    "missingParam": false,
+    "emptyParam": true,
+    "wrongParam": false,
+    "explicitTokenCorrect": true,
+    "explicitTokenEmptyParam": false
+  },
+  "abort": {
+    "signalAborted": true,
+    "onStartOutcomeAfterAbort": "still-pending",
+    "retainedPendingResolver": true
+  }
+}
