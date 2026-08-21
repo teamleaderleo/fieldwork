@@ -1,0 +1,20 @@
+{
+  "targetRevision": "cfc587bdfd8fd1996dd902edd14143be6e034baf",
+  "permissionRows": [
+    {"name":"PowerShell","catalogKind":"bash","bridgeKind":"(fallback edit)","allowEditsApproval":false,"allowReadsApproval":true},
+    {"name":"ListMcpResourcesTool","catalogKind":"readonly","bridgeKind":"(fallback edit)","allowEditsApproval":false,"allowReadsApproval":true},
+    {"name":"ReadMcpResourceTool","catalogKind":"readonly","bridgeKind":"(fallback edit)","allowEditsApproval":false,"allowReadsApproval":true},
+    {"name":"EnterPlanMode","catalogKind":"readonly","bridgeKind":"(fallback edit)","allowEditsApproval":false,"allowReadsApproval":true},
+    {"name":"LSP","catalogKind":"readonly","bridgeKind":"(fallback edit)","allowEditsApproval":false,"allowReadsApproval":true},
+    {"name":"ReportFindings","catalogKind":"readonly","bridgeKind":"(fallback edit)","allowEditsApproval":false,"allowReadsApproval":true},
+    {"name":"CronList","catalogKind":"readonly","bridgeKind":"(fallback edit)","allowEditsApproval":false,"allowReadsApproval":true},
+    {"name":"WaitForMcpServers","catalogKind":"readonly","bridgeKind":"(fallback edit)","allowEditsApproval":false,"allowReadsApproval":true},
+    {"name":"SendUserFile","catalogKind":"readonly","bridgeKind":"(fallback edit)","allowEditsApproval":false,"allowReadsApproval":true},
+    {"name":"DesignSync","catalogKind":"edit","bridgeKind":"(fallback edit)","allowEditsApproval":false,"allowReadsApproval":true},
+    {"name":"RemoteTrigger","catalogKind":"edit","bridgeKind":"(fallback edit)","allowEditsApproval":false,"allowReadsApproval":true}
+  ],
+  "filtering": {
+    "allowReadComplement": {"count":25,"containsPowerShell":false,"containsWorkflow":false},
+    "explicitDenyPowerShell": ["PowerShell"]
+  }
+}
