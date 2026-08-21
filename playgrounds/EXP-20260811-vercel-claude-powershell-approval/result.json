@@ -1,0 +1,23 @@
+{
+  "experiment_id": "EXP-20260811-vercel-claude-powershell-approval",
+  "executed_at": "2026-08-11",
+  "command": "python3 run.py",
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Linux 6.18.35 x86_64"
+  },
+  "result": {
+    "bash_bridge_kind": "bash",
+    "bash_host_kind": "bash",
+    "bash_requires_approval_in_allow_edits": true,
+    "classification_disagrees": true,
+    "powershell_bridge_kind": "edit",
+    "powershell_host_kind": "bash",
+    "powershell_requires_approval_in_allow_edits": false
+  },
+  "evidence_class": "model-executed",
+  "limitations": [
+    "The runner models the exact host catalog and bridge fallback rules; it does not execute Claude Code.",
+    "The owned-fork target test in teamleaderleo/ai#64 is the next target-native gate."
+  ]
+}
