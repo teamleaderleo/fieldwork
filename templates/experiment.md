@@ -22,11 +22,9 @@ Date:
 
 ## In simple words
 
-- What component or behaviour is this?
-- Where does it sit?
-- What is being tested?
-- Why could the answer be useful?
-- What is the current answer or next step?
+Lead with the concrete question or current answer. Make it easy to see where the component sits, what consequence could follow, and which next decision this experiment can change.
+
+One compact passage, state trace, code snippet, or small table is enough when it carries the model. Avoid restating the same opening mechanically in `Question`, `Why this experiment`, and `Change thesis`; those sections should add exact experimental detail.
 
 ## Question
 
