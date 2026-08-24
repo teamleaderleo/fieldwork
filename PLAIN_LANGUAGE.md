@@ -41,6 +41,18 @@ For example:
 
 Don't force every sentence into one tense. Use the tense that tells the reader whether something happens now, will happen after the proposal, already happened in verification, or still needs to happen.
 
+## Avoid template voice
+
+Headings are navigation, not a script for how every thought should sound. A record can contain every expected section and still read like a form somebody filled in.
+
+Prefer the sentence that says the thing over a stock announcement such as “The key insight is,” “This matters because,” “There are three reasons,” or “The following section explains.” Use an explicit signpost when the reader genuinely needs orientation; otherwise begin with the mechanism, consequence, question, or decision.
+
+Don't manufacture symmetry. If there are two relevant cases, write two. If there are five, write five. A diagram followed by one sentence may be complete. A result that has landed doesn't need a recap paragraph merely because the template has reached its end.
+
+Let technical prose keep some human cadence. Contractions, semicolons, short reactions, and an occasional longer sentence are fine when they make the explanation easier to follow. Accuracy comes from exact nouns, verbs, identities, evidence, and boundaries—not from sounding ceremonial.
+
+During revision, protect the passage that already works. Fix the vague noun, canned transition, duplicated caveat, or padded ending instead of rewriting the whole record into a new house voice.
+
 ## Choose the clearest representation
 
 Use prose for motivation, uncertainty, tradeoffs, and consequences. Use code-shaped notation for control flow, state transitions, data shape, and invariants.
