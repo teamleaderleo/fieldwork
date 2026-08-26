@@ -67,7 +67,7 @@ A reproduction may be easier to inspect as executable code or a compact trace th
 
 State competing explanations before committing to a patch. Rank them by plausibility and define the experiment that distinguishes them.
 
-Separate **causal diagnosis** from **repair ownership**. Proving where bad state becomes visible, or which mechanism produces the failure, does not prove that the same location owns the repair. Before promoting a candidate, ask which layer established or violated the relevant invariant, whether an earlier owner can prevent the bad state instead of repairing it downstream, and what adjacent implementation, history, or contract would make the local fix lose. At least one discriminator should be capable of leaving the diagnosis intact while showing that the proposed repair belongs somewhere else.
+Separate **causal diagnosis** from **repair ownership**. Proving where bad state becomes visible, or which mechanism produces the failure, does not prove that the same location owns the repair. Before promoting a candidate, ask which layer established or violated the relevant invariant, whether an earlier owner can prevent the bad state instead of repairing it downstream, and what adjacent implementation, history, or contract would make the local fix lose. Use a discriminator capable of leaving the diagnosis intact while showing that the proposed repair belongs somewhere else.
 
 ## 7. Experiments
 
