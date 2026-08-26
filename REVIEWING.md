@@ -68,6 +68,14 @@ When prepared work needs retained target evidence:
 
 A carrier is retired only when the canonical source diff and retained evidence remain reviewable without it.
 
+## Partial outcomes and execution identity
+
+Some operations can complete useful work and still return a terminal error. Preserve the completed results and the terminal error as separate facts. Reconciliation should remove only work confirmed complete; failed, skipped, unknown, or unattempted work remains unresolved rather than disappearing because the overall operation returned non-success.
+
+Likewise, workflow admission is not execution. A queued, pending, skipped, `action_required`, or jobless run proves platform state only. Cite target execution only when the intended job and assertion actually ran. A workflow that intends to remove itself remains active machinery until a later exact head proves that the workflow is absent and the useful receipt lives on its canonical owner.
+
+When a candidate-level mutation partially succeeds and then fails, structured results should remain available when practical while the command still returns non-success. Do not convert a partial failure into total success merely because some rows completed, or into total failure by discarding the rows that did complete.
+
 ## Exact reviewed inputs
 
 A promotion review should record only the inputs needed to reconstruct and invalidate its decision:
@@ -79,6 +87,7 @@ A promotion review should record only the inputs needed to reconstruct and inval
 - disposition-relevant claims and evidence classes;
 - executed validation and its exact result identity;
 - material failures, skipped required checks, uncertainty, dependencies, or authority boundaries;
+- partial outcomes and reconciliation state when they affect the decision;
 - any issue/decision input whose exact wording changes the disposition;
 - reviewer disposition and clearing condition.
 
@@ -146,6 +155,8 @@ Reviewability is part of correctness work. Repair or reject:
 - generated files without reproducible source identity;
 - one test stack that requires unrelated product repairs;
 - reporting or cleanup code that can replace the primary outcome it promises to preserve;
+- callers that discard confirmed partial results merely because the same operation also returned an error;
+- receipt reconciliation that silently drops unresolved work;
 - unbounded retained logs, receipts, evidence, or state;
 - compatibility claims without a negative control;
 - authority expansion introduced merely to make a test pass.
