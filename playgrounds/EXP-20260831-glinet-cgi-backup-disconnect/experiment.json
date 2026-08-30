@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260831-glinet-cgi-backup-disconnect",
+  "question": "Can a disconnected backup client leave cgi-io waiting forever after its backup child blocks on the undrained pipe?",
+  "owner": "codex-big-red-optimization",
+  "created_at": "2026-08-31",
+  "state": "complete",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "OpenWrt cgi-io",
+      "url": "https://github.com/openwrt/cgi-io/blob/901b0f0463c9d16a8cf5b9ed37118d8484bc9176/main.c#L613-L683",
+      "revision": "901b0f0463c9d16a8cf5b9ed37118d8484bc9176",
+      "retrieved_at": "2026-08-31",
+      "claim": "main_backup() splices the backup child's stdout into the CGI response and then waits for that child.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "OpenWrt cgi-io current master",
+      "url": "https://github.com/openwrt/cgi-io/blob/31cb3c89f02d918d7f17bf62a80c852fc38a1ca1/main.c#L624-L694",
+      "revision": "31cb3c89f02d918d7f17bf62a80c852fc38a1ca1",
+      "retrieved_at": "2026-08-31",
+      "claim": "Current master retains the same splice-then-wait backup ordering.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "python3 run.py",
+  "environment": {
+    "runtime": "Python 3.14.4",
+    "platform": "Linux 7.0.0-30-generic x86_64",
+    "dependencies": []
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "The connected control transfers the full payload and reaps the producer.",
+      "interpretation": "The model and producer terminate when the response has a reader."
+    },
+    {
+      "observation": "With no response reader, splice returns EPIPE, cgi waits, and the producer blocks in pipe_write.",
+      "interpretation": "Client disconnect can create the same wait/write cycle observed on the router."
+    }
+  ],
+  "stop_condition": "Stop after a connected negative control and disconnected case distinguish the pipe-ordering hypothesis without using live router backup data.",
+  "network_policy": "disabled",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "results/run-1.json",
+    "results/run-2.json"
+  ],
+  "promoted_to": null
+}

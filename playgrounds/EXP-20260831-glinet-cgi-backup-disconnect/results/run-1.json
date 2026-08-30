@@ -1,0 +1,24 @@
+{
+  "connected_control": {
+    "cgi": {"pid": 1296084, "state": "exited", "wchan": null},
+    "client_connected": true,
+    "pipe_capacity_bytes": 65536,
+    "producer": {"pid": 1296085, "state": "exited", "wchan": null},
+    "producer_bytes": 2097152,
+    "response_bytes": 2097152,
+    "splice_errno": 0,
+    "waitpid_completed": true
+  },
+  "disconnected_case": {
+    "cgi": {"pid": 1296086, "state": "S (sleeping)", "wchan": "do_wait"},
+    "client_connected": false,
+    "pipe_capacity_bytes": 65536,
+    "producer": {"pid": 1296087, "state": "S (sleeping)", "wchan": "anon_pipe_write"},
+    "producer_bytes": 2097152,
+    "response_bytes": 0,
+    "splice_errno": 32,
+    "waitpid_completed": false
+  },
+  "expectations_met": true,
+  "model": "cgi-io main_backup splice-then-wait ordering"
+}
