@@ -1,16 +1,10 @@
 # External Reference Policy
 
-The purpose of this policy is to prevent Fieldwork research from creating unwanted GitHub backlinks, notifications, or implied participation in third-party projects.
-
-This policy does not by itself grant authority to mutate third-party repositories. They remain read-only unless a human gives the bounded upstream greenlight defined in `AGENTS.md`.
+This policy owns automated external-reference mechanics and the preflight/recording procedure for any authorized upstream interaction. The authority boundary itself lives in [`AGENTS.md`](AGENTS.md): third-party upstream repositories remain read-only unless a human gives one fresh bounded `upstream greenlight` for an exact destination, action, and final content.
 
 ## Automated-worker invariant
 
-For an automated worker, the rule is intentionally simple:
-
-**Every reference the worker creates to a third-party GitHub issue, pull request, or discussion must use the literal `redirect.github.com` URL.**
-
-Use:
+**Every reference an automated worker creates to a third-party GitHub issue, pull request, or discussion uses the literal `redirect.github.com` URL.**
 
 ```text
 https://redirect.github.com/OWNER/REPOSITORY/issues/NUMBER
@@ -18,109 +12,69 @@ https://redirect.github.com/OWNER/REPOSITORY/pull/NUMBER
 https://redirect.github.com/OWNER/REPOSITORY/discussions/NUMBER
 ```
 
-This applies everywhere the worker writes, including:
+The invariant applies everywhere the worker writes: Fieldwork and owned-repository GitHub interactions, tracked files, drafts, reports, experiment records, human-facing packets, commit messages, temporary work, and execution carriers.
 
-- Fieldwork issues, pull requests, comments, reviews, and discussions;
-- owned-repository and owned-fork issues, pull requests, comments, reviews, and discussions;
-- tracked notes, reports, maps, experiment records, and other repository files;
-- drafts and prepared human-facing packets;
-- commit messages that mention third-party issues, pull requests, or discussions;
-- temporary, internal, experimental, or execution-carrier work.
+Automated workers never create direct third-party issue/PR/discussion URLs, third-party `OWNER/REPOSITORY#NUMBER` shorthand, or Markdown that hides the redirect destination. There are no automated exceptions; a human may create a direct reference manually.
 
-Automated workers must not emit:
-
-- direct `github.com/OWNER/REPOSITORY/issues/NUMBER`, `/pull/NUMBER`, or `/discussions/NUMBER` links for third-party work;
-- third-party `OWNER/REPOSITORY#NUMBER` shorthand;
-- Markdown whose visible text hides the redirect destination when the worker is creating the reference.
-
-There are no automated exceptions. If a direct third-party issue, pull-request, or discussion reference is desirable, a human must create that direct reference manually.
-
-This automated-worker invariant takes precedence over older or more permissive Fieldwork wording about repository files, submitted interactions, intentional markers, or quiet-vs-direct references.
-
-Direct links to repository roots, source files, documentation, specifications, releases, and commits are unaffected. `OWNER/REPOSITORY@SHA` commit shorthand is also unaffected.
+Repository roots, source files, documentation, specifications, package registries, releases, and commit links may be linked normally. `OWNER/REPOSITORY@SHA` commit shorthand is also unaffected.
 
 ## Owned repositories
 
-Repositories under `teamleaderleo/*` are first-party coordination surfaces for Fieldwork.
+Repositories under `teamleaderleo/*` are first-party Fieldwork surfaces. References to owned work may use ordinary GitHub URLs or cross-repository shorthand and must not be rewritten through `redirect.github.com`.
 
-References to owned work may use ordinary GitHub URLs or normal cross-repository shorthand:
-
-```text
-https://github.com/teamleaderleo/stensibly/issues/490
-teamleaderleo/stensibly#490
-```
-
-Do not rewrite owned-repository references through `redirect.github.com`.
-
-The controlled-owner set used by the interaction scanner can be extended with the comma-separated `FIELDWORK_OWNED_GITHUB_OWNERS` environment variable.
+The interaction scanner's controlled-owner set may be extended with the comma-separated `FIELDWORK_OWNED_GITHUB_OWNERS` environment variable.
 
 ## Interaction preflight
 
-Before an automated worker creates or edits a Fieldwork or owned-fork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work, run the interaction scanner against the exact text that will be written:
+Before an automated worker creates or edits a Fieldwork or owned-fork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work, run the scanner against the exact final text:
 
 ```sh
 node scripts/check_interaction_references.js --stdin < proposed-body.md
 ```
 
-The write happens only after the preflight succeeds.
+Proceed only after preflight succeeds. Refresh the destination before an authorized upstream write and preflight the exact final content again immediately before the write.
 
-A post-write workflow is a detector and cleanup aid. It is not the prevention boundary.
+Tracked repository files do not require this interaction preflight because ordinary file contents do not create GitHub issue/PR backlinks. The redirect invariant still applies to third-party issue/PR/discussion references in those files.
 
-Tracked repository files do not need this interaction preflight because GitHub does not create issue/PR backlinks from ordinary file contents. The automated-worker invariant still applies to references the worker writes into those files so the worker never has to choose between a direct and redirected third-party issue/PR/discussion reference.
+Post-write workflows detect and help clean up violations after GitHub receives text; prevention remains the writer's responsibility.
+
+## Bounded upstream interaction
+
+Without the `upstream greenlight` from `AGENTS.md`, an automated worker may read and search third-party upstream source, issues, pull requests, discussions, releases, commits, and CI results, and may prepare or implement work in Fieldwork, owned repositories, and owned forks.
+
+A greenlight authorizes exactly one named state-changing upstream interaction. Creating, updating, closing, reopening, commenting, reviewing, reacting, labeling, assigning, merging, rerunning, dispatching, committing, pushing, or any other mutation requires that exact authorization. Campaign state, issue metadata, authorization fields, intentional-reference markers, target policy, apparent intent, and tool permission grant no upstream authority.
+
+After the authorized write, record in the owning Fieldwork record:
+
+- resulting URL;
+- exact written text or a digest;
+- interaction time;
+- exact greenlight scope consumed.
 
 ## Human-performed interactions
 
-A human may independently choose to interact with or directly reference an upstream project outside Fieldwork automation.
+A human may independently interact with or directly reference an upstream project. Automated workers may record that interaction, while the references they create still follow the redirect invariant.
 
-Agents may later record that an upstream interaction happened, but references they create while recording it still use `redirect.github.com`.
-
-The historical marker below remains available for human-authored Fieldwork interaction text that intentionally contains a direct third-party reference:
+For human-authored Fieldwork interaction text that intentionally contains a direct third-party reference, the historical scanner exemption remains:
 
 ```text
 <!-- fieldwork: intentional-upstream-reference -->
 ```
 
-The marker is a scanner exemption for that human-authored record. It does not authorize upstream contact; only the bounded greenlight in `AGENTS.md` does.
+The marker exempts that human-authored reference from the scanner. Upstream authority still comes only from the bounded greenlight in `AGENTS.md`.
 
-## States
+## Reference states
 
-### Observed
+- **Observed** — quiet investigation; automated third-party issue/PR/discussion references are redirected.
+- **Candidate** — evidence exists and a human-facing upstream packet may be prepared; automated references remain redirected.
+- **Submitted** — a human or authorized agent interaction exists and may be recorded; automated references used in the record remain redirected.
 
-Quiet investigation. Automated third-party issue, pull-request, and discussion references use `redirect.github.com`.
+These states describe evidence/contact status. They do not grant upstream authority or change evidence class.
 
-### Candidate
+## Enforcement
 
-Evidence exists and a human-facing upstream packet may be under preparation. Automated references remain redirected.
-
-### Submitted
-
-A human-performed upstream interaction exists and may be recorded. Automated references used to record it remain redirected. Any direct reference is a human-authored choice.
-
-## Agent prevention and bounded authorization
-
-Workers must never perform a state-changing operation against a third-party upstream repository without the bounded human greenlight defined in `AGENTS.md`. Campaign state, issue metadata, an authorization field, an intentional-reference marker, target-project policy, apparent intent, and tool permission are not substitutes.
-
-Workers may:
-
-- read and search upstream source, issues, pull requests, discussions, releases, commits, and CI results;
-- prepare issue text, pull-request text, comments, review notes, patches, reproductions, and test plans in Fieldwork or owned repositories;
-- create and update branches, files, issues, pull requests, comments, reviews, workflows, and other artifacts in owned repositories or forks;
-- perform exactly one clearly scoped upstream interaction after a bounded human greenlight, following exact-text preflight;
-- record an upstream interaction after a human or authorized agent has performed it.
-
-Without a bounded greenlight, workers may not create, update, close, reopen, comment on, review, react to, label, assign, merge, rerun, dispatch, commit to, push to, or otherwise mutate a third-party upstream repository. A greenlight authorizes only the named interaction and is consumed by it.
-
-## Enforcement surfaces
-
-1. `scripts/check_interaction_references.js` scans active Fieldwork or owned-fork GitHub interaction text for unsafe third-party references.
-2. The scanner supports stdin preflight before a GitHub API write.
-3. A scheduled repository audit can report historical active violations.
-4. The scanner exempts controlled owners and has regression tests for owned direct links and shorthand.
-5. The interaction workflow can apply `policy:reference-violation` while active interaction text violates policy and remove it after correction.
-6. The upstream-write prohibition is an agent operating rule; tooling permission does not imply authority.
-
-The interaction workflow runs after GitHub receives text, so it cannot guarantee that GitHub never processes an unsafe reference. Prevention by the automated writer remains mandatory.
-
-## Other links
-
-Repository roots, source files, documentation sites, specifications, package registries, release pages, commit references, and ordinary web sources may be linked normally.
+- `scripts/check_interaction_references.js` scans Fieldwork and owned-fork interaction text and supports stdin preflight.
+- Scanner regression tests cover controlled owners, direct-link rejection, and shorthand rejection.
+- Repository automation may flag active reference-policy violations and remove the flag after correction.
+- Post-write detection is a cleanup aid; exact-text preflight is the prevention boundary.
+- Tool permission never grants third-party upstream authority.
