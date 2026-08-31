@@ -6,7 +6,7 @@ Start with a concrete system question. Understand the code and explain it simply
 
 Fieldwork is organised around bounded **campaigns**. A campaign can end in a patch, an issue draft, a design proposal, a published finding, an owned-project improvement, a local workaround, or a negative result.
 
-Third-party upstream repositories are permanently read-only to Fieldwork agents. Agents may prepare upstream-facing material; a human must perform any actual upstream interaction manually.
+Third-party upstream repositories are read-only to Fieldwork agents by default. A human may authorize one clearly scoped interaction with the bounded greenlight defined in `AGENTS.md`.
 
 ## 1. Target and question
 
@@ -143,7 +143,7 @@ Candidate owned-project code belongs on its recorded testbed branch and follows 
 
 ## 13. Human submission and review
 
-If a human decides to contact upstream, the human performs that interaction manually outside Fieldwork automation. Agents must not create, update, comment on, review, react to, label, merge, rerun, push to, or otherwise mutate the third-party upstream repository, even when explicitly asked.
+Without a bounded upstream greenlight, stop at a prepared artifact for manual human submission. With a clear greenlight, refresh the destination, preflight the exact text, perform only the authorized interaction, and record the resulting URL and consumed scope. Later replies or broader maintenance require a new greenlight.
 
 After a human-performed interaction exists, Fieldwork may record the submitted state, exact link, review feedback, revisions, decisions, and final outcome. Recording a human action is not permission for the agent to continue the upstream conversation.
 

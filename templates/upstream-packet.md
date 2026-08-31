@@ -4,7 +4,7 @@ Campaign:
 Target:  
 State: `candidate`
 
-> This packet is preparation-only. Fieldwork agents and automated workers must never submit, post, comment, review, react, or otherwise mutate a third-party upstream repository. A human must perform any upstream interaction manually outside Fieldwork automation.
+> This packet is preparation-only unless a human gives the bounded upstream greenlight defined in `AGENTS.md`. A greenlight authorizes only the exact named interaction and is consumed by it.
 
 ## Proposal
 

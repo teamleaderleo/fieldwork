@@ -121,4 +121,4 @@ Deep reading does not guarantee a patch. Record negative results, expected behav
 
 ## Upstream boundary
 
-Third-party upstream repositories are permanently read-only to Fieldwork agents and automated workers. Reading, modeling, testing, source inspection, and packet preparation are allowed. Creating or modifying upstream issues, pull requests, discussions, comments, reviews, reactions, labels, branches, files, commits, workflows, or any other upstream state is prohibited even when the user explicitly asks. A human must perform any upstream interaction manually outside Fieldwork automation.
+Third-party upstream repositories are read-only to Fieldwork agents and automated workers by default. Reading, modeling, testing, source inspection, and packet preparation are allowed. A bounded human greenlight may authorize one clearly scoped interaction under `AGENTS.md`; otherwise stop at preparation.

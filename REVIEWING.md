@@ -6,14 +6,14 @@ Review exists to answer a decision that deterministic evidence cannot answer alo
 
 Do not maintain parallel copies of live branch, check, review, queue, delivery, or submission state. Keep each mutable fact on its canonical surface and derive current views from GitHub or repository-owned machinery when needed.
 
-Third-party upstream repositories are permanently read-only to Fieldwork agents. Review may prepare material for human submission, but it can never authorize an automated upstream mutation.
+Third-party upstream repositories are read-only to Fieldwork agents by default. Review state cannot authorize contact; only the bounded human greenlight in `AGENTS.md` can authorize one interaction.
 
 ## Classify the work before reviewing it
 
 Every review item should identify one primary class:
 
 1. **Owned product delivery** — a candidate intended to merge into an owned repository.
-2. **Upstream-fork research** — a reproduction, source map, compatibility investigation, issue draft, or candidate patch in an owned fork. It remains research; any upstream interaction is human-only.
+2. **Upstream-fork research** — a reproduction, source map, compatibility investigation, issue draft, or candidate patch in an owned fork. It remains research; any upstream interaction requires the bounded human greenlight in `AGENTS.md`.
 3. **Execution carrier** — temporary machinery used only to produce evidence. It is never the canonical merge candidate.
 4. **Evidence or documentation** — a benchmark, provider finding, policy packet, synthesis, or decision record.
 5. **Blocked or security-sensitive work** — work missing a required safety, authority, identity, recovery, or validation primitive.
@@ -49,7 +49,7 @@ Before handoff:
 6. State material uncertainty and missing coverage.
 7. Update the canonical owner of every fact that changed. Do not copy current status into a parallel desk, queue card, or journal. Invalidate dependent receipts and regenerate derived views when their inputs change.
 8. Run Fieldwork integrity and external-reference checks on the final Fieldwork head.
-9. Confirm automated third-party upstream contact remained prohibited.
+9. Confirm upstream remained read-only, or record the bounded greenlight, exact authorized interaction, and result.
 
 Use `templates/review.md` only when its fields help another worker reconstruct the decision. `not applicable` is preferable to fabricated completeness.
 
@@ -105,7 +105,7 @@ Use one of:
 - **EXECUTE** — implementation or test is prepared and target-native execution is still required.
 - **REJECT** — the premise or direction should stop in its current form.
 
-A disposition names one exact next transition. It never upgrades another evidence class or authorizes an automated third-party upstream write.
+A disposition names one exact next transition. It never upgrades another evidence class or substitutes for a bounded human upstream greenlight.
 
 ## Independent review by consequence
 
@@ -129,7 +129,7 @@ Escalate when the next decision crosses a real authority boundary, requires dest
 
 Ordinary test failures, stale heads, mechanical restacks, evidence refresh, and review corrections are lane work.
 
-Third-party upstream mutation always remains human-only.
+Third-party upstream mutation remains prohibited unless a human gives the bounded greenlight for that exact interaction.
 
 ## Review debt and duplicate surfaces
 
@@ -174,7 +174,7 @@ Before advancing work, the answer should be recoverable for these questions:
 - What required gate or uncertainty remains?
 - Did a meaningful reviewed input change?
 - Does the author have authority for the next owned-repository action?
-- Did automated third-party upstream contact remain prohibited?
+- Did upstream remain read-only, or is the bounded greenlight and consumed interaction recorded?
 
 If those answers are available from the canonical work item and exact receipts, another checklist copy adds no value.
 

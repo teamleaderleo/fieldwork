@@ -2,18 +2,20 @@
 
 These instructions apply to every AI system and automated worker operating in this repository.
 
-## Hard upstream-write prohibition
+## Upstream-write boundary and greenlight
 
-Third-party upstream repositories are permanently **read-only** to every Fieldwork agent and automated worker.
+Third-party upstream repositories are **read-only by default** to every Fieldwork agent and automated worker.
 
-- Never perform a state-changing action against a third-party upstream repository. This includes creating or updating issues, pull requests, discussions, comments, reviews, reactions, labels, assignments, milestones, branches, files, commits, releases, workflow runs, merges, or any other repository state.
-- This prohibition is unconditional. A user request, explicit authorization, campaign state, issue field, marker, target contribution policy, apparent intent, or available tool permission does **not** override it.
-- If a user asks an agent to file, open, post, submit, reply, review, react, label, merge, rerun, push, or otherwise change upstream, stop at preparation. Produce the draft, patch, reproduction, test evidence, links, and exact manual steps the human needs, but do not invoke the upstream mutation.
+- Never perform a state-changing action against a third-party upstream repository without a bounded human greenlight. This includes creating or updating issues, pull requests, discussions, comments, reviews, reactions, labels, assignments, milestones, branches, files, commits, releases, workflow runs, merges, or any other repository state.
+- Before requesting a greenlight, show the exact destination, action, and final content that will be submitted. The approval must be given at that action boundary; an earlier request to prepare or eventually submit something is not approval to send it.
+- The phrase `upstream greenlight`, or an unmistakable natural-language equivalent, is explicit authorization only when it follows that exact preview. Capitalization and an exact template are not required.
+- A greenlight is consumed by that specific interaction. It does not authorize changed content, another destination, later replies, broader issue maintenance, a pull request, merge, release, deployment, credentials, spending, private-data access, or unrelated upstream work. Show the revised final content and ask again if anything material changes.
+- Before an authorized GitHub interaction, refresh the destination, run the exact approved text through the reference preflight, and verify that no private transcript content, path, identifier, secret, or unsupported claim will be published.
+- After the write, record the resulting URL, exact submitted text or digest, time, and scope of the consumed greenlight in the owning Fieldwork record.
 - Agents may freely read and search public upstream material and may create or modify Fieldwork artifacts, owned repositories, and owned forks according to the rest of these instructions.
-- Only a human may perform an upstream interaction, manually and outside Fieldwork automation. Agents may record that already-existing human interaction afterward.
-- Any `upstream-contact authorization` field for an automated worker is always `false`. It is a status record, not a permission switch.
+- `upstream-contact authorization` records standing automation authority and remains `false`; a bounded conversational greenlight is recorded separately and is consumed by one interaction.
 
-This rule takes precedence over any older Fieldwork text that could be read as permitting automated upstream contact.
+This section is the canonical Fieldwork upstream-contact rule and takes precedence over older text that describes third-party upstream as permanently read-only.
 
 ## Entry protocol
 
@@ -132,7 +134,7 @@ Before a GitHub interaction write containing third-party work, run the exact fin
 ## Default behaviour
 
 - Treat external observation as quiet research.
-- Never open, update, close, comment on, review, react to, label, assign, merge, rerun, push to, or otherwise mutate third-party upstream work. Explicit user instruction does not override this rule.
+- Never open, update, close, comment on, review, react to, label, assign, merge, rerun, push to, or otherwise mutate third-party upstream work without the bounded human greenlight defined above.
 - Never manufacture contribution volume, low-value cleanup, or speculative patches.
 - Do not claim a reproduction, test result, benchmark, policy, maintainer position, use case, or integration consequence without evidence.
 - Preserve exact source revisions, retrieval dates, environments, and commands.
