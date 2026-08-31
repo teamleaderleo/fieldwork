@@ -113,17 +113,11 @@ One worker may edit only the owned scout, experiment, trial branch, or assignmen
 
 ## 4. Protect external projects before creating references
 
-Third-party upstream repositories are read-only to agents. This section governs references the worker creates in Fieldwork and owned repositories or forks; it does not create an upstream-write exception.
+`AGENTS.md` owns the upstream-authority boundary. `REFERENCE_POLICY.md` owns third-party GitHub references, exact-text preflight, authorized-write mechanics, and interaction receipts.
 
-Automated workers always use the literal `redirect.github.com` URL for every third-party GitHub issue, pull-request, or discussion reference they create. There are no automated exceptions. The same rule applies to GitHub interaction text, tracked repository files, drafts, experiment records, human-facing packets, and commit messages.
+For any third-party GitHub reference or authorized upstream interaction, follow `REFERENCE_POLICY.md` directly. Its redirect invariant applies to worker-created issue, pull-request, and discussion references, and its exact-text preflight applies before relevant GitHub interaction writes.
 
-Never emit third-party `OWNER/REPOSITORY#NUMBER` shorthand or direct third-party issue, pull-request, or discussion URLs. If a direct reference is desired, a human must create it manually.
-
-Direct repository-root, source-file, documentation, release, and commit links are unaffected.
-
-Before creating or editing any Fieldwork or owned-fork issue, pull request, comment, review, inline review comment, or discussion containing third-party GitHub work, run the exact final text through the preflight in `REFERENCE_POLICY.md`.
-
-The interaction detector runs after GitHub receives conversation text. It is a safety net, not permission to post an unsafe reference first.
+This runbook adds no separate external-reference or contact rule.
 
 ## 5. Read the code and form a change thesis
 
@@ -180,9 +174,9 @@ A testbed trial may become a useful owned-project feature. It does not by itself
 
 ## 7. Work quietly and preserve evidence
 
-Fieldwork itself and explicitly selected owned testbeds or owned forks may be updated as part of the assignment. Third-party upstream repositories remain read-only to agents under all circumstances.
+Fieldwork itself and explicitly selected owned testbeds or owned forks may be updated as part of the assignment. Third-party upstream repositories remain read-only until a human gives the fresh bounded `upstream greenlight` defined in `AGENTS.md`.
 
-If a user asks the agent to file, submit, post, comment, review, react, merge, rerun, push, or otherwise mutate upstream, prepare the material and stop before the mutation. A human must perform the actual upstream interaction manually outside Fieldwork automation.
+When a user requests a state-changing upstream interaction, follow `AGENTS.md` for authority and `REFERENCE_POLICY.md` for exact-text preflight and recording. A fresh greenlight covers one exact destination, action, and final content and is consumed by that interaction. Without that greenlight, prepare the material and leave the mutation pending.
 
 Preserve:
 
