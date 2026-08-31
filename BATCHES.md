@@ -74,7 +74,7 @@ Every assignment includes:
 - stop condition;
 - upstream-contact authorization: `false`.
 
-For agents and automated workers, upstream-contact authorization is always `false` and cannot be changed by a user request, campaign decision, or coordinator. If a human independently performs an upstream interaction, record that completed action separately.
+For agents and automated workers, upstream-contact authorization remains `false` because it records standing authority. A campaign decision or coordinator cannot authorize upstream contact. Record any bounded human greenlight and its consumed interaction separately under `AGENTS.md`.
 
 For citation or context assignments, also include:
 

@@ -6,7 +6,7 @@ Fieldwork is not operating under a research freeze. The active objective is to d
 
 The existing upstream backlog remains important, but it is a preparation and delivery queue rather than a ceiling on discovery. Finish strong candidates while continuing to open well-grounded new lanes.
 
-Third-party upstream repositories are permanently read-only to Fieldwork agents and automated workers. Agents prepare; humans submit manually.
+Third-party upstream repositories are read-only by default. Agents prepare; a bounded human greenlight may authorize one exact interaction under `AGENTS.md`.
 
 ## Mission
 

@@ -130,4 +130,4 @@ If the owned repository itself is the subject of investigation rather than a pla
 - Record destructive operations and cleanup.
 - Do not merge experimental degradation into the default branch.
 - Preserve attribution when generated code or external source material is involved.
-- Third-party upstream repositories are permanently read-only to agents and automated workers. A human must perform any upstream interaction manually.
+- Third-party upstream repositories are read-only to agents and automated workers by default. A bounded human greenlight may authorize one exact interaction under `AGENTS.md`.

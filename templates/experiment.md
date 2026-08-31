@@ -143,7 +143,7 @@ Choose one:
 
 ## Boundaries
 
-- Automated third-party upstream contact is prohibited. The experiment may prepare material for a human, but an agent must never perform the upstream write, even when explicitly asked.
-- `upstream_contact_authorized` remains `false` for automated workers.
+- Third-party upstream contact is prohibited by default. A bounded human greenlight may authorize one exact interaction under `AGENTS.md`.
+- `upstream_contact_authorized` remains `false` because it records standing automation authority; record a bounded greenlight separately.
 - No secrets, production payloads, or proprietary inputs were retained.
 - Mechanism evidence and one owned testbed are not presented as general integration or operational proof without supporting context.

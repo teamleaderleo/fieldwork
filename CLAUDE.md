@@ -14,4 +14,4 @@ Direct links and `teamleaderleo/repository#number` shorthand are allowed for rep
 
 A bounded one-worker playground experiment needs no upstream fork or Fieldwork issue. Wider claims require evidence labels, primary sources, explicit limitations, and an integration-context dossier.
 
-Third-party upstream repositories are permanently read-only to Fieldwork agents and automated workers. No user instruction, authorization marker, issue state, campaign state, target policy, or apparent intent can authorize an automated upstream mutation. Agents may research upstream, prepare drafts and patches, and work in owned repositories or forks, but only a human may perform the actual upstream write outside Fieldwork automation.
+Third-party upstream repositories are read-only by default. Campaign state, markers, target policy, apparent intent, and tool permission do not authorize contact. A bounded human `upstream greenlight`, as defined in `AGENTS.md`, may authorize one exact interaction.

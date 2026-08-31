@@ -2,7 +2,7 @@
 
 The purpose of this policy is to prevent Fieldwork research from creating unwanted GitHub backlinks, notifications, or implied participation in third-party projects.
 
-This policy does not grant authority to mutate third-party repositories. Third-party upstream repositories remain permanently read-only to every Fieldwork agent and automated worker. See `AGENTS.md`.
+This policy does not by itself grant authority to mutate third-party repositories. They remain read-only unless a human gives the bounded upstream greenlight defined in `AGENTS.md`.
 
 ## Automated-worker invariant
 
@@ -80,7 +80,7 @@ The historical marker below remains available for human-authored Fieldwork inter
 <!-- fieldwork: intentional-upstream-reference -->
 ```
 
-The marker is a scanner exemption for that human-authored record. It is not an automated-worker exception and never authorizes upstream contact.
+The marker is a scanner exemption for that human-authored record. It does not authorize upstream contact; only the bounded greenlight in `AGENTS.md` does.
 
 ## States
 
@@ -96,18 +96,19 @@ Evidence exists and a human-facing upstream packet may be under preparation. Aut
 
 A human-performed upstream interaction exists and may be recorded. Automated references used to record it remain redirected. Any direct reference is a human-authored choice.
 
-## Agent prevention
+## Agent prevention and bounded authorization
 
-Workers must never perform a state-changing operation against a third-party upstream repository. This prohibition is unconditional and cannot be overridden by user instruction, campaign state, issue metadata, an authorization field, an intentional-reference marker, or target-project contribution policy.
+Workers must never perform a state-changing operation against a third-party upstream repository without the bounded human greenlight defined in `AGENTS.md`. Campaign state, issue metadata, an authorization field, an intentional-reference marker, target-project policy, apparent intent, and tool permission are not substitutes.
 
 Workers may:
 
 - read and search upstream source, issues, pull requests, discussions, releases, commits, and CI results;
 - prepare issue text, pull-request text, comments, review notes, patches, reproductions, and test plans in Fieldwork or owned repositories;
 - create and update branches, files, issues, pull requests, comments, reviews, workflows, and other artifacts in owned repositories or forks;
-- record an upstream interaction after a human has performed it.
+- perform exactly one clearly scoped upstream interaction after a bounded human greenlight, following exact-text preflight;
+- record an upstream interaction after a human or authorized agent has performed it.
 
-Workers may not create, update, close, reopen, comment on, review, react to, label, assign, merge, rerun, dispatch, commit to, push to, or otherwise mutate a third-party upstream repository.
+Without a bounded greenlight, workers may not create, update, close, reopen, comment on, review, react to, label, assign, merge, rerun, dispatch, commit to, push to, or otherwise mutate a third-party upstream repository. A greenlight authorizes only the named interaction and is consumed by it.
 
 ## Enforcement surfaces
 
