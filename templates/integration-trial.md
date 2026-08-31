@@ -116,4 +116,4 @@ Automated third-party upstream contact: `prohibited`
 
 Human-performed upstream interaction recorded: `none`
 
-An agent must never perform the upstream write, even when explicitly asked. If a human later submits or comments manually, record that already-existing interaction here.
+An agent must not perform an upstream write without the bounded human greenlight defined in `AGENTS.md`. Record any completed human or greenlit interaction here.

@@ -4,7 +4,7 @@
 
 A passing test or a convincing pull-request description is not the same thing as an accepted result. Review must identify what kind of work is being examined, which exact revision was tested, what evidence actually ran, what remains uncertain, who is eligible to accept it, and which branch is the real delivery surface. Temporary execution machinery, stale descriptions, and green checks must not be mistaken for a merge decision.
 
-Third-party upstream repositories are permanently read-only to Fieldwork agents. Review may prepare material for human submission, but it can never authorize an automated upstream mutation.
+Third-party upstream repositories are read-only to Fieldwork agents by default. Review state cannot authorize contact; only the bounded human greenlight in `AGENTS.md` can authorize one interaction.
 
 ## Classify the work before reviewing it
 
@@ -65,7 +65,7 @@ Before asking another reviewer to inspect a result:
 7. State missing platform coverage, unmeasured frequency, inferred consequence, and every material uncertainty.
 8. Synchronize the live issue, durable report, pull-request front page, execution receipt, and queue or Delivery Desk entry.
 9. Run Fieldwork integrity and external-reference checks on the final Fieldwork head.
-10. Confirm that automated third-party upstream contact remained prohibited and that no upstream mutation was attempted. Record any already-existing human-performed upstream interaction separately.
+10. Confirm that upstream remained read-only, or record the bounded greenlight, exact authorized interaction, and result separately.
 11. Complete `templates/review.md` as a self-review receipt or explicitly record why a field is not applicable.
 
 ## Execution workflow
@@ -100,7 +100,7 @@ A promotion review should record:
 - dependencies, replacements, and superseded branches;
 - reviewed coordination inputs when they affect the decision, including the issue number and a body digest or explicit body revision marker;
 - live labels, state, assignees, or other metadata generations separately when they affect the disposition;
-- confirmation that automated upstream contact remained prohibited;
+- confirmation that upstream remained read-only, or the exact bounded greenlight and consumed interaction;
 - any already-existing human-performed upstream interaction recorded for context;
 - reviewer disposition and clearing condition.
 
@@ -118,7 +118,7 @@ Use one of these dispositions:
 - **EXECUTE** — the implementation or test is prepared, but target-native execution is still required.
 - **REJECT** — the premise or proposed direction is unsound and should not continue in its current form.
 
-A disposition must name the exact next transition. Accepting a research reproduction does not automatically accept its candidate fix, upstream wording, or human submission. No disposition can authorize an automated third-party upstream write.
+A disposition must name the exact next transition. Accepting a research reproduction does not automatically accept its candidate fix, upstream wording, or submission. No disposition substitutes for a bounded human upstream greenlight.
 
 ## Independent acceptance
 
@@ -130,7 +130,7 @@ Independent review should examine the complete current diff, not only the latest
 
 An explicit user assignment or instruction to continue authorizes bounded work in the same lane. Continue through source reading, local probes, review repairs, and ordinary writes in Fieldwork, owned repositories, and owned forks without repeatedly asking for permission.
 
-It never authorizes a mutation of a third-party upstream repository. If the next action would be an upstream issue, pull request, discussion, comment, review, reaction, label, assignment, merge, workflow action, branch/file/commit write, or other mutation, stop at a prepared artifact for a human to perform manually.
+It never authorizes a mutation of a third-party upstream repository. If the next action is an upstream write and no bounded greenlight exists, stop at a prepared artifact for manual submission.
 
 Seek new authorization for other boundaries when the work would widen scope, change authority, use private or production data, incur material cost, or cross another explicit boundary.
 
@@ -209,8 +209,8 @@ Before moving a pull request out of draft or advancing a Fieldwork issue:
 - [ ] retired carriers are absent from the reviewed exact head;
 - [ ] issue state text and labels agree;
 - [ ] uncertainty and clearing conditions are visible;
-- [ ] automated third-party upstream contact remained prohibited;
-- [ ] any human-performed upstream interaction is recorded only after it exists;
+- [ ] upstream remained read-only, or the bounded greenlight and consumed interaction are recorded;
+- [ ] any upstream interaction is recorded only after it exists;
 - [ ] no direct third-party reference violates `REFERENCE_POLICY.md`.
 
 ## Relationship to coordination automation

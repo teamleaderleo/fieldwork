@@ -6,7 +6,7 @@ Use this runbook whenever a person or agent is told to investigate something thr
 
 Find the programme and target hub, claim one bounded scout or lane, read the code, explain the system simply, reproduce or model the important behaviour, and use an owned application as a controlled testbed when realistic use adds evidence. Report what was established, what remains unknown, and which branches are actually worth opening.
 
-Third-party upstream repositories are read-only to Fieldwork agents. Agents may prepare everything a human needs for an upstream interaction, but they must never perform the upstream write themselves, even when explicitly asked.
+Third-party upstream repositories are read-only to Fieldwork agents by default. A bounded `upstream greenlight`, as defined in `AGENTS.md`, may authorize one clearly scoped interaction.
 
 ## 1. Read the rules
 
@@ -81,7 +81,7 @@ For a scout or lane, record:
 - stop condition;
 - upstream-contact authorization: `false`.
 
-For automated workers, that field is always `false`. It does not become `true` when a user asks for an upstream interaction. If a human later performs an upstream action manually, record that completed human interaction separately.
+For automated workers, that field records standing authority and remains `false`. A bounded conversational greenlight is recorded separately with its exact scope and resulting interaction.
 
 A scout must return code and test maps, at least one runnable probe or explicit reason none is feasible, ranked branch candidates, and a recommendation to stop, retain a finding, open a campaign, or run another scout.
 
@@ -242,7 +242,7 @@ At minimum:
 5. synchronize the issue, report, pull-request description, receipts, and queue or Delivery Desk entry;
 6. mark non-applicable fields instead of inventing evidence;
 7. prove temporary workflows or execution carriers are absent from the final canonical head before calling them retired;
-8. confirm that no automated third-party upstream mutation was attempted or performed.
+8. confirm that third-party upstream remained read-only, or record the exact bounded greenlight and resulting authorized interaction.
 
 Self-review prepares the handoff. It does not replace eligible independent acceptance.
 
@@ -271,7 +271,7 @@ Evidence labels used: <labels>
 Uncertainty: <remaining uncertainty>
 Dependencies discovered: <none or exact records>
 Decision needed: <none or exact decision>
-Automated upstream contact: prohibited
+Automated upstream contact: prohibited | bounded greenlight consumed for <exact interaction>
 Human-performed upstream interaction recorded: none | <exact existing interaction>
 ```
 

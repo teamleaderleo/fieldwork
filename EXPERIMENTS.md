@@ -50,7 +50,7 @@ Only create the directories the experiment actually needs. Small experiments may
 - expected observations or distinguishing outcomes;
 - stop condition;
 - network policy;
-- upstream-contact authorization: always `false` for agents and automated workers;
+- upstream-contact authorization: `false` for standing automation authority; record any bounded conversational greenlight separately;
 - state: `draft`, `running`, `complete`, `negative-result`, `blocked`, or `promoted`.
 
 The upstream-contact field is a status record, not a permission switch. It must never be changed to `true` for an automated worker. If a human later performs an upstream interaction manually, record that completed human action elsewhere.
