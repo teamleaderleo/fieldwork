@@ -32,7 +32,7 @@ Before an automated worker creates or edits a Fieldwork or owned-fork issue, pul
 node scripts/check_interaction_references.js --stdin < proposed-body.md
 ```
 
-Proceed only after preflight succeeds. Refresh the destination before an authorized upstream write and preflight the exact final content again immediately before the write.
+Proceed only after preflight succeeds. Before an authorized upstream write, refresh the destination, preflight the exact final content again, and verify that it contains no private transcript content, local path or identifier, secret, or unsupported claim.
 
 Tracked repository files do not require this interaction preflight because ordinary file contents do not create GitHub issue/PR backlinks. The redirect invariant still applies to third-party issue/PR/discussion references in those files.
 
