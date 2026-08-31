@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "privacy": {
+    "paths_retained": false,
+    "filenames_retained": false,
+    "thread_ids_retained": false,
+    "transcript_content_parsed": false,
+    "transcript_content_retained": false,
+    "session_metadata_source_class_parsed": true,
+    "unrecognized_source_classes_retained": false
+  },
+  "input": {
+    "rollout_files": 368,
+    "modified_before_utc": "2026-08-25T14:10:00Z"
+  },
+  "totals": {
+    "file_bytes": 34059784421,
+    "records": 2231479,
+    "compacted_records": 6246,
+    "compacted_bytes": 28319667945,
+    "compacted_share": 0.8314693832160354,
+    "compacted_with_replacement_history_records": 6246,
+    "compacted_with_replacement_history_bytes": 28319667945,
+    "files_at_least_1_gib": 8
+  },
+  "compacted_record_size_bytes": {
+    "minimum": 16717,
+    "median": 72990,
+    "p90": 9248165,
+    "p99": 42309563,
+    "maximum": 63397531
+  },
+  "bytes_by_record_type": {
+    "compacted/-": 28319667945,
+    "event_msg/mcp_tool_call_end": 1155410941,
+    "response_item/custom_tool_call_output": 1151420510,
+    "event_msg/token_count": 917105005,
+    "event_msg/image_generation_end": 616405166,
+    "session_meta/-": 333308203,
+    "response_item/message": 320654103,
+    "response_item/reasoning": 262383922,
+    "event_msg/patch_apply_end": 228662957,
+    "world_state/-": 187201820,
+    "response_item/function_call_output": 157936192,
+    "response_item/custom_tool_call": 110390255,
+    "event_msg/agent_message": 81959819,
+    "event_msg/item_completed": 48913027,
+    "event_msg/agent_reasoning": 47563463,
+    "event_msg/sub_agent_activity": 22669069,
+    "turn_context/-": 20803229,
+    "event_msg/web_search_end": 16200246,
+    "event_msg/task_complete": 14158234,
+    "response_item/function_call": 13425893,
+    "event_msg/user_message": 12850436,
+    "response_item/agent_message": 9765311,
+    "event_msg/thread_settings_applied": 7483937,
+    "event_msg/task_started": 1894436,
+    "inter_agent_communication_metadata/-": 643690,
+    "event_msg/context_compacted": 614790,
+    "response_item/tool_search_output": 198811,
+    "event_msg/thread_goal_updated": 36862,
+    "event_msg/turn_aborted": 26996,
+    "response_item/web_search_call": 18343,
+    "response_item/tool_search_call": 8494,
+    "event_msg/thread_rolled_back": 1938,
+    "event_msg/thread_name_updated": 378
+  },
+  "records_by_record_type": {
+    "event_msg/token_count": 1125392,
+    "event_msg/agent_reasoning": 307265,
+    "event_msg/agent_message": 146890,
+    "response_item/reasoning": 120727,
+    "response_item/custom_tool_call_output": 96601,
+    "response_item/custom_tool_call": 96547,
+    "event_msg/sub_agent_activity": 77573,
+    "event_msg/patch_apply_end": 62804,
+    "response_item/message": 33965,
+    "event_msg/mcp_tool_call_end": 26127,
+    "world_state/-": 20804,
+    "response_item/function_call": 18754,
+    "response_item/function_call_output": 18752,
+    "turn_context/-": 13935,
+    "event_msg/task_started": 8127,
+    "event_msg/task_complete": 7428,
+    "session_meta/-": 7303,
+    "event_msg/user_message": 6522,
+    "compacted/-": 6246,
+    "event_msg/context_compacted": 6210,
+    "event_msg/thread_settings_applied": 5487,
+    "inter_agent_communication_metadata/-": 5461,
+    "response_item/agent_message": 5461,
+    "event_msg/web_search_end": 3378,
+    "event_msg/item_completed": 3198,
+    "event_msg/image_generation_end": 273,
+    "event_msg/turn_aborted": 114,
+    "event_msg/thread_goal_updated": 50,
+    "response_item/web_search_call": 28,
+    "response_item/tool_search_call": 19,
+    "response_item/tool_search_output": 19,
+    "event_msg/thread_rolled_back": 17,
+    "event_msg/thread_name_updated": 2
+  },
+  "largest_files": [
+    {
+      "rank": 1,
+      "file_bytes": 13260971182,
+      "records": 156528,
+      "compacted_records": 399,
+      "compacted_bytes": 12124666631,
+      "compacted_share": 0.9143121167066269,
+      "source_class": "vscode"
+    },
+    {
+      "rank": 2,
+      "file_bytes": 3858542808,
+      "records": 39206,
+      "compacted_records": 214,
+      "compacted_bytes": 3550591250,
+      "compacted_share": 0.9201896743606116,
+      "source_class": "subagent"
+    },
+    {
+      "rank": 3,
+      "file_bytes": 3858418594,
+      "records": 39234,
+      "compacted_records": 214,
+      "compacted_bytes": 3550597793,
+      "compacted_share": 0.920220993782615,
+      "source_class": "subagent"
+    },
+    {
+      "rank": 4,
+      "file_bytes": 3858254797,
+      "records": 39086,
+      "compacted_records": 214,
+      "compacted_bytes": 3550595956,
+      "compacted_share": 0.9202595844009003,
+      "source_class": "subagent"
+    },
+    {
+      "rank": 5,
+      "file_bytes": 1287719134,
+      "records": 27924,
+      "compacted_records": 148,
+      "compacted_bytes": 1217770917,
+      "compacted_share": 0.9456805330035579,
+      "source_class": "subagent"
+    },
+    {
+      "rank": 6,
+      "file_bytes": 1212192775,
+      "records": 26689,
+      "compacted_records": 142,
+      "compacted_bytes": 1148763341,
+      "compacted_share": 0.9476738062557748,
+      "source_class": "subagent"
+    },
+    {
+      "rank": 7,
+      "file_bytes": 1211706260,
+      "records": 26572,
+      "compacted_records": 142,
+      "compacted_bytes": 1148763341,
+      "compacted_share": 0.9480543089708887,
+      "source_class": "subagent"
+    },
+    {
+      "rank": 8,
+      "file_bytes": 1211567011,
+      "records": 26499,
+      "compacted_records": 142,
+      "compacted_bytes": 1148763341,
+      "compacted_share": 0.9481632716723086,
+      "source_class": "subagent"
+    },
+    {
+      "rank": 9,
+      "file_bytes": 246987918,
+      "records": 95160,
+      "compacted_records": 140,
+      "compacted_bytes": 49404043,
+      "compacted_share": 0.20002615269626264,
+      "source_class": "vscode"
+    },
+    {
+      "rank": 10,
+      "file_bytes": 202386991,
+      "records": 10228,
+      "compacted_records": 17,
+      "compacted_bytes": 2920463,
+      "compacted_share": 0.014430092495421308,
+      "source_class": "vscode"
+    },
+    {
+      "rank": 11,
+      "file_bytes": 129977446,
+      "records": 29084,
+      "compacted_records": 50,
+      "compacted_bytes": 16483324,
+      "compacted_share": 0.12681680173958795,
+      "source_class": "vscode"
+    },
+    {
+      "rank": 12,
+      "file_bytes": 126635516,
+      "records": 69198,
+      "compacted_records": 70,
+      "compacted_bytes": 20198757,
+      "compacted_share": 0.15950309706164897,
+      "source_class": "vscode"
+    }
+  ]
+}
