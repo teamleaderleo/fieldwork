@@ -6,7 +6,7 @@
   "created_at": "2026-08-25",
   "state": "complete",
   "claim_scope": "operational",
-  "integration_context": "https://github.com/teamleaderleo/fieldwork/issues/776",
+  "integration_context": "contexts/systems/codex-rollout-compaction-storage.md",
   "sources": [
     {
       "name": "OpenAI Codex source",
@@ -58,7 +58,7 @@
     }
   ],
   "stop_condition": "Stop after a content-safe scan attributes retained bytes by rollout record class and current public source identifies the persistence boundary.",
-  "network_policy": "disabled for the local measurement; read-only primary-source retrieval was performed separately",
+  "network_policy": "disabled",
   "upstream_contact_authorized": false,
   "result_paths": [
     "playgrounds/EXP-20260825-codex-rollout-compaction-growth/results/latest.json",
