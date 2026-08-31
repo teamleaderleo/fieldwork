@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260825-codex-rollout-compaction-growth",
+  "question": "Do persisted compacted replacement-history records account for most of the bytes in one observed multi-gigabyte Codex session store?",
+  "owner": "codex:gpt-5.6-sol",
+  "created_at": "2026-08-25",
+  "state": "complete",
+  "claim_scope": "operational",
+  "integration_context": "https://github.com/teamleaderleo/fieldwork/issues/776",
+  "sources": [
+    {
+      "name": "OpenAI Codex source",
+      "url": "https://github.com/openai/codex/commit/c3953649156e15b67e572cb9e38bc825a811c24e",
+      "revision": "c3953649156e15b67e572cb9e38bc825a811c24e",
+      "retrieved_at": "2026-08-25",
+      "claim": "Current public source serializes a full replacement_history into each compacted rollout item and reconstructs from persisted compacted checkpoints.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "OpenAI Codex configuration reference",
+      "url": "https://learn.chatgpt.com/docs/config-file/config-reference",
+      "revision": "retrieved 2026-08-25",
+      "retrieved_at": "2026-08-25",
+      "claim": "history.max_bytes and history.persistence govern history.jsonl; the reference documents no equivalent rollout-session byte cap.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "Existing public oversized-rollout report",
+      "url": "https://redirect.github.com/openai/codex/issues/29510",
+      "revision": "open issue retrieved 2026-08-25",
+      "retrieved_at": "2026-08-25",
+      "claim": "The public issue already owns the oversized-rollout hydration and app-server memory consequence.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "Existing public replacement-history report",
+      "url": "https://redirect.github.com/openai/codex/issues/31198",
+      "revision": "open issue retrieved 2026-08-25",
+      "retrieved_at": "2026-08-25",
+      "claim": "The public issue already owns repeated compacted replacement-history growth in subagent rollouts.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "python3 analyze_rollouts.py --root <redacted-codex-sessions-root> --modified-before 2026-08-25T14:10:00Z --largest 12",
+  "environment": {
+    "runtime": "Python 3 standard library",
+    "platform": "macOS 26.6.1 (25G76), arm64; ChatGPT Desktop 26.818.61809 build 7019; codex-cli 0.149.0-alpha.4.3",
+    "dependencies": []
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "Compacted records are a minority of retained bytes.",
+      "interpretation": "Tool outputs or another record class, rather than checkpoint persistence, dominates this incident."
+    },
+    {
+      "observation": "Compacted records are the majority of retained bytes and dominate the largest rollouts.",
+      "interpretation": "Repeated full replacement-history checkpoints are the primary on-disk amplification mechanism in this incident."
+    }
+  ],
+  "stop_condition": "Stop after a content-safe scan attributes retained bytes by rollout record class and current public source identifies the persistence boundary.",
+  "network_policy": "disabled for the local measurement; read-only primary-source retrieval was performed separately",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260825-codex-rollout-compaction-growth/results/latest.json",
+    "playgrounds/EXP-20260825-codex-rollout-compaction-growth/upstream-landscape.md",
+    "playgrounds/EXP-20260825-codex-rollout-compaction-growth/upstream-comment-draft.md",
+    "playgrounds/EXP-20260825-codex-rollout-compaction-growth/upstream-submission.json"
+  ],
+  "promoted_to": null
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "destination": "https://redirect.github.com/openai/codex/issues/31198",
+  "interaction": "issue_comment",
+  "result": "https://redirect.github.com/openai/codex/issues/31198#issuecomment-5412953111",
+  "submitted_at": "2026-08-25T15:44:38Z",
+  "submitted_body": "playgrounds/EXP-20260825-codex-rollout-compaction-growth/upstream-comment-draft.md",
+  "submitted_body_sha256": "0ff212e34e7ff8f176694565fdfdd74c638e6706cc057e3fcd4c902485bf9998",
+  "authorization": {
+    "kind": "bounded_human_greenlight",
+    "scope": "one corroborating comment on the existing replacement-history issue",
+    "consumed": true,
+    "follow_up_authorized": false
+  }
+}
