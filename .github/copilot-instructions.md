@@ -1,4 +1,4 @@
-Follow `AGENTS.md` and `START_HERE.md` for every change.
+Follow `AGENTS.md`. Open `START_HERE.md` only when its router requires it.
 
 Fieldwork issues are live coordination; repository files are durable evidence. Use the exact assigned output path and do not edit another worker's lane, batch manifest, status, synthesis, context, or closeout.
 
