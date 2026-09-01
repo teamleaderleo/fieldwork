@@ -1,0 +1,82 @@
+{
+  "kind": "source-model-executed",
+  "date": "2026-09-01",
+  "target": "manaflow-ai/cmux",
+  "target_revision": "8ef183f1e5de765b183aec9d1799f17a0848ae84",
+  "model_scope": "Exact relevant current-source semantics of ClientIdentityStore enrolled re-pin and select_known_daemon route selection; does not execute Rust target or E2B.",
+  "cases": {
+    "cloned_daemon_plus_unrelated_daemon": {
+      "state": {
+        "D": {
+          "fingerprint": "D",
+          "route_hints": [
+            "wss://b.example/v1/link"
+          ]
+        },
+        "C": {
+          "fingerprint": "C",
+          "route_hints": [
+            "wss://c.example/v1/link"
+          ]
+        }
+      },
+      "source_select": {
+        "kind": "error",
+        "message": "no known daemon matches this route; connect with an invitation"
+      },
+      "fork_select": {
+        "kind": "ok",
+        "fingerprint": "D"
+      }
+    },
+    "distinct_fork_daemon_negative_control": {
+      "state": {
+        "D": {
+          "fingerprint": "D",
+          "route_hints": [
+            "wss://a.example/v1/link"
+          ]
+        },
+        "C": {
+          "fingerprint": "C",
+          "route_hints": [
+            "wss://c.example/v1/link"
+          ]
+        },
+        "B": {
+          "fingerprint": "B",
+          "route_hints": [
+            "wss://b.example/v1/link"
+          ]
+        }
+      },
+      "source_select": {
+        "kind": "ok",
+        "fingerprint": "D"
+      },
+      "fork_select": {
+        "kind": "ok",
+        "fingerprint": "B"
+      }
+    },
+    "cloned_daemon_only_fallback_control": {
+      "state": {
+        "D": {
+          "fingerprint": "D",
+          "route_hints": [
+            "wss://b.example/v1/link"
+          ]
+        }
+      },
+      "source_select": {
+        "kind": "ok",
+        "fingerprint": "D",
+        "fallback": "sole-daemon"
+      },
+      "fork_select": {
+        "kind": "ok",
+        "fingerprint": "D"
+      }
+    }
+  }
+}
