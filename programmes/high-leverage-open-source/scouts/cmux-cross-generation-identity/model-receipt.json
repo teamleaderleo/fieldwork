@@ -2,33 +2,38 @@
   "date": "2026-09-01",
   "kind": "dependency-free-generation-discriminator",
   "evidence_class": "model-executed",
-  "fieldwork_probe_commit": "1935d54f2f2524570c7afe3547db6e53ef57d349",
-  "upstream_main_sha": "2ead47750ab2f47c13972d0709d99cdcbaa8ad73",
-  "original_investigation_pin": "eaa899cb20bd411019744fbd2bdedeb397f3070b",
-  "red_test_sha": "1af0c0dcec183757027e823b569a20995c302341",
-  "fix_sha": "9c69bd85cccd5a608c7b98bb145f91341046f2a8",
-  "green_sha": "7f3370aff19744ee085661626a5fc162dee69678",
+  "tested_upstream_base_sha": "544c0e0ff4f3aebb1a34eb8503c7ccc1f33a2de8",
+  "latest_upstream_checked_sha": "2422b69c7c3555bd1efc5b37ffb32a7c619dc282",
+  "red_test_sha": "5fa3df624315dad2e7bc3a31a1df572fe9cafe41",
+  "fix_sha": "e43904d1db44a8b5fe752dcda3e1ade05325ddfb",
   "command": "python3 probe.py",
-  "environment": {
-    "python": "3.13.5"
-  },
   "observed": {
-    "current_b_hook_alias": {
-      "upstream": "D(surface-S)",
-      "candidate": "D(surface-S)"
-    },
     "current_b_same_logical_id": {
       "upstream": "D(surface-S)",
       "candidate": "D(surface-S)"
     },
-    "generationless_same_logical_id": {
+    "current_b_hook_alias": {
       "upstream": "D(surface-S)",
       "candidate": "D(surface-S)"
     },
     "retired_a_same_logical_id": {
       "upstream": "D(surface-S)",
       "candidate": null
+    },
+    "recycled_pid_stale_start": {
+      "upstream": "D(surface-S)",
+      "candidate": null
+    },
+    "generationless_same_logical_id": {
+      "upstream": "D(surface-S)",
+      "candidate": "D(surface-S)"
+    },
+    "completion_fallback": {
+      "current_b": true,
+      "retired_a": false,
+      "recycled_pid_stale_start": false,
+      "generationless": false
     }
   },
-  "interpretation": "The model preserves all three compatibility controls and changes only the stale same-session A→B case from accepted to rejected. The relevant upstream resolver remained byte-identical from the original eaa899c pin through current 2ead4775; the owned candidate was restacked onto current main. Target-native macOS execution is tracked separately."
+  "interpretation": "The model preserves current-generation and generationless compatibility controls, rejects retired A and same-PID/different-start generations, and requires the completion fallback to match the exact accepted process generation. Target-native macOS execution is tracked separately in Fieldwork Actions."
 }
