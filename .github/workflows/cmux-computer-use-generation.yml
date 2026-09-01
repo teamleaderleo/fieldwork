@@ -11,10 +11,10 @@ permissions:
   contents: read
 
 env:
-  UPSTREAM_BASE_SHA: eaa899cb20bd411019744fbd2bdedeb397f3070b
-  RED_SHA: e41f91cc7f99bb0c405893bf206f38b7c6d32ac5
-  FIX_SHA: a447598ef3fb26a8b288c740b1e3f9435446c53f
-  GREEN_SHA: 8330732cc2dc5c7d045afa15e9e63f928e500146
+  UPSTREAM_BASE_SHA: 2ead47750ab2f47c13972d0709d99cdcbaa8ad73
+  RED_SHA: 1af0c0dcec183757027e823b569a20995c302341
+  FIX_SHA: 9c69bd85cccd5a608c7b98bb145f91341046f2a8
+  GREEN_SHA: 7f3370aff19744ee085661626a5fc162dee69678
   SWIFT_BACKTRACE: interactive=no,timeout=0s,symbolicate=off,color=no
   CMUX_SKIP_ZIG_BUILD: "1"
 
@@ -72,7 +72,7 @@ jobs:
             -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR" \
             -resolvePackageDependencies
 
-      - name: Prove upstream plus regression is red
+      - name: Prove current upstream plus regression is red
         shell: bash
         run: |
           set -euo pipefail
@@ -91,7 +91,7 @@ jobs:
           RED_STATUS=${PIPESTATUS[0]}
           set -e
           if [ "$RED_STATUS" -eq 0 ]; then
-            echo "expected the test-only upstream commit to fail"
+            echo "expected the test-only current-upstream commit to fail"
             exit 1
           fi
           grep -F "delayedGenerationACompletionCannotResolveGenerationBWithSameLogicalSession" /tmp/cmux-generation-red.log
