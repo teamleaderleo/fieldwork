@@ -1,0 +1,25 @@
+{
+  "experiment": "EXP-20260811-hexyl-empty-binary-geometry",
+  "target_revision": "6ecc29b9c8c84d08a7e860f7f69c22b113b480ea",
+  "fieldwork_head_at_execution": "44af8f30154104aebbaf8d9d005e6a6df52e0b5a",
+  "workflow_run": 31444376782,
+  "job": 93635352237,
+  "evidence_class": "target-executed",
+  "observations": {
+    "hexadecimal_control": {
+      "terminal_width": 80,
+      "row_widths": [80, 80, 80],
+      "consistent": true
+    },
+    "binary_discriminator": {
+      "terminal_width": 80,
+      "row_widths": [45, 80, 45],
+      "consistent": false,
+      "border_width": 45,
+      "no_content_row_width": 80
+    }
+  },
+  "conclusion": "Exact Hexyl source uses one-panel border geometry for empty binary output at terminal width 80, but the special No content row remains fixed at the two-panel 80-column geometry. The hexadecimal control remains internally consistent.",
+  "promotion": "https://github.com/teamleaderleo/fieldwork/issues/834",
+  "remaining_gate": "Validate a loop-based empty-row formatter against one-, two-, and multi-panel layouts plus position/character panel toggles."
+}
