@@ -34,14 +34,14 @@ def main() -> int:
         build = root / "build"
         source.mkdir()
         (source / "CMakeLists.txt").write_text(
-            """cmake_minimum_required(VERSION 3.20)\n"
+            "cmake_minimum_required(VERSION 3.20)\n"
             "project(empty NONE)\n"
             "add_custom_command(\n"
             "  OUTPUT empty\n"
             "  COMMAND \"$<$<BOOL:0>:${CMAKE_COMMAND}>\"\n"
             "  VERBATIM\n"
             ")\n"
-            "add_custom_target(gen ALL DEPENDS empty)\n""",
+            "add_custom_target(gen ALL DEPENDS empty)\n",
             encoding="utf-8",
         )
         subprocess.run(
