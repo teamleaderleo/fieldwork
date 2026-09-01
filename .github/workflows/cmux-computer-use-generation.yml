@@ -36,7 +36,16 @@ jobs:
           test "$(git rev-parse "$RED_SHA^")" = "$UPSTREAM_BASE_SHA"
           test "$(git rev-parse "$GREEN_SHA^")" = "$RED_SHA"
           test "$(git diff --name-only "$UPSTREAM_BASE_SHA" "$RED_SHA")" = "cmuxTests/HostSettingsShortcutNotificationTests.swift"
-          test "$(git diff --name-only "$UPSTREAM_BASE_SHA" "$GREEN_SHA" | sort)" = $'Sources/App/ComputerUseLiveSessionProjection.swift\nSources/App/ComputerUseUXCoordinator.swift\nSources/Feed/WorkstreamEvent+FeedIngress.swift\nSources/TerminalController+FeedAcknowledgment.swift\ncmuxTests/HostSettingsShortcutNotificationTests.swift'
+          actual_files="$(git diff --name-only "$UPSTREAM_BASE_SHA" "$GREEN_SHA" | LC_ALL=C sort)"
+          expected_files="$(printf '%s\n' \
+            'Sources/App/ComputerUseLiveSessionProjection.swift' \
+            'Sources/App/ComputerUseUXCoordinator.swift' \
+            'Sources/Feed/WorkstreamEvent+FeedIngress.swift' \
+            'Sources/TerminalController+FeedAcknowledgment.swift' \
+            'cmuxTests/HostSettingsShortcutNotificationTests.swift' \
+            | LC_ALL=C sort)"
+          printf 'actual files:\n%s\n' "$actual_files"
+          test "$actual_files" = "$expected_files"
 
       - name: Select Xcode
         run: ./scripts/select-ci-xcode.sh
