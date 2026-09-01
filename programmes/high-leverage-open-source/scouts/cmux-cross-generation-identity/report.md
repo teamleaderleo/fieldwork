@@ -8,36 +8,36 @@ Upstream contact authorized: `false`
 
 ## Current result
 
-The strongest cross-generation seam remains Computer Use hook completion across an agent-process replacement. The durable native agent session id can survive a resume, while the physical process generation changes. A delayed completion from retired process A must never complete successor B simply because both use the same surface and native session id.
+The confirmed seam is Computer Use hook completion across an agent-process replacement. A native agent session id can survive resume while the OS process generation changes. A delayed completion from retired process A must never complete successor B merely because both use the same surface and logical session id.
 
-The owned fork now carries the full fence, not the earlier PID-only draft:
+Owned fork candidate:
 
-- exact upstream/base: `6044a8b3f43152d2e6fc17f771fd4b277b393118`;
-- test-only red: `d13e9a7cb3a3712f9f7a7f507c13d3a312c41d20`;
-- initial PID fence: `fbc7742dc04a5e7d14172a48aa43066296d24ac6`;
-- full ingress-generation fence / current head: `1287e78a3a751e41d7fb23ca4157d57403fac1d2`;
-- owned draft PR: `teamleaderleo/cmux#17`.
+- tested upstream/base: `544c0e0ff4f3aebb1a34eb8503c7ccc1f33a2de8`;
+- regression-only RED: `5fa3df624315dad2e7bc3a31a1df572fe9cafe41`;
+- full repair: `e43904d1db44a8b5fe752dcda3e1ade05325ddfb`;
+- owned draft PR: `teamleaderleo/cmux#17`;
+- exact ancestry: base -> RED -> repair.
 
-The full candidate captures the hook sender's exact kernel birth identity at trusted Feed ingress and carries it with the event. Later Computer Use handling uses that frozen identity instead of resolving a bare PID after it may have been recycled. The projection-gap completion fallback is fenced by the same exact generation.
+Latest upstream checked after the test base advanced once to `2422b69c7c3555bd1efc5b37ffb32a7c619dc282`. That commit is TUI-only and does not touch any candidate file, so the running proof remains pinned to its immutable base.
 
-Third-party upstream remains read-only: no automated upstream issues, comments, reviews, pull requests, or maintainer contact.
+Third-party upstream remains read-only: no automated upstream issue, comment, review, pull request, reaction, or maintainer contact has been made.
 
 ## Identity map
 
 | Layer | Durable identity | Physical-generation identity | Result in inspected paths |
 | --- | --- | --- | --- |
-| machine / cloud VM | logical machine/base | active/current physical VM generation | fenced |
-| daemon | durable registry/resource state | daemon/live runtime generation | fenced in inspected recovery paths |
+| machine / cloud VM | logical machine/base | active/current VM generation | fenced in inspected paths |
+| daemon | durable registry/resource state | live daemon generation | fenced in inspected recovery paths |
 | workspace | workspace/resource id | live surface/runtime owner | no violating sequence established |
 | terminal | `terminal_id` | `terminal_incarnation` | explicitly fenced |
 | PTY | persistent `sessionID` | exact `wsPTYSession` object/process | exact-object cleanup/input fences |
 | attachment | attachment id | token + exact attachment object | fenced |
 | local bridge | logical lifecycle id | bridge/transport owner generation | fenced |
-| agent session | native CLI session id, intentionally reused by resume | `AgentPIDProcessIdentity(pid,startSeconds,startMicroseconds)` | failing seam found in Computer Use |
+| agent session | native CLI session id reused by resume | `AgentPIDProcessIdentity(pid,startSeconds,startMicroseconds)` | failing seam confirmed in Computer Use |
 
 ## Persistence boundary
 
-CMUX's resume paths intentionally reuse native agent session identifiers. A valid lifetime transition is:
+A valid agent lifetime transition is:
 
 ```text
 logical session L / process A
@@ -46,191 +46,133 @@ resume L
 logical session L / process B
 ```
 
-That makes `L` a logical identity, not proof that a hook came from the current OS process generation.
-
-CMUX already models the lower generation with `AgentPIDProcessIdentity`, whose identity is PID plus process start seconds and microseconds. Related current upstream lifecycle work uses the same PID-birth identity because PID alone is recyclable.
-
-## Upstream review performed
-
-Relevant upstream work was reviewed read-only before extending the candidate.
-
-### PR #9586 — agent lifecycle/process liveness
-
-`manaflow-ai/cmux#9586` is still open and large. It moves multiple lifecycle paths toward exact process generations and requires PID start timestamps in several control paths. Its Cursor `generation_id` is explicitly a per-turn identifier, not the kernel process generation needed here. The current PR does not remove the Computer Use `WorkstreamEvent` `_ppid` seam on upstream `main`.
-
-### Other lifecycle/resume work
-
-Recent CMUX work around managed-agent liveness and Codex resume similarly treats process birth identity as the physical-generation discriminator. The fork candidate follows that convention rather than introducing a parallel logical token.
+Therefore `L` is a logical identity, not proof of the current process generation. CMUX already represents one process lifetime with `AgentPIDProcessIdentity`, which combines PID with kernel process start seconds and microseconds.
 
 ## Original failure
 
-On upstream `6044a8b3`, `ComputerUseLiveSessionProjection.driverSessionID(...)` resolves a current surface and then accepts immediately if the current record's logical agent session id equals the hook session id. The process check is only the fallback for differing agent ids.
+On upstream, `ComputerUseLiveSessionProjection.driverSessionID(...)` resolves the current surface and then accepts immediately when the current record's logical agent session id equals the hook session id. The physical process check is only the fallback for differing agent ids.
 
-Therefore this sequence can cross generations:
+A source-determined failure sequence is:
 
-1. stable surface `S`, stable driver `D`, durable agent session `L`;
-2. process A with generation `PA` invokes Computer Use;
+1. stable surface `S`, stable Computer Use driver `D`, logical agent session `L`;
+2. process A invokes Computer Use;
 3. A emits a delayed `Stop` or `SessionEnd` carrying `S`, `L`, and `pidA`;
 4. A exits;
-5. CMUX resumes `L` into process B with `PB != PA`;
-6. B becomes current for `D`;
-7. delayed A completion is handled;
-8. equality on `L` can resolve the stale event to current `D` before A's physical generation is considered.
+5. CMUX resumes `L` in process B;
+6. B becomes the current live owner for `D`;
+7. delayed A completion arrives;
+8. logical-session equality resolves stale A to current `D` before A's physical generation is considered.
 
-`ComputerUseUXCoordinator` then records completion for stable driver `D`, resolves the current proxy associated with `D`, retires current presentation/menu activity, cancels current cursor/focus/reassert work, and removes the accepted invocation record. The consequence is a stale-A completion acting on successor-B Computer Use presentation state.
+`ComputerUseUXCoordinator` then records completion for stable driver `D`, resolves the current proxy for `D`, retires current presentation/menu activity, cancels current cursor/focus/reassert work, and removes the accepted invocation record. The concrete consequence is stale A changing successor B's Computer Use presentation state.
 
-No claim is made here that this seam kills B's process, rewrites authenticated Computer Use disk state, or crosses an authentication boundary.
+No claim is made that this path kills B, rewrites authenticated Computer Use disk state, or crosses an authentication boundary.
 
-## Why the first fork patch was incomplete
+## Why the first PID-only patch was incomplete
 
-The initial fork repair `fbc7742d` made a supplied PID authoritative in the live resolver. That closed the obvious A-PID-vs-B-tree case, but two holes remained:
+The earlier fork draft made a supplied PID authoritative in the live resolver. That closed the obvious dead-A-PID case but left two holes:
 
-1. `ComputerUseUXCoordinator` has a projection-gap completion fallback keyed by surface + logical agent session + time. A resumed B can keep the same logical session id, so stale A could still match there.
-2. Reconstructing `AgentPIDProcessIdentity(pid:)` only when the async consumer handles the event is too late. If A exited and the OS recycled its numeric PID for B, the later lookup can silently identify B.
+1. `ComputerUseUXCoordinator` also has a live-index refresh-gap completion fallback keyed by surface + logical session + time. Resume can preserve the same logical session id.
+2. Reconstructing `AgentPIDProcessIdentity(pid:)` when the async consumer finally handles an event is too late. A recycled numeric PID can identify a later process generation.
 
-The final fence moves generation capture earlier.
+The current candidate freezes the generation earlier and uses the same token in both admission paths.
 
-## Full fence
+## Repair
 
-### 1. Capture exact generation at trusted Feed ingress
+### Trusted internal ingress envelope
 
-`Sources/TerminalController+FeedAcknowledgment.swift` now snapshots `AgentPIDProcessIdentity` for each event's `_ppid` before accepted Feed delivery becomes asynchronous.
+`Sources/Feed/WorkstreamEvent+FeedIngress.swift` defines `FeedIngressProcessGenerationEvent`, an app-internal Swift envelope. When a Feed event has `_ppid`, it snapshots `AgentPIDProcessIdentity` from the kernel at Feed ingress and carries that exact identity beside the event. If the PID is already gone, the envelope still exists with a nil identity so process-bound Computer Use handling fails closed instead of falling back to the logical session id.
 
-The tuple is stored in a reserved opaque event field:
+The envelope is not part of the hook JSON schema, so an external hook payload cannot select the process generation later trusted by Computer Use.
 
-```text
-_cmux_agent_process_generation = {
-  pid,
-  start_seconds,
-  start_microseconds
-}
-```
+`Sources/TerminalController+FeedAcknowledgment.swift` captures the envelope before accepted Feed delivery becomes asynchronous. When Feed re-homes or otherwise authoritatively rewrites the event, `replacingEvent(...)` keeps the original captured process identity. Both single-event and acknowledged/batch Feed paths publish the trusted envelope after acceptance.
 
-Ingress removes and replaces any value supplied under that reserved key, so a sender cannot select the generation later trusted by Computer Use. If the live process identity cannot be captured, the reserved generation is removed and generation-bound consumers fail closed.
+The existing raw `.workstreamEventReceived` post still exists for compatibility. `ComputerUseUXCoordinator` ignores raw `WorkstreamEvent` notifications whenever `_ppid` is present and consumes only the trusted envelope for process-bound Computer Use events. Generationless events keep the old raw path.
 
-`WorkstreamEvent` already preserves unknown fields through `extraFieldsJSON`, and target rehoming copies that bag, so the generation survives the existing internal event path without extending every external agent hook protocol.
+### Live resolver fence
 
-### 2. Never re-resolve a bare PID later
+`ComputerUseLiveSessionProjection.driverSessionID(...)` now receives both `_ppid` and the captured `AgentPIDProcessIdentity`.
 
-`ComputerUseLiveSessionProjection.driverSessionID(...)` now takes the captured generation alongside `_ppid`. When `_ppid` exists it requires:
+When `_ppid` exists, production code requires:
 
-- a captured generation exists;
-- captured generation PID equals `_ppid`;
-- the exact captured `(pid,startSeconds,startMicroseconds)` belongs to the current root process tree.
+- a captured process identity;
+- captured identity PID equals `_ppid`;
+- the exact captured `(pid,startSeconds,startMicroseconds)` belongs to the current live root process tree.
 
-The resolver does not call `AgentPIDProcessIdentity(pid:)` at this late boundary, so PID reuse cannot retarget the event.
+The production resolver never re-resolves a numeric PID at consumption time. A DEBUG-only overload retains the old convenience API for existing tests; release callers cannot use that PID-only overload.
 
-No-PID hook sources retain the existing logical-session compatibility path.
+When no PID exists, the existing logical-session compatibility path remains available.
 
-### 3. Fence the projection-gap completion fallback
+### Completion refresh-gap fence
 
-`ComputerUseUXCoordinator` now stores the accepted invocation's exact generation. A `Stop`/`SessionEnd` can use the projection-gap fallback only when surface, logical session, ordering, PID, and exact captured generation all match the accepted invocation.
+`ComputerUseUXCoordinator` now records `ComputerUseAcceptedInvocationIdentity`, containing surface, logical agent session, exact process identity, and acceptance time.
 
-Even if live projection resolves a completion, an active accepted invocation for that driver requires the same generation before completion side effects run.
+A completion using the projection-gap fallback must match the same surface, logical session, ordering, PID, and exact process birth identity. A same-PID/different-start-time completion is rejected.
 
-## Current fork diff
+Computer Use onboarding/helper reconciliation is also moved behind successful generation resolution, so a rejected stale invocation has no Computer Use onboarding side effect.
 
-GitHub compare from upstream `6044a8b3` to head `1287e78a` is exactly four files and three linear commits:
+## Exact fork diff
+
+GitHub compare from tested base `544c0e0f` to repair `e43904d1` contains exactly five files and two linear commits:
 
 ```text
 Sources/App/ComputerUseLiveSessionProjection.swift
 Sources/App/ComputerUseUXCoordinator.swift
+Sources/Feed/WorkstreamEvent+FeedIngress.swift
 Sources/TerminalController+FeedAcknowledgment.swift
 cmuxTests/HostSettingsShortcutNotificationTests.swift
 ```
 
-The regression was placed in an already-wired test source to avoid Xcode target-membership ambiguity.
+The RED commit changes only `cmuxTests/HostSettingsShortcutNotificationTests.swift`.
 
 ## Regression coverage
 
-### Exact current vs retired vs PID-recycled generation
+`ComputerUseCrossGenerationIdentityTests` first creates retired generation A and live generation B while holding the logical agent session id constant. The RED test expects stale A to be rejected; upstream accepts it through the logical-session shortcut.
 
-`exactGenerationRejectsRetiredAndRecycledProcesses` checks:
+The repair adds discriminators for:
 
-- B PID + exact B birth identity + stable logical session → accepted;
-- B PID + exact B birth identity + alternate hook-protocol session id → accepted;
-- retired A exact generation + stable logical session → rejected;
-- B numeric PID + different birth timestamp → rejected;
-- bare B PID without ingress generation → rejected;
-- no PID + stable logical session → compatibility fallback accepted.
+- current B exact process generation -> accepted;
+- current B with a different hook-protocol session alias -> accepted by process authority;
+- retired A with the same logical session -> rejected;
+- B numeric PID paired with a stale/different process-start token -> rejected;
+- generationless stable logical session -> compatibility path accepted;
+- completion refresh-gap fallback with current accepted generation -> accepted;
+- completion refresh-gap fallback with stale start token -> rejected;
+- ingress envelope capture of the current live B generation -> exact match.
 
-### Trusted ingress overwrite
+## Related upstream work reviewed read-only
 
-`feedIngressOverwritesSpoofedGenerationWithLiveKernelIdentity` supplies a forged reserved generation field, captures at ingress using the current live PID, and verifies that the forged generation is replaced while unrelated opaque fields survive.
+`manaflow-ai/cmux#9586` remains open and broad. It moves multiple lifecycle paths toward exact process generations and introduces other generation identifiers, but it does not remove the current Computer Use `_ppid`/logical-session seam on upstream `main`.
 
-### Completion fallback
+Other inspected CMUX work around Codex resume, managed-agent liveness, reconnect ownership, and terminal incarnation uses the same general rule: a persistent logical id is separate from one physical generation, and stale work is fenced by an incarnation/owner/process-generation token.
 
-`completionFallbackRequiresExactAcceptedInvocationGeneration` verifies:
+## Target-native verification
 
-- exact accepted B generation → accepted;
-- stale A generation → rejected;
-- same PID with different birth timestamp → rejected;
-- generationless completion → rejected.
+Verifier: `.github/workflows/cmux-computer-use-generation.yml` on Fieldwork branch `fieldwork/cmux-cross-generation-identity-20260901`.
 
-## Executable verification
+Current run: `33567657260`.
 
-Temporary carrier: `.github/workflows/cmux-computer-use-generation.yml` on Fieldwork branch `fieldwork/cmux-cross-generation-identity-20260901`.
-
-### Previous run
-
-Run `33550591279` completed with failure. Checkout, immutable ancestry/diff checks, Xcode selection, Bun, GhosttyKit, Zig, Rust, DerivedData preparation, and Swift package resolution all succeeded. The failure occurred in the old red-proof step; green was therefore skipped. This is harness/partial evidence, not a green candidate result.
-
-### Current run
-
-Run `33561165354` was triggered by Fieldwork commit `87e736029ef8bd9769602a3b367debe2dd39ad41` and is currently executing.
-
-The refreshed carrier pins:
+The carrier pins the exact base/RED/repair SHAs, verifies linear ancestry and the five-file diff set, selects a supported Xcode with CMUX's `scripts/select-ci-xcode.sh`, prepares the repository build dependencies, then runs:
 
 ```text
-base    6044a8b3f43152d2e6fc17f771fd4b277b393118
-red     d13e9a7cb3a3712f9f7a7f507c13d3a312c41d20
-partial fbc7742dc04a5e7d14172a48aa43066296d24ac6
-green   1287e78a3a751e41d7fb23ca4157d57403fac1d2
+RED  : cmuxTests/ComputerUseCrossGenerationIdentityTests
+FIX  : cmuxTests/ComputerUseCrossGenerationIdentityTests
+FIX  : cmuxTests/ComputerUseUXTests
 ```
 
-It first checks exact linear ancestry and the four-file diff fence. The red side runs the upstream-plus-regression suite and must fail after reaching the stale-A test rather than at build/compile setup. The green side runs the full `ComputerUseCrossGenerationIdentityTests` suite against the final ingress-generation candidate.
+The RED step must fail after reaching the stale-generation test rather than at compile/setup. The FIX steps must pass.
 
-Until that run is terminal, evidence class remains `target-test-running`, not `target-executed-green`.
+Earlier carrier failures are classified as verifier evidence only:
 
-## Boundaries checked and ruled down
+- run `33550591279` failed before testing because the runner remained on Command Line Tools instead of full Xcode;
+- run `33561643140` selected Xcode and reached an app build, then hit unrelated current-source compiler failures in `LocalhostBrowserURLPolicy.swift` and `CmuxScriptWorkerPool.swift` under that runner/Xcode combination;
+- run `33567439435` failed only because the verifier compared a sorted filename list against a locale-order-dependent literal; GitHub compare independently confirmed the candidate ancestry/diff was correct.
 
-### Cloud machine resurrection
+Run `33567657260` uses the corrected order-independent diff fence and had passed checkout, immutable ancestry/diff verification, Xcode selection, Bun, GhosttyKit, and Zig setup at the time of this report update. Evidence class remains `target-test-running` until the RED and FIX steps finish.
 
-The inspected cloud-machine path carries a current physical generation/current VM association under the durable logical machine record. No stale-old-generation publication into the current VM owner was established.
+## Evidence limit
 
-### Daemon replacement
-
-Inspected daemon/runtime recovery paths carry explicit generation/ownership checks while durable registry ids survive restart intentionally.
-
-### Terminal host replacement
-
-Stable `terminal_id` is paired with `terminal_incarnation`; host recovery/adoption and mutations compare incarnation before transferring ownership or acting on stale host state.
-
-### Persistent PTY and attachment
-
-Persistent PTY `sessionID` is logical by contract. Physical cleanup checks exact `wsPTYSession` object identity before removing the map entry. Input/resize/detach resolve exact current attachment id/token/object. The Swift close path intentionally closes the logical persistent session and gates known lifecycle generations before issuing the generation-blind daemon close.
-
-### Local bridge / transport replacement
-
-The proxy broker carries lifecycle/attachment/transport ownership tokens through tunnel replacement and claims exact owners during cleanup.
-
-### Terminal public API candidate
-
-Stable-terminal-id public effects still deserve separate execution work because public resource-v2 intentionally hides incarnation. This scout did not establish a legal production transition that preserves one public terminal id while crossing the native host-incarnation fences, so it remains a candidate rather than a confirmed failure.
-
-## Evidence labels
-
-- exact current upstream: GitHub read;
-- resume and identity contracts: source read;
-- upstream related-work review: PR/source read;
-- original stale-A seam: source-determined;
-- old decision-rule probe: model-executed, retained as historical discriminator;
-- final repair: fork-authored;
-- current fork ancestry/diff: GitHub compare;
-- previous target-native carrier: setup-executed / red-step failure / green skipped;
-- current target-native carrier: running;
-- upstream contact: absent.
+The current candidate closes the identified in-process stale-generation seam by freezing process birth identity when the Feed frame enters CMUX and carrying that identity through asynchronous handling. The uniform external hook wire still exposes `_ppid` rather than a sender-attested process-start tuple. A theoretical PID recycle before CMUX captures the incoming frame would require a broader hook-wire or peer-identity change across providers; this scout does not claim that broader protocol guarantee.
 
 ## Recommendation
 
-Keep owned PR #17 draft until run `33561165354` reaches a terminal result. If green passes, the candidate has the desired source and target-native evidence for the full fence. If the run fails, classify the exact failing step and repair the owned candidate or verifier without posting anything upstream.
+Keep owned PR #17 draft until run `33567657260` reaches a terminal result. If it proves RED behavioral failure and FIX green, record that result and preserve the exact SHAs. If it exposes a candidate compile/test defect, repair only the owned fork/Fieldwork and rerun. Keep upstream read-only unless explicit authorization is given later.
