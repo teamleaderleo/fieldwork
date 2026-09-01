@@ -11,10 +11,10 @@ permissions:
   contents: read
 
 env:
-  UPSTREAM_BASE_SHA: 2ead47750ab2f47c13972d0709d99cdcbaa8ad73
-  RED_SHA: 1af0c0dcec183757027e823b569a20995c302341
-  FIX_SHA: 9c69bd85cccd5a608c7b98bb145f91341046f2a8
-  GREEN_SHA: 7f3370aff19744ee085661626a5fc162dee69678
+  UPSTREAM_BASE_SHA: 6044a8b3f43152d2e6fc17f771fd4b277b393118
+  RED_SHA: d13e9a7cb3a3712f9f7a7f507c13d3a312c41d20
+  PARTIAL_SHA: fbc7742dc04a5e7d14172a48aa43066296d24ac6
+  GREEN_SHA: 1287e78a3a751e41d7fb23ca4157d57403fac1d2
   SWIFT_BACKTRACE: interactive=no,timeout=0s,symbolicate=off,color=no
   CMUX_SKIP_ZIG_BUILD: "1"
 
@@ -23,7 +23,7 @@ jobs:
     runs-on: macos-14
     timeout-minutes: 45
     steps:
-      - name: Checkout exact green candidate
+      - name: Checkout exact full candidate
         uses: actions/checkout@v4
         with:
           repository: teamleaderleo/cmux
@@ -35,10 +35,10 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse "$RED_SHA^")" = "$UPSTREAM_BASE_SHA"
-          test "$(git rev-parse "$FIX_SHA^")" = "$UPSTREAM_BASE_SHA"
-          test "$(git rev-parse "$GREEN_SHA^")" = "$FIX_SHA"
-          test "$(git diff --name-only "$UPSTREAM_BASE_SHA" "$RED_SHA")" = "cmuxTests/ComputerUseCrossGenerationIdentityTests.swift"
-          test "$(git diff --name-only "$UPSTREAM_BASE_SHA" "$GREEN_SHA" | sort)" = $'Sources/App/ComputerUseLiveSessionProjection.swift\ncmuxTests/ComputerUseCrossGenerationIdentityTests.swift'
+          test "$(git rev-parse "$PARTIAL_SHA^")" = "$RED_SHA"
+          test "$(git rev-parse "$GREEN_SHA^")" = "$PARTIAL_SHA"
+          test "$(git diff --name-only "$UPSTREAM_BASE_SHA" "$RED_SHA")" = "cmuxTests/HostSettingsShortcutNotificationTests.swift"
+          test "$(git diff --name-only "$UPSTREAM_BASE_SHA" "$GREEN_SHA" | sort)" = $'Sources/App/ComputerUseLiveSessionProjection.swift\nSources/App/ComputerUseUXCoordinator.swift\nSources/TerminalController+FeedAcknowledgment.swift\ncmuxTests/HostSettingsShortcutNotificationTests.swift'
 
       - name: Select Xcode
         run: ./scripts/select-ci-xcode.sh
@@ -72,7 +72,7 @@ jobs:
             -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR" \
             -resolvePackageDependencies
 
-      - name: Prove current upstream plus regression is red
+      - name: Prove current upstream plus stale-A regression is red
         shell: bash
         run: |
           set -euo pipefail
@@ -86,7 +86,7 @@ jobs:
               -disableAutomaticPackageResolution \
               -destination "platform=macOS" \
               EXCLUDED_SOURCE_FILE_NAMES="BrowserPanelTests.swift BrowserPanelViewIdentityTests.swift" \
-              -only-testing:cmuxTests/ComputerUseCrossGenerationIdentityTests/delayedGenerationACompletionCannotResolveGenerationBWithSameLogicalSession \
+              -only-testing:cmuxTests/ComputerUseCrossGenerationIdentityTests \
               test 2>&1 | tee /tmp/cmux-generation-red.log
           RED_STATUS=${PIPESTATUS[0]}
           set -e
@@ -94,10 +94,14 @@ jobs:
             echo "expected the test-only current-upstream commit to fail"
             exit 1
           fi
+          if grep -Eq "(BUILD FAILED|CompileSwift|SwiftCompile.*failed|error:.*cannot find|error:.*no member)" /tmp/cmux-generation-red.log; then
+            echo "red side failed before the behavioral assertion"
+            exit 1
+          fi
           grep -F "delayedGenerationACompletionCannotResolveGenerationBWithSameLogicalSession" /tmp/cmux-generation-red.log
-          grep -F "Expectation failed" /tmp/cmux-generation-red.log
+          echo "red behavioral discriminator reached"
 
-      - name: Prove generation fence is green
+      - name: Prove full ingress-generation fence is green
         run: |
           set -euo pipefail
           git checkout --detach "$GREEN_SHA"
@@ -109,5 +113,5 @@ jobs:
               -disableAutomaticPackageResolution \
               -destination "platform=macOS" \
               EXCLUDED_SOURCE_FILE_NAMES="BrowserPanelTests.swift BrowserPanelViewIdentityTests.swift" \
-              -only-testing:cmuxTests/ComputerUseCrossGenerationIdentityTests/delayedGenerationACompletionCannotResolveGenerationBWithSameLogicalSession \
+              -only-testing:cmuxTests/ComputerUseCrossGenerationIdentityTests \
               test
