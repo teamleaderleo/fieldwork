@@ -1,0 +1,41 @@
+{
+  "kind": "owned-app-host-verifier-diagnosis",
+  "evidence_label": "target-executed-blocked",
+  "upstream_main_sha": "6b425641ae4d474e77854da535442af2a0d0a475",
+  "candidate_red_sha": "4719143f4a21ab2442397efe70643435c1f604f6",
+  "candidate_green_sha": "a732c5994bb2a698a7330bb0516210411d9ca298",
+  "owned_workflow_run": "https://github.com/teamleaderleo/fieldwork/actions/runs/33536448895",
+  "owned_workflow_job_id": 99951817878,
+  "result": "blocked-before-regression-execution",
+  "completed_setup": [
+    "exact green checkout",
+    "red-parent equals exact upstream main",
+    "green-parent equals red",
+    "red diff is exactly cmuxTests/RemoteTmuxAuthTests.swift",
+    "Xcode selection",
+    "Bun setup",
+    "GhosttyKit download",
+    "Zig install",
+    "Rust install",
+    "Swift package resolution"
+  ],
+  "blocker": {
+    "owner": "Sources/TerminalController+Extensions.swift",
+    "candidate_touched_owner": false,
+    "compiler_missing_symbols_observed": [
+      "SocketRequestTransactionContext",
+      "SocketResponseReadbackPolicy",
+      "requestContextRegistry",
+      "requestResponseRoutingRegistry",
+      "SocketResponseRoutingClient"
+    ],
+    "current_main_code_search_for_missing_types": "no defining results observed for the named missing socket-routing symbols"
+  },
+  "regression_test_executed": false,
+  "green_app_host_executed": false,
+  "unsupported_claims": {
+    "root_cause_of_current_main_socket_compile_break": "Unknown",
+    "independent_live_remote_reproduction": "Unknown"
+  },
+  "upstream_contact_authorized": false
+}
