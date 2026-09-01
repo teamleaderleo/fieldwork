@@ -1,0 +1,51 @@
+name: cmux ssh-tmux package verifier linux
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/cmux-ssh-tmux-package-linux.yml
+
+permissions:
+  contents: read
+
+env:
+  UPSTREAM_BASE_SHA: 6b425641ae4d474e77854da535442af2a0d0a475
+  RED_SHA: 4719143f4a21ab2442397efe70643435c1f604f6
+  GREEN_SHA: a732c5994bb2a698a7330bb0516210411d9ca298
+
+jobs:
+  package-and-guards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact green candidate
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/cmux
+          ref: ${{ env.GREEN_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact ancestry and candidate surface
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse "$RED_SHA^")" = "$UPSTREAM_BASE_SHA"
+          test "$(git rev-parse "$GREEN_SHA^")" = "$RED_SHA"
+          git diff --check "$UPSTREAM_BASE_SHA" "$GREEN_SHA"
+          git diff --name-only "$UPSTREAM_BASE_SHA" "$GREEN_SHA"
+
+      - name: Show Swift toolchain
+        run: swift --version
+
+      - name: Run focused framing tests
+        run: swift test --package-path Packages/macOS/CmuxRemoteSession --filter RemoteTmuxSendKeysBatchBuilderTests
+
+      - name: Run full remote-session package tests
+        run: swift test --package-path Packages/macOS/CmuxRemoteSession
+
+      - name: Run repository guards
+        run: |
+          set -euo pipefail
+          ./scripts/lint-pbxproj-test-wiring.sh
+          python3 scripts/check-package-resolved-policy.py
+          python3 scripts/check-workspace-package-groups.py --check
