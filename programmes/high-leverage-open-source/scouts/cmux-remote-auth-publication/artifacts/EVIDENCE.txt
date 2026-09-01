@@ -14,5 +14,5 @@ local runtime: go1.23.2 linux/amd64
 upstream daemon module declares: go 1.22
 probe command: GO111MODULE=off go test -v -count=1 ./...
 restart evidence: persisted-state restart is modeled by a fresh consume/read after interruption; no cmuxd process restart was executed
-ee20be51530e08947d827d0acd795aefe022ea975f3948b86514c12f3d067bcd  lease_race_test.go
+be571a1f70c70a94686ac7875d97c7564b14ed0078a50d1f19b854c36f7e3c47  lease_race_test.go
 d0082fcbc728c4273c53683c8abf3c5287e45543c2e130a2bff4da6b2d4f273c  harness-results.txt
