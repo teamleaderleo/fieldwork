@@ -6,10 +6,12 @@
 
 On the current production path that bookkeeping mismatch does **not** authorize a stale operation. Foreground authentication has a checked temporary-to-durable handoff; restore/reconnect/fork paths that lack that handoff are checked again by `RemoteSessionCoordinator` before daemon bootstrap, proxy, or reverse-relay work; last-owner cleanup obtains a fresh exclusive authorization before issuing `ssh -O exit`. The only startup side effect that precedes the recheck removes PPID-1 orphaned relay/stdio children and does not classify the shared ControlMaster process itself.
 
-Disposition: **negative result for stale-generation mutation at the current source coordinate**. The ignored retain result is misleading internal state, but every consequence-producing use found in production is separately fenced.
+Disposition: **negative result for stale-generation mutation at the traced source boundary**. The ignored retain result is misleading internal state, but every consequence-producing use found in production is separately fenced.
 
 Target: `manaflow-ai/cmux`  
-Exact current revision: `6044a8b3f43152d2e6fc17f771fd4b277b393118`  
+Traced revision: `6044a8b3f43152d2e6fc17f771fd4b277b393118`  
+Latest upstream checked: `594eb0461e0ae4d57a99180e19097cea5e5091e0`  
+Continuity: the two intervening upstream commits do not touch the macOS RemoteSession / NativeSSH ownership paths.  
 Evidence class: `source-read` / interface trace  
 Upstream contact authorized: `false`
 
