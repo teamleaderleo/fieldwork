@@ -2,35 +2,74 @@
 
 Experiment: `EXP-20260901-cmake-ninja-empty-command`
 
-## Question
+## In simple words
 
-Does an empty generator-expression custom command still produce a failing Ninja command on current Windows CMake while the equivalent Linux Ninja build succeeds?
+CMake's Ninja generator can keep a working-directory command after every real custom command has disappeared through generator-expression evaluation. On POSIX that leaves a harmless shell `cd`. On Windows current master spells the same line `cd /D ...`, while the single-command Ninja path does not wrap it in `cmd.exe`; issue 24802 reports the resulting process-creation failure.
 
-## Why this candidate
+Current master already knows how to represent a custom command with no executable command lines: it emits a `phony` rule. The stray working-directory line prevents that existing fallback from being reached.
 
-CMake issue 24802 reports a Windows Ninja failure when a custom command becomes empty after generator-expression evaluation. The failure surface is attractive for a bounded contribution because it is build-file correctness, has a tiny synthetic fixture, and the issue is tagged for external contribution. Before source work, this experiment checks whether the reported behavior still exists on a current hosted Windows environment.
+## Executed control
 
-## Linux control
-
-A local Linux/x86-64 control with CMake 3.31.6 and Ninja 1.11.1 configured and built the `OUTPUT` variant successfully. Its generated command was only a working-directory change:
+The retained Linux/x86-64 probe used:
 
 ```text
-COMMAND = cd <build-directory>
+CMake 3.31.6
+Ninja 1.12.1
+python3 run.py
 ```
 
-That result supports a platform-specific discriminator: a working-directory-only line is harmless through the POSIX shell, while the reported Windows path may attempt to launch `cd` directly.
+For this fixture:
 
-## Windows treatment
+```cmake
+add_custom_command(
+  OUTPUT empty
+  COMMAND "$<$<BOOL:0>:${CMAKE_COMMAND}>"
+  VERBATIM
+)
+add_custom_target(gen ALL DEPENDS empty)
+```
 
-The branch-local workflow tests two fixtures on `windows-latest`:
+CMake generated:
 
-1. `add_custom_command(OUTPUT ...)` with its only `COMMAND` erased by a false generator expression;
-2. `add_custom_target(...)` with the same empty command.
+```text
+build empty | ${cmake_ninja_workdir}empty: CUSTOM_COMMAND
+  COMMAND = cd <temporary-build-directory>
+```
 
-For each fixture it records the installed CMake/Ninja versions, the generated Ninja `COMMAND =` line, and the build exit code.
+The generator expression removed the executable command, yet the rule stayed a real custom command because the working-directory line survived. The POSIX build succeeds because `cd` is interpreted by the shell.
 
-## Decision
+## Current master source mapping
 
-- **Promote to source/test mapping** if the Windows build reproduces the process-creation failure while configuration succeeds.
-- **Stop as a negative result** if both variants build successfully on the current runner.
-- Keep upstream read-only during this experiment. No external contact is authorized.
+Public mirror revision `457b8a2acb76d0331889955b1ab74b0d21357ddf` retains the same mechanism:
+
+1. `AppendCustomCommandLines` checks the declared command count and appends a working-directory line before examining evaluated commands.
+2. Under `_WIN32` that line begins `cd /D `.
+3. Each evaluated command is then read; an empty command is skipped.
+4. If all commands are skipped, the working-directory line is the only line left.
+5. `BuildCommandLine` wraps multiple Windows lines in the command processor, but a single line is wrapped only when `RuleNeedsCMD` recognizes a shell operator. The bare `cd /D` line does not meet that condition.
+6. `WriteCustomCommandBuildStatement` already emits a `phony` build when `cmdLines` is empty.
+
+This makes the smallest repair local to `AppendCustomCommandLines`: when the function added only the working-directory line and no evaluated command survived, remove that line and let the existing phony path handle the no-command case.
+
+## Prepared candidate
+
+[`candidate.patch`](candidate.patch) contains:
+
+- one small `cmLocalNinjaGenerator.cxx` change that records the incoming command-line count and drops the lone working-directory line when every command evaluates empty;
+- a six-line Ninja fixture with one false generator-expression command;
+- a five-line RunCMake check requiring the generated output to use the existing `phony` rule;
+- one registration line in the Ninja RunCMake suite.
+
+The patch format was checked against reconstructed exact current-source/test hunks. The candidate still needs execution in an actual current CMake checkout before it becomes submission-ready.
+
+## Evidence boundary
+
+The current Windows failure was not physically rerun in this experiment. A branch-local GitHub workflow was attempted as a disposable carrier, but GitHub does not execute a newly introduced workflow from a pull request head when that workflow is absent from the base branch; the carrier was removed.
+
+The supported mechanism claim comes from the executed Linux generated-rule control plus current master source. The Windows process-creation consequence remains the behavior documented by CMake issue 24802 until reproduced again on a current Windows build.
+
+## Next action
+
+Apply `candidate.patch` to the user's current CMake fork, run the focused Ninja RunCMake test and the repository-required relevant checks, inspect the exact diff, then decide whether the candidate is ready for a human-authored GitLab merge request.
+
+Upstream contact remains unauthorized in Fieldwork. CMake's current AI policy permits AI-assisted preparation while requiring a human author to understand and own the submission.
