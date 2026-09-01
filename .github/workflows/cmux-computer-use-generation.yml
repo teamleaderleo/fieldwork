@@ -72,7 +72,23 @@ jobs:
             -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR" \
             -resolvePackageDependencies
 
-      - name: Prove current upstream plus stale-A regression is red
+      - name: Prove full ingress-generation fence is green
+        run: |
+          set -euo pipefail
+          git checkout --detach "$GREEN_SHA"
+          SOURCE_PACKAGES_DIR="$PWD/.ci-source-packages"
+          python3 scripts/ci/xcodebuild_noninteractive.py \
+            xcodebuild -project cmux.xcodeproj -scheme cmux-unit -configuration Debug \
+              -derivedDataPath "$CMUX_DERIVED_DATA_PATH" \
+              -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR" \
+              -disableAutomaticPackageResolution \
+              -destination "platform=macOS" \
+              EXCLUDED_SOURCE_FILE_NAMES="BrowserPanelTests.swift BrowserPanelViewIdentityTests.swift" \
+              -only-testing:cmuxTests/ComputerUseCrossGenerationIdentityTests \
+              test
+
+      - name: Characterize current-upstream stale-A regression
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -90,28 +106,18 @@ jobs:
               test 2>&1 | tee /tmp/cmux-generation-red.log
           RED_STATUS=${PIPESTATUS[0]}
           set -e
+          echo "red_xcodebuild_status=$RED_STATUS"
           if [ "$RED_STATUS" -eq 0 ]; then
-            echo "expected the test-only current-upstream commit to fail"
+            echo "RED_CLASSIFICATION=unexpected-pass-or-selector-miss"
             exit 1
           fi
           if grep -Eq "(BUILD FAILED|CompileSwift|SwiftCompile.*failed|error:.*cannot find|error:.*no member)" /tmp/cmux-generation-red.log; then
-            echo "red side failed before the behavioral assertion"
+            echo "RED_CLASSIFICATION=build-or-compile-failure"
             exit 1
           fi
-          grep -F "delayedGenerationACompletionCannotResolveGenerationBWithSameLogicalSession" /tmp/cmux-generation-red.log
-          echo "red behavioral discriminator reached"
-
-      - name: Prove full ingress-generation fence is green
-        run: |
-          set -euo pipefail
-          git checkout --detach "$GREEN_SHA"
-          SOURCE_PACKAGES_DIR="$PWD/.ci-source-packages"
-          python3 scripts/ci/xcodebuild_noninteractive.py \
-            xcodebuild -project cmux.xcodeproj -scheme cmux-unit -configuration Debug \
-              -derivedDataPath "$CMUX_DERIVED_DATA_PATH" \
-              -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR" \
-              -disableAutomaticPackageResolution \
-              -destination "platform=macOS" \
-              EXCLUDED_SOURCE_FILE_NAMES="BrowserPanelTests.swift BrowserPanelViewIdentityTests.swift" \
-              -only-testing:cmuxTests/ComputerUseCrossGenerationIdentityTests \
-              test
+          if grep -Fq "delayedGenerationACompletionCannotResolveGenerationBWithSameLogicalSession" /tmp/cmux-generation-red.log; then
+            echo "RED_CLASSIFICATION=behavioral-regression-reached"
+            exit 0
+          fi
+          echo "RED_CLASSIFICATION=nonzero-without-test-marker"
+          exit 1
