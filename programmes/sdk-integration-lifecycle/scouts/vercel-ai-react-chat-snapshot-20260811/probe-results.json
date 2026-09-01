@@ -1,0 +1,95 @@
+{
+  "source_revision": "7d40fafc394a2c9033f931eb85c895e3817f4b58",
+  "retrieved_date": "2026-08-11",
+  "evidence_class": "model-executed",
+  "claim_scope": "mechanism",
+  "command": "node probe.mjs",
+  "scope_limit": "Synthetic Node model of the sampled current stream mutation contract; no React, React Compiler, browser, or target-package execution.",
+  "environment": {
+    "node": "v22.16.0",
+    "platform": "linux/x64"
+  },
+  "correctness": {
+    "deep": {
+      "name": "structuredClone",
+      "priorTextStable": true,
+      "priorToolStateStable": true,
+      "priorToolOutputStable": true,
+      "priorApprovalStable": true,
+      "priorDataStable": true,
+      "priorMetadataStable": true,
+      "newMessageIdentity": true,
+      "newPartsArrayIdentity": true,
+      "everyPartGetsNewIdentity": true,
+      "newMetadataRootIdentity": true
+    },
+    "outerOnlyNegativeControl": {
+      "name": "outer-only",
+      "priorTextStable": false,
+      "priorToolStateStable": false,
+      "priorToolOutputStable": false,
+      "priorApprovalStable": false,
+      "priorDataStable": false,
+      "priorMetadataStable": true,
+      "newMessageIdentity": true,
+      "newPartsArrayIdentity": true,
+      "everyPartGetsNewIdentity": false,
+      "newMetadataRootIdentity": true
+    },
+    "bounded": {
+      "name": "bounded-message-parts-metadata",
+      "priorTextStable": true,
+      "priorToolStateStable": true,
+      "priorToolOutputStable": true,
+      "priorApprovalStable": true,
+      "priorDataStable": true,
+      "priorMetadataStable": true,
+      "newMessageIdentity": true,
+      "newPartsArrayIdentity": true,
+      "everyPartGetsNewIdentity": true,
+      "newMetadataRootIdentity": true
+    },
+    "explicitBoundary": {
+      "candidateSharesNestedPayload": true,
+      "nestedInPlaceMutationLeaksAcrossSnapshot": true
+    }
+  },
+  "benchmark": [
+    {
+      "toolCount": 10,
+      "rowsPerOutput": 100,
+      "writes": 30,
+      "rounds": 5,
+      "deepMedianMs": 34.534,
+      "boundedMedianMs": 0.039,
+      "medianSpeedup": 880.6
+    },
+    {
+      "toolCount": 25,
+      "rowsPerOutput": 100,
+      "writes": 30,
+      "rounds": 5,
+      "deepMedianMs": 64.609,
+      "boundedMedianMs": 0.069,
+      "medianSpeedup": 930.5
+    },
+    {
+      "toolCount": 50,
+      "rowsPerOutput": 100,
+      "writes": 30,
+      "rounds": 5,
+      "deepMedianMs": 67.31,
+      "boundedMedianMs": 0.129,
+      "medianSpeedup": 521.6
+    },
+    {
+      "toolCount": 100,
+      "rowsPerOutput": 100,
+      "writes": 30,
+      "rounds": 5,
+      "deepMedianMs": 131.087,
+      "boundedMedianMs": 0.227,
+      "medianSpeedup": 577.3
+    }
+  ]
+}
