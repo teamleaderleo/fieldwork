@@ -8,7 +8,7 @@ Upstream contact: none
 
 ## Landed journal fix
 
-Promotion commit: `3948c73c4cac4dd2fe10e5bc0275b8c56bdd9ed7`  
+Primary promotion commit: `3948c73c4cac4dd2fe10e5bc0275b8c56bdd9ed7`  
 Commit message: `fix(relay): bound journal backlog during stalled delivery`
 
 The guarded promotion required the production source to still have pinned upstream blob `9b4551770e807084c48c2cdbe94f15f2cf2358e0`. The promotion commit changed only:
@@ -19,11 +19,20 @@ Diff size: +256 / -12.
 
 The source now owns one bounded pending batch behind the retrying/in-flight batch. Bounds are both `MAX_BATCH_RECORDS` and `MAX_BATCH_BODY_BYTES`; session workers wait when that next batch is full. Capacity wake-up occurs when pending records are rotated into a ready/in-flight batch and when a POST completes. The post-completion producer handoff preserves the exact 100-record ready boundary.
 
-The one-shot write-capable promotion workflow was removed immediately after the guarded commit.
+### Byte-threshold continuation follow-up
+
+Follow-up production commit: `e6f7f36fce1d27538acc2c3b05d1763044b397f8`  
+Commit message: `fix(relay): flush byte-full journal backlog immediately`
+
+This changed only `journal_forwarder.rs`, +19 / -5. The source now uses one `pending_threshold_reached(records, bytes)` predicate for both ingress and post-completion continuation. A next batch that reaches the 4 MiB byte ceiling with fewer than 100 records continues immediately after the current POST rather than waiting for the debounce.
+
+The regression test `pending_threshold_considers_record_and_byte_limits` covers below-threshold, record-threshold, byte-threshold, and combined cases.
+
+All temporary write-capable promotion workflows used for the guarded source commits were removed after promotion.
 
 ## Landed-source verification
 
-Run `33564015233` verifies the actual committed journal source without applying the candidate patches in CI.
+Run `33564015233` verified the committed main journal backpressure source without applying the backpressure candidate patches in CI.
 
 `journal-backpressure-source`: success.
 
@@ -51,6 +60,27 @@ Stalled 1.5-second landed-source points:
 
 All stalled cases issued one HTTP request and returned to 12 FDs after cancellation.
 
+Run `33565064189` verified the byte-threshold follow-up as an applied candidate together with the full journal controls and recovery harness. Every job passed, including the journal tests, healthy control, stalled scaling, recovery probe, pinned-upstream RPC controls, and current RPC candidate checks. The subsequent guarded promotion produced exact production commit `e6f7f36fce1d27538acc2c3b05d1763044b397f8`.
+
+## Journal recovery
+
+Run `33564438197`, job `100044270329`, artifact `9822660301` measured stall → producer stop → endpoint recovery while the forwarder stayed alive.
+
+At 128 accepted sessions:
+
+- generated before stop: 12,018 records
+- delivered before recovery: 0
+- stalled RSS: 15,684 KiB
+- stalled FDs: 399
+- delivered after recovery: 12,018 / 12,018
+- recovery settle time: **839 ms**
+- total HTTP requests after drain: 121
+- recovered RSS: 18,200 KiB
+- recovered FDs: 397 while the 128 subscriptions intentionally remained live
+- final cleanup FDs after forwarder cancellation: **12**
+
+The repaired forwarder therefore keeps the outage working set bounded, drains accepted records promptly when the endpoint resumes, and returns owned session descriptors on teardown.
+
 ## RPC write-lane fix
 
 Production source changed at:
@@ -59,14 +89,14 @@ Production source changed at:
 
 The current implementation gives non-WebSocket physical writes a separate one-second liveness budget. This is distinct from RPC response deadlines. A stalled write retires the shared transport, which releases queued request/response callers. The same liveness guard covers fire-and-forget notifications such as PTY write/resize, closing the residual path where terminal input could wedge the global writer.
 
-Run `33564015233`:
+Run `33564015233` and later run `33565064189` both kept the relevant macOS checks green:
 
-- pinned-upstream RPC baseline: success
-- candidate package outside timeout-isolation suite: success
-- candidate timeout-isolation suite: success
-- preserve-after-PTY-timeout discriminator: success
-- blocked-cancellation discriminator: success
-- request + notification write scaling probes: success
+- pinned-upstream RPC package and timeout-isolation controls
+- candidate package outside timeout isolation
+- candidate timeout-isolation suite
+- preserve-after-PTY-timeout discriminator
+- blocked-cancellation discriminator
+- request + notification write scaling probes
 
 Earlier intermediate versions that reused the RPC response deadline for physical write admission were discarded after reproducing timing regressions. The final source uses a separate write-liveness budget.
 
@@ -81,10 +111,6 @@ At 128 accepted sessions under the same 1.5-second stalled-endpoint workload:
 
 This is about a 74× reduction. More importantly, the owner changes from an unbounded relay-side retained pool to bounded producer backpressure.
 
-## Remaining verification
+## Remaining measurement
 
-A measurement-only recovery harness is being exercised after source promotion. It stops producers while keeping the forwarder alive, releases the stalled HTTP request, and waits for every generated record accepted by the Unix sockets to be delivered. It will record settle time and RSS/FDs before recovery, after drain, and after final cancellation.
-
-A small byte-threshold scheduling edge also remains to pin: a pending batch that reaches the 4 MiB threshold with fewer than 100 records is bounded correctly but can currently fall through to the debounce after the in-flight POST completes. This affects latency rather than the memory ceiling.
-
-Remote proxy output to a slow local consumer remains a source-only candidate. `RemoteDaemonProxySession` submits `NWConnection.send` operations without an application-level pending-send byte/count budget; Network.framework behavior needs an executable slow-reader test before classifying it as resource amplification.
+Remote proxy output to a slow local consumer remains the active open lead. `RemoteDaemonProxySession` submits `NWConnection.send` operations without an application-level pending-send byte/count budget. A measurement-only macOS probe now instruments pending send count/bytes and compares active readers with clients that stop reading across 1 / 10 / 50 / 200 sessions. Network.framework behavior will determine whether this becomes a confirmed retention finding or a bounded transport behavior.
