@@ -1,0 +1,96 @@
+name: cmux terminal input owner ack build
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/cmux-terminal-input-owner-ack-build.yml
+      - .github/fieldwork/apply_cmux_terminal_input_owner_ack.py
+
+permissions:
+  contents: read
+
+jobs:
+  patch-test-export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Fieldwork helper
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Checkout exact upstream cmux base
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: manaflow-ai/cmux
+          ref: 2ead47750ab2f47c13972d0709d99cdcbaa8ad73
+          path: cmux
+          persist-credentials: false
+          submodules: false
+
+      - name: Require exact upstream base
+        run: test "$(git -C cmux rev-parse HEAD)" = "2ead47750ab2f47c13972d0709d99cdcbaa8ad73"
+
+      - name: Apply owner-ack patch
+        working-directory: cmux
+        run: python3 ../fieldwork/.github/fieldwork/apply_cmux_terminal_input_owner_ack.py
+
+      - name: Initialize Ghostty
+        working-directory: cmux
+        run: git submodule update --init --depth 1 ghostty
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils clang libclang-dev pkg-config
+
+      - name: Install Zig
+        working-directory: cmux
+        run: ./scripts/install-zig-ci.sh
+
+      - name: Set up pinned Rust
+        uses: ./cmux/.github/actions/setup-cmux-tui-rust
+
+      - name: Format and test patch
+        working-directory: cmux/cmux-tui
+        run: |
+          cargo fmt --all
+          cargo fmt --all -- --check
+          git diff --check
+          cargo test -p cmux-tui-core --lib terminal_host --locked
+          cargo test -p cmux-tui-core --lib resource_router::content::tests --locked
+
+      - name: Export tested files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifact
+          files=(
+            cmux-tui/crates/cmux-tui-core/src/terminal_host_protocol.rs
+            cmux-tui/crates/cmux-tui-core/src/terminal_host_runtime.rs
+            cmux-tui/crates/cmux-tui-core/src/surface.rs
+            cmux-tui/crates/cmux-tui-core/src/resource_router/content.rs
+            cmux-tui/crates/cmux-tui-core/src/workspace_registry/tests.rs
+            cmux-tui/crates/cmux-tui/tests/cli.rs
+            cmux-tui/spec/terminal-host.md
+            cmux-tui/spec/inventory.json
+          )
+          for file in "${files[@]}"; do
+            mkdir -p "artifact/$(dirname "$file")"
+            cp "cmux/$file" "artifact/$file"
+          done
+          git -C cmux diff --binary > artifact/patch.diff
+          git -C cmux rev-parse HEAD > artifact/base-sha.txt
+          git -C cmux status --short > artifact/status.txt
+
+      - name: Upload tested patch
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmux-terminal-input-owner-ack-tested
+          path: artifact
+          if-no-files-found: error
+          retention-days: 7
