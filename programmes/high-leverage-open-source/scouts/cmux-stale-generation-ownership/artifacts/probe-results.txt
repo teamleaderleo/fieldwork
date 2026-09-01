@@ -1,0 +1,32 @@
+## swift version
+Swift version 6.2.1 (swift-6.2.1-RELEASE)
+Target: x86_64-unknown-linux-gnu
+
+## broker probe
+=== CURRENT_KEY_ONLY ===
+A_ENTRY_REMOVED
+B_READY
+STALE_FATAL_STOPPED B: A transport failed
+FINAL_CURRENT nil B_STOP_COUNT 1
+=== CONTROL_GENERATION_GUARD ===
+A_ENTRY_REMOVED
+B_READY
+SAFE_DROP stale=A current=B
+FINAL_CURRENT B B_STOP_COUNT 0
+
+## go version
+go version go1.23.2 linux/amd64
+
+## cloud CLI socket probe
+A_READY true
+B_READY true
+B_DIAL_BEFORE_A_CLEANUP true
+PATH_AFTER_A_CLEANUP false
+B_PREEXISTING_CONN_FD_OPEN true
+NEW_DIAL_AFTER_A_CLEANUP_OK false ERR dial unix /tmp/cmux-socket-gen-3471923283/cmux-cloud-cli.sock: connect: no such file or directory
+
+## cloud CLI socket negative control
+CONTROL_B_READY true
+CONTROL_CLEANUP_REMOVED_CURRENT false
+CONTROL_PATH_AFTER_A_CLEANUP true
+CONTROL_NEW_DIAL_OK true
