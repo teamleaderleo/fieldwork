@@ -1,0 +1,33 @@
+{
+  "date": "2026-09-01",
+  "kind": "dependency-free-generation-discriminator",
+  "evidence_class": "model-executed",
+  "fieldwork_probe_commit": "1935d54f2f2524570c7afe3547db6e53ef57d349",
+  "upstream_main_sha": "eaa899cb20bd411019744fbd2bdedeb397f3070b",
+  "red_test_sha": "e41f91cc7f99bb0c405893bf206f38b7c6d32ac5",
+  "fix_sha": "a447598ef3fb26a8b288c740b1e3f9435446c53f",
+  "green_sha": "8330732cc2dc5c7d045afa15e9e63f928e500146",
+  "command": "python3 probe.py",
+  "environment": {
+    "python": "3.13.5"
+  },
+  "observed": {
+    "current_b_hook_alias": {
+      "upstream": "D(surface-S)",
+      "candidate": "D(surface-S)"
+    },
+    "current_b_same_logical_id": {
+      "upstream": "D(surface-S)",
+      "candidate": "D(surface-S)"
+    },
+    "generationless_same_logical_id": {
+      "upstream": "D(surface-S)",
+      "candidate": "D(surface-S)"
+    },
+    "retired_a_same_logical_id": {
+      "upstream": "D(surface-S)",
+      "candidate": null
+    }
+  },
+  "interpretation": "The model preserves all three compatibility controls and changes only the stale same-session A→B case from accepted to rejected. This is model evidence; target-native macOS execution is tracked separately."
+}
