@@ -8,18 +8,18 @@ Fieldwork base: `eda248dc8a752241ae9359962a467c2bfd2dbb8a`
 Target: `manaflow-ai/cmux`  
 Pinned target revision: `eaa899cb20bd411019744fbd2bdedeb397f3070b`  
 Pinned at: 2026-09-01 17:27:07Z  
-Evidence so far: `source-read` + `model-executed`  
+Evidence so far: `source-read` + `model-executed` + `target-fix-prepared`  
 Upstream contact authorized: `false`
 
 ## In simple words
 
 Does an old cmux owner still get to act after a successor has taken over the same long-lived identity?
 
-The strongest current candidate is the remote proxy broker. Tunnel A can fail and queue a fatal callback identified only by the durable transport key. If A is retired and tunnel B becomes ready at the same key before that callback reaches the broker queue, A's callback can stop B. The broker already has a generation token for delayed restart timers; fatal callbacks carry no corresponding generation identity.
+The strongest candidate is the remote proxy broker. Tunnel A can fail and queue a fatal callback identified only by the durable transport key. If A is retired and tunnel B becomes ready at the same key before that callback reaches the broker queue, A's callback can stop B. The broker already has a generation token for delayed restart timers; the pinned source gives fatal callbacks no corresponding generation identity.
+
+That candidate now has a target-native regression commit and a bounded repair commit in the owned cmux fork. The repair gives each installed tunnel runtime a UUID generation, carries that generation through its fatal callback, and accepts the callback only while it still matches the current entry. An owned-fork macOS verifier is queued to prove the exact regression commit red and the exact repair commit green. Queue admission is not counted as execution evidence.
 
 A second candidate exists in the cloud CLI bridge: overlapping daemon generations use one stable Unix-socket pathname, and A's deferred cleanup can unlink B's pathname after B binds it. The remote PTY attachment replacement path provides a strong negative control: fresh stale input, resize, and detach are fenced by attachment object/token identity, while input already accepted before handoff is explicitly preserved in FIFO order.
-
-The owned cmux fork is the next evidence surface. The broker candidate should receive a target-native regression first, then the smallest generation fence that makes that regression pass.
 
 ## Core invariant
 
@@ -31,7 +31,7 @@ Old work occurring after detach is insufficient evidence for duplicate execution
 
 | Durable thing | Durable identity | Generation discriminator | Result |
 | --- | --- | --- | --- |
-| Remote proxy tunnel | broker transport key | current tunnel; restart timers also carry `restartToken` | candidate violation: fatal callback carries key only |
+| Remote proxy tunnel | broker transport key | current tunnel; restart timers also carry `restartToken` | proven source/model candidate; target repair prepared |
 | Persistent PTY session | `sessionID` | hub session object / PTY process | survives attachment replacement |
 | PTY attachment | `sessionID` + stable `attachmentID` | exact attachment object + fresh client token | fenced |
 | Accepted PTY input | session FIFO item | accepted before replacement | explicit handoff semantics |
@@ -61,7 +61,7 @@ broker installs B and publishes ready
 A's fatal(K) runs and stops current tunnel B
 ```
 
-### Deterministic discriminator
+### Deterministic model discriminator
 
 `artifacts/broker_stale_generation_probe.swift` models the two serial queues and that exact order. Swift 6.2.1 on x86_64 Linux produced:
 
@@ -87,9 +87,49 @@ Consequence: **2. stale destructive effect**. A's failure can also publish an er
 
 Surviving state: B's local tunnel and endpoint are torn down while daemon-side persistent PTY/process state may survive, followed by another broker retry cycle.
 
-Repair owner: `RemoteProxyBroker`. Mint one tunnel-generation UUID per installed runtime, capture it in `onFatalError`, require it to match the entry's current generation before stop/publication, and clear or replace it on every runtime transition.
+Repair owner: `RemoteProxyBroker`.
 
-Evidence limit: source-read plus model-executed. A target-native `RemoteProxyBrokerTests` regression is required next.
+## Target-native owned-fork candidate
+
+Canonical owned-fork research PR: `teamleaderleo/cmux#6`.
+
+Its base is the exact pinned target commit `eaa899cb20bd411019744fbd2bdedeb397f3070b`, and it preserves the target repository's required red/green history as two commits:
+
+1. `f1a91ab9090295f04d6b8fffef7bf6a4cfdd0371` — regression only, `test(remote): fence stale proxy tunnel failures`.
+2. `6cb48b5d96a9c2ce36cd699c5be3ca64050d52a0` — bounded repair, `fix(remote): fence stale proxy tunnel failures`.
+
+The target-native regression starts A, captures A's fatal callback, replaces A with B by changing `remotePath` under the same broker transport key, fires A's callback, then calls `broker.listPTY(...)`. That synchronous broker call is submitted after the callback's queue hop, so it deterministically observes whether A destroyed B. The pre-repair expected failure is the broker's `remote daemon tunnel is not ready` error.
+
+The repair changes only `RemoteProxyBroker.swift`:
+
+- add `Entry.tunnelGeneration: UUID?`;
+- mint one UUID before constructing each tunnel runtime;
+- capture it in that tunnel's fatal callback;
+- install it when `tunnel.start()` succeeds;
+- require `entry.tunnelGeneration == callbackGeneration` before stop/error/restart handling;
+- clear it whenever the entry runtime is stopped.
+
+This owner is intentionally smaller than the tunnel implementation: the broker chooses which tunnel is current and already owns the analogous `restartToken` fence.
+
+### Source-level repair audit
+
+The generation is minted before tunnel construction, so every callback from that runtime carries one identity. The fatal callback hops onto the broker's serial queue, which means a callback emitted during `start()` cannot run its broker mutation until `startEntryLocked` leaves that queue. A successful start installs the same generation before release; a failed start never installs a current tunnel/generation, so the callback is ignored by the existing `entry.tunnel != nil` guard plus generation match.
+
+When a current runtime is replaced or stopped, `stopEntryRuntimeLocked` clears both `entry.tunnel` and `entry.tunnelGeneration` before a successor is installed. A later callback from the retired runtime therefore cannot match B. A callback from the current runtime still matches and reaches the existing stop/error/backoff behavior.
+
+### Target execution carrier
+
+Owned-fork PR `teamleaderleo/cmux#8` triggers a macOS verifier from a carrier base that checks out the canonical commits directly. It requires all of these before this report may upgrade the evidence label:
+
+- exact ancestry `eaa899cb... -> f1a91ab... -> 6cb48b5...`;
+- the regression commit executes only `RemoteProxyBrokerStaleGenerationTests.staleFatalCallbackCannotStopSuccessor` and fails at `remote daemon tunnel is not ready`;
+- the repair commit passes the same focused test;
+- existing `RemoteProxyBrokerTests.fatalFailureRestarts` passes as the current-owner negative control;
+- the full `CmuxRemoteWorkspace` Swift package test suite passes.
+
+Current verifier run `33545915941` is queued. A separate earlier red-only carrier, `teamleaderleo/cmux#7`, has run `33545428072` queued as well. These are execution machinery in the owned fork, not durable Fieldwork conclusions yet.
+
+Evidence limit at this point: source-read + model-executed + target-fix-prepared. A completed target-native run with retained logs is still required to satisfy #931's stop condition.
 
 ## Negative control: remote PTY replacement is fenced
 
@@ -133,10 +173,11 @@ The persistent per-slot daemon acquires nonblocking exclusive `flock` ownership 
 
 ## Ranked next branches
 
-1. RemoteProxyBroker fatal-generation fence: target-native regression, minimal repair, focused test execution.
-2. Cloud CLI bridge pathname ownership: independent Go regression after the broker branch settles or if target-native broker execution disproves the model.
-3. Reusable RPC client process callback: promote only with a production same-instance restart caller.
-4. Continue successor-boundary scouting after the first repair is bounded.
+1. Finish target-native broker evidence: retain a real red log and green focused/full-suite proof from the canonical two-commit candidate.
+2. If broker proof passes, request independent Fieldwork review for the durability/ownership repair before promotion.
+3. Cloud CLI bridge pathname ownership: independent Go target-native regression after the broker branch settles.
+4. Reusable RPC client process callback: promote only with a production same-instance restart caller.
+5. Continue successor-boundary scouting only after the first repair is bounded.
 
 ## Upstream boundary
 
