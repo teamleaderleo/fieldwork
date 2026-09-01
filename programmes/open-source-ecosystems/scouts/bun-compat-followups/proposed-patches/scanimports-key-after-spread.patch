@@ -1,0 +1,140 @@
+# Fieldwork-owned proposed patch for oven-sh/bun#35557 head
+# Base: 2f2125e73a65cebef62c32c32acd3d114ac67e09
+# Evidence: source-read + target-test-prepared. This patch has NOT been executed on Bun.
+# Upstream contact: none.
+
+diff --git a/src/js_parser/p.rs b/src/js_parser/p.rs
+--- a/src/js_parser/p.rs
++++ b/src/js_parser/p.rs
+@@
+     // If yes, then automatically add the JSX import.
+     pub(crate) needs_jsx_import: NeedsJSXType,
++    /// SCAN_ONLY: at least one automatic-runtime JSX element uses the
++    /// key-after-spread createElement fallback and therefore needs the bare
++    /// classic package import in addition to (or instead of) the JSX runtime.
++    pub(crate) needs_jsx_classic_import: NeedsJSXType,
+@@
+             module_scope: scope,
+             scopes_in_order: scope_order,
+             needs_jsx_import: false,
++            needs_jsx_classic_import: false,
+             lexer,
+ 
+             commonjs_named_exports_deoptimized,
+diff --git a/src/js_parser/parse/parse_jsx.rs b/src/js_parser/parse/parse_jsx.rs
+--- a/src/js_parser/parse/parse_jsx.rs
++++ b/src/js_parser/parse/parse_jsx.rs
+@@
+         if !p.stack_check.is_safe_to_recurse() {
+             return Err(crate::Error::StackOverflow);
+         }
+-        if SCAN_ONLY {
+-            p.needs_jsx_import = true;
+-        }
+ 
+         let tag = JSXTag::parse(p)?;
+@@
+         let mut flags = flags::JSXElementBitset::empty();
+         let mut start_tag: Option<ExprNodeIndex> = None;
+         let mut can_be_inlined = false;
++        let mut is_key_after_spread = false;
+@@
+-            let is_key_after_spread =
+-                key_prop_i > -1 && first_spread_prop_i > -1 && key_prop_i > first_spread_prop_i;
++            is_key_after_spread =
++                key_prop_i > -1 && first_spread_prop_i > -1 && key_prop_i > first_spread_prop_i;
+             if is_key_after_spread {
+                 flags.insert(flags::JSXElement::IsKeyAfterSpread);
+             }
+@@
+                 p.has_classic_runtime_warned = true;
+             }
+         }
++
++        if SCAN_ONLY {
++            // Preserve the same dependency split the full visitor uses. A
++            // key-after-spread element falls back to createElement under the
++            // automatic runtime; every other element/fragment uses the JSX
++            // runtime. Child JSX is classified by its own recursive call, so a
++            // mixed tree can set both flags.
++            if is_key_after_spread {
++                p.needs_jsx_classic_import = true;
++            } else {
++                p.needs_jsx_import = true;
++            }
++        }
+ 
+         // People sometimes try to use the output of "JSON.stringify()" as a JSX
+diff --git a/src/js_parser/parse/parse_entry.rs b/src/js_parser/parse/parse_entry.rs
+--- a/src/js_parser/parse/parse_entry.rs
++++ b/src/js_parser/parse/parse_entry.rs
+@@
+-        // Symbol use counts are unavailable, so "any JSX parsed?" is the proxy.
++        // Symbol use counts are unavailable, so retain only the dependency
++        // categories the scan-only JSX parser can determine exactly.
+         if p.options.jsx.parse
+-            && p.needs_jsx_import
+             && p.options.features.auto_import_jsx
+             && p.options.jsx.runtime == options::JSX::Runtime::Automatic
+         {
+-            // `add_import_record` requires `&'a [u8]`, but borrowing
+-            // `p.options` would conflict with `&mut p`, so copy into the arena.
+             let arena = p.arena;
+-            let import_source: &'a [u8] = arena.alloc_slice_copy(p.options.jsx.import_source());
+-            let _ = p.add_import_record(
+-                bun_ast::ImportKind::Stmt,
+-                bun_ast::Loc { start: 0 },
+-                import_source,
+-            );
++            if p.needs_jsx_import {
++                // `add_import_record` requires `&'a [u8]`, but borrowing
++                // `p.options` would conflict with `&mut p`, so copy into the arena.
++                let import_source: &'a [u8] =
++                    arena.alloc_slice_copy(p.options.jsx.import_source());
++                let _ = p.add_import_record(
++                    bun_ast::ImportKind::Stmt,
++                    bun_ast::Loc { start: 0 },
++                    import_source,
++                );
++            }
++
++            if p.needs_jsx_classic_import {
++                let classic_import_source: &'a [u8] =
++                    arena.alloc_slice_copy(&p.options.jsx.classic_import_source);
++                let _ = p.add_import_record(
++                    bun_ast::ImportKind::Stmt,
++                    bun_ast::Loc { start: 0 },
++                    classic_import_source,
++                );
++            }
+         }
+diff --git a/test/bundler/transpiler/transpiler.test.js b/test/bundler/transpiler/transpiler.test.js
+--- a/test/bundler/transpiler/transpiler.test.js
++++ b/test/bundler/transpiler/transpiler.test.js
+@@
+     describe(".scanImports() reports the injected JSX runtime import", () => {
+       const dev = { loader: "tsx", define: { "process.env.NODE_ENV": JSON.stringify("development") } };
+       const jsxDevRuntime = [{ kind: "import-statement", path: "react/jsx-dev-runtime" }];
+@@
+       ])("%s", (_, opts, src, expected) => {
+         const t = new Bun.Transpiler(opts);
+         expect(t.scanImports(src)).toEqual(expected);
+         expect(t.scan(src).imports).toEqual(expected);
+       });
++
++      it("reports the bare package for the key-after-spread createElement fallback", () => {
++        const t = new Bun.Transpiler(dev);
++        const src = 'export default <div {...obj} key="after" />;';
++        const expected = [{ kind: "import-statement", path: "react" }];
++        expect(t.scanImports(src)).toEqual(expected);
++        expect(t.scan(src).imports).toEqual(expected);
++      });
++
++      it("reports both JSX dependencies when a file mixes automatic and fallback elements", () => {
++        const t = new Bun.Transpiler(dev);
++        const src = 'export const a = <span />; export const b = <div {...obj} key="after" />;';
++        for (const imports of [t.scanImports(src), t.scan(src).imports]) {
++          expect(new Set(imports.map(x => x.path))).toEqual(new Set(["react/jsx-dev-runtime", "react"]));
++        }
++      });
+     });
