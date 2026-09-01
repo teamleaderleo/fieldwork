@@ -3,10 +3,11 @@
   "kind": "dependency-free-generation-discriminator",
   "evidence_class": "model-executed",
   "fieldwork_probe_commit": "1935d54f2f2524570c7afe3547db6e53ef57d349",
-  "upstream_main_sha": "eaa899cb20bd411019744fbd2bdedeb397f3070b",
-  "red_test_sha": "e41f91cc7f99bb0c405893bf206f38b7c6d32ac5",
-  "fix_sha": "a447598ef3fb26a8b288c740b1e3f9435446c53f",
-  "green_sha": "8330732cc2dc5c7d045afa15e9e63f928e500146",
+  "upstream_main_sha": "2ead47750ab2f47c13972d0709d99cdcbaa8ad73",
+  "original_investigation_pin": "eaa899cb20bd411019744fbd2bdedeb397f3070b",
+  "red_test_sha": "1af0c0dcec183757027e823b569a20995c302341",
+  "fix_sha": "9c69bd85cccd5a608c7b98bb145f91341046f2a8",
+  "green_sha": "7f3370aff19744ee085661626a5fc162dee69678",
   "command": "python3 probe.py",
   "environment": {
     "python": "3.13.5"
@@ -29,5 +30,5 @@
       "candidate": null
     }
   },
-  "interpretation": "The model preserves all three compatibility controls and changes only the stale same-session A→B case from accepted to rejected. This is model evidence; target-native macOS execution is tracked separately."
+  "interpretation": "The model preserves all three compatibility controls and changes only the stale same-session A→B case from accepted to rejected. The relevant upstream resolver remained byte-identical from the original eaa899c pin through current 2ead4775; the owned candidate was restacked onto current main. Target-native macOS execution is tracked separately."
 }
