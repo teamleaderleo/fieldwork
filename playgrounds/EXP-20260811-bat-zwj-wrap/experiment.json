@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-bat-zwj-wrap",
+  "question": "Does Bat's public character wrapping split one Unicode ZWJ grapheme cluster across output rows because the printer wraps per scalar rather than per grapheme?",
+  "owner": "GPT-5.6 Sol",
+  "created_at": "2026-08-11",
+  "state": "running",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "sharkdp/bat",
+      "url": "https://github.com/sharkdp/bat",
+      "revision": "af59a3218303837421ce06bb2dc3c545525bba0f",
+      "retrieved_at": "2026-08-11",
+      "claim": "InteractivePrinter character and word wrapping iterate text.chars(), add per-scalar char_width values, and flush the current buffer when that scalar sum exceeds the row budget.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "sharkdp/bat CLI help",
+      "url": "https://github.com/sharkdp/bat",
+      "revision": "af59a3218303837421ce06bb2dc3c545525bba0f",
+      "retrieved_at": "2026-08-11",
+      "claim": "Public options expose --wrap=character and --terminal-width, allowing a deterministic narrow-width CLI probe.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "GitHub Actions: Fieldwork Bat ZWJ wrap probe",
+  "environment": {
+    "runtime": "target-declared Rust/Cargo",
+    "platform": "GitHub-hosted Ubuntu 24.04",
+    "dependencies": [
+      "exact sharkdp/bat source fetched read-only at af59a3218303837421ce06bb2dc3c545525bba0f"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "At terminal width 2, 👩‍💻a keeps the complete 👩‍💻 grapheme on one row before wrapping a.",
+      "interpretation": "The per-scalar source loop does not cause a user-visible cluster split in this path; stop this candidate."
+    },
+    {
+      "observation": "At terminal width 2, 👩‍💻a breaks between ZWJ-linked scalars while the ordinary two-column control 界a wraps only between graphemes.",
+      "interpretation": "Promote a target-executed grapheme-integrity wrapping candidate and map character/word modes separately."
+    }
+  ],
+  "stop_condition": "Stop after the exact public CLI discriminator and one control classify grapheme integrity. Keep upstream read-only and require overlap refresh before any promotion.",
+  "network_policy": "public-read-only",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-bat-zwj-wrap/README.md"
+  ],
+  "promoted_to": null
+}
