@@ -1,0 +1,18 @@
+cmux Fieldwork evidence manifest
+fieldwork issue: teamleaderleo/fieldwork#929
+fieldwork base: ad3745069e186190a65f032bbccae7f91ac2f2f4
+upstream: https://github.com/manaflow-ai/cmux
+branch resolved: refs/heads/main
+commit: 8ef183f1e5de765b183aec9d1799f17a0848ae84
+commit timestamp: 2026-09-01T18:12:25Z
+source continuity from prior pin eaa899cb20bd411019744fbd2bdedeb397f3070b: compare to current main changes only cmux-tui/crates/cmux-tui/src/app.rs and cmux-tui/crates/cmux-tui/src/ui/mod.rs; lease/publication blobs unchanged
+ws_pty.go blob: cbf6bb9c7053df86c1c1b166f482fef3ce5c92d1
+freestyle.ts blob: b75b662f57e0a69b8c88fea2327c52e3af878a33
+wsLease.ts blob: 8eda593f43958e1bc3ff67cd9ab6953043e9ac17
+upstream access: read-only GitHub API/public repository retrieval
+local runtime: go1.23.2 linux/amd64
+upstream daemon module declares: go 1.22
+probe command: GO111MODULE=off go test -v -count=1 ./...
+restart evidence: persisted-state restart is modeled by a fresh consume/read after interruption; no cmuxd process restart was executed
+ee20be51530e08947d827d0acd795aefe022ea975f3948b86514c12f3d067bcd  lease_race_test.go
+d0082fcbc728c4273c53683c8abf3c5287e45543c2e130a2bff4da6b2d4f273c  harness-results.txt
