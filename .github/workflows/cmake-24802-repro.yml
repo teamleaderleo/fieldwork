@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - chatgpt/cmake-24802-windows-repro
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
