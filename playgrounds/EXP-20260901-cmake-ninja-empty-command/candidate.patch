@@ -1,0 +1,56 @@
+diff --git a/Source/cmLocalNinjaGenerator.cxx b/Source/cmLocalNinjaGenerator.cxx
+--- a/Source/cmLocalNinjaGenerator.cxx
++++ b/Source/cmLocalNinjaGenerator.cxx
+@@
+ void cmLocalNinjaGenerator::AppendCustomCommandLines(
+   cmCustomCommandGenerator const& ccg, std::vector<std::string>& cmdLines)
+ {
+   auto* gg = this->GetGlobalNinjaGenerator();
++  auto const originalLineCount = cmdLines.size();
+ 
+   if (ccg.GetNumberOfCommands() > 0) {
+     std::string wd = ccg.GetWorkingDirectory();
+@@
+     std::string& cmd = cmdLines.back();
+     ccg.AppendArguments(i, cmd);
+   }
++
++  // Drop the working-directory line if every command evaluated to empty.
++  if (cmdLines.size() == originalLineCount + 1) {
++    cmdLines.pop_back();
++  }
+ }
+ 
+ void cmLocalNinjaGenerator::WriteCustomCommandBuildStatement(
+ diff --git a/Tests/RunCMake/Ninja/EmptyCustomCommand-check.cmake b/Tests/RunCMake/Ninja/EmptyCustomCommand-check.cmake
+new file mode 100644
+--- /dev/null
++++ b/Tests/RunCMake/Ninja/EmptyCustomCommand-check.cmake
+@@
++file(READ "${RunCMake_TEST_BINARY_DIR}/build.ninja" build_ninja)
++if(NOT "${build_ninja}" MATCHES "build empty[^:]*: phony")
++  set(RunCMake_TEST_FAILED
++    "Expected an evaluated-empty custom command to generate a phony rule")
++endif()
+diff --git a/Tests/RunCMake/Ninja/EmptyCustomCommand.cmake b/Tests/RunCMake/Ninja/EmptyCustomCommand.cmake
+new file mode 100644
+--- /dev/null
++++ b/Tests/RunCMake/Ninja/EmptyCustomCommand.cmake
+@@
++add_custom_command(
++  OUTPUT empty
++  COMMAND "$<$<BOOL:0>:${CMAKE_COMMAND}>"
++  VERBATIM
++)
++add_custom_target(gen ALL DEPENDS empty)
+diff --git a/Tests/RunCMake/Ninja/RunCMakeTest.cmake b/Tests/RunCMake/Ninja/RunCMakeTest.cmake
+--- a/Tests/RunCMake/Ninja/RunCMakeTest.cmake
++++ b/Tests/RunCMake/Ninja/RunCMakeTest.cmake
+@@
+ run_cmake_with_options(CustomCommandDepfile -DCMAKE_BUILD_TYPE=Debug)
+ run_cmake_with_options(CustomCommandDepfileAsOutput -DCMAKE_BUILD_TYPE=Debug)
+ run_cmake_with_options(CustomCommandDepfileAsByproduct -DCMAKE_BUILD_TYPE=Debug)
++run_cmake(EmptyCustomCommand)
+ run_cmake(CustomCommandJobPool)
+ run_cmake(SourceFileJobPool)
+ run_cmake(FileSetJobPool)
