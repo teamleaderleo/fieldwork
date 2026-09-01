@@ -1,0 +1,75 @@
+{
+  "model_of": {
+    "repository": "vercel/next.js",
+    "tag": "v16.3.0-preview.9",
+    "commit": "838bd19bdef0e41254f0868516b0c6c6e59e70d7",
+    "source_path": "packages/next-playwright/src/index.ts"
+  },
+  "environment": {
+    "node": "v22.16.0"
+  },
+  "observations": {
+    "other_origin_instant_cookie_survives_acquire": false,
+    "unrelated_app_b_cookie_preserved_inside": true,
+    "unrelated_app_a_cookie_preserved_inside": true,
+    "unrelated_cookies_preserved_after": true,
+    "same_context_distinct_origin_second_scope_error": "already active",
+    "separate_contexts_concurrent_scopes_succeed": true
+  },
+  "snapshots": {
+    "before": [
+      {
+        "path": "/",
+        "name": "next-instant-navigation-testing",
+        "value": "[1,\"other-app\",null]",
+        "domain": "app-b.example"
+      },
+      {
+        "path": "/",
+        "name": "session",
+        "value": "keep-me",
+        "domain": "app-b.example"
+      },
+      {
+        "path": "/",
+        "name": "session",
+        "value": "keep-me-too",
+        "domain": "app-a.example"
+      }
+    ],
+    "inside": [
+      {
+        "path": "/",
+        "name": "session",
+        "value": "keep-me",
+        "domain": "app-b.example"
+      },
+      {
+        "path": "/",
+        "name": "session",
+        "value": "keep-me-too",
+        "domain": "app-a.example"
+      },
+      {
+        "name": "next-instant-navigation-testing",
+        "value": "[0,\"probe\"]",
+        "domain": "app-a.example",
+        "path": "/"
+      }
+    ],
+    "after": [
+      {
+        "path": "/",
+        "name": "session",
+        "value": "keep-me",
+        "domain": "app-b.example"
+      },
+      {
+        "path": "/",
+        "name": "session",
+        "value": "keep-me-too",
+        "domain": "app-a.example"
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "retrieval_date": "2026-08-08",
+  "source": {
+    "repository": "vercel/next.js",
+    "commit": "5e8f31f7bdf7f564ec98a42e205f7e5b665398da",
+    "helper_path": "packages/next-playwright/src/index.ts",
+    "helper_blob": "291afa9ef0c7b215318b36feb71af688d95f5373",
+    "step_path": "packages/next-playwright/src/step.ts",
+    "step_blob": "a0e46afaacf6645c16d51f8dbb039a5bd712243a"
+  },
+  "environment": {
+    "node": "v22.16.0",
+    "typescript": "5.8.3"
+  },
+  "method": "Compile and execute the current helper's operative instant()/releaseInstantCookie path with the real step fallback and a deterministic in-memory implementation of Playwright BrowserContext cookie operations. This remains model-executed evidence because no real browser or CookieStore participated.",
+  "observations": {
+    "other_origin_instant_cookie_present_before": true,
+    "other_origin_instant_cookie_present_inside_callback": false,
+    "other_origin_instant_cookie_present_after_release": false,
+    "current_origin_instant_cookie_present_inside_callback": true,
+    "unrelated_other_origin_session_cookie_present_inside_callback": true
+  },
+  "evidence_class": "model-executed",
+  "limit": "Confirms the exact current helper selection/control-flow consequence against deterministic BrowserContext semantics. Browser cookie storage, CookieStore events, rendering, and the target e2e harness remain pending."
+}

@@ -1,0 +1,20 @@
+{
+  "date": "2026-08-08",
+  "evidence_class": "integration-executed",
+  "environment": {
+    "playwright_core": "1.57.0-beta-1764944708000",
+    "chromium": "144.0.7559.96"
+  },
+  "question": "Does URL-filtered BrowserContext.cookies(scopeURL) preserve a cookie that applies only to another origin while still selecting a parent-domain cookie that genuinely applies to the controlled URL?",
+  "scope_url": "https://app-a.example.com/",
+  "observed": {
+    "app_b_only_in_filtered_set": false,
+    "parent_domain_in_filtered_set": true,
+    "app_b_only_survives_expiry_of_filtered_instant_cookies": true,
+    "parent_domain_instant_cookie_removed": true,
+    "app_a_session_cookie_survives": true,
+    "app_b_session_cookie_survives": true
+  },
+  "interpretation": "Playwright URL filtering follows cookie applicability rather than exact hostname equality. The candidate therefore excludes state that does not apply to app A while retaining parent-domain entries that do apply to app A.",
+  "limit": "This executes Playwright/Chromium cookie semantics, not the full Next.js e2e harness."
+}
