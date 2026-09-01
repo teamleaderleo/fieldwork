@@ -1,0 +1,72 @@
+name: CMake 24802 Windows repro
+
+on:
+  push:
+    branches:
+      - chatgpt/cmake-24802-windows-repro
+
+permissions:
+  contents: read
+
+jobs:
+  repro:
+    runs-on: windows-latest
+    steps:
+      - name: Record tool versions
+        shell: pwsh
+        run: |
+          cmake --version
+          ninja --version
+
+      - name: Reproduce empty custom-command variants
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'cmake-24802'
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+
+          $variants = @(
+            @{
+              Name = 'output-empty-command'
+              Body = @'
+cmake_minimum_required(VERSION 3.20)
+project(empty NONE)
+add_custom_command(
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/out"
+  COMMAND "$<$<BOOL:0>:${CMAKE_COMMAND}>"
+  VERBATIM
+)
+add_custom_target(gen ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/out")
+'@
+            },
+            @{
+              Name = 'target-empty-command'
+              Body = @'
+cmake_minimum_required(VERSION 3.20)
+project(empty NONE)
+add_custom_target(gen ALL
+  COMMAND "$<$<BOOL:0>:${CMAKE_COMMAND}>"
+  VERBATIM
+)
+'@
+            }
+          )
+
+          foreach ($variant in $variants) {
+            $src = Join-Path $root $variant.Name
+            $build = Join-Path $src 'build'
+            New-Item -ItemType Directory -Force -Path $src | Out-Null
+            Set-Content -LiteralPath (Join-Path $src 'CMakeLists.txt') -Value $variant.Body -NoNewline
+
+            Write-Host "===== $($variant.Name): configure ====="
+            & cmake -S $src -B $build -G Ninja
+            if ($LASTEXITCODE -ne 0) { throw "configure failed: $($variant.Name)" }
+
+            Write-Host "===== $($variant.Name): generated command ====="
+            Select-String -LiteralPath (Join-Path $build 'build.ninja') -Pattern '^  COMMAND = ' | ForEach-Object { $_.Line }
+
+            Write-Host "===== $($variant.Name): build ====="
+            & cmake --build $build -v
+            $code = $LASTEXITCODE
+            Write-Host "RESULT $($variant.Name) exit=$code"
+          }
