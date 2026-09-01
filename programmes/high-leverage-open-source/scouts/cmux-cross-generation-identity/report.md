@@ -3,277 +3,234 @@
 Date: 2026-09-01  
 Programme: high-leverage-open-source  
 Target: `manaflow-ai/cmux`  
-Worker: automated code-first scout  
+Owned fork: `teamleaderleo/cmux`  
 Upstream contact authorized: `false`
 
-## In simple words
+## Current result
 
-cmux deliberately lets some logical identities survive when the physical thing underneath them is replaced. Most of the dangerous seams inspected here carry a second token for the physical generation: cloud machines have a current physical generation, terminal hosts have `terminal_id + incarnation`, PTY attachments have exact attachment tokens/objects, and remote bridge ownership has lifecycle/transport generations.
+The strongest cross-generation seam remains Computer Use hook completion across an agent-process replacement. The durable native agent session id can survive a resume, while the physical process generation changes. A delayed completion from retired process A must never complete successor B simply because both use the same surface and native session id.
 
-The strongest current mismatch is in Computer Use hook completion. An agent's native session id is intentionally reused when cmux resumes that agent into a new process. `ComputerUseLiveSessionProjection.driverSessionID(...)` accepts a hook immediately when that durable session id matches the current record, before checking the hook's process identity. A delayed `Stop` or `SessionEnd` from retired process A can therefore resolve to successor process B when A and B share the same resumed agent session id.
+The owned fork now carries the full fence, not the earlier PID-only draft:
 
-The owned fork carries an exact-current-main red regression and a two-commit repair candidate. The repair makes a supplied hook PID authoritative: when `ppid` exists, cmux must prove that exact current `AgentPIDProcessIdentity` belongs to the current live process tree. The logical-session-id shortcut remains only for hook sources that carry no process id.
+- exact upstream/base: `6044a8b3f43152d2e6fc17f771fd4b277b393118`;
+- test-only red: `d13e9a7cb3a3712f9f7a7f507c13d3a312c41d20`;
+- initial PID fence: `fbc7742dc04a5e7d14172a48aa43066296d24ac6`;
+- full ingress-generation fence / current head: `1287e78a3a751e41d7fb23ca4157d57403fac1d2`;
+- owned draft PR: `teamleaderleo/cmux#17`.
 
-## Assignment
+The full candidate captures the hook sender's exact kernel birth identity at trusted Feed ingress and carries it with the event. Later Computer Use handling uses that frozen identity instead of resolving a bare PID after it may have been recycled. The projection-gap completion fallback is fenced by the same exact generation.
 
-Question: find a boundary where one cmux identity layer survives while a lower physical generation is recreated, and determine whether stale generation A can mutate or retire current generation B through the old logical identity.
-
-Expected deliverable: exact upstream revision, identity map, intended persistence boundary, A→B sequence, distinguishing stale/current operations, negative control, durable consequence, smallest generation fence, fork candidate, and executable regression evidence.
-
-Owned output path: `programmes/high-leverage-open-source/scouts/cmux-cross-generation-identity/`  
-Stop condition: exact-base red regression, bounded repair, clean candidate diff, red→green execution result or explicit execution blocker, and upstream kept read-only.
-
-## Exact upstream state
-
-Repository: `manaflow-ai/cmux`  
-Current upstream `main`: `2ead47750ab2f47c13972d0709d99cdcbaa8ad73`  
-Original investigation pin: `eaa899cb20bd411019744fbd2bdedeb397f3070b`  
-Pinned date: 2026-09-01
-
-Upstream advanced seven commits after the original pin. The changed files are CLA-policy and cmux-tui sidebar files; the Computer Use resolver remained byte-identical. The owned fork was still restacked onto `2ead4775` so the candidate's base is exact current `main`.
-
-Automated upstream writes, issues, comments, reviews, pull requests, and maintainer contact: **none**.
+Third-party upstream remains read-only: no automated upstream issues, comments, reviews, pull requests, or maintainer contact.
 
 ## Identity map
 
-| Layer | Durable / reconnect identity | Physical-generation identity | Replacement rule / owner | Result |
-| --- | --- | --- | --- | --- |
-| account / user | account/auth principal | outside this scout's useful lower-generation seam | auth layer | no candidate promoted |
-| machine / cloud VM | logical machine/base record | active generation + current physical VM id | cloud repository decides whether an observation belongs to the current machine generation | fenced in inspected paths |
-| daemon | durable registry/resource state | daemon generation / live process generation | daemon handshake and registry ownership | fenced in inspected paths |
-| session | durable session/resource ids where specified | daemon/resource child generations | registry | no violating sequence established |
-| workspace | durable workspace/resource identity | live pane/surface/runtime owners | workspace registry | no violating sequence established |
-| terminal | stable `terminal_id` | `terminal_incarnation` | terminal registry + host protocol | explicitly fenced |
-| terminal incarnation | none; this is the generation token | host incarnation | exact-incarnation comparisons | explicitly fenced |
-| PTY | persistent logical `sessionID` | exact in-memory `wsPTYSession` object / process session | PTY hub | object-identity cleanup fences; `pty.close` is intentionally logical-session-wide |
-| attachment | attachment id | client attachment token + exact attachment object | PTY hub | explicitly fenced |
-| local bridge | logical lifecycle id | bridge/transport ownership generation | proxy broker/tunnel lifecycle registry | explicitly fenced |
-| agent session | native agent `sessionId`, intentionally reused by resume | `AgentPIDProcessIdentity(pid,startSeconds,startMicroseconds)` | live agent index + process scanner | **mismatch in Computer Use hook resolution** |
+| Layer | Durable identity | Physical-generation identity | Result in inspected paths |
+| --- | --- | --- | --- |
+| machine / cloud VM | logical machine/base | active/current physical VM generation | fenced |
+| daemon | durable registry/resource state | daemon/live runtime generation | fenced in inspected recovery paths |
+| workspace | workspace/resource id | live surface/runtime owner | no violating sequence established |
+| terminal | `terminal_id` | `terminal_incarnation` | explicitly fenced |
+| PTY | persistent `sessionID` | exact `wsPTYSession` object/process | exact-object cleanup/input fences |
+| attachment | attachment id | token + exact attachment object | fenced |
+| local bridge | logical lifecycle id | bridge/transport owner generation | fenced |
+| agent session | native CLI session id, intentionally reused by resume | `AgentPIDProcessIdentity(pid,startSeconds,startMicroseconds)` | failing seam found in Computer Use |
 
-## Intended agent persistence boundary
+## Persistence boundary
 
-cmux's resume path treats the native agent session id as durable state. `SessionEntry` stores the native CLI session identifier and constructs resume commands using that same id, including Codex `resume <sessionId>`, Claude `--resume <sessionId>`, Grok `-r <sessionId>`, OpenCode `--session <sessionId>`, and equivalent exact-session restore paths.
-
-Therefore this transition is intentional:
+CMUX's resume paths intentionally reuse native agent session identifiers. A valid lifetime transition is:
 
 ```text
-logical agent session L / process generation A
-        A exits
-cmux resumes logical session L
-logical agent session L / process generation B
+logical session L / process A
+A exits
+resume L
+logical session L / process B
 ```
 
-cmux already has a lower-level generation token for this transition: `AgentPIDProcessIdentity`, which includes process id plus process start time. Other agent recovery and Computer Use control paths use that identity to reject stale or recycled PIDs.
+That makes `L` a logical identity, not proof that a hook came from the current OS process generation.
 
-## Failing boundary
+CMUX already models the lower generation with `AgentPIDProcessIdentity`, whose identity is PID plus process start seconds and microseconds. Related current upstream lifecycle work uses the same PID-birth identity because PID alone is recyclable.
 
-Owner: `Sources/App/ComputerUseLiveSessionProjection.swift`
+## Upstream review performed
 
-Current upstream resolution order:
+Relevant upstream work was reviewed read-only before extending the candidate.
+
+### PR #9586 — agent lifecycle/process liveness
+
+`manaflow-ai/cmux#9586` is still open and large. It moves multiple lifecycle paths toward exact process generations and requires PID start timestamps in several control paths. Its Cursor `generation_id` is explicitly a per-turn identifier, not the kernel process generation needed here. The current PR does not remove the Computer Use `WorkstreamEvent` `_ppid` seam on upstream `main`.
+
+### Other lifecycle/resume work
+
+Recent CMUX work around managed-agent liveness and Codex resume similarly treats process birth identity as the physical-generation discriminator. The fork candidate follows that convention rather than introducing a parallel logical token.
+
+## Original failure
+
+On upstream `6044a8b3`, `ComputerUseLiveSessionProjection.driverSessionID(...)` resolves a current surface and then accepts immediately if the current record's logical agent session id equals the hook session id. The process check is only the fallback for differing agent ids.
+
+Therefore this sequence can cross generations:
+
+1. stable surface `S`, stable driver `D`, durable agent session `L`;
+2. process A with generation `PA` invokes Computer Use;
+3. A emits a delayed `Stop` or `SessionEnd` carrying `S`, `L`, and `pidA`;
+4. A exits;
+5. CMUX resumes `L` into process B with `PB != PA`;
+6. B becomes current for `D`;
+7. delayed A completion is handled;
+8. equality on `L` can resolve the stale event to current `D` before A's physical generation is considered.
+
+`ComputerUseUXCoordinator` then records completion for stable driver `D`, resolves the current proxy associated with `D`, retires current presentation/menu activity, cancels current cursor/focus/reassert work, and removes the accepted invocation record. The consequence is a stale-A completion acting on successor-B Computer Use presentation state.
+
+No claim is made here that this seam kills B's process, rewrites authenticated Computer Use disk state, or crosses an authentication boundary.
+
+## Why the first fork patch was incomplete
+
+The initial fork repair `fbc7742d` made a supplied PID authoritative in the live resolver. That closed the obvious A-PID-vs-B-tree case, but two holes remained:
+
+1. `ComputerUseUXCoordinator` has a projection-gap completion fallback keyed by surface + logical agent session + time. A resumed B can keep the same logical session id, so stale A could still match there.
+2. Reconstructing `AgentPIDProcessIdentity(pid:)` only when the async consumer handles the event is too late. If A exited and the OS recycled its numeric PID for B, the later lookup can silently identify B.
+
+The final fence moves generation capture earlier.
+
+## Full fence
+
+### 1. Capture exact generation at trusted Feed ingress
+
+`Sources/TerminalController+FeedAcknowledgment.swift` now snapshots `AgentPIDProcessIdentity` for each event's `_ppid` before accepted Feed delivery becomes asynchronous.
+
+The tuple is stored in a reserved opaque event field:
 
 ```text
-surface matches current projection
-→ if current agentSessionID == hook agentSessionID: accept
-→ otherwise, if hook ppid identifies a process in current root tree: accept
+_cmux_agent_process_generation = {
+  pid,
+  start_seconds,
+  start_microseconds
+}
 ```
 
-The first branch treats a durable logical id as proof of current process generation. That conflicts with the resume contract above.
+Ingress removes and replaces any value supplied under that reserved key, so a sender cannot select the generation later trusted by Computer Use. If the live process identity cannot be captured, the reserved generation is removed and generation-bound consumers fail closed.
 
-The method comment itself states the intended stronger invariant: a delayed `Stop` from a replaced process cannot match the successor's live process tree and hide newer pane activity.
+`WorkstreamEvent` already preserves unknown fields through `extraFieldsJSON`, and target rehoming copies that bag, so the generation survives the existing internal event path without extending every external agent hook protocol.
 
-## A → replacement B sequence
+### 2. Never re-resolve a bare PID later
 
-Use stable surface `S`, stable Computer Use driver identity `D = driverSessionID(S)`, and durable native agent session `L`.
+`ComputerUseLiveSessionProjection.driverSessionID(...)` now takes the captured generation alongside `_ppid`. When `_ppid` exists it requires:
 
-1. Generation A runs on `S` with physical identity `PA` and logical session `L`.
-2. A invokes Computer Use; the coordinator records the accepted invocation for stable driver `D`.
-3. A emits `Stop` or `SessionEnd`, carrying `surfaceId=S`, `sessionId=L`, and `ppid=pidA`, but delivery/handling is delayed.
-4. A exits.
-5. cmux resumes the same logical session `L` into physical process generation B with identity `PB != PA`.
-6. The live projection now maps `D` to `(S, L, PB)`.
-7. B starts/currently owns Computer Use state.
-8. Delayed A completion is resolved.
+- a captured generation exists;
+- captured generation PID equals `_ppid`;
+- the exact captured `(pid,startSeconds,startMicroseconds)` belongs to the current root process tree.
 
-### Distinguishing stale-A operation
+The resolver does not call `AgentPIDProcessIdentity(pid:)` at this late boundary, so PID reuse cannot retarget the event.
 
-```text
-surfaceId = S
-sessionId = L
-ppid = pidA
-```
+No-PID hook sources retain the existing logical-session compatibility path.
 
-Current upstream returns `D` on equality of `L` before `pidA` is checked against B's current root process identities.
+### 3. Fence the projection-gap completion fallback
 
-### Current-B negative control
+`ComputerUseUXCoordinator` now stores the accepted invocation's exact generation. A `Stop`/`SessionEnd` can use the projection-gap fallback only when surface, logical session, ordering, PID, and exact captured generation all match the accepted invocation.
 
-```text
-surfaceId = S
-sessionId = L
-ppid = pidB
-```
+Even if live projection resolves a completion, an active accepted invocation for that driver requires the same generation before completion side effects run.
 
-This must resolve to `D`.
+## Current fork diff
 
-A hook-protocol alias with a different logical id and `ppid=pidB` must also continue to resolve, because some agents expose different scanner and hook identifiers and the current process generation is the stronger authority.
-
-A same-session hook with no process id retains the existing logical-session compatibility fallback.
-
-## Consequence
-
-`ComputerUseUXCoordinator.handleWorkstreamEvent` treats an accepted `Stop` / `SessionEnd` as completion of stable driver `D`. It records a completion cutoff, asks the current menu snapshot for the proxy session associated with `D`, tells the watch-target/presentation controllers that `D` completed, removes the menu row, and removes the accepted invocation record.
-
-The presentation controller moves the current stable driver state to `hiddenReusable`, resets focus mode, cancels current focus/cursor/reassert tasks, and schedules cursor hiding against the resolved current proxy session.
-
-The cross-generation consequence is therefore:
-
-```text
-retired A completion
-→ stable driver D
-→ current B proxy/session presentation state
-→ B cursor/activity can be retired as though B completed
-```
-
-This scout makes no claim that stale A can rewrite B's authenticated disk state, kill B's process, or cross an auth boundary through this seam.
-
-## Smallest generation fence
-
-Candidate policy:
-
-1. if `hookProcessID` is supplied, construct its current `AgentPIDProcessIdentity`;
-2. require that exact identity to belong to the current projected root process tree;
-3. if the process check succeeds, accept regardless of scanner-vs-hook session-id spelling;
-4. if no process id is supplied, retain exact logical agent-session-id matching as compatibility fallback.
-
-This uses an existing generation token and changes only the admission order.
-
-## Owned-fork candidate
-
-Owned fork: `teamleaderleo/cmux`  
-Owned draft PR: https://github.com/teamleaderleo/cmux/pull/17
-
-Exact current-base branch: `fieldwork/upstream-main-2ead4775`  
-Exact red branch: `fieldwork/cmux-computer-use-generation-red-20260901`  
-Red test-only commit: `1af0c0dcec183757027e823b569a20995c302341`
-
-Candidate branch: `fieldwork/cmux-computer-use-generation-fence-20260901`  
-Production repair: `9c69bd85cccd5a608c7b98bb145f91341046f2a8`  
-Green test commit / candidate head: `7f3370aff19744ee085661626a5fc162dee69678`
-
-GitHub compare confirms:
-
-- red branch: exactly one commit ahead of current upstream and one changed file;
-- candidate branch: exactly two commits ahead of current upstream and two changed files;
-- candidate changed-file fence:
+GitHub compare from upstream `6044a8b3` to head `1287e78a` is exactly four files and three linear commits:
 
 ```text
 Sources/App/ComputerUseLiveSessionProjection.swift
-cmuxTests/ComputerUseCrossGenerationIdentityTests.swift
+Sources/App/ComputerUseUXCoordinator.swift
+Sources/TerminalController+FeedAcknowledgment.swift
+cmuxTests/HostSettingsShortcutNotificationTests.swift
 ```
 
-Production delta: 16 additions / 13 deletions in the resolver file.  
-Regression: 97-line focused Swift Testing file.
+The regression was placed in an already-wired test source to avoid Xcode target-membership ambiguity.
 
-## Regression design
+## Regression coverage
 
-`ComputerUseCrossGenerationIdentityTests.delayedGenerationACompletionCannotResolveGenerationBWithSameLogicalSession` uses real process generations:
+### Exact current vs retired vs PID-recycled generation
 
-- generation A launches `/usr/bin/true`, records its PID, and is reaped before resolution;
-- generation B is the live test process and contributes its exact `AgentPIDProcessIdentity`;
-- both generations are modeled as the same logical native agent session id;
-- the live projection contains only B's current process identity.
+`exactGenerationRejectsRetiredAndRecycledProcesses` checks:
 
-Assertions:
+- B PID + exact B birth identity + stable logical session → accepted;
+- B PID + exact B birth identity + alternate hook-protocol session id → accepted;
+- retired A exact generation + stable logical session → rejected;
+- B numeric PID + different birth timestamp → rejected;
+- bare B PID without ingress generation → rejected;
+- no PID + stable logical session → compatibility fallback accepted.
 
-1. current B PID + stable logical id → accepted;
-2. current B PID + alternate hook-protocol id → accepted;
-3. retired A PID + same stable logical id → rejected;
-4. no PID + same stable logical id → compatibility fallback accepted.
+### Trusted ingress overwrite
 
-The third assertion is the discriminator: current upstream source accepts it through the logical-id shortcut; the candidate requires current process-generation membership.
+`feedIngressOverwritesSpoofedGenerationWithLiveKernelIdentity` supplies a forged reserved generation field, captures at ingress using the current live PID, and verifies that the forged generation is replaced while unrelated opaque fields survive.
 
-## Model execution
+### Completion fallback
 
-Retained probe: `probe.py`  
-Retained receipt: `model-receipt.json`  
-Runtime: Python 3.13.5  
-Command: `python3 probe.py`
+`completionFallbackRequiresExactAcceptedInvocationGeneration` verifies:
 
-Observed:
+- exact accepted B generation → accepted;
+- stale A generation → rejected;
+- same PID with different birth timestamp → rejected;
+- generationless completion → rejected.
 
-| Case | Current upstream model | Candidate model |
-| --- | --- | --- |
-| current B + same logical id | `D(surface-S)` | `D(surface-S)` |
-| current B + hook alias | `D(surface-S)` | `D(surface-S)` |
-| generationless + same logical id | `D(surface-S)` | `D(surface-S)` |
-| retired A + same logical id | `D(surface-S)` | `null` |
+## Executable verification
 
-Evidence class: `model-executed`.
+Temporary carrier: `.github/workflows/cmux-computer-use-generation.yml` on Fieldwork branch `fieldwork/cmux-cross-generation-identity-20260901`.
 
-## Target-native executable verification
+### Previous run
 
-Temporary Fieldwork execution carrier: `.github/workflows/cmux-computer-use-generation.yml` on branch `fieldwork/cmux-cross-generation-identity-20260901`.
+Run `33550591279` completed with failure. Checkout, immutable ancestry/diff checks, Xcode selection, Bun, GhosttyKit, Zig, Rust, DerivedData preparation, and Swift package resolution all succeeded. The failure occurred in the old red-proof step; green was therefore skipped. This is harness/partial evidence, not a green candidate result.
 
-Current-base run: https://github.com/teamleaderleo/fieldwork/actions/runs/33550591279  
-Current execution state at this report update: **queued**.
+### Current run
 
-The workflow pins:
+Run `33561165354` was triggered by Fieldwork commit `87e736029ef8bd9769602a3b367debe2dd39ad41` and is currently executing.
 
-- upstream base `2ead47750ab2f47c13972d0709d99cdcbaa8ad73`;
-- red test-only `1af0c0dcec183757027e823b569a20995c302341`;
-- fix `9c69bd85cccd5a608c7b98bb145f91341046f2a8`;
-- green candidate `7f3370aff19744ee085661626a5fc162dee69678`.
+The refreshed carrier pins:
 
-It verifies ancestry/diff, then runs one focused `cmux-unit` test on macOS 14. The red side must reach the named test and fail at the expectation; the green side must pass the same test. A setup/build failure counts only as harness evidence.
+```text
+base    6044a8b3f43152d2e6fc17f771fd4b277b393118
+red     d13e9a7cb3a3712f9f7a7f507c13d3a312c41d20
+partial fbc7742dc04a5e7d14172a48aa43066296d24ac6
+green   1287e78a3a751e41d7fb23ca4157d57403fac1d2
+```
 
-The earlier eaa-based run `33549605183` is superseded for current-main proof by run `33550591279`.
+It first checks exact linear ancestry and the four-file diff fence. The red side runs the upstream-plus-regression suite and must fail after reaching the stale-A test rather than at build/compile setup. The green side runs the full `ComputerUseCrossGenerationIdentityTests` suite against the final ingress-generation candidate.
 
-The workflow is temporary execution machinery and should be removed from the final canonical Fieldwork head after the useful receipt is captured or the execution attempt is retired.
+Until that run is terminal, evidence class remains `target-test-running`, not `target-executed-green`.
 
 ## Boundaries checked and ruled down
 
 ### Cloud machine resurrection
 
-The cloud machine path carries an active physical generation/current VM association under the durable logical machine record. No source sequence was established where a stale old machine generation silently publishes itself as the current VM through the inspected owner path.
+The inspected cloud-machine path carries a current physical generation/current VM association under the durable logical machine record. No stale-old-generation publication into the current VM owner was established.
 
 ### Daemon replacement
 
-The daemon/runtime paths inspected carry explicit generation/ownership checks. Durable registry identities surviving process restart are intentionally separate from live daemon process identity.
+Inspected daemon/runtime recovery paths carry explicit generation/ownership checks while durable registry ids survive restart intentionally.
 
 ### Terminal host replacement
 
-This is one of the strongest fences in the codebase. Stable `terminal_id` is paired with `terminal_incarnation`; recovery/adoption and mutations compare incarnation before transferring ownership or acting on stale host state.
+Stable `terminal_id` is paired with `terminal_incarnation`; host recovery/adoption and mutations compare incarnation before transferring ownership or acting on stale host state.
 
 ### Persistent PTY and attachment
 
-Persistent PTY `sessionID` is intentionally logical. Physical session cleanup uses exact `wsPTYSession` object identity before deleting the map entry, while input/resize/detach resolve an exact current attachment id/token/object. `pty.close(sessionID:)` is generation-blind at the daemon wire layer, but its Swift caller contract intentionally defines a logical-session-wide close and gates locally known lifecycle generations before issuing it. No production interleaving violating that contract was established.
+Persistent PTY `sessionID` is logical by contract. Physical cleanup checks exact `wsPTYSession` object identity before removing the map entry. Input/resize/detach resolve exact current attachment id/token/object. The Swift close path intentionally closes the logical persistent session and gates known lifecycle generations before issuing the generation-blind daemon close.
 
 ### Local bridge / transport replacement
 
-The remote proxy broker snapshots PTY lifecycle state through automatic tunnel replacement and carries lifecycle/attachment/transport ownership tokens. Wrapper-end cleanup claims the exact owner before retiring it.
+The proxy broker carries lifecycle/attachment/transport ownership tokens through tunnel replacement and claims exact owners during cleanup.
 
 ### Terminal public API candidate
 
-The resource-v2 terminal API deserves a separate executable investigation because some public effects are addressed by stable terminal id while the durable model also knows `terminal_incarnation`. This scout did not establish a legal production A→B transition that preserves the exact public terminal id while crossing the native host-incarnation fences, so that seam remains a candidate only.
+Stable-terminal-id public effects still deserve separate execution work because public resource-v2 intentionally hides incarnation. This scout did not establish a legal production transition that preserves one public terminal id while crossing the native host-incarnation fences, so it remains a candidate rather than a confirmed failure.
 
 ## Evidence labels
 
-- current upstream revision and no-overlap restack: `github-read` / `github-compare`;
-- identity/resume contracts: `source-read`;
-- failing resolver order: `source-read`;
-- downstream completion consequence: `source-read`;
-- dependency-free discriminator: `model-executed`;
-- red regression: `target-test-prepared`;
-- production repair: `fork-authored`;
-- candidate ancestry/diff: `github-compare`;
-- current red→green macOS execution: `queued`, therefore no `target-executed` claim yet;
+- exact current upstream: GitHub read;
+- resume and identity contracts: source read;
+- upstream related-work review: PR/source read;
+- original stale-A seam: source-determined;
+- old decision-rule probe: model-executed, retained as historical discriminator;
+- final repair: fork-authored;
+- current fork ancestry/diff: GitHub compare;
+- previous target-native carrier: setup-executed / red-step failure / green skipped;
+- current target-native carrier: running;
 - upstream contact: absent.
-
-## Evidence limit
-
-The source-level violating sequence is deterministic once a delayed A event reaches `driverSessionID` after B becomes current: current upstream accepts on logical-session equality before consulting A's physical generation. The dependency-free discriminator exercises that decision rule and the three compatibility controls.
-
-The target-native test is prepared on exact current main; its current workflow run has been admitted but has not yet produced target execution evidence at this report revision. No broader claim is made about production frequency or affected-user prevalence.
 
 ## Recommendation
 
-Retain this as a high-confidence cross-generation correctness candidate. The owned fork has the smallest obvious fence and an exact current-main red/green test pair. Promotion beyond upstream-fork research should wait for the macOS target-native assertion or a clearly classified harness blocker. Third-party upstream remains read-only unless a separate bounded human greenlight authorizes one exact interaction.
+Keep owned PR #17 draft until run `33561165354` reaches a terminal result. If green passes, the candidate has the desired source and target-native evidence for the full fence. If the run fails, classify the exact failing step and repair the owned candidate or verifier without posting anything upstream.
