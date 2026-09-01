@@ -5,8 +5,8 @@
 - Upstream repository: `mesonbuild/meson`
 - Candidate repository: `teamleaderleo/meson`
 - Candidate branch: `fieldwork/16087-bfd-rpath-link`
-- Exact upstream base: `cb59331b47aa1e502d5b49d92e7c75bdf7829e61`
-- Candidate head: `f922ee286cebde91dbaf948d06eb14be226a3f8e`
+- Exact upstream base: `be6841aab8318b61b620c6c9375137570a01b89d`
+- Candidate head: `ed3d0bcccfb713e369ee4fddb95da23e825b72b1`
 - Candidate stack: one commit
 
 ## Title
@@ -30,5 +30,5 @@ The regression coverage checks the ld.bfd/ld.gold behavior at the 2.28 boundary 
 - The real-link test verifies that Meson is actually configured with linker id `ld.bfd` before building.
 - The integration fixture lives under `test cases/unit/140 rpath link bfd`, the existing home for unit-test-driven Meson projects.
 - The source condition remains within Meson's 120-column limit.
-- The branch remains one commit directly on the exact upstream base as of the latest recheck.
+- The branch is one commit directly on the exact current upstream base as of the latest recheck.
 - No issue number or outbound GitHub reference is included in this internal draft.
