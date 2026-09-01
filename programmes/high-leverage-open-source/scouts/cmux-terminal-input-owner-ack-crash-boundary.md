@@ -109,10 +109,10 @@ The remote PTY implementation is a useful contrast: it carries sequenced input a
 
 The smallest compatible correction is to make **receipted API input** wait for an acknowledgement from the local terminal host after its PTY write/flush has succeeded. Ordinary interactive input can remain on the current low-latency fire-and-forget path.
 
-Compatibility needs an explicit capability boundary so a new daemon never sends an unknown targeted input request to an old surviving host. A terminal-host record version bump is a compact discriminator because host records survive mux replacement and already represent additive host capabilities.
+Compatibility needs an explicit additive capability so a new daemon never sends a targeted input request to an old surviving host that only understands fire-and-forget input. The implementation uses `supports_input_ack` in the durable terminal-host discovery record; missing/false keeps old hosts on the legacy behavior and causes receipted API input to fail closed before sending bytes.
 
 This removes the demonstrated false-success window. It does not by itself make a crash after host ACK but before SQLite completion exactly reconcilable; that stronger property would require owner-side retained logical request identity or another fate query.
 
 ## Patch status
 
-Implementation work lives on the user fork `teamleaderleo/cmux`, based directly on audited upstream commit `eaa899cb20bd411019744fbd2bdedeb397f3070b` so the fork's older divergent `main` history does not contaminate the patch.
+Implementation PR: `teamleaderleo/cmux#16`, based directly on current upstream commit `2ead47750ab2f47c13972d0709d99cdcbaa8ad73`. The audited terminal-host/resource files are unchanged between the audited SHA and that base. The fork's older divergent `main` history is therefore outside the patch ancestry.
