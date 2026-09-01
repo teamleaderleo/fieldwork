@@ -42,6 +42,22 @@ Classification: **6. expected handoff semantics**.
 
 The stable attachment ID is supplemented by exact attachment object identity and a fresh client token. Delayed cleanup checks the retired object/token before mutation. Bytes already accepted from A before replacement remain deliberately owned by the session FIFO and may drain before B's bytes; fresh A input/resize/detach after B is current is fenced.
 
+## Remote session coordinator replacement — negative controls
+
+The workspace/controller handoff is explicitly generation-aware at the pinned revision.
+
+App-facing publication is fenced by controller UUID. `WorkspaceRemoteSessionHostAdapter` captures the coordinator's immutable `controllerID` and, after hopping to the main queue, checks `workspace.activeRemoteSessionControllerID == controllerID` before applying connection state, daemon status, proxy endpoint, port snapshot, heartbeat, or bootstrap-TTY publication. A retired coordinator cannot publish UI/state through that seam after B becomes active.
+
+Reverse-relay process callbacks are also fenced:
+
+- standalone relay readiness requires exact `reverseRelayProcess === process`;
+- relay termination requires exact process identity;
+- delayed relay restart carries a UUID `reverseRelayRestartToken` and compares it before launching.
+
+Persistent relay metadata cleanup initially looked like a cross-generation hazard because persistent restores deliberately rotate credentials while using the durable daemon slot as ownership identity. The workspace transition closes that race. `enqueueRemoteSessionTransition` serializes transitions, `performRemoteSessionTransition` awaits each conflicting old controller's `stopAndWait`, and a successor is started only after that cleanup succeeds. `stopAndWait` resumes only after `stopAllLocked`, which synchronously executes `stopReverseRelayLocked`; the remote relay/slot cleanup command therefore finishes before B exists. Cleanup failure for the same persistent or relay namespace blocks successor start instead of allowing two owners.
+
+Disposition: negative result for normal workspace replacement. Reopen if a caller constructs/replaces `RemoteSessionCoordinator` outside `Workspace.performRemoteSessionTransition`, or if cleanup becomes detached from `stopAndWait`.
+
 ## RemoteDaemonRPCClient same-object restart — production negative result
 
 The reusable RPC client has an isolated stale-termination seam: `handleProcessTermination(_:)` compares the terminating `Process` with `self.process` only when deciding whether to notify, then clears client transport state. Reusing one `RemoteDaemonRPCClient` object for A -> B before A's delayed termination callback would therefore be unsafe.
@@ -86,6 +102,6 @@ The cloud execution carrier was retired before execution; no target-native recei
 1. Obtain actual macOS red/green execution for `teamleaderleo/cmux#6` and retain the exact run/log identity.
 2. If green, run/retain the current-owner fatal-failure negative control and full `CmuxRemoteWorkspace` package suite, then request independent review for the ownership repair.
 3. Keep cloud socket repair on HOLD until singleton-vs-replacement semantics are established; retain the stale-unlink mechanism regardless.
-4. Continue adjacent production-reachable successor scouting in session/controller, hook/event-producer, agent-session, and descendant cleanup boundaries while runner capacity is unavailable.
+4. Continue adjacent production-reachable successor scouting in NativeSSH/control-master ownership, hook/event-producer, agent-session, and descendant cleanup boundaries while runner capacity is unavailable.
 
 Third-party upstream remained read-only throughout these fork operations.
