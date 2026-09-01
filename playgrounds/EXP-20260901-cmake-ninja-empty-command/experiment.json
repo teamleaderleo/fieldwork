@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "id": "EXP-20260901-cmake-ninja-empty-command",
-  "question": "Does an empty generator-expression custom command still produce a failing Ninja command on current Windows CMake while the equivalent Linux Ninja build succeeds?",
+  "question": "Does current Ninja generation retain a working-directory command when every declared custom command evaluates empty, preventing the existing phony fallback and leaving Windows with a bare cd /D command?",
   "owner": "chatgpt:gpt-5.6-sol",
   "created_at": "2026-09-01",
-  "state": "running",
+  "state": "complete",
   "claim_scope": "mechanism",
   "integration_context": null,
   "sources": [
@@ -21,29 +21,32 @@
       "url": "https://github.com/Kitware/CMake",
       "revision": "457b8a2acb76d0331889955b1ab74b0d21357ddf",
       "retrieved_at": "2026-09-01",
-      "claim": "Current public source mirror used for overlap and implementation mapping.",
+      "claim": "Current master source retains the working-directory line before filtering evaluated-empty commands and already has a phony fallback when the final command-line vector is empty.",
       "evidence_label": "Documented"
     }
   ],
-  "command": "GitHub Actions: .github/workflows/cmake-24802-repro.yml",
+  "command": "python3 run.py",
   "environment": {
-    "runtime": "preinstalled CMake and Ninja reported by the runner",
-    "platform": "windows-latest; Linux control executed separately on x86_64 Linux",
-    "dependencies": ["cmake", "ninja"]
+    "runtime": "CMake 3.31.6; Ninja 1.12.1 for the executable Linux control; CMake master 457b8a2acb76d0331889955b1ab74b0d21357ddf for source mapping",
+    "platform": "linux-x86_64 control plus deterministic _WIN32 source-path analysis",
+    "dependencies": ["cmake", "ninja", "python3"]
   },
   "distinguishing_outcomes": [
     {
-      "observation": "Windows Ninja emits a working-directory-only command and the build fails to create a process.",
-      "interpretation": "Supports the reported Windows command-emission defect and justifies source/test mapping."
+      "observation": "The evaluated-empty fixture generates CUSTOM_COMMAND with only COMMAND = cd <build-dir>; current master emits cd /D under _WIN32 and does not wrap a single such line in cmd.exe.",
+      "interpretation": "Supports the reported Windows command-emission defect and identifies the stray working-directory line as the blocker preventing the existing phony fallback."
     },
     {
-      "observation": "Windows Ninja completes both empty-command variants successfully.",
-      "interpretation": "Weakens the current-bug hypothesis; stop and retain a negative result unless another exact supported configuration reproduces it."
+      "observation": "After removing that lone working-directory line when no real command survives, cmdLines becomes empty.",
+      "interpretation": "The existing WriteCustomCommandBuildStatement phony branch becomes the natural no-command path; no new Ninja rule semantics are required."
     }
   ],
-  "stop_condition": "Stop after current Windows behavior is observed for the two bounded variants and compared with the successful Linux control; do not modify or contact upstream during this experiment.",
-  "network_policy": "GitHub-hosted runner setup only; the reproducer itself performs no network access",
+  "stop_condition": "Stop after the current generated rule, current master source path, existing phony fallback, and smallest source/test candidate are identified. Execute the candidate on the user's CMake fork before any upstream submission.",
+  "network_policy": "disabled for the reproducer; public source inspection used the connected GitHub mirror",
   "upstream_contact_authorized": false,
-  "result_paths": [],
+  "result_paths": [
+    "results/linux-control.json",
+    "candidate.patch"
+  ],
   "promoted_to": null
 }
