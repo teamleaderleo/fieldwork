@@ -42,6 +42,18 @@ Classification: **6. expected handoff semantics**.
 
 The stable attachment ID is supplemented by exact attachment object identity and a fresh client token. Delayed cleanup checks the retired object/token before mutation. Bytes already accepted from A before replacement remain deliberately owned by the session FIFO and may drain before B's bytes; fresh A input/resize/detach after B is current is fenced.
 
+## RemoteDaemonRPCClient same-object restart — production negative result
+
+The reusable RPC client has an isolated stale-termination seam: `handleProcessTermination(_:)` compares the terminating `Process` with `self.process` only when deciding whether to notify, then clears client transport state. Reusing one `RemoteDaemonRPCClient` object for A -> B before A's delayed termination callback would therefore be unsafe.
+
+The production proxy replacement path does not reuse that object at the pinned revision:
+
+- every `RemoteDaemonProxyTunnel.start()` constructs a fresh `RemoteDaemonRPCClient`;
+- `RemoteDaemonProxyTunnel.stopLocked` permanently sets `isStopped = true` and `start()` rejects a stopped tunnel;
+- broker replacement creates a new tunnel, so the client object is replaced with the tunnel generation.
+
+Disposition: retain as an API-level implementation hazard and a production negative result for this scout. Reopen if a production caller starts the same `RemoteDaemonRPCClient` object more than once or if tunnel restart semantics change to reuse the client.
+
 ## Cloud CLI Unix-socket ownership — finding retained, repair HOLD
 
 Owned-fork research PR: `teamleaderleo/cmux#10`  
@@ -74,6 +86,6 @@ The cloud execution carrier was retired before execution; no target-native recei
 1. Obtain actual macOS red/green execution for `teamleaderleo/cmux#6` and retain the exact run/log identity.
 2. If green, run/retain the current-owner fatal-failure negative control and full `CmuxRemoteWorkspace` package suite, then request independent review for the ownership repair.
 3. Keep cloud socket repair on HOLD until singleton-vs-replacement semantics are established; retain the stale-unlink mechanism regardless.
-4. Continue adjacent successor scouting only after the proxy repair reaches an evidence-backed disposition.
+4. Continue adjacent production-reachable successor scouting in session/controller, hook/event-producer, agent-session, and descendant cleanup boundaries while runner capacity is unavailable.
 
 Third-party upstream remained read-only throughout these fork operations.
