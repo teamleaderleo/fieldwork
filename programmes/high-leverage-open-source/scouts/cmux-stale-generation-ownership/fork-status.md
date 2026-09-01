@@ -3,108 +3,55 @@
 State: `investigating`  
 Fieldwork issue: #931  
 Original pinned target: `manaflow-ai/cmux@eaa899cb20bd411019744fbd2bdedeb397f3070b`  
+Current checked upstream main: `6044a8b3f43152d2e6fc17f771fd4b277b393118`  
 Owned fork: `teamleaderleo/cmux`  
 Upstream contact authorized: `false`
 
 ## In simple words
 
-The remote-proxy broker stale-owner failure is now target-executed with a red regression, a minimal generation fence, an ordinary-current-owner negative control, and the full package suite green. The executed base and current-main check use the same `RemoteProxyBroker.swift` blob as the original scout pin.
+The remote-proxy broker stale-owner failure is proven on exact current upstream and has a small generation-fenced repair with target-native red/green evidence.
 
-The cloud CLI Unix-socket stale-unlink mechanism remains retained while its current lifetime-lock repair is HOLD. Session/controller, remote PTY, and production RPC-client replacement provide negative controls around neighboring successor boundaries.
+The cloud CLI Unix-socket stale-unlink failure is also real. Its first lifetime-lock repair passed the ownership regression, but review found a second boundary introduced by that repair: the predictable lock pathname was opened with plain `os.OpenFile`, so symlink, FIFO, and hard-link cases were outside the ownership contract. The canonical cloud branch has therefore been rewritten to a new two-commit red/green candidate that hardens the lock by file descriptor. Its previous green receipt is historical mechanism evidence only; fresh execution is required for the rewritten head.
 
-This file owns live fork dispositions for scout #931 and supersedes older execution-carrier status text in `report.md` when the two disagree.
+Remote PTY attachment replacement, workspace/session coordinator replacement, and production RPC-client replacement remain useful negative controls.
 
-## Remote proxy broker — proven repaired candidate
+## Core invariant
 
-Owned-fork PR: `teamleaderleo/cmux#6`.
+Once a successor becomes the authoritative owner of a long-lived resource, work from the retired owner must not mutate that resource unless the handoff contract explicitly preserves that work and the successor can account for it.
 
-Original source pin: `eaa899cb20bd411019744fbd2bdedeb397f3070b`.
+## Remote proxy broker — target-executed repaired candidate
 
-Executed restack:
+Canonical owned-fork PR: `teamleaderleo/cmux#6`.
+
+Exact current chain:
 
 ```text
-2ead47750ab2f47c13972d0709d99cdcbaa8ad73
-  -> 80c54e08917a02ae91436a1495fe6296ea6c2bda  RED regression only
-  -> 3f11ef644ce14d43e8086edb346dc4659a3e0c32  GREEN generation fence
+6044a8b3f43152d2e6fc17f771fd4b277b393118
+  -> e9ea500cebfba753444e961e2ef9d6af079ec096  RED regression only
+  -> 8daa014321001d9aec128a9112720fb74e2ae11d  GREEN generation fence
 ```
 
-Target execution receipt: `proxy-execution-receipt-33552198922.md`.
-
-Run `33552198922`, job `100004099358`, on GitHub-hosted macOS 15 completed successfully:
+Execution run `33554543666`, job `100012026075`, completed successfully on macOS 15.7.7 arm64 with Xcode 26.3 / Swift 6.2.4:
 
 - ancestry and red-only diff fence: PASS;
-- RED focused stale-owner test: executed and failed at `cmux.remote.pty` code 40, `remote daemon tunnel is not ready`;
-- GREEN focused test: PASS;
+- RED `staleFatalCallbackCannotStopSuccessor`: fails at `cmux.remote.pty` code 40, `remote daemon tunnel is not ready`;
+- GREEN same test: PASS;
 - current-owner `fatalFailureRestarts` negative control: PASS;
 - full `CmuxRemoteWorkspace` package: **95 tests in 18 suites PASS**.
 
 Evidence class: **`target-executed`**.
 
-The production repair is +17/-3 lines in `RemoteProxyBroker`: one UUID per installed tunnel runtime, captured in that runtime's fatal callback, stored when the tunnel becomes current, required to match before failure handling, and cleared on teardown.
+Repair: one UUID per installed tunnel runtime, captured in that runtime's fatal callback, stored only when the tunnel becomes current, required to match before destructive failure handling/publication, and cleared on teardown.
 
-The provider contract says `onFatalError` is invoked once after the tunnel has stopped itself and may fire on any queue. It gives the broker no cancellation guarantee for an already-issued callback after replacement. Routing that callback by transport key alone therefore cannot prove current ownership.
+Consequence: **2. stale destructive effect**, plus **3. stale publication / UI lies**. No duplicate command effect is claimed.
 
-Adjacent broker audit:
+Review note: the run emits an existing Swift 6.2 Sendable warning in the managed-cloud refresh path; the candidate does not introduce that capture.
 
-- restart wakeups compare a per-entry `restartToken`;
-- ready-operation completion compares captured `Entry` identity;
-- managed-cloud endpoint refresh compares captured `Entry` identity before publication;
-- stale lease release carries a subscriber UUID and cannot remove a different subscriber;
-- fatal tunnel failure was the lone key-only mutation in this replacement cluster.
+## Cloud CLI Unix-socket ownership — proven mechanism, candidate under fresh execution
 
-Current-source continuity: checked upstream `main` at `6044a8b3f43152d2e6fc17f771fd4b277b393118`. `RemoteProxyBroker.swift` has blob SHA `efdb05374e725727efd346684e5cc0ff1d15cb76` at the original pin, executed base, and checked current main. The three intervening upstream commits after the executed base touched only cmux-tui/workflow/docs surfaces.
+Canonical owned-fork PR: `teamleaderleo/cmux#10`.
 
-Consequence: **2. stale destructive effect**, plus **3. stale publication / UI lies**. No duplicate remote-command effect is claimed.
-
-Remaining gate: independent complete-diff/current-source review if explicitly requested or required for later promotion. No second-model review has been launched.
-
-## Remote PTY attachment replacement — negative control
-
-Classification: **6. expected handoff semantics**.
-
-The stable attachment ID is supplemented by exact attachment object identity and a fresh client token. Delayed cleanup checks the retired object/token before mutation. Bytes already accepted from A before replacement remain deliberately owned by the session FIFO and may drain before B's bytes; fresh A input/resize/detach after B is current is fenced.
-
-## Remote session coordinator replacement — negative controls
-
-The workspace/controller handoff is explicitly generation-aware at the original pinned revision.
-
-App-facing publication is fenced by controller UUID. `WorkspaceRemoteSessionHostAdapter` captures the coordinator's immutable `controllerID` and, after hopping to the main queue, checks `workspace.activeRemoteSessionControllerID == controllerID` before applying connection state, daemon status, proxy endpoint, port snapshot, heartbeat, or bootstrap-TTY publication. A retired coordinator cannot publish UI/state through that seam after B becomes active.
-
-Reverse-relay process callbacks are also fenced:
-
-- standalone relay readiness requires exact `reverseRelayProcess === process`;
-- relay termination requires exact process identity;
-- delayed relay restart carries a UUID `reverseRelayRestartToken` and compares it before launching.
-
-Persistent relay metadata cleanup initially looked like a cross-generation hazard because persistent restores deliberately rotate credentials while using the durable daemon slot as ownership identity. The workspace transition closes that race. `enqueueRemoteSessionTransition` serializes transitions, `performRemoteSessionTransition` awaits each conflicting old controller's `stopAndWait`, and a successor is started only after that cleanup succeeds. `stopAndWait` resumes only after `stopAllLocked`, which synchronously executes `stopReverseRelayLocked`; the remote relay/slot cleanup command therefore finishes before B exists. Cleanup failure for the same persistent or relay namespace blocks successor start instead of allowing two owners.
-
-Disposition: negative result for normal workspace replacement. Reopen if a caller constructs/replaces `RemoteSessionCoordinator` outside `Workspace.performRemoteSessionTransition`, or if cleanup becomes detached from `stopAndWait`.
-
-## RemoteDaemonRPCClient same-object restart — production negative result
-
-The reusable RPC client has an isolated stale-termination seam: `handleProcessTermination(_:)` compares the terminating `Process` with `self.process` only when deciding whether to notify, then clears client transport state. Reusing one `RemoteDaemonRPCClient` object for A -> B before A's delayed termination callback would therefore be unsafe.
-
-The production proxy replacement path does not reuse that object at the original pin:
-
-- every `RemoteDaemonProxyTunnel.start()` constructs a fresh `RemoteDaemonRPCClient`;
-- `RemoteDaemonProxyTunnel.stopLocked` permanently sets `isStopped = true` and `start()` rejects a stopped tunnel;
-- broker replacement creates a new tunnel, so the client object is replaced with the tunnel generation.
-
-Disposition: retain as an API-level implementation hazard and a production negative result. Reopen if a production caller starts the same `RemoteDaemonRPCClient` object more than once or if tunnel restart semantics change to reuse the client.
-
-## NativeSSH control-master ownership — API seam under reachability review
-
-`NativeSSHControlMasterOwnershipRegistry` correctly refuses a new shared lease while another owner holds exclusive cleanup authorization. `NativeSSHConnectionBroker.retainWorkspace`, however, discards the registry's Boolean result and records the workspace lease locally anyway. In isolation this can create split ownership: A holds exclusive cleanup authority while B is broker-visible without a cross-process shared lease.
-
-Existing broker tests cover stale release generations, delayed cleanup cancellation, retries, and shared/exclusive registry locking, but do not cover a successor retain colliding with already-authorized exclusive cleanup.
-
-Production reachability is unresolved. Repository code search has not found a macOS production caller of the broker's `retainWorkspace`; app-target `retainWorkspace` matches inspected so far are unrelated helpers, while `releaseWorkspace` is wired into remote-session lifecycle. The lease generation itself can only be minted by the broker retain path. Do not promote this seam until the production caller/order is found or the ownership machinery is shown to be dormant.
-
-## Cloud CLI Unix-socket ownership — finding retained, repair HOLD
-
-Owned-fork research PR: `teamleaderleo/cmux#10`.
-
-Mechanism established by the retained Go model:
+Mechanism:
 
 ```text
 A binds stable socket pathname
@@ -117,20 +64,62 @@ B listener FD survives but future dials fail ENOENT
 
 Consequence: **2. stale destructive effect**, with an unreachable surviving listener resembling **4. leaked surviving resource** until B exits.
 
-The current lifetime-lock repair is on HOLD for two reasons:
+### Review defect in the first repair
 
-1. `runWebSocketPTYServer` treats cloud-bridge startup failure as fatal. Holding a lock for A's entire listener lifetime converts overlapping B startup from replacement into daemon-start rejection. Source/history establish a normal one-daemon-per-machine service, but do not establish that overlap must be rejected as policy.
-2. The candidate uses a new adjacent regular lock pathname opened with plain `os.OpenFile`. The original pinned target itself hardens another start lock against symlinks, non-regular files, foreign ownership, and hard links. A retained lock-file design needs equivalent ownership checks.
+The first lifetime-lock implementation serialized A/B ownership and passed the overlap regression, but it opened the predictable `<socket>.lock` path with plain `os.OpenFile`. That follows symlinks and does not establish regular-file type, link count, owner, or nonblocking behavior before `flock`. A planted FIFO can turn lock acquisition into a blocking startup boundary; a symlink or shared inode can redirect ownership to an unintended object.
 
-A narrower repair, if overlap is intended, is generation-aware pathname publication/cleanup: serialize the name mutation across processes, disable automatic Unix-listener unlink, and remove the stable name only when it still names the retiring generation. If the bridge is explicitly a machine-wide singleton, a lifetime ownership lock may be appropriate after its lock-file boundary is hardened.
+That finding invalidated the earlier candidate disposition even though its ownership-only run was green.
 
-No target-native cloud repair receipt is claimed.
+### Rewritten two-commit candidate
+
+```text
+6044a8b3f43152d2e6fc17f771fd4b277b393118
+  -> 3fcfdc334a2459ea353dc6316d5325be48a20e40  RED tests only
+  -> 2df7cd900dd038bdd18b4c7c35dcd809878f1344  GREEN hardened lock
+```
+
+RED now covers:
+
+- overlapping B cannot replace live A;
+- a symlinked lock pathname is rejected without touching its target;
+- a FIFO lock is rejected without blocking before type validation;
+- a hard-linked lock is rejected without chmod side effects;
+- a single-link lock owned by the effective UID is migrated to mode `0600`.
+
+GREEN opens the lock with `O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC`, validates regular-file type, single link, effective-UID ownership and private mode through the opened descriptor, then acquires nonblocking `flock`. The lock remains held until listener cleanup removes the retiring socket pathname.
+
+The remote-daemon release builder targets Darwin/Linux arm64+amd64, so the implementation uses the existing `golang.org/x/sys/unix` dependency and the fresh verifier includes cross-build coverage.
+
+Evidence class for the rewritten head: **`target-test-prepared`** until the fresh execution carrier completes. Previous runs remain historical evidence for the stale-unlink mechanism and singleton handoff semantics, not acceptance evidence for this changed head.
+
+## Remote PTY attachment replacement — negative control
+
+Classification: **6. expected handoff semantics**.
+
+A stable attachment ID is supplemented by exact attachment object identity and a fresh client token. Delayed cleanup checks the retired object/token before mutation. Bytes already accepted from A before replacement remain deliberately owned by the session FIFO and may drain before B's bytes; fresh A input/resize/detach after B is current is fenced.
+
+## Remote session coordinator replacement — negative control
+
+App-facing publication is fenced by controller UUID. Reverse-relay process callbacks compare exact process identity, delayed restart carries a UUID token, and workspace transitions await `stopAndWait` before creating the successor. Cleanup failure for the same persistent namespace blocks successor start.
+
+Disposition: negative result for normal workspace replacement. Reopen if a production caller replaces a coordinator outside the serialized workspace transition.
+
+## RemoteDaemonRPCClient same-object restart — production negative result
+
+`handleProcessTermination(_:)` has an isolated same-object stale-termination hazard, but the production proxy path creates a fresh `RemoteDaemonRPCClient` for every fresh one-shot tunnel. A stopped tunnel cannot restart. Reopen if production begins reusing the same client object across transport generations.
+
+## NativeSSH control-master ownership — reachability unresolved
+
+`NativeSSHControlMasterOwnershipRegistry` can reject a shared retain while another owner holds exclusive cleanup authorization, while `NativeSSHConnectionBroker.retainWorkspace` historically discarded that Boolean result and could record a local lease anyway. Production reachability remains unproven because no macOS production retain caller was established during the scout.
+
+Do not promote this seam until the production caller/order is found or the ownership machinery is shown to be dormant.
 
 ## Next gate
 
-1. Preserve the proxy candidate at its executed head and avoid unrelated fork edits.
-2. Continue source scouting for a second production-reachable stale-owner boundary, prioritizing NativeSSH/control-master reachability, hook/event-producer identity, agent-session identity, and descendant cleanup.
-3. Keep cloud socket repair on HOLD until singleton-vs-replacement semantics are established; retain the stale-unlink mechanism regardless.
-4. Keep third-party upstream read-only unless a fresh bounded human greenlight names one exact interaction.
+1. Keep proxy PR #6 unchanged at its exact target-executed head.
+2. Complete fresh red/green execution for rewritten cloud PR #10; any head movement invalidates the candidate disposition again.
+3. After deterministic evidence is current, perform complete-diff review. Consequential ownership repairs still need independent final review before a human-facing upstream submission decision.
+4. Continue adjacent scouting only after these canonical candidates are coherent; NativeSSH/control-master reachability remains the leading unresolved seam.
+5. Third-party upstream remains read-only unless a fresh bounded human greenlight names one exact interaction.
 
 Third-party upstream remained read-only throughout these fork operations.
