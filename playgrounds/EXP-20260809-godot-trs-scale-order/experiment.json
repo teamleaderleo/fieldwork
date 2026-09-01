@@ -1,0 +1,35 @@
+{
+  "id": "EXP-20260809-godot-trs-scale-order",
+  "owner": "GPT-5.6 Sol / workstream F",
+  "created": "2026-08-09",
+  "question": "Does left-applying non-uniform scale to a rotation matrix produce the same transform as local right-applied scale for the values used by the Godot AnimationPlayer regression probe?",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "title": "Godot core/math/basis.cpp",
+      "url": "https://github.com/godotengine/godot/blob/4173760fdf6c2c722e82e08cb58e55f34c9efd80/core/math/basis.cpp",
+      "revision": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "retrieved": "2026-08-09",
+      "supported_claim": "Basis::scale/ scaled left-multiply by scale while scale_local/scaled_local right-multiply by scale.",
+      "evidence_label": "Documented"
+    },
+    {
+      "title": "Godot scene/3d/node_3d.cpp",
+      "url": "https://github.com/godotengine/godot/blob/4173760fdf6c2c722e82e08cb58e55f34c9efd80/scene/3d/node_3d.cpp",
+      "revision": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "retrieved": "2026-08-09",
+      "supported_claim": "Node3D stores rotation and scale separately and rebuilds the local basis through set_euler_scale when the local transform is requested.",
+      "evidence_label": "Observed"
+    }
+  ],
+  "command": "python3 playgrounds/EXP-20260809-godot-trs-scale-order/run.py",
+  "expected_observations": {
+    "left_equals_right": "weakens the scale-order hypothesis",
+    "left_differs_from_right": "supports the hypothesis that the two Godot code paths apply distinct transform semantics under rotation plus non-uniform scale"
+  },
+  "stop_condition": "Record whether the two matrices differ for the target fixture and preserve the numeric distance; do not infer target runtime behavior from the model alone.",
+  "network_policy": "none",
+  "upstream_contact_authorization": false,
+  "state": "complete"
+}
