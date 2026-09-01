@@ -1,12 +1,12 @@
 {
   "kind": "source-level-framing-probe",
   "evidence_label": "source-model-executed",
-  "upstream_main_sha": "6b425641ae4d474e77854da535442af2a0d0a475",
+  "upstream_main_sha": "eaa899cb20bd411019744fbd2bdedeb397f3070b",
   "upstream_issue": "https://redirect.github.com/manaflow-ai/cmux/issues/10943",
   "upstream_pr": "https://redirect.github.com/manaflow-ai/cmux/pull/11219",
-  "candidate_red_sha": "4719143f4a21ab2442397efe70643435c1f604f6",
-  "candidate_green_sha": "a732c5994bb2a698a7330bb0516210411d9ca298",
-  "probe_scope": "Executed exact current hex-framing logic and the extracted RemoteTmuxSendKeysBatchBuilder logic in Swift 6.2.1 on Linux. This is a deterministic source-level framing probe, not an app-host or remote tmux execution.",
+  "candidate_red_sha": "f87269d4f7e67ed3fa8fcea52c4fc375bc669ce5",
+  "candidate_green_sha": "dd4c6bb4d8c61be2ce1356a86780e6821e940e42",
+  "probe_scope": "Executed the exact unchunked hex-framing logic and extracted RemoteTmuxSendKeysBatchBuilder logic in Swift 6.2.1 on Linux. The final upstream move from 6b425641ae4d474e77854da535442af2a0d0a475 to eaa899cb20bd411019744fbd2bdedeb397f3070b changed only cmux-tui/crates/cmux-tui-core/src/server.rs, leaving every probed ssh-tmux owner byte-identical. This is a deterministic source-level framing probe, not an app-host or remote tmux execution.",
   "results": {
     "current_9994_command_bytes": 30000,
     "current_9995_command_bytes": 30003,
@@ -20,7 +20,8 @@
   },
   "unsupported_claims": {
     "independent_live_remote_reproduction": "Unknown",
-    "macos_app_host_red_green": "Pending owned Actions verifier",
+    "macos_app_host_red_green": "Blocked before regression execution by unrelated current-main compile errors; see ci-diagnosis.json",
+    "package_and_guard_result": "Unknown at handoff; owned verifier jobs remained queued",
     "precise_tmux_internal_origin_of_30000_ceiling": "Unknown"
   },
   "upstream_contact_authorized": false
