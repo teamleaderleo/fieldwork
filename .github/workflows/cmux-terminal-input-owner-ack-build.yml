@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/cmux-terminal-input-owner-ack-build.yml
       - .github/fieldwork/apply_cmux_terminal_input_owner_ack.py
+      - .github/fieldwork/refine_cmux_terminal_input_owner_ack.py
 
 permissions:
   contents: read
@@ -37,7 +38,9 @@ jobs:
 
       - name: Apply owner-ack patch
         working-directory: cmux
-        run: python3 ../fieldwork/.github/fieldwork/apply_cmux_terminal_input_owner_ack.py
+        run: |
+          python3 ../fieldwork/.github/fieldwork/apply_cmux_terminal_input_owner_ack.py
+          python3 ../fieldwork/.github/fieldwork/refine_cmux_terminal_input_owner_ack.py
 
       - name: Initialize Ghostty
         working-directory: cmux
