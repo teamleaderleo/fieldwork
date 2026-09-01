@@ -1,0 +1,75 @@
+diff --git a/crates/swc_ecma_minifier/src/program_data.rs b/crates/swc_ecma_minifier/src/program_data.rs
+--- a/crates/swc_ecma_minifier/src/program_data.rs
++++ b/crates/swc_ecma_minifier/src/program_data.rs
+@@
+         /// The variable is declared without initializer.
+         const LAZY_INIT                 = 1 << 25;
++
++        /// The variable is a parameter of an ordinary function whose lexical
++        /// `arguments` binding is used. This follows the binding through
++        /// inline remapping via `VarUsageInfo::clone`.
++        const FN_PARAM_OF_ARGUMENTS_FN  = 1 << 26;
+@@
+                     *e_flags |= var_info_flags & VarUsageInfoFlags::USED_RECURSIVELY;
+                     *e_flags |= var_info_flags & VarUsageInfoFlags::USED_IN_NON_CHILD_FN;
++                    *e_flags |= var_info_flags & VarUsageInfoFlags::FN_PARAM_OF_ARGUMENTS_FN;
+@@
+ impl VarDataLike for VarUsageInfo {
+@@
+     fn mark_declared_as_fn_param(&mut self) {
+         self.flags.insert(VarUsageInfoFlags::DECLARED_AS_FN_PARAM);
+     }
++
++    fn mark_fn_param_of_arguments_fn(&mut self) {
++        self.flags
++            .insert(VarUsageInfoFlags::FN_PARAM_OF_ARGUMENTS_FN);
++    }
+diff --git a/crates/swc_ecma_minifier/src/usage_analyzer/analyzer/storage.rs b/crates/swc_ecma_minifier/src/usage_analyzer/analyzer/storage.rs
+--- a/crates/swc_ecma_minifier/src/usage_analyzer/analyzer/storage.rs
++++ b/crates/swc_ecma_minifier/src/usage_analyzer/analyzer/storage.rs
+@@
+     fn mark_declared_as_fn_param(&mut self);
++
++    fn mark_fn_param_of_arguments_fn(&mut self);
+diff --git a/crates/swc_ecma_minifier/src/usage_analyzer/analyzer/mod.rs b/crates/swc_ecma_minifier/src/usage_analyzer/analyzer/mod.rs
+--- a/crates/swc_ecma_minifier/src/usage_analyzer/analyzer/mod.rs
++++ b/crates/swc_ecma_minifier/src/usage_analyzer/analyzer/mod.rs
+@@
+     fn visit_function(&mut self, n: &Function) {
+         n.decorators.visit_with(self);
+@@
+         self.with_ctx(ctx)
+             .with_child(n.ctxt, ScopeKind::Fn { is_arrow: false }, |child| {
+                 n.params.visit_with(child);
+ 
+                 if let Some(body) = &n.body {
+                     // We use visit_children_with instead of visit_with to bypass block scope
+                     // handler.
+                     body.visit_children_with(child);
+                 }
++
++                if child.scope.used_arguments() {
++                    for param in &n.params {
++                        for id in find_pat_ids::<_, Id>(&param.pat) {
++                            child
++                                .data
++                                .var_or_default(id)
++                                .mark_fn_param_of_arguments_fn();
++                        }
++                    }
++                }
+             })
+     }
+diff --git a/crates/swc_ecma_minifier/src/compress/optimize/unused.rs b/crates/swc_ecma_minifier/src/compress/optimize/unused.rs
+--- a/crates/swc_ecma_minifier/src/compress/optimize/unused.rs
++++ b/crates/swc_ecma_minifier/src/compress/optimize/unused.rs
+@@
+                     && var.usage_count == 0
+                     && var.flags.contains(VarUsageInfoFlags::DECLARED)
+                     && (!var.flags.contains(VarUsageInfoFlags::DECLARED_AS_FN_PARAM)
+-                        || !self.data.used_arguments(self.ctx.scope)
+-                        || self.ctx.expr_ctx.in_strict)
++                        || !var
++                            .flags
++                            .contains(VarUsageInfoFlags::FN_PARAM_OF_ARGUMENTS_FN))
+                 {
