@@ -42,7 +42,7 @@
     }
   ],
   "stop_condition": "Stop after the current generated rule, current master source path, existing phony fallback, and smallest source/test candidate are identified. Execute the candidate on the user's CMake fork before any upstream submission.",
-  "network_policy": "disabled for the reproducer; public source inspection used the connected GitHub mirror",
+  "network_policy": "disabled",
   "upstream_contact_authorized": false,
   "result_paths": [
     "results/linux-control.json",
