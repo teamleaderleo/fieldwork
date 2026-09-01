@@ -6,7 +6,7 @@
 - Candidate repository: `teamleaderleo/meson`
 - Candidate branch: `fieldwork/16087-bfd-rpath-link`
 - Exact upstream base: `cb59331b47aa1e502d5b49d92e7c75bdf7829e61`
-- Candidate head: `01ce61839a638953bf852edff30ce920eeebc98b`
+- Candidate head: `4a728917614d6b169f5cccef45bfc5d98a5e5728`
 - Candidate stack: one commit, two files
 
 ## Title
