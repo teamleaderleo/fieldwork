@@ -7,327 +7,245 @@ Target: `manaflow-ai/cmux`
 Pinned execution baseline: `8ef183f1e5de765b183aec9d1799f17a0848ae84`  
 Current upstream recheck: `6044a8b3f43152d2e6fc17f771fd4b277b393118`  
 Worker: `chatgpt:gpt-5.6-sol`  
-State: `claimed`  
+State: `complete`  
 Claim scope: mechanism / interface / recovery / identity  
 Upstream contact authorized: `false`
 
+## Result
+
+**Retain the finding.** CMUX's current Cloud snapshot-materialization path can carry machine-scoped identity and authority from one logical machine into a separately tracked machine. Three independent target-native discriminators now execute the consequence at the client-trust, daemon-authorization, and durable-resource-identity layers.
+
+The core invariant is:
+
+> **Materializing a snapshot as a new independently managed machine must establish a new machine-scoped identity before network attach.**
+
+A pause/resume, process restart, or compute resurrection of the *same* logical machine may preserve daemon and machine identity. A fork or restore that creates a separately addressable tracked machine needs an explicit new-machine identity transition.
+
+No cross-account access claim is made. This is an identity/isolation and recovery finding inside authorized Cloud state.
+
 ## In simple words
 
-cmux deliberately persists the identities that make a Cloud daemon feel like the *same machine* after pause, restart, or compute resurrection: the daemon Noise key, enrolled-device records, a cmux machine public id, and the durable session/registry state.
+CMUX deliberately persists the things that make a Cloud daemon feel like the same machine after a restart:
 
-That is correct for resurrection of one logical machine. The Cloud snapshot paths also use the copied state to materialize a **new tracked machine**. `cmux vm fork` is documented as a clone for a parallel experiment, while `cmux vm restore <snapshot-id>` is explicitly documented as `snapshot -> new tracked machine`.
+- the cmux-remote Noise/static daemon key;
+- the enrolled-device authorization database;
+- the root-level CMUX `machine-id`;
+- durable session/registry state.
 
-For the modern E2B and Daytona providers, the new machine boots from snapshot state and starts cmux-tui without an identity-reset step. This makes the same persisted identity serve two different control-plane machines.
+That persistence is correct for resurrection. The Cloud product also uses snapshots to create a **new tracked machine**. `cmux vm fork` is documented as a clone for a parallel experiment; `cmux vm restore <snapshot-id>` is documented as `snapshot -> new tracked machine`.
 
-One concrete consequence is now target-native and executed: if the source and copy share one daemon fingerprint, enrolling/attaching the copy re-pins that fingerprint at the copy's route. With any unrelated daemon also in the Mac's shared known-daemon store, the source route becomes unresolvable and ordinary source reconnect fails with `no known daemon matches this route; connect with an invitation`. Distinct source/fork daemon identities preserve the source route; the existing one-daemon fallback masks the bug when no other daemon is known.
+For the modern E2B and Daytona paths inspected here, the copied machine starts/ensures cmux-tui from snapshotted state without a visible new-machine rekey step. The result is that one persisted identity can represent two independently managed machines.
 
-This is broader than the full `cmux vm tui` client. The normal macOS Cloud path intentionally uses **one client identity directory and known-daemons store shared across every Cloud Machine Link**, and each awake machine owns a headless `cmux-tui remote connect --headless` link through that store.
+The consequences are now executable:
 
-Two additional target-native discriminators are running: one for copied authorization databases diverging under a single daemon fingerprint, and one for copied workspace roots preserving the same `MachinePublicId` and `SessionPublicId`.
+1. the Mac's shared known-daemon store can be re-pinned from source A's route to copied machine B's route, leaving A undiscoverable on ordinary reconnect when another daemon is also known;
+2. copied authorization databases can diverge after the copy, so source A can revoke a device while B still authorizes it under the **same daemon fingerprint**;
+3. a copied workspace state root preserves the same `MachinePublicId` and `SessionPublicId`, while a fresh root receives independent identities.
 
-No cross-account access claim is made. The current finding is a lifecycle/identity collision within authorized Cloud state, with an executed reconnect consequence.
+## Product contract and lifecycle boundary
 
-## Core invariant
+`skills/cmux-cloud-vm/references/commands.md` describes:
 
-**Materializing a snapshot as a new independently managed machine must establish a new machine-scoped identity before network attach.**
+- `cmux vm fork <id>` as a clone for a parallel experiment;
+- `cmux vm restore <snapshot-id>` as `snapshot -> new tracked machine`.
 
-A pause/resume, process restart, or compute resurrection of the *same* logical machine may preserve daemon and machine identity. A fork or restore that creates a separately addressable tracked machine must not leave source and copy cryptographically or durably indistinguishable.
+The intended lifecycle distinction is therefore explicit. These operations are not merely resume operations on the source VM.
 
-## Why this is a lifecycle-category error
+The current source already has the resurrection half of the contract:
 
-cmux already has the resurrection half of this rule in source and tests:
-
-- remote daemon identity and enrolled devices intentionally live on persistent Cloud storage so they survive sandbox resurrection;
+- remote daemon identity and enrolled devices are intentionally persisted so they survive compute resurrection;
 - `WorkspaceRegistry` has an upstream test named `machine_identity_is_state_root_global_and_survives_restart`;
-- the native frontend contract says a durable resource address is `(machine_id, session_id, resource_id)` while hostname, socket, relay, and mount route are mutable resolution data.
+- the native frontend contract treats `(machine_id, session_id, resource_id)` as the durable resource address while transport route is mutable resolution data.
 
-The missing transition is **copy -> new machine**. Current provider bootstrap treats the copied state as though it were merely the same machine restarting.
+The missing transition is **copied state -> new machine**.
 
 ## Source map
 
-### Generic fork and restore workflows
+### Generic fork and restore
 
 `web/services/vms/workflows.ts`
 
-For non-Freestyle providers, `forkVm` performs:
+For providers without a native fork path, `forkVm` snapshots the source and calls `createVm` using the snapshot as the image, recording a separate VM. `restoreVm` likewise creates a new tracked VM from an owned snapshot.
 
-1. `snapshotVm(source)`;
-2. `createVm({ provider: source.provider, image: snapshot.id, ... })`;
-3. records the result as a separate fork VM.
+The relevant workflow and identity-owner files did not change between the pinned execution baseline and current upstream `6044a8b3...`; current main is four commits ahead of the execution baseline and those commits do not touch the mechanisms exercised below.
 
-`restoreVm` checks snapshot ownership and then calls `createVm` for a new tracked VM from the snapshot.
-
-The relevant `workflows.ts` blob is unchanged between the pinned execution baseline and the current upstream recheck.
-
-### Product contract
-
-`skills/cmux-cloud-vm/references/commands.md`
-
-- `cmux vm fork <id>`: clone for a parallel experiment;
-- `cmux vm restore <snapshot-id>`: snapshot -> new tracked machine.
-
-This makes the intended lifecycle distinction explicit: these are not merely resume operations on the source VM.
-
-### E2B snapshot materialization
+### E2B
 
 `web/services/vms/drivers/e2b.ts`
 
-- `snapshot` calls E2B `createSnapshot()`;
-- `restore` calls `Sandbox.create(snapshotId, ...)`;
-- restore then `ensureCmuxTuiRunning` on the copied filesystem;
-- no fork/restore rekey or machine-id rotation is visible before the copied daemon starts;
-- E2B uses `cmux-remote` as its only session transport;
-- public ingress relies on cmux Noise device enrollment as the session gate.
+E2B materializes a new sandbox with `Sandbox.create(image, ...)`, including when the image is a snapshot id, then bootstraps/ensures cmux-tui. The daemon runs with persistent root state. No fork/restore-specific daemon rekey or CMUX machine-id rotation is visible before the copied daemon becomes available.
 
-The E2B driver blob is also unchanged at current upstream `6044a8b3...`.
+Upstream PR #11370 independently dogfooded the live E2B product path on staging and recorded `capabilities.snapshot/fork = true`; its parity loop successfully ran `vm snapshot` and `vm fork`, observed the new E2B machine, and removed it afterwards. That is useful operational confirmation that the E2B snapshot/fork lifecycle is active, although that PR did not compare source/fork identities.
 
-E2B's own current material describes snapshots as reusable state: new sandboxes can be started from snapshots containing the configured workspace/filesystem state. This matches the CMUX driver's use of a snapshot id as a `Sandbox.create` image.
-
-### Daytona snapshot materialization
+### Daytona
 
 `web/services/vms/drivers/daytona.ts`
 
-Daytona uses the same modern `cmux-remote` model. Its source explicitly treats daemon identity under `/root` as persistent state, implements snapshot creation, creates a new sandbox from a snapshot, and then starts/ensures the copied cmux-tui daemon without a visible identity-reset step.
-
-Because Daytona has no native `fork()` implementation in the inspected provider class, the generic snapshot -> `createVm` fork path applies.
-
-This makes the mechanism multi-provider on the current modern remote stack: **E2B + Daytona**.
+Daytona uses the same modern cmux-remote daemon model, snapshots provider state, creates a new sandbox from a snapshot, and starts/ensures cmux-tui without a visible new-machine rekey step. The generic snapshot -> create fork workflow therefore presents the same identity boundary.
 
 ### Freestyle boundary
 
-Freestyle is different. Its backend has a native fork path for the legacy platform, while the beta cmux-tui platform's `fork` currently refuses and points callers at snapshot/restore semantics. The strongest current claim therefore stays on E2B and Daytona rather than generalizing to every provider.
+Freestyle has different native/beta lifecycle behavior, so this report does not generalize the strongest claim to every provider. The retained provider claim is E2B + Daytona on the modern remote stack.
 
-### Persistent daemon authority
+### Existing clean-checkpoint precedent
 
-`docs/cloud-cmux-tui-daemon.md`
+Upstream PR #9618, `Add credential-free Sprite base builder`, was closed without merge on 2026-09-01, but its implementation note is a strong design precedent: the reusable Sprite checkpoint builder deliberately kept **provider credentials, daemon identities, and enrollment secrets out of checkpoints**, and its real checkpoint verification reported daemon state absent.
 
-The Cloud design explicitly requires remote daemon state to live on persistent `/root` storage so daemon identity and enrolled devices survive sandbox resurrection. Session state is persistent there as well.
+That is the same lifecycle distinction this finding needs: reusable/new-machine materialization should not inherit machine authority merely because resurrection state normally does.
 
-`web/services/vms/drivers/cmuxTuiDaemon.ts`
+## Shared Mac trust state
 
-Container providers start cmux-tui with `HOME=/root`. There is no current fork/restore-specific rekey argument or scrub phase.
+`Sources/Cloud/CloudTuiClientPaths.swift`, `CloudMachineLink.swift`, and `CloudMachineLinkManager.swift`
 
-`cmux-tui/crates/cmux-remote/src/identity.rs`
+The ordinary macOS Cloud path uses one client identity directory and known-daemons store shared across every Cloud Machine Link. Each awake machine runs a headless `cmux-tui remote connect --headless` link through that shared store. Per-control-plane-machine fingerprint mappings are separate.
 
-The remote identity layer persists the stable static identity and device authorization database as files including `identity.json` and `devices.json` under the daemon state root.
+A new copied machine has a new control-plane VM id, so the Mac initially has no per-machine fingerprint mapping for it. Its invitation can therefore successfully pin the copied daemon fingerprint at the new route even while the copied daemon database already knows the same Mac device key.
 
-### Persistent cmux machine/session identity
+`cmux-tui/crates/cmux-remote/src/identity.rs` keys known daemons by daemon fingerprint and replaces route hints when an enrolled fingerprint is re-pinned. WSS hints are canonicalized to credential-free origins.
 
-`cmux-tui/crates/cmux-tui-core/src/workspace_registry.rs`
+`cmux-tui/crates/cmux-tui/src/remote_cli.rs` selects explicit routes as follows:
 
-`WorkspaceRegistry` carries:
+- route match -> select the daemon;
+- no match with exactly one known daemon -> sole-daemon fallback;
+- no match with multiple known daemons -> `no known daemon matches this route; connect with an invitation`.
 
-- `machine_id: MachinePublicId`;
-- `session_id: SessionPublicId`;
-- durable registry/session state in SQLite;
-- a process/runtime generation that is separately refreshed.
+That final branch is the concrete reconnect consequence exercised by D1.
 
-The state root contains a persisted `machine-id` file. Upstream tests explicitly prove that machine identity is state-root-global and survives restart, while reopening the same named session preserves its session id.
+## D1 — source route becomes undiscoverable
 
-### Durable resource-address contract
-
-`cmux-tui/spec/native-frontend.md`
-
-The persistent daemon's identity contract states:
-
-- durable resource address: `(machine_id, session_id, resource_id)`;
-- hostname/socket/relay/mount route: mutable resolution data.
-
-A copied state root therefore carries the namespace intended to identify durable resources independently of route changes. A separately managed fork needs a new machine namespace even if copied session/resource lineage is intentionally preserved.
-
-### Remote authorization contract
-
-`cmux-tui/spec/remote-daemon.md`
-
-- one daemon represents one OS-user authority;
-- it owns one stable Noise static key;
-- enrolled devices have independent application keys and revocation records;
-- route hints are not daemon authorization;
-- enrolled reconnects use the stable daemon identity.
-
-If two independent VMs copy one daemon private key and later mutate their copied device databases independently, one cryptographic daemon identity can represent two diverging authorization authorities. A separate target-native discriminator is running for this branch.
-
-### Shared Mac known-daemon state
-
-`Sources/Cloud/CloudTuiClientPaths.swift`
-
-The normal macOS Cloud implementation intentionally uses one state directory, `~/.cmuxterm/cmux-tui-client`, with **one device key + known-daemons store shared across every Cloud Machine Link**. Per-control-plane-VM fingerprints are kept separately in `vm-tui-devices.json`.
-
-`Sources/Cloud/CloudMachineLink.swift` and `CloudMachineLinkManager.swift`
-
-Each awake machine starts a headless remote link using that shared `stateDir`. The manager asks the provider for the endpoint using the per-VM saved fingerprint. A new fork/restore has a new control-plane VM id, so it initially has no per-VM fingerprint mapping and can receive an invitation even if the copied daemon database already contains the same Mac device key.
-
-After approval the new VM gets its saved mapping, while the shared remote client store pins the daemon by fingerprint.
-
-### Known-daemon route ownership
-
-`cmux-tui/crates/cmux-remote/src/identity.rs`
-
-Known daemons are keyed by daemon fingerprint. Re-pinning an already enrolled daemon replaces its route-hint list with the newly verified route list.
-
-WSS route hints are intentionally normalized to a credential-free origin, e.g. `wss://127.0.0.1:10/v1/link` becomes `wss://127.0.0.1:10/`.
-
-`cmux-tui/crates/cmux-tui/src/remote_cli.rs`
-
-`select_known_daemon` behaves as follows:
-
-- one route match -> select that daemon;
-- no match and exactly one known daemon -> existing sole-daemon fallback;
-- no match, explicit route, multiple known daemons -> `no known daemon matches this route; connect with an invitation`.
-
-That multi-daemon branch is the executed consequence below.
-
-## Proven failure sequence: source reconnect becomes undiscoverable
-
-Let:
-
-- source Cloud machine A have daemon fingerprint `D` and route `R_A`;
-- unrelated daemon C have fingerprint `D_C` and route `R_C`;
-- Mac client device M be enrolled on A;
-- new machine B be materialized from A's snapshotted state.
-
-Sequence:
-
-1. shared Mac known-daemon store contains `D -> [R_A]` and `D_C -> [R_C]`;
-2. copied machine B presents the same daemon key `D`;
-3. B has a new control-plane VM id, so the Mac has no saved per-B fingerprint mapping and receives an invitation;
-4. B's invitation flow connects/approves the existing device key and the client pins `D` at `R_B`;
-5. because `D` is already an enrolled known-daemon record, its route list becomes `[R_B]`, displacing `R_A`;
-6. source A still regards M as enrolled, so a later ordinary A endpoint may omit an invitation;
-7. the shared headless client receives explicit `R_A`, finds no matching known daemon and sees multiple known daemons;
-8. it rejects before network connection with `no known daemon matches this route; connect with an invitation`.
-
-The reconnect failure is self-created by successfully attaching the copied machine.
-
-## D1 — executed target-native route discriminator
-
-Owned CMUX PR: `teamleaderleo/cmux#19`  
-Canonical test-only artifact: `teamleaderleo/cmux#9`  
-Exact test head: `f4c6dc6b030b929eb89212c4db19c2f373e2f8ae`  
-Execution baseline production tree: upstream `8ef183f1e5de765b183aec9d1799f17a0848ae84` plus the test file only  
+Owned execution PR: `teamleaderleo/cmux#19`  
+Canonical test artifact: `teamleaderleo/cmux#9`  
+Exact head: `f4c6dc6b030b929eb89212c4db19c2f373e2f8ae`  
 Actions run: `33552460852`  
 Job: `100004976839`
 
-The focused Rust job passed **3/3**:
+Focused result: **3 passed; 0 failed**.
 
-- `cloned_daemon_repin_orphans_source_route_when_another_daemon_is_known` — PASS;
-- `sole_shared_daemon_uses_the_existing_single_daemon_fallback` — PASS;
-- `distinct_fork_daemon_identity_preserves_source_route_selection` — PASS.
+Passing cases:
 
-The final test result was `3 passed; 0 failed`.
+- `cloned_daemon_repin_orphans_source_route_when_another_daemon_is_known`;
+- `sole_shared_daemon_uses_the_existing_single_daemon_fallback`;
+- `distinct_fork_daemon_identity_preserves_source_route_selection`.
 
-An earlier run stopped on a harness assertion because the test expected the full WSS `/v1/link` URL while CMUX correctly canonicalizes route hints to the origin. That run was useful evidence of the route rewrite itself, but it did not reach the route-selection assertion. The corrected run uses the product's canonical route representation and is the retained receipt.
+The candidate sequence is:
 
-### What D1 proves
+1. source A is known as fingerprint D at route A;
+2. unrelated daemon C is also known;
+3. copied machine B presents D and is successfully attached/enrolled at route B;
+4. the shared client store re-pins D to B's route, replacing A's route hint;
+5. A still regards the Mac device as enrolled and can legitimately omit a new invitation;
+6. explicit route A now has no known-daemon match while multiple daemons exist;
+7. selection fails locally with the invitation-required error before connection.
 
-D1 proves the local product mechanism, including the negative controls:
+The distinct-fingerprint control preserves A's route. The sole-daemon control explains why a simpler smoke test can miss the failure.
 
-- one daemon fingerprint re-pinned from source route to copied-machine route displaces source ownership;
-- the source route then hits the exact multi-daemon invitation-required error;
-- a distinct fork daemon key prevents the failure;
-- the one-daemon fallback explains why a simple two-machine smoke test can miss it.
+An earlier D1 run stopped on a harness expectation that retained `/v1/link`; CMUX correctly canonicalizes WSS route hints to the origin. The corrected test uses the product's canonical route and is the retained receipt.
 
-D1 does **not** by itself prove a hosted E2B/Daytona snapshot physically copied the daemon file. That premise is supported separately by provider snapshot semantics plus the current file/state placement.
+## D2 — one daemon fingerprint, two revocation histories
 
-## D2 — copied authorization split-brain discriminator
+Owned execution PR: `teamleaderleo/cmux#21`  
+Exact head: `cd0dfde9d63d407df29552789efead7b18ee35d0`  
+Actions run: `33552781912`  
+Job: `100006092106`
 
-Owned CMUX PR: `teamleaderleo/cmux#21`
+Focused test:
 
-The test uses real `AuthDatabase` and `ServerAuthenticator` APIs:
+`copied_auth_database_creates_split_brain_revocation_under_one_daemon_fingerprint`
 
-1. create a daemon and enroll a real generated client key through invitation + approval;
-2. stop the database owner;
-3. copy only `identity.json` and `devices.json` into a second state root;
+Result: **1 passed; 0 failed** in 0.06 s.
+
+The test uses the real `AuthDatabase` / server authenticator path:
+
+1. create a daemon and enroll a generated client device through invitation + approval;
+2. close the database owner cleanly;
+3. copy only `identity.json` and `devices.json` into another state root;
 4. reopen source and copy;
-5. confirm the same daemon fingerprint and initially active device on both;
-6. revoke the device on source;
-7. require source enrolled auth to fail;
-8. ask the copy to authorize the same enrolled device under the same daemon fingerprint.
+5. confirm both present the same daemon fingerprint and initially authorize the same device;
+6. revoke that device on source A;
+7. confirm A rejects enrolled auth;
+8. confirm copied B still authorizes the same device under the same daemon fingerprint.
 
-Status: **running** at this report revision. No result claimed yet.
+This is the deeper authority result: after copying state, one cryptographic daemon identity can represent two independently diverging authorization histories.
 
-## D3 — copied durable machine/session identity discriminator
+It also tightens the repair policy. Rotating only `identity.json` while retaining copied `devices.json` would give B a new daemon fingerprint while still inheriting every source enrollment. Whether that is desirable must be an explicit product decision; fresh enrollment is the safer default for a new independently managed machine.
 
-Owned CMUX PR: `teamleaderleo/cmux#22`
+## D3 — copied durable CMUX machine/session namespace
 
-The test uses public `WorkspaceRegistry` behavior:
+Owned execution PR: `teamleaderleo/cmux#22`  
+Exact green head: `fb172dc2689d0cff1c0a5af58608549afe47a85b`  
+Actions run: `33554899740`  
+Job: `100013202491`
 
-1. open source state root and record `MachinePublicId` + `SessionPublicId`;
-2. same-root restart control must preserve both;
-3. recursively copy the closed state root into a new root and reopen the same session;
-4. compare machine/session identities;
-5. fresh-root negative control must receive independent identities.
+Focused test:
 
-Status: **running** at this report revision. No result claimed yet.
+`copied_workspace_state_root_preserves_machine_and_session_identity`
 
-## Provider/product evidence boundary
+Result: **1 passed; 0 failed** in 0.04 s.
+
+The test exercises public `WorkspaceRegistry` behavior:
+
+1. open source state and record `MachinePublicId` + `SessionPublicId`;
+2. same-root restart preserves both — resurrection control;
+3. copy the closed state root into a separate root and reopen the same session;
+4. copied root preserves the same machine and session IDs;
+5. a fresh root receives independent machine and session IDs — negative control.
+
+The first D3 run did not reach product assertions: the test failed to compile because the fresh-root control passed a `PathBuf` where `&Path` was required. The one-character borrow fix produced the green result above.
+
+The persistence layout gives a useful repair seam. `WorkspaceRegistry::open(root, session)` loads the root-level `machine-id` separately from the session SQLite database. A new-machine transition can therefore rotate the machine namespace while intentionally preserving copied session IDs, resource IDs, journals, and history.
+
+## Evidence boundary
 
 ### Established
 
-- `vm fork` is a new-machine operation; generic non-Freestyle fork is snapshot -> `createVm`.
-- `vm restore` is documented as snapshot -> new tracked machine and also creates a new VM from the owned snapshot.
-- E2B and Daytona materialize new sandboxes from snapshot state and start/ensure cmux-tui with no visible new-machine rekey step.
-- daemon identity/device state and cmux machine/session state are deliberately persisted in the copied user/root state.
-- current upstream still has the E2B no-rekey restore path; the relevant E2B and generic workflow blobs are unchanged from the pinned execution baseline.
-- the Mac uses one known-daemon state store across ordinary Cloud machine links.
-- the route-repin reconnect consequence is target-native and executed with controls.
+- Fork and restore are product-level new-machine operations.
+- E2B and Daytona materialize new machines from copied snapshot state and start/ensure cmux-tui without a visible new-machine rekey phase.
+- CMUX deliberately persists daemon authority and durable machine/session identity in the copied state.
+- Ordinary Mac Cloud links share one known-daemon store.
+- D1 executes the client route-repin/source-reconnect failure with controls.
+- D2 executes split-brain device revocation under one daemon fingerprint.
+- D3 executes duplicate durable machine/session identity under a copied state root, with restart and fresh-root controls.
+- Current upstream main has not changed the mechanisms under test.
+- No matching upstream issue or PR was found for this exact snapshot-materialization identity collision at completion time.
 
 ### Still unexecuted
 
-- a live product-path E2B or Daytona source -> snapshot materialization -> compare daemon fingerprint/machine id run;
-- live source/fork UI sequence after the copied machine's first attach;
-- current production frequency / how many users have >1 unrelated known daemon when using E2B/Daytona.
+- a live E2B or Daytona source -> snapshot/fork/restore -> direct fingerprint and machine-id comparison;
+- the full human-visible source-A / copied-B reconnect sequence in a tagged macOS app;
+- production frequency and how commonly users have the multi-daemon known-store condition that exposes D1.
 
-These hosted checks would strengthen operational evidence, but the local mechanism no longer depends on speculation about client behavior.
-
-## Adjacent capability mismatch
-
-Provider capability reporting currently defines `fork` from a provider's native `fork()` method, so E2B/Daytona can advertise `fork: false` even though the backend generic fork workflow can snapshot and create them.
-
-The current CLI/socket path can send `vm.fork` directly, and the REST fork endpoint runs the generic workflow. This means GUI capability hiding and CLI/backend behavior can disagree. Keep this as a separate adjacent bug; it is not needed for the identity finding.
+Those checks would improve operational frequency evidence. They are no longer required to establish the local identity model or the consequences of copied state. The scout stop condition is satisfied with bounded hosted uncertainty.
 
 ## Repair boundary
 
-A client-only accommodation such as keeping multiple route hints under one fingerprint would make D1 disappear while preserving the deeper identity collision. That is the wrong first owner.
+A client-only accommodation such as keeping multiple Cloud routes under one daemon fingerprint would make D1 harder to trigger while preserving the D2 authority collision. The first repair owner should be the **new-machine snapshot materialization transition**.
 
-The clean transition owner is **snapshot materialization into a new tracked machine**, because this layer uniquely knows the difference between:
+A narrow product repair can preserve the useful copied workspace while separating machine authority:
 
-- resurrection/resume of the same logical machine — preserve identity;
-- fork/restore into a new logical machine — establish new machine-scoped identity.
+1. before the copied daemon accepts network connections, rotate/regenerate the remote daemon static identity;
+2. rotate the root-level CMUX `machine-id`;
+3. explicitly choose the enrollment policy — safest default: clear copied enrolled-device authority and require fresh enrollment for the new machine;
+4. retain session/resource IDs and copied journals when desired, because the new `machine_id` already creates a distinct durable address namespace;
+5. make the transition idempotent against the new control-plane machine id so provider retries cannot rotate identity repeatedly;
+6. perform the transition through CMUX-owned APIs that respect the auth DB lease, file locks, permissions, and atomic-write rules instead of provider shell code deleting private files.
 
-The minimal policy to evaluate after D2/D3 settles is:
+An idempotent marker provides a clean model: copied state records source machine A; materializing B sees a different control-plane identity, performs the offline rekey, and commits marker B last. Retrying B is a no-op. Materializing C from B's snapshot rekeys again.
 
-1. rotate/regenerate the remote daemon static identity before the copied daemon accepts network connections;
-2. establish a new cmux `machine-id` namespace before opening the copied registry;
-3. decide explicitly whether copied enrolled-device records should be retained under the new daemon key or require fresh enrollment;
-4. preserve session/resource IDs when useful for copied history because a new `machine_id` already gives them an independent durable address namespace;
-5. expose this as a purpose-built clone/rekey transition rather than provider code deleting implementation-private files by hand.
+Existing `session reset-state` is intentionally not this operation: it removes one session's saved state/terminal-host state while the root machine identity survives. A clone-rekey operation should do the inverse kind of ownership work — rotate root machine authority while preserving session history.
 
-This avoids throwing away the useful part of a fork—files, terminals/history/checkpoints—while separating machine authority and durable machine identity.
+The root-level resource-effect pepper was inspected and is not included in this finding. Copied mutation/idempotency history may be legitimate clone lineage; rotating the machine namespace is enough to separate durable addresses. Keep that decision separate unless a concrete receipt collision is demonstrated.
 
-## Competing explanations ruled out or bounded
+## Why this is a strong fieldwork target
 
-- **"The outer control-plane VM id already namespaces everything."** It protects several Mac catalog/UI paths, but the remote client known-daemon store is explicitly shared and keyed by daemon fingerprint; D1 executes the resulting collision. CMUX's own durable resource contract also defines an inner machine identity independent of route.
-- **"The copied machine will just reuse the old per-VM fingerprint mapping."** It cannot: B has a new control-plane VM id. The mapping is per VM id, so first B attach can mint an invitation and re-pin the shared daemon fingerprint.
-- **"One daemon fallback prevents the bug."** Only when the shared store contains exactly one known daemon. D1 retains that as a negative control and proves the failure appears once another known daemon exists.
-- **"This is E2B-only."** Daytona has the same modern cmux-remote + snapshot materialization pattern. Freestyle is separately bounded above; Blaxel remains the default and does not currently expose this snapshot/fork path.
-- **"Snapshot restore is merely resurrection."** CMUX's own command contract calls restore a new tracked machine, and fork is a parallel clone. Same-machine resume is a separate provider operation.
+This has the consequence/provability combination the programme is looking for:
 
-## Current assessment
-
-**Consequence:** high for affected snapshot-materialization paths. A successful new-machine attach can strand the source's ordinary Cloud link in a shared trust store; copied machine authority also has a plausible split-revocation branch under active test.
-
-**Provability:** high. The reconnect mechanism is target-native with explicit positive/negative controls; snapshot state copying and persisted identity placement are direct provider/source contracts. Two independent identity tests are running.
-
-**Reach:** narrower than default Blaxel Cloud usage, but not singular: modern E2B and Daytona paths plus both fork and restore materialization.
-
-**Repair scope:** bounded conceptually. The key design decision is a purpose-built new-machine rekey transition before daemon attach, with copied workspace history kept separately from machine authority.
+- **consequence:** source reconnect failure, duplicated machine trust identity, split revocation authority, and duplicate durable machine namespace across independently managed Cloud machines;
+- **provability:** three small target-native tests with controls, exact commit/run receipts, current-main freshness check, and provider lifecycle source that composes directly with those semantics;
+- **repair ownership:** one explicit lifecycle boundary knows whether copied storage means resurrection or a new machine;
+- **scope discipline:** no cross-account claim, no frequency claim, no claim that a hosted identity comparison has already run.
 
 ## Stop condition
 
-Promote to ready-for-synthesis when D2 and D3 either:
+Satisfied. The snapshot-identity premise survives source review; all three local discriminators execute the predicted consequences with negative controls; current main remains materially unchanged; hosted product-path identity comparison is retained as an operational follow-up, not a prerequisite to the finding.
 
-- execute as predicted, giving independent authorization and durable-identity evidence; or
-- reveal a product fence that materially weakens the clone premise.
-
-A hosted E2B/Daytona run remains desirable for operational proof but is not required to retain D1 as an executed product-mechanism finding.
+Third-party upstream remains read-only.
