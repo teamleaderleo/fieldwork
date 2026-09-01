@@ -4,32 +4,30 @@ Date: 2026-09-01
 Programme: high-leverage-open-source  
 Upstream contact authorized: `false`
 
-## In simple words
+## Verdict
 
-A golden candidate clears the consequence/proofability bar: ssh-tmux silently drops an entire paste at a deterministic byte boundary. The upstream report gives an exact discriminator: 9,994 bytes arrive, while 9,995 bytes yield zero bytes. Current `main` still encodes one logical input event as one hex-expanded `tmux send-keys -H` control command, so the failing path remains live.
+**Golden candidate selected:** refresh/extract the active ssh-tmux large-paste fix onto current `main`.
 
-There is already strong active upstream work for this lane. The contribution target is a **current-main refresh/extraction of the paste slice from the existing PR**, plus an independent writer-level regression, instead of a competing rewrite.
+The bug is silent total input loss at an exact byte boundary. The upstream report records 9,994 pasted bytes arriving intact and 9,995 yielding zero bytes. Current `main` still encodes one logical send as one hex-expanded `tmux send-keys -H` control command, so the reported failure path remains live.
 
-## Question
-
-Can the active ssh-tmux send-key batching fix be isolated onto exact current `main` with a deterministic red/green proof for the reported 9,995-byte silent-loss boundary?
+There is already serious active upstream work. The contribution lane is a current-main extraction/refresh of that paste slice, plus an independent writer-level 9,995-byte discriminator, rather than a competing implementation.
 
 ## Exact upstream state
 
 Repository: `manaflow-ai/cmux`  
 Issue: https://redirect.github.com/manaflow-ai/cmux/issues/10943  
-Existing active candidate: https://redirect.github.com/manaflow-ai/cmux/pull/11219  
-Current-main revision pinned for this scout: `6b425641ae4d474e77854da535442af2a0d0a475`  
-Existing candidate base: `aafe92ec5864ac21cf60860f3cbf97045b60c8de`  
-Existing candidate head: `6405524991a5d7d03a73ca60cb495eb2f5e30ba5`
+Existing active PR: https://redirect.github.com/manaflow-ai/cmux/pull/11219  
+Current-main revision pinned for this handoff: `eaa899cb20bd411019744fbd2bdedeb397f3070b`  
+Existing PR base: `aafe92ec5864ac21cf60860f3cbf97045b60c8de`  
+Existing PR head: `6405524991a5d7d03a73ca60cb495eb2f5e30ba5`
 
-At the final implementation refresh point:
+At the final refresh point:
 
 - issue 10943 remained open;
 - PR 11219 remained open;
-- current `main` still used the same unchunked `sendKeys` production owner as the existing PR base;
-- the upstream commits that landed during this scout changed docs, TUI, release, and related files, while the selected paste owners and wired test owner stayed unchanged;
-- the selected implementation therefore represents branch-age refresh work, with no competing rewrite discovered in the current paste owners.
+- current `main` still had the same unchunked `sendKeys` owner as the existing PR base;
+- the final upstream move from `6b425641ae4d474e77854da535442af2a0d0a475` to `eaa899cb20bd411019744fbd2bdedeb397f3070b` changed only `cmux-tui/crates/cmux-tui-core/src/server.rs`;
+- none of the six selected paste source/test owners changed in that move.
 
 ## Candidate ranking
 
@@ -42,14 +40,14 @@ At the final implementation refresh point:
 
 ## Source-confirmed boundary
 
-Current `Sources/RemoteTmuxControlConnection+Commands.swift` takes all bytes from one logical send, expands every byte to lowercase hex arguments, and calls `sendInternal` once with one `send-keys -H` command. The issue's exact 9,994/9,995-byte observation maps directly onto that production owner.
+Current `Sources/RemoteTmuxControlConnection+Commands.swift` takes all bytes from one logical send, expands every byte to lowercase hex arguments, and calls `sendInternal` once with one `send-keys -H` command.
 
-The issue records the wire math for a single-digit pane identifier:
+The upstream issue records the exact command-length discriminator for a single-digit pane identifier:
 
-- 9,994 raw bytes expand to a 30,000-character command and arrive intact;
-- 9,995 raw bytes expand to a 30,003-character command and the remote receives zero bytes.
+- 9,994 raw bytes -> 30,000-character command -> 9,994 bytes received;
+- 9,995 raw bytes -> 30,003-character command -> zero bytes received.
 
-The active PR introduces `RemoteTmuxSendKeysBatchBuilder` with an 8 KiB raw-byte command chunk, a 256 KiB logical-input admission limit, and a writer budget sized for the fully encoded logical event. Its app adapter sends the generated command list through the existing atomic batch enqueue path, avoiding a partial logical paste under writer backpressure.
+The selected paste slice introduces `RemoteTmuxSendKeysBatchBuilder` with an 8 KiB raw-byte command chunk, a 256 KiB logical-input admission limit, and a writer budget sized for the fully encoded logical event. Its app adapter sends the generated command list through the existing atomic batch enqueue path, preserving one logical admission decision under writer backpressure.
 
 ## Production and test owners
 
@@ -64,67 +62,110 @@ The owned refresh changes six files:
 
 ## Overlap decision
 
-The selected implementation is an extraction of the ssh-tmux paste/input slice from the active upstream PR, with one independent exact-boundary behavior test. The upstream PR bundles recovery and Codex-hook work alongside the paste fix; this owned-fork candidate carries only the paste production owners and paste tests needed on current `main`.
+The selected implementation is an extraction of the ssh-tmux paste/input slice from active PR 11219, with one independent exact-boundary behavior test. The upstream PR bundles SSH recovery and Codex-hook work alongside the paste fix; the owned candidate carries only the paste production owners and paste tests needed for this lane.
 
-This keeps priority on technically serious existing work while supplying a current-main proof receipt.
+The active upstream review also contains an unresolved CodeRabbit ownership finding against the new static-only `RemoteTmuxSendKeysBatchBuilder`. Current repository guidance in `.github/review-bot-rules/no-ambient-global-state.md` supports that concern: production behavior should live on a constructable/injectable/testable owner instead of a static-helper namespace. A repair was prepared on a superseded owned branch, but the final exact-current PR intentionally remains a faithful paste-slice extraction. Upstream acceptance of that static-only design is therefore **Unknown**, and the owned PR remains draft.
 
-## Owned-fork candidate
+## Owned-fork state
 
 Owned repository: `teamleaderleo/cmux`  
-Owned exact-base branch: `fieldwork/upstream-main-6b425641`  
-Owned candidate branch: `fix/ssh-tmux-sendkeys-current-main`  
-Owned draft PR: https://github.com/teamleaderleo/cmux/pull/3
+Owned exact-base branch: `fieldwork/upstream-main-eaa899cb`  
+Owned candidate branch: `fix/ssh-tmux-sendkeys-eaa899cb`  
+Owned draft PR: https://github.com/teamleaderleo/cmux/pull/4
 
-Red commit: https://github.com/teamleaderleo/cmux/commit/4719143f4a21ab2442397efe70643435c1f604f6  
-Green commit: https://github.com/teamleaderleo/cmux/commit/a732c5994bb2a698a7330bb0516210411d9ca298
+Red commit: https://github.com/teamleaderleo/cmux/commit/f87269d4f7e67ed3fa8fcea52c4fc375bc669ce5  
+Green commit: https://github.com/teamleaderleo/cmux/commit/dd4c6bb4d8c61be2ce1356a86780e6821e940e42
 
 Ancestry:
 
-- red parent = exact upstream `6b425641ae4d474e77854da535442af2a0d0a475`;
-- green parent = red `4719143f4a21ab2442397efe70643435c1f604f6`;
+- red parent = exact upstream `eaa899cb20bd411019744fbd2bdedeb397f3070b`;
+- green parent = red `f87269d4f7e67ed3fa8fcea52c4fc375bc669ce5`;
 - candidate is exactly two commits ahead of the owned exact-base branch.
 
 The red commit changes only the already-wired `cmuxTests/RemoteTmuxAuthTests.swift`. The green commit adds the four production paste owners, the active PR's package framing tests, and its app-level admission/backpressure test migration while retaining the independent 9,995-byte behavior check. No Xcode project-file edit is required.
 
+Superseded owned PR https://github.com/teamleaderleo/cmux/pull/3 was closed. Its delayed repair workflow can only touch the obsolete branch and cannot alter final PR 4.
+
 ## Discriminating proof
 
-The red regression sends exactly 9,995 deterministic bytes through a real `RemoteTmuxControlConnection` wired to a real `RemoteTmuxControlPipeWriter`. It captures newline-delimited control commands and requires all of these properties:
+The regression sends exactly 9,995 deterministic bytes through a real `RemoteTmuxControlConnection` wired to a real `RemoteTmuxControlPipeWriter`. It captures newline-delimited control commands and requires:
 
-1. the logical send is accepted;
-2. at least two wire commands are emitted;
-3. every emitted command is below 30,000 UTF-8 bytes;
+1. logical send accepted;
+2. at least two wire commands emitted;
+3. every emitted command below 30,000 UTF-8 bytes;
 4. decoding and concatenating all hex arguments reproduces the original 9,995 bytes exactly.
 
-On red, current-main production code emits one oversized command for the logical event, so command count and maximum command size discriminate the failure. On green, the extracted builder emits bounded ordered chunks and the existing batch writer enqueues them as one logical payload.
+On the red source, current production emits one 30,003-byte command for that logical event. On green, the extracted builder emits two bounded ordered commands.
 
-The active PR's retained package tests independently cover empty input, lowercase hex framing, nonzero-based `Data` slices, maximum-input writer budgeting including terminators, and rejection one byte above the logical input limit.
+A retained source-level execution probe using the exact current framing formula and extracted builder logic records:
 
-Fork verifier: https://github.com/teamleaderleo/cmux/actions/runs/33535960544  
-CI result: **Queued at this record update.** The owned runner is occupied by a superseded earlier scout verifier; only run `33535960544` is authoritative for this exact-current candidate.
+- current 9,994-byte command = 30,000 bytes;
+- current 9,995-byte command = 30,003 bytes;
+- green 9,995-byte command count = 2;
+- largest green command for that fixture = 24,594 bytes;
+- green byte-for-byte reconstruction = true;
+- maximum logical input = 262,144 bytes;
+- maximum encoded writer payload observed by the probe = 787,040 bytes;
+- production writer budget = 1,048,576 bytes;
+- one byte above the logical input limit is rejected.
 
-Verifier configuration lives on the owned default branch outside the candidate diff. It checks exact ancestry, requires the red test to fail at a Swift Testing expectation, runs the focused green writer tests, runs the package framing suite and full package tests, then executes repository guards.
+Retained probe: `programmes/high-leverage-open-source/scouts/cmux-ssh-tmux-paste-refresh/source-framing-probe.json`.
+
+## CI result
+
+### App-host verifier
+
+Owned Fieldwork run: https://github.com/teamleaderleo/fieldwork/actions/runs/33536448895  
+Job id: `99951817878`  
+Evidence label: `target-executed-blocked`
+
+The run successfully completed exact checkout/ancestry validation, Xcode selection, Bun/GhosttyKit/Zig/Rust setup, DerivedData setup, and Swift package resolution. The red regression then **did not execute** because the current app target failed compiling unrelated `Sources/TerminalController+Extensions.swift` code first.
+
+Observed missing socket-routing symbols included:
+
+- `SocketRequestTransactionContext`;
+- `SocketResponseReadbackPolicy`;
+- `requestContextRegistry`;
+- `requestResponseRoutingRegistry`;
+- `SocketResponseRoutingClient`.
+
+The red commit touches only `cmuxTests/RemoteTmuxAuthTests.swift`, so this compile gate is outside the candidate diff. Current-main code search produced no defining result for the named missing socket-routing types/registries. Root cause of that upstream compile break is **Unknown**.
+
+Retained diagnosis: `programmes/high-leverage-open-source/scouts/cmux-ssh-tmux-paste-refresh/ci-diagnosis.json`.
+
+### Package tests and repository guards
+
+Owned macOS package verifier: https://github.com/teamleaderleo/fieldwork/actions/runs/33537874789  
+Owned Linux package verifier: https://github.com/teamleaderleo/fieldwork/actions/runs/33538090467
+
+At handoff both remained queued without a runner. Their result is **Unknown**. No green package/guard claim is made.
+
+### CI summary
+
+- source-level framing discriminator: **PASS** (`source-model-executed`);
+- exact candidate ancestry: **PASS** on the executed app-host verifier for the immediately preceding current-main pin; the final upstream delta touched only cmux-tui and final PR 4 was rebuilt directly on `eaa899cb20bd411019744fbd2bdedeb397f3070b`;
+- macOS app-host red/green regression: **BLOCKED before test execution** by unrelated current-main compile errors;
+- package framing/full package tests: **Unknown / queued**;
+- repository guards: **Unknown / queued**.
 
 ## Claim-scoped evidence
 
-- Current upstream revision and current production implementation: `source-read`.
-- 9,994-byte success / 9,995-byte total-loss boundary: `upstream-report`; an independent live remote-host reproduction in this scout is **Unknown**.
-- Existing PR design, test claims, base/head, and active state: `upstream-pr-report` plus `source-read` of its paste files.
-- Current-main candidate ancestry and six-file diff: `fork-authored` plus GitHub compare evidence.
-- Red/green focused regression execution: **Pending** until authoritative fork run `33535960544` completes.
-- Package framing/full package tests and repository guards: **Pending** until authoritative fork run `33535960544` completes.
-- The precise tmux-internal implementation source of the observed 30,000-character control-command ceiling: **Unknown**. The exact externally observed boundary and current one-command encoding provide the required discriminator.
-- Maintainer preference for the extracted refresh versus the existing bundled PR: **Unknown**.
-- Upstream submission, comment, label, push, review, or other mutation from this scout: absent.
+- current upstream revision and current production implementation: `source-read`;
+- 9,994 success / 9,995 total-loss boundary: `upstream-report`; independent live remote-host reproduction in this scout is **Unknown**;
+- existing PR design, base/head, tests, review state: `upstream-pr-report` plus `source-read`;
+- current-main candidate ancestry and six-file diff: `fork-authored`;
+- exact framing math and extracted builder round-trip: `source-model-executed`;
+- app-host compilation attempt: `target-executed-blocked`;
+- package tests and guards: **Unknown** at handoff because owned runs remained queued;
+- precise tmux-internal origin of the observed 30,000-character control-command ceiling: **Unknown**;
+- maintainer preference for the extracted refresh versus bundled PR 11219: **Unknown**;
+- upstream submission, comment, label, push, review, or other mutation from this scout: absent.
 
-## Current conclusion
-
-**Golden candidate selected: refresh/extract the active ssh-tmux large-paste fix onto current main.**
+## Scores
 
 Consequence: **5/5**. An entire paste can disappear silently in a remote terminal workflow at a deterministic boundary.  
-Proofability: **5/5**. The exact 9,995-byte fixture discriminates the real control writer by command count, maximum wire-command size, and byte-for-byte reconstruction.
-
-The candidate is isolated on the owned fork with an exact-base red/green split and a draft owned PR. Upstream contact authorization remains `false`.
+Proofability: **5/5**. The 9,995-byte fixture has a crisp wire-level discriminator: command count, maximum command size, and exact byte reconstruction.
 
 ## Stop condition
 
-Implementation is complete on the owned fork. The remaining execution gate is the authoritative fork verifier. No upstream mutation is authorized.
+Satisfied for scouting and owned-fork implementation. A golden candidate exists and is isolated on exact current main. CI has a retained upstream compile blocker and queued package/guard runs, so those claims remain scoped accordingly. Upstream contact authorization stays `false`.
