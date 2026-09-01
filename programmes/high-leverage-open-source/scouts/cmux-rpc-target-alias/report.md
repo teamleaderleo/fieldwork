@@ -8,9 +8,11 @@ Upstream contact authorized: `false`
 
 **Active golden candidate:** raw v2 RPC target-selector aliases can be silently ignored, widening an explicitly targeted request into focused-surface fallback.
 
-The upstream report proves the read-side failure on released cmux: `surfaceId` is ignored by `surface.read_text` / `terminal.replay`, and the request returns `ok:true` with the human's focused terminal contents. Current `main` still has the same selector and dispatch seams. Source inspection also shows mutating terminal methods (`terminal.input`, `terminal.paste`, scroll, mouse) traverse the same raw parameter dictionary without a method-level unknown-key gate.
+The upstream report proves the read-side failure on released cmux: `surfaceId` is ignored by `surface.read_text` / `terminal.replay`, and the request returns `ok:true` with the human's focused terminal contents. Current `main` retains the same selector and dispatch behavior. Source inspection also shows mutating terminal methods (`terminal.input`, `terminal.paste`, scroll, mouse) traverse the same raw parameter dictionary.
 
-A current-main red regression is prepared on the owned fork to answer the high-consequence discriminator directly and safely: does `terminal.input` with bogus camelCase `surfaceId` inject a marker into an isolated focused `/bin/cat` terminal? The macOS verifier is queued. Until that executes, the write-side cross-target consequence remains `Unknown`; the read-side cross-target consequence is established by the upstream runtime report plus current-source continuity.
+The owned fork now carries a three-commit candidate on exact current upstream: an isolated app-host mutation regression, a pure parser regression, then a parser-level fail-closed repair. Portable red→green proof is wired against immutable commit SHAs; an app-host red→green lane separately attempts to prove the wrong-terminal write consequence.
+
+Until the app-host lane executes through the current app target, the write-side cross-target consequence remains `Unknown`; the read-side cross-target consequence is established by the upstream runtime report plus current-source continuity.
 
 ## Exact upstream state
 
@@ -18,13 +20,13 @@ Repository: `manaflow-ai/cmux`
 Issue: https://redirect.github.com/manaflow-ai/cmux/issues/10910  
 Current-main revision: `eaa899cb20bd411019744fbd2bdedeb397f3070b`
 
-The immediately preceding revision was `6b425641ae4d474e77854da535442af2a0d0a475`. The move to `eaa899cb20bd411019744fbd2bdedeb397f3070b` changes cmux-tui socket-start-lock handling; the selected raw-RPC owners and regression owner remain unchanged.
+The immediately preceding revision was `6b425641ae4d474e77854da535442af2a0d0a475`. The move to `eaa899cb20bd411019744fbd2bdedeb397f3070b` changes cmux-tui socket-start-lock handling; the selected raw-RPC owners and regression owners remain unchanged.
 
 ## Scores
 
-Consequence: **5/5 for the established read leak; write-side escalation pending executable proof.** A misspelled explicit target can return a different human-focused terminal while claiming success. If the red mutation test executes as source inspection predicts, arbitrary text can also be delivered to the focused terminal under the same caller mistake.
+Consequence: **5/5 for the established read leak; write-side escalation pending executable proof.** A misspelled explicit target can return a different human-focused terminal while claiming success. If the mutation regression executes as source inspection predicts, arbitrary text can also be delivered to the focused terminal under the same caller mistake.
 
-Proofability: **5/5.** The discriminator is a single malformed selector and a marker in an isolated `/bin/cat` surface: pre-fix either the request succeeds and the marker appears in the focused surface, or it fails closed before terminal input executes.
+Proofability: **5/5.** The parser defect has an exact one-request discriminator, and the write-side discriminator is a unique marker in an isolated `/bin/cat` surface.
 
 ## Current-source evidence
 
@@ -53,15 +55,17 @@ A camelCase target such as `surfaceId` is therefore absent from the routing-sele
 
 There is no method-level unknown-key rejection at that dispatcher boundary.
 
-### Socket execution-policy boundary
+### Common parser choke point
 
-`TerminalController+ControlSocketAsync.swift` parses the v2 envelope, authorizes remote relay, selects worker/main execution policy, then dispatches the parsed request. `surface.read_text` has a worker-policy path, while `terminal.input` reaches the main path. A selector-alias gate placed immediately after strict envelope parsing can protect both lanes before either worker/main execution path sees the request.
+`ControlRequestParser` is shared by the v2 control path before worker/main execution selection. Its pre-fix behavior accepts an arbitrary params dictionary and therefore loses the distinction between “no target supplied” and “caller supplied a target under an ignored spelling.”
+
+The candidate repair now lives here rather than in the app dispatcher. That protects sync/async and worker/main paths before focus fallback can occur.
 
 ### Existing project precedent
 
-`MobileHostService+TicketAuthorization.swift` already rejects ignored alias parameters `workspaceID` and `terminalID` as unsafe. That is direct project precedent for the selected repair policy. `surfaceId` and `tabId` are absent from that narrow legacy list.
+`MobileHostService+TicketAuthorization.swift` already rejects ignored alias parameters `workspaceID` and `terminalID` as unsafe. That is direct project precedent for the selected repair policy. `surfaceId` and `tabId` were absent from that narrow legacy list.
 
-The repo does not currently expose a single method→allowed-parameter schema suitable for generic rejection of every unknown key. Therefore the selected candidate is deliberately narrower than the full upstream issue request: **fail closed on aliases of known target selectors**. Arbitrary unrelated unknown keys such as `totally_bogus_key` remain outside this slice unless a reusable schema owner is found.
+The repo does not currently expose a single method→allowed-parameter schema suitable for generic rejection of every unknown key. Therefore this candidate is deliberately narrower than the full upstream issue request: **fail closed on aliases of known target selectors**. Arbitrary unrelated unknown keys such as `totally_bogus_key` remain outside this slice.
 
 ## Overlap
 
@@ -77,49 +81,97 @@ Severe claimed lane retained for triage: deep recursive process-tree crash https
 
 Owned repo: `teamleaderleo/cmux`  
 Exact-base branch: `fieldwork/upstream-main-eaa899cb`  
-Candidate branch: `fieldwork/rpc-target-keys-10910`
+Candidate branch: `fieldwork/rpc-target-keys-10910`  
+Owned draft PR: https://github.com/teamleaderleo/cmux/pull/5
 
-Red commit: https://github.com/teamleaderleo/cmux/commit/702784686141f453454fea2afcda15c9b9573753
+Exact three-commit sequence:
 
-The red commit changes only the already-wired `cmuxTests/SocketTerminalBindingRegressionTests.swift`.
+1. app-host red regression: https://github.com/teamleaderleo/cmux/commit/702784686141f453454fea2afcda15c9b9573753
+2. parser red regression: https://github.com/teamleaderleo/cmux/commit/0f4e0144398cfda3efd096bc68a560f7b9f2e220
+3. production repair: https://github.com/teamleaderleo/cmux/commit/a36ffbe0b8c3acedeb7ab82454ae6cec65ec5d06
+
+The candidate is exactly three commits ahead of upstream and changes five files. Fork-only CI remains on the fork default branch and is absent from the candidate diff.
+
+### App-host discriminator
+
+The first red commit changes only the already-wired `cmuxTests/SocketTerminalBindingRegressionTests.swift`.
 
 The regression creates an isolated live replacement `TerminalSurface` with `/bin/cat`, then sends an actual async socket-execution-policy request:
 
 - method: `terminal.input`;
 - params: bogus `surfaceId` plus a unique marker.
 
-Desired behavior is `invalid_params` and marker absence. Pre-fix source inspection predicts `ok:true` plus marker delivery to the focused terminal; the test records that as an explicit failure if observed.
+Desired behavior is `invalid_params` and marker absence. Pre-fix source inspection predicts `ok:true` plus marker delivery to the focused terminal; the test records that exact observation as an explicit failure if it occurs.
 
-Fork-owned verifier workflow: https://github.com/teamleaderleo/cmux/blob/main/.github/workflows/fieldwork-rpc-target-verifier.yml  
-Current red verifier run: https://github.com/teamleaderleo/cmux/actions/runs/33540062202
+### Pure parser discriminator
 
-The workflow checks out the candidate directly on `macos-15`, selects the repo's CI Xcode, installs the same toolchain/dependencies used by cmux CI, resolves Swift packages, runs only `SocketTerminalBindingRegressionTests/camelCaseSurfaceAliasCannotInjectIntoFocusedTerminal`, then runs narrow repository guards.
+The second red commit adds a package test proving `terminal.input` with `surfaceId` must fail strict request parsing. Pre-fix `ControlRequestParser` accepts that request.
 
-## Candidate repair
+This provides a portable exact discriminator independent of the current app-target compilation state.
 
-Proposed repair owner: `Sources/TerminalController+ControlSocketAsync.swift`, immediately after strict v2 parsing and before relay authorization/execution-policy selection.
+## Implemented repair
 
-Proposed policy:
+Production owner: `Packages/macOS/CmuxControlSocket/Sources/CmuxControlSocket/Wire/ControlRequestParser.swift`, with matching parse-error and response-encoder additions.
+
+Implemented policy:
 
 1. normalize incoming parameter keys by removing `_` and lowercasing;
 2. compare against the canonical target-selector vocabulary;
-3. when a noncanonical spelling normalizes to a known selector, return `invalid_params` naming the supplied and canonical keys;
-4. preserve focus fallback when the caller truly supplies no targeting selector;
-5. preserve unrelated method parameters and future extension keys.
+3. when a noncanonical spelling normalizes to a known selector, reject the v2 request before domain dispatch;
+4. strict parsing reports an `unsupportedTargetAlias` parse/validation error carrying request id, supplied key, and canonical key;
+5. wire encoding returns `invalid_params` and names the canonical snake_case spelling;
+6. lenient parsing also refuses target aliases so the worker-style lenient path cannot silently widen them;
+7. true no-target focus fallback remains available;
+8. unrelated extension keys remain accepted.
 
-This would catch `surfaceId`, `surfaceID`, `workspaceId`, `workspaceID`, `terminalId`, `terminalID`, `tabId`, `paneId`, and corresponding capitalization variants while keeping exact canonical snake_case unchanged.
+Covered canonical selector families:
+
+- `window_id`;
+- `group_id`;
+- `workspace_id`;
+- `surface_id`;
+- `terminal_id`;
+- `tab_id`;
+- `pane_id`.
+
+Examples rejected by normalization include `surfaceId`, `surfaceID`, `workspaceId`, `workspaceID`, `terminalId`, `terminalID`, `tabId`, and `paneId`.
+
+## Fork-owned verification
+
+Workflow: https://github.com/teamleaderleo/cmux/blob/main/.github/workflows/fieldwork-rpc-target-verifier.yml  
+Current immutable-SHA verifier run: https://github.com/teamleaderleo/cmux/actions/runs/33541421261
+
+The workflow now pins all evidence revisions explicitly:
+
+- upstream base `eaa899cb20bd411019744fbd2bdedeb397f3070b`;
+- app red `702784686141f453454fea2afcda15c9b9573753`;
+- parser red `0f4e0144398cfda3efd096bc68a560f7b9f2e220`;
+- green `a36ffbe0b8c3acedeb7ab82454ae6cec65ec5d06`.
+
+Portable Ubuntu lane compiles the real `JSONValue`, `ControlRequest`, parse-error, parser, call-result, and response-encoder sources directly. Required red→green observations are:
+
+- red parser: `surfaceId` accepted;
+- green parser: same request rejected;
+- green wire response: `invalid_params`;
+- green canonical `surface_id`: accepted;
+- green unrelated `totally_bogus_key`: accepted.
+
+Separate macOS app-host jobs pin the red app commit and green candidate. The red job succeeds only if the focused-terminal injection regression fails for its intended marker-injection reason; a compile blocker is therefore retained as blocked evidence rather than misclassified as a reproduced mutation. The green job requires the focused regression to pass.
+
+Current run state at this record update: queued.
 
 ## Evidence labels
 
 - current upstream SHA: `source-read`;
 - released read-side cross-target behavior: `upstream-runtime-report`;
 - current selector/dispatcher continuity: `source-read`;
-- write-side focused-terminal injection: **Unknown / executable red test queued**;
-- candidate regression: `fork-authored`;
-- repair: **prepared conceptually; production commit intentionally withheld until red execution**;
+- parser red: `fork-authored / execution queued`;
+- app-host write-side injection: `Unknown / execution queued`;
+- production repair: `fork-authored`;
+- candidate diff/ancestry: `github-compare`;
 - upstream overlap: `github-search`;
 - upstream mutation/contact: absent.
 
 ## Stop condition
 
-Do not promote or submit the production fix until the red discriminator either executes and proves the mutation path, or the lane is rescoped with the failed/blocked proof retained. Upstream contact remains unauthorized.
+Keep upstream untouched until the portable red→green discriminator executes successfully. Treat write-side focused-terminal injection as `Unknown` unless the app-host red lane reaches the regression and fails for the exact marker-injection reason. Upstream contact remains unauthorized.
