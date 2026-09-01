@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-delta-wide-line-number-format",
+  "question": "Do Delta line-number format prefixes and suffixes undercount terminal columns when one grapheme occupies more than one display column, causing side-by-side content width to be over-budgeted?",
+  "owner": "GPT-5.6 Sol",
+  "created_at": "2026-08-11",
+  "state": "promoted",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "dandavison/delta",
+      "url": "https://github.com/dandavison/delta",
+      "revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
+      "retrieved_at": "2026-08-11",
+      "claim": "Line-number format metadata stores prefix_len and suffix_len as grapheme counts; formatted_width feeds side-by-side available_line_width while literal text is rendered at its real terminal width.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "GitHub Actions: Fieldwork Delta wide line-number format probe",
+  "environment": {
+    "runtime": "target-declared Rust/Cargo",
+    "platform": "GitHub-hosted Ubuntu 24.04",
+    "dependencies": [
+      "exact dandavison/delta source fetched read-only at 95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "A wide literal prefix is budgeted by its real terminal width.",
+      "interpretation": "The suspected undercount is absent; retain a negative result."
+    },
+    {
+      "observation": "A one-grapheme/two-column prefix contributes one metadata column, and available_line_width receives one extra content column compared with actual rendered width.",
+      "interpretation": "The line-number width owner has a target-executed column-accounting mismatch."
+    },
+    {
+      "observation": "At the exact content boundary, the ASCII prefix preserves the complete source text while the wide prefix reaches final output and the complete source text does not.",
+      "interpretation": "The accounting mismatch has a target-executed rendered consequence and should be promoted."
+    }
+  ],
+  "target_execution": {
+    "workflow_run": 31441079950,
+    "job": 93625722481,
+    "evidence_class": "target-executed",
+    "target_revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
+    "result": "For 界{nm}, Delta reports metadata width 2 while rendered 界1 occupies width 3. In fixed width-20 side-by-side mode the planner gives left content 8 columns while the real prefix leaves 7. The rendered boundary test shows ASCII |{nm} preserves complete abcdefgh, while wide 界{nm} reaches output and the complete abcdefgh does not.",
+    "receipt": "playgrounds/EXP-20260811-delta-wide-line-number-format/result.json"
+  },
+  "stop_condition": "Promoted after exact target accounting and rendered-output reproduction. Continue source work only in an owned Delta fork or Fieldwork candidate record; refresh overlap before any external proposal.",
+  "network_policy": "public-read-only",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-delta-wide-line-number-format/README.md",
+    "playgrounds/EXP-20260811-delta-wide-line-number-format/delta_line_number_probe.rs",
+    "playgrounds/EXP-20260811-delta-wide-line-number-format/result.json"
+  ],
+  "promoted_to": "https://github.com/teamleaderleo/fieldwork/issues/821"
+}

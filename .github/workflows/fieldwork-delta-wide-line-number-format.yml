@@ -1,0 +1,51 @@
+name: Fieldwork Delta wide line-number format probe
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  delta-line-number-width:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DELTA_SHA: 95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact Delta source read-only
+        run: |
+          set -euxo pipefail
+          git init /tmp/delta
+          git -C /tmp/delta remote add origin https://github.com/dandavison/delta.git
+          git -C /tmp/delta fetch --depth=1 origin "$DELTA_SHA"
+          git -C /tmp/delta checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/delta rev-parse HEAD)" = "$DELTA_SHA"
+
+      - name: Inject execution-only controls
+        run: |
+          set -euxo pipefail
+          cat playgrounds/EXP-20260811-delta-wide-line-number-format/delta_line_number_probe.rs >> /tmp/delta/src/features/line_numbers.rs
+          tail -n 160 /tmp/delta/src/features/line_numbers.rs
+
+      - name: Execute focused Delta width controls
+        working-directory: /tmp/delta
+        run: |
+          set -euxo pipefail
+          cargo test --locked fieldwork_delta_wide_line_number -- --nocapture
+          cargo test --locked fieldwork_delta_ascii_line_number -- --nocapture
+          cargo test --locked fieldwork_delta_wide_prefix -- --nocapture
+
+      - name: Preserve exact receipt
+        if: always()
+        run: |
+          set +e
+          printf 'delta=%s\n' "$(git -C /tmp/delta rev-parse HEAD 2>/dev/null)"
+          printf 'fieldwork_head=%s\n' '${{ github.event.pull_request.head.sha }}'
+          printf 'experiment=%s\n' 'EXP-20260811-delta-wide-line-number-format'
+          git -C /tmp/delta diff -- src/features/line_numbers.rs 2>/dev/null || true
