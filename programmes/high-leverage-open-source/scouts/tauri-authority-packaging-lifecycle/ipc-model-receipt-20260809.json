@@ -1,0 +1,40 @@
+{
+  "kind": "model-executed",
+  "date": "2026-08-09",
+  "state": "superseded-candidate",
+  "target_repository": "tauri-apps/tauri",
+  "target_revision": "34ec18ba5e1acabebd66ae79d6fc746f63d8eb96",
+  "model_path": "programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/ipc_transport_model.mjs",
+  "candidate_patch": null,
+  "superseded_by": "programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/ipc-candidate-model-receipt-20260809.json",
+  "runtime": "node v22.16.0",
+  "command": "node ipc_transport_model.mjs",
+  "result": "pass",
+  "stdout": [
+    "PASS normal: one custom-protocol dispatch",
+    "PASS CSP block: HEAD probe selects postMessage before command dispatch",
+    "PASS reload after dispatch: ambiguous invoke rejects after one Rust dispatch",
+    "PASS later transport break: failed invoke is not replayed; next invoke recovers via postMessage"
+  ],
+  "observations": [
+    "current fallback model dispatches twice when navigation aborts after the custom-protocol dispatch",
+    "negotiating transport before command dispatch preserves one Rust dispatch in the normal path",
+    "a CSP-blocked custom protocol can select postMessage before the modeled command dispatch",
+    "a navigation abort after dispatch rejects the modeled invoke without a second transport dispatch",
+    "a later custom-protocol failure rejects the ambiguous invoke and moves the next invoke to postMessage"
+  ],
+  "candidate_probe": {
+    "method": "HEAD",
+    "reason": "Tauri dispatches IPC commands only for POST; HEAD reaches the same custom-protocol handler without calling Webview::on_message. Fetch treats HEAD as a CORS-safelisted method, and the probe carries the same IPC request headers so relevant header preflight is exercised. A 405 response still represents a non-network response and therefore demonstrates that the custom-protocol request reached the handler."
+  },
+  "supersession_reason": [
+    "the first draft serialized payloads during transport probing, which could invoke user-defined serialization hooks twice",
+    "the first draft retained ambiguous retry for Android's destructive large-channel fetch"
+  ],
+  "limits": [
+    "This is a dependency-free state-machine model, not WebView2 or WKWebView execution.",
+    "The retained candidate is the v2 source/patch named by superseded_by, not the removed first-draft patch.",
+    "Browser CSP, CORS, preflight, custom-scheme, navigation, binary channel, and custom InvokeOptions header behavior still require target-platform execution."
+  ],
+  "upstream_contact_authorized": false
+}

@@ -1,0 +1,51 @@
+diff --git a/crates/tauri/src/scope/fs.rs b/crates/tauri/src/scope/fs.rs
+index 949dd9c60..000000000 100644
+--- a/crates/tauri/src/scope/fs.rs
++++ b/crates/tauri/src/scope/fs.rs
+@@ -313,33 +313,40 @@ impl Scope {
+   fn emit(&self, event: Event) {
+     let was_emitting = self.inner.emitting.swap(true, Ordering::Relaxed);
+     if was_emitting {
+       self
+         .inner
+         .pending
+         .lock()
+         .unwrap()
+         .push(Pending::Emit(event));
+       return;
+     }
+ 
+-    {
++    let callback_panic = {
+       let listeners = self.inner.event_listeners.lock().unwrap();
+-      let handlers = listeners.values();
+-      for listener in handlers {
+-        listener(&event);
+-      }
++      let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
++        let handlers = listeners.values();
++        for listener in handlers {
++          listener(&event);
++        }
++      }));
+       self.inner.emitting.store(false, Ordering::Relaxed);
+-    }
++      result.err()
++    };
+ 
+     let pending = {
+       let mut lock = self.inner.pending.lock().unwrap();
+       std::mem::take(&mut *lock)
+     };
+     for action in pending {
+       match action {
+         Pending::Unlisten(id) => self.unlisten(id),
+         Pending::Listen { id, handler } => self.listen_with_id(id, handler),
+         Pending::Emit(event) => self.emit(event),
+       }
+     }
++
++    if let Some(payload) = callback_panic {
++      std::panic::resume_unwind(payload);
++    }
+   }

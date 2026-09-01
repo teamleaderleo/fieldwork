@@ -1,0 +1,28 @@
+{
+  "kind": "target-test-prepared",
+  "date": "2026-08-09",
+  "target_repository": "tauri-apps/tauri",
+  "target_revision": "34ec18ba5e1acabebd66ae79d6fc746f63d8eb96",
+  "test": "probe/plugin_store_reentrancy_test.rs",
+  "source_paths": [
+    "crates/tauri/src/app.rs",
+    "crates/tauri/src/manager/mod.rs",
+    "crates/tauri/src/plugin.rs"
+  ],
+  "source_observations": [
+    "AppHandle::plugin_boxed acquires manager.plugins, then calls PluginStore::initialize before releasing the mutex.",
+    "PluginStore::initialize invokes TauriPlugin::initialize, whose setup callback is user code and receives an AppHandle.",
+    "AppHandle::plugin and AppHandle::remove_plugin acquire the same manager.plugins mutex.",
+    "AppManager::run_plugin_invoke_handler holds manager.plugins while calling the selected plugin's extend_api/invoke handler.",
+    "on_event_loop_event holds manager.plugins while invoking PluginStore::on_event, which calls plugin lifecycle hooks."
+  ],
+  "consequence": "A plugin setup, invoke handler, or lifecycle hook that performs a nested dynamic plugin register/remove operation can try to reacquire the same non-reentrant std::sync::Mutex on the same thread and block indefinitely.",
+  "prepared_probe": "The retained setup probe uses try_lock inside a plugin setup callback instead of recursively calling plugin(), so it can establish whether the public callback is entered while the plugin-store mutex is held without hanging the test process.",
+  "evidence_class": "target-test-prepared",
+  "limitations": [
+    "Probe has not been executed against the pinned target in a retained target receipt.",
+    "A repair must preserve plugin registration ordering and same-name replacement semantics; simply dropping the store lock before initialization may introduce concurrent initialization races.",
+    "Invoke-handler and lifecycle-hook reentrancy need separate controls because their ownership/borrowing path differs from dynamic setup."
+  ],
+  "upstream_contact_authorized": false
+}
