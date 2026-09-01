@@ -17,8 +17,8 @@ What is the exact current-main merge surface for the already-reviewed cmux copy-
 ## Exact upstream state
 
 Repository: `manaflow-ai/cmux`  
-Issue: https://github.com/manaflow-ai/cmux/issues/3096  
-Existing candidate: https://github.com/manaflow-ai/cmux/pull/6923  
+Issue: https://redirect.github.com/manaflow-ai/cmux/issues/3096  
+Existing candidate: https://redirect.github.com/manaflow-ai/cmux/pull/6923  
 Current-main revision pinned for this scout: `e49e7cdf300ad6eff38aef21145cd1183636e76c`  
 Candidate head pinned for this scout: `1516fc0c2e64bc21772b88738377f360c53cea03`
 
