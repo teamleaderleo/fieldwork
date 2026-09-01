@@ -1,0 +1,34 @@
+From e8d97d5d8c67a9473a7aaad3961c0630583aa34b Mon Sep 17 00:00:00 2001
+From: teamleaderleo <teamleaderleo@users.noreply.github.com>
+Date: Sat, 1 Aug 2026 09:20:00 +0000
+Subject: [PATCH] gomarkdoc: update Go 1.26 command golden
+
+Base: 97d48ba11e7eeb6896e9da8d64b22b306da14103
+Source: teamleaderleo/nixpkgs fieldwork/unit-22-gomarkdoc-checks
+---
+ pkgs/by-name/go/gomarkdoc/package.nix | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/pkgs/by-name/go/gomarkdoc/package.nix b/pkgs/by-name/go/gomarkdoc/package.nix
+index 149e1cf1908f..53f4eef322e8 100644
+--- a/pkgs/by-name/go/gomarkdoc/package.nix
++++ b/pkgs/by-name/go/gomarkdoc/package.nix
+@@ -21,10 +21,12 @@ buildGoModule (finalAttrs: {
+ 
+   vendorHash = "sha256-gCuYqk9agH86wfGd7k6QwLUiG3Mv6TrEd9tdyj8AYPs=";
+ 
+-  # Tests call gomarkdoc's main() directly, which reads GOFLAGS from the
+-  # environment. nixpkgs sets GOFLAGS=-mod=vendor, but gomarkdoc's own flag
+-  # parser only accepts -tags, so -mod triggers "flag provided but not defined".
+-  doCheck = false;
++  # Go 1.26 resolves this field reference while generating the command golden.
++  postPatch = ''
++    substituteInPlace testData/docs/README.md \
++      --replace-fail 'GetField gets \[\*AnotherStruct.Field\].' \
++      'GetField gets [\\\*AnotherStruct.Field](<#AnotherStruct>).'
++  '';
+ 
+   ldflags = [
+     "-s"
+-- 
+2.54.0
