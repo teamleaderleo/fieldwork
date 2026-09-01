@@ -1,11 +1,18 @@
 # cmux: local terminal input can commit success before PTY delivery
 
+## In simple words
+
+cmux could durably remember “I typed this” when it had only handed the bytes to another process and that process had not yet delivered them to the terminal. A crash in that gap can leave a permanent success receipt for input that provably never reached the PTY.
+
+The repaired candidate moves the success boundary to the component that actually owns the PTY: receipted terminal input now carries a request id, the terminal host writes and flushes the bytes to the PTY, and only then returns `InputAck`. Ordinary interactive typing stays fire-and-forget. The current-main candidate is target-executed and independently diff-reviewed; the remaining human question is whether this demonstrated crash-boundary trust failure is consequential enough to justify the additive owner-ack protocol upstream.
+
 ## Target
 
 - Upstream: `manaflow-ai/cmux`
 - Audited revision: `eaa899cb20bd411019744fbd2bdedeb397f3070b`
+- Current upstream relation checked through: `61bc1e4a6d1c882d552199f4b2785ea45c177ae2`
 - Audit date: 2026-09-01
-- Runtime artifact: upstream GitHub Actions Linux artifact for the exact revision
+- Runtime artifact: upstream GitHub Actions Linux artifact for the exact audited revision
 - Artifact SHA-256: `5777f0684b90fee55bf4b4ea7d142ec3c3aee9d33d0275076e8c29cc63ba0ab4`
 
 ## Finding
@@ -105,14 +112,71 @@ At the audited revision:
 
 The remote PTY implementation is a useful contrast: it carries sequenced input and emits cumulative `pty.input_ack` events.
 
+The final current-main restack verified that the owner paths used by this repair were unchanged between the prior current-main patch base `6044a8b3f43152d2e6fc17f771fd4b277b393118` and upstream `61bc1e4a6d1c882d552199f4b2785ea45c177ae2`; the intervening upstream commit touched only `cmux-tui/crates/cmux-remote/src/client.rs`.
+
 ## Patch direction
 
-The smallest compatible correction is to make **receipted API input** wait for an acknowledgement from the local terminal host after its PTY write/flush has succeeded. Ordinary interactive input can remain on the current low-latency fire-and-forget path.
+The smallest compatible correction is to make **receipted API input** wait for an acknowledgement from the local terminal host after its PTY write/flush has succeeded. Ordinary interactive input remains on the current low-latency fire-and-forget path.
 
-Compatibility needs an explicit additive capability so a new daemon never sends a targeted input request to an old surviving host that only understands fire-and-forget input. The implementation uses `supports_input_ack` in the durable terminal-host discovery record; missing/false keeps old hosts on the legacy behavior and causes receipted API input to fail closed before sending bytes.
+Compatibility uses an explicit additive capability so a new daemon never sends a targeted input request to an old surviving host that only understands fire-and-forget input. The implementation uses `supports_input_ack` in the durable terminal-host discovery record; missing/false causes receipted API input to fail closed before sending bytes while legacy interactive input remains available.
+
+The confirmed path covers the durable terminal operations that emit PTY bytes: `terminal.input.write`, `terminal.input.keys`, `terminal.input.mouse`, and `terminal.input.focus`.
+
+The split-phase refinement registers and writes the targeted request under the short terminal runtime lock, then releases that lock before waiting for `InputAck`. Multiple receipted callers can therefore be outstanding without turning the runtime lock into a stop-and-wait serialization point. Outstanding requests and aggregate payload are bounded; one maximum legal terminal-host input frame remains admissible.
+
+### Failure classification
+
+- **Known pre-effect:** legacy host without `supports_input_ack`, exited/no live hosted owner, bounded acknowledgement window exhausted, request-id exhaustion/collision.
+- **Indeterminate:** local partial/write failure, possible partial terminal-host socket frame, acknowledgement timeout/disconnect after a possible send.
+- **Success:** only after the authoritative terminal host has successfully written/flushed the bytes to the PTY and returned the matching acknowledgement.
 
 This removes the demonstrated false-success window. It does not by itself make a crash after host ACK but before SQLite completion exactly reconcilable; that stronger property would require owner-side retained logical request identity or another fate query.
 
-## Patch status
+## Repair verification
 
-Implementation PR: `teamleaderleo/cmux#16`, based directly on current upstream commit `2ead47750ab2f47c13972d0709d99cdcbaa8ad73`. The audited terminal-host/resource files are unchanged between the audited SHA and that base. The fork's older divergent `main` history is therefore outside the patch ancestry.
+Canonical owned implementation PR: `teamleaderleo/cmux#16`.
+
+Exact current-main generation:
+
+- upstream base: `61bc1e4a6d1c882d552199f4b2785ea45c177ae2`
+- synchronous owner-ACK baseline: `9057c2f0d876565c94a98482e35d70519b414223`
+- split-phase candidate/head: `a7fba4766f359963a375b67c6c62818240f53dda`
+- two commits; eight product/test/spec files total
+- canonical branch contains no Fieldwork helper/workflow machinery
+
+Target-executed current-main restack: owned-fork workflow run `33561858997`, job `100035981383`, Ubuntu 24.04 with pinned Rust/Zig. The run completed successfully and:
+
+1. proved source continuity into current upstream;
+2. rebuilt the synchronous owner-ACK commit directly on current upstream;
+3. characterized the synchronous baseline's full `cmux-tui-core` failures;
+4. applied only the four-file split-phase delta;
+5. passed Rust formatting;
+6. passed protocol/spec inventory, resource API boundary, and binding generation checks;
+7. passed focused receipted-input and owner-ACK tests, including pipelining, bounded outstanding work, legacy-host no-send, PTY-before-ACK, exited-host pre-effect failure, local partial-write ambiguity, and interactive fire-and-forget preservation;
+8. passed focused resource-router tests;
+9. reran the full core suite and required the candidate to introduce **no failing test absent from the synchronous baseline**;
+10. published the exact candidate only after that comparison passed.
+
+Independent complete-diff review checked request-id registration and cleanup, waiter/reservation cleanup on success/error/drop, runtime-lock release before ACK wait, socket poisoning after ambiguous transport failure, legacy/exited-host pre-effect fencing, host ACK ordering after PTY delivery, request-id-zero compatibility, additive discovery semantics, and product-only branch contents. No blocking defect was found.
+
+## Remaining boundary
+
+The repair deliberately does **not** claim shell/application execution. `InputAck` proves the authoritative PTY owner accepted and flushed the terminal input bytes; it does not prove that a command represented by those bytes later succeeded.
+
+A harder crash window also remains:
+
+```text
+PTY receives input
+→ terminal host sends InputAck
+→ mux receives InputAck
+→ mux crashes
+→ durable success receipt was not yet committed
+```
+
+Recovery may truthfully report `mutation.indeterminate` here. Eliminating that ambiguity would require the owner to retain logical request fate across daemon replacement. That is a separate protocol/architecture step and is not necessary to remove the demonstrated false-success claim.
+
+## Disposition
+
+**REPAIRED CANDIDATE / HUMAN JUDGMENT.** Consequence is very high and provability is high: the false-success behavior is deterministic, the repair is target-executed on current upstream, and the complete candidate delta has been independently reviewed. The remaining decision is whether this narrow crash-boundary trust failure is important enough to justify upstream protocol complexity and maintainer attention.
+
+Third-party upstream remains read-only; no upstream issue, PR, comment, review, or contact has been created.
