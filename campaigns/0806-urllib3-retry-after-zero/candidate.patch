@@ -1,0 +1,12 @@
+diff --git a/src/urllib3/util/retry.py b/src/urllib3/util/retry.py
+--- a/src/urllib3/util/retry.py
++++ b/src/urllib3/util/retry.py
+@@ -384,6 +384,8 @@ class Retry:
+             slept = self.sleep_for_retry(response)
+             if slept:
+                 return
++            if self.get_retry_after(response) == 0:
++                return
+ 
+         self._sleep_backoff()
+ 
