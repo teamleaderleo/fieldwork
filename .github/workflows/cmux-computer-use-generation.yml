@@ -13,7 +13,7 @@ permissions:
 env:
   UPSTREAM_BASE_SHA: 544c0e0ff4f3aebb1a34eb8503c7ccc1f33a2de8
   RED_SHA: 5fa3df624315dad2e7bc3a31a1df572fe9cafe41
-  GREEN_SHA: e43904d1db44a8b5fe752dcda3e1ade05325ddfb
+  GREEN_SHA: ffa4d1ad5ffc620fa0cf04b5a91e54f3e9aa2b7f
   SWIFT_BACKTRACE: interactive=no,timeout=0s,symbolicate=off,color=no
   CMUX_SKIP_ZIG_BUILD: "1"
 
