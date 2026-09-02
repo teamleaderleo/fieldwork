@@ -6,6 +6,8 @@ State what is being reviewed, what transition is requested, the strongest suppor
 
 This template is a menu for a complete review. Use the smallest set of fields that establishes scope, evidence, limits, disposition, and the next transition. Add detail when the work creates a real decision need. An equivalent narrative, table, or machine-readable receipt is valid.
 
+Reviewer identity note: GitHub username is not an independence field. Fieldwork agents normally write through the same repository-owner account. A fresh reviewing worker/session that did not implement or materialize the candidate may provide independent review through that same account; the worker/session that implemented or materialized the candidate is performing self-review.
+
 ## Feedback level
 
 Classify each review item before asking for a change:
@@ -20,6 +22,8 @@ Only blocking findings prevent the requested transition. State the observed risk
 
 - Repository:
 - Pull request or issue:
+- Review mode: self-review | independent
+- Reviewing worker/session implemented or materialized this candidate: yes | no
 - Reviewed issue or decision body generation: issue number plus body digest, explicit body revision marker, or not applicable
 - Reviewed live metadata generation: labels, state, assignees, accepted coarse snapshot marker, or not applicable
 - Work class: owned product delivery | upstream-fork research | execution carrier | evidence/documentation | blocked/security-sensitive
