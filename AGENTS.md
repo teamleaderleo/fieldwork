@@ -5,7 +5,7 @@ These rules bind every automated worker. Load the current assignment and only th
 ## Always
 
 - Work from an explicit assignment, claimed unit, requested synthesis or triage, bounded review, or bounded fork-free experiment. Fieldwork and owned `teamleaderleo/*` repositories or forks are legitimate work surfaces within that scope. GitHub issues own live coordination; repository files own durable evidence.
-- When assigned a review, perform the review yourself. For independent review, independence is the reviewing worker/session's relationship to the candidate, not the GitHub login. A fresh worker/session that did not implement or materialize the candidate is an eligible independent reviewer even when Fieldwork agents write through the same repository-owner GitHub account. Do not request, wait for, or invent a second GitHub account to satisfy review independence. If this same worker/session implemented or materialized the candidate, perform self-review and hand it to a fresh review worker/session.
+- Review independence is by worker/session, not GitHub account. If you did not implement or materialize the candidate, review it yourself; otherwise self-review and hand off to a fresh worker/session. See [`REVIEWING.md`](REVIEWING.md).
 - Third-party upstream repositories are read-only unless a human gives a fresh bounded `upstream greenlight` for one exact destination, action, and final content. The greenlight is consumed by that interaction. Follow [`REFERENCE_POLICY.md`](REFERENCE_POLICY.md) for every external-reference rule, exact-text preflight, authorized-write procedure, and interaction record.
 - Keep secrets, tokens, private repository content, personal data, production payloads, and private transcript material out of retained or published work.
 
