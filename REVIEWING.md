@@ -8,6 +8,16 @@ Do not maintain parallel copies of live branch, check, review, queue, delivery, 
 
 Third-party upstream repositories are read-only to Fieldwork agents by default. Review state cannot authorize contact; only the bounded human greenlight in `AGENTS.md` can authorize one interaction.
 
+## Reviewer identity is the worker/session, not the GitHub account
+
+When your assigned role is review and this worker/session did not implement or materialize the current candidate, **you are the independent reviewer**. Inspect the complete current diff and relevant evidence, then issue the disposition yourself. Do not enqueue another reviewer merely because GitHub shows the same repository-owner account on the candidate and the review.
+
+Fieldwork agents normally write through the same repository-owner GitHub account. That account is a transport and authority identity; it is not the reviewer identity and it neither establishes nor disqualifies review independence.
+
+A review is self-review when the same worker/session implemented or materialized the candidate. In that case, complete the self-review and hand the exact current inputs to a fresh review worker/session. A fresh worker/session using the same GitHub account is eligible to provide independent acceptance when it re-reads the exact current inputs and applies a fresh discriminator.
+
+Do not create recursive reviewer layers. Once an eligible independent review worker/session has inspected the complete current scope and issued `ACCEPT`, `REPAIR`, `HOLD`, `EXECUTE`, or `REJECT`, the review step is complete unless a reviewed input changes or contradictory evidence appears.
+
 ## Classify the work before reviewing it
 
 Every review item should identify one primary class:
@@ -119,7 +129,7 @@ Independent review is valuable when a fresh discriminator can exist. Require or 
 
 Bounded reversible work may use careful self-review when repository policy permits it and deterministic gates already own the relevant defect class. A tiny mechanical repair should not receive a full independent review merely because a larger parent once required one.
 
-Independent review should inspect the complete current diff and the evidence relevant to its consequence. A reviewer who adds no new discriminator should not trigger another review layer.
+Independent review should inspect the complete current diff and the evidence relevant to its consequence. Independence is evaluated by worker/session provenance as defined above, never by GitHub username. A reviewer who adds no new discriminator should not trigger another review layer.
 
 ## Bounded continuation and escalation
 
