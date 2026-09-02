@@ -225,7 +225,7 @@ Use the templates under `templates/`. Avoid several agents editing one shared re
 
 ## 10. Self-review before handoff
 
-Follow `REVIEWING.md` and complete `templates/review.md` before asking another reviewer to accept, execute, promote, merge, or prepare work for human upstream use.
+Follow `REVIEWING.md` and complete `templates/review.md` before acceptance, execution, promotion, merge, or preparation for human upstream use. If your assignment is review and this worker/session did not implement or materialize the current candidate, perform the independent review yourself. Do not ask for another GitHub account or create another reviewer layer. If this same worker/session implemented or materialized the candidate, use self-review to prepare a handoff to a fresh review worker/session.
 
 At minimum:
 
@@ -238,7 +238,7 @@ At minimum:
 7. prove temporary workflows or execution carriers are absent from the final canonical head before calling them retired;
 8. confirm that third-party upstream remained read-only, or record the exact bounded greenlight and resulting authorized interaction.
 
-Self-review prepares the handoff. It does not replace eligible independent acceptance.
+Self-review is the implementation worker/session's handoff step. Independent acceptance comes from a fresh review worker/session, which may use the same repository-owner GitHub account.
 
 ## 11. Report completion visibly
 
