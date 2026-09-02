@@ -1,0 +1,61 @@
+CMUX binary-transition execution carrier
+Date: 2026-09-01
+Evidence class: target-test-prepared; workflow admission observed; target execution absent at receipt time
+
+Owned fork
+----------
+Repository: teamleaderleo/cmux
+Branch: fieldwork/cmux-persistent-generation-compat-20260901
+Carrier head: 40013d90654d86f9561ad3bf00272655525f467b
+Workflow: .github/workflows/fieldwork-persistent-generation-compat.yml
+Run: 33544120861
+
+Latest observed platform state retained by the scout
+---------------------------------------------------
+terminal-host-rollback job 99977311554: queued
+registry-transition job 99977311864: queued
+
+Per REVIEWING.md, workflow admission is not target execution. No binary-transition result is claimed from this run until the intended jobs and assertions actually execute.
+
+Prepared discriminator 1: released-build registry rollback
+---------------------------------------------------------
+A: v0.64.22 = ddd4a01bc5d8ebac19643930f5fd7d40e85f1534
+B: pinned main = 8ef183f1e5de765b183aec9d1799f17a0848ae84
+
+Prepared sequence:
+- build exact-revision WorkspaceRegistry::open harnesses;
+- A -> A reopen control;
+- A -> B migration;
+- fresh B control;
+- copy B state;
+- B -> A old-open attempt on disposable copy;
+- hash every retained file before/after old-open;
+- inspect SQLite meta + integrity;
+- require old open to refuse and require byte-identical retained state;
+- reopen refused state with B to prove recoverability.
+
+Source-read expectation: A owns workspace schema 8; B owns schema 14. Current B preflights unsupported newer schema read-only before writable open/migration. Therefore a clean old-binary refusal is the intended rollback contract. The carrier exists to distinguish that clean refusal from mutation-before-refusal.
+
+Prepared discriminator 2: live terminal host across protocol rollback
+--------------------------------------------------------------------
+A: ae830c381bb846609230fc155a7fcdcd5e06b4d0
+   workspace schema 13; terminal-host protocol 3; host-record version 2
+B: a23c328f58738e58f692ef7e0e23ec5c194cf383
+   workspace schema 13; terminal-host protocol 4; host-record version 2
+
+Prepared sequence:
+- B creates a long-lived terminal and persistent host record;
+- capture terminal id, host pid, host JSON, registry metadata and hashes;
+- SIGKILL only mux B so independent protocol-v4 terminal host remains alive;
+- start A against the same schema-13 state;
+- attempt to resolve the same terminal identity;
+- capture file/database changes and host liveness;
+- kill A;
+- restore B against exactly the state A touched;
+- resolve the same terminal and capture recovery.
+
+This pair isolates independently versioned terminal-host protocol compatibility because the workspace-registry schema is identical on both sides.
+
+Upstream boundary
+-----------------
+Third-party manaflow-ai/cmux remains read-only. The workflow exists only on the owned fork.
