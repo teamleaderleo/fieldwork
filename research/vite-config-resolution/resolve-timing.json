@@ -1,0 +1,176 @@
+{
+  "node": "v26.8.1",
+  "warmups": 60,
+  "results": [
+    {
+      "scenario": "minimal",
+      "count": 200,
+      "msPerResolution": 0.3455654150000001,
+      "version": "baseline",
+      "run": 0
+    },
+    {
+      "scenario": "minimal",
+      "count": 200,
+      "msPerResolution": 0.32976583500000006,
+      "version": "candidate",
+      "run": 0
+    },
+    {
+      "scenario": "minimal",
+      "count": 200,
+      "msPerResolution": 0.328294375,
+      "version": "candidate",
+      "run": 1
+    },
+    {
+      "scenario": "minimal",
+      "count": 200,
+      "msPerResolution": 0.33714917,
+      "version": "baseline",
+      "run": 1
+    },
+    {
+      "scenario": "minimal",
+      "count": 200,
+      "msPerResolution": 0.33260396,
+      "version": "baseline",
+      "run": 2
+    },
+    {
+      "scenario": "minimal",
+      "count": 200,
+      "msPerResolution": 0.3362172950000001,
+      "version": "candidate",
+      "run": 2
+    },
+    {
+      "scenario": "minimal",
+      "count": 200,
+      "msPerResolution": 0.337512915,
+      "version": "candidate",
+      "run": 3
+    },
+    {
+      "scenario": "minimal",
+      "count": 200,
+      "msPerResolution": 0.32948957999999995,
+      "version": "baseline",
+      "run": 3
+    },
+    {
+      "scenario": "minimal",
+      "count": 200,
+      "msPerResolution": 0.3341904150000001,
+      "version": "baseline",
+      "run": 4
+    },
+    {
+      "scenario": "minimal",
+      "count": 200,
+      "msPerResolution": 0.3345212500000001,
+      "version": "candidate",
+      "run": 4
+    },
+    {
+      "scenario": "configured",
+      "count": 200,
+      "msPerResolution": 0.33756479000000006,
+      "version": "baseline",
+      "run": 0
+    },
+    {
+      "scenario": "configured",
+      "count": 200,
+      "msPerResolution": 0.33903521000000003,
+      "version": "candidate",
+      "run": 0
+    },
+    {
+      "scenario": "configured",
+      "count": 200,
+      "msPerResolution": 0.34127957999999997,
+      "version": "candidate",
+      "run": 1
+    },
+    {
+      "scenario": "configured",
+      "count": 200,
+      "msPerResolution": 0.33994666500000004,
+      "version": "baseline",
+      "run": 1
+    },
+    {
+      "scenario": "configured",
+      "count": 200,
+      "msPerResolution": 0.34265479499999996,
+      "version": "baseline",
+      "run": 2
+    },
+    {
+      "scenario": "configured",
+      "count": 200,
+      "msPerResolution": 0.33770667,
+      "version": "candidate",
+      "run": 2
+    },
+    {
+      "scenario": "configured",
+      "count": 200,
+      "msPerResolution": 0.34302374999999996,
+      "version": "candidate",
+      "run": 3
+    },
+    {
+      "scenario": "configured",
+      "count": 200,
+      "msPerResolution": 0.33826542000000004,
+      "version": "baseline",
+      "run": 3
+    },
+    {
+      "scenario": "configured",
+      "count": 200,
+      "msPerResolution": 0.341495625,
+      "version": "baseline",
+      "run": 4
+    },
+    {
+      "scenario": "configured",
+      "count": 200,
+      "msPerResolution": 0.3377256249999999,
+      "version": "candidate",
+      "run": 4
+    }
+  ],
+  "summary": [
+    {
+      "scenario": "minimal",
+      "version": "baseline",
+      "median_ms": 0.3341904150000001,
+      "min_ms": 0.32948957999999995,
+      "max_ms": 0.3455654150000001
+    },
+    {
+      "scenario": "minimal",
+      "version": "candidate",
+      "median_ms": 0.3345212500000001,
+      "min_ms": 0.328294375,
+      "max_ms": 0.337512915
+    },
+    {
+      "scenario": "configured",
+      "version": "baseline",
+      "median_ms": 0.33994666500000004,
+      "min_ms": 0.33756479000000006,
+      "max_ms": 0.34265479499999996
+    },
+    {
+      "scenario": "configured",
+      "version": "candidate",
+      "median_ms": 0.33903521000000003,
+      "min_ms": 0.33770667,
+      "max_ms": 0.34302374999999996
+    }
+  ]
+}

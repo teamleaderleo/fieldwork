@@ -12,6 +12,10 @@ Research programmes connect findings across targets and campaigns. They ask ques
 
 - [`vite-process-notes-2026-08-09.md`](vite-process-notes-2026-08-09.md) — lessons from the Vite runtime-correctness lane about ownership modeling, native FAIL→PASS promotion, adjacent-boundary probing, CI classification, and clean hold-ready candidate preparation.
 
+## Study guides
+
+- [`vite-config-resolution/`](vite-config-resolution/) — plain-language walkthrough of Vite's config-copying changes, JavaScript syntax, regression tests, trade-offs, alternatives, and bounded timing evidence.
+
 ## Research standard
 
 A programme should define:
