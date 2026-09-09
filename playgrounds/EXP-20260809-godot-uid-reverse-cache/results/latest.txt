@@ -1,0 +1,9 @@
+Command:
+python3 playgrounds/EXP-20260809-godot-uid-reverse-cache/run.py
+
+Observed:
+after_set_id {'forward': 'res://new.tres', 'old_reverse': 123, 'new_reverse': 123}
+after_reload_history {'forward': 'res://new.tres', 'old_reverse': 123, 'new_reverse': 123}
+
+Interpretation:
+The current source operations preserve the latest UID->path mapping while retaining both old and new path->UID aliases. This result is model-executed at mechanism scope. A target-native runtime fixture remains required for a user-visible claim.

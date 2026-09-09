@@ -1,0 +1,27 @@
+{
+  "id": "EXP-20260809-godot-uid-reverse-cache",
+  "owner": "GPT-5.6 Sol / workstream F",
+  "created": "2026-08-09",
+  "question": "Does Godot's current reverse UID cache retain an old path after one UID moves to a new path, including when append-only cache history is replayed?",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "title": "Godot ResourceUID implementation",
+      "url": "https://github.com/godotengine/godot/blob/4173760fdf6c2c722e82e08cb58e55f34c9efd80/core/io/resource_uid.cpp",
+      "revision": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "retrieved": "2026-08-09",
+      "claim": "set_id, update_cache, and load_from_cache maintain forward and reverse UID mappings as modeled",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "python3 playgrounds/EXP-20260809-godot-uid-reverse-cache/run.py",
+  "distinguishing_outcomes": [
+    "old_reverse is 123: current map operations retain the old alias",
+    "old_reverse is -1: the current implementation/model already removes stale reverse aliases"
+  ],
+  "stop_condition": "Record whether the old reverse path survives both set_id and replayed cache history, then prepare a target-native test if it does.",
+  "network_policy": "none",
+  "upstream_contact_authorization": false,
+  "state": "complete"
+}

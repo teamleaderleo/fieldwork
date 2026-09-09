@@ -1,0 +1,42 @@
+{
+  "id": "EXP-20260809-godot-authority-rebuild",
+  "owner": "GPT-5.6 Sol / workstream F",
+  "created": "2026-08-09",
+  "question": "Can Godot rebuild its entire presentation subtree during a fixed-tick run while application-owned canonical state produces the same receipts as a reference model?",
+  "claim_scope": "integration",
+  "integration_context": "programmes/high-leverage-open-source/scouts/godot-web-automation-authority/notes/authoritative-state-boundary.md",
+  "sources": [
+    {
+      "title": "Godot SceneTree fixed-tick ordering",
+      "url": "https://github.com/godotengine/godot/blob/4173760fdf6c2c722e82e08cb58e55f34c9efd80/scene/main/scene_tree.cpp",
+      "revision": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "retrieved": "2026-08-09",
+      "claim": "physics_frame precedes node physics processing and deferred calls flush after node processing",
+      "evidence_label": "Documented"
+    }
+  ],
+  "commands": [
+    "python3 playgrounds/EXP-20260809-godot-authority-rebuild/reference.py",
+    "godot --headless --path playgrounds/EXP-20260809-godot-authority-rebuild/godot",
+    "godot --path playgrounds/EXP-20260809-godot-authority-rebuild/godot"
+  ],
+  "distinguishing_outcomes": [
+    "All four Godot AUTH_RECEIPT hashes match the reference in headless and rendered modes: retain the replaceable-presentation adapter pattern for this fixture.",
+    "Hashes diverge only after presentation rebuild: investigate feedback from presentation state into canonical state or ordering assumptions.",
+    "Headless and rendered hashes differ: identify renderer/display-dependent feedback before using Godot as a replaceable client.",
+    "The fixture cannot execute as written: repair harness/setup separately from the technical claim."
+  ],
+  "reference_result": {
+    "state": "model-executed",
+    "receipts": [
+      "9951d38a40ac3b6fa83c957187d45a071041d8a4d542e633deff8a31ffae06ab",
+      "8c94b59a1d901607e320eb86c781c0817021293375cc2bb8faab9064ce967943",
+      "7114ca26cd8ee5c248efe3134ac86e340344b62ef48945ee5970bd3552441b05",
+      "96be96804eeda51642fc6645fd203bae1be38689fef2eebe57e2cf5e5ecb8eb8"
+    ]
+  },
+  "stop_condition": "Obtain one complete four-receipt run in headless and rendered modes, or retain the exact execution blocker without widening the claim.",
+  "network_policy": "none",
+  "upstream_contact_authorization": false,
+  "state": "running"
+}

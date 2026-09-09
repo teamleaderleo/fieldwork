@@ -1,0 +1,40 @@
+{
+  "id": "EXP-20260809-godot-uid-pack-overlay",
+  "owner": "GPT-5.6 Sol / workstream F",
+  "created": "2026-08-09",
+  "question": "After a runtime patch pack removes a resource path and moves its UID to a new path, does the removed path remain reverse-mapped to that UID?",
+  "claim_scope": "integration",
+  "integration_context": "programmes/high-leverage-open-source/scouts/godot-web-automation-authority/notes/uid-reverse-cache.md",
+  "sources": [
+    {
+      "title": "ResourceUID cache merge implementation",
+      "url": "https://github.com/godotengine/godot/blob/4173760fdf6c2c722e82e08cb58e55f34c9efd80/core/io/resource_uid.cpp",
+      "revision": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "retrieved": "2026-08-09",
+      "claim": "load_from_cache(false) overwrites the UID forward entry but inserts the new reverse entry without removing an older reverse path",
+      "evidence_label": "Documented"
+    },
+    {
+      "title": "Runtime pack overlay implementation",
+      "url": "https://github.com/godotengine/godot/blob/4173760fdf6c2c722e82e08cb58e55f34c9efd80/core/io/file_access_pack.cpp",
+      "revision": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "retrieved": "2026-08-09",
+      "claim": "patch removals erase prior packed paths while replacement packs can overlay files",
+      "evidence_label": "Documented"
+    }
+  ],
+  "commands": [
+    "godot --headless --path playgrounds/EXP-20260809-godot-uid-pack-overlay/godot",
+    "godot --path playgrounds/EXP-20260809-godot-uid-pack-overlay/godot"
+  ],
+  "distinguishing_outcomes": [
+    "After patch: old_exists=false, uid_to_path=new, path_to_uid(old)=uid: retain the stale reverse-alias finding with a real runtime pack consequence.",
+    "After patch: old_exists=false, uid_to_path=new, path_to_uid(old)=old path unchanged: source assumptions are incomplete or runtime reconciles the reverse map elsewhere.",
+    "Old path still exists after patch: investigate PCK removal/overlay setup separately from ResourceUID semantics.",
+    "Headless and rendered results differ: investigate pack/file backend selection before widening the claim."
+  ],
+  "stop_condition": "Obtain one complete base-pack and replacement-pack receipt sequence in a built Godot runtime, or retain the exact execution blocker.",
+  "network_policy": "none",
+  "upstream_contact_authorization": false,
+  "state": "active"
+}
