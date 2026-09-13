@@ -1,0 +1,51 @@
+CMUX additive-column rollback control
+Date: 2026-09-01
+Evidence class: model-executed against exact source SQL
+
+Purpose
+-------
+Test the deliberate no-workspace-schema-bump migration that adds terminal_hosts.on_exit while allowing older binaries to keep opening the same registry.
+
+Exact revisions
+---------------
+A (old writer): c4d7ee75205b01ddac887e5cd0c80bda83972281
+B (adds on_exit): c5e2c64b704ae4ed0ebdc5140a4a4e003da8bcff
+
+B migration SQL copied from cmux-tui/crates/cmux-tui-core/src/workspace_registry.rs:
+
+ALTER TABLE terminal_hosts
+ADD COLUMN on_exit TEXT NOT NULL DEFAULT 'close'
+CHECK(on_exit IN ('close','keep'));
+
+A writer model copied from the old terminal-host INSERT ... ON CONFLICT shape: it names every old column explicitly and omits on_exit on both insert and conflict-update paths.
+
+Sequence
+--------
+1. Create an A-format terminal_hosts table.
+2. Insert t-existing.
+3. Apply B's exact ALTER TABLE.
+4. Set t-existing.on_exit='keep' to create a B-only semantic value.
+5. Run A's old explicit-column upsert against t-existing.
+6. Run A's old explicit-column insert for t-old-insert.
+7. Read all rows and PRAGMA integrity_check.
+
+Observed output
+---------------
+before:
+('t-existing', 'ws-a', 'inc-a', 'live', 10, 10, None, 'keep')
+
+after:
+('t-existing', 'ws-b', 'inc-a', 'live', 10, 11, None, 'keep')
+('t-old-insert', 'ws-a', 'inc-b', 'live', 12, 12, None, 'close')
+
+integrity: ok
+existing_keep_preserved: True
+old_insert_defaulted_close: True
+
+Verdict
+-------
+Clean additive compatibility for this exact old-writer interaction. The old generation does not erase a B-created `keep` value when updating a row, and an old-generation insert receives B's declared `close` default. This branch is a negative control, not a defect.
+
+Evidence limit
+--------------
+This is a dependency-free SQLite model using exact source SQL, not an execution of the A/B cmux binaries. The owned-fork target-native workflow prepares a wider exact-binary rollback probe separately.
