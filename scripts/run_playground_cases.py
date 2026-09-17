@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 import shlex
 import subprocess
@@ -20,6 +21,39 @@ class PackError(ValueError):
     pass
 
 
+def _is_valid_timeout(value: Any) -> bool:
+    if type(value) is int:
+        if value <= 0:
+            return False
+        try:
+            return math.isfinite(float(value))
+        except OverflowError:
+            return False
+    if type(value) is float:
+        return math.isfinite(value) and value > 0
+    return False
+
+
+def _json_values_equal(left: Any, right: Any) -> bool:
+    """Compare decoded JSON without conflating booleans and numbers."""
+    if isinstance(left, bool) or isinstance(right, bool):
+        return type(left) is type(right) and left == right
+    if isinstance(left, dict) or isinstance(right, dict):
+        if not isinstance(left, dict) or not isinstance(right, dict):
+            return False
+        return left.keys() == right.keys() and all(
+            _json_values_equal(left[key], right[key]) for key in left
+        )
+    if isinstance(left, list) or isinstance(right, list):
+        if not isinstance(left, list) or not isinstance(right, list):
+            return False
+        return len(left) == len(right) and all(
+            _json_values_equal(left_value, right_value)
+            for left_value, right_value in zip(left, right)
+        )
+    return left == right
+
+
 def load_pack(path: Path) -> dict[str, Any]:
     try:
         pack = json.loads(path.read_text(encoding="utf-8"))
@@ -28,13 +62,18 @@ def load_pack(path: Path) -> dict[str, Any]:
 
     if not isinstance(pack, dict):
         raise PackError(f"{path}: pack must be a JSON object")
-    if pack.get("schema_version") != SCHEMA_VERSION:
+    schema_version = pack.get("schema_version")
+    if type(schema_version) is not int or schema_version != SCHEMA_VERSION:
         raise PackError(
-            f"{path}: schema_version must be {SCHEMA_VERSION}, "
-            f"got {pack.get('schema_version')!r}"
+            f"{path}: schema_version must be integer {SCHEMA_VERSION}, "
+            f"got {schema_version!r}"
         )
     if not isinstance(pack.get("name"), str) or not pack["name"].strip():
         raise PackError(f"{path}: name must be a non-empty string")
+    if "timeout_seconds" in pack and not _is_valid_timeout(pack["timeout_seconds"]):
+        raise PackError(
+            f"{path}: timeout_seconds must be a finite positive number"
+        )
 
     cases = pack.get("cases")
     if not isinstance(cases, list) or not cases:
@@ -59,9 +98,15 @@ def load_pack(path: Path) -> dict[str, Any]:
                 f"{location}: provide exactly one of stdin_json or stdin_text"
             )
 
+        if "timeout_seconds" in case and not _is_valid_timeout(case["timeout_seconds"]):
+            raise PackError(
+                f"{location}: timeout_seconds must be a finite positive number"
+            )
         timeout = case.get("timeout_seconds", pack.get("timeout_seconds", 5))
-        if not isinstance(timeout, (int, float)) or timeout <= 0:
-            raise PackError(f"{location}: timeout_seconds must be positive")
+        if not _is_valid_timeout(timeout):
+            raise PackError(
+                f"{location}: timeout_seconds must be a finite positive number"
+            )
 
         expect = case.get("expect", {})
         if not isinstance(expect, dict):
@@ -76,6 +121,13 @@ def load_pack(path: Path) -> dict[str, Any]:
         unknown = set(expect) - allowed
         if unknown:
             raise PackError(f"{location}: unknown expectation keys: {sorted(unknown)}")
+
+        if "exit_code" in expect:
+            expected_exit_code = expect["exit_code"]
+            if expected_exit_code is not None and type(expected_exit_code) is not int:
+                raise PackError(f"{location}: expect.exit_code must be an integer or null")
+        if "timed_out" in expect and type(expect["timed_out"]) is not bool:
+            raise PackError(f"{location}: expect.timed_out must be boolean")
 
     return pack
 
@@ -101,9 +153,9 @@ def check_expectations(
     expect = case.get("expect", {})
     failures: list[str] = []
 
-    if "timed_out" in expect and bool(expect["timed_out"]) != timed_out:
+    if "timed_out" in expect and expect["timed_out"] != timed_out:
         failures.append(
-            f"timed_out expected {bool(expect['timed_out'])}, got {timed_out}"
+            f"timed_out expected {expect['timed_out']}, got {timed_out}"
         )
     if "exit_code" in expect and expect["exit_code"] != exit_code:
         failures.append(f"exit_code expected {expect['exit_code']}, got {exit_code}")
@@ -117,7 +169,7 @@ def check_expectations(
         except json.JSONDecodeError as exc:
             failures.append(f"stdout was not valid JSON: {exc}")
         else:
-            if actual_json != expect["stdout_json"]:
+            if not _json_values_equal(actual_json, expect["stdout_json"]):
                 failures.append(
                     f"stdout_json expected {expect['stdout_json']!r}, "
                     f"got {actual_json!r}"

@@ -8,6 +8,7 @@ on:
       - "contexts/**"
       - "playgrounds/**"
       - "scripts/run_playground_cases.py"
+      - "scripts/test_playground_validators.py"
       - "scripts/validate_experiments.py"
       - "scripts/new_experiment.py"
       - "templates/experiment.*"
@@ -22,6 +23,7 @@ on:
       - "contexts/**"
       - "playgrounds/**"
       - "scripts/run_playground_cases.py"
+      - "scripts/test_playground_validators.py"
       - "scripts/validate_experiments.py"
       - "scripts/new_experiment.py"
       - "templates/experiment.*"
@@ -37,6 +39,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Run playground validator regressions
+        run: python3 -m unittest -v scripts/test_playground_validators.py
       - name: Validate retained experiments
         run: python3 scripts/validate_experiments.py
       - name: Validate canonical case packs
