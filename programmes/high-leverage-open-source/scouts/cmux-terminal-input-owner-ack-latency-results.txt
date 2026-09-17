@@ -1,0 +1,48 @@
+cmux terminal-input ACK latency model — illustrative sensitivity
+================================================================
+
+Evidence class: model-executed + local-host-characterization
+This file is NOT a cmux target-native performance claim.
+
+Model inputs held constant unless noted:
+  writes      = 5000
+  submit_us   = 5
+  owner_us    = 15
+  window      = 256
+  ack_every   = 16
+
+Baseline illustrative run (ipc_rtt_us=100):
+  accepted        makespan=25.000 ms   rate=200000.0 writes/s   p50=5.0 us      p95=5.0 us      ACKs=0
+  stop_wait       makespan=600.000 ms  rate=8333.3 writes/s     p50=120.0 us    p95=120.0 us    ACKs=5000
+  pipelined_ack   makespan=75.105 ms   rate=66573.5 writes/s    p50=3840.0 us   p95=3840.0 us   ACKs=5000
+  cumulative_ack  makespan=75.105 ms   rate=66573.5 writes/s    p50=3800.0 us   p95=3840.0 us   ACKs=313
+
+RTT sensitivity under a saturated 5000-write burst:
+
+  RTT us | stop-wait writes/s | pipelined writes/s | cumulative writes/s | stop p50 us | pipeline p50 us
+      20 |            25000.0 |            66644.5 |             66644.5 |        40.0 |          3840.0
+      50 |            14285.7 |            66617.8 |             66617.8 |        70.0 |          3840.0
+     100 |             8333.3 |            66573.5 |             66573.5 |       120.0 |          3840.0
+     250 |             3703.7 |            66440.8 |             66440.8 |       270.0 |          3840.0
+     500 |             1923.1 |            66220.8 |             66220.8 |       520.0 |          3840.0
+    1000 |              980.4 |            65785.1 |             65785.1 |      1020.0 |          3840.0
+
+Interpretation:
+- One truthful durable call still cannot finish before owner-delivery evidence exists.
+- A sequential caller that waits for each call sees the ACK cost in any truthful design.
+- Stop-and-wait throughput becomes RTT-limited when independent writes could have been outstanding.
+- Split-phase targeted ACK keeps aggregate throughput near the modeled PTY-owner service ceiling instead of the RTT ceiling.
+- The saturated pipeline's higher per-write latency is queueing, not an extra round trip: 256 outstanding writes can accumulate behind the modeled 15us owner service time.
+- Cumulative ACKs reduce ACK-frame count dramatically after pipelining exists, but in this model they do not improve the owner-service bottleneck. That makes cumulative local ACK a measurement-driven follow-up, not the smallest first repair.
+
+Local Python socketpair echo characterization
+--------------------------------------------
+Two 20,000-iteration one-byte echo samples were taken in the assistant's Linux analysis runtime during this investigation:
+
+  sample A: median ~= 18.1 us, p95 ~= 38.2 us
+  sample B: median = 17.939 us, p95 = 42.766 us, p99 = 137.455 us
+
+These values include Python interpreter/thread scheduling, this host kernel, and runner load. They only establish that a local-process round trip is plausibly far below a network RTT; they do not estimate cmux's terminal-host protocol latency.
+
+Companion model:
+  programmes/high-leverage-open-source/scouts/cmux-terminal-input-owner-ack-latency-model.py
