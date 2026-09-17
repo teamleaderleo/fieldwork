@@ -1,0 +1,99 @@
+name: Fieldwork Hexyl empty binary geometry probe
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hexyl-empty-binary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HEXYL_SHA: 6ecc29b9c8c84d08a7e860f7f69c22b113b480ea
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact Hexyl source read-only
+        run: |
+          set -euxo pipefail
+          git init /tmp/hexyl
+          git -C /tmp/hexyl remote add origin https://github.com/sharkdp/hexyl.git
+          git -C /tmp/hexyl fetch --depth=1 origin "$HEXYL_SHA"
+          git -C /tmp/hexyl checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/hexyl rev-parse HEAD)" = "$HEXYL_SHA"
+
+      - name: Build exact Hexyl binary
+        working-directory: /tmp/hexyl
+        run: |
+          set -euxo pipefail
+          cargo build --locked --bin hexyl
+
+      - name: Execute empty hexadecimal and binary controls
+        working-directory: /tmp/hexyl
+        run: |
+          set -euxo pipefail
+          : > /tmp/fieldwork-empty.bin
+
+          ./target/debug/hexyl \
+            --color=never \
+            --terminal-width=80 \
+            --base=hexadecimal \
+            /tmp/fieldwork-empty.bin \
+            > /tmp/hexyl-empty-hex.out
+
+          ./target/debug/hexyl \
+            --color=never \
+            --terminal-width=80 \
+            --base=binary \
+            /tmp/fieldwork-empty.bin \
+            > /tmp/hexyl-empty-bin.out
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def inspect(name):
+              text = Path('/tmp/' + name).read_text(encoding='utf-8')
+              lines = [line for line in text.splitlines() if line]
+              widths = [len(line) for line in lines]
+              print('FIELDWORK_OUTPUT', name, repr(text))
+              print('FIELDWORK_WIDTHS', name, widths)
+              return lines, widths
+
+          hex_lines, hex_widths = inspect('hexyl-empty-hex.out')
+          bin_lines, bin_widths = inspect('hexyl-empty-bin.out')
+
+          hex_consistent = len(set(hex_widths)) == 1
+          bin_consistent = len(set(bin_widths)) == 1
+          print('FIELDWORK_CONTROL hexadecimal-row-width-consistent=', hex_consistent)
+          print('FIELDWORK_RESULT binary-row-width-consistent=', bin_consistent)
+
+          if hex_consistent and not bin_consistent:
+              print('FIELDWORK_RESULT empty-binary-geometry=mismatch-reproduced')
+          elif hex_consistent and bin_consistent:
+              print('FIELDWORK_RESULT empty-binary-geometry=not-reproduced')
+          else:
+              print('FIELDWORK_RESULT empty-binary-geometry=control-needs-remap')
+          PY
+
+      - name: Preserve exact receipt
+        if: always()
+        run: |
+          set +e
+          printf 'hexyl=%s\n' "$(git -C /tmp/hexyl rev-parse HEAD 2>/dev/null)"
+          printf 'fieldwork_head=%s\n' '${{ github.event.pull_request.head.sha }}'
+          printf 'experiment=%s\n' 'EXP-20260811-hexyl-empty-binary-geometry'
+          for f in /tmp/hexyl-empty-hex.out /tmp/hexyl-empty-bin.out; do
+            if test -f "$f"; then
+              python3 - "$f" <<'PY'
+          from pathlib import Path
+          import sys
+          p = Path(sys.argv[1])
+          print(p.name, repr(p.read_text(encoding='utf-8')))
+          PY
+            fi
+          done
