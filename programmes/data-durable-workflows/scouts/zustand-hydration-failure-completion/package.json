@@ -1,0 +1,11 @@
+{
+  "name": "fieldwork-zustand-hydration-failure-completion",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "probe": "node probe.mjs"
+  },
+  "dependencies": {
+    "zustand": "5.0.14"
+  }
+}
