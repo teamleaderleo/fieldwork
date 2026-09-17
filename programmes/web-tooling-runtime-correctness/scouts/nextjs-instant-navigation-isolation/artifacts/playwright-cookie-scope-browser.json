@@ -1,0 +1,49 @@
+{
+  "executed_date": "2026-08-08",
+  "environment": {
+    "playwright_core": "1.57.0-beta-1764944708000",
+    "chromium": "144.0.7559.96"
+  },
+  "question": "How does a real Playwright BrowserContext select and delete same-named cookies across two unrelated domains, and does cookies(url) isolate the candidate release set?",
+  "baseline": {
+    "seeded": [
+      "app-a.example / next-instant-navigation-testing",
+      "app-b.example / next-instant-navigation-testing",
+      "app-a.example / session",
+      "app-b.example / session"
+    ],
+    "unfiltered_context_cookies_selected_instant_domains": [
+      "app-a.example",
+      "app-b.example"
+    ],
+    "after_expiring_every_unfiltered_same_name_entry": {
+      "remaining_instant_domains": [],
+      "remaining_session_domains": [
+        "app-a.example",
+        "app-b.example"
+      ]
+    }
+  },
+  "candidate_control": {
+    "query": "context.cookies(['https://app-a.example/'])",
+    "returned_domains": [
+      "app-a.example"
+    ],
+    "selected_instant_domains": [
+      "app-a.example"
+    ],
+    "after_expiring_selected_same_name_entry": {
+      "remaining_instant_domains": [
+        "app-b.example"
+      ],
+      "remaining_session_domains": [
+        "app-a.example",
+        "app-b.example"
+      ]
+    }
+  },
+  "evidence_class": "integration-executed",
+  "claim_scope": "interface",
+  "interpretation": "Real Playwright/Chromium cookie behavior supplies the missing browser-side premise for the source finding: unfiltered BrowserContext.cookies() exposes both domains to releaseInstantCookie, while URL-filtered retrieval narrows deletion to cookies applicable to the selected application URL.",
+  "limits": "This control executes Playwright and Chromium directly but does not execute the Next.js e2e harness, CookieStore lock events, or rendering. The exact-current Next.js target test remains a separate execution gate."
+}
