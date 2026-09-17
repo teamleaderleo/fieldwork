@@ -1,0 +1,8 @@
+[package]
+name = "fieldwork-bevy-deferred-failure-visibility"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+bevy_ecs = { path = "../../../../../../.fieldwork/bevy/crates/bevy_ecs" }
