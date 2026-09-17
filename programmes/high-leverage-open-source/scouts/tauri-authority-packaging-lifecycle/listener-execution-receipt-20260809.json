@@ -1,0 +1,47 @@
+{
+  "kind": "target-executed",
+  "date": "2026-08-09",
+  "target_repository": "tauri-apps/tauri",
+  "target_revision": "34ec18ba5e1acabebd66ae79d6fc746f63d8eb96",
+  "command": "cargo test -p tauri --lib --no-default-features listener_panic_does_not_stall_future_events -- --nocapture",
+  "environment": {
+    "runner": "ubuntu-24.04 (Ubuntu 24.04.4, x86_64)",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)"
+  },
+  "primary_run": {
+    "fieldwork_run_id": 31284095629,
+    "fieldwork_run_attempt": 1,
+    "job_id": 93169926354,
+    "execution_head": "be93b09f85e22b4d042a7c016d275f3ac10a3e56",
+    "baseline": {
+      "exit_status": 101,
+      "gate": "expected-failure",
+      "expected_assertion": "event manager stopped dispatching after callback panic"
+    },
+    "candidate": {
+      "patch_apply_status": 0,
+      "test_exit_status": 0
+    },
+    "result": "baseline-intended-failure-and-candidate-pass"
+  },
+  "confirmation_run": {
+    "fieldwork_run_id": 31284174704,
+    "execution_carrier_pr": 726,
+    "execution_head": "73d0b106d90ac85924cc3ee296175d29beff1070",
+    "baseline_job_id": 93170116771,
+    "candidate_job_id": 93170116752,
+    "baseline_observed": "the intentional listener panic propagated; after the caller caught it, the later event hit the exact assertion `event manager stopped dispatching after callback panic`",
+    "candidate_observed": "the intentional listener panic still propagated through catch_unwind, then later delivery succeeded; focused regression passed 1/1 with 57 tests filtered out",
+    "result": "confirmed"
+  },
+  "candidate_patch": "programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/candidate.patch",
+  "claim": "At the pinned revision, a panicking Rust event listener poisons the handlers mutex and causes later event work to stall after the caller catches the panic. The prepared catch/flush/resume candidate preserves the caller-visible unwind and restores the focused later-dispatch invariant in two corrected Linux executions.",
+  "evidence_class": "target-executed",
+  "limitations": [
+    "focused regression only; this is not a full Tauri gate",
+    "Linux runner only",
+    "this receipt establishes Rust callback-panic recovery, not public emit_filter filter-panic recovery; the JS-listener filtering path has a separate mutex boundary"
+  ],
+  "upstream_contact_authorized": false
+}

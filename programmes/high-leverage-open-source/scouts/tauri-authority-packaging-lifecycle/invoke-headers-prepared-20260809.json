@@ -1,0 +1,28 @@
+{
+  "kind": "target-test-prepared",
+  "date": "2026-08-09",
+  "target_repository": "tauri-apps/tauri",
+  "target_revision": "34ec18ba5e1acabebd66ae79d6fc746f63d8eb96",
+  "source_paths": [
+    "packages/api/src/core.ts",
+    "crates/tauri/scripts/ipc-protocol.js",
+    "crates/tauri/src/ipc/protocol.rs"
+  ],
+  "public_contract": "InvokeOptions.headers is HeadersInit",
+  "receiver_contract": "postMessage IPC deserializes options.headers as HashMap<String, String>",
+  "current_behavior": [
+    "Record-form headers serialize as an object and reach the Rust map shape.",
+    "A Headers object JSON-serializes without its entries, so postMessage loses those headers.",
+    "Tuple-list HeadersInit JSON-serializes as a sequence, which does not match the Rust string-map receiver.",
+    "Android regular invokes use the postMessage path directly, so this is not limited to fallback after a custom-protocol failure."
+  ],
+  "model": "probe/invoke_headers_model.mjs",
+  "supporting_model_receipt": "ipc-candidate-model-receipt-20260809.json",
+  "candidate": "Normalize options.headers through new Headers(...) and Object.fromEntries(...entries()) before postMessage serialization.",
+  "evidence_class": "model-executed",
+  "limitations": [
+    "The standalone HeadersInit model did not receive a retained Actions receipt.",
+    "The revised IPC candidate model executed normalization for record, Headers, and tuple-list inputs, but it did not pass those values through a real Android WebView/Rust IPC boundary."
+  ],
+  "upstream_contact_authorized": false
+}

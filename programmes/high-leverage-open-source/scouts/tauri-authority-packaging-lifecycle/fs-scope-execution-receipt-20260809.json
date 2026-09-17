@@ -1,0 +1,33 @@
+{
+  "kind": "target-executed",
+  "date": "2026-08-09",
+  "fieldwork_run_id": 31284564752,
+  "job_id": 93171070900,
+  "execution_head": "c62d24407b429f5069410f5cd7e53b9a509b63cb",
+  "runner_os": "Linux",
+  "runner_arch": "X64",
+  "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+  "target_repository": "tauri-apps/tauri",
+  "target_revision": "34ec18ba5e1acabebd66ae79d6fc746f63d8eb96",
+  "command": "cargo test -p tauri --lib --no-default-features scope_listener_panic_does_not_stall_future_events -- --nocapture",
+  "baseline": {
+    "exit_status": 101,
+    "gate": "expected-failure",
+    "expected_assertion": "filesystem scope stopped dispatching after callback panic"
+  },
+  "candidate": {
+    "patch": "programmes/high-leverage-open-source/scouts/tauri-authority-packaging-lifecycle/probe/fs_scope_candidate.patch",
+    "patch_apply_status": 0,
+    "test_exit_status": 0
+  },
+  "claim": "At the pinned revision, a panicking filesystem Scope listener leaves the shared emitting flag set and stalls later scope-event work after the caller catches the panic. The prepared catch/clear/drain/resume candidate preserves the unwind and restores the focused later-delivery invariant on this Linux run.",
+  "result": "baseline-scope-stall-and-candidate-pass",
+  "evidence_class": "target-executed",
+  "limitations": [
+    "focused Linux regression only",
+    "not a full Tauri scope test gate",
+    "does not establish behavior when a queued nested emit itself panics during recovery"
+  ],
+  "upstream_contact_authorized": false
+}
