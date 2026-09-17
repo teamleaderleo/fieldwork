@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260801-curl-fopen-pretruncate",
+  "question": "Does curl preserve an existing HSTS destination and a symlink target until its replacement cache has been written successfully?",
+  "owner": "ChatGPT systems-cli scout",
+  "created_at": "2026-08-01",
+  "state": "complete",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "curl issue 21610",
+      "url": "https://github.com/curl/curl/issues/21610",
+      "revision": "issue state retrieved 2026-08-01",
+      "retrieved_at": "2026-08-01",
+      "claim": "Reports destination pre-truncation and symlink-target truncation in Curl_fopen and identifies the owning callers.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "curl current source",
+      "url": "https://github.com/curl/curl/blob/527573490eb2564b3d7c9dd51d8bff963b5d6303/lib/curl_fopen.c",
+      "revision": "527573490eb2564b3d7c9dd51d8bff963b5d6303",
+      "retrieved_at": "2026-08-01",
+      "claim": "Current non-Windows Curl_fopen opens the final path with write/truncate mode before fstat and temporary-file creation.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "fopen optimize regression commit",
+      "url": "https://github.com/curl/curl/commit/0c667188e0c6cda615a036b8a2b4125f2c404dde",
+      "revision": "0c667188e0c6cda615a036b8a2b4125f2c404dde",
+      "retrieved_at": "2026-08-01",
+      "claim": "Changed Curl_fopen from stat-before-open to open-before-fstat.",
+      "evidence_label": "Observed"
+    }
+  ],
+  "command": "python3 run.py --output results/latest.json",
+  "environment": {
+    "runtime": "Python 3.13.5; curl 8.10.1",
+    "platform": "Linux 6.12.13 x86_64, glibc 2.41",
+    "dependencies": [
+      "Python standard library",
+      "curl with --hsts support"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "The symlink target remains 16 bytes and the destination symlink is handled without modifying the target.",
+      "interpretation": "The installed curl does not reproduce the symlink-target truncation mechanism."
+    },
+    {
+      "observation": "The symlink target becomes shorter before the destination path becomes a regular HSTS file.",
+      "interpretation": "The installed curl reproduces final-path open/truncate before replacement."
+    },
+    {
+      "observation": "A 10,801-byte existing HSTS file remains intact when the child process is limited to 1,024-byte files.",
+      "interpretation": "The previous destination is preserved across a later persistence failure."
+    },
+    {
+      "observation": "The existing HSTS file is replaced by a shorter file and no write error is reported separately from the transfer failure.",
+      "interpretation": "The previous destination is not protected by an atomic all-or-nothing persistence boundary."
+    }
+  ],
+  "stop_condition": "Stop after two repeat runs establish or refute both installed-binary mechanisms; current-master candidate testing belongs to a promoted follow-up.",
+  "network_policy": "No external network; one refused loopback connection to 127.0.0.1:1 per case.",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "results/latest.json",
+    "results/notes.md"
+  ],
+  "promoted_to": "https://github.com/teamleaderleo/fieldwork/issues/470"
+}
