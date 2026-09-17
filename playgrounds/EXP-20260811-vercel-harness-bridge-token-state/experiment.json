@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-vercel-harness-bridge-token-state",
+  "question": "When a bridge-backed Vercel AI SDK harness is configured with deterministic mintBridgeToken(sandboxId), can callers persist the returned detach or suspend lifecycle state without persisting the live bridge authentication token?",
+  "owner": "chatgpt:gpt-5.6-sol",
+  "created_at": "2026-08-11",
+  "state": "promoted",
+  "claim_scope": "interface",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "Vercel AI SDK mintBridgeToken merge commit",
+      "url": "https://github.com/vercel/ai/commit/fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c",
+      "revision": "fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c",
+      "retrieved_at": "2026-08-11",
+      "claim": "The feature was introduced so callers able to derive a bridge token from sandbox id could reconstruct resume state without storing the secret; merged tests intentionally persist the token for live attach and expect the mint function not to run again on attach.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "Claude Code harness lifecycle implementation",
+      "url": "https://github.com/vercel/ai/blob/fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c/packages/harness-claude-code/src/claude-code-harness.ts",
+      "revision": "fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c",
+      "retrieved_at": "2026-08-11",
+      "claim": "Live bridge coordinates require token; detach and suspend serialize bridgeToken; successful attach consumes coords.token; mintBridgeToken runs on spawn or respawn.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Workflow harness state and resume persistence documentation",
+      "url": "https://github.com/vercel/ai/blob/fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c/content/docs/03-ai-sdk-harnesses/06-workflow-utilities.mdx",
+      "revision": "fc3baaf1ff547efdfcc5cb5a5ee35ed72b8a284c",
+      "retrieved_at": "2026-08-11",
+      "claim": "Workflow consumers are instructed to persist the opaque resumeFrom state by session id; the documented example writes JSON.stringify(resumeState) to storage.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "python3 run.py",
+  "environment": {
+    "runtime": "Python 3.13.5",
+    "platform": "Linux 6.18.35 x86_64",
+    "dependencies": []
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "Returned live resume state contains the caller-minted token and attach succeeds without another mint call.",
+      "interpretation": "The current public lifecycle contract still requires persistence of the live bridge credential for attach."
+    },
+    {
+      "observation": "A token-scrubbed bridge coordinate state is rejected by the current coordinate contract.",
+      "interpretation": "Callers cannot simply remove the credential and rely on mintBridgeToken to reconstruct it through the supported state shape."
+    }
+  ],
+  "stop_condition": "Stop once the pinned source, merged tests, official workflow persistence path, and one executable discriminator agree on whether secretless live resume exists.",
+  "network_policy": "disabled",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-vercel-harness-bridge-token-state/README.md",
+    "playgrounds/EXP-20260811-vercel-harness-bridge-token-state/result.json"
+  ],
+  "promoted_to": "teamleaderleo/fieldwork#788"
+}
