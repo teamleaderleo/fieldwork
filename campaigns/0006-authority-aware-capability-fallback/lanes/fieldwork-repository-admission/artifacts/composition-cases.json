@@ -1,0 +1,100 @@
+[
+  {
+    "id": "degraded-equivalent-read-with-write-absent",
+    "request": {
+      "version": 1,
+      "request_id": "degraded-equivalent-read-with-write-absent",
+      "operation_kind": "potential_mutation",
+      "required_capabilities": [
+        {"id": "github.read", "capability_kind": "read"},
+        {"id": "github.write", "capability_kind": "potential_mutation"}
+      ],
+      "observations": [
+        {"id": "github.read", "route_provenance": "github-connector", "phases": {"advertised": "present", "registered": "present", "discoverable": "present", "callable": "absent", "executable": "absent"}},
+        {"id": "github.write", "route_provenance": "github-connector", "phases": {"advertised": "present", "registered": "present", "discoverable": "present", "callable": "absent", "executable": "absent"}}
+      ],
+      "fallbacks": [
+        {
+          "capability_id": "github.read",
+          "classifier_input": {
+            "operation_kind": "read",
+            "logical_operation_id": "op-github.read",
+            "original_call_id": "call-github.read",
+            "typed_absence_reason": "callable_absent",
+            "original_execution_certainty": "not_dispatched",
+            "captured_binding_generation": "github-a",
+            "proposed_binding_generation": "github-b",
+            "proposed_route_provenance": "same-broker-protocol",
+            "preserves_logical_operation_identity": true,
+            "reversible": true,
+            "authority_deltas": [
+              {"field": "account_binding", "relation": "equal"},
+              {"field": "provider", "relation": "equal"},
+              {"field": "approval_subject", "relation": "equal"},
+              {"field": "actor_delegation", "relation": "equal"},
+              {"field": "user_visibility", "relation": "equal"},
+              {"field": "credential_binding", "relation": "equal"},
+              {"field": "permission_scope", "relation": "narrower"},
+              {"field": "resource_scope", "relation": "equal"},
+              {"field": "audit_contract", "relation": "equal"},
+              {"field": "idempotency_contract", "relation": "equal"},
+              {"field": "rollback_contract", "relation": "equal"},
+              {"field": "recovery_contract", "relation": "equal"}
+            ]
+          }
+        }
+      ]
+    },
+    "expected_decision": "degraded_read_only"
+  },
+  {
+    "id": "blocked-write-absent-without-read",
+    "request": {
+      "version": 1,
+      "request_id": "blocked-write-absent-without-read",
+      "operation_kind": "potential_mutation",
+      "required_capabilities": [
+        {"id": "github.write", "capability_kind": "potential_mutation"}
+      ],
+      "observations": [
+        {"id": "github.write", "route_provenance": "github-connector", "phases": {"advertised": "present", "registered": "present", "discoverable": "present", "callable": "absent", "executable": "absent"}}
+      ],
+      "fallbacks": []
+    },
+    "expected_decision": "blocked"
+  },
+  {
+    "id": "blocked-read-and-write-absent",
+    "request": {
+      "version": 1,
+      "request_id": "blocked-read-and-write-absent",
+      "operation_kind": "potential_mutation",
+      "required_capabilities": [
+        {"id": "github.read", "capability_kind": "read"},
+        {"id": "github.write", "capability_kind": "potential_mutation"}
+      ],
+      "observations": [
+        {"id": "github.read", "route_provenance": "github-connector", "phases": {"advertised": "present", "registered": "present", "discoverable": "present", "callable": "absent", "executable": "absent"}},
+        {"id": "github.write", "route_provenance": "github-connector", "phases": {"advertised": "present", "registered": "present", "discoverable": "present", "callable": "absent", "executable": "absent"}}
+      ],
+      "fallbacks": []
+    },
+    "expected_decision": "blocked"
+  },
+  {
+    "id": "invalid-boolean-version",
+    "request": {
+      "version": true,
+      "request_id": "invalid-boolean-version",
+      "operation_kind": "potential_mutation",
+      "required_capabilities": [
+        {"id": "github.read", "capability_kind": "read"}
+      ],
+      "observations": [
+        {"id": "github.read", "route_provenance": "github-connector", "phases": {"advertised": "present", "registered": "present", "discoverable": "present", "callable": "present", "executable": "present"}}
+      ],
+      "fallbacks": []
+    },
+    "expected_error": "version must be primitive integer 1"
+  }
+]
