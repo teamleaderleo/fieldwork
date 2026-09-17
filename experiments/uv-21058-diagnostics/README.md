@@ -1,5 +1,9 @@
 # uv #21058 diagnostic thunderdome
 
+## In simple words
+
+The original bug is a false-success problem: `uv tool upgrade --all` can turn a failed inventory read into `Nothing to upgrade`. The behavior repair is small. The remaining experiment compares where richer diagnostic context should live, which commands should share it, and what recovery wording stays safe when the tool directory itself may be damaged or misconfigured.
+
 Target source: `astral-sh/uv@95637ecf70cbf3c8a8d11f424b9a654e8fefdf51`
 
 Public issue: https://redirect.github.com/astral-sh/uv/issues/21058
@@ -8,14 +12,23 @@ Upstream-owned reproduction: https://redirect.github.com/astral-sh/uv/pull/21059
 
 Status: internal design experiment. None of these candidates is selected for upstream submission.
 
+Companion material:
+
+- `RESULTS.md` — executed behavior from the implementation contenders;
+- `RANKING.md` — current B2 versus E engineering decision;
+- `CONTENT_PROTOTYPES.md` — rendered diagnostic and hint alternatives across nearby tool failure families;
+- `HINT_BOUNDARIES.md` — rules for when recovery advice is justified, executable, and safe.
+
 Owned-fork carriers, all based on the same upstream commit:
 
 - A: `teamleaderleo/uv#90` — command-local hint via `uv tool dir`
-- B: `teamleaderleo/uv#91` — shared exact-path lower-level hint
+- B2: `teamleaderleo/uv#91` — shared exact-path lower-level hint plus inventory context
 - C: `teamleaderleo/uv#92` — command-local hint with the resolved tool-root path
-- D: patch-only — shared exact-path top-level hint without a new `uv-tool` dependency
+- B1: `teamleaderleo/uv#93` — shared exact-path lower-level hint without outer inventory context
+- E: `teamleaderleo/uv#94` — scoped typed wrapper with central hint rendering
+- D/E2: patch-only comparison material
 
-The upstream-owned regression snapshot is intentionally unchanged in the first carrier commit for A/B/C. A focused test failure is useful evidence here because it exposes the exact diagnostic output produced by the candidate.
+The upstream-owned regression snapshot is intentionally unchanged in the first carrier commits for A/B1/B2/C. A focused test failure is useful evidence there because it exposes the exact diagnostic output produced by each candidate before wording is selected.
 
 ## Shared behavior
 
@@ -31,7 +44,7 @@ Required controls:
 
 ## Recovery wording boundary
 
-Generic rename advice is rejected for now.
+Generic rename advice is rejected.
 
 The directory name is parsed separately and used as the enumerated tool identity. The receipt retains the original requested requirements, and receipt parsing does not validate those requirements against the directory name. Renaming an invalid directory to an arbitrary valid package name could therefore replace an obvious invalid-directory state with a directory/receipt/environment identity mismatch.
 
@@ -40,7 +53,9 @@ Preferred recovery family:
 - move the unexpected directory outside the uv tool directory; or
 - remove it if it is unwanted.
 
-The first A/B/C carrier strings still contain `rename`; those strings are superseded R&D output and should be changed before any candidate is treated as selected.
+`UV_TOOL_DIR` adds another boundary: the configured root itself can be wrong. `CONTENT_PROTOTYPES.md` includes copy that keeps destructive advice conditional when uv may be looking at unrelated contents.
+
+The first A/B/C carrier strings still contain `rename`; those strings are superseded R&D output.
 
 ## A — command-local diagnostic
 
@@ -48,12 +63,12 @@ Sketch: `A-command-local.patch`
 
 Carrier: `teamleaderleo/uv#90`
 
-`tool upgrade` catches `InstalledTools::tools()` errors, adds `Failed to enumerate installed tools` context, supplies a recovery hint only for `uv_tool::Error::ToolName`, renders the diagnostic, and returns `ExitStatus::Error`.
+`tool upgrade` catches `InstalledTools::tools()` errors, adds operation context, supplies a recovery hint only for `uv_tool::Error::ToolName`, renders the diagnostic, and returns `ExitStatus::Error`.
 
 Preferred invalid-name hint family after wording refinement:
 
 ```text
-hint: Run `uv tool dir` to locate the tool directory, then move the invalid directory outside it or remove it
+hint: Run `uv tool dir` to locate the tool directory, then move the invalid directory outside it or remove it if it is unwanted
 ```
 
 Advantages:
@@ -69,38 +84,39 @@ Weaknesses:
 - sibling commands keep their current bare invalid-name diagnostic;
 - command code owns diagnostic rendering.
 
-## B — path-aware shared `uv_tool` hint
+## B2 — path-aware shared `uv_tool` hint + inventory context
 
 Sketch: `B-shared-path-hint.patch`
 
 Carrier: `teamleaderleo/uv#91`
 
-`InstalledTools::tools()` creates a dedicated `InvalidToolDirectory` error carrying the exact directory path and original `InvalidNameError`. `uv_tool::Error` implements `uv_errors::Hint`; the central diagnostic collector learns `uv_tool::Error`; `tool upgrade` adds operation context and propagates normally.
+`InstalledTools::tools()` creates a dedicated path-aware invalid-directory-name error carrying the exact directory path and original `InvalidNameError`. `uv_tool::Error` implements `uv_errors::Hint`; the central diagnostic collector learns `uv_tool::Error`; `tool upgrade` adds operation context and propagates normally.
 
 Preferred output family:
 
 ```text
-error: Failed to enumerate installed tools
-  Caused by: Invalid tool directory at `.../tool backup`
+error: Failed to inspect installed tools
+  Caused by: Invalid tool directory name: `.../tool backup`
   Caused by: Not a valid package or extra name: "tool backup" ...
 
-hint: Move the invalid tool directory at `.../tool backup` outside the uv tool directory, or remove it
+hint: Move this directory outside the uv tool directory, or remove it if it is unwanted
 ```
 
 Advantages:
 
 - exact offending child path;
-- common recovery semantics can reach `tool list`, `tool upgrade --all`, `tool uninstall --all`, and `tool audit --all`;
-- follows uv's lower-level `Hint` pattern.
+- common recovery semantics reach `tool list`, `tool upgrade --all`, `tool uninstall --all`, and `tool audit --all` in executed probes;
+- follows uv's lower-level `Hint` pattern;
+- operation context also improves unrelated top-level inventory I/O in `upgrade --all`.
 
 Costs:
 
-- four source files plus one `Cargo.lock` dependency-list edit: five files total;
+- complete review footprint is six files including `Cargo.lock` and the existing upstream regression;
 - adds explicit `uv-tool -> uv-errors` dependency metadata;
 - changes `uv-tool` error API;
-- broadens user-visible behavior across sibling commands and therefore needs sibling controls.
+- broadens user-visible behavior across sibling commands and therefore needs sibling coverage.
 
-`uv-errors` is already present transitively in this part of the dependency graph, so B does not add a new third-party package. The lockfile cost is an extra `"uv-errors"` entry under the existing `uv-tool` package.
+`uv-errors` is already present transitively in this part of the dependency graph, so B2 does not add a new third-party package. The lockfile cost is an extra `"uv-errors"` entry under the existing `uv-tool` package.
 
 Current source has exactly one `PackageName::from_str` call in `uv-tool`, at the tool-directory enumeration site, and no explicit `uv_tool::Error::ToolName` consumer. That makes the path-aware invalid-name case narrower than initially feared.
 
@@ -110,12 +126,12 @@ Sketch: `C-path-aware-local-hint.patch`
 
 Carrier: `teamleaderleo/uv#92`
 
-C asks whether most of B's recovery value can be obtained without touching `uv-tool` at all. It keeps A's command-local boundary but inserts the already-known `InstalledTools::root()` path directly into the hint.
+C asks whether most of B2's recovery value can be obtained without touching `uv-tool` at all. It keeps A's command-local boundary but inserts the already-known `InstalledTools::root()` path directly into the hint.
 
 Preferred invalid-name hint family:
 
 ```text
-hint: Inspect the uv tool directory at `/actual/tool/root`; move the invalid directory outside it or remove it
+hint: Inspect the uv tool directory at `/actual/tool/root`; move the invalid directory outside it or remove it if it is unwanted
 ```
 
 Advantages:
@@ -128,76 +144,109 @@ Advantages:
 
 Weaknesses:
 
-- identifies the root, while the underlying parser message identifies the bad name; it does not combine them into one exact offending path;
+- identifies the root while the parser message identifies the bad name; it does not combine them into one exact offending path;
 - sibling commands remain unchanged;
 - command code still owns rendering.
+
+E now provides a cleaner scoped form of this idea through normal propagation and central hint rendering.
+
+## B1 — path-aware shared hint without outer context
+
+Carrier: `teamleaderleo/uv#93`.
+
+B1 keeps the production repair literally `installed_tools.tools()?` and lets the lower-level path-aware error carry the invalid-name context. It has the same sibling-command payoff as B2 and a shorter invalid-name chain.
+
+Its cost is visible on unrelated top-level inventory I/O: `upgrade --all` returns the raw I/O error without `Failed to inspect installed tools`. B2 is preferred if the repair should explain the entire failure set currently swallowed by `unwrap_or_default()`.
 
 ## D — exact path with shared top-level hint
 
 Sketch: `D-shared-path-top-level-hint.patch`
 
-D keeps B's `InvalidToolDirectory { path, source }` data in `uv-tool`, but does not implement `uv_errors::Hint` there. The top-level diagnostic walker recognizes that concrete error variant and pushes the recovery hint itself.
+D keeps B's path-aware data in `uv-tool` but teaches the top-level diagnostic walker to match the concrete error variant directly instead of implementing `Hint` in `uv-tool`.
 
-Advantages:
+It avoids the direct crate dependency, but the central diagnostic file explicitly consolidates hints through the generic `Hint` trait. D is therefore retained as a cost experiment and demoted behind B2.
 
-- exact offending child path;
-- shared recovery across sibling tool commands;
-- no `uv-tool -> uv-errors` or `Cargo.lock` edit;
-- three source files instead of B's five-file footprint.
+## E — scoped typed wrapper + central hint
 
-Weaknesses:
+Sketch: `E-scoped-central-hint.patch`
 
-- the top-level diagnostic layer knows a concrete `uv_tool::Error` variant;
-- recovery policy lives away from the lower-level error definition;
-- still broadens sibling command output and needs sibling controls.
+Carrier: `teamleaderleo/uv#94@f7ce7e1e854bf70415b3aecfd8612ffafbfafa20`.
 
-D is currently patch-only because A/B/C already provide enough queued carriers to compare the main behavior/UX axes. Materialize D if B's exact-path behavior proves valuable and its dependency placement is the main objection.
+Focused run `31570915333` / job `94032523828`: success.
+
+E keeps the behavior and user-visible change inside `tool upgrade --all`, wraps top-level `InstalledTools::tools()` failures in `Failed to inspect installed tools`, and uses the central `Hint` collector for variant-aware recovery.
+
+Executed invalid-name family:
+
+```text
+error: Failed to inspect installed tools
+  Caused by: Not a valid package or extra name: "tool backup" ...
+
+hint: Inspect the uv tool directory at `/actual/tool/root`; move the invalid directory outside it, or remove it
+exit: 2
+```
+
+Executed receipt-read I/O family:
+
+```text
+error: Failed to inspect installed tools
+  Caused by: failed to read from file `.../ruff/uv-receipt.toml`: Is a directory (os error 21)
+exit: 2
+```
+
+Sibling commands intentionally remain unchanged. Complete review footprint is three files including the existing upstream regression.
+
+`E2-scoped-command-owned-hint.patch` keeps identical user-visible semantics while moving the wrapper type beside the command that owns it.
 
 ## Scorecard
 
-| Question | A | B | C | D |
-| --- | --- | --- | --- | --- |
-| Expected files | 1 | 5 | 1 | 3 |
-| Exact offending child path | no | yes | no | yes |
-| Tool-root path shown directly | no | yes | yes | yes |
-| Shared recovery across tool commands | no | yes | no | yes |
-| New direct crate dependency | no | yes | no | no |
-| Explicitly preserves exit 2 in command | yes | normal propagation | yes | normal propagation |
-| Central shared hint handling | no | yes via `Hint` | no | yes via concrete match |
-| User must run `uv tool dir` | yes | no | no | no |
+| Question | A | B2 | C | B1 | E |
+| --- | --- | --- | --- | --- | --- |
+| Complete review files | 2 | 6 | 2 | 6 | 3 |
+| Exact offending child path | no | yes | no | yes | no |
+| Tool-root path shown directly | no | yes | yes | yes | yes |
+| Shared recovery across tool commands | no | yes | no | yes | no |
+| New direct crate dependency | no | yes | no | yes | no |
+| Central shared hint handling | no | yes via `Hint` | no | yes via `Hint` | yes via scoped `Hint` |
+| Operation context for unrelated upgrade inventory I/O | yes | yes | yes | no | yes |
+| User must run `uv tool dir` | yes | no | no | no | no |
+| Executed | yes | yes | yes | yes | yes |
 
 ## Execution matrix
 
-For each selected contender, exercise the same cases:
+The completed focused probes cover:
 
 ```sh
 # invalid package-directory name
 tmp="$(mktemp -d)"
 export UV_TOOL_DIR="$tmp"
 mkdir "$UV_TOOL_DIR/tool backup"
-uv tool list; echo "list: $?"
-uv tool upgrade --all; echo "upgrade: $?"
-uv tool uninstall --all; echo "uninstall: $?"
-uv tool audit --all --preview; echo "audit: $?"
+uv tool list
+uv tool upgrade --all
+uv tool uninstall --all
+uv --preview tool audit --all
 
 # empty control
 tmp="$(mktemp -d)"
 export UV_TOOL_DIR="$tmp"
-uv tool upgrade --all; echo "empty-upgrade: $?"
+uv tool upgrade --all
+
+# deterministic non-name top-level receipt I/O
+tmp="$(mktemp -d)"
+export UV_TOOL_DIR="$tmp"
+mkdir -p "$UV_TOOL_DIR/ruff/uv-receipt.toml"
+uv tool upgrade --all
 ```
 
-Then add reachable top-level I/O controls:
-
-1. tool-root `read_dir` failure;
-2. non-`NotFound` `uv-receipt.toml` read failure.
-
-Selection criterion: prefer the smallest design that gives correct operation context and actionable recovery advice for the actual failure type without misleading sibling commands.
+Next content-focused controls are recorded in `CONTENT_PROTOTYPES.md`: wrong `UV_TOOL_DIR`, Windows path display, and executing the recovery action to prove convergence.
 
 ## Relevant precedent
 
 - `uv_virtualenv::Error` implements `uv_errors::Hint` only for variants with known recovery actions.
 - `uv tool list` and `uv tool audit` already give command-oriented recovery guidance for malformed receipts and missing environments.
-- `uv tool dir` is the native command for locating the tool root.
-- Historical uv PR https://redirect.github.com/astral-sh/uv/pull/5520 handled known dangling package-directory residue by identifying the path and giving a targeted user-facing response instead of surfacing only the generic invalid-name failure.
+- `uv tool dir` is the native command for locating the tool root and was proven usable under the invalid-name state.
+- https://redirect.github.com/astral-sh/uv/issues/19630 shows a recovery hint can be unusable when it points to a command that reads the same corrupt state.
+- https://redirect.github.com/astral-sh/uv/issues/4867 and https://redirect.github.com/astral-sh/uv/pull/4868 show unexpected tool-root children can originate from uv itself; the historical repair fixed the producer.
+- https://redirect.github.com/astral-sh/uv/pull/5520 is a useful path-aware diagnostic precedent for damaged installed metadata.
 
 See Fieldwork #627 for the full failure taxonomy and interaction state.
