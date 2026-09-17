@@ -1,0 +1,78 @@
+name: validate Playwright multiple roots repair
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone exact owned candidate
+        run: |
+          git clone --single-branch --branch research/mcp-multiple-roots-file-access https://github.com/teamleaderleo/playwright.git candidate
+          cd candidate
+          test "$(git rev-parse HEAD)" = "bc657c8539e38b885db7d60605157f01b54b8d74"
+      - name: Apply exact multi-root repair
+        working-directory: candidate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          server_path = Path('packages/playwright-core/src/tools/utils/mcp/server.ts')
+          server = server_path.read_text()
+          old = '''export type ClientInfo = {\n  cwd: string;\n  clientName: string;\n};'''
+          new = '''export type ClientInfo = {\n  cwd: string;\n  roots?: string[];\n  clientName: string;\n};'''
+          if server.count(old) != 1:
+              raise SystemExit('ClientInfo anchor mismatch')
+          server = server.replace(old, new)
+          old = '''  const clientInfo: ClientInfo = {\n    cwd: firstRootPath(clientRoots),\n    clientName: server.getClientVersion()?.name ?? 'Playwright MCP',\n  };'''
+          new = '''  const rootPaths = allRootPaths(clientRoots);\n  const clientInfo: ClientInfo = {\n    cwd: rootPaths[0],\n    roots: rootPaths,\n    clientName: server.getClientVersion()?.name ?? 'Playwright MCP',\n  };'''
+          if server.count(old) != 1:
+              raise SystemExit('clientInfo construction anchor mismatch')
+          server_path.write_text(server)
+
+          backend_path = Path('packages/playwright-core/src/tools/backend/browserBackend.ts')
+          backend = backend_path.read_text()
+          old = '''      sessionLog: this._sessionLog,\n      cwd: clientInfo.cwd,\n    });'''
+          new = '''      sessionLog: this._sessionLog,\n      cwd: clientInfo.cwd,\n      roots: clientInfo.roots,\n    });'''
+          if backend.count(old) != 1:
+              raise SystemExit('BrowserBackend context anchor mismatch')
+          backend_path.write_text(backend.replace(old, new))
+
+          context_path = Path('packages/playwright-core/src/tools/backend/context.ts')
+          context = context_path.read_text()
+          old = '''type ContextOptions = {\n  config: ContextConfig;\n  sessionLog?: SessionLog;\n  cwd: string;\n};'''
+          new = '''type ContextOptions = {\n  config: ContextConfig;\n  sessionLog?: SessionLog;\n  cwd: string;\n  roots?: string[];\n};'''
+          if context.count(old) != 1:
+              raise SystemExit('ContextOptions anchor mismatch')
+          context = context.replace(old, new)
+          old = '''  const output = outputDir(options);\n  const workspace = options.cwd;\n  if (!isPathInside(output, resolvedFilename) && !isPathInside(workspace, resolvedFilename))\n    throw new Error(`File access denied: ${resolvedFilename} is outside allowed roots. Allowed roots: ${output}, ${workspace}`);'''
+          new = '''  const output = outputDir(options);\n  const workspaces = options.roots ?? [options.cwd];\n  if (!isPathInside(output, resolvedFilename) && !workspaces.some(workspace => isPathInside(workspace, resolvedFilename)))\n    throw new Error(`File access denied: ${resolvedFilename} is outside allowed roots. Allowed roots: ${[output, ...workspaces].join(', ')}`);'''
+          if context.count(old) != 1:
+              raise SystemExit('file-access anchor mismatch')
+          context_path.write_text(context.replace(old, new))
+          PY
+          git diff --check
+          test "$(git diff --name-only | sort)" = $'packages/playwright-core/src/tools/backend/browserBackend.ts\npackages/playwright-core/src/tools/backend/context.ts\npackages/playwright-core/src/tools/utils/mcp/server.ts'
+      - name: Install and build
+        working-directory: candidate
+        run: |
+          npm ci
+          npm run build
+          npx playwright install chromium
+      - name: Run focused multi-root control
+        working-directory: candidate
+        run: npx playwright test -c tests/mcp/playwright.config.ts --project=chromium tests/mcp/multiple-roots.spec.ts
+      - name: Run focused lint
+        working-directory: candidate
+        run: npx eslint packages/playwright-core/src/tools/utils/mcp/server.ts packages/playwright-core/src/tools/backend/browserBackend.ts packages/playwright-core/src/tools/backend/context.ts tests/mcp/multiple-roots.spec.ts
+      - name: Record repair diff
+        working-directory: candidate
+        run: |
+          git diff --check
+          git diff -- packages/playwright-core/src/tools/utils/mcp/server.ts packages/playwright-core/src/tools/backend/browserBackend.ts packages/playwright-core/src/tools/backend/context.ts
