@@ -17,5 +17,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Test interaction reference scanner
         run: node scripts/test_interaction_references.js
-      - name: Validate batch contracts
+      - name: Test Fieldwork integrity helpers
+        run: python3 scripts/test_fieldwork_integrity.py
+      - name: Validate batch and candidate contracts
         run: python3 scripts/check_fieldwork_integrity.py

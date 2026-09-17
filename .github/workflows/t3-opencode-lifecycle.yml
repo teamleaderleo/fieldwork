@@ -1,0 +1,103 @@
+name: T3 OpenCode lifecycle specifications
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t3-opencode-lifecycle-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - name: Checkout Fieldwork head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+
+      - name: Check lifecycle inputs
+        id: filter
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt$'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  focused-test:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Restart reconciliation
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.restart.test.ts
+          - name: Interrupt settlement
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt.test.ts
+          - name: Interrupt projection settlement
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-projection.test.ts
+          - name: Interrupt generation fence
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-generation.test.ts
+          - name: Interrupt error race
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-error.test.ts
+          - name: Delayed interrupt error ordering
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-error-ordering.test.ts
+          - name: Interrupt owner cancellation
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.interrupt-owner-cancellation.test.ts
+          - name: Pending request cleanup
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.pending-request.test.ts
+          - name: Pending request explicit stop
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.pending-request-stop.test.ts
+          - name: Pending request normal completion
+            test: apps/server/src/provider/Layers/OpenCodeAdapter.pending-request-completion.test.ts
+          - name: Reaper race
+            test: apps/server/src/provider/Layers/ProviderSessionReaper.race.test.ts
+    steps:
+      - name: Checkout Fieldwork control files
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: fieldwork
+
+      - name: Resolve pinned T3 head
+        id: target
+        run: echo "ref=$(tr -d '\n' < fieldwork/campaigns/t3-opencode-completion-reconciliation/artifacts/target-head.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout owned T3 campaign head
+        uses: actions/checkout@v6
+        with:
+          repository: teamleaderleo/t3code
+          ref: ${{ steps.target.outputs.ref }}
+          path: t3code
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: t3code/package.json
+          cache: false
+          run-install: false
+
+      - name: Install target dependencies
+        working-directory: t3code
+        run: vp install
+
+      - name: Run focused test
+        working-directory: t3code
+        run: vp test run ${{ matrix.test }}
