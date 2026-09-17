@@ -1,0 +1,68 @@
+{
+  "schema": "fieldwork.duckdb.s3-interrupt-trace.v1",
+  "pins": {
+    "duckdb_python": "1.5.5",
+    "duckdb_research_head": "46d8d13f18e558ff6de44182aaf64ba1ccf686f0",
+    "httpfs_source": "df92a34d29eb589591adfadba89fa8df874e54ea",
+    "httpfs_loaded_version": "827222f",
+    "minio_release": "RELEASE.2025-07-23T15-54-02Z",
+    "minio_sha256": "eef6581f6509f43ece007a6f2eb4c5e3ce41498c8956e919a7ac7b4b170fa431",
+    "workflow_run": 30482062384,
+    "artifact_id": 8736071557,
+    "artifact_digest": "sha256:f41813d7e6d94362a2a04992f9d5294ba540d99729943fe44bfd1d3d605b23f9"
+  },
+  "checks": {"passed": 16, "failed": 0},
+  "requested_rows": 50000000,
+  "cases": {
+    "csv": {
+      "caller_result": "InterruptException",
+      "connection_reusable": true,
+      "observed_part_bytes_at_interrupt": 5504856,
+      "request_order": [
+        {"seconds": 1.003120, "event": "create_multipart", "status": 200},
+        {"seconds": 1.063228, "event": "upload_part_1", "status": 200},
+        {"seconds": 1.085262, "event": "interrupt_called"},
+        {"seconds": 1.087631, "event": "head_final_key", "status": 404},
+        {"seconds": 1.102966, "event": "upload_part_2", "status": 200},
+        {"seconds": 1.122000, "event": "upload_part_3", "status": 200},
+        {"seconds": 1.125075, "event": "complete_multipart", "status": 200},
+        {"seconds": 1.126111, "event": "query_thread_finished_with_interrupt"}
+      ],
+      "delete_object_requests": 0,
+      "abort_multipart_requests": 0,
+      "published_object": {
+        "bytes": 14634499,
+        "multipart_parts": 3,
+        "readable": true,
+        "rows": 204800,
+        "minimum": 0,
+        "maximum": 204799,
+        "checksum": 20971417600
+      }
+    },
+    "parquet": {
+      "caller_result": "InterruptException",
+      "connection_reusable": true,
+      "observed_part_bytes_at_interrupt": 5504856,
+      "request_order": [
+        {"seconds": 2.124971, "event": "create_multipart", "status": 200},
+        {"seconds": 2.173395, "event": "upload_part_1", "status": 200},
+        {"seconds": 2.179972, "event": "interrupt_called"},
+        {"seconds": 2.182144, "event": "head_final_key", "status": 404},
+        {"seconds": 2.203413, "event": "upload_part_2", "status": 200},
+        {"seconds": 2.206202, "event": "complete_multipart", "status": 200},
+        {"seconds": 2.206734, "event": "query_thread_finished_with_interrupt"}
+      ],
+      "delete_object_requests": 0,
+      "abort_multipart_requests": 0,
+      "published_object": {
+        "bytes": 7974056,
+        "multipart_parts": 2,
+        "readable": false,
+        "reader_error": "missing final magic bytes/footer"
+      }
+    }
+  },
+  "established_conclusion": "Failed-query cleanup checks the absent final key before S3 handle destruction uploads remaining buffers and completes multipart publication. The caller then receives InterruptException.",
+  "upstream_contact_authorized": false
+}
