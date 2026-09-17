@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-vercel-pi-inline-extension-errors",
+  "question": "When a caller-supplied trusted inline Pi extension factory fails to initialize, does the Vercel AI SDK Pi harness surface that failure instead of quietly starting without the extension?",
+  "owner": "chatgpt:gpt-5.6-sol",
+  "created_at": "2026-08-11",
+  "state": "promoted",
+  "claim_scope": "interface",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "Vercel AI SDK harness-pi inline extension implementation",
+      "url": "https://github.com/vercel/ai/blob/ed658ac86670f826b73f812d0d48ff7648a9b7ce/packages/harness-pi/src/pi-session.ts",
+      "revision": "ed658ac86670f826b73f812d0d48ff7648a9b7ce",
+      "retrieved_at": "2026-08-11",
+      "claim": "The harness reloads inline extension factories, then later destructures only session from Pi createAgentSession and does not inspect resourceLoader extension errors.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Pi DefaultResourceLoader",
+      "url": "https://github.com/earendil-works/pi/blob/98145a6c063f00303405ef91ad4a5314670702e9/packages/coding-agent/src/core/resource-loader.ts",
+      "revision": "98145a6c063f00303405ef91ad4a5314670702e9",
+      "retrieved_at": "2026-08-11",
+      "claim": "Inline factory exceptions are caught and retained in extensionsResult.errors while loading continues with the successful extension subset.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Pi createAgentSession and AgentSession runtime",
+      "url": "https://github.com/earendil-works/pi/blob/98145a6c063f00303405ef91ad4a5314670702e9/packages/coding-agent/src/core/sdk.ts",
+      "revision": "98145a6c063f00303405ef91ad4a5314670702e9",
+      "retrieved_at": "2026-08-11",
+      "claim": "createAgentSession returns extensionsResult to the caller; AgentSession builds its extension runner from extensions/runtime and does not consume extensionsResult.errors.",
+      "evidence_label": "Observed"
+    }
+  ],
+  "command": "python3 run.py",
+  "environment": {
+    "runtime": "Python 3.13.5",
+    "platform": "Linux 6.18.35 x86_64",
+    "dependencies": []
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "The loader records a factory failure while Pi can still construct a session from zero successfully loaded extensions.",
+      "interpretation": "A factory exception is a diagnostic result, not an automatic Pi startup exception."
+    },
+    {
+      "observation": "The modeled current Vercel handoff returns the session while dropping the extension diagnostic carrier.",
+      "interpretation": "The harness can start without an explicitly requested trusted extension and without surfacing why it is absent."
+    }
+  ],
+  "stop_condition": "Stop after source, dependency contract, one negative-control model, and a latest-main target-native test distinguish surfaced failure from silent partial startup.",
+  "network_policy": "disabled",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-vercel-pi-inline-extension-errors/README.md",
+    "playgrounds/EXP-20260811-vercel-pi-inline-extension-errors/result.json"
+  ],
+  "promoted_to": "teamleaderleo/fieldwork#816"
+}

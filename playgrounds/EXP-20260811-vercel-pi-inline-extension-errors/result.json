@@ -1,0 +1,21 @@
+{
+  "experiment_id": "EXP-20260811-vercel-pi-inline-extension-errors",
+  "executed_at": "2026-08-11",
+  "command": "python3 run.py",
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Linux 6.18.35 x86_64"
+  },
+  "result": {
+    "current_harness_can_return_session_without_extension": true,
+    "current_harness_handoff_contains_error": false,
+    "factory_error_recorded_by_loader": true,
+    "negative_control_success_has_no_errors": true,
+    "pi_can_build_from_successful_subset": true
+  },
+  "evidence_class": "model-executed",
+  "limitations": [
+    "The model preserves the Pi loader/createAgentSession/Vercel handoff contract but does not execute the package runtime.",
+    "Owned-fork PR teamleaderleo/ai#69 is the target-native discriminator."
+  ]
+}
