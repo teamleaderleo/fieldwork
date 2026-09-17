@@ -14,8 +14,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - name: Test interaction reference scanner
         run: node scripts/test_interaction_references.js
+      - name: Test retained patch validators and policy
+        run: >-
+          python3 -m unittest -v
+          scripts/test_validate_patch_syntax.py
+          scripts/test_validate_patch_binary_marker.py
+          scripts/test_validate_patch_with_git.py
+          scripts/test_classify_retained_patches.py
+      - name: Classify retained patch materialization
+        run: |
+          python3 scripts/classify_retained_patches.py \
+            --output /tmp/retained-patch-policy.json
+          cat /tmp/retained-patch-policy.json
       - name: Validate batch contracts
         run: python3 scripts/check_fieldwork_integrity.py
