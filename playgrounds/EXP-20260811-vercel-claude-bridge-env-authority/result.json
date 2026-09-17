@@ -1,0 +1,23 @@
+{
+  "experiment_id": "EXP-20260811-vercel-claude-bridge-env-authority",
+  "executed_at": "2026-08-11",
+  "command": "python3 run.py",
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Linux 6.18.35 x86_64"
+  },
+  "result": {
+    "child_env_contains_token": true,
+    "child_env_contains_port": true,
+    "unauthorized_socket_rejected": true,
+    "authorized_second_socket_replaces_host": true,
+    "replay_exposes_pending_approval_id": true,
+    "authorized_socket_can_resolve_pending_approval": true
+  },
+  "evidence_class": "model-executed",
+  "limitations": [
+    "The runner models source-level environment propagation and shared-bridge control semantics; it does not execute Claude Code or the Anthropic Agent SDK.",
+    "It does not prove a model actually read the variables, opened a socket, or submitted a forged approval in a real harness session.",
+    "A target-native adapter test is required for the runtime environment boundary, and a controlled integration test would be required for the complete executable path."
+  ]
+}
