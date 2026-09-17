@@ -19,3 +19,7 @@ jobs:
         run: node scripts/test_interaction_references.js
       - name: Validate batch contracts
         run: python3 scripts/check_fieldwork_integrity.py
+      - name: Test coordination state contracts
+        run: python3 scripts/test_coordination_state.py
+      - name: Validate coordination state
+        run: python3 scripts/validate_coordination_state.py
