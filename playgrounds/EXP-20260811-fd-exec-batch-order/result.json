@@ -1,0 +1,37 @@
+{
+  "experiment": "EXP-20260811-fd-exec-batch-order",
+  "target_revision": "ee20f426ddf338ac7ead5c5f00ea49258005caaf",
+  "fieldwork_head_at_execution": "aaf20b3a7d8115485ebb2df2d80d0e109fc73c0b",
+  "workflow_run": 31443852287,
+  "job": 93633857964,
+  "evidence_class": "target-executed",
+  "observations": {
+    "owner_equal_capacity": {
+      "result": ["1", "2"],
+      "declaration_order_preserved": true
+    },
+    "owner_asymmetric_capacity": {
+      "first_early_execution": ["2"],
+      "final_result": ["2", "1", "2"],
+      "declaration_order_preserved": false
+    },
+    "public_cli_equal_capacity": {
+      "arg_max": 4194304,
+      "files": 10208,
+      "generated_path_bytes": 2307008,
+      "later_command_filler_args": 0,
+      "result": ["1", "2"]
+    },
+    "public_cli_asymmetric_capacity": {
+      "arg_max": 4194304,
+      "files": 10208,
+      "generated_path_bytes": 2307008,
+      "later_command_filler_args": 511,
+      "later_command_filler_bytes": 2093567,
+      "result": ["2", "1", "2"]
+    }
+  },
+  "conclusion": "Exact fd source independently flushes a later repeated exec-batch command when that builder reaches its argv ceiling first, crossing declaration order while the earlier command remains buffered. The built public fd CLI reproduces the same inversion; the equal-size control stays 1,2.",
+  "promotion": "https://github.com/teamleaderleo/fieldwork/issues/832",
+  "remaining_gate": "Evaluate a shared batch barrier or equivalent scheduling repair in an owned fd fork/candidate carrier, preserving single-command behavior and explicit batch-size semantics."
+}

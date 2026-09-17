@@ -1,0 +1,131 @@
+name: Fieldwork fd exec-batch order probe
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fd-batch-order:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      FD_SHA: ee20f426ddf338ac7ead5c5f00ea49258005caaf
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact fd source read-only
+        run: |
+          set -euxo pipefail
+          git init /tmp/fd
+          git -C /tmp/fd remote add origin https://github.com/sharkdp/fd.git
+          git -C /tmp/fd fetch --depth=1 origin "$FD_SHA"
+          git -C /tmp/fd checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/fd rev-parse HEAD)" = "$FD_SHA"
+
+      - name: Inject execution-only batch-order controls
+        run: |
+          set -euxo pipefail
+          cat playgrounds/EXP-20260811-fd-exec-batch-order/fd_batch_order_probe.rs >> /tmp/fd/src/exec/mod.rs
+          tail -n 150 /tmp/fd/src/exec/mod.rs
+
+      - name: Execute focused fd batch-order controls
+        working-directory: /tmp/fd
+        run: |
+          set -euxo pipefail
+          cargo test --locked fieldwork_fd_equal_capacity_batch_builders_finish_in_declaration_order -- --nocapture
+          cargo test --locked fieldwork_fd_later_builder_can_flush_before_earlier_builder_on_argv_pressure -- --nocapture
+
+      - name: Build exact fd binary
+        working-directory: /tmp/fd
+        run: |
+          set -euxo pipefail
+          cargo build --locked --bin fd
+
+      - name: Execute public repeated exec-batch discriminator
+        working-directory: /tmp/fd
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import subprocess
+          import tempfile
+
+          arg_max = os.sysconf("SC_ARG_MAX")
+          # Keep the fd parent command comfortably below ARG_MAX while making the
+          # later child command exceed its own available argv space once enough
+          # generated paths have accumulated.
+          filler_target = int(arg_max * 0.50)
+          path_target = int(arg_max * 0.55)
+          filler_piece = "x" * 4096
+          fillers = [filler_piece] * max(1, filler_target // (len(filler_piece) + 1))
+
+          with tempfile.TemporaryDirectory(prefix="fieldwork-fd-batch-") as td:
+              root = pathlib.Path(td) / "tree"
+              root.mkdir()
+              # Long, deterministic filenames let us approach the child argv ceiling
+              # without creating tens of thousands of files.
+              stem = "p" * 180
+              created_bytes = 0
+              index = 0
+              while created_bytes < path_target:
+                  name = f"{index:06d}-{stem}"
+                  path = root / name
+                  path.touch()
+                  created_bytes += len(os.fsencode(str(path))) + 1
+                  index += 1
+
+              def run_case(log_path, second_fillers):
+                  cmd = [
+                      "./target/debug/fd",
+                      "--type", "f",
+                      "--threads", "1",
+                      ".", str(root),
+                      "-X", "/bin/sh", "-c", 'printf "1\\n" >> "$1"', "_", str(log_path), "{}", ";",
+                      "-X", "/bin/sh", "-c", 'printf "2\\n" >> "$1"', "_", str(log_path), "{}",
+                  ]
+                  cmd.extend(second_fillers)
+                  cmd.append(";")
+                  completed = subprocess.run(
+                      cmd,
+                      stdout=subprocess.PIPE,
+                      stderr=subprocess.PIPE,
+                      text=True,
+                      timeout=120,
+                  )
+                  print("FIELDWORK_FD_CMD_ARGMAX", arg_max)
+                  print("FIELDWORK_FD_FILES", index, "path-bytes", created_bytes)
+                  print("FIELDWORK_FD_FILLERS", len(second_fillers), "filler-bytes", sum(len(x) + 1 for x in second_fillers))
+                  print("FIELDWORK_FD_RETURN", completed.returncode)
+                  print("FIELDWORK_FD_STDERR", completed.stderr[-2000:])
+                  if completed.returncode != 0:
+                      raise SystemExit(completed.returncode)
+                  return log_path.read_text(encoding="utf-8").splitlines()
+
+              control_log = pathlib.Path(td) / "control.log"
+              control = run_case(control_log, [])
+              print("FIELDWORK_CONTROL exec-batch-order=", control)
+              assert control == ["1", "2"], control
+
+              pressured_log = pathlib.Path(td) / "pressured.log"
+              pressured = run_case(pressured_log, fillers)
+              print("FIELDWORK_RESULT exec-batch-order=", pressured)
+              assert pressured, pressured
+              assert pressured[0] == "2", pressured
+              assert "1" in pressured[1:], pressured
+              print("FIELDWORK_RESULT public-cli-later-command-executed-first")
+          PY
+
+      - name: Preserve exact receipt
+        if: always()
+        run: |
+          set +e
+          printf 'fd=%s\n' "$(git -C /tmp/fd rev-parse HEAD 2>/dev/null)"
+          printf 'fieldwork_head=%s\n' '${{ github.event.pull_request.head.sha }}'
+          printf 'experiment=%s\n' 'EXP-20260811-fd-exec-batch-order'
+          git -C /tmp/fd diff -- src/exec/mod.rs 2>/dev/null || true
