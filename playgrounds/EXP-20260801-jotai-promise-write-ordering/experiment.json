@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260801-jotai-promise-write-ordering",
+  "question": "When atomWithStorage receives overlapping promised and direct updates, which authority should govern final atom state and shared storage across one or more Jotai stores?",
+  "owner": "chatgpt:gpt-5.6-thinking",
+  "created_at": "2026-08-01",
+  "updated_at": "2026-08-03",
+  "state": "running",
+  "disposition": "ISSUE FIRST / REPAIR",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "Jotai atomWithStorage implementation",
+      "url": "https://github.com/pmndrs/jotai/blob/56a9cc51de8a5dd762b95a145820f12589cc47c9/src/vanilla/utils/atomWithStorage.ts",
+      "revision": "56a9cc51de8a5dd762b95a145820f12589cc47c9",
+      "retrieved_at": "2026-08-01",
+      "claim": "Promised updates call set(baseAtom, resolvedValue) and storage.setItem only after their promise resolves, with no invocation-generation guard.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Owned-fork characterization branch",
+      "url": "https://github.com/teamleaderleo/jotai/tree/scout/atom-with-storage-promise-write-ordering",
+      "revision": "09e7964e5da9423920eedb736feb30a347eaec89",
+      "retrieved_at": "2026-08-02",
+      "claim": "Three target-native controls passed and demonstrate that older promised updates can become final after a newer direct update, reset, or promised update.",
+      "evidence_label": "Observed"
+    },
+    {
+      "name": "Owned-fork generation candidate",
+      "url": "https://github.com/teamleaderleo/jotai/tree/fix/utils-promise-write-generation",
+      "revision": "348156c8ae9636c9ad0b43d1c0fb7343dc13a976",
+      "retrieved_at": "2026-08-02",
+      "claim": "The one-store generation candidate passed format, types, lint, 447 specs, build, version, build-variant, old-TypeScript, and size gates; complete-diff review found atom-global authority across stores and updater-order ambiguity.",
+      "evidence_label": "Observed"
+    }
+  ],
+  "command": "Jotai fork pull-request workflows at heads 09e7964e5da9423920eedb736feb30a347eaec89 and 348156c8ae9636c9ad0b43d1c0fb7343dc13a976",
+  "environment": {
+    "runtime": "Jotai repository GitHub Actions matrix",
+    "platform": "owned fork; exact workflow and job identities retained in README",
+    "dependencies": [
+      "repository lockfile and declared pnpm workflow"
+    ]
+  },
+  "results": {
+    "characterization": {
+      "test_run": 30691421788,
+      "conclusion": "success",
+      "other_required_runs": "success except fork preview publication"
+    },
+    "candidate": {
+      "test_run": 30691537697,
+      "test_job": 91347025242,
+      "conclusion": "success",
+      "specs": "50 files, 447 tests",
+      "other_required_runs": "success except fork preview publication"
+    }
+  },
+  "review_findings": [
+    "writeGeneration is a closure variable shared by every store using the same atom definition",
+    "store-local atom state and shared storage may require separate authority scopes",
+    "generation is assigned after a functional updater executes, permitting reentrant ordering inversion",
+    "a newer promised rejection suppressing an older successful promise is untested policy"
+  ],
+  "next_probes": [
+    "two independent stores using the same atom",
+    "functional updater that performs a nested write before returning a promise",
+    "newer promised update rejects before an older promise resolves"
+  ],
+  "distinguishing_outcomes": [
+    {
+      "observation": "Maintainers select one global invocation authority across state and storage.",
+      "interpretation": "Document cross-store cancellation explicitly and design a global authority mechanism deliberately."
+    },
+    {
+      "observation": "State authority is per store while storage authority is global.",
+      "interpretation": "One closure counter is insufficient; split the authority model before implementation."
+    },
+    {
+      "observation": "Promised updates intentionally follow resolution order.",
+      "interpretation": "Retire the generation candidate and retain the characterization only."
+    }
+  ],
+  "stop_condition": "Stop after multi-store, reentrant-updater, and newer-rejection probes yield one explicit authority policy; do not expand into general backend settlement ordering.",
+  "network_policy": "explicit",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260801-jotai-promise-write-ordering/README.md",
+    "playgrounds/EXP-20260801-jotai-promise-write-ordering/atomWithStoragePromiseWriteOrdering.test.ts"
+  ],
+  "promoted_to": null
+}
