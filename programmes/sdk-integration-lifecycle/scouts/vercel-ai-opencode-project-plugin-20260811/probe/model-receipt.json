@@ -1,0 +1,21 @@
+{
+  "date": "2026-08-11",
+  "evidence_class": "model-executed",
+  "command": "node /tmp/fieldwork-opencode-model-probe.mjs",
+  "sentinels_only": true,
+  "baseline": {
+    "pluginLoaded": true,
+    "openaiApiKeyPresent": true,
+    "configContainsSentinel": true
+  },
+  "disabled": {
+    "pluginLoaded": false,
+    "openaiApiKeyPresent": false,
+    "configContainsSentinel": false
+  },
+  "limits": [
+    "This models same-process environment visibility and the project-config gate.",
+    "It is not an OpenCode v1.18.3 target execution.",
+    "OpenCode discovery and pre-prompt timing are established separately by the source trace in report.md."
+  ]
+}
