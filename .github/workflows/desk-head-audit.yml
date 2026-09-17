@@ -1,0 +1,45 @@
+name: Desk exact-head audit
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/desk-head-audit.yml'
+      - 'scripts/audit_desk_heads.py'
+      - 'scripts/test_audit_desk_heads.py'
+      - 'findings/F254-desk-head-audit/**'
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * *'
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out Fieldwork
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Run focused regressions
+        run: |
+          python3 -m py_compile \
+            scripts/audit_desk_heads.py \
+            scripts/test_audit_desk_heads.py
+          python3 scripts/test_audit_desk_heads.py
+
+      - name: Compare live desk markers with pull requests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/audit_desk_heads.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --issue 213 \
+            --issue 160 \
+            --output /tmp/desk-head-audit.json
+          cat /tmp/desk-head-audit.json
