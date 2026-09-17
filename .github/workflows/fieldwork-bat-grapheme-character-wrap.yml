@@ -1,0 +1,114 @@
+name: Fieldwork Bat grapheme character wrap probe
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bat-grapheme-wrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BAT_SHA: af59a3218303837421ce06bb2dc3c545525bba0f
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact Bat source read-only
+        run: |
+          set -euxo pipefail
+          git init /tmp/bat
+          git -C /tmp/bat remote add origin https://github.com/sharkdp/bat.git
+          git -C /tmp/bat fetch --depth=1 origin "$BAT_SHA"
+          git -C /tmp/bat checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/bat rev-parse HEAD)" = "$BAT_SHA"
+
+      - name: Build exact Bat binary
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          cargo build --locked --bin bat
+
+      - name: Two-column scalar control stays intact
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          printf '界\n' | ./target/debug/bat \
+            --style=plain \
+            --color=never \
+            --decorations=always \
+            --paging=never \
+            --wrap=character \
+            --terminal-width=2 \
+            > /tmp/bat-control.out
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('/tmp/bat-control.out').read_text(encoding='utf-8')
+          print('FIELDWORK_CONTROL scalar-width2=', repr(text))
+          assert text == '界\n', text
+          PY
+
+      - name: Classify narrow ZWJ grapheme output
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          printf '👩‍💻\n' | ./target/debug/bat \
+            --style=plain \
+            --color=never \
+            --decorations=always \
+            --paging=never \
+            --wrap=character \
+            --terminal-width=2 \
+            > /tmp/bat-zwj.out
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('/tmp/bat-zwj.out').read_text(encoding='utf-8')
+          print('FIELDWORK_ZWJ_OUTPUT', repr(text))
+          if text == '👩‍\n💻\n':
+              print('FIELDWORK_RESULT zwj-width2=split-inside-grapheme')
+          elif text == '👩‍💻\n':
+              print('FIELDWORK_RESULT zwj-width2=preserved')
+          else:
+              print('FIELDWORK_RESULT zwj-width2=other')
+          PY
+
+      - name: Wider terminal control preserves ZWJ grapheme
+        working-directory: /tmp/bat
+        run: |
+          set -euxo pipefail
+          printf '👩‍💻\n' | ./target/debug/bat \
+            --style=plain \
+            --color=never \
+            --decorations=always \
+            --paging=never \
+            --wrap=character \
+            --terminal-width=4 \
+            > /tmp/bat-wide.out
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('/tmp/bat-wide.out').read_text(encoding='utf-8')
+          print('FIELDWORK_CONTROL zwj-width4=', repr(text))
+          assert text == '👩‍💻\n', text
+          PY
+
+      - name: Preserve exact receipt
+        if: always()
+        run: |
+          set +e
+          printf 'bat=%s\n' "$(git -C /tmp/bat rev-parse HEAD 2>/dev/null)"
+          printf 'fieldwork_head=%s\n' '${{ github.event.pull_request.head.sha }}'
+          printf 'experiment=%s\n' 'EXP-20260811-bat-grapheme-character-wrap'
+          for f in /tmp/bat-control.out /tmp/bat-zwj.out /tmp/bat-wide.out; do
+            if test -f "$f"; then
+              python3 - "$f" <<'PY'
+          from pathlib import Path
+          import sys
+          p = Path(sys.argv[1])
+          print(p.name, repr(p.read_text(encoding='utf-8')))
+          PY
+            fi
+          done

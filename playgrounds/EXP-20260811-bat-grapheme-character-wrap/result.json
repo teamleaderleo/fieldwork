@@ -1,0 +1,37 @@
+{
+  "experiment": "EXP-20260811-bat-grapheme-character-wrap",
+  "target_revision": "af59a3218303837421ce06bb2dc3c545525bba0f",
+  "fieldwork_head_at_execution": "6a76ae090639d7b3fe0e5247272ad369f5887dbf",
+  "workflow_run": 31442103819,
+  "job": 93628773416,
+  "evidence_class": "target-executed",
+  "observations": {
+    "scalar_control": {
+      "terminal_width": 2,
+      "input": "界\n",
+      "output": "界\n",
+      "result": "intact"
+    },
+    "zwj_discriminator": {
+      "terminal_width": 2,
+      "input": "👩‍💻\n",
+      "output": "👩‍\n💻\n",
+      "result": "split-inside-grapheme"
+    },
+    "wide_control": {
+      "terminal_width": 4,
+      "input": "👩‍💻\n",
+      "output": "👩‍💻\n",
+      "result": "intact"
+    }
+  },
+  "harness_history": {
+    "run": 31441666371,
+    "job": 93627473861,
+    "classification": "SimplePrinter bypass",
+    "detail": "Using --decorations=never in piped mode left loop_through enabled, so Bat selected SimplePrinter and bypassed the character-wrapping owner. All fixtures remained intact in that generation."
+  },
+  "conclusion": "Exact Bat source splits the ZWJ extended grapheme 👩‍💻 between its component scalars under public character wrapping at terminal width 2. A single two-column scalar stays intact at the same width, and the ZWJ sequence stays intact when the terminal width is 4.",
+  "promotion": "https://github.com/teamleaderleo/fieldwork/issues/824",
+  "remaining_gate": "Evaluate an EGC-aware wrapping repair in the owned Bat fork while preserving control-character width and word-wrap whitespace semantics."
+}
