@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "cmake": "cmake version 3.31.6",
+  "ninja": "1.12.1",
+  "platform": "linux-x86_64",
+  "rule": "build empty | ${cmake_ninja_workdir}empty: CUSTOM_COMMAND",
+  "command": "COMMAND = cd <temporary-build-directory>",
+  "is_phony": false,
+  "has_working_directory_only_command": true,
+  "interpretation": "The generator-expression command evaluates empty, but Ninja still receives a custom-command rule whose only command changes directory. POSIX Ninja executes that shell builtin successfully; current CMake master source uses 'cd /D' under _WIN32 and leaves a single command line unwrapped by cmd.exe in BuildCommandLine.",
+  "source_master_revision": "457b8a2acb76d0331889955b1ab74b0d21357ddf",
+  "upstream_contact_authorized": false
+}
