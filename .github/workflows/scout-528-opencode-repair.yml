@@ -1,0 +1,57 @@
+name: Scout 528 OpenCode idle-authority repair
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+jobs:
+  opencode-idle-authority:
+    if: github.event.pull_request.head.ref == 'scout/528-agent-runtime-run-authority'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/opencode
+          ref: 5cac0f6badae4d718ed707db382245aa6117c49f
+          fetch-depth: 1
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Verify exact current-dev repair head
+        run: test "$(git rev-parse HEAD)" = "5cac0f6badae4d718ed707db382245aa6117c49f"
+
+      - name: Install workspace
+        run: bun install --frozen-lockfile
+
+      - name: Run focused and existing Runner suites
+        working-directory: packages/opencode
+        run: |
+          bun test \
+            test/session/run-state-idle-authority.test.ts \
+            test/effect/runner.test.ts \
+            --timeout 30000
+
+      - name: Typecheck package
+        working-directory: packages/opencode
+        run: bun typecheck
+
+      - name: Lint repair fence
+        working-directory: packages/opencode
+        run: |
+          bun lint \
+            src/effect/runner.ts \
+            src/session/run-state.ts \
+            test/session/run-state-idle-authority.test.ts
+
+# Exact current-dev owned-fork repair acceptance. No upstream write.
