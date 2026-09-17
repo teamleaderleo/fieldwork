@@ -1,0 +1,39 @@
+name: Fieldwork Biome safe-fix 89
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fieldwork-biome-safe-fix-89.yml"
+      - "programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Reproduce useObjectSpread accessor behavior
+        shell: bash
+        run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-object-spread-accessors/reproduce.sh
+      - name: Reproduce useArrayLiterals spread behavior
+        shell: bash
+        run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-array-literals-spread/reproduce.sh
+      - name: Reproduce useSimplifiedLogicExpression side-effect behavior
+        shell: bash
+        run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-simplified-logic-side-effects/reproduce.sh
+      - name: Probe noUselessStringConcat numeric formatting
+        shell: bash
+        run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/no-useless-string-concat-numbers/reproduce.sh
+      - name: Explore useFlatMap Array species behavior
+        shell: bash
+        run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-flat-map-array-species/reproduce.sh
+      - name: Explore useConst direct eval behavior
+        shell: bash
+        run: bash programmes/web-tooling-runtime-correctness/scouts/biome-safe-fix-runtime-semantics/reproductions/use-const-direct-eval/reproduce.sh
