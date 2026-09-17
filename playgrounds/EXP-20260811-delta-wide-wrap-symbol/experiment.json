@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "EXP-20260811-delta-wide-wrap-symbol",
+  "question": "Can Delta unlimited wrapping requeue unchanged text and stop making progress when the next source grapheme cannot fit before the wrap marker, including with a valid one-column marker?",
+  "owner": "GPT-5.6 Sol",
+  "created_at": "2026-08-11",
+  "state": "promoted",
+  "claim_scope": "mechanism",
+  "integration_context": null,
+  "sources": [
+    {
+      "name": "dandavison/delta",
+      "url": "https://github.com/dandavison/delta",
+      "revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
+      "retrieved_at": "2026-08-11",
+      "claim": "wrap_line can requeue the complete source segment when the next grapheme does not fit the pre-marker width; unlimited mode has no line-count stop. The public marker validator separately counts graphemes rather than display columns.",
+      "evidence_label": "Documented"
+    },
+    {
+      "name": "unicode-rs/unicode-width",
+      "url": "https://github.com/unicode-rs/unicode-width/tree/v0.1.14",
+      "revision": "v0.1.14",
+      "retrieved_at": "2026-08-11",
+      "claim": "Delta's exact target resolves unicode-width 0.1.14 for its direct width calculations; ordinary fullwidth CJK graphemes occupy two columns.",
+      "evidence_label": "Documented"
+    }
+  ],
+  "command": "GitHub Actions: Fieldwork Delta wide wrap symbol probe",
+  "environment": {
+    "runtime": "target-declared Rust/Cargo",
+    "platform": "GitHub-hosted Ubuntu 24.04",
+    "dependencies": [
+      "exact dandavison/delta source fetched read-only at 95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4"
+    ]
+  },
+  "distinguishing_outcomes": [
+    {
+      "observation": "With valid marker +, ASCII text at the same narrow width terminates, while text beginning with a two-column grapheme exceeds the watchdog.",
+      "interpretation": "The primary owner is a general no-progress split in wrap_line rather than only invalid marker validation."
+    },
+    {
+      "observation": "The same valid-marker distinction reproduces through the built public delta command.",
+      "interpretation": "Promote the no-progress loop as a user-reachable current-head candidate."
+    },
+    {
+      "observation": "A two-column one-grapheme marker is also accepted and triggers the same no-progress family.",
+      "interpretation": "Retain display-width validation as a second bug and defense layer, but keep the loop progress invariant primary."
+    }
+  ],
+  "target_execution": {
+    "workflow_run": 31489009549,
+    "job": 93770852535,
+    "evidence_class": "target-executed",
+    "target_revision": "95a0e224f55ccfdf3a7d1278fdea98a3edb9fbf4",
+    "result": "Exact owner: + with ASCII terminated; + with leading 界 reached the 8-second watchdog; the accepted wide marker 界 also reached the watchdog. Built public CLI: + with ASCII terminated; + with a replacement beginning 界 reached the watchdog; wide marker 界 with ASCII also reached the watchdog.",
+    "receipt": "playgrounds/EXP-20260811-delta-wide-wrap-symbol/result.json"
+  },
+  "stop_condition": "Promoted after exact target owner and public CLI reproduction of the valid-marker wide-grapheme no-progress loop. Continue source work only in an owned Delta fork or Fieldwork candidate record; keep third-party upstream read-only and refresh overlap before any external proposal.",
+  "network_policy": "public-read-only",
+  "upstream_contact_authorized": false,
+  "result_paths": [
+    "playgrounds/EXP-20260811-delta-wide-wrap-symbol/README.md",
+    "playgrounds/EXP-20260811-delta-wide-wrap-symbol/delta_probe_tests.rs",
+    "playgrounds/EXP-20260811-delta-wide-wrap-symbol/result.json"
+  ],
+  "promoted_to": "https://github.com/teamleaderleo/fieldwork/issues/820"
+}
