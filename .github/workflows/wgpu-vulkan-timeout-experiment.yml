@@ -1,0 +1,140 @@
+name: wgpu Vulkan timeout classification
+
+on:
+  push:
+    branches:
+      - scout/116-wgpu-portability-lifecycle
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wgpu-vulkan-timeout-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: "false"
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+
+jobs:
+  classify-acquire-fence-timeout:
+    name: Vulkan acquire-fence timeout classification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact wgpu characterization source
+        uses: actions/checkout@v6
+        with:
+          repository: teamleaderleo/wgpu
+          ref: 3e058e5d4b6d94631d28c2242a02bd1163888db5
+          path: wgpu
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install 1.93 --no-self-update --profile=minimal --component rustfmt
+          rustup override set 1.93
+          cargo -V
+        working-directory: wgpu
+
+      - name: Apply contextual timeout-classification candidate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("wgpu-hal/src/vulkan/swapchain/native.rs")
+          text = path.read_text()
+
+          marker = "impl Swapchain for NativeSwapchain {"
+          helper = """fn map_acquire_fence_wait_error(error: vk::Result) -> crate::SurfaceError {
+              match error {
+                  vk::Result::TIMEOUT => crate::SurfaceError::Timeout,
+                  other => map_host_device_oom_and_lost_err(other).into(),
+              }
+          }
+
+          """
+          if text.count(marker) != 1:
+              raise SystemExit("NativeSwapchain impl marker was not found exactly once")
+          text = text.replace(marker, helper + marker, 1)
+
+          old_wait = """.wait_for_fences(&[fence], true, timeout_ns)
+                              .map_err(map_host_device_oom_and_lost_err)?;"""
+          new_wait = """.wait_for_fences(&[fence], true, timeout_ns)
+                              .map_err(map_acquire_fence_wait_error)?;"""
+          if text.count(old_wait) != 1:
+              raise SystemExit("acquisition-fence wait mapping was not found exactly once")
+          text = text.replace(old_wait, new_wait, 1)
+
+          text += r'''
+
+          #[cfg(test)]
+          mod fieldwork_timeout_tests {
+              use super::*;
+
+              #[test]
+              fn fieldwork_surface_acquire_wait_timeout_is_not_device_loss() {
+                  assert_eq!(
+                      map_acquire_fence_wait_error(vk::Result::TIMEOUT),
+                      crate::SurfaceError::Timeout
+                  );
+                  assert_eq!(
+                      map_acquire_fence_wait_error(vk::Result::ERROR_DEVICE_LOST),
+                      crate::SurfaceError::Device(crate::DeviceError::Lost)
+                  );
+                  assert_eq!(
+                      map_acquire_fence_wait_error(vk::Result::ERROR_OUT_OF_HOST_MEMORY),
+                      crate::SurfaceError::Device(crate::DeviceError::OutOfMemory)
+                  );
+                  assert_eq!(
+                      map_acquire_fence_wait_error(vk::Result::ERROR_OUT_OF_DEVICE_MEMORY),
+                      crate::SurfaceError::Device(crate::DeviceError::OutOfMemory)
+                  );
+
+                  // Negative control: the generic device mapper remains contextual and
+                  // still treats TIMEOUT as unexpected. Only the surface acquisition
+                  // fence-wait call site gains SurfaceError::Timeout semantics.
+                  assert_eq!(
+                      map_host_device_oom_and_lost_err(vk::Result::TIMEOUT),
+                      crate::DeviceError::Unexpected
+                  );
+              }
+          }
+          '''
+
+          path.write_text(text)
+          PY
+        working-directory: wgpu
+
+      - name: Normalize and verify candidate source
+        run: |
+          cargo fmt --all
+          cargo fmt --all -- --check
+          git diff --check
+          git diff --stat
+        working-directory: wgpu
+
+      - name: Require exact classification test
+        run: |
+          cargo test --locked \
+            -p wgpu-hal \
+            --features vulkan \
+            --lib \
+            -- --list | tee /tmp/fieldwork-vulkan-timeout-tests.txt
+          grep -F "fieldwork_surface_acquire_wait_timeout_is_not_device_loss" /tmp/fieldwork-vulkan-timeout-tests.txt
+        working-directory: wgpu
+
+      - name: Execute timeout-classification test
+        run: |
+          cargo test --locked \
+            -p wgpu-hal \
+            --features vulkan \
+            --lib \
+            fieldwork_surface_acquire_wait_timeout_is_not_device_loss \
+            -- --nocapture
+        working-directory: wgpu

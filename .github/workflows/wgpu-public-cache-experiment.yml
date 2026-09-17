@@ -1,0 +1,223 @@
+name: wgpu public surface cache characterization
+
+on:
+  push:
+    branches:
+      - scout/116-wgpu-portability-lifecycle
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wgpu-public-cache-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: "false"
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+
+jobs:
+  characterize-public-cache:
+    name: Backend acceptance versus public metadata
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact wgpu characterization source
+        uses: actions/checkout@v6
+        with:
+          repository: teamleaderleo/wgpu
+          ref: 3e058e5d4b6d94631d28c2242a02bd1163888db5
+          path: wgpu
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install 1.93 --no-self-update --profile=minimal --component rustfmt
+          rustup override set 1.93
+          cargo -V
+        working-directory: wgpu
+
+      - name: Add deterministic custom-surface characterization
+        run: |
+          cat >> wgpu/src/api/surface.rs <<'RS'
+
+          #[cfg(all(test, custom, feature = "noop", std))]
+          mod fieldwork_public_cache_tests {
+              use super::*;
+              use std::sync::{Arc, Mutex as StdMutex};
+
+              #[derive(Debug, Default)]
+              struct BackendState {
+                  accepted: Option<SurfaceConfiguration>,
+                  requests: Vec<SurfaceConfiguration>,
+              }
+
+              #[derive(Debug)]
+              struct RejectingSurface {
+                  state: Arc<StdMutex<BackendState>>,
+              }
+
+              impl custom::SurfaceInterface for RejectingSurface {
+                  fn get_capabilities(
+                      &self,
+                      _adapter: &custom::DispatchAdapter,
+                  ) -> SurfaceCapabilities {
+                      unimplemented!("the cache characterization does not query capabilities")
+                  }
+
+                  fn configure(
+                      &self,
+                      _device: &custom::DispatchDevice,
+                      config: &SurfaceConfiguration,
+                  ) {
+                      let mut state = self.state.lock().expect("backend state lock poisoned");
+                      state.requests.push(config.clone());
+
+                      // Model a backend that accepts the 2×2 baseline but rejects the
+                      // 7×5 request while returning through the current `()` dispatch
+                      // contract. The wrapper receives no acceptance classification.
+                      if config.width != 7 {
+                          state.accepted = Some(config.clone());
+                      }
+                  }
+
+                  fn get_current_texture(
+                      &self,
+                  ) -> (
+                      Option<custom::DispatchTexture>,
+                      SurfaceStatus,
+                      custom::DispatchSurfaceOutputDetail,
+                  ) {
+                      (
+                          Some(custom::DispatchTexture::custom(TestTexture)),
+                          SurfaceStatus::Good,
+                          custom::DispatchSurfaceOutputDetail::custom(NoopOutputDetail),
+                      )
+                  }
+              }
+
+              #[derive(Debug)]
+              struct TestTexture;
+
+              impl custom::TextureInterface for TestTexture {
+                  fn create_view(
+                      &self,
+                      _desc: &TextureViewDescriptor<'_>,
+                  ) -> custom::DispatchTextureView {
+                      unimplemented!("the cache characterization does not create texture views")
+                  }
+
+                  fn destroy(&self) {}
+              }
+
+              #[derive(Debug)]
+              struct NoopOutputDetail;
+
+              impl custom::SurfaceOutputDetailInterface for NoopOutputDetail {
+                  fn texture_discard(&self) {}
+                  fn texture_release(&self) {}
+              }
+
+              fn baseline_config() -> SurfaceConfiguration {
+                  SurfaceConfiguration {
+                      usage: TextureUsages::RENDER_ATTACHMENT,
+                      format: TextureFormat::Rgba8Unorm,
+                      width: 2,
+                      height: 2,
+                      present_mode: PresentMode::Fifo,
+                      desired_maximum_frame_latency: 2,
+                      alpha_mode: CompositeAlphaMode::Opaque,
+                      view_formats: vec![],
+                      color_space: SurfaceColorSpace::Srgb,
+                  }
+              }
+
+              #[test]
+              fn fieldwork_rejected_request_is_cached_and_shapes_public_texture_metadata() {
+                  let state = Arc::new(StdMutex::new(BackendState::default()));
+                  let surface = Surface {
+                      inner: custom::DispatchSurface::custom(RejectingSurface {
+                          state: Arc::clone(&state),
+                      }),
+                      config: Mutex::new(None),
+                      _handle_source: None,
+                  };
+                  let (device, _queue) = Device::noop(&DeviceDescriptor::default());
+
+                  let baseline = baseline_config();
+                  surface.configure(&device, &baseline);
+                  assert_eq!(surface.get_configuration(), Some(baseline.clone()));
+
+                  let mut rejected = baseline.clone();
+                  rejected.width = 7;
+                  rejected.height = 5;
+                  surface.configure(&device, &rejected);
+
+                  let backend = state.lock().expect("backend state lock poisoned");
+                  assert_eq!(backend.requests, vec![baseline.clone(), rejected.clone()]);
+                  assert_eq!(
+                      backend.accepted,
+                      Some(baseline.clone()),
+                      "the controlled backend must preserve its accepted baseline"
+                  );
+                  drop(backend);
+
+                  assert_eq!(
+                      surface.get_configuration(),
+                      Some(rejected.clone()),
+                      "the public wrapper publishes the request despite lacking acceptance evidence"
+                  );
+
+                  let frame = match surface.get_current_texture() {
+                      CurrentSurfaceTexture::Success(frame) => frame,
+                      other => panic!("controlled backend returned an unexpected outcome: {other:?}"),
+                  };
+
+                  assert_eq!(frame.texture.width(), rejected.width);
+                  assert_eq!(frame.texture.height(), rejected.height);
+                  assert_eq!(frame.texture.format(), rejected.format);
+                  assert_eq!(frame.texture.usage(), rejected.usage);
+
+                  let backend = state.lock().expect("backend state lock poisoned");
+                  let accepted = backend.accepted.as_ref().expect("baseline must remain accepted");
+                  assert_eq!((accepted.width, accepted.height), (2, 2));
+                  assert_eq!((frame.texture.width(), frame.texture.height()), (7, 5));
+              }
+          }
+          RS
+        working-directory: wgpu
+
+      - name: Normalize and verify generated source
+        run: |
+          cargo fmt --all
+          cargo fmt --all -- --check
+          git diff --check
+          git diff --stat
+        working-directory: wgpu
+
+      - name: Require exact cache characterization
+        run: |
+          cargo test --locked \
+            -p wgpu \
+            --no-default-features \
+            --features std,custom,noop \
+            --lib \
+            -- --list | tee /tmp/fieldwork-cache-tests.txt
+          grep -F "fieldwork_public_cache_tests::fieldwork_rejected_request_is_cached_and_shapes_public_texture_metadata" /tmp/fieldwork-cache-tests.txt
+        working-directory: wgpu
+
+      - name: Execute cache and metadata characterization
+        run: |
+          cargo test --locked \
+            -p wgpu \
+            --no-default-features \
+            --features std,custom,noop \
+            --lib \
+            fieldwork_rejected_request_is_cached_and_shapes_public_texture_metadata \
+            -- --nocapture
+        working-directory: wgpu
