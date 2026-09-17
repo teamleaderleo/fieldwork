@@ -1,0 +1,42 @@
+=== RUN   TestOldSingleUseConsumerDeletesReplacement
+    lease_race_test.go:158: B bytes immediately before releasing A: "{\"version\":1,\"token_sha256\":\"17c2b2ba08f8015e6cdbec68bc78fe9c8919b9544271c9830f41100b58113fa7\",\"expires_at_unix\":1788290560,\"session_id\":\"sess-B\",\"single_use\":true}\n"
+    lease_race_test.go:159: surviving state after A removal: pathname absent
+--- PASS: TestOldSingleUseConsumerDeletesReplacement (0.00s)
+=== RUN   TestNegativeControlInstallAfterConsumeSettles
+    lease_race_test.go:173: surviving B bytes: "{\"version\":1,\"token_sha256\":\"17c2b2ba08f8015e6cdbec68bc78fe9c8919b9544271c9830f41100b58113fa7\",\"expires_at_unix\":1788290560,\"session_id\":\"sess-B\",\"single_use\":true}\n"
+--- PASS: TestNegativeControlInstallAfterConsumeSettles (0.00s)
+=== RUN   TestReadRacingInPlaceWriteSeesInvalidJSON
+    lease_race_test.go:217: invalid reads=20 empty=20 first-invalid-len=0 first-invalid=""
+--- PASS: TestReadRacingInPlaceWriteSeesInvalidJSON (0.00s)
+=== RUN   TestFailureAfterFirstArtifactLeavesMixedGeneration
+    lease_race_test.go:251: install error: rpc: open /tmp/TestFailureAfterFirstArtifactLeavesMixedGeneration1364574459/001/rpc-dir: is a directory
+    lease_race_test.go:252: surviving PTY bytes (B): "{\"version\":1,\"token_sha256\":\"06a6c0e8b541372eff9dca0cd98888f991bbf9ded99743e3246d96578b46cf82\",\"expires_at_unix\":1788290560,\"session_id\":\"pty-B\",\"single_use\":true}\n"
+    lease_race_test.go:253: surviving RPC bytes (A): "{\"version\":1,\"token_sha256\":\"09228d2f0224e905ccfe6fba9ba23feccf28499232b0fe58d8cc59b797f76cac\",\"expires_at_unix\":1788290560,\"session_id\":\"rpc-A\",\"single_use\":false}\n"
+    lease_race_test.go:254: surviving client bytes (A): "{\"token\":\"rpc-A\",\"sessionId\":\"rpc-A\",\"expiresAtUnix\":1788290560}\n"
+--- PASS: TestFailureAfterFirstArtifactLeavesMixedGeneration (0.00s)
+=== RUN   TestConcurrentUnmodifiedThreeFileInstallsCanMix
+    lease_race_test.go:281: mixed final set at iteration 5: pty=X rpc=Y client=Y
+    lease_race_test.go:282: pty bytes="{\"version\":1,\"token_sha256\":\"b748d70814253ef321ee36f6f6047c437170d7cdc694ef1d4ff003ea68c0f3ae\",\"expires_at_unix\":1788290560,\"session_id\":\"X\",\"single_use\":true}\n"
+    lease_race_test.go:282: rpc bytes="{\"version\":1,\"token_sha256\":\"b8477ce911c65588b1ee7a9862e0efb954be85b149f2f7127bde4e261364cdb8\",\"expires_at_unix\":1788290560,\"session_id\":\"Y\",\"single_use\":false}\n"
+    lease_race_test.go:283: client prefix="{\"token\":\"YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"
+--- PASS: TestConcurrentUnmodifiedThreeFileInstallsCanMix (0.01s)
+=== RUN   TestAtomicRenameAloneStillAllowsOldConsumerToDeleteReplacement
+    lease_race_test.go:326: atomic B bytes before old A removal: "{\"version\":1,\"token_sha256\":\"17c2b2ba08f8015e6cdbec68bc78fe9c8919b9544271c9830f41100b58113fa7\",\"expires_at_unix\":1788290560,\"session_id\":\"sess-B\",\"single_use\":true}\n"
+    lease_race_test.go:327: atomic rename fixes torn reads, yet stale pathname removal still deletes B
+--- PASS: TestAtomicRenameAloneStillAllowsOldConsumerToDeleteReplacement (0.00s)
+=== RUN   TestAtomicRenamePreventsTornReadControl
+    lease_race_test.go:342: atomic rename control: 0 invalid JSON reads during 20000 replacements
+--- PASS: TestAtomicRenamePreventsTornReadControl (1.62s)
+=== RUN   TestSharedLockSerializesOldConsumeBeforeReplacement
+    lease_race_test.go:363: shared-lock control surviving bytes: "{\"version\":1,\"token_sha256\":\"17c2b2ba08f8015e6cdbec68bc78fe9c8919b9544271c9830f41100b58113fa7\",\"expires_at_unix\":1788290562,\"session_id\":\"sess-B\",\"single_use\":true}\n"
+--- PASS: TestSharedLockSerializesOldConsumeBeforeReplacement (0.00s)
+=== RUN   TestPerArtifactAtomicRenameStillAllowsMixedBundle
+    lease_race_test.go:384: per-file atomic mixed final set at iteration 0: pty=X rpc=Y client=Y
+--- PASS: TestPerArtifactAtomicRenameStillAllowsMixedBundle (0.00s)
+=== RUN   TestFailureAfterSecondArtifactLeavesRPCClientMismatch
+    lease_race_test.go:400: install error: client: open /tmp/TestFailureAfterSecondArtifactLeavesRPCClientMismatch1257547450/001/client-dir: is a directory
+    lease_race_test.go:401: surviving sessions after interruption/restart: pty=pty-B rpc=rpc-B client=rpc-A
+    lease_race_test.go:402: reuse consequence: client metadata rpc-A rejected by surviving RPC lease rpc-B
+--- PASS: TestFailureAfterSecondArtifactLeavesRPCClientMismatch (0.00s)
+PASS
+ok  	_/mnt/data/cmux-fieldwork	1.632s
