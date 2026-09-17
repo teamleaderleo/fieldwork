@@ -1,0 +1,149 @@
+name: urllib3 content-encoding chain exact
+
+on:
+  pull_request:
+    branches:
+      - research/0800-urllib3-content-encoding-chain
+    paths:
+      - 'campaigns/0800-urllib3-content-encoding-chain/**'
+      - '.github/workflows/urllib3-content-encoding-chain-exact.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  red-green:
+    name: red-green-python-${{ matrix.python }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.14']
+    steps:
+      - name: Checkout Fieldwork carrier
+        uses: actions/checkout@v4
+
+      - name: Checkout exact urllib3 target
+        uses: actions/checkout@v4
+        with:
+          repository: urllib3/urllib3
+          ref: 824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78
+          path: target
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install target and declared test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C target rev-parse HEAD)" = "824d97bb1e36f8ac9d3445d9ca1726f0a48b4b78"
+          grep -F 'if e.strip() in self.CONTENT_DECODERS' target/src/urllib3/response.py
+          python -m pip install --disable-pip-version-check \
+            'anyio[trio]>=4.8.0' \
+            'h2>=4.1.0' \
+            'httpx>=0.28.1' \
+            'hypercorn>=0.15.0' \
+            'pysocks>=1.7.1' \
+            'pytest>=8.3.4' \
+            'pytest-socket>=0.7.0' \
+            'pytest-timeout>=2.3.1' \
+            'quart>=0.20.0' \
+            'quart-trio>=0.12.0' \
+            'trio>=0.27.0' \
+            'trustme>=1.2.1' \
+            ./target
+          python campaigns/0800-urllib3-content-encoding-chain/add-regressions.py target/test/test_response.py
+
+      - name: Baseline RED
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          set +e
+          python -m pytest -q \
+            test/test_response.py::test_fieldwork_unknown_content_encoding_chain_stays_opaque \
+            > "$RUNNER_TEMP/baseline-red.log" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/baseline-red.log"
+          test "$status" -ne 0
+          grep -F "1 failed" "$RUNNER_TEMP/baseline-red.log"
+          grep -F "test_fieldwork_unknown_content_encoding_chain_stays_opaque" "$RUNNER_TEMP/baseline-red.log"
+
+      - name: Materialize bounded candidate and verify reviewer patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch="$GITHUB_WORKSPACE/campaigns/0800-urllib3-content-encoding-chain/candidate.patch"
+          apply_script="$GITHUB_WORKSPACE/campaigns/0800-urllib3-content-encoding-chain/apply-candidate.py"
+
+          echo "target status before candidate materialization:"
+          git -C target status --short
+          echo "response.py diff before candidate materialization:"
+          git -C target diff -- src/urllib3/response.py
+          if ! git -C target diff --quiet -- src/urllib3/response.py; then
+            echo "response.py changed before candidate materialization" >&2
+            exit 1
+          fi
+
+          git -C target apply --verbose --check "$patch"
+          python "$apply_script" target/src/urllib3/response.py
+          git -C target diff --check
+
+          git -C target diff -- src/urllib3/response.py \
+            | sed '/^index /d' > "$RUNNER_TEMP/generated-candidate.patch"
+          if ! cmp -s "$patch" "$RUNNER_TEMP/generated-candidate.patch"; then
+            diff -u "$patch" "$RUNNER_TEMP/generated-candidate.patch" || true
+            exit 1
+          fi
+
+          python -m pip install --disable-pip-version-check --force-reinstall ./target
+
+      - name: Verify installed candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import pathlib
+          import urllib3.response
+
+          source = pathlib.Path('target/src/urllib3/response.py').resolve()
+          installed = pathlib.Path(urllib3.response.__file__).resolve()
+          source_digest = hashlib.sha256(source.read_bytes()).hexdigest()
+          installed_digest = hashlib.sha256(installed.read_bytes()).hexdigest()
+          print(f"source_response_sha256={source_digest}")
+          print(f"installed_response_sha256={installed_digest}")
+          assert source_digest == installed_digest
+          PY
+
+      - name: Candidate GREEN — new controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          python -m pytest -q \
+            test/test_response.py::test_fieldwork_unknown_content_encoding_chain_stays_opaque \
+            test/test_response.py::test_fieldwork_supported_content_encoding_chains_still_decode \
+            test/test_response.py::test_fieldwork_content_encoding_chain_keeps_link_limit
+
+      - name: Candidate GREEN — existing supported-chain controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          python -m pytest -q \
+            test/test_response.py::TestResponse::test_multi_decoding_deflate_deflate \
+            test/test_response.py::TestResponse::test_multi_decoding_deflate_gzip \
+            test/test_response.py::TestResponse::test_multi_decoding_gzip_gzip
+
+      - name: Diff hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C target diff --check
