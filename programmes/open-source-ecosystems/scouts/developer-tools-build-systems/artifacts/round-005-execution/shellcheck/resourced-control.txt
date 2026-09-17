@@ -1,0 +1,1 @@
+test.bats:16:8: note: COMPREPLY was modified in a subshell. That change might be lost. [SC2031]
