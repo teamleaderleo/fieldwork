@@ -1,0 +1,30 @@
+name: Fieldwork lru-cache background fetch size
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/fieldwork-lru-cache-background-fetch-size.yml'
+      - 'programmes/data-durable-workflows/scouts/lru-cache-background-fetch-size/**'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    name: Node.js ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - 22
+          - 24
+          - 26
+    defaults:
+      run:
+        working-directory: programmes/data-durable-workflows/scouts/lru-cache-background-fetch-size/probe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm install --ignore-scripts
+      - run: npm run probe
